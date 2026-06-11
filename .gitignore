@@ -1,0 +1,16 @@
+node_modules/
+dist/
+*.log
+*.err
+*.tsbuildinfo
+.expo/
+.npm-cache/
+.codex-logs/
+.venv-speckit/
+.env
+.env.local
+apps/web/dist/
+infra/aws-cdk/cdk.out/
+infra/aws-cdk/dist/
+
+.vercel

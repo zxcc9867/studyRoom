@@ -1,0 +1,30 @@
+{
+  "name": "@study-room/aws-cdk",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "bin": {
+    "study-room-aws": "dist/bin/study-room-aws.js"
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "build:web": "npm.cmd --prefix ../.. run build",
+    "test": "npm run test:lambda && npm run test:cdk",
+    "test:lambda": "node --test lambda/attendance-cron-invoker/*.test.mjs",
+    "test:cdk": "node --import tsx --test test/*.test.ts",
+    "synth": "npm run build:web && npm run build && cdk synth",
+    "deploy": "npm run build:web && npm run build && cdk deploy",
+    "diff": "npm run build:web && npm run build && cdk diff",
+    "destroy": "npm run build && cdk destroy"
+  },
+  "dependencies": {
+    "aws-cdk-lib": "^2.257.0",
+    "constructs": "^10.5.0"
+  },
+  "devDependencies": {
+    "@types/node": "^24.10.0",
+    "aws-cdk": "^2.1125.0",
+    "tsx": "^4.22.3",
+    "typescript": "^5.9.3"
+  }
+}

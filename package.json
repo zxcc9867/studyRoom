@@ -1,0 +1,20 @@
+{
+  "name": "study-room-attendance",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "scripts": {
+    "test": "node --test packages/core/test/*.test.mjs apps/web/test/*.test.mjs",
+    "build": "npm.cmd --workspace apps/web run build",
+    "dev:web": "npm.cmd --workspace apps/web run dev",
+    "dev:mobile": "npm.cmd --workspace apps/mobile run start",
+    "infra:build": "npm.cmd --prefix infra/aws-cdk run build",
+    "infra:test": "npm.cmd --prefix infra/aws-cdk run test",
+    "infra:synth": "npm.cmd --prefix infra/aws-cdk run synth",
+    "infra:deploy": "npm.cmd --prefix infra/aws-cdk run deploy"
+  }
+}
