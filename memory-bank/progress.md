@@ -6,6 +6,37 @@
 
 #### Completed Work
 
+- Added infrastructure architecture documentation.
+- Added Mermaid diagrams for the current Supabase Cron architecture, alarm/attendance sequence, data boundary, and optional AWS configuration.
+- Linked README to the infrastructure architecture document.
+- Updated memory-bank context and implementation plan for the new architecture document.
+
+#### Changed Files
+
+- `docs/infrastructure-architecture.md`
+- `README.md`
+- `memory-bank/active-context.md`
+- `memory-bank/implementation-plan.md`
+- `memory-bank/progress.md`
+
+#### Verification
+
+- Node script confirmed README links to `docs/infrastructure-architecture.md`.
+- Node script confirmed the architecture document contains 4 Mermaid blocks.
+- `npm.cmd test` passed 37 tests.
+
+#### Remaining Work
+
+- Commit and push the documentation update to `origin/main`.
+
+#### Next Priority
+
+- Continue feature work or deploy the latest pushed source.
+
+### 2026-06-12
+
+#### Completed Work
+
 - Added `origin` remote `https://github.com/zxcc9867/studyRoom.git`.
 - Pushed local `main` to GitHub `origin/main`.
 - Updated memory-bank to record the successful push status.

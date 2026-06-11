@@ -39,6 +39,8 @@ memory-bank/       제품/설계/진행 문서
 
 정해진 시간 알림은 브라우저가 꺼져 있어도 동작해야 하므로 클라이언트가 직접 예약하지 않습니다. Supabase Cron이 `attendance-cron` Edge Function을 주기적으로 호출하고, Edge Function이 알림 대상자를 조회해 Web Push, Telegram, 이메일 fallback을 발송합니다.
 
+자세한 인프라 구성도와 알림/출석 처리 흐름은 [인프라 구성도](docs/infrastructure-architecture.md)를 참고합니다.
+
 ## 환경 변수
 
 `.env.example`을 기준으로 로컬 `.env` 또는 배포 환경 변수를 설정합니다. 실제 키는 커밋하지 않습니다.

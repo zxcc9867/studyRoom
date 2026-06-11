@@ -50,6 +50,11 @@ apps/web/src/todoHistory.d.mts
 apps/web/test/todoHistory.test.mjs
 ```
 
+```txt
+docs/infrastructure-architecture.md
+docs/images/study-room-thumbnail.png
+```
+
 ## Code Conventions
 
 - Keep AWS infrastructure code isolated under `infra/aws-cdk`.

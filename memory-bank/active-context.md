@@ -2,43 +2,38 @@
 
 ## Current Work
 
-- Task name: GitHub publish preparation and README refresh.
-- Task purpose: Commit the current study-room app work, add a README thumbnail, refresh README content, and push to GitHub.
-- Related PRD: `memory-bank/prd-user-profile.md`, `memory-bank/prd-my-page-todo-history.md`
+- Task name: Infrastructure architecture documentation.
+- Task purpose: Add an infrastructure architecture document with diagrams, link it from README, and push the documentation update to GitHub.
+- Related PRD: `memory-bank/prd-user-profile.md`, `memory-bank/prd-supabase-cron.md`, `memory-bank/prd-aws-cdk-deployment.md`
 - Related files:
+  - `docs/infrastructure-architecture.md`
   - `README.md`
-  - `.gitignore`
-  - `docs/images/study-room-thumbnail.png`
-  - `.git`
+  - `memory-bank/active-context.md`
+  - `memory-bank/progress.md`
+  - `memory-bank/implementation-plan.md`
 
 ## Recent Decisions
 
-- Decision: Use a public login-screen thumbnail instead of a logged-in dashboard screenshot.
-- Reason: The dashboard requires authentication and can expose personal email, Telegram state, or todo data. README should avoid user-specific data.
-- Alternative: Capture an authenticated dashboard screenshot. This was rejected for README safety.
-- Impact: The README thumbnail shows the app identity and login flow without exposing private data.
+- Decision: Use Mermaid diagrams in Markdown for the infrastructure diagram.
+- Reason: GitHub renders Mermaid directly, so the diagram stays reviewable and editable without a separate drawing tool.
+- Alternative: Generate a static PNG diagram. This was rejected for now because the architecture is still changing and text-based diagrams are easier to maintain.
+- Impact: The infrastructure diagram is version-controlled as plain Markdown.
 
-- Decision: Initialize a local git repository on `main` and create an initial commit.
-- Reason: `C:\jini-dev\project\study-room-attendance` was not a git repository, and the parent folder was not a git repository either.
-- Alternative: Push through an existing unrelated GitHub repository. This was rejected because no matching `study-room-attendance` repo was found in accessible GitHub repositories.
-- Impact: Local commit exists, but push needs a target GitHub repository URL or a repo creation path.
+- Decision: Document both the current recommended Supabase Cron architecture and the optional AWS architecture.
+- Reason: The MVP currently relies on Supabase for scheduled alarm processing, while AWS CDK remains an optional deployment path.
+- Alternative: Only document AWS. This was rejected because it would hide the simpler current operating path.
+- Impact: README now points users to the full infrastructure architecture doc.
 
 ## Current Status
 
-- Done: Rewrote `README.md` in UTF-8 Korean and added current feature, architecture, env, deployment, and security notes.
-- Done: Added `docs/images/study-room-thumbnail.png`.
-- Done: Added `.codex-logs/`, `*.log`, `*.err`, and `*.tsbuildinfo` to `.gitignore`.
-- Done: Verified no likely committed secret file matches with filename-only `rg -l` scan.
-- Done: Ran `npm.cmd test`; 37 tests passed.
-- Done: Ran `npm.cmd run build`; Vite production build passed.
-- Done: Initialized local git repository on `main`.
-- Done: Created local commit `cf83efe Initial study room attendance app`.
-- Done: Added `origin` remote `https://github.com/zxcc9867/studyRoom.git`.
-- Done: Pushed `main` to `origin/main`.
-- Done: Created follow-up memory-bank commit for the push status.
+- Done: Added `docs/infrastructure-architecture.md`.
+- Done: Added diagrams for current recommended architecture, alarm/attendance sequence, data boundary, and optional AWS configuration.
+- Done: Linked README system architecture section to the new document.
+- Done: Verified README link and Mermaid block count with a Node script.
+- Pending: Run final test/build check if needed, commit, and push.
 
 ## Cautions
 
-- Do not push this project into an unrelated repository such as `next-js` without explicit user confirmation.
-- Do not record Telegram bot tokens, chat IDs, cron secrets, Vercel tokens, Supabase access tokens, or service-role keys in code, docs, or final messages.
-- Remote `origin/main` is now the publish target for this project.
+- Keep secrets out of architecture docs. Use only environment variable names.
+- Do not imply Vercel or S3 sends scheduled alarms. Scheduled alarm processing is handled by Supabase Cron/Edge Function or optional AWS EventBridge/Lambda invoking Supabase.
+- Remote `origin/main` is the publish target for this project.
