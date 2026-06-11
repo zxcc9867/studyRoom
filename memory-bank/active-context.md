@@ -30,7 +30,9 @@
 - Done: Added diagrams for current recommended architecture, alarm/attendance sequence, data boundary, and optional AWS configuration.
 - Done: Linked README system architecture section to the new document.
 - Done: Verified README link and Mermaid block count with a Node script.
-- Pending: Run final test/build check if needed, commit, and push.
+- Done: `npm.cmd test` passed 37 tests.
+- Done: Created commit `dd1f7b8 Document infrastructure architecture`.
+- Done: Pushed documentation update to `origin/main`.
 
 ## Cautions
 

@@ -27,7 +27,7 @@
 
 #### Remaining Work
 
-- Commit and push the documentation update to `origin/main`.
+- None for the infrastructure architecture documentation request.
 
 #### Next Priority
 
