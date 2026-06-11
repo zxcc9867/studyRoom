@@ -3,7 +3,7 @@
 ## Current Work
 
 - Task name: GitHub publish preparation and README refresh.
-- Task purpose: Commit the current study-room app work, add a README thumbnail, refresh README content, and prepare for GitHub push.
+- Task purpose: Commit the current study-room app work, add a README thumbnail, refresh README content, and push to GitHub.
 - Related PRD: `memory-bank/prd-user-profile.md`, `memory-bank/prd-my-page-todo-history.md`
 - Related files:
   - `README.md`
@@ -32,12 +32,13 @@
 - Done: Ran `npm.cmd test`; 37 tests passed.
 - Done: Ran `npm.cmd run build`; Vite production build passed.
 - Done: Initialized local git repository on `main`.
-- Done: Created local commit `6f7fb40 Initial study room attendance app`.
-- Blocked: GitHub push is not complete because no remote is configured and `gh` CLI is not installed.
-- Blocked: GitHub connector listed accessible repositories, but no matching `study-room-attendance` repository was available.
+- Done: Created local commit `cf83efe Initial study room attendance app`.
+- Done: Added `origin` remote `https://github.com/zxcc9867/studyRoom.git`.
+- Done: Pushed `main` to `origin/main`.
+- Done: Created follow-up memory-bank commit for the push status.
 
 ## Cautions
 
 - Do not push this project into an unrelated repository such as `next-js` without explicit user confirmation.
 - Do not record Telegram bot tokens, chat IDs, cron secrets, Vercel tokens, Supabase access tokens, or service-role keys in code, docs, or final messages.
-- If the user provides a GitHub repository URL, add it as `origin` and push `main`.
+- Remote `origin/main` is now the publish target for this project.
