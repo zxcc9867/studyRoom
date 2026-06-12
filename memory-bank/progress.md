@@ -6,6 +6,200 @@
 
 #### Completed Work
 
+- Added a GitHub Actions production deployment pipeline for Vercel.
+- Configured the workflow to run on `main` pushes and manual `workflow_dispatch`.
+- Configured the workflow to install dependencies, run `npm test`, pull Vercel production environment, build with `vercel build --prod`, and deploy with `vercel deploy --prebuilt --prod`.
+- Documented how to create `VERCEL_TOKEN` and which GitHub Secrets are required.
+- Added `memory-bank/prd-vercel-ci.md` for the CI deployment requirements.
+- Updated the implementation plan with the GitHub Actions deployment path and duplicate deployment warning.
+
+#### Changed Files
+
+- `.github/workflows/vercel-production.yml`
+- `docs/vercel-ci.md`
+- `memory-bank/prd-vercel-ci.md`
+- `memory-bank/active-context.md`
+- `memory-bank/progress.md`
+- `memory-bank/implementation-plan.md`
+- `memory-bank/trouble-shooting.md`
+
+#### Verification
+
+- `npm.cmd test` passed 46 tests.
+- `npm.cmd run build` passed.
+- Workflow syntax was kept to standard GitHub Actions YAML with `actions/checkout@v4`, `actions/setup-node@v4`, and pinned `vercel@48.6.0`.
+
+#### Remaining Work
+
+- Add `VERCEL_TOKEN`, `VERCEL_ORG_ID`, and `VERCEL_PROJECT_ID` in GitHub repository Actions secrets.
+- Push to `main` or run the workflow manually to confirm the first CI production deployment.
+- Decide whether to disable Vercel Git integration to avoid duplicate deployments.
+
+#### Next Priority
+
+- After secrets are configured, verify the GitHub Actions run and Vercel production deployment URL.
+
+### 2026-06-13
+
+#### Completed Work
+
+- Implemented the web MVP for camera-based absence warning during active study sessions.
+- Added browser-side presence state logic with 5-minute absence detection and 10-minute warning cooldown.
+- Added dynamic MediaPipe Tasks Vision FaceDetector loading through `@mediapipe/tasks-vision`.
+- Added `Today Focus` camera monitoring UI, camera status, small camera preview, and absence warning popup.
+- Added `sendCameraPresenceWarning(session, payload)` helper for authenticated Edge Function calls.
+- Added `recordCameraPresenceEvent()` helper for `camera_started`, `camera_stopped`, and `camera_permission_denied` client-side events.
+- Added Supabase migration `0011_study_presence_events.sql`.
+- Applied remote Supabase migration `study_presence_events` to project `bqohkdzvxbrokkmuhysx`.
+- Added and deployed `camera-presence-warning` Edge Function version 1 ACTIVE.
+- Verified remote DB has `study_presence_events`, RLS enabled, 2 policies, event type check, and metadata no-media check.
+- Confirmed Vercel production deployment is blocked by missing local Vercel credentials.
+
+#### Changed Files
+
+- `apps/web/package.json`
+- `package-lock.json`
+- `apps/web/src/main.tsx`
+- `apps/web/src/styles.css`
+- `apps/web/src/cameraPresence.mjs`
+- `apps/web/src/cameraPresence.d.mts`
+- `apps/web/src/cameraWarning.mjs`
+- `apps/web/src/cameraWarning.d.mts`
+- `apps/web/src/faceDetection.mjs`
+- `apps/web/src/faceDetection.d.mts`
+- `apps/web/test/cameraPresence.test.mjs`
+- `packages/core/test/sql-migrations.test.mjs`
+- `supabase/migrations/0011_study_presence_events.sql`
+- `supabase/functions/camera-presence-warning/index.ts`
+- `memory-bank/prd-camera-presence.md`
+- `memory-bank/active-context.md`
+- `memory-bank/progress.md`
+- `memory-bank/implementation-plan.md`
+- `memory-bank/trouble-shooting.md`
+
+#### Verification
+
+- RED: `node --test apps\web\test\cameraPresence.test.mjs packages\core\test\sql-migrations.test.mjs` failed before implementation because `cameraPresence.mjs`, `0011_study_presence_events.sql`, and `camera-presence-warning/index.ts` were missing.
+- GREEN: `node --test apps\web\test\cameraPresence.test.mjs packages\core\test\sql-migrations.test.mjs` passed 15 tests.
+- `npm.cmd test` passed 46 tests.
+- `npm.cmd run build` passed and produced a separate MediaPipe `vision_bundle` chunk.
+- Browser smoke check loaded the built app at `http://127.0.0.1:5177/` with title `강제 출석 독서실`.
+- Supabase `_apply_migration` returned success for `study_presence_events`.
+- Supabase SQL verification returned `table_exists=true`, `rls_enabled=true`, `policy_count=2`, `metadata_no_media_check_exists=true`, `event_type_check_exists=true`.
+- Supabase Edge Function list shows `camera-presence-warning` version 1 ACTIVE with `verify_jwt=false`.
+- Vercel deploy attempt failed with `No existing credentials found. Please run vercel login or pass "--token"`.
+
+#### Remaining Work
+
+- Deploy the updated web UI to Vercel production after providing `VERCEL_TOKEN` or completing Vercel CLI login/device auth.
+- Manually verify camera permission, face detection, 5-minute warning, and Telegram receipt in a real browser session with an active study session.
+
+#### Next Priority
+
+- Decide whether camera warning history should appear in My Page or remain an internal event log.
+
+### 2026-06-13
+
+#### Completed Work
+
+- Changed the attendance rule from a single 15-minute deadline to a two-step flow: initial reminder at the configured time, nudge reminder after 15 minutes, and missed attendance after 30 minutes.
+- Updated core attendance logic so check-in remains open for 30 minutes and a timer start exactly at or after the deadline no longer qualifies as present.
+- Added regression tests for 30-minute attendance, 15-minute nudge stage, and 30-minute missed handling.
+- Added Supabase migration `0010_two_step_attendance_deadline.sql`.
+- Applied remote Supabase migration `two_step_attendance_deadline` to project `bqohkdzvxbrokkmuhysx`.
+- Redeployed `attendance-cron` Edge Function as version 10 ACTIVE with `reminder_stage = initial | nudge` support.
+- Redeployed `telegram-test-alarm` Edge Function as version 3 ACTIVE with the new 30-minute/test-nudge wording.
+- Updated web, mobile, and service worker user-facing copy for the 30-minute deadline and 15-minute nudge behavior.
+- Deployed Vercel production deployment `dpl_DZUe2FPk3HW5K9wqaFE4aFS916gq`.
+- Verified `https://study-room-attendance.vercel.app/` points to the new deployment and serves updated HTML, JS, and `service-worker.js`.
+
+#### Changed Files
+
+- `apps/mobile/App.tsx`
+- `apps/web/public/service-worker.js`
+- `apps/web/src/main.tsx`
+- `packages/core/src/index.mjs`
+- `packages/core/test/attendance.test.mjs`
+- `packages/core/test/sql-migrations.test.mjs`
+- `supabase/functions/attendance-cron/index.ts`
+- `supabase/functions/telegram-test-alarm/index.ts`
+- `supabase/migrations/0010_two_step_attendance_deadline.sql`
+- `memory-bank/active-context.md`
+- `memory-bank/progress.md`
+- `memory-bank/implementation-plan.md`
+- `memory-bank/prd-supabase-cron.md`
+- `memory-bank/prd-telegram-popup-notifications.md`
+
+#### Verification
+
+- RED: `node --test packages\core\test\attendance.test.mjs` failed before implementation because `NUDGE_AFTER_MINUTES` was not exported.
+- RED: `node --test packages\core\test\sql-migrations.test.mjs` failed before implementation because `reminder_stage` and the new migration were missing.
+- GREEN: `node --test packages\core\test\attendance.test.mjs packages\core\test\sql-migrations.test.mjs` passed 16 tests.
+- `npm.cmd test` passed 39 tests.
+- `npm.cmd run build` passed.
+- Supabase migration history includes `two_step_attendance_deadline`.
+- Remote SQL function check returned true for `reminder_stage`, `nudge`, `interval '30 minutes'`, `p_now >= ad.deadline_at`, `ss.started_at < ad.deadline_at`, and `now() < v_deadline_at`.
+- Supabase Edge Function list shows `attendance-cron` version 10 ACTIVE and `telegram-test-alarm` version 3 ACTIVE.
+- Vercel deployment list shows `dpl_DZUe2FPk3HW5K9wqaFE4aFS916gq` READY with target `production`.
+- Vercel production HTML uses asset `/assets/index-Ll22Nhok.js`, and the deployed JS contains the 30-minute attendance copy and 15-minute nudge popup copy.
+- Vercel production `service-worker.js` contains `첫 알림 후 30분 안에 입장하고 타이머를 시작하세요.`
+
+#### Remaining Work
+
+- Observe the next real scheduled reminder window and confirm Telegram/Web Push deliveries at T+0 and T+15.
+- Confirm `attendance_days.status = 'missed'` is written at T+30 when no qualifying timer start exists.
+
+#### Next Priority
+
+- Add absence-reason collection through Telegram after a missed day if the user wants the next force-habit step.
+
+### 2026-06-13
+
+#### Completed Work
+
+- Checked why the mobile production page still renders dark after the light-theme fix.
+- Verified local source and built output contain `only light` and `supported-color-schemes`.
+- Verified `https://study-room-attendance.vercel.app/` still serves old production HTML without the light-only metadata.
+- Confirmed Vercel production alias points to CLI deployment `dpl_D5L7trvBoiVTjn1B65TtRYcpU79X`.
+- Attempted Vercel CLI production deployment and found local CLI credentials are missing.
+- Retried deployment with explicit `VERCEL_ORG_ID` and `VERCEL_PROJECT_ID`, but Vercel CLI still required login or `--token`.
+- Generated a Vercel OAuth device authorization request with an ASCII user-agent to avoid the Windows non-ASCII hostname header bug.
+- Deployed the current app to Vercel production as `dpl_88BcosEtVBhBKyddjNC3k9c9vjo5`.
+- Verified `study-room-attendance.vercel.app` points to the new deployment and includes mobile light-only HTML metadata.
+
+#### Changed Files
+
+- `memory-bank/active-context.md`
+- `memory-bank/progress.md`
+- `memory-bank/trouble-shooting.md`
+
+#### Verification
+
+- `git log -1 --oneline` returned `0390ba4 Record mobile light theme push`.
+- `curl.exe -s -I https://study-room-attendance.vercel.app/` returned `Last-Modified: Thu, 11 Jun 2026 05:35:49 GMT`.
+- Production HTML did not include `only light`, `supported-color-schemes`, `theme-color`, or `color-scheme`.
+- Local `apps/web/index.html` and `apps/web/dist/index.html` both include `only light` and `supported-color-schemes`.
+- `npx.cmd -y vercel@48.6.0 deploy --prod --yes` failed with `No existing credentials found`.
+- `VERCEL_TOKEN` was missing, and `AppData\Roaming\com.vercel.cli\Data\auth.json` was only 3 bytes, indicating no usable local Vercel login.
+- Vercel OAuth device authorization produced a temporary access token after user approval.
+- `npx.cmd -y vercel@48.6.0 deploy --prod --yes --token <redacted> --scope astars-projects-c2f42587` completed successfully.
+- Vercel MCP reported `study-room-attendance.vercel.app` is aliased to READY deployment `dpl_88BcosEtVBhBKyddjNC3k9c9vjo5`.
+- `curl.exe -s -I https://study-room-attendance.vercel.app/` returned `Last-Modified: Fri, 12 Jun 2026 16:27:31 GMT`.
+- Production HTML contains `meta name="color-scheme" content="only light"` and `meta name="supported-color-schemes" content="light"`.
+
+#### Remaining Work
+
+- User should refresh the mobile browser and verify the page now renders with the light palette.
+- For repeatable future deploys, configure Vercel Git integration or CI secrets instead of relying on manual OAuth device authorization.
+
+#### Next Priority
+
+- Confirm the mobile browser no longer shows the dark transformed UI.
+
+### 2026-06-13
+
+#### Completed Work
+
 - Hardened mobile light-theme handling so mobile browsers should render the same light palette as PC.
 - Changed HTML color-scheme metadata from `light` to `only light`.
 - Added `supported-color-schemes=light`.

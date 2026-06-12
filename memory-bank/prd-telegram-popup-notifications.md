@@ -15,6 +15,7 @@ Personal MVP users who want reliable reminders through Telegram and a visible br
 - Let the user save a Telegram chat ID from the web settings screen.
 - Let the user send a Telegram test alarm from the web settings screen after saving a Telegram chat ID.
 - Send Telegram messages from `attendance-cron` at the daily reminder time.
+- Send a second Telegram/Web Push reminder 15 minutes after the daily reminder if no qualifying timer start exists.
 - Show an in-app popup modal at the reminder time when the web app is open.
 - Include reminder-date todo list items in Telegram, Web Push computer notifications, and the in-app popup when any todos exist for that date.
 
@@ -43,8 +44,9 @@ Personal MVP users who want reliable reminders through Telegram and a visible br
 4. User clicks `Telegram test alarm` to send a one-off test message to their saved Telegram target.
 5. Supabase Cron invokes `attendance-cron`.
 6. `attendance-cron` sends a Telegram `sendMessage` request when the reminder is due.
-7. If todos exist for the reminder date, the notification includes a compact today-tasks summary.
-8. If the web app is open at reminder time, an in-app modal popup appears with the same date's todos.
+7. If the user has not started a timer 15 minutes later, `attendance-cron` sends a final nudge message.
+8. If todos exist for the reminder date, the notification includes a compact today-tasks summary.
+9. If the web app is open at reminder time, an in-app modal popup appears with the same date's todos.
 
 ### Edge Cases
 
@@ -54,6 +56,7 @@ Personal MVP users who want reliable reminders through Telegram and a visible br
 - If the user already dismissed today's popup, it does not repeatedly appear in the same minute.
 - If the reminder date has no todos, notification text stays focused on the study-room check-in instruction.
 - If the date has more todos than fit in a compact notification body, the message shows the first few and summarizes the remaining count.
+- The 15-minute nudge should only send for days still in `attendance_days.status = 'pending'`.
 
 ### Error Cases
 
@@ -71,6 +74,7 @@ Personal MVP users who want reliable reminders through Telegram and a visible br
 - [x] Add app-open reminder popup modal.
 - [x] Add tests for migration, Telegram API branch, and authenticated test alarm UI.
 - [x] Include reminder-date todos in server-side notification bodies and the app-open reminder popup.
+- [x] Include `reminderStage` in server-side notification payloads and send a nudge body at reminder time + 15 minutes.
 
 ## 8. Non-functional Requirements
 

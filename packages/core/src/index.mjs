@@ -1,4 +1,5 @@
-export const ATTENDANCE_WINDOW_MINUTES = 15;
+export const ATTENDANCE_WINDOW_MINUTES = 30;
+export const NUDGE_AFTER_MINUTES = 15;
 export const EMAIL_OTP_LENGTH = 8;
 
 const minuteMs = 60 * 1000;
@@ -16,7 +17,7 @@ export function evaluateAttendance({ now, reminderTime, timeZone, sessions }) {
   const deadlineAt = new Date(reminderAt.getTime() + ATTENDANCE_WINDOW_MINUTES * minuteMs);
   const qualifyingSession = sessions
     .map((session) => ({ ...session, startedAtDate: asDate(session.startedAt) }))
-    .find((session) => session.startedAtDate >= reminderAt && session.startedAtDate <= deadlineAt);
+    .find((session) => session.startedAtDate >= reminderAt && session.startedAtDate < deadlineAt);
 
   if (qualifyingSession) {
     return {
@@ -33,7 +34,7 @@ export function evaluateAttendance({ now, reminderTime, timeZone, sessions }) {
     return buildResult("pending", dateKey, reminderAt, deadlineAt, current);
   }
 
-  if (current <= deadlineAt) {
+  if (current < deadlineAt) {
     return buildResult("checkin_open", dateKey, reminderAt, deadlineAt, current);
   }
 

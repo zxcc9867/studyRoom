@@ -54,10 +54,65 @@ test("attendance cron includes reminder date todos in server notifications", () 
   assert.match(source, /sendTelegramMessage\(target\.destination!, reminder, todos\)/);
 });
 
+test("attendance cron distinguishes initial reminders from 15 minute nudge reminders", () => {
+  const source = readFileSync("supabase/functions/attendance-cron/index.ts", "utf8");
+
+  assert.match(source, /reminder_stage:\s*"initial"\s*\|\s*"nudge"/);
+  assert.match(source, /reminder\.reminder_stage === "nudge"/);
+  assert.match(source, /15 minutes/);
+});
+
 test("start_study_session only marks attendance present inside the reminder window", () => {
   const sql = readFileSync("supabase/migrations/0009_start_session_attendance_window.sql", "utf8");
 
   assert.match(sql, /if\s+now\(\)\s*>=\s*v_reminder_at\s+and\s+now\(\)\s*<=\s*v_deadline_at\s+then/i);
   assert.match(sql, /insert into public\.attendance_days/i);
   assert.match(sql, /end if;/i);
+});
+
+test("two-step attendance window migration sends nudge at 15 minutes and marks missed at 30 minutes", () => {
+  const sql = readFileSync("supabase/migrations/0010_two_step_attendance_deadline.sql", "utf8");
+
+  assert.match(sql, /reminder_stage text/i);
+  assert.match(sql, /'initial'::text as reminder_stage/i);
+  assert.match(sql, /'nudge'::text as reminder_stage/i);
+  assert.match(sql, /d\.reminder_at \+ interval '15 minutes'/i);
+  assert.match(sql, /d\.reminder_at \+ interval '30 minutes' as deadline_at/i);
+  assert.match(sql, /v_deadline_at := v_reminder_at \+ interval '30 minutes'/i);
+  assert.match(sql, /now\(\)\s*<\s*v_deadline_at/i);
+  assert.match(sql, /p_now >= ad\.deadline_at/i);
+  assert.match(sql, /ss\.started_at < ad\.deadline_at/i);
+});
+
+test("study presence events migration stores camera warnings without media payloads", () => {
+  const sql = readFileSync("supabase/migrations/0011_study_presence_events.sql", "utf8");
+
+  assert.match(sql, /create table if not exists public\.study_presence_events/i);
+  assert.match(sql, /session_id uuid not null references public\.study_sessions\(id\) on delete cascade/i);
+  assert.match(sql, /event_type text not null/i);
+  assert.match(sql, /event_type in \('camera_started', 'camera_stopped', 'absence_warning', 'camera_permission_denied'\)/i);
+  assert.match(sql, /absence_seconds integer not null default 0/i);
+  assert.match(sql, /metadata jsonb not null default '\{\}'::jsonb/i);
+  assert.match(sql, /not \(metadata \? 'image'\)/i);
+  assert.match(sql, /not \(metadata \? 'video'\)/i);
+  assert.match(sql, /not \(metadata \? 'frame'\)/i);
+  assert.match(sql, /not \(metadata \? 'faceEmbedding'\)/i);
+  assert.match(sql, /alter table public\.study_presence_events enable row level security/i);
+  assert.match(sql, /auth\.uid\(\) = user_id/i);
+  assert.match(sql, /from public\.study_sessions ss/i);
+  assert.match(sql, /grant select, insert on public\.study_presence_events to authenticated/i);
+});
+
+test("camera presence warning Edge Function validates session ownership before telegram warning", () => {
+  const source = readFileSync("supabase/functions/camera-presence-warning/index.ts", "utf8");
+
+  assert.match(source, /admin\.auth\.getUser\(jwt\)/);
+  assert.match(source, /\.from\("study_sessions"\)/);
+  assert.match(source, /\.eq\("id", sessionId\)/);
+  assert.match(source, /studySession\.user_id !== user\.id/);
+  assert.match(source, /\.from\("study_presence_events"\)/);
+  assert.match(source, /event_type: "absence_warning"/);
+  assert.match(source, /loadTelegramTarget\(admin, user\.id\)/);
+  assert.match(source, /https:\/\/api\.telegram\.org\/bot\$\{botToken\}\/sendMessage/);
+  assert.doesNotMatch(source, /image|video|frame|faceEmbedding|landmarks/);
 });

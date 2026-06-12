@@ -13,11 +13,14 @@
 - In-app popup: when the dashboard is open at the configured reminder minute, the web app shows a modal reminder popup. This is separate from OS/browser push and does not work when the browser is closed.
 - My Page: the web dashboard includes an in-page `me` section that reuses loaded profile and `study_todos` data to show account summary and completed todo history.
 - Reminder todo enrichment: `attendance-cron` loads `study_todos` for each due reminder's `user_id` and `local_date`, then appends a compact `오늘 할 일` summary to server-side notification bodies. The open web app also renders the same date's todos in the reminder popup from already loaded dashboard state.
+- Two-step attendance enforcement: `get_due_reminders()` emits an initial reminder at the configured daily reminder time and a `nudge` reminder 15 minutes later if no qualifying timer start exists. `mark_missed_attendance()` marks the day missed at reminder time + 30 minutes.
+- Camera presence warning: during an active web study session, the user can manually enable camera monitoring. MediaPipe FaceDetector runs in the browser only, and the server receives only absence event metadata through `camera-presence-warning`.
 
 ## Tech Stack
 
 - Vite React
 - Supabase
+- MediaPipe Tasks Vision
 - Kakao Talk Message API
 - Telegram Bot API
 - AWS CDK v2
@@ -28,6 +31,13 @@
 - Vercel static hosting
 
 ## Folder Structure
+
+```txt
+.github/workflows/
+  vercel-production.yml
+docs/
+  vercel-ci.md
+```
 
 ```txt
 infra/aws-cdk/
@@ -48,6 +58,15 @@ apps/web/dist/
 apps/web/src/todoHistory.mjs
 apps/web/src/todoHistory.d.mts
 apps/web/test/todoHistory.test.mjs
+```
+
+```txt
+apps/web/src/cameraPresence.mjs
+apps/web/src/cameraWarning.mjs
+apps/web/src/faceDetection.mjs
+apps/web/test/cameraPresence.test.mjs
+supabase/functions/camera-presence-warning/index.ts
+supabase/migrations/0011_study_presence_events.sql
 ```
 
 ```txt
@@ -79,7 +98,10 @@ docs/images/study-room-thumbnail.png
 - `attendance-cron` sends Kakao Memo requests to `https://kapi.kakao.com/v2/api/talk/memo/default/send`.
 - `attendance-cron` sends Telegram messages to `https://api.telegram.org/bot{token}/sendMessage`.
 - `telegram-test-alarm` sends a protected one-off Telegram test message and includes same-day `study_todos` in the message body. Browser requests must include `Authorization: Bearer {supabase_access_token}`.
+- `camera-presence-warning` receives `POST /functions/v1/camera-presence-warning` from the browser with `Authorization: Bearer {supabase_access_token}` and body `{ sessionId, absenceSeconds, detectedAt }`.
+- `camera-presence-warning` validates that `study_sessions.user_id` matches the authenticated Supabase user before inserting `study_presence_events` or sending Telegram.
 - `attendance-cron` notification bodies include up to a compact subset of reminder-date todo titles and mark completed items with a check indicator.
+- `get_due_reminders()` returns `reminder_stage = 'initial' | 'nudge'`. `attendance-cron` uses this stage to choose the first-reminder or final-nudge title/body and includes `reminderStage` in push payload data.
 - Lambda sends `POST` to `AttendanceCronUrl`.
 - Lambda sends `x-cron-secret` header from `CronSecret`.
 - Lambda body includes `source: "aws-eventbridge"` and `triggeredAt`.
@@ -97,12 +119,19 @@ docs/images/study-room-thumbnail.png
 - `notification_targets.kind = 'telegram'` stores only the user's Telegram chat ID in `destination`.
 - `start_study_session()` creates a `study_sessions` row at any start time, but it only marks `attendance_days.status = 'present'` when the current timestamp is between the user's `reminder_at` and `deadline_at`.
 - Timer starts before the configured reminder time must not create a `present` attendance row, because `get_due_reminders()` excludes days that are already `present` or `missed`.
+- Attendance deadline is `reminder_at + interval '30 minutes'`. Timer starts qualify only when `started_at >= reminder_at` and `started_at < deadline_at`; starts at the exact deadline or later do not qualify.
+- The 15-minute nudge is not a separate attendance status. It is derived by `get_due_reminders()` from an existing `attendance_days.status = 'pending'` row and the absence of a qualifying `study_sessions.started_at`.
+- `study_presence_events` stores camera presence events only: `camera_started`, `camera_stopped`, `absence_warning`, and `camera_permission_denied`.
+- `study_presence_events.metadata` must not contain `image`, `video`, `frame`, `faceEmbedding`, or `landmarks` keys.
+- Users can select and insert only their own `study_presence_events`; Edge Functions use the service role after validating session ownership.
 
 ## Testing Strategy
 
 - Use Node test runner for Lambda behavior.
 - Use `aws-cdk-lib/assertions` for synthesized template assertions.
 - Use `npm.cmd run infra:synth` as deployment-shape verification.
+- Use pure state-machine tests for camera absence timing and warning cooldown.
+- Use SQL/source tests to verify `study_presence_events` RLS and `camera-presence-warning` session ownership checks.
 
 ## Deployment Strategy
 
@@ -110,17 +139,23 @@ docs/images/study-room-thumbnail.png
 2. Build the web app with `npm.cmd run build` for local verification.
 3. Set Vercel project environment variables for public Vite build values: `VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY`, `VITE_WEB_PUSH_VAPID_PUBLIC_KEY`, and `VITE_GOOGLE_AUTH_ENABLED`.
 4. Deploy the static web app to Vercel using `vercel.json`.
-5. Deploy `attendance-cron` Edge Function with `verify_jwt=false`.
-6. Set Edge Function secrets: `CRON_SECRET`, `WEB_PUSH_VAPID_PUBLIC_KEY`, `WEB_PUSH_VAPID_PRIVATE_KEY`, `WEB_PUSH_SUBJECT`, optionally `RESEND_API_KEY`, for Telegram `TELEGRAM_BOT_TOKEN`, and for Kakao refresh/link behavior `KAKAO_REST_API_KEY`, optional `KAKAO_CLIENT_SECRET`, and `APP_ORIGIN`.
-7. Store `project_url` and `cron_secret` in Supabase Vault.
-8. Run `supabase/cron.sql` or equivalent SQL to register `study-room-attendance-cron`.
-9. Verify `net._http_response` shows 200 responses from automatic cron calls.
-10. Optional AWS deployment: run `npm.cmd run infra:synth` and `cdk deploy`.
+5. For repeatable GitHub-based production deploys, configure GitHub Actions secrets `VERCEL_TOKEN`, `VERCEL_ORG_ID`, and `VERCEL_PROJECT_ID`, then let `.github/workflows/vercel-production.yml` run `npm test`, `vercel build --prod`, and `vercel deploy --prebuilt --prod` on `main` pushes.
+6. If Vercel Git integration remains enabled, monitor for duplicate deployments and keep only one deployment path as the source of truth.
+7. Deploy `attendance-cron` Edge Function with `verify_jwt=false`.
+8. Deploy `camera-presence-warning` Edge Function with `verify_jwt=false`; the function performs its own Supabase JWT and session ownership validation.
+9. Set Edge Function secrets: `CRON_SECRET`, `WEB_PUSH_VAPID_PUBLIC_KEY`, `WEB_PUSH_VAPID_PRIVATE_KEY`, `WEB_PUSH_SUBJECT`, optionally `RESEND_API_KEY`, for Telegram `TELEGRAM_BOT_TOKEN`, and for Kakao refresh/link behavior `KAKAO_REST_API_KEY`, optional `KAKAO_CLIENT_SECRET`, and `APP_ORIGIN`.
+10. Store `project_url` and `cron_secret` in Supabase Vault.
+11. Run `supabase/cron.sql` or equivalent SQL to register `study-room-attendance-cron`.
+12. Verify `net._http_response` shows 200 responses from automatic cron calls.
+13. Optional AWS deployment: run `npm.cmd run infra:synth` and `cdk deploy`.
 
 ## Security Notes
 
 - Supabase Cron uses Vault-stored secrets and never exposes `cron_secret` to the client.
 - `telegram-test-alarm` is deployed with `verify_jwt=false` only because it performs its own `x-cron-secret` or Supabase JWT validation before reading any target or sending any message.
+- `camera-presence-warning` is deployed with `verify_jwt=false` only because it handles CORS preflight and then validates the Supabase JWT with `admin.auth.getUser(jwt)`.
+- Camera frames never leave the browser. The app sends only `sessionId`, `absenceSeconds`, and `detectedAt` to the Edge Function.
+- `study_presence_events` has a DB check constraint that rejects media-like metadata keys.
 - Kakao raw tokens are never stored in frontend local storage by app code and are not exposed through public RLS policies.
 - Telegram bot tokens are never stored in frontend code or user-managed DB rows.
 - `kakao-token` is deployed with `verify_jwt=false` only to allow browser CORS preflight; the function validates the Supabase JWT itself before doing any user-specific work.
@@ -130,8 +165,29 @@ docs/images/study-room-thumbnail.png
 - CloudFront is the only public entry point for the static site bucket.
 - CloudWatch Logs retention is one week.
 - Vercel deployment stores only public Vite build-time values in the frontend bundle; service role keys and provider tokens remain in Supabase secrets or server-side tables.
+- GitHub Actions Vercel deployment uses only GitHub Secrets for `VERCEL_TOKEN`, `VERCEL_ORG_ID`, and `VERCEL_PROJECT_ID`; none of those values should be stored in frontend code.
 
 ## Supabase 변경 이력
+
+### 2026-06-13
+
+- 변경 대상: `public.study_presence_events`, `camera-presence-warning`
+- 변경 내용: 카메라 감시 이벤트 테이블을 추가하고 RLS/metadata no-media 제약을 설정했다. `camera-presence-warning` Edge Function version 1을 배포해 Supabase JWT와 `study_sessions.user_id`를 검증한 뒤 `absence_warning` 이벤트와 Telegram 경고를 처리한다.
+- 변경 이유: 활성 공부 세션 중 5분 동안 얼굴이 감지되지 않으면 경고하되, 사진/영상/얼굴 특징값은 저장하지 않기 위해서다.
+- 관련 기능: 카메라 기반 자리 비움 경고, Telegram 경고, 공부 습관 강제 장치
+- 마이그레이션 파일: `supabase/migrations/0011_study_presence_events.sql`
+- 확인 방법: Supabase SQL verification에서 `table_exists=true`, `rls_enabled=true`, `policy_count=2`, `metadata_no_media_check_exists=true`, `event_type_check_exists=true`를 확인했다. Edge Function list에서 `camera-presence-warning` version 1 ACTIVE를 확인했다.
+- 주의 사항: Vercel production에는 아직 웹 UI 변경이 배포되지 않았다. `VERCEL_TOKEN` 또는 CLI login/device auth가 필요하다.
+
+### 2026-06-13
+
+- 변경 대상: `public.get_due_reminders(timestamptz)`, `public.mark_missed_attendance(timestamptz)`, `public.start_study_session()`, `attendance-cron`, `telegram-test-alarm`
+- 변경 내용: 출석 마감을 알림 후 30분으로 확장하고, 알림 후 15분에 `reminder_stage = 'nudge'` 재촉 알림을 발송하도록 변경했다. `attendance-cron`은 `initial`/`nudge` stage에 따라 제목/본문을 다르게 만들고 push payload에 `reminderStage`를 포함한다.
+- 변경 이유: 사용자가 8:30 1차 알림, 8:45 재촉 알림, 9:00 결석 처리 흐름을 요청했다.
+- 관련 기능: 강제 출석, Telegram 알림, Web Push 컴퓨터 알림, 이메일 fallback, 앱 내부 알림 팝업
+- 마이그레이션 파일: `supabase/migrations/0010_two_step_attendance_deadline.sql`
+- 확인 방법: Supabase migration history에 `two_step_attendance_deadline` 확인, 원격 함수 정의의 `reminder_stage`/`nudge`/`interval '30 minutes'` 조건 확인, `attendance-cron` version 10 ACTIVE 및 `telegram-test-alarm` version 3 ACTIVE 확인.
+- 주의 사항: 8:45 재촉 알림은 `attendance_days.status = 'pending'`이 존재해야 발송된다. 따라서 8:30 initial reminder cron이 정상 실행되어 pending row를 만들어야 한다.
 
 ### 2026-06-11
 

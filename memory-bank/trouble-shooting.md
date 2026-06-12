@@ -1,5 +1,145 @@
 # Trouble Shooting
 
+## 2026-06-13 - Vercel CI Deployment Path Added
+
+### Situation
+
+The user wanted repeatable Vercel production deployment without relying on local CLI login.
+
+### Error Message
+
+```txt
+No existing credentials found. Please run `vercel login` or pass "--token"
+```
+
+### Cause
+
+Local Vercel CLI deployment depends on an interactive login or a provided token. This Windows environment previously also hit a Vercel CLI login issue caused by a non-ASCII hostname being placed in the user-agent header.
+
+### Fix
+
+Added a GitHub Actions workflow that uses GitHub Secrets `VERCEL_TOKEN`, `VERCEL_ORG_ID`, and `VERCEL_PROJECT_ID`. The workflow runs tests, builds with Vercel, and deploys the prebuilt output to production on `main` pushes.
+
+### Related Files
+
+* `.github/workflows/vercel-production.yml`
+* `docs/vercel-ci.md`
+* `memory-bank/prd-vercel-ci.md`
+
+### Prevention
+
+Use GitHub Actions or another CI environment with `VERCEL_TOKEN` for repeatable deployments. Do not depend on local Vercel CLI credentials for production releases.
+
+## 2026-06-13 - Camera presence UI could not be deployed to Vercel without credentials
+
+### Situation
+
+After implementing the camera-based absence warning MVP, the Supabase migration and Edge Function were deployed successfully. The web UI still needed a Vercel production deployment.
+
+### Error Message
+
+```txt
+Vercel CLI 48.6.0
+Error: No existing credentials found. Please run `vercel login` or pass "--token"
+```
+
+### Cause
+
+The local shell has `.vercel/project.json`, but it does not have Vercel credentials or `VERCEL_TOKEN`. The Vercel MCP deployment helper returned CLI guidance only, so it could not deploy the current working tree by itself.
+
+### Fix
+
+No deployment was completed in this pass. To deploy the camera UI, provide a valid `VERCEL_TOKEN` or complete Vercel CLI login/device authorization, then run:
+
+```txt
+npx.cmd vercel@48.6.0 deploy --prod --yes --token <redacted>
+```
+
+Do not commit or document the token value.
+
+### Related Files
+
+* `.vercel/project.json`
+* `vercel.json`
+* `apps/web/src/main.tsx`
+* `apps/web/src/styles.css`
+
+### Prevention
+
+Set up Vercel Git integration or CI secrets (`VERCEL_TOKEN`, `VERCEL_ORG_ID`, `VERCEL_PROJECT_ID`) so frontend changes deploy from Git without manual device authorization.
+
+## 2026-06-13 - Two-step attendance deployment required Vercel device auth again
+
+### Situation
+
+After implementing the 8:30 initial reminder, 8:45 nudge, and 9:00 missed-attendance flow, the web copy and service worker needed a Vercel production deployment.
+
+### Error Message
+
+```txt
+Vercel CLI 48.6.0
+Error: No existing credentials found. Please run `vercel login` or pass "--token"
+```
+
+### Cause
+
+The project is still deployed from the Vercel CLI, and the local CLI credential store is empty. `.vercel/project.json` links the project, but it does not contain authentication credentials.
+
+### Fix
+
+Used OAuth device authorization with an ASCII user-agent, approved the device login in Vercel, and passed the returned temporary token only to the deployment command. The token was not printed or stored in source files.
+
+The resulting production deployment is `dpl_DZUe2FPk3HW5K9wqaFE4aFS916gq`, and `study-room-attendance.vercel.app` aliases to it.
+
+### Related Files
+
+* `.vercel/project.json`
+* `vercel.json`
+* `apps/web/src/main.tsx`
+* `apps/web/public/service-worker.js`
+
+### Prevention
+
+For repeatable deployment, configure Vercel Git integration or CI secrets (`VERCEL_TOKEN`, `VERCEL_ORG_ID`, `VERCEL_PROJECT_ID`). Until then, expect manual OAuth device authorization for each CLI production deployment.
+
+## 2026-06-13 - Vercel production still serves old mobile-dark artifact
+
+### Situation
+
+The user reported that the deployed mobile app at `https://study-room-attendance.vercel.app` still looked dark even after the mobile light-theme fix was pushed to GitHub.
+
+### Error Message
+
+```txt
+User-visible symptom: production mobile page still appears dark.
+Vercel CLI deploy error: No existing credentials found. Please run `vercel login` or pass "--token"
+```
+
+### Cause
+
+The mobile light-theme fix exists in local source, built `apps/web/dist/index.html`, and `origin/main`, but the Vercel production domain still serves an older deployment. The active Vercel production alias points to CLI deployment `dpl_D5L7trvBoiVTjn1B65TtRYcpU79X`, and the public HTML response has `Last-Modified: Thu, 11 Jun 2026 05:35:49 GMT`. GitHub push alone did not trigger a fresh production deployment because this project is currently deployed from CLI, not an active Git integration. A manual CLI deployment was attempted, but local Vercel credentials were missing.
+
+### Fix
+
+Generated a Vercel OAuth device authorization request manually with an ASCII `user-agent`, because `vercel login` fails when the Windows hostname contains non-ASCII characters. After the user approved the device login in Vercel, used the returned temporary access token for a one-time production deployment:
+
+```txt
+npx.cmd -y vercel@48.6.0 deploy --prod --yes --token <redacted> --scope astars-projects-c2f42587
+```
+
+The public production alias now points to READY deployment `dpl_88BcosEtVBhBKyddjNC3k9c9vjo5`, and the production HTML contains `only light` and `supported-color-schemes`.
+
+### Related Files
+
+* `.vercel/project.json`
+* `vercel.json`
+* `apps/web/index.html`
+* `apps/web/dist/index.html`
+
+### Prevention
+
+After pushing frontend fixes, verify the production HTML contains the expected marker strings before checking the mobile UI. For this issue the markers are `only light` and `supported-color-schemes`. Do not assume `git push` updates Vercel unless Git integration or CI deployment is confirmed. For future manual deploys on this Windows host, avoid `vercel login`; use ASCII-header OAuth device authorization plus `--token`, or configure Vercel Git/CI deployment.
+
 ## 2026-06-13 - Mobile browser still rendered the light UI as dark
 
 ### Situation

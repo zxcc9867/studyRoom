@@ -296,7 +296,7 @@ export default function App() {
           <Text style={styles.statusLabel}>오늘 상태</Text>
           <Text style={styles.statusValue}>{attendanceLabel(attendance?.status)}</Text>
           <Text style={styles.copy}>
-            알림 시간 {profile?.reminder_time?.slice(0, 5) ?? reminderTime} 이후 15분 안에 타이머를 시작해야 출석입니다.
+            알림 시간 {profile?.reminder_time?.slice(0, 5) ?? reminderTime} 이후 30분 안에 타이머를 시작해야 출석입니다.
           </Text>
         </View>
 

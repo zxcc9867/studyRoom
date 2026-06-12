@@ -12,7 +12,8 @@
 
 - Supabase Cron이 매분 `attendance-cron` Edge Function을 호출한다.
 - Edge Function이 알림 대상자를 조회하고 웹푸시/이메일/Expo Push 발송을 시도한다.
-- 15분 내 타이머 시작 기록이 없으면 `missed`로 처리한다.
+- 알림 시각에는 1차 알림을 보내고, 15분 내 타이머 시작 기록이 없으면 재촉 알림을 한 번 더 보낸다.
+- 알림 후 30분까지 타이머 시작 기록이 없으면 `missed`로 처리한다.
 - 브라우저 웹푸시는 현재 VAPID 공개키와 맞는 subscription으로 저장된다.
 
 ## 4. Non-goals
@@ -37,7 +38,10 @@
 2. 웹앱이 `profiles.reminder_time`과 `notification_targets`를 저장한다.
 3. Supabase Cron이 매분 `attendance-cron`을 호출한다.
 4. Edge Function이 `get_due_reminders`와 `mark_missed_attendance`를 실행한다.
-5. 발송 결과가 `notification_deliveries`에 저장된다.
+5. 알림 시각에는 `reminder_stage = initial` 알림이 발송되고 `attendance_days.status = pending`이 저장된다.
+6. 15분 뒤에도 출석 타이머 시작이 없으면 `reminder_stage = nudge` 재촉 알림이 발송된다.
+7. 30분 뒤에도 출석 타이머 시작이 없으면 `attendance_days.status = missed`로 바뀐다.
+8. 발송 결과가 `notification_deliveries`에 저장된다.
 
 ### Edge Cases
 
@@ -58,6 +62,8 @@
 * [x] `study-room-attendance-cron` cron job을 등록한다.
 * [x] `get_due_reminders` SQL ambiguity를 수정한다.
 * [x] 웹푸시 구독이 현재 VAPID 공개키와 다르면 재구독한다.
+* [x] `get_due_reminders`가 `initial`과 `nudge` reminder stage를 구분한다.
+* [x] 알림 후 15분에 재촉 알림을 발송하고, 알림 후 30분에 결석 처리한다.
 
 ## 8. Non-functional Requirements
 

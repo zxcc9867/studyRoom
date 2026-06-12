@@ -424,6 +424,74 @@ label {
   transition: width 220ms ease;
 }
 
+.camera-monitor {
+  display: grid;
+  gap: 10px;
+  width: min(100%, 640px);
+  padding: 12px;
+  border: 2px solid rgba(255, 249, 223, 0.72);
+  border-radius: 8px;
+  background: rgba(47, 107, 82, 0.2);
+}
+
+.camera-monitor-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  color: #fff9df;
+  font-size: 14px;
+  font-weight: 950;
+}
+
+.camera-monitor-body {
+  display: grid;
+  grid-template-columns: 128px minmax(180px, 1fr);
+  align-items: center;
+  gap: 12px;
+}
+
+.camera-preview {
+  width: 128px;
+  aspect-ratio: 4 / 3;
+  border: 2px solid rgba(255, 249, 223, 0.76);
+  border-radius: 8px;
+  background: rgba(47, 42, 31, 0.22);
+  object-fit: cover;
+  transform: scaleX(-1);
+}
+
+.camera-preview-idle {
+  opacity: 0.35;
+}
+
+.camera-toggle {
+  justify-content: center;
+  min-height: 48px;
+}
+
+.camera-message,
+.camera-warning-note {
+  margin: 0;
+  color: #fff9df;
+  font-size: 13px;
+  font-weight: 900;
+}
+
+.camera-monitor-warning {
+  border-color: #f0c85c;
+  background: rgba(139, 78, 49, 0.36);
+}
+
+.camera-monitor-error {
+  border-color: #e1a891;
+  background: rgba(139, 78, 49, 0.32);
+}
+
+.camera-warning-note {
+  color: #5a513d;
+}
+
 .topbar-actions,
 .button-row {
   display: flex;
@@ -1136,6 +1204,18 @@ button:active:not(:disabled) {
 
   .focus-control {
     justify-items: stretch;
+  }
+
+  .camera-monitor {
+    width: 100%;
+  }
+
+  .camera-monitor-body {
+    grid-template-columns: 96px minmax(0, 1fr);
+  }
+
+  .camera-preview {
+    width: 96px;
   }
 
   .study-summary {

@@ -8,6 +8,7 @@ type DueReminder = {
   local_date: string;
   reminder_at: string;
   deadline_at: string;
+  reminder_stage: "initial" | "nudge";
 };
 
 type NotificationTarget = {
@@ -183,12 +184,13 @@ async function sendExpoPush(to: string, reminder: DueReminder, todos: StudyTodo[
     headers: jsonHeaders,
     body: JSON.stringify({
       to,
-      title: "Study room check-in time",
+      title: buildReminderTitle(reminder),
       body: buildReminderBody(reminder, todos, { maxTodos: 3 }),
       data: {
         type: "study_reminder",
         localDate: reminder.local_date,
         deadlineAt: reminder.deadline_at,
+        reminderStage: reminder.reminder_stage,
       },
     }),
   });
@@ -214,7 +216,7 @@ async function sendEmail(to: string | null, reminder: DueReminder, todos: StudyT
     body: JSON.stringify({
       from,
       to,
-      subject: "Study room check-in time",
+      subject: buildReminderTitle(reminder),
       html: `<p>Open the study room app and start your timer now.</p><p>Check-in deadline: ${reminder.deadline_at}</p>${formatTodoHtml(todos)}`,
     }),
   });
@@ -233,11 +235,12 @@ async function sendWebPush(subscription: Record<string, unknown>, reminder: DueR
   await webpush.sendNotification(
     subscription,
     JSON.stringify({
-      title: "Study room check-in time",
+      title: buildReminderTitle(reminder),
       body: buildReminderBody(reminder, todos, { maxTodos: 3 }),
       url: "/",
       localDate: reminder.local_date,
       deadlineAt: reminder.deadline_at,
+      reminderStage: reminder.reminder_stage,
       todos: todos.map((todo) => ({ title: todo.title, isCompleted: todo.is_completed })),
     }),
   );
@@ -328,11 +331,19 @@ function getReminderTodoKey(userId: string, localDate: string) {
   return `${userId}:${localDate}`;
 }
 
+function buildReminderTitle(reminder: DueReminder) {
+  return reminder.reminder_stage === "nudge" ? "Study room final nudge" : "Study room check-in time";
+}
+
 function buildReminderBody(reminder: DueReminder, todos: StudyTodo[], options: { maxTodos?: number } = {}) {
-  const lines = [
-    "독서실 입장 시간입니다.",
-    `${formatDeadline(reminder.deadline_at)}까지 타이머를 시작하세요.`,
-  ];
+  const lines =
+    reminder.reminder_stage === "nudge"
+      ? [
+          "Final study-room nudge.",
+          "15 minutes have passed since the first alarm.",
+          `Start the timer before ${formatDeadline(reminder.deadline_at)} or today will be marked missed.`,
+        ]
+      : ["Study-room check-in time.", `Start the timer before ${formatDeadline(reminder.deadline_at)}.`];
   const todoSummary = formatTodoSummary(todos, options);
   if (todoSummary) {
     lines.push("", todoSummary);

@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 
 import {
   ATTENDANCE_WINDOW_MINUTES,
+  NUDGE_AFTER_MINUTES,
   EMAIL_OTP_LENGTH,
   calculateFocusSeconds,
   calculateTodoCompletion,
@@ -22,19 +23,19 @@ test("marks the reminder as pending before the configured daily time", () => {
 
   assert.equal(result.status, "pending");
   assert.equal(result.dateKey, "2026-06-03");
-  assert.equal(result.deadlineIso, "2026-06-03T12:15:00.000Z");
+  assert.equal(result.deadlineIso, "2026-06-03T12:30:00.000Z");
 });
 
-test("opens attendance for 15 minutes after the reminder time", () => {
+test("opens attendance for 30 minutes after the reminder time", () => {
   const result = evaluateAttendance({
-    now: new Date("2026-06-03T12:10:00.000Z"),
+    now: new Date("2026-06-03T12:20:00.000Z"),
     reminderTime: "21:00",
     timeZone: "Asia/Tokyo",
     sessions: [],
   });
 
   assert.equal(result.status, "checkin_open");
-  assert.equal(result.minutesRemaining, 5);
+  assert.equal(result.minutesRemaining, 10);
 });
 
 test("marks the day present when a timer starts within the attendance window", () => {
@@ -49,12 +50,12 @@ test("marks the day present when a timer starts within the attendance window", (
   assert.equal(result.qualifyingSessionStartedAt, "2026-06-03T12:04:00.000Z");
 });
 
-test("marks the day missed when no timer starts within 15 minutes", () => {
+test("marks the day missed when no timer starts before the 30 minute deadline", () => {
   const result = evaluateAttendance({
-    now: new Date("2026-06-03T12:16:00.000Z"),
+    now: new Date("2026-06-03T12:30:00.000Z"),
     reminderTime: "21:00",
     timeZone: "Asia/Tokyo",
-    sessions: [{ startedAt: "2026-06-03T12:16:01.000Z" }],
+    sessions: [{ startedAt: "2026-06-03T12:30:00.000Z" }],
   });
 
   assert.equal(result.status, "missed");
@@ -93,7 +94,8 @@ test("calculates todo checklist completion percentage", () => {
 
 test("formats date keys in the requested time zone", () => {
   assert.equal(getDateKey(new Date("2026-06-03T15:10:00.000Z"), "Asia/Tokyo"), "2026-06-04");
-  assert.equal(ATTENDANCE_WINDOW_MINUTES, 15);
+  assert.equal(ATTENDANCE_WINDOW_MINUTES, 30);
+  assert.equal(NUDGE_AFTER_MINUTES, 15);
 });
 
 test("normalizes and validates eight digit email OTP codes", () => {

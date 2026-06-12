@@ -1,7 +1,9 @@
-import { StrictMode, useEffect, useMemo, useState, type ClipboardEvent } from "react";
+import { StrictMode, useEffect, useMemo, useRef, useState, type ClipboardEvent } from "react";
 import { createRoot } from "react-dom/client";
 import {
   Bell,
+  Camera,
+  CameraOff,
   CheckCircle2,
   ChevronLeft,
   ChevronRight,
@@ -40,6 +42,17 @@ import {
   isAuthCallbackUrl,
   type IdentityPayload,
 } from "./authProviders.mjs";
+import {
+  createPresenceState,
+  getCameraSupport,
+  getPresenceStatusLabel,
+  markPresenceWarningSent,
+  updatePresenceState,
+  type PresenceState,
+  type PresenceStatus,
+} from "./cameraPresence.mjs";
+import { recordCameraPresenceEvent, sendCameraPresenceWarning } from "./cameraWarning.mjs";
+import { createFacePresenceDetector, type FacePresenceDetector } from "./faceDetection.mjs";
 import {
   KAKAO_CONNECT_PENDING_KEY,
   getKakaoNotificationStatus,
@@ -159,6 +172,21 @@ function DashboardApp() {
   const [activeSection, setActiveSection] = useState<DashboardSection>("today");
   const [calendarMonth, setCalendarMonth] = useState(() => getMonthKey(new Date()));
   const [todoHistoryPage, setTodoHistoryPage] = useState(1);
+  const [cameraEnabled, setCameraEnabled] = useState(false);
+  const [cameraStatus, setCameraStatus] = useState<PresenceStatus>("idle");
+  const [cameraMessage, setCameraMessage] = useState("");
+  const [presenceState, setPresenceState] = useState<PresenceState>(() => createPresenceState(Date.now()));
+  const [absenceWarningPopup, setAbsenceWarningPopup] = useState<{
+    absenceSeconds: number;
+    telegramSent: boolean;
+    telegramMissing: boolean;
+  } | null>(null);
+  const videoRef = useRef<HTMLVideoElement | null>(null);
+  const cameraStreamRef = useRef<MediaStream | null>(null);
+  const faceDetectorRef = useRef<FacePresenceDetector | null>(null);
+  const presenceStateRef = useRef<PresenceState>(createPresenceState(Date.now()));
+  const cameraSessionIdRef = useRef<string | null>(null);
+  const warningInFlightRef = useRef(false);
 
   useEffect(() => {
     async function initializeSession() {
@@ -348,6 +376,63 @@ function DashboardApp() {
       document.removeEventListener("visibilitychange", handleVisibilityChange);
     };
   }, [activeSession?.id, session?.access_token, session?.user.id]);
+
+  useEffect(() => {
+    if (!activeSession && cameraEnabled) {
+      stopCameraMonitoring({ recordEvent: true });
+    }
+  }, [activeSession?.id, cameraEnabled]);
+
+  useEffect(() => {
+    if (!cameraEnabled || !activeSession || !session) {
+      return;
+    }
+
+    let cancelled = false;
+    const checkPresence = async () => {
+      if (cancelled || !videoRef.current || !faceDetectorRef.current) {
+        return;
+      }
+
+      if (videoRef.current.readyState < HTMLMediaElement.HAVE_CURRENT_DATA) {
+        return;
+      }
+
+      try {
+        const faceDetected = faceDetectorRef.current.detect(videoRef.current, performance.now());
+        const nextState = updatePresenceState(presenceStateRef.current, {
+          faceDetected,
+          nowMs: Date.now(),
+        });
+        presenceStateRef.current = nextState;
+        setPresenceState(nextState);
+        setCameraStatus(nextState.warningDue ? "warning" : "watching");
+
+        if (nextState.warningDue && !warningInFlightRef.current) {
+          await sendAbsenceWarning(nextState);
+        }
+      } catch (error) {
+        setCameraStatus("error");
+        setCameraMessage(formatNotificationError(error));
+      }
+    };
+
+    const intervalId = window.setInterval(() => {
+      void checkPresence();
+    }, 5000);
+    void checkPresence();
+
+    return () => {
+      cancelled = true;
+      window.clearInterval(intervalId);
+    };
+  }, [cameraEnabled, activeSession?.id, session?.access_token]);
+
+  useEffect(() => {
+    return () => {
+      cleanupCameraResources();
+    };
+  }, []);
 
   async function requestCode() {
     const nextEmail = email.trim();
@@ -798,6 +883,140 @@ function DashboardApp() {
     }
   }
 
+  function cleanupCameraResources() {
+    cameraStreamRef.current?.getTracks().forEach((track) => track.stop());
+    cameraStreamRef.current = null;
+    faceDetectorRef.current?.close();
+    faceDetectorRef.current = null;
+    if (videoRef.current) {
+      videoRef.current.srcObject = null;
+    }
+  }
+
+  function resetPresenceState(now = Date.now()) {
+    const nextState = createPresenceState(now);
+    presenceStateRef.current = nextState;
+    setPresenceState(nextState);
+  }
+
+  function stopCameraMonitoring({ recordEvent = false }: { recordEvent?: boolean } = {}) {
+    const stoppedSessionId = cameraSessionIdRef.current;
+    cleanupCameraResources();
+    cameraSessionIdRef.current = null;
+    warningInFlightRef.current = false;
+    setCameraEnabled(false);
+    setCameraStatus("idle");
+    setCameraMessage("");
+    resetPresenceState();
+
+    if (recordEvent && session?.user.id && stoppedSessionId) {
+      void recordCameraPresenceEvent(session.user.id, stoppedSessionId, "camera_stopped", {
+        metadata: { source: "web-camera" },
+      }).catch(() => undefined);
+    }
+  }
+
+  async function toggleCameraMonitoring() {
+    if (cameraEnabled) {
+      stopCameraMonitoring({ recordEvent: true });
+      return;
+    }
+
+    if (!activeSession || !session?.user.id) {
+      setCameraMessage("공부 세션을 시작한 뒤 카메라 감시를 켤 수 있습니다.");
+      return;
+    }
+
+    const support = getCameraSupport(window);
+    if (!support.supported) {
+      setCameraStatus("error");
+      setCameraMessage(
+        support.reason === "secure-context-required"
+          ? "HTTPS 또는 localhost에서만 카메라를 사용할 수 있습니다."
+          : "이 브라우저에서는 카메라를 사용할 수 없습니다.",
+      );
+      return;
+    }
+
+    setCameraStatus("starting");
+    setCameraMessage("카메라 준비 중");
+
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({
+        video: {
+          facingMode: "user",
+          width: { ideal: 640 },
+          height: { ideal: 480 },
+        },
+        audio: false,
+      });
+
+      cameraStreamRef.current = stream;
+      if (videoRef.current) {
+        videoRef.current.srcObject = stream;
+        await videoRef.current.play().catch(() => undefined);
+      }
+
+      faceDetectorRef.current = await createFacePresenceDetector();
+      cameraSessionIdRef.current = activeSession.id;
+      resetPresenceState();
+      setCameraEnabled(true);
+      setCameraStatus("watching");
+      setCameraMessage("카메라 감시 중");
+      await recordCameraPresenceEvent(session.user.id, activeSession.id, "camera_started", {
+        metadata: { source: "web-camera" },
+      });
+    } catch (error) {
+      cleanupCameraResources();
+      setCameraEnabled(false);
+      setCameraStatus("error");
+      setCameraMessage(formatCameraError(error));
+
+      const denied = error instanceof DOMException && ["NotAllowedError", "PermissionDeniedError"].includes(error.name);
+      if (denied) {
+        await recordCameraPresenceEvent(session.user.id, activeSession.id, "camera_permission_denied", {
+          metadata: { source: "web-camera" },
+        }).catch(() => undefined);
+      }
+    }
+  }
+
+  async function sendAbsenceWarning(nextState: PresenceState) {
+    if (!activeSession || !session) return;
+
+    warningInFlightRef.current = true;
+    setAbsenceWarningPopup({
+      absenceSeconds: nextState.absenceSeconds,
+      telegramSent: false,
+      telegramMissing: false,
+    });
+
+    try {
+      const result = await sendCameraPresenceWarning(session, {
+        sessionId: activeSession.id,
+        absenceSeconds: nextState.absenceSeconds,
+        detectedAt: new Date().toISOString(),
+      });
+      setAbsenceWarningPopup({
+        absenceSeconds: nextState.absenceSeconds,
+        telegramSent: result.telegramSent,
+        telegramMissing: result.telegramMissing,
+      });
+      setCameraMessage(
+        result.telegramSent
+          ? "자리 비움 경고를 Telegram으로 보냈습니다."
+          : "자리 비움 이벤트를 기록했습니다. Telegram은 아직 등록되지 않았습니다.",
+      );
+    } catch (error) {
+      setCameraMessage(formatNotificationError(error));
+    } finally {
+      const markedState = markPresenceWarningSent(presenceStateRef.current, { nowMs: Date.now() });
+      presenceStateRef.current = markedState;
+      setPresenceState(markedState);
+      warningInFlightRef.current = false;
+    }
+  }
+
   async function refreshWebPushStatus() {
     try {
       const nextStatus = await getWebPushStatus();
@@ -934,7 +1153,7 @@ function DashboardApp() {
           <p className="eyebrow">forced attendance</p>
           <h1>매일 같은 시간, 독서실 입장</h1>
           <p className="login-copy">
-            이메일로 받은 8자리 코드를 입력하면 로그인됩니다. 알림 후 15분 안에 타이머를 시작해야 출석으로
+            이메일로 받은 8자리 코드를 입력하면 로그인됩니다. 알림 후 30분 안에 타이머를 시작해야 출석으로
             인정됩니다.
           </p>
           <div className="login-form">
@@ -1021,7 +1240,7 @@ function DashboardApp() {
           <div className="topbar-head">
             <div>
               <p className="eyebrow">deadline rule</p>
-              <h2>{profile?.reminder_time?.slice(0, 5) ?? reminderTime} 이후 15분 안에 출석</h2>
+              <h2>{profile?.reminder_time?.slice(0, 5) ?? reminderTime} 이후 30분 안에 출석</h2>
             </div>
             <div className="topbar-actions" aria-label="집중 세션 조작">
               <button className="primary" onClick={startTimer} disabled={busy || Boolean(activeSession)}>
@@ -1178,8 +1397,8 @@ function DashboardApp() {
                 </button>
               </div>
               <p className="reminder-copy">
-                {reminderPopup.reminderTime} 알림이 도착했습니다. 15분 안에 타이머를 시작하면 오늘 출석으로
-                인정됩니다.
+                {reminderPopup.reminderTime} 알림이 도착했습니다. 15분 뒤 한 번 더 재촉하고, 30분 안에 타이머를
+                시작하면 오늘 출석으로 인정됩니다.
               </p>
               {renderReminderTodoList(reminderTodos)}
               <div className="reminder-actions">
@@ -1204,6 +1423,48 @@ function DashboardApp() {
           </div>
         )}
 
+        {absenceWarningPopup && (
+          <div className="modal-backdrop reminder-backdrop" role="presentation">
+            <section
+              className="todo-modal reminder-modal camera-warning-modal"
+              role="dialog"
+              aria-modal="true"
+              aria-label="자리 비움 경고"
+            >
+              <div className="todo-header">
+                <div>
+                  <p className="eyebrow">camera warning</p>
+                  <h3>자리 비움 경고</h3>
+                </div>
+                <button
+                  className="modal-close"
+                  type="button"
+                  aria-label="자리 비움 경고 닫기"
+                  onClick={() => setAbsenceWarningPopup(null)}
+                >
+                  <X size={18} />
+                </button>
+              </div>
+              <p className="reminder-copy">
+                5분 동안 카메라에서 얼굴이 감지되지 않았습니다. 다시 자리로 돌아와 공부를 이어가세요.
+              </p>
+              <p className="camera-warning-note">
+                {absenceWarningPopup.telegramSent
+                  ? "Telegram 경고를 보냈습니다."
+                  : absenceWarningPopup.telegramMissing
+                    ? "Telegram이 등록되지 않아 앱 안에만 기록했습니다."
+                    : "앱 안에 경고를 표시하고 있습니다."}
+              </p>
+              <div className="reminder-actions">
+                <button className="primary" type="button" onClick={() => setAbsenceWarningPopup(null)}>
+                  <CheckCircle2 size={18} />
+                  확인
+                </button>
+              </div>
+            </section>
+          </div>
+        )}
+
         <section className="daily-visual" aria-label="오늘 공부 시간과 집중 세션">
           <div>
             <p className="eyebrow">today focus</p>
@@ -1218,6 +1479,32 @@ function DashboardApp() {
                 <span className="progress-fill" style={{ width: `${todayProgress}%` }} />
               </div>
               <span>{todayProgress}% / 2시간</span>
+            </div>
+            <div className={`camera-monitor camera-monitor-${cameraStatus}`}>
+              <div className="camera-monitor-head">
+                <strong>카메라 감시 · {getPresenceStatusLabel({ cameraEnabled, status: cameraStatus, absenceSeconds: presenceState.absenceSeconds })}</strong>
+              </div>
+              <div className="camera-monitor-body">
+                <video
+                  ref={videoRef}
+                  className={`camera-preview ${cameraEnabled ? "" : "camera-preview-idle"}`}
+                  muted
+                  playsInline
+                  aria-hidden={!cameraEnabled}
+                />
+                <button
+                  className="secondary camera-toggle"
+                  type="button"
+                  onClick={() => {
+                    void toggleCameraMonitoring();
+                  }}
+                  disabled={cameraStatus === "starting" || !activeSession}
+                >
+                  {cameraEnabled ? <CameraOff size={18} /> : <Camera size={18} />}
+                  {cameraEnabled ? "카메라 감시 끄기" : "카메라 감시 켜기"}
+                </button>
+              </div>
+              {cameraMessage && <span className="camera-message">{cameraMessage}</span>}
             </div>
           </div>
         </section>
@@ -1510,6 +1797,22 @@ function formatNotificationError(error: unknown) {
     return "브라우저 알림 권한이 필요합니다. 버튼을 누른 뒤 권한 팝업에서 허용을 선택하세요.";
   }
   return message;
+}
+
+function formatCameraError(error: unknown) {
+  if (error instanceof DOMException) {
+    if (["NotAllowedError", "PermissionDeniedError"].includes(error.name)) {
+      return "카메라 권한이 거부되었습니다.";
+    }
+    if (error.name === "NotFoundError") {
+      return "사용 가능한 카메라를 찾지 못했습니다.";
+    }
+    if (error.name === "NotReadableError") {
+      return "다른 앱이 카메라를 사용 중입니다.";
+    }
+  }
+
+  return error instanceof Error ? error.message : String(error);
 }
 
 function notificationSummary(status: WebPushStatus | null) {
