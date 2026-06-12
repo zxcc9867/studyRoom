@@ -15,6 +15,11 @@
 - Pushed commit `0d54fa7` to `origin/main` and triggered GitHub Actions run `27435664940`.
 - Diagnosed that the first workflow run failed because local `vercel build --prod` rejected the Vercel project Node.js version `24.x`.
 - Changed the workflow to use Vercel remote production build through `vercel deploy --prod`.
+- Pushed commit `e5a2730` to `origin/main` and triggered GitHub Actions run `27435801823`.
+- Verified GitHub Actions run `27435801823` completed successfully.
+- Verified Vercel production deployment `dpl_BXM4358PWNe4zDy3mVy9KYkRwrf9` is READY for commit `e5a2730`.
+- Verified `https://study-room-attendance.vercel.app/` serves the new production HTML and asset `/assets/index-_N2PZqno.js`.
+- Verified the deployed production JS contains `카메라 감시`, `자리 비움`, `camera-presence-warning`, and `30분`.
 
 #### Changed Files
 
@@ -32,10 +37,14 @@
 - `npm.cmd run build` passed.
 - Workflow syntax was kept to standard GitHub Actions YAML with `actions/checkout@v4`, `actions/setup-node@v4`, and pinned `vercel@48.6.0`.
 - GitHub Actions run `27435664940` reached `npm test` successfully but failed at local `vercel build --prod` with `Found invalid Node.js Version: "24.x"`.
+- GitHub Actions run `27435801823` completed with conclusion `success`.
+- Vercel deployment list shows `dpl_BXM4358PWNe4zDy3mVy9KYkRwrf9` as `READY` and `target=production`.
+- Production URL fetch returned HTTP 200 and includes `color-scheme` `only light`.
+- Production asset check returned `cameraToggle=true`, `absenceWarning=true`, `cameraFunction=true`, and `thirtyMinute=true`.
+- Vercel runtime error/fatal log scan for the last hour returned no logs.
 
 #### Remaining Work
 
-- Push the remote-build workflow fix and confirm the next CI production deployment.
 - Decide whether to disable Vercel Git integration to avoid duplicate deployments.
 
 #### Next Priority
