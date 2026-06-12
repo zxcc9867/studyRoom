@@ -57,8 +57,9 @@ Pipeline steps:
 2. Run `npm test`.
 3. Install pinned Vercel CLI `vercel@48.6.0`.
 4. Pull Vercel production environment with `vercel pull`.
-5. Build with `vercel build --prod`.
-6. Deploy the prebuilt output with `vercel deploy --prebuilt --prod`.
+5. Deploy to Vercel production with `vercel deploy --prod`.
+
+The workflow intentionally uses Vercel remote build instead of `vercel build --prod` plus `vercel deploy --prebuilt`. The Vercel project currently uses Node.js `24.x`, and local `vercel build` rejects that setting in CI. Remote Vercel deployment accepts the project settings used by the production project.
 
 ## Duplicate Deployment Note
 

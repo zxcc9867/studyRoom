@@ -139,7 +139,7 @@ docs/images/study-room-thumbnail.png
 2. Build the web app with `npm.cmd run build` for local verification.
 3. Set Vercel project environment variables for public Vite build values: `VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY`, `VITE_WEB_PUSH_VAPID_PUBLIC_KEY`, and `VITE_GOOGLE_AUTH_ENABLED`.
 4. Deploy the static web app to Vercel using `vercel.json`.
-5. For repeatable GitHub-based production deploys, configure GitHub Actions secrets `VERCEL_TOKEN`, `VERCEL_ORG_ID`, and `VERCEL_PROJECT_ID`, then let `.github/workflows/vercel-production.yml` run `npm test`, `vercel build --prod`, and `vercel deploy --prebuilt --prod` on `main` pushes.
+5. For repeatable GitHub-based production deploys, configure GitHub Actions secrets `VERCEL_TOKEN`, `VERCEL_ORG_ID`, and `VERCEL_PROJECT_ID`, then let `.github/workflows/vercel-production.yml` run `npm test` and `vercel deploy --prod` on `main` pushes.
 6. If Vercel Git integration remains enabled, monitor for duplicate deployments and keep only one deployment path as the source of truth.
 7. Deploy `attendance-cron` Edge Function with `verify_jwt=false`.
 8. Deploy `camera-presence-warning` Edge Function with `verify_jwt=false`; the function performs its own Supabase JWT and session ownership validation.

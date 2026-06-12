@@ -35,7 +35,7 @@ Manual Vercel CLI deployment is unreliable on this Windows environment because l
 1. User creates `VERCEL_TOKEN`, `VERCEL_ORG_ID`, and `VERCEL_PROJECT_ID` GitHub secrets.
 2. User pushes to `main`.
 3. GitHub Actions installs dependencies and runs tests.
-4. GitHub Actions builds and deploys the Vercel prebuilt output to production.
+4. GitHub Actions deploys to Vercel production, where Vercel performs the production build.
 
 ### Edge Cases
 
@@ -55,12 +55,13 @@ Manual Vercel CLI deployment is unreliable on this Windows environment because l
 - [x] Use GitHub secrets for Vercel token, org ID, and project ID.
 - [x] Pin the Vercel CLI version used by CI.
 - [x] Document how to create and register `VERCEL_TOKEN`.
+- [x] Use remote Vercel production build to avoid local `vercel build` incompatibility with project Node.js `24.x`.
 
 ## 8. Non-functional Requirements
 
 - Security: never commit Vercel tokens.
 - Maintainability: keep workflow steps explicit and short.
-- Reliability: use `vercel build` plus `vercel deploy --prebuilt` so the tested build artifact is deployed.
+- Reliability: run tests before deployment and then let Vercel perform the production build with the project's own settings.
 
 ## 9. Dependencies
 

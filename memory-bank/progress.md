@@ -8,10 +8,13 @@
 
 - Added a GitHub Actions production deployment pipeline for Vercel.
 - Configured the workflow to run on `main` pushes and manual `workflow_dispatch`.
-- Configured the workflow to install dependencies, run `npm test`, pull Vercel production environment, build with `vercel build --prod`, and deploy with `vercel deploy --prebuilt --prod`.
+- Configured the workflow to install dependencies, run `npm test`, pull Vercel production environment, and deploy with `vercel deploy --prod`.
 - Documented how to create `VERCEL_TOKEN` and which GitHub Secrets are required.
 - Added `memory-bank/prd-vercel-ci.md` for the CI deployment requirements.
 - Updated the implementation plan with the GitHub Actions deployment path and duplicate deployment warning.
+- Pushed commit `0d54fa7` to `origin/main` and triggered GitHub Actions run `27435664940`.
+- Diagnosed that the first workflow run failed because local `vercel build --prod` rejected the Vercel project Node.js version `24.x`.
+- Changed the workflow to use Vercel remote production build through `vercel deploy --prod`.
 
 #### Changed Files
 
@@ -28,11 +31,11 @@
 - `npm.cmd test` passed 46 tests.
 - `npm.cmd run build` passed.
 - Workflow syntax was kept to standard GitHub Actions YAML with `actions/checkout@v4`, `actions/setup-node@v4`, and pinned `vercel@48.6.0`.
+- GitHub Actions run `27435664940` reached `npm test` successfully but failed at local `vercel build --prod` with `Found invalid Node.js Version: "24.x"`.
 
 #### Remaining Work
 
-- Add `VERCEL_TOKEN`, `VERCEL_ORG_ID`, and `VERCEL_PROJECT_ID` in GitHub repository Actions secrets.
-- Push to `main` or run the workflow manually to confirm the first CI production deployment.
+- Push the remote-build workflow fix and confirm the next CI production deployment.
 - Decide whether to disable Vercel Git integration to avoid duplicate deployments.
 
 #### Next Priority

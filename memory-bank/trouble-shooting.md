@@ -30,6 +30,36 @@ Added a GitHub Actions workflow that uses GitHub Secrets `VERCEL_TOKEN`, `VERCEL
 
 Use GitHub Actions or another CI environment with `VERCEL_TOKEN` for repeatable deployments. Do not depend on local Vercel CLI credentials for production releases.
 
+## 2026-06-13 - GitHub Actions Vercel Prebuilt Build Failed On Node 24
+
+### Situation
+
+After GitHub Secrets were configured, commit `0d54fa7` was pushed to `origin/main` and GitHub Actions run `27435664940` started.
+
+### Error Message
+
+```txt
+Error: Found invalid Node.js Version: "24.x". Please set Node.js Version to 22.x in your Project Settings to use Node.js 22.
+```
+
+### Cause
+
+The workflow used `vercel build --prod` locally in GitHub Actions. The Vercel project setting currently reports Node.js `24.x`, and local Vercel build rejects that project setting even though Vercel remote deployments have previously succeeded.
+
+### Fix
+
+Changed the workflow to keep `npm test` as the quality gate, then run `vercel deploy --prod --yes --token="$VERCEL_TOKEN"` so Vercel performs the production build remotely with the project's own settings.
+
+### Related Files
+
+* `.github/workflows/vercel-production.yml`
+* `docs/vercel-ci.md`
+* `memory-bank/prd-vercel-ci.md`
+
+### Prevention
+
+If the project should return to prebuilt deploys, first change the Vercel project Node.js version to a local-build-compatible version such as `22.x`, then reintroduce `vercel build --prod` and `vercel deploy --prebuilt --prod`.
+
 ## 2026-06-13 - Camera presence UI could not be deployed to Vercel without credentials
 
 ### Situation
