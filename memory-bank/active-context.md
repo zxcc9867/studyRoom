@@ -32,7 +32,8 @@
 - Done: `node --test apps\web\test\mobileTheme.test.mjs` passed.
 - Done: `npm.cmd test` passed 37 tests.
 - Done: `npm.cmd run build` passed and dist contains the light-only metadata/CSS.
-- Pending: Commit and push the mobile light-theme fix.
+- Done: Created commit `6dd1953 Harden mobile light theme`.
+- Done: Pushed the mobile light-theme fix to `origin/main`.
 
 ## Cautions
 

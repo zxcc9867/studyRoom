@@ -31,7 +31,7 @@
 
 #### Remaining Work
 
-- Commit and push the mobile light-theme fix to `origin/main`.
+- None for the mobile light-theme fix request.
 
 #### Next Priority
 
