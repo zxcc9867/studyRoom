@@ -2,6 +2,41 @@
 
 ## Timeline
 
+### 2026-06-13
+
+#### Completed Work
+
+- Hardened mobile light-theme handling so mobile browsers should render the same light palette as PC.
+- Changed HTML color-scheme metadata from `light` to `only light`.
+- Added `supported-color-schemes=light`.
+- Added pre-paint HTML background/text styles.
+- Added `prefers-color-scheme: dark` CSS override that keeps the app background and text light.
+- Expanded the mobile theme regression test.
+
+#### Changed Files
+
+- `apps/web/index.html`
+- `apps/web/src/styles.css`
+- `apps/web/test/mobileTheme.test.mjs`
+- `memory-bank/active-context.md`
+- `memory-bank/progress.md`
+- `memory-bank/trouble-shooting.md`
+
+#### Verification
+
+- `node --test apps\web\test\mobileTheme.test.mjs` passed.
+- `npm.cmd test` passed 37 tests.
+- `npm.cmd run build` passed.
+- `rg` confirmed built `apps/web/dist` includes `only light`, `supported-color-schemes`, `prefers-color-scheme: dark`, and `#d9f0e3`.
+
+#### Remaining Work
+
+- Commit and push the mobile light-theme fix to `origin/main`.
+
+#### Next Priority
+
+- Confirm the deployed mobile page after the host finishes redeploying.
+
 ### 2026-06-12
 
 #### Completed Work

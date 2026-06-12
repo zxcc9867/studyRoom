@@ -32,6 +32,7 @@ body {
 }
 
 html {
+  color-scheme: only light;
   scroll-behavior: smooth;
   scroll-padding-top: 22px;
 }
@@ -42,6 +43,35 @@ select,
 textarea {
   color-scheme: light;
   font: inherit;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    color-scheme: only light;
+    color: #2f2a1f;
+    background: #d9f0e3;
+  }
+
+  html,
+  body,
+  #root {
+    background-color: #d9f0e3 !important;
+    color: #2f2a1f !important;
+  }
+
+  body {
+    background:
+      radial-gradient(circle at 14px 14px, rgba(79, 145, 111, 0.18) 0 5px, transparent 6px),
+      linear-gradient(135deg, rgba(247, 207, 100, 0.18) 0 12px, transparent 12px 24px),
+      #d9f0e3 !important;
+  }
+
+  button,
+  input,
+  select,
+  textarea {
+    color-scheme: light;
+  }
 }
 
 button {

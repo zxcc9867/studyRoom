@@ -2,40 +2,40 @@
 
 ## Current Work
 
-- Task name: Infrastructure architecture documentation.
-- Task purpose: Add an infrastructure architecture document with diagrams, link it from README, and push the documentation update to GitHub.
-- Related PRD: `memory-bank/prd-user-profile.md`, `memory-bank/prd-supabase-cron.md`, `memory-bank/prd-aws-cdk-deployment.md`
+- Task name: Mobile light-theme hardening.
+- Task purpose: Make the mobile web UI render with the same light palette as PC even when the mobile OS/browser is in dark mode.
+- Related PRD: `memory-bank/prd-user-profile.md`
 - Related files:
-  - `docs/infrastructure-architecture.md`
-  - `README.md`
-  - `memory-bank/active-context.md`
-  - `memory-bank/progress.md`
-  - `memory-bank/implementation-plan.md`
+  - `apps/web/index.html`
+  - `apps/web/src/styles.css`
+  - `apps/web/test/mobileTheme.test.mjs`
 
 ## Recent Decisions
 
-- Decision: Use Mermaid diagrams in Markdown for the infrastructure diagram.
-- Reason: GitHub renders Mermaid directly, so the diagram stays reviewable and editable without a separate drawing tool.
-- Alternative: Generate a static PNG diagram. This was rejected for now because the architecture is still changing and text-based diagrams are easier to maintain.
-- Impact: The infrastructure diagram is version-controlled as plain Markdown.
+- Decision: Harden the existing light-theme opt-out instead of changing the visual design.
+- Reason: The product direction is still the Animal Crossing-style light UI, and the user specifically wants mobile to match PC.
+- Alternative: Add a dark theme. This was rejected because it conflicts with the current request.
+- Impact: Mobile browsers receive stronger light-only hints and CSS dark-mode overrides.
 
-- Decision: Document both the current recommended Supabase Cron architecture and the optional AWS architecture.
-- Reason: The MVP currently relies on Supabase for scheduled alarm processing, while AWS CDK remains an optional deployment path.
-- Alternative: Only document AWS. This was rejected because it would hide the simpler current operating path.
-- Impact: README now points users to the full infrastructure architecture doc.
+- Decision: Add HTML-level pre-paint styles in addition to the stylesheet.
+- Reason: Some mobile browsers apply page-level dark styling before external CSS finishes loading.
+- Alternative: Only update `styles.css`. This was rejected because it may still allow a dark flash or mobile UA auto styling.
+- Impact: The initial document background and text color are light before React mounts.
 
 ## Current Status
 
-- Done: Added `docs/infrastructure-architecture.md`.
-- Done: Added diagrams for current recommended architecture, alarm/attendance sequence, data boundary, and optional AWS configuration.
-- Done: Linked README system architecture section to the new document.
-- Done: Verified README link and Mermaid block count with a Node script.
+- Done: Changed `meta name="color-scheme"` to `only light`.
+- Done: Added `meta name="supported-color-schemes" content="light"`.
+- Done: Added HTML pre-paint light background and text style.
+- Done: Added CSS `@media (prefers-color-scheme: dark)` override to keep app background/text light.
+- Done: Expanded `mobileTheme.test.mjs`.
+- Done: `node --test apps\web\test\mobileTheme.test.mjs` passed.
 - Done: `npm.cmd test` passed 37 tests.
-- Done: Created commit `dd1f7b8 Document infrastructure architecture`.
-- Done: Pushed documentation update to `origin/main`.
+- Done: `npm.cmd run build` passed and dist contains the light-only metadata/CSS.
+- Pending: Commit and push the mobile light-theme fix.
 
 ## Cautions
 
-- Keep secrets out of architecture docs. Use only environment variable names.
-- Do not imply Vercel or S3 sends scheduled alarms. Scheduled alarm processing is handled by Supabase Cron/Edge Function or optional AWS EventBridge/Lambda invoking Supabase.
+- If a user has enabled an aggressive browser extension or vendor-specific forced dark mode, the browser may still transform pages outside normal CSS controls.
+- Do not introduce a dark theme unless the user explicitly asks for it.
 - Remote `origin/main` is the publish target for this project.

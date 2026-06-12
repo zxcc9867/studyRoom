@@ -1,5 +1,35 @@
 # Trouble Shooting
 
+## 2026-06-13 - Mobile browser still rendered the light UI as dark
+
+### Situation
+
+The user reported that the study-room app still looked dark on mobile, while PC showed the intended light UI.
+
+### Error Message
+
+```txt
+User-visible symptom: mobile page appears dark even though the PC page is light.
+```
+
+### Cause
+
+The previous fix used document and CSS `color-scheme` hints, but the HTML meta still declared only `content="light"` and the app did not include a `prefers-color-scheme: dark` override. Some mobile browsers can apply automatic darkening or native control styling more aggressively when the OS/browser is in dark mode.
+
+### Fix
+
+Changed the HTML color-scheme meta to `only light`, added `supported-color-schemes=light`, added a small pre-paint inline light background/text style, and added a CSS `@media (prefers-color-scheme: dark)` override to keep the app background and text colors on the same light palette.
+
+### Related Files
+
+* `apps/web/index.html`
+* `apps/web/src/styles.css`
+* `apps/web/test/mobileTheme.test.mjs`
+
+### Prevention
+
+Keep both HTML metadata and CSS in sync when changing the app theme. The regression test must verify `only light`, the Safari-compatible supported color scheme meta, pre-paint style, and the dark-preference override.
+
 ## 2026-06-12 - GitHub push blocked by missing local/remote repository setup
 
 ### Situation
