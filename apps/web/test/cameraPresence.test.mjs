@@ -5,6 +5,7 @@ import { test } from "node:test";
 import {
   ABSENCE_WARNING_SECONDS,
   WARNING_COOLDOWN_SECONDS,
+  canStartStudySessionWithCamera,
   createPresenceState,
   markPresenceWarningSent,
   updatePresenceState,
@@ -84,11 +85,43 @@ test("camera presence state suppresses duplicate warnings during cooldown", () =
   assert.equal(afterCooldown.warningDue, true);
 });
 
+test("study session start is blocked when camera monitoring is required but off", () => {
+  assert.deepEqual(
+    canStartStudySessionWithCamera({
+      activeSession: null,
+      cameraEnabled: false,
+      cameraRequired: true,
+    }),
+    {
+      allowed: false,
+      reason: "camera-required",
+    },
+  );
+});
+
+test("study session start is allowed after camera monitoring is enabled", () => {
+  assert.deepEqual(
+    canStartStudySessionWithCamera({
+      activeSession: null,
+      cameraEnabled: true,
+      cameraRequired: true,
+    }),
+    {
+      allowed: true,
+      reason: "ready",
+    },
+  );
+});
+
 test("web app wires camera monitoring to active sessions and warning Edge Function", () => {
   const appSource = readFileSync("apps/web/src/main.tsx", "utf8");
   const warningSource = readFileSync("apps/web/src/cameraWarning.mjs", "utf8");
 
   assert.match(appSource, /카메라 감시 켜기/);
+  assert.match(appSource, /canStartStudySessionWithCamera/);
+  assert.match(appSource, /cameraSetupPrompt/);
+  assert.match(appSource, /sendCameraRequiredWarning/);
+  assert.match(appSource, /camera_required_warning/);
   assert.match(appSource, /activeSession/);
   assert.match(appSource, /createFacePresenceDetector/);
   assert.match(appSource, /sendCameraPresenceWarning\(session/);

@@ -103,6 +103,14 @@ test("study presence events migration stores camera warnings without media paylo
   assert.match(sql, /grant select, insert on public\.study_presence_events to authenticated/i);
 });
 
+test("camera required warning migration extends presence event types", () => {
+  const sql = readFileSync("supabase/migrations/0012_camera_required_warning.sql", "utf8");
+
+  assert.match(sql, /drop constraint if exists study_presence_events_event_type_check/i);
+  assert.match(sql, /add constraint study_presence_events_event_type_check check/i);
+  assert.match(sql, /'camera_required_warning'/i);
+});
+
 test("camera presence warning Edge Function validates session ownership before telegram warning", () => {
   const source = readFileSync("supabase/functions/camera-presence-warning/index.ts", "utf8");
 
@@ -111,7 +119,10 @@ test("camera presence warning Edge Function validates session ownership before t
   assert.match(source, /\.eq\("id", sessionId\)/);
   assert.match(source, /studySession\.user_id !== user\.id/);
   assert.match(source, /\.from\("study_presence_events"\)/);
-  assert.match(source, /event_type: "absence_warning"/);
+  assert.match(source, /event_type: eventType/);
+  assert.match(source, /"absence_warning"/);
+  assert.match(source, /camera_required_warning/);
+  assert.match(source, /eventType/);
   assert.match(source, /loadTelegramTarget\(admin, user\.id\)/);
   assert.match(source, /https:\/\/api\.telegram\.org\/bot\$\{botToken\}\/sendMessage/);
   assert.doesNotMatch(source, /image|video|frame|faceEmbedding|landmarks/);

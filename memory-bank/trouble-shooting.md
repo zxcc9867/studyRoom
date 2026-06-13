@@ -1,5 +1,34 @@
 # Trouble Shooting
 
+## 2026-06-14 - Supabase CLI unavailable for local migration creation
+
+### Situation
+
+While adding `camera_required_warning`, the Supabase skill recommended using Supabase CLI for migration commands. The local Windows environment did not have the CLI available.
+
+### Error Message
+
+```txt
+supabase : 'supabase' 용어가 cmdlet, 함수, 스크립트 파일 또는 실행할 수 있는 프로그램 이름으로 인식되지 않습니다.
+```
+
+### Cause
+
+The Supabase CLI is not installed or not on `PATH` in this shell session.
+
+### Fix
+
+Kept the repository's existing numbered migration naming pattern and created `supabase/migrations/0012_camera_required_warning.sql`. Applied the DDL remotely through Supabase MCP `_apply_migration`, then verified the remote check constraint with `_execute_sql`.
+
+### Related Files
+
+* `supabase/migrations/0012_camera_required_warning.sql`
+* `supabase/functions/camera-presence-warning/index.ts`
+
+### Prevention
+
+For future Supabase schema work in this environment, check `supabase --version` first. If unavailable, use Supabase MCP `_apply_migration` for DDL and record the local migration file manually using the repo's current naming pattern.
+
 ## 2026-06-13 - Vercel CI Deployment Path Added
 
 ### Situation

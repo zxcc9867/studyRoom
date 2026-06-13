@@ -28,6 +28,15 @@ export function markPresenceWarningSent(
   },
 ): PresenceState;
 
+export function canStartStudySessionWithCamera(input: {
+  activeSession: unknown | null;
+  cameraEnabled: boolean;
+  cameraRequired?: boolean;
+}): {
+  allowed: boolean;
+  reason: "ready" | "active-session" | "camera-required";
+};
+
 export function getCameraSupport(env?: typeof globalThis): {
   supported: boolean;
   reason: "supported" | "secure-context-required" | "media-devices-unavailable";

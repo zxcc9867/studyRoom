@@ -14,7 +14,7 @@
 - My Page: the web dashboard includes an in-page `me` section that reuses loaded profile and `study_todos` data to show account summary and completed todo history.
 - Reminder todo enrichment: `attendance-cron` loads `study_todos` for each due reminder's `user_id` and `local_date`, then appends a compact `오늘 할 일` summary to server-side notification bodies. The open web app also renders the same date's todos in the reminder popup from already loaded dashboard state.
 - Two-step attendance enforcement: `get_due_reminders()` emits an initial reminder at the configured daily reminder time and a `nudge` reminder 15 minutes later if no qualifying timer start exists. `mark_missed_attendance()` marks the day missed at reminder time + 30 minutes.
-- Camera presence warning: during an active web study session, the user can manually enable camera monitoring. MediaPipe FaceDetector runs in the browser only, and the server receives only absence event metadata through `camera-presence-warning`.
+- Camera presence warning: web study sessions require camera monitoring before the timer can start. MediaPipe FaceDetector runs in the browser only, and the server receives only camera event metadata through `camera-presence-warning`.
 
 ## Tech Stack
 
@@ -67,6 +67,7 @@ apps/web/src/faceDetection.mjs
 apps/web/test/cameraPresence.test.mjs
 supabase/functions/camera-presence-warning/index.ts
 supabase/migrations/0011_study_presence_events.sql
+supabase/migrations/0012_camera_required_warning.sql
 ```
 
 ```txt
@@ -98,7 +99,7 @@ docs/images/study-room-thumbnail.png
 - `attendance-cron` sends Kakao Memo requests to `https://kapi.kakao.com/v2/api/talk/memo/default/send`.
 - `attendance-cron` sends Telegram messages to `https://api.telegram.org/bot{token}/sendMessage`.
 - `telegram-test-alarm` sends a protected one-off Telegram test message and includes same-day `study_todos` in the message body. Browser requests must include `Authorization: Bearer {supabase_access_token}`.
-- `camera-presence-warning` receives `POST /functions/v1/camera-presence-warning` from the browser with `Authorization: Bearer {supabase_access_token}` and body `{ sessionId, absenceSeconds, detectedAt }`.
+- `camera-presence-warning` receives `POST /functions/v1/camera-presence-warning` from the browser with `Authorization: Bearer {supabase_access_token}` and body `{ sessionId, absenceSeconds, detectedAt, eventType }`.
 - `camera-presence-warning` validates that `study_sessions.user_id` matches the authenticated Supabase user before inserting `study_presence_events` or sending Telegram.
 - `attendance-cron` notification bodies include up to a compact subset of reminder-date todo titles and mark completed items with a check indicator.
 - `get_due_reminders()` returns `reminder_stage = 'initial' | 'nudge'`. `attendance-cron` uses this stage to choose the first-reminder or final-nudge title/body and includes `reminderStage` in push payload data.
@@ -121,7 +122,7 @@ docs/images/study-room-thumbnail.png
 - Timer starts before the configured reminder time must not create a `present` attendance row, because `get_due_reminders()` excludes days that are already `present` or `missed`.
 - Attendance deadline is `reminder_at + interval '30 minutes'`. Timer starts qualify only when `started_at >= reminder_at` and `started_at < deadline_at`; starts at the exact deadline or later do not qualify.
 - The 15-minute nudge is not a separate attendance status. It is derived by `get_due_reminders()` from an existing `attendance_days.status = 'pending'` row and the absence of a qualifying `study_sessions.started_at`.
-- `study_presence_events` stores camera presence events only: `camera_started`, `camera_stopped`, `absence_warning`, and `camera_permission_denied`.
+- `study_presence_events` stores camera presence events only: `camera_started`, `camera_stopped`, `absence_warning`, `camera_permission_denied`, and `camera_required_warning`.
 - `study_presence_events.metadata` must not contain `image`, `video`, `frame`, `faceEmbedding`, or `landmarks` keys.
 - Users can select and insert only their own `study_presence_events`; Edge Functions use the service role after validating session ownership.
 
@@ -154,7 +155,7 @@ docs/images/study-room-thumbnail.png
 - Supabase Cron uses Vault-stored secrets and never exposes `cron_secret` to the client.
 - `telegram-test-alarm` is deployed with `verify_jwt=false` only because it performs its own `x-cron-secret` or Supabase JWT validation before reading any target or sending any message.
 - `camera-presence-warning` is deployed with `verify_jwt=false` only because it handles CORS preflight and then validates the Supabase JWT with `admin.auth.getUser(jwt)`.
-- Camera frames never leave the browser. The app sends only `sessionId`, `absenceSeconds`, and `detectedAt` to the Edge Function.
+- Camera frames never leave the browser. The app sends only `sessionId`, `absenceSeconds`, `detectedAt`, and `eventType` to the Edge Function.
 - `study_presence_events` has a DB check constraint that rejects media-like metadata keys.
 - Kakao raw tokens are never stored in frontend local storage by app code and are not exposed through public RLS policies.
 - Telegram bot tokens are never stored in frontend code or user-managed DB rows.
@@ -168,6 +169,16 @@ docs/images/study-room-thumbnail.png
 - GitHub Actions Vercel deployment uses only GitHub Secrets for `VERCEL_TOKEN`, `VERCEL_ORG_ID`, and `VERCEL_PROJECT_ID`; none of those values should be stored in frontend code.
 
 ## Supabase 변경 이력
+
+### 2026-06-14
+
+- 변경 대상: `public.study_presence_events`, `camera-presence-warning`
+- 변경 내용: `study_presence_events_event_type_check` constraint에 `camera_required_warning`을 추가했다. `camera-presence-warning` Edge Function version 2는 request body의 `eventType`을 파싱하고, `camera_required_warning`에는 `absenceSeconds=0`을 허용하며 Telegram 경고 문구를 별도로 보낸다.
+- 변경 이유: 공부 세션 시작 전 카메라 감시를 필수화하고, 활성 세션 중 카메라가 꺼진 경우 앱/Telegram 경고를 기록하기 위해서다.
+- 관련 기능: 카메라 필수 출석 게이트, Telegram 카메라 꺼짐 경고
+- 마이그레이션 파일: `supabase/migrations/0012_camera_required_warning.sql`
+- 확인 방법: Supabase SQL verification에서 `camera_required_warning_allowed=true`, Edge Function list에서 `camera-presence-warning` version 2 ACTIVE 확인.
+- 주의 사항: `verify_jwt=false`는 CORS preflight 때문에 유지하지만 함수 내부에서 Supabase JWT와 세션 소유권을 검증한다.
 
 ### 2026-06-13
 

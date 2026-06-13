@@ -14,6 +14,8 @@ type TelegramTarget = {
   destination: string | null;
 };
 
+type PresenceWarningEventType = "absence_warning" | "camera_required_warning";
+
 const corsHeaders = {
   "access-control-allow-origin": "*",
   "access-control-allow-headers": "authorization, x-client-info, apikey, content-type",
@@ -45,7 +47,7 @@ Deno.serve(async (request) => {
   if ("response" in parsed) {
     return parsed.response;
   }
-  const { sessionId, absenceSeconds, detectedAt } = parsed;
+  const { sessionId, absenceSeconds, detectedAt, eventType } = parsed;
 
   const studySession = await loadStudySession(admin, sessionId);
   if (!studySession || studySession.user_id !== user.id) {
@@ -53,7 +55,7 @@ Deno.serve(async (request) => {
   }
 
   const target = await loadTelegramTarget(admin, user.id);
-  const eventId = await recordPresenceEvent(admin, studySession, absenceSeconds, detectedAt, Boolean(target));
+  const eventId = await recordPresenceEvent(admin, studySession, eventType, absenceSeconds, detectedAt, Boolean(target));
 
   if (!target?.destination) {
     return json({
@@ -65,7 +67,7 @@ Deno.serve(async (request) => {
   }
 
   try {
-    const messageId = await sendTelegramMessage(target.destination);
+    const messageId = await sendTelegramMessage(target.destination, eventType);
     await recordDelivery(admin, target, studySession.local_date, "sent", null);
     return json({
       ok: true,
@@ -105,20 +107,39 @@ function parseWarningPayload(payload: unknown) {
   const absenceSeconds = Number(data?.absenceSeconds);
   const detectedAtInput = typeof data?.detectedAt === "string" ? data.detectedAt : "";
   const detectedAtMs = Date.parse(detectedAtInput);
+  const eventType = parseEventType(data?.eventType);
 
   if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(sessionId)) {
     return { response: json({ error: "sessionId must be a uuid" }, 400) };
   }
 
-  if (!Number.isFinite(absenceSeconds) || absenceSeconds < 300) {
-    return { response: json({ error: "absenceSeconds must be at least 300" }, 400) };
+  if (!eventType) {
+    return { response: json({ error: "eventType is not supported" }, 400) };
+  }
+
+  const minimumAbsenceSeconds = eventType === "absence_warning" ? 300 : 0;
+  if (!Number.isFinite(absenceSeconds) || absenceSeconds < minimumAbsenceSeconds) {
+    return { response: json({ error: `absenceSeconds must be at least ${minimumAbsenceSeconds}` }, 400) };
   }
 
   return {
     sessionId,
     absenceSeconds: Math.floor(absenceSeconds),
     detectedAt: Number.isFinite(detectedAtMs) ? new Date(detectedAtMs).toISOString() : new Date().toISOString(),
+    eventType,
   };
+}
+
+function parseEventType(value: unknown): PresenceWarningEventType | null {
+  if (value === undefined || value === null || value === "") {
+    return "absence_warning";
+  }
+
+  if (value === "absence_warning" || value === "camera_required_warning") {
+    return value;
+  }
+
+  return null;
 }
 
 async function loadStudySession(admin: ReturnType<typeof createClient>, sessionId: string) {
@@ -156,6 +177,7 @@ async function loadTelegramTarget(admin: ReturnType<typeof createClient>, userId
 async function recordPresenceEvent(
   admin: ReturnType<typeof createClient>,
   studySession: StudySessionRow,
+  eventType: PresenceWarningEventType,
   absenceSeconds: number,
   detectedAt: string,
   telegramAttempted: boolean,
@@ -165,7 +187,7 @@ async function recordPresenceEvent(
     .insert({
       user_id: studySession.user_id,
       session_id: studySession.id,
-      event_type: "absence_warning",
+      event_type: eventType,
       absence_seconds: absenceSeconds,
       detected_at: detectedAt,
       metadata: {
@@ -183,7 +205,7 @@ async function recordPresenceEvent(
   return String(data.id);
 }
 
-async function sendTelegramMessage(chatId: string) {
+async function sendTelegramMessage(chatId: string, eventType: PresenceWarningEventType) {
   const botToken = requiredEnv("TELEGRAM_BOT_TOKEN");
   const appUrl = Deno.env.get("APP_ORIGIN") ?? "https://study-room-attendance.vercel.app";
   const response = await fetch(`https://api.telegram.org/bot${botToken}/sendMessage`, {
@@ -191,7 +213,7 @@ async function sendTelegramMessage(chatId: string) {
     headers: jsonHeaders,
     body: JSON.stringify({
       chat_id: chatId,
-      text: buildWarningMessage(appUrl),
+      text: buildWarningMessage(appUrl, eventType),
       disable_web_page_preview: true,
     }),
   });
@@ -211,7 +233,16 @@ async function sendTelegramMessage(chatId: string) {
   return result.result?.message_id ?? null;
 }
 
-function buildWarningMessage(appUrl: string) {
+function buildWarningMessage(appUrl: string, eventType: PresenceWarningEventType) {
+  if (eventType === "camera_required_warning") {
+    return [
+      "\uCE74\uBA54\uB77C \uAC10\uC2DC \uACBD\uACE0",
+      "\uD604\uC7AC \uACF5\uBD80 \uC138\uC158\uC758 \uCE74\uBA54\uB77C \uAC10\uC2DC\uAC00 \uAEBC\uC838 \uC788\uC2B5\uB2C8\uB2E4. \uCD9C\uC11D\uC744 \uC720\uC9C0\uD558\uB824\uBA74 \uC571\uC73C\uB85C \uB3CC\uC544\uC640 \uCE74\uBA54\uB77C\uB97C \uCF1C\uC138\uC694.",
+      "",
+      appUrl,
+    ].join("\n");
+  }
+
   return [
     "\uC790\uB9AC \uBE44\uC6C0 \uACBD\uACE0",
     "5\uBD84 \uB3D9\uC548 \uCE74\uBA54\uB77C\uC5D0\uC11C \uC5BC\uAD74\uC774 \uAC10\uC9C0\uB418\uC9C0 \uC54A\uC558\uC2B5\uB2C8\uB2E4. \uB2E4\uC2DC \uC790\uB9AC\uB85C \uB3CC\uC544\uC640 \uACF5\uBD80\uB97C \uC774\uC5B4\uAC00\uC138\uC694.",

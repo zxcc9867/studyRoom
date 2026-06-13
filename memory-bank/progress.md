@@ -2,6 +2,53 @@
 
 ## Timeline
 
+### 2026-06-14
+
+#### 완료한 작업
+
+- 카메라 감시가 꺼진 상태에서는 `입장하고 시작`이 바로 Supabase `start_study_session` RPC를 호출하지 못하도록 차단했다.
+- 카메라가 꺼져 있으면 `카메라 인증이 필요합니다` 팝업을 띄우고, `카메라 켜고 시작`을 눌렀을 때만 카메라 권한 요청 후 공부 세션을 시작하도록 했다.
+- 활성 공부 세션 중 카메라 감시가 꺼져 있으면 앱 팝업을 다시 띄우고 `camera_required_warning` 이벤트를 Edge Function으로 보낸다.
+- `camera_required_warning` Telegram 경고는 10분 쿨다운을 적용해 중복 발송을 막는다.
+- `study_presence_events.event_type` check constraint에 `camera_required_warning`을 추가하는 migration을 만들고 원격 Supabase에 적용했다.
+- `camera-presence-warning` Edge Function을 version 2 ACTIVE로 배포했다.
+
+#### 변경된 파일
+
+- `apps/web/src/main.tsx`
+- `apps/web/src/cameraPresence.mjs`
+- `apps/web/src/cameraPresence.d.mts`
+- `apps/web/src/cameraWarning.mjs`
+- `apps/web/src/cameraWarning.d.mts`
+- `apps/web/test/cameraPresence.test.mjs`
+- `packages/core/test/sql-migrations.test.mjs`
+- `supabase/functions/camera-presence-warning/index.ts`
+- `supabase/migrations/0012_camera_required_warning.sql`
+- `memory-bank/active-context.md`
+- `memory-bank/progress.md`
+- `memory-bank/implementation-plan.md`
+- `memory-bank/prd-camera-presence.md`
+- `memory-bank/trouble-shooting.md`
+
+#### 검증 방법
+
+- RED: `node --test apps\web\test\cameraPresence.test.mjs packages\core\test\sql-migrations.test.mjs` failed because `canStartStudySessionWithCamera`, `0012_camera_required_warning.sql`, and `camera_required_warning` Edge Function handling were missing.
+- GREEN: `node --test apps\web\test\cameraPresence.test.mjs packages\core\test\sql-migrations.test.mjs` passed 18 tests.
+- `npm.cmd test` passed 49 tests.
+- `npm.cmd run build` passed.
+- Supabase MCP `_apply_migration` returned `success=true` for `camera_required_warning`.
+- Supabase SQL verification returned `camera_required_warning_allowed=true`.
+- Supabase Edge Function list shows `camera-presence-warning` version 2 ACTIVE with `verify_jwt=false`.
+
+#### 남은 작업
+
+- Vercel production UI deployment has not been performed in this step.
+- Manual browser verification with a real camera is still needed: click `입장하고 시작`, allow camera, confirm timer starts, then turn camera off and confirm the warning.
+
+#### 다음 우선순위
+
+- If the user wants the production site updated, commit and push to `origin/main` so GitHub Actions can deploy to Vercel.
+
 ### 2026-06-13
 
 #### Completed Work

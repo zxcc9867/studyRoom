@@ -43,6 +43,7 @@ import {
   type IdentityPayload,
 } from "./authProviders.mjs";
 import {
+  canStartStudySessionWithCamera,
   createPresenceState,
   getCameraSupport,
   getPresenceStatusLabel,
@@ -82,8 +83,12 @@ const resendCooldownKey = "study-room-auth-resend-available-at";
 const emailOtpLength = EMAIL_OTP_LENGTH;
 const googleAuthEnabled = import.meta.env.VITE_GOOGLE_AUTH_ENABLED === "true";
 const defaultDailyGoalSeconds = 2 * 60 * 60;
+const cameraRequiredWarningCooldownMs = 10 * 60 * 1000;
 const dashboardSections = ["today", "me", "settings"] as const;
 type DashboardSection = (typeof dashboardSections)[number];
+type CameraSetupPrompt = {
+  mode: "start" | "resume";
+};
 
 type Profile = {
   user_id: string;
@@ -181,11 +186,14 @@ function DashboardApp() {
     telegramSent: boolean;
     telegramMissing: boolean;
   } | null>(null);
+  const [cameraSetupPrompt, setCameraSetupPrompt] = useState<CameraSetupPrompt | null>(null);
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const cameraStreamRef = useRef<MediaStream | null>(null);
   const faceDetectorRef = useRef<FacePresenceDetector | null>(null);
   const presenceStateRef = useRef<PresenceState>(createPresenceState(Date.now()));
   const cameraSessionIdRef = useRef<string | null>(null);
+  const cameraSessionStartingRef = useRef(false);
+  const lastCameraRequiredWarningAtRef = useRef(0);
   const warningInFlightRef = useRef(false);
 
   useEffect(() => {
@@ -378,10 +386,20 @@ function DashboardApp() {
   }, [activeSession?.id, session?.access_token, session?.user.id]);
 
   useEffect(() => {
-    if (!activeSession && cameraEnabled) {
+    if (!activeSession && cameraEnabled && !cameraSessionStartingRef.current) {
       stopCameraMonitoring({ recordEvent: true });
     }
   }, [activeSession?.id, cameraEnabled]);
+
+  useEffect(() => {
+    if (!activeSession || cameraEnabled || cameraStatus === "starting") {
+      return;
+    }
+
+    setCameraSetupPrompt({ mode: "resume" });
+    setCameraMessage("공부 세션 중에는 카메라 감시가 필요합니다.");
+    void sendCameraRequiredWarning();
+  }, [activeSession?.id, cameraEnabled, cameraStatus, session?.access_token]);
 
   useEffect(() => {
     if (!cameraEnabled || !activeSession || !session) {
@@ -849,12 +867,33 @@ function DashboardApp() {
     }
   }
 
-  async function startTimer() {
+  async function startTimer(cameraReadyOverride = false) {
+    const startGate = canStartStudySessionWithCamera({
+      activeSession,
+      cameraEnabled: cameraEnabled || cameraReadyOverride,
+      cameraRequired: true,
+    });
+
+    if (!startGate.allowed) {
+      if (startGate.reason === "camera-required") {
+        setCameraSetupPrompt({ mode: "start" });
+        setCameraMessage("출석하려면 카메라 감시를 먼저 켜야 합니다.");
+        return;
+      }
+
+      setMessage("이미 진행 중인 집중 세션이 있습니다.");
+      return;
+    }
+
     setBusy(true);
     const { data, error } = await supabase.rpc("start_study_session");
     setBusy(false);
     if (error) {
       setMessage(error.message);
+      if (cameraSessionStartingRef.current && cameraEnabled && !activeSession) {
+        stopCameraMonitoring({ recordEvent: false });
+      }
+      cameraSessionStartingRef.current = false;
     } else if (session?.user.id) {
       if (data) {
         const startedSession = data as StudySession;
@@ -863,8 +902,19 @@ function DashboardApp() {
           ...current.filter((item) => item.id !== startedSession.id),
         ]);
         setNowMs(Date.now());
+        if (cameraEnabled || cameraReadyOverride) {
+          cameraSessionIdRef.current = startedSession.id;
+          await recordCameraPresenceEvent(session.user.id, startedSession.id, "camera_started", {
+            metadata: { source: "web-camera", requiredForAttendance: true },
+          }).catch((error) => {
+            setCameraMessage(formatNotificationError(error));
+          });
+          setCameraMessage("카메라 감시 중");
+        }
       }
       setMessage("집중 세션을 시작했습니다.");
+      setCameraSetupPrompt(null);
+      cameraSessionStartingRef.current = false;
       await loadDashboard(session.user.id);
     }
   }
@@ -916,15 +966,14 @@ function DashboardApp() {
     }
   }
 
-  async function toggleCameraMonitoring() {
+  async function startCameraMonitoring({ allowWithoutSession = false }: { allowWithoutSession?: boolean } = {}) {
     if (cameraEnabled) {
-      stopCameraMonitoring({ recordEvent: true });
-      return;
+      return true;
     }
 
-    if (!activeSession || !session?.user.id) {
+    if ((!activeSession && !allowWithoutSession) || !session?.user.id) {
       setCameraMessage("공부 세션을 시작한 뒤 카메라 감시를 켤 수 있습니다.");
-      return;
+      return false;
     }
 
     const support = getCameraSupport(window);
@@ -935,7 +984,7 @@ function DashboardApp() {
           ? "HTTPS 또는 localhost에서만 카메라를 사용할 수 있습니다."
           : "이 브라우저에서는 카메라를 사용할 수 없습니다.",
       );
-      return;
+      return false;
     }
 
     setCameraStatus("starting");
@@ -958,14 +1007,17 @@ function DashboardApp() {
       }
 
       faceDetectorRef.current = await createFacePresenceDetector();
-      cameraSessionIdRef.current = activeSession.id;
+      cameraSessionIdRef.current = activeSession?.id ?? null;
       resetPresenceState();
       setCameraEnabled(true);
       setCameraStatus("watching");
       setCameraMessage("카메라 감시 중");
-      await recordCameraPresenceEvent(session.user.id, activeSession.id, "camera_started", {
-        metadata: { source: "web-camera" },
-      });
+      if (activeSession) {
+        await recordCameraPresenceEvent(session.user.id, activeSession.id, "camera_started", {
+          metadata: { source: "web-camera" },
+        });
+      }
+      return true;
     } catch (error) {
       cleanupCameraResources();
       setCameraEnabled(false);
@@ -973,11 +1025,67 @@ function DashboardApp() {
       setCameraMessage(formatCameraError(error));
 
       const denied = error instanceof DOMException && ["NotAllowedError", "PermissionDeniedError"].includes(error.name);
-      if (denied) {
+      if (denied && activeSession) {
         await recordCameraPresenceEvent(session.user.id, activeSession.id, "camera_permission_denied", {
           metadata: { source: "web-camera" },
         }).catch(() => undefined);
       }
+      return false;
+    }
+  }
+
+  async function toggleCameraMonitoring() {
+    if (cameraEnabled) {
+      stopCameraMonitoring({ recordEvent: true });
+      void sendCameraRequiredWarning();
+      return;
+    }
+
+    await startCameraMonitoring();
+  }
+
+  async function confirmCameraSetupPrompt() {
+    if (!cameraSetupPrompt) return;
+
+    const promptMode = cameraSetupPrompt.mode;
+    cameraSessionStartingRef.current = promptMode === "start";
+    const cameraReady = await startCameraMonitoring({ allowWithoutSession: promptMode === "start" });
+    if (!cameraReady) {
+      cameraSessionStartingRef.current = false;
+      return;
+    }
+
+    setCameraSetupPrompt(null);
+    if (promptMode === "start") {
+      await startTimer(true);
+    } else {
+      cameraSessionStartingRef.current = false;
+    }
+  }
+
+  async function sendCameraRequiredWarning() {
+    if (!activeSession || !session) return;
+
+    const now = Date.now();
+    if (now - lastCameraRequiredWarningAtRef.current < cameraRequiredWarningCooldownMs) {
+      return;
+    }
+    lastCameraRequiredWarningAtRef.current = now;
+
+    try {
+      const result = await sendCameraPresenceWarning(session, {
+        sessionId: activeSession.id,
+        absenceSeconds: 0,
+        detectedAt: new Date().toISOString(),
+        eventType: "camera_required_warning",
+      });
+      setCameraMessage(
+        result.telegramSent
+          ? "카메라 켜기 경고를 Telegram으로 보냈습니다."
+          : "카메라 켜기 경고를 기록했습니다. Telegram은 아직 등록되지 않았습니다.",
+      );
+    } catch (error) {
+      setCameraMessage(formatNotificationError(error));
     }
   }
 
@@ -1243,7 +1351,13 @@ function DashboardApp() {
               <h2>{profile?.reminder_time?.slice(0, 5) ?? reminderTime} 이후 30분 안에 출석</h2>
             </div>
             <div className="topbar-actions" aria-label="집중 세션 조작">
-              <button className="primary" onClick={startTimer} disabled={busy || Boolean(activeSession)}>
+              <button
+                className="primary"
+                onClick={() => {
+                  void startTimer();
+                }}
+                disabled={busy || Boolean(activeSession)}
+              >
                 <Play size={18} />
                 입장하고 시작
               </button>
@@ -1416,6 +1530,54 @@ function DashboardApp() {
                 </button>
                 <button className="secondary" type="button" onClick={() => setReminderPopup(null)}>
                   <Send size={18} />
+                  나중에
+                </button>
+              </div>
+            </section>
+          </div>
+        )}
+
+        {cameraSetupPrompt && (
+          <div className="modal-backdrop reminder-backdrop" role="presentation">
+            <section
+              className="todo-modal reminder-modal camera-required-modal"
+              role="dialog"
+              aria-modal="true"
+              aria-label="카메라 인증 필요"
+            >
+              <div className="todo-header">
+                <div>
+                  <p className="eyebrow">camera required</p>
+                  <h3>카메라 인증이 필요합니다</h3>
+                </div>
+                <button
+                  className="modal-close"
+                  type="button"
+                  aria-label="카메라 인증 안내 닫기"
+                  onClick={() => setCameraSetupPrompt(null)}
+                >
+                  <X size={18} />
+                </button>
+              </div>
+              <p className="reminder-copy">
+                {cameraSetupPrompt.mode === "start"
+                  ? "출석으로 인정받으려면 카메라 감시를 켠 뒤 타이머를 시작해야 합니다."
+                  : "현재 공부 세션의 카메라 감시가 꺼져 있습니다. 다시 켜야 출석 유지 상태를 확인할 수 있습니다."}
+              </p>
+              <div className="reminder-actions">
+                <button
+                  className="primary"
+                  type="button"
+                  disabled={busy || cameraStatus === "starting"}
+                  onClick={() => {
+                    void confirmCameraSetupPrompt();
+                  }}
+                >
+                  <Camera size={18} />
+                  {cameraSetupPrompt.mode === "start" ? "카메라 켜고 시작" : "카메라 켜기"}
+                </button>
+                <button className="secondary" type="button" onClick={() => setCameraSetupPrompt(null)}>
+                  <X size={18} />
                   나중에
                 </button>
               </div>

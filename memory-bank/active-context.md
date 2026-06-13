@@ -2,38 +2,40 @@
 
 ## 현재 작업
 
-- 작업명: Vercel GitHub Actions 자동 배포 파이프라인 배포 확인
-- 작업 목적: GitHub Secrets 설정 후 `main` push로 GitHub Actions가 Vercel production 배포를 수행하도록 만든다.
-- 관련 PRD: `memory-bank/prd-vercel-ci.md`
+- 작업명: 카메라 필수 출석 게이트 및 카메라 꺼짐 경고
+- 작업 목적: 사용자가 공부 타이머를 시작하기 전에 카메라 감시를 반드시 켜도록 막고, 활성 공부 세션 중 카메라가 꺼져 있으면 앱 팝업과 Telegram 경고 이벤트를 보내도록 한다.
+- 관련 PRD: `memory-bank/prd-camera-presence.md`
 - 관련 파일:
-  - `.github/workflows/vercel-production.yml`
-  - `docs/vercel-ci.md`
-  - `memory-bank/prd-vercel-ci.md`
-  - `memory-bank/implementation-plan.md`
-  - `memory-bank/progress.md`
-  - `memory-bank/trouble-shooting.md`
+  - `apps/web/src/main.tsx`
+  - `apps/web/src/cameraPresence.mjs`
+  - `apps/web/src/cameraPresence.d.mts`
+  - `apps/web/src/cameraWarning.mjs`
+  - `apps/web/src/cameraWarning.d.mts`
+  - `apps/web/test/cameraPresence.test.mjs`
+  - `packages/core/test/sql-migrations.test.mjs`
+  - `supabase/functions/camera-presence-warning/index.ts`
+  - `supabase/migrations/0012_camera_required_warning.sql`
 
 ## 최근 결정 사항
 
-- 결정: GitHub Actions workflow는 `npm ci`, `npm test`, `vercel pull`, `vercel deploy --prod` 순서로 실행한다.
-- 이유: `vercel build --prod`는 현재 Vercel 프로젝트의 Node.js `24.x` 설정을 CI 로컬 빌드에서 거부하므로, Vercel 원격 빌드가 production 설정을 사용하도록 맡기는 편이 안전하다.
-- 대안: `vercel build --prod` + `vercel deploy --prebuilt`는 테스트 산출물 배포 측면에서 좋지만, 현재 프로젝트 설정과 충돌한다.
-- 영향 범위: GitHub Actions workflow, Vercel production deployment.
+- 결정: `start_study_session` RPC를 호출하기 전에 웹 앱에서 카메라 감시 상태를 검사한다.
+- 이유: 사용자의 최신 지시가 카메라가 꺼져 있으면 공부 시작과 출석 인정을 막는 방향이었기 때문이다.
+- 대안: 타이머 시작 후 카메라 미사용을 경고만 하는 방식이 있었으나, 강제 출석 앱 목적에는 약하다.
+- 영향 범위: 웹 `Today Focus` 시작 흐름, 카메라 감시 UI, `camera-presence-warning` Edge Function, `study_presence_events.event_type` check constraint.
 
 ## 현재 상태
 
-- 완료: 커밋 `0d54fa7`을 `origin/main`에 push했고 GitHub Actions run `27435664940`이 생성됐다.
-- 완료: 첫 run은 `npm test`까지 통과했지만 `vercel build --prod` 단계에서 Node.js `24.x` 문제로 실패했다.
-- 완료: workflow를 remote build 방식으로 수정한 커밋 `e5a2730`을 `origin/main`에 push했다.
-- 완료: GitHub Actions run `27435801823`이 성공했다.
-- 완료: Vercel production deployment `dpl_BXM4358PWNe4zDy3mVy9KYkRwrf9`가 READY 상태다.
-- 완료: `https://study-room-attendance.vercel.app/`가 새 HTML과 asset `/assets/index-_N2PZqno.js`를 반환한다.
-- 완료: production asset에 `카메라 감시`, `자리 비움`, `camera-presence-warning`, `30분` 마커가 포함되어 있음을 확인했다.
-- 막힌 부분: 없음.
-- 다음 작업: Vercel Git integration과 GitHub Actions 배포가 중복되는지 관찰하고 필요하면 한쪽을 끈다.
+- 완료: 카메라 없이 `입장하고 시작`을 누르면 카메라 인증 팝업이 뜨고 RPC 호출은 막힌다.
+- 완료: `카메라 켜고 시작`을 누르면 카메라 권한을 받은 뒤 공부 세션을 만들고 `camera_started` 이벤트를 기록한다.
+- 완료: 활성 세션 중 카메라가 꺼지면 `camera_required_warning` 이벤트와 Telegram 경고를 10분 쿨다운으로 보낸다.
+- 완료: Supabase 원격 DB migration `camera_required_warning` 적용 성공.
+- 완료: `camera-presence-warning` Edge Function version 2 ACTIVE 배포 성공.
+- 막힌 부분: Vercel production UI 배포는 아직 수행하지 않았다. 커밋/푸시는 사용자 명시 요청이 있어야 한다.
+- 다음 작업: 사용자가 원하면 커밋 후 `main` push로 GitHub Actions/Vercel 배포를 실행한다.
 
 ## 주의할 점
 
-- `VERCEL_TOKEN`은 repository, README, memory-bank, 채팅에 저장하지 않는다.
-- 현재 Vercel Git integration도 연결되어 있으므로, GitHub Actions와 중복 배포가 생길 수 있다.
-- GitHub Actions를 단일 배포 경로로 사용할 경우 Vercel dashboard에서 Git integration 자동 배포를 끄거나 연결을 해제한다.
+- 사진, 영상, 프레임, 얼굴 특징값은 계속 저장하거나 서버로 보내면 안 된다.
+- `camera-presence-warning`은 `verify_jwt=false`이지만 함수 내부에서 Supabase JWT와 `study_sessions.user_id` 소유권을 검증한다.
+- `camera_required_warning`은 `absenceSeconds=0`을 허용하지만 기존 `absence_warning`은 300초 이상 조건을 유지한다.
+- Supabase CLI는 현재 Windows 환경에 설치되어 있지 않아 원격 DDL은 Supabase MCP `_apply_migration`으로 적용했다.

@@ -45,6 +45,18 @@ export function markPresenceWarningSent(state, { nowMs }) {
   };
 }
 
+export function canStartStudySessionWithCamera({ activeSession, cameraEnabled, cameraRequired = true }) {
+  if (activeSession) {
+    return { allowed: false, reason: "active-session" };
+  }
+
+  if (cameraRequired && !cameraEnabled) {
+    return { allowed: false, reason: "camera-required" };
+  }
+
+  return { allowed: true, reason: "ready" };
+}
+
 export function getCameraSupport(env = globalThis) {
   if (!env.isSecureContext) {
     return { supported: false, reason: "secure-context-required" };

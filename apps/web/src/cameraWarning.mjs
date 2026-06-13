@@ -1,6 +1,6 @@
 import { supabase, supabaseAnonKey, supabaseUrl } from "./supabase";
 
-export async function sendCameraPresenceWarning(session, { sessionId, absenceSeconds, detectedAt }) {
+export async function sendCameraPresenceWarning(session, { sessionId, absenceSeconds, detectedAt, eventType }) {
   if (!session?.access_token) {
     throw new Error("Supabase session is required");
   }
@@ -16,6 +16,7 @@ export async function sendCameraPresenceWarning(session, { sessionId, absenceSec
       sessionId,
       absenceSeconds,
       detectedAt,
+      eventType: eventType ?? "absence_warning",
     }),
   });
   const payload = await response.json().catch(() => null);

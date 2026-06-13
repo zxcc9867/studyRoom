@@ -14,13 +14,19 @@ export function sendCameraPresenceWarning(
     sessionId: string;
     absenceSeconds: number;
     detectedAt: string;
+    eventType?: "absence_warning" | "camera_required_warning";
   },
 ): Promise<CameraWarningResult>;
 
 export function recordCameraPresenceEvent(
   userId: string,
   sessionId: string,
-  eventType: "camera_started" | "camera_stopped" | "absence_warning" | "camera_permission_denied",
+  eventType:
+    | "camera_started"
+    | "camera_stopped"
+    | "absence_warning"
+    | "camera_permission_denied"
+    | "camera_required_warning",
   options?: {
     absenceSeconds?: number;
     detectedAt?: string;
