@@ -15,6 +15,7 @@
 - Reminder todo enrichment: `attendance-cron` loads `study_todos` for each due reminder's `user_id` and `local_date`, then appends a compact `오늘 할 일` summary to server-side notification bodies. The open web app also renders the same date's todos in the reminder popup from already loaded dashboard state.
 - Two-step attendance enforcement: `get_due_reminders()` emits an initial reminder at the configured daily reminder time and a `nudge` reminder 15 minutes later if no qualifying timer start exists. `mark_missed_attendance()` marks the day missed at reminder time + 30 minutes.
 - Camera presence warning: web study sessions require camera monitoring before the timer can start. MediaPipe FaceDetector runs in the browser only, and the server receives only camera event metadata through `camera-presence-warning`.
+- Camera absence enforcement: if no face is detected for 5 minutes, the web timer enters auto-pause and excludes the current absence interval from displayed study time. If no face is detected for 10 minutes, the web app calls `end_study_session` automatically with excluded seconds.
 
 ## Tech Stack
 
@@ -64,10 +65,13 @@ apps/web/test/todoHistory.test.mjs
 apps/web/src/cameraPresence.mjs
 apps/web/src/cameraWarning.mjs
 apps/web/src/faceDetection.mjs
+apps/web/src/sessionExit.mjs
 apps/web/test/cameraPresence.test.mjs
+apps/web/test/sessionExit.test.mjs
 supabase/functions/camera-presence-warning/index.ts
 supabase/migrations/0011_study_presence_events.sql
 supabase/migrations/0012_camera_required_warning.sql
+supabase/migrations/0013_exclude_camera_absence_from_sessions.sql
 ```
 
 ```txt
@@ -101,6 +105,7 @@ docs/images/study-room-thumbnail.png
 - `telegram-test-alarm` sends a protected one-off Telegram test message and includes same-day `study_todos` in the message body. Browser requests must include `Authorization: Bearer {supabase_access_token}`.
 - `camera-presence-warning` receives `POST /functions/v1/camera-presence-warning` from the browser with `Authorization: Bearer {supabase_access_token}` and body `{ sessionId, absenceSeconds, detectedAt, eventType }`.
 - `camera-presence-warning` validates that `study_sessions.user_id` matches the authenticated Supabase user before inserting `study_presence_events` or sending Telegram.
+- `end_study_session` receives `{ p_session_id, p_excluded_seconds }`; `p_excluded_seconds` is the camera absence time that should not be counted as study duration.
 - `attendance-cron` notification bodies include up to a compact subset of reminder-date todo titles and mark completed items with a check indicator.
 - `get_due_reminders()` returns `reminder_stage = 'initial' | 'nudge'`. `attendance-cron` uses this stage to choose the first-reminder or final-nudge title/body and includes `reminderStage` in push payload data.
 - Lambda sends `POST` to `AttendanceCronUrl`.
@@ -125,6 +130,7 @@ docs/images/study-room-thumbnail.png
 - `study_presence_events` stores camera presence events only: `camera_started`, `camera_stopped`, `absence_warning`, `camera_permission_denied`, and `camera_required_warning`.
 - `study_presence_events.metadata` must not contain `image`, `video`, `frame`, `faceEmbedding`, or `landmarks` keys.
 - Users can select and insert only their own `study_presence_events`; Edge Functions use the service role after validating session ownership.
+- `end_study_session(p_session_id uuid, p_excluded_seconds integer default 0)` stores `duration_seconds` as elapsed seconds minus non-negative excluded seconds. This keeps camera absence time out of saved study totals.
 
 ## Testing Strategy
 
@@ -132,6 +138,7 @@ docs/images/study-room-thumbnail.png
 - Use `aws-cdk-lib/assertions` for synthesized template assertions.
 - Use `npm.cmd run infra:synth` as deployment-shape verification.
 - Use pure state-machine tests for camera absence timing and warning cooldown.
+- Use pure state-machine tests for camera auto-pause, auto-end, and excluded study seconds.
 - Use SQL/source tests to verify `study_presence_events` RLS and `camera-presence-warning` session ownership checks.
 
 ## Deployment Strategy
@@ -178,6 +185,15 @@ docs/images/study-room-thumbnail.png
 - 관련 기능: 카메라 필수 출석 게이트, Telegram 카메라 꺼짐 경고
 - 마이그레이션 파일: `supabase/migrations/0012_camera_required_warning.sql`
 - 확인 방법: Supabase SQL verification에서 `camera_required_warning_allowed=true`, Edge Function list에서 `camera-presence-warning` version 2 ACTIVE 확인.
+
+### 2026-06-14
+
+- 변경 대상: `public.end_study_session`
+- 변경 내용: `end_study_session` RPC를 `p_excluded_seconds integer default 0` 인자를 받도록 교체하고, `duration_seconds`를 전체 경과 시간에서 제외 초를 뺀 값으로 저장하도록 했다.
+- 변경 이유: 5분 이상 얼굴 미감지로 자동 일시정지된 시간과 10분 미복귀 자동 종료 전의 자리 비움 시간을 공부 시간에서 제외하기 위해서다.
+- 관련 기능: 카메라 미감지 자동 일시정지, 10분 미복귀 자동 종료, 공부 시간 제외
+- 마이그레이션 파일: `supabase/migrations/0013_exclude_camera_absence_from_sessions.sql`
+- 확인 방법: `npm.cmd test`, `npm.cmd run build`, Supabase MCP `_apply_migration` success, migration list의 `exclude_camera_absence_from_sessions` 확인.
 - 주의 사항: `verify_jwt=false`는 CORS preflight 때문에 유지하지만 함수 내부에서 Supabase JWT와 세션 소유권을 검증한다.
 
 ### 2026-06-13

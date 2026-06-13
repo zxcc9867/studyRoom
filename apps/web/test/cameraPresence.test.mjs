@@ -3,10 +3,13 @@ import { readFileSync } from "node:fs";
 import { test } from "node:test";
 
 import {
+  ABSENCE_AUTO_END_SECONDS,
   ABSENCE_WARNING_SECONDS,
   WARNING_COOLDOWN_SECONDS,
   canStartStudySessionWithCamera,
   createPresenceState,
+  getActiveStudySeconds,
+  getCurrentExcludedSeconds,
   markPresenceWarningSent,
   updatePresenceState,
 } from "../src/cameraPresence.mjs";
@@ -85,6 +88,81 @@ test("camera presence state suppresses duplicate warnings during cooldown", () =
   assert.equal(afterCooldown.warningDue, true);
 });
 
+test("camera absence pauses counted study time after 5 minutes and excludes the absent interval", () => {
+  const start = Date.UTC(2026, 5, 13, 20, 30, 0);
+  const absent = updatePresenceState(createPresenceState(start), {
+    faceDetected: false,
+    nowMs: start,
+  });
+  const beforePause = updatePresenceState(absent, {
+    faceDetected: false,
+    nowMs: start + (ABSENCE_WARNING_SECONDS - 1) * 1000,
+  });
+  const paused = updatePresenceState(absent, {
+    faceDetected: false,
+    nowMs: start + ABSENCE_WARNING_SECONDS * 1000,
+  });
+
+  assert.equal(beforePause.timerPaused, false);
+  assert.equal(getCurrentExcludedSeconds(beforePause), 0);
+  assert.equal(paused.timerPaused, true);
+  assert.equal(paused.autoEndDue, false);
+  assert.equal(getCurrentExcludedSeconds(paused), ABSENCE_WARNING_SECONDS);
+  assert.equal(
+    getActiveStudySeconds({
+      startedAtMs: start,
+      nowMs: start + ABSENCE_WARNING_SECONDS * 1000,
+      excludedSeconds: getCurrentExcludedSeconds(paused),
+    }),
+    0,
+  );
+});
+
+test("camera absence resumes counted study time when a face returns", () => {
+  const start = Date.UTC(2026, 5, 13, 20, 30, 0);
+  const absent = updatePresenceState(createPresenceState(start), {
+    faceDetected: false,
+    nowMs: start,
+  });
+  const paused = updatePresenceState(absent, {
+    faceDetected: false,
+    nowMs: start + (ABSENCE_WARNING_SECONDS + 60) * 1000,
+  });
+  const returned = updatePresenceState(paused, {
+    faceDetected: true,
+    nowMs: start + (ABSENCE_WARNING_SECONDS + 60) * 1000,
+  });
+
+  assert.equal(returned.timerPaused, false);
+  assert.equal(returned.autoEndDue, false);
+  assert.equal(returned.excludedSeconds, ABSENCE_WARNING_SECONDS + 60);
+  assert.equal(returned.absenceSeconds, 0);
+  assert.equal(
+    getActiveStudySeconds({
+      startedAtMs: start,
+      nowMs: start + (ABSENCE_WARNING_SECONDS + 180) * 1000,
+      excludedSeconds: getCurrentExcludedSeconds(returned),
+    }),
+    120,
+  );
+});
+
+test("camera absence requests automatic session end after 10 minutes", () => {
+  const start = Date.UTC(2026, 5, 13, 20, 30, 0);
+  const absent = updatePresenceState(createPresenceState(start), {
+    faceDetected: false,
+    nowMs: start,
+  });
+  const autoEnd = updatePresenceState(absent, {
+    faceDetected: false,
+    nowMs: start + ABSENCE_AUTO_END_SECONDS * 1000,
+  });
+
+  assert.equal(autoEnd.timerPaused, true);
+  assert.equal(autoEnd.autoEndDue, true);
+  assert.equal(getCurrentExcludedSeconds(autoEnd), ABSENCE_AUTO_END_SECONDS);
+});
+
 test("study session start is blocked when camera monitoring is required but off", () => {
   assert.deepEqual(
     canStartStudySessionWithCamera({
@@ -121,6 +199,9 @@ test("web app wires camera monitoring to active sessions and warning Edge Functi
   assert.match(appSource, /canStartStudySessionWithCamera/);
   assert.match(appSource, /cameraSetupPrompt/);
   assert.match(appSource, /sendCameraRequiredWarning/);
+  assert.match(appSource, /autoEndAbsenceSession/);
+  assert.match(appSource, /p_excluded_seconds/);
+  assert.match(appSource, /getCurrentExcludedSeconds/);
   assert.match(appSource, /camera_required_warning/);
   assert.match(appSource, /activeSession/);
   assert.match(appSource, /createFacePresenceDetector/);

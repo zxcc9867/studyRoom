@@ -1,4 +1,5 @@
 export const ABSENCE_WARNING_SECONDS: number;
+export const ABSENCE_AUTO_END_SECONDS: number;
 export const WARNING_COOLDOWN_SECONDS: number;
 
 export type PresenceState = {
@@ -6,6 +7,9 @@ export type PresenceState = {
   lastFaceSeenAtMs: number;
   lastWarningAtMs: number | null;
   absenceSeconds: number;
+  excludedSeconds: number;
+  timerPaused: boolean;
+  autoEndDue: boolean;
   warningDue: boolean;
 };
 
@@ -27,6 +31,14 @@ export function markPresenceWarningSent(
     nowMs: number;
   },
 ): PresenceState;
+
+export function getCurrentExcludedSeconds(state: PresenceState): number;
+
+export function getActiveStudySeconds(input: {
+  startedAtMs: number;
+  nowMs: number;
+  excludedSeconds?: number;
+}): number;
 
 export function canStartStudySessionWithCamera(input: {
   activeSession: unknown | null;

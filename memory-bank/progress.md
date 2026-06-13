@@ -14,6 +14,11 @@
 - `camera-presence-warning` Edge Function을 version 2 ACTIVE로 배포했다.
 - 커밋 `e726c34`를 `origin/main`에 push해 GitHub Actions Vercel production 배포를 실행했다.
 - GitHub Actions run `27472648244`가 성공했고, Vercel production URL이 최신 카메라 필수 시작 UI 번들을 서빙하는 것을 확인했다.
+- 5분 이상 얼굴이 감지되지 않으면 현재 세션 타이머가 자동 일시정지 상태가 되고, 해당 미감지 구간은 오늘 공부 시간과 현재 세션 시간에서 제외되도록 했다.
+- 얼굴이 다시 감지되면 제외 시간을 누적하고 현재 세션 타이머가 다시 진행되도록 했다.
+- 10분 이상 얼굴이 감지되지 않으면 세션을 자동 종료하고, `end_study_session` RPC에 `p_excluded_seconds`를 전달해 DB 저장 시간에서도 제외되도록 했다.
+- 페이지 이탈 자동 종료 요청도 `p_excluded_seconds`를 전달하도록 수정했다.
+- `end_study_session` RPC를 `p_excluded_seconds integer default 0` 인자로 확장하는 migration을 만들고 원격 Supabase에 적용했다.
 
 #### 변경된 파일
 
@@ -22,10 +27,14 @@
 - `apps/web/src/cameraPresence.d.mts`
 - `apps/web/src/cameraWarning.mjs`
 - `apps/web/src/cameraWarning.d.mts`
+- `apps/web/src/sessionExit.mjs`
+- `apps/web/src/sessionExit.d.mts`
 - `apps/web/test/cameraPresence.test.mjs`
+- `apps/web/test/sessionExit.test.mjs`
 - `packages/core/test/sql-migrations.test.mjs`
 - `supabase/functions/camera-presence-warning/index.ts`
 - `supabase/migrations/0012_camera_required_warning.sql`
+- `supabase/migrations/0013_exclude_camera_absence_from_sessions.sql`
 - `memory-bank/active-context.md`
 - `memory-bank/progress.md`
 - `memory-bank/implementation-plan.md`
@@ -45,14 +54,20 @@
 - GitHub Actions run `27472648244` completed with conclusion `success`.
 - Production HTML at `https://study-room-attendance.vercel.app/` serves `/assets/index-VZ129eqe.js`.
 - Production JS verification returned `camera_required_warning=true`, `카메라 인증이 필요합니다=true`, `카메라 켜고 시작=true`, and `자리 비움 경고=true`.
+- RED: `node --test apps\web\test\cameraPresence.test.mjs apps\web\test\sessionExit.test.mjs packages\core\test\sql-migrations.test.mjs` failed because `ABSENCE_AUTO_END_SECONDS`, excluded RPC payloads, and `0013_exclude_camera_absence_from_sessions.sql` were missing.
+- GREEN: `node --test apps\web\test\cameraPresence.test.mjs apps\web\test\sessionExit.test.mjs packages\core\test\sql-migrations.test.mjs` passed 25 tests.
+- `npm.cmd test` passed 54 tests.
+- `npm.cmd run build` passed after wrapping the `endTimer()` button handler.
+- Supabase MCP `_apply_migration` returned `success=true` for `exclude_camera_absence_from_sessions`.
+- Supabase migration list includes `20260613170021 exclude_camera_absence_from_sessions`.
 
 #### 남은 작업
 
-- Manual browser verification with a real camera is still needed: click `입장하고 시작`, allow camera, confirm timer starts, then turn camera off and confirm the warning.
+- Manual browser verification with a real camera is still needed: click `입장하고 시작`, allow camera, confirm timer starts, hide face for 5 minutes, confirm auto-pause/excluded timer, then keep hidden until 10 minutes and confirm auto-end.
 
 #### 다음 우선순위
 
-- Manually verify the deployed camera permission and warning flow in a real browser session.
+- Commit, push, and deploy the updated web UI to Vercel if the user wants this behavior in production now.
 
 ### 2026-06-13
 

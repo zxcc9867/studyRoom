@@ -1,5 +1,33 @@
 # Trouble Shooting
 
+## 2026-06-14 - endTimer 옵션 인자 변경 후 React onClick 타입 오류
+
+### Situation
+
+카메라 미감지 제외 시간을 `endTimer()`에 전달하도록 함수 시그니처를 바꾼 뒤 `npm.cmd run build`를 실행했다.
+
+### Error Message
+
+```txt
+src/main.tsx(1397,42): error TS2322: Type '(options?: { excludedSeconds?: number | undefined; successMessage?: string | undefined; }) => Promise<void>' is not assignable to type 'MouseEventHandler<HTMLButtonElement>'.
+```
+
+### Cause
+
+기존 종료 버튼이 `onClick={endTimer}`로 함수를 직접 넘기고 있었다. `endTimer`가 옵션 객체를 받을 수 있게 바뀌면서 React mouse event handler signature와 호환되지 않았다.
+
+### Fix
+
+종료 버튼을 `onClick={() => { void endTimer(); }}` 형태로 감싸서 React 이벤트 객체가 `endTimer` 옵션 인자로 전달되지 않게 했다.
+
+### Related Files
+
+* `apps/web/src/main.tsx`
+
+### Prevention
+
+이벤트 핸들러로 직접 넘기던 함수에 도메인 옵션 인자를 추가할 때는 버튼 콜백을 명시적으로 래핑한다.
+
 ## 2026-06-14 - Supabase CLI unavailable for local migration creation
 
 ### Situation

@@ -10,5 +10,6 @@ export function requestEndStudySessionOnExit(options: {
   anonKey?: string | null;
   accessToken?: string | null;
   sessionId?: string | null;
+  excludedSeconds?: number;
   fetch?: ExitFetch;
 }): boolean;

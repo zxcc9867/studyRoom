@@ -111,6 +111,15 @@ test("camera required warning migration extends presence event types", () => {
   assert.match(sql, /'camera_required_warning'/i);
 });
 
+test("end_study_session migration excludes camera absence seconds from stored duration", () => {
+  const sql = readFileSync("supabase/migrations/0013_exclude_camera_absence_from_sessions.sql", "utf8");
+
+  assert.match(sql, /drop function if exists public\.end_study_session\(uuid\)/i);
+  assert.match(sql, /p_excluded_seconds integer default 0/i);
+  assert.match(sql, /duration_seconds = greatest\(\s*0,\s*floor\(extract\(epoch from \(now\(\) - started_at\)\)\)::integer\s*-\s*greatest\(0, p_excluded_seconds\)\s*\)/i);
+  assert.match(sql, /grant execute on function public\.end_study_session\(uuid, integer\) to authenticated/i);
+});
+
 test("camera presence warning Edge Function validates session ownership before telegram warning", () => {
   const source = readFileSync("supabase/functions/camera-presence-warning/index.ts", "utf8");
 

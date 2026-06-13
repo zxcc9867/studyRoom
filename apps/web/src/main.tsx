@@ -45,7 +45,9 @@ import {
 import {
   canStartStudySessionWithCamera,
   createPresenceState,
+  getActiveStudySeconds,
   getCameraSupport,
+  getCurrentExcludedSeconds,
   getPresenceStatusLabel,
   markPresenceWarningSent,
   updatePresenceState,
@@ -195,6 +197,7 @@ function DashboardApp() {
   const cameraSessionStartingRef = useRef(false);
   const lastCameraRequiredWarningAtRef = useRef(0);
   const warningInFlightRef = useRef(false);
+  const autoEndInFlightRef = useRef(false);
 
   useEffect(() => {
     async function initializeSession() {
@@ -267,8 +270,13 @@ function DashboardApp() {
 
   const timeZone = profile?.time_zone ?? Intl.DateTimeFormat().resolvedOptions().timeZone;
   const activeSession = studySessions.find((item) => item.status === "active") ?? null;
+  const activeExcludedSeconds = activeSession ? getCurrentExcludedSeconds(presenceState) : 0;
   const activeElapsedSeconds = activeSession
-    ? Math.max(0, Math.floor((nowMs - new Date(activeSession.started_at).getTime()) / 1000))
+    ? getActiveStudySeconds({
+        startedAtMs: new Date(activeSession.started_at).getTime(),
+        nowMs,
+        excludedSeconds: activeExcludedSeconds,
+      })
     : 0;
   const todayDateKey = getLocalDateKey(new Date(nowMs), timeZone);
   const todayCompletedSeconds = studySessions
@@ -360,6 +368,7 @@ function DashboardApp() {
         anonKey: supabaseAnonKey,
         accessToken,
         sessionId: activeSessionId,
+        excludedSeconds: getCurrentExcludedSeconds(presenceStateRef.current),
         fetch: window.fetch.bind(window),
       });
     };
@@ -424,10 +433,13 @@ function DashboardApp() {
         });
         presenceStateRef.current = nextState;
         setPresenceState(nextState);
-        setCameraStatus(nextState.warningDue ? "warning" : "watching");
+        setCameraStatus(nextState.timerPaused ? "warning" : "watching");
 
         if (nextState.warningDue && !warningInFlightRef.current) {
           await sendAbsenceWarning(nextState);
+        }
+        if (nextState.autoEndDue && !autoEndInFlightRef.current) {
+          await autoEndAbsenceSession(nextState);
         }
       } catch (error) {
         setCameraStatus("error");
@@ -919,16 +931,23 @@ function DashboardApp() {
     }
   }
 
-  async function endTimer() {
+  async function endTimer(options: { excludedSeconds?: number; successMessage?: string } = {}) {
     if (!activeSession) return;
 
+    const excludedSeconds = Math.max(
+      0,
+      Math.floor(options.excludedSeconds ?? getCurrentExcludedSeconds(presenceStateRef.current)),
+    );
     setBusy(true);
-    const { error } = await supabase.rpc("end_study_session", { p_session_id: activeSession.id });
+    const { error } = await supabase.rpc("end_study_session", {
+      p_session_id: activeSession.id,
+      p_excluded_seconds: excludedSeconds,
+    });
     setBusy(false);
     if (error) {
       setMessage(error.message);
     } else if (session?.user.id) {
-      setMessage("집중 세션을 종료했습니다.");
+      setMessage(options.successMessage ?? "집중 세션을 종료했습니다.");
       await loadDashboard(session.user.id);
     }
   }
@@ -954,6 +973,7 @@ function DashboardApp() {
     cleanupCameraResources();
     cameraSessionIdRef.current = null;
     warningInFlightRef.current = false;
+    autoEndInFlightRef.current = false;
     setCameraEnabled(false);
     setCameraStatus("idle");
     setCameraMessage("");
@@ -1123,6 +1143,19 @@ function DashboardApp() {
       setPresenceState(markedState);
       warningInFlightRef.current = false;
     }
+  }
+
+  async function autoEndAbsenceSession(nextState: PresenceState) {
+    if (!activeSession || autoEndInFlightRef.current) return;
+
+    autoEndInFlightRef.current = true;
+    const excludedSeconds = getCurrentExcludedSeconds(nextState);
+    setCameraMessage("10분 동안 얼굴이 감지되지 않아 집중 세션을 자동 종료합니다.");
+
+    await endTimer({
+      excludedSeconds,
+      successMessage: "10분 동안 얼굴이 감지되지 않아 집중 세션을 자동 종료했습니다.",
+    });
   }
 
   async function refreshWebPushStatus() {
@@ -1361,7 +1394,13 @@ function DashboardApp() {
                 <Play size={18} />
                 입장하고 시작
               </button>
-              <button className="danger" onClick={endTimer} disabled={busy || !activeSession}>
+              <button
+                className="danger"
+                onClick={() => {
+                  void endTimer();
+                }}
+                disabled={busy || !activeSession}
+              >
                 <Square size={18} />
                 종료
               </button>
@@ -1632,7 +1671,9 @@ function DashboardApp() {
             <p className="eyebrow">today focus</p>
             <h2>{formatTimerClock(todaySeconds)}</h2>
             <p className="session-caption">
-              {activeSession ? `현재 세션 ${formatTimerClock(activeElapsedSeconds)}` : "입장 준비 완료"}
+              {activeSession
+                ? `현재 세션 ${formatTimerClock(activeElapsedSeconds)}${presenceState.timerPaused ? " · 자동 일시정지" : ""}`
+                : "입장 준비 완료"}
             </p>
           </div>
           <div className="focus-control">

@@ -3,6 +3,7 @@ export function requestEndStudySessionOnExit({
   anonKey,
   accessToken,
   sessionId,
+  excludedSeconds = 0,
   fetch = globalThis.fetch?.bind(globalThis),
 }) {
   if (!supabaseUrl || !anonKey || !accessToken || !sessionId || !fetch) {
@@ -18,7 +19,10 @@ export function requestEndStudySessionOnExit({
       Authorization: `Bearer ${accessToken}`,
       "Content-Type": "application/json",
     },
-    body: JSON.stringify({ p_session_id: sessionId }),
+    body: JSON.stringify({
+      p_session_id: sessionId,
+      p_excluded_seconds: Math.max(0, Math.floor(Number(excludedSeconds) || 0)),
+    }),
   });
 
   if (request && typeof request.catch === "function") {
