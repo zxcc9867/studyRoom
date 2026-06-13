@@ -40,8 +40,10 @@
 - 완료: 얼굴이 다시 감지되면 제외 시간을 누적하고 타이머가 다시 진행되도록 했다.
 - 완료: 10분 얼굴 미감지 시 `end_study_session` RPC를 자동 호출하고 `p_excluded_seconds`로 제외 초를 저장하도록 했다.
 - 완료: Supabase 원격 DB migration `exclude_camera_absence_from_sessions` 적용 성공.
+- 완료: 커밋 `a461228`를 `origin/main`에 push했고 GitHub Actions run `27473367753`이 성공했다.
+- 완료: Vercel production URL `https://study-room-attendance.vercel.app/`이 `/assets/index-BFOVTlgA.js`를 서빙하고 `자동 일시정지`, `자동 종료`, `p_excluded_seconds`가 포함된 것을 확인했다.
 - 막힌 부분: 실제 모바일/PC 브라우저에서 물리 카메라로 5분 일시정지와 10분 자동 종료 플로우를 수동 확인해야 한다.
-- 다음 작업: 원하면 변경 사항을 커밋/푸시해 Vercel production에 배포한다.
+- 다음 작업: 실제 브라우저에서 5분 일시정지/10분 자동 종료와 DB 저장 시간 제외를 수동 확인한다.
 
 ## 주의할 점
 

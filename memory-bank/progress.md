@@ -19,6 +19,8 @@
 - 10분 이상 얼굴이 감지되지 않으면 세션을 자동 종료하고, `end_study_session` RPC에 `p_excluded_seconds`를 전달해 DB 저장 시간에서도 제외되도록 했다.
 - 페이지 이탈 자동 종료 요청도 `p_excluded_seconds`를 전달하도록 수정했다.
 - `end_study_session` RPC를 `p_excluded_seconds integer default 0` 인자로 확장하는 migration을 만들고 원격 Supabase에 적용했다.
+- 커밋 `a461228`를 `origin/main`에 push해 GitHub Actions Vercel production 배포를 실행했다.
+- GitHub Actions run `27473367753`이 성공했고, Vercel production URL이 최신 카메라 자동 일시정지/자동 종료 UI 번들을 서빙하는 것을 확인했다.
 
 #### 변경된 파일
 
@@ -60,6 +62,10 @@
 - `npm.cmd run build` passed after wrapping the `endTimer()` button handler.
 - Supabase MCP `_apply_migration` returned `success=true` for `exclude_camera_absence_from_sessions`.
 - Supabase migration list includes `20260613170021 exclude_camera_absence_from_sessions`.
+- `git push origin main` succeeded for commit `a461228`.
+- GitHub Actions run `27473367753` completed with conclusion `success`.
+- Production HTML at `https://study-room-attendance.vercel.app/` serves `/assets/index-BFOVTlgA.js`.
+- Production JS verification returned `자동 일시정지=true`, `자동 종료=true`, and `p_excluded_seconds=true`.
 
 #### 남은 작업
 
@@ -67,7 +73,7 @@
 
 #### 다음 우선순위
 
-- Commit, push, and deploy the updated web UI to Vercel if the user wants this behavior in production now.
+- Manually verify the deployed camera auto-pause and auto-end flow in a real browser session.
 
 ### 2026-06-13
 
