@@ -30,8 +30,10 @@
 - 완료: 활성 세션 중 카메라가 꺼지면 `camera_required_warning` 이벤트와 Telegram 경고를 10분 쿨다운으로 보낸다.
 - 완료: Supabase 원격 DB migration `camera_required_warning` 적용 성공.
 - 완료: `camera-presence-warning` Edge Function version 2 ACTIVE 배포 성공.
-- 막힌 부분: Vercel production UI 배포는 아직 수행하지 않았다. 커밋/푸시는 사용자 명시 요청이 있어야 한다.
-- 다음 작업: 사용자가 원하면 커밋 후 `main` push로 GitHub Actions/Vercel 배포를 실행한다.
+- 완료: 커밋 `e726c34`를 `origin/main`에 push했고 GitHub Actions run `27472648244`가 성공했다.
+- 완료: Vercel production URL `https://study-room-attendance.vercel.app/`이 `/assets/index-VZ129eqe.js`를 서빙하고 최신 카메라 필수 시작/자리 비움 경고 문구를 포함하는 것을 확인했다.
+- 막힌 부분: 실제 모바일/PC 브라우저에서 카메라 권한을 허용한 뒤 물리 카메라로 시작/경고 플로우를 수동 확인해야 한다.
+- 다음 작업: 실제 브라우저에서 `입장하고 시작` -> `카메라 켜고 시작` -> 타이머 시작 -> 카메라 끄기 -> 앱/Telegram 경고 수신을 확인한다.
 
 ## 주의할 점
 

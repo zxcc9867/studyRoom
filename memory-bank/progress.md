@@ -12,6 +12,8 @@
 - `camera_required_warning` Telegram 경고는 10분 쿨다운을 적용해 중복 발송을 막는다.
 - `study_presence_events.event_type` check constraint에 `camera_required_warning`을 추가하는 migration을 만들고 원격 Supabase에 적용했다.
 - `camera-presence-warning` Edge Function을 version 2 ACTIVE로 배포했다.
+- 커밋 `e726c34`를 `origin/main`에 push해 GitHub Actions Vercel production 배포를 실행했다.
+- GitHub Actions run `27472648244`가 성공했고, Vercel production URL이 최신 카메라 필수 시작 UI 번들을 서빙하는 것을 확인했다.
 
 #### 변경된 파일
 
@@ -39,15 +41,18 @@
 - Supabase MCP `_apply_migration` returned `success=true` for `camera_required_warning`.
 - Supabase SQL verification returned `camera_required_warning_allowed=true`.
 - Supabase Edge Function list shows `camera-presence-warning` version 2 ACTIVE with `verify_jwt=false`.
+- `git push origin main` succeeded for commit `e726c34`.
+- GitHub Actions run `27472648244` completed with conclusion `success`.
+- Production HTML at `https://study-room-attendance.vercel.app/` serves `/assets/index-VZ129eqe.js`.
+- Production JS verification returned `camera_required_warning=true`, `카메라 인증이 필요합니다=true`, `카메라 켜고 시작=true`, and `자리 비움 경고=true`.
 
 #### 남은 작업
 
-- Vercel production UI deployment has not been performed in this step.
 - Manual browser verification with a real camera is still needed: click `입장하고 시작`, allow camera, confirm timer starts, then turn camera off and confirm the warning.
 
 #### 다음 우선순위
 
-- If the user wants the production site updated, commit and push to `origin/main` so GitHub Actions can deploy to Vercel.
+- Manually verify the deployed camera permission and warning flow in a real browser session.
 
 ### 2026-06-13
 
