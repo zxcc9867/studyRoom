@@ -1,5 +1,40 @@
 # Active Context
 
+## 현재 작업
+
+- 작업명: 설정된 알람 편집 UI
+- 작업 목적: 사용자가 이미 설정한 매일 알림을 읽기 전용 카드에서 확인하고, 필요할 때만 편집 모드로 전환해 알림 시간과 이메일 보완 여부를 수정할 수 있게 한다.
+- 관련 PRD:
+  - `memory-bank/prd-user-profile.md`
+  - `memory-bank/prd-supabase-cron.md`
+  - `memory-bank/prd-slack-notifications.md`
+- 관련 파일:
+  - `apps/web/src/main.tsx`
+  - `apps/web/src/styles.css`
+  - `apps/web/test/alarmSettings.test.mjs`
+
+## 최근 결정 사항
+
+- 결정: 알람 시간 편집은 `profiles.reminder_time`과 `email_reminders_enabled`만 저장하는 전용 액션으로 분리한다.
+- 이유: 기존 `저장하고 컴퓨터 알림 켜기`는 브라우저 푸시 권한 요청과 테스트 알림까지 실행하므로, 단순 알람 편집과 섞이면 사용자가 어떤 설정이 바뀌었는지 알기 어렵다.
+- 대안: 기존 입력 필드와 버튼을 그대로 유지하는 방법이 있었지만, 설정된 알람을 편집한다는 사용자의 요청과 맞지 않아 카드형 읽기/편집 구조로 바꿨다.
+- 영향 범위: 웹 설정 화면 UI, 프로필 알림 시간 저장 UX, 이메일 보완 알림 토글 UX.
+
+## 현재 상태
+
+- 완료: 설정 화면에 `설정된 알람` 카드와 `알람 편집` / `알람 저장` / `취소` 흐름을 추가했다.
+- 완료: 알림 수단 관리는 별도 `알림 수단` 영역으로 분리해 Slack 저장, 컴퓨터 알림 켜기, Slack 테스트 알림을 유지했다.
+- 완료: `apps/web/test/alarmSettings.test.mjs`를 추가하고 RED/GREEN 순서로 검증했다.
+- 완료: `npm.cmd test`, `npm.cmd run build`가 통과했다.
+- 진행 중: 변경 내용을 커밋하고 GitHub에 푸시한 뒤 Vercel production 배포를 확인해야 한다.
+- 막힌 부분: 없음.
+- 다음 작업: GitHub push, GitHub Actions/Vercel 배포 상태 확인, production URL HTTP 200 확인.
+
+## 주의할 점
+
+- 단순 알람 편집은 브라우저 푸시 권한 요청을 실행하지 않는다. 컴퓨터 알림 등록/갱신은 사용자가 `저장하고 컴퓨터 알림 켜기`를 누를 때 수행한다.
+- Slack 알림 수신은 여전히 로그인 계정의 `notification_targets.kind = 'slack'` 저장 여부에 의존한다.
+
 ## Current Work
 
 - Task: Build a camera status diagnosis UI in the Today Focus camera card.

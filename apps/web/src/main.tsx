@@ -199,6 +199,8 @@ function DashboardApp() {
   const [studySessions, setStudySessions] = useState<StudySession[]>([]);
   const [studyTodos, setStudyTodos] = useState<StudyTodo[]>([]);
   const [reminderTime, setReminderTime] = useState("21:00");
+  const [emailRemindersEnabled, setEmailRemindersEnabled] = useState(true);
+  const [alarmEditing, setAlarmEditing] = useState(false);
   const [selectedTodoDate, setSelectedTodoDate] = useState(() => getPlainDateKey(new Date()));
   const [todoDraft, setTodoDraft] = useState("");
   const [todoRepeatMode, setTodoRepeatMode] = useState<TodoRepeatMode>("single");
@@ -808,6 +810,7 @@ function DashboardApp() {
     if (profileData) {
       setProfile(profileData);
       setReminderTime(profileData.reminder_time.slice(0, 5));
+      setEmailRemindersEnabled(profileData.email_reminders_enabled ?? true);
     }
     setAttendanceDays(attendanceData ?? []);
     setStudySessions(sessionData ?? []);
@@ -977,7 +980,7 @@ function DashboardApp() {
       email: session.user.email ?? profile?.email ?? null,
       reminder_time: reminderTime,
       time_zone: Intl.DateTimeFormat().resolvedOptions().timeZone,
-      email_reminders_enabled: profile?.email_reminders_enabled ?? true,
+      email_reminders_enabled: emailRemindersEnabled,
     });
 
     if (error) {
@@ -1002,6 +1005,51 @@ function DashboardApp() {
       await refreshWebPushStatus();
       await refreshSlackStatus(session.user.id);
     }
+  }
+
+  function startAlarmEditing() {
+    setReminderTime((profile?.reminder_time ?? reminderTime).slice(0, 5));
+    setEmailRemindersEnabled(profile?.email_reminders_enabled ?? emailRemindersEnabled);
+    setAlarmEditing(true);
+  }
+
+  function cancelAlarmEditing() {
+    setReminderTime((profile?.reminder_time ?? "21:00").slice(0, 5));
+    setEmailRemindersEnabled(profile?.email_reminders_enabled ?? true);
+    setAlarmEditing(false);
+  }
+
+  async function saveAlarmSettings() {
+    if (!session?.user.id) return;
+
+    const nextReminderTime = reminderTime.slice(0, 5);
+    const nextTimeZone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+
+    setBusy(true);
+    const { error } = await supabase.from("profiles").upsert({
+      user_id: session.user.id,
+      email: session.user.email ?? profile?.email ?? null,
+      reminder_time: nextReminderTime,
+      time_zone: nextTimeZone,
+      email_reminders_enabled: emailRemindersEnabled,
+    });
+    setBusy(false);
+
+    if (error) {
+      setMessage(error.message);
+      return;
+    }
+
+    setProfile((current) => ({
+      user_id: session.user.id,
+      email: session.user.email ?? current?.email ?? null,
+      time_zone: nextTimeZone,
+      reminder_time: nextReminderTime,
+      email_reminders_enabled: emailRemindersEnabled,
+    }));
+    setReminderTime(nextReminderTime);
+    setAlarmEditing(false);
+    setMessage("알람 설정을 저장했습니다.");
   }
 
   async function saveSlackChannelSettings() {
@@ -2183,51 +2231,112 @@ function DashboardApp() {
               </div>
             </div>
           </div>
-          <label>
-            매일 알림 시간
-            <input
-              type="time"
-              value={reminderTime}
-              onChange={(event) => setReminderTime(event.target.value)}
-            />
-          </label>
-          <label className="toggle-row">
-            <input
-              type="checkbox"
-              checked={profile?.email_reminders_enabled ?? true}
-              onChange={(event) =>
-                setProfile((current) =>
-                  current ? { ...current, email_reminders_enabled: event.target.checked } : current,
-                )
-              }
-            />
-            이메일 보완 알림 사용
-          </label>
-          <label>
-            Slack Channel ID
-            <input
-              value={slackChannelId}
-              onChange={(event) => setSlackChannelId(event.target.value)}
-              placeholder="예: C123ABC456"
-              inputMode="text"
-            />
-          </label>
-          <button className="secondary wide-action" onClick={saveSlackChannelSettings} disabled={busy}>
-            <Send size={18} />
-            Slack 채널 저장
-          </button>
-          <button className="primary wide-action" onClick={saveNotificationSettings} disabled={busy}>
-            <Bell size={18} />
-            {busy ? "알림 설정 중" : "저장하고 컴퓨터 알림 켜기"}
-          </button>
-          <button
-            className="secondary wide-action"
-            onClick={sendSlackTestNotification}
-            disabled={busy || !slackStatus?.connected}
-          >
-            <Send size={18} />
-            Slack 테스트 알림
-          </button>
+          <div className={`alarm-summary-card ${alarmEditing ? "alarm-edit-mode" : ""}`}>
+            <div className="alarm-summary-top">
+              <div>
+                <p className="eyebrow">daily alarm</p>
+                <h3>설정된 알람</h3>
+              </div>
+              {!alarmEditing && (
+                <button className="secondary compact-action" onClick={startAlarmEditing} disabled={busy}>
+                  <Clock3 size={17} />
+                  알람 편집
+                </button>
+              )}
+            </div>
+
+            {alarmEditing ? (
+              <div className="alarm-edit-fields">
+                <label>
+                  매일 알림 시간
+                  <input
+                    type="time"
+                    value={reminderTime}
+                    onChange={(event) => setReminderTime(event.target.value)}
+                  />
+                </label>
+                <label className="toggle-row alarm-toggle-row">
+                  <input
+                    type="checkbox"
+                    checked={emailRemindersEnabled}
+                    onChange={(event) => setEmailRemindersEnabled(event.target.checked)}
+                  />
+                  이메일 보완 알림 사용
+                </label>
+                <div className="alarm-edit-actions">
+                  <button className="secondary compact-action" onClick={cancelAlarmEditing} disabled={busy}>
+                    <X size={17} />
+                    취소
+                  </button>
+                  <button className="primary compact-action" onClick={saveAlarmSettings} disabled={busy}>
+                    <Bell size={17} />
+                    {busy ? "알람 저장 중" : "알람 저장"}
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <>
+                <div className="alarm-summary-main">
+                  <Clock3 size={30} />
+                  <div>
+                    <span>매일 알림 시간</span>
+                    <strong>{formatAlarmTime(profile?.reminder_time ?? reminderTime)}</strong>
+                  </div>
+                </div>
+                <div className="alarm-detail-grid">
+                  <div>
+                    <span>이메일 보완</span>
+                    <strong>{emailRemindersEnabled ? "사용" : "사용 안 함"}</strong>
+                  </div>
+                  <div>
+                    <span>컴퓨터 알림</span>
+                    <strong>{notificationSummary(webPushStatus)}</strong>
+                  </div>
+                  <div>
+                    <span>Slack</span>
+                    <strong>{slackNotificationSummary(slackStatus)}</strong>
+                  </div>
+                </div>
+              </>
+            )}
+          </div>
+
+          <div className="notification-channel-card">
+            <div className="channel-card-header">
+              <div>
+                <p className="eyebrow">channels</p>
+                <h3>알림 수단</h3>
+              </div>
+              <span>브라우저와 Slack 발송 상태를 관리합니다.</span>
+            </div>
+            <label>
+              Slack Channel ID
+              <input
+                value={slackChannelId}
+                onChange={(event) => setSlackChannelId(event.target.value)}
+                placeholder="예: C123ABC456"
+                inputMode="text"
+              />
+            </label>
+            <div className="channel-actions">
+              <button className="secondary wide-action" onClick={saveSlackChannelSettings} disabled={busy}>
+                <Send size={18} />
+                Slack 채널 저장
+              </button>
+              <button className="primary wide-action" onClick={saveNotificationSettings} disabled={busy}>
+                <Bell size={18} />
+                {busy ? "알림 설정 중" : "저장하고 컴퓨터 알림 켜기"}
+              </button>
+              <button
+                className="secondary wide-action"
+                onClick={sendSlackTestNotification}
+                disabled={busy || !slackStatus?.connected}
+              >
+                <Send size={18} />
+                Slack 테스트 알림
+              </button>
+            </div>
+          </div>
         </section>
         )}
 
@@ -2307,6 +2416,18 @@ function formatTimerClock(seconds: number) {
   const minutes = Math.floor((safeSeconds % 3600) / 60);
   const remainingSeconds = safeSeconds % 60;
   return [hours, minutes, remainingSeconds].map((value) => String(value).padStart(2, "0")).join(":");
+}
+
+function formatAlarmTime(value: string) {
+  const [hourText = "0", minuteText = "0"] = value.slice(0, 5).split(":");
+  const hour = Number(hourText);
+  const minute = Number(minuteText);
+  if (!Number.isFinite(hour) || !Number.isFinite(minute)) {
+    return value.slice(0, 5);
+  }
+  const period = hour >= 12 ? "오후" : "오전";
+  const displayHour = hour % 12 || 12;
+  return `${period} ${String(displayHour).padStart(2, "0")}:${String(minute).padStart(2, "0")}`;
 }
 
 function formatDateTime(value: string) {

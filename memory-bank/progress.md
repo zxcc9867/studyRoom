@@ -2,6 +2,41 @@
 
 ## Timeline
 
+### 2026-06-15 - Editable saved alarm settings UI
+
+#### Completed Work
+
+- Added a settings-screen `설정된 알람` card that shows the current daily reminder time, email fallback state, computer notification state, and Slack state.
+- Added an `알람 편집` mode with time input, email fallback checkbox, `알람 저장`, and `취소`.
+- Split simple alarm profile editing from the existing computer notification registration action so editing the time does not trigger browser push permission prompts.
+- Moved Slack Channel ID save, computer notification registration, and Slack test alarm into a separate `알림 수단` card.
+- Added a focused regression test for the editable alarm card wiring.
+
+#### Changed Files
+
+- `apps/web/src/main.tsx`
+- `apps/web/src/styles.css`
+- `apps/web/test/alarmSettings.test.mjs`
+- `memory-bank/active-context.md`
+- `memory-bank/progress.md`
+
+#### Verification
+
+- RED: `npm.cmd test -- apps/web/test/alarmSettings.test.mjs` failed because the app did not expose `alarmEditing`, `saveAlarmSettings`, or the editable alarm card.
+- GREEN: `npm.cmd test -- apps/web/test/alarmSettings.test.mjs` passed after implementation.
+- `npm.cmd test` passed 108 tests.
+- `npm.cmd run build` passed.
+- Local HTTP check: `http://127.0.0.1:5177/` returned `HTTP 200`.
+- Playwright navigation to `http://127.0.0.1:5177/#settings` loaded the app; settings UI was not reachable in that browser context because it was logged out. The only console error observed was the existing `favicon.ico` 404.
+
+#### Remaining Work
+
+- Commit, push, and verify the Vercel production deployment.
+
+#### Next Priority
+
+- Verify the deployed production settings screen after GitHub Actions/Vercel finishes.
+
 ### 2026-06-15 - Camera status diagnosis UI
 
 #### Completed Work
