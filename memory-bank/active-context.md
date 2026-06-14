@@ -2,6 +2,44 @@
 
 ## Current Work
 
+- Task: Fix camera monitoring stuck in `준비 중` after the camera stream stops producing frames.
+- Purpose: Prevent camera monitoring from looking like it turned off automatically when the video track is still live but no current frame or video size is available.
+- Related PRD:
+  - `memory-bank/prd-camera-presence.md`
+- Related files:
+  - `apps/web/src/main.tsx`
+  - `apps/web/src/cameraFrameRecovery.mjs`
+  - `apps/web/src/cameraFrameRecovery.d.mts`
+  - `apps/web/test/cameraFrameRecovery.test.mjs`
+
+## Recent Decisions
+
+- Decision: Treat `no-current-frame` and `no-video-size` as transient loading issues only for a limited time.
+- Reason: The user's screenshot showed `카메라 감시 · 준비 중` with the message `카메라 영상을 불러오는 중입니다`, while the study timer kept running. The old state machine could stay in that state indefinitely.
+- Alternative: Immediately mark this as a hard camera error; rejected because short metadata/frame delays are normal when a camera stream starts or resumes.
+- Impact: The app waits up to 15 seconds, then attempts one automatic camera reconnect for the same active session.
+
+- Decision: If the frame is still unavailable after one automatic reconnect, stop the broken stream and let the user manually turn camera monitoring on again.
+- Reason: Repeating `getUserMedia()` forever can spam the browser/device and hide real permission/device failures.
+- Alternative: Keep showing `준비 중`; rejected because the user has no way to recover.
+- Impact: The camera button is no longer locked just because status is `starting` when monitoring was already enabled.
+
+## Current Status
+
+- Completed: Added a camera frame recovery state machine.
+- Completed: Added regression tests for wait/restart/fail/reset camera frame recovery behavior.
+- Completed: Wired the web app to reconnect once after 15 seconds of missing current frame/video size.
+- Completed: The camera toggle remains usable when an already-enabled camera falls back to `준비 중`.
+- Completed: `npm.cmd test`, `npm.cmd run build`, and `git diff --check` pass locally.
+- Pending: Commit, push, and verify Vercel production deployment.
+
+## Notes
+
+- This fix does not send images or frames to the server. It only changes browser-side recovery from a stalled video element.
+- If the browser/device returns a muted, ended, disabled, blank, or blocked camera stream, the app still shows a camera error instead of treating it as attendance presence.
+
+## Current Work
+
 - Task: Add clear Slack Channel ID setup, remove Kakao alarm behavior, preserve active timers across refresh, and restore camera monitoring after refresh.
 - Purpose: Make Slack alarm setup understandable for the current logged-in account, remove the unused Kakao path from product behavior, and stop refresh/reload from making an active study session look like it lost time or camera monitoring.
 - Related PRD:

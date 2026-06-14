@@ -56,6 +56,11 @@ import {
   type PresenceStatus,
 } from "./cameraPresence.mjs";
 import {
+  createCameraFrameRecoveryState,
+  updateCameraFrameRecoveryState,
+  type CameraFrameRecoveryState,
+} from "./cameraFrameRecovery.mjs";
+import {
   cameraMonitoringIntentKey,
   createCameraMonitoringIntent,
   parseCameraMonitoringIntent,
@@ -230,6 +235,8 @@ function DashboardApp() {
   const cameraSessionIdRef = useRef<string | null>(null);
   const cameraSessionStartingRef = useRef(false);
   const cameraAutoRestoreAttemptedRef = useRef(false);
+  const cameraRecoveryInFlightRef = useRef(false);
+  const cameraFrameRecoveryStateRef = useRef<CameraFrameRecoveryState>(createCameraFrameRecoveryState());
   const lastCameraRequiredWarningAtRef = useRef(0);
   const warningInFlightRef = useRef(false);
 
@@ -480,6 +487,7 @@ function DashboardApp() {
 
       const streamHealth = getCameraStreamHealth(cameraStreamRef.current);
       if (!streamHealth.ok) {
+        cameraFrameRecoveryStateRef.current = createCameraFrameRecoveryState();
         markCameraHealthIssue(streamHealth.reason);
         return;
       }
@@ -492,11 +500,12 @@ function DashboardApp() {
         pixels: readCameraFramePixels(video),
       });
       if (!frameHealth.ok) {
-        markCameraHealthIssue(frameHealth.reason);
+        await handleCameraFrameHealthIssue(frameHealth.reason);
         return;
       }
 
       try {
+        cameraFrameRecoveryStateRef.current = createCameraFrameRecoveryState();
         const presenceDetected = presenceDetectorRef.current.detect(video, performance.now());
         const nextState = updatePresenceState(presenceStateRef.current, {
           presenceDetected,
@@ -1110,6 +1119,41 @@ function DashboardApp() {
     setCameraMessage(cameraHealthMessage(reason));
   }
 
+  async function handleCameraFrameHealthIssue(reason: string) {
+    const recovery = updateCameraFrameRecoveryState(cameraFrameRecoveryStateRef.current, {
+      reason,
+      nowMs: Date.now(),
+    });
+    cameraFrameRecoveryStateRef.current = recovery.state;
+
+    if (recovery.action === "restart") {
+      if (cameraRecoveryInFlightRef.current) {
+        return;
+      }
+      cameraRecoveryInFlightRef.current = true;
+      setCameraStatus("starting");
+      setCameraMessage("카메라 영상이 멈춰 다시 연결하고 있습니다.");
+      try {
+        await restartCameraMonitoring();
+      } finally {
+        cameraRecoveryInFlightRef.current = false;
+      }
+      return;
+    }
+
+    if (recovery.action === "fail") {
+      cleanupCameraResources();
+      cameraFrameRecoveryStateRef.current = createCameraFrameRecoveryState();
+      setCameraEnabled(false);
+      setCameraStatus("error");
+      setCameraMessage("카메라 영상을 불러오지 못했습니다. 카메라 감시를 다시 켜주세요.");
+      resetPresenceState();
+      return;
+    }
+
+    markCameraHealthIssue(reason);
+  }
+
   function readCameraFramePixels(video: HTMLVideoElement) {
     const canvas = cameraFrameCanvasRef.current ?? document.createElement("canvas");
     cameraFrameCanvasRef.current = canvas;
@@ -1149,6 +1193,8 @@ function DashboardApp() {
     cleanupCameraResources();
     cameraSessionIdRef.current = null;
     warningInFlightRef.current = false;
+    cameraRecoveryInFlightRef.current = false;
+    cameraFrameRecoveryStateRef.current = createCameraFrameRecoveryState();
     setCameraEnabled(false);
     setCameraStatus("idle");
     setCameraMessage("");
@@ -1164,8 +1210,11 @@ function DashboardApp() {
     }
   }
 
-  async function startCameraMonitoring({ allowWithoutSession = false }: { allowWithoutSession?: boolean } = {}) {
-    if (cameraEnabled) {
+  async function startCameraMonitoring({
+    allowWithoutSession = false,
+    restart = false,
+  }: { allowWithoutSession?: boolean; restart?: boolean } = {}) {
+    if (cameraEnabled && !restart) {
       return true;
     }
 
@@ -1189,6 +1238,9 @@ function DashboardApp() {
     setCameraMessage("카메라 준비 중");
 
     try {
+      if (restart) {
+        cleanupCameraResources();
+      }
       const stream = await navigator.mediaDevices.getUserMedia({
         video: {
           facingMode: "user",
@@ -1210,6 +1262,7 @@ function DashboardApp() {
         rememberCameraMonitoringIntent(activeSession.id);
       }
       resetPresenceState();
+      cameraFrameRecoveryStateRef.current = createCameraFrameRecoveryState();
       setCameraEnabled(true);
       setCameraStatus("watching");
       setCameraMessage("카메라 감시 중");
@@ -1233,6 +1286,10 @@ function DashboardApp() {
       }
       return false;
     }
+  }
+
+  async function restartCameraMonitoring() {
+    return await startCameraMonitoring({ restart: true });
   }
 
   async function toggleCameraMonitoring() {
@@ -1987,7 +2044,7 @@ function DashboardApp() {
                   onClick={() => {
                     void toggleCameraMonitoring();
                   }}
-                  disabled={cameraStatus === "starting" || !activeSession}
+                  disabled={!activeSession || (!cameraEnabled && cameraStatus === "starting")}
                 >
                   {cameraEnabled ? <CameraOff size={18} /> : <Camera size={18} />}
                   {cameraEnabled ? "카메라 감시 끄기" : "카메라 감시 켜기"}

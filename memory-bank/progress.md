@@ -2,6 +2,46 @@
 
 ## Timeline
 
+### 2026-06-15 - Camera stalled frame recovery
+
+#### Completed Work
+
+- Investigated the screenshot where camera monitoring showed `준비 중` and `카메라 영상을 불러오는 중입니다` while the timer kept running.
+- Found that `no-current-frame` and `no-video-size` were treated as indefinite loading states.
+- Added a camera frame recovery state machine for transient video frame loading failures.
+- Added one automatic camera reconnect after 15 seconds of missing current frame/video size.
+- Added a safe failure path after one reconnect attempt so the user can manually turn camera monitoring on again.
+- Kept the camera toggle usable when an already-enabled camera falls back to `준비 중`.
+
+#### Changed Files
+
+- `apps/web/src/main.tsx`
+- `apps/web/src/cameraFrameRecovery.mjs`
+- `apps/web/src/cameraFrameRecovery.d.mts`
+- `apps/web/test/cameraFrameRecovery.test.mjs`
+- `memory-bank/active-context.md`
+- `memory-bank/progress.md`
+- `memory-bank/implementation-plan.md`
+- `memory-bank/prd-camera-presence.md`
+- `memory-bank/trouble-shooting.md`
+
+#### Verification
+
+- RED: `node --test apps\web\test\cameraFrameRecovery.test.mjs` failed because `cameraFrameRecovery.mjs` did not exist.
+- GREEN: `node --test apps\web\test\cameraFrameRecovery.test.mjs` passed.
+- `node --test apps\web\test\cameraFrameRecovery.test.mjs apps\web\test\cameraVideoHealth.test.mjs apps\web\test\cameraPresence.test.mjs apps\web\test\cameraResume.test.mjs` passed.
+- `npm.cmd test` passed 102 tests.
+- `npm.cmd run build` passed.
+- `git diff --check` passed.
+
+#### Remaining Work
+
+- Commit, push, and verify Vercel production deployment.
+
+#### Next Priority
+
+- After deployment, test camera monitoring on the production page. If the device still stalls, check browser camera permission, privacy shutter, and whether another app is holding the camera.
+
 ### 2026-06-14 - Slack setup UX, Kakao removal, refresh-safe timer, and camera resume
 
 #### Completed Work

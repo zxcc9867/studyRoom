@@ -1,5 +1,39 @@
 # Trouble Shooting
 
+## 2026-06-15 - Camera monitoring stuck in ready state
+
+### Situation
+
+The user showed an active study timer while the camera monitoring panel stayed in `카메라 감시 · 준비 중` with a blank preview and the message `카메라 영상을 불러오는 중입니다. 잠시 기다려주세요.` The user reported that the camera seemed to turn off automatically.
+
+### Error Message
+
+```txt
+User-visible symptoms:
+- 카메라 감시 · 준비 중
+- 카메라 영상을 불러오는 중입니다. 잠시 기다려주세요.
+- Preview area is blank while the timer keeps running.
+```
+
+### Cause
+
+The camera stream could remain logically enabled while the attached `<video>` element stopped exposing a current frame or valid video size. The app treated `no-current-frame` and `no-video-size` as temporary loading states, but there was no timeout, recovery, or failure transition. If the browser or device stalled, the UI could stay in `준비 중` indefinitely and look like the camera turned itself off.
+
+### Fix
+
+Added a camera frame recovery state machine. If `no-current-frame` or `no-video-size` continues for 15 seconds, the app attempts one same-session camera reconnect. If the reconnect still cannot produce frames, the app releases the stream, resets camera monitoring, and shows a retryable camera error instead of counting absence. The camera control also remains usable while an already-enabled camera is in `준비 중`, so the user can stop monitoring manually.
+
+### Related Files
+
+* `apps/web/src/main.tsx`
+* `apps/web/src/cameraFrameRecovery.mjs`
+* `apps/web/src/cameraFrameRecovery.d.mts`
+* `apps/web/test/cameraFrameRecovery.test.mjs`
+
+### Prevention
+
+Treat camera frame availability as a recoverable device/browser state, not as user absence and not as an infinite loading state. Keep transient camera health reasons behind tested timeout logic, and always leave a user-visible retry path when automatic reconnect fails.
+
 ## 2026-06-14 - Slack target hidden save, refresh-ended sessions, and camera stream reload
 
 ### Situation
