@@ -29,7 +29,8 @@
 - Completed: Removed `todaySeconds` and `activeElapsedSeconds` timer rendering from the camera-focused section.
 - Completed: Enlarged the camera preview and made the camera card span the available width.
 - Completed: `node --test apps\web\test\cameraPresence.test.mjs`, `npm.cmd test`, and `npm.cmd run build` pass locally.
-- Pending: Commit, push, and verify Vercel production deployment.
+- Completed: Committed and pushed `d033a4a0e02a83c83883114ea1ac134bd3ffb4b3` to `origin/main`.
+- Completed: GitHub Actions run `27503647487` succeeded, Vercel deployment `dpl_A2JSVSmAHuVcpyEjtiK94ndfJ3U4` is `READY`, and production URL returned `HTTP 200`.
 
 ## Notes
 

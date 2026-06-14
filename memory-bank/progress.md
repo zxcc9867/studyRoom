@@ -27,10 +27,16 @@
 - GREEN: `node --test apps\web\test\cameraPresence.test.mjs` passed after the UI change.
 - `npm.cmd test` passed 103 tests.
 - `npm.cmd run build` passed.
+- `git diff --check` passed.
+- Committed and pushed `d033a4a0e02a83c83883114ea1ac134bd3ffb4b3`.
+- GitHub Actions run `27503647487` completed successfully.
+- Vercel deployment `dpl_A2JSVSmAHuVcpyEjtiK94ndfJ3U4` is `READY`.
+- `https://study-room-attendance.vercel.app` returned `HTTP 200`.
+- Vercel runtime logs for the deployment had no `error` or `fatal` entries in the checked window.
 
 #### Remaining Work
 
-- Commit, push, and verify Vercel production deployment.
+- Verify the production camera card with an actual logged-in camera session on the user's browser.
 
 #### Next Priority
 
