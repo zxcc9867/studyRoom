@@ -2009,16 +2009,7 @@ function DashboardApp() {
         )}
 
         {activeSection === "today" && (
-        <section className="daily-visual" aria-label="오늘 공부 시간과 집중 세션">
-          <div>
-            <p className="eyebrow">today focus</p>
-            <h2>{formatTimerClock(todaySeconds)}</h2>
-            <p className="session-caption">
-              {activeSession
-                ? `현재 세션 ${formatTimerClock(activeElapsedSeconds)}${presenceState.timerPaused ? " · 자동 일시정지" : ""}`
-                : "입장 준비 완료"}
-            </p>
-          </div>
+        <section className="daily-visual" aria-label="집중 세션 카메라 감시와 목표 진행률">
           <div className="focus-control">
             <div className="progress-block">
               <div className="progress-track">
@@ -2050,7 +2041,7 @@ function DashboardApp() {
                   {cameraEnabled ? "카메라 감시 끄기" : "카메라 감시 켜기"}
                 </button>
               </div>
-              {cameraMessage && <span className="camera-message">{cameraMessage}</span>}
+              {cameraMessage && cameraStatus !== "watching" && <span className="camera-message">{cameraMessage}</span>}
             </div>
           </div>
         </section>

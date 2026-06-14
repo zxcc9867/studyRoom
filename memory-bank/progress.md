@@ -2,6 +2,40 @@
 
 ## Timeline
 
+### 2026-06-15 - Today Focus camera UI simplification
+
+#### Completed Work
+
+- Removed the duplicate Today Focus timer from the camera-focused section so today's study time is shown through the top summary card only.
+- Removed the duplicate normal camera status detail message while preserving guidance messages for starting, warning, and error states.
+- Enlarged the camera preview and let the camera monitor card use the available content width.
+- Added a regression test that prevents `daily-visual` from rendering `todaySeconds`, `activeElapsedSeconds`, or duplicated camera status copy.
+
+#### Changed Files
+
+- `apps/web/src/main.tsx`
+- `apps/web/src/styles.css`
+- `apps/web/test/cameraPresence.test.mjs`
+- `memory-bank/active-context.md`
+- `memory-bank/progress.md`
+- `memory-bank/implementation-plan.md`
+- `memory-bank/prd-camera-presence.md`
+
+#### Verification
+
+- RED: `node --test apps\web\test\cameraPresence.test.mjs` failed because the Today Focus section still rendered `formatTimerClock(todaySeconds)` and `formatTimerClock(activeElapsedSeconds)`.
+- GREEN: `node --test apps\web\test\cameraPresence.test.mjs` passed after the UI change.
+- `npm.cmd test` passed 103 tests.
+- `npm.cmd run build` passed.
+
+#### Remaining Work
+
+- Commit, push, and verify Vercel production deployment.
+
+#### Next Priority
+
+- Verify the production camera card with an actual logged-in camera session and decide whether to add a user-facing camera health checklist for permission/device conflicts.
+
 ### 2026-06-15 - Camera stalled frame recovery
 
 #### Completed Work

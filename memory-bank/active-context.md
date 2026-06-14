@@ -2,6 +2,42 @@
 
 ## Current Work
 
+- Task: Simplify the Today Focus camera area by removing duplicate timer/status text and enlarging the camera preview.
+- Purpose: Keep today's study time visible in one place and make the camera monitoring card easier to scan.
+- Related PRD:
+  - `memory-bank/prd-camera-presence.md`
+- Related files:
+  - `apps/web/src/main.tsx`
+  - `apps/web/src/styles.css`
+  - `apps/web/test/cameraPresence.test.mjs`
+
+## Recent Decisions
+
+- Decision: Keep the top summary cards as the single source for today's study time and monthly accumulated time.
+- Reason: The user showed that `오늘 공부` appeared in both the top summary and the Today Focus card, making the UI feel duplicated.
+- Alternative: Keep both timers but rename one to current session; rejected because the user asked for one timer only and the top summary already shows the needed time.
+- Impact: The Today Focus camera section now shows progress and camera monitoring only.
+
+- Decision: Hide the default `카메라 감시 중` detail message while `cameraStatus === "watching"`.
+- Reason: The card header already shows the active camera status, so the bottom message repeated the same information.
+- Alternative: Remove all camera messages; rejected because starting/error/warning states still need extra guidance.
+- Impact: Normal camera monitoring has one status line, while non-watching states can still show useful guidance.
+
+## Current Status
+
+- Completed: Added a failing regression test for duplicated Today Focus timers and camera status copy.
+- Completed: Removed `todaySeconds` and `activeElapsedSeconds` timer rendering from the camera-focused section.
+- Completed: Enlarged the camera preview and made the camera card span the available width.
+- Completed: `node --test apps\web\test\cameraPresence.test.mjs`, `npm.cmd test`, and `npm.cmd run build` pass locally.
+- Pending: Commit, push, and verify Vercel production deployment.
+
+## Notes
+
+- This is a frontend display change only. It does not change Supabase data, camera presence detection, Slack warnings, or study-time calculation.
+- Next product direction to consider: after the camera UI is stable, prioritize a production-device verification checklist and a clearer "camera health" diagnosis path for permission/device conflicts.
+
+## Current Work
+
 - Task: Fix camera monitoring stuck in `준비 중` after the camera stream stops producing frames.
 - Purpose: Prevent camera monitoring from looking like it turned off automatically when the video track is still live but no current frame or video size is available.
 - Related PRD:

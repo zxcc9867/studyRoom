@@ -26,6 +26,7 @@
 - Camera refresh resume: when camera monitoring is enabled for an active session, the web app stores a short-lived per-user/per-session camera intent in browser storage and attempts one automatic camera reconnect for the same active session after refresh.
 - Camera upper-body presence: the web app treats the user as present when one head landmark and both shoulder landmarks are visible with enough confidence. For cropped webcam views, head plus one visible shoulder and the same-side hip also counts as seated upper-body presence. This allows upper body detection instead of requiring a full face detection.
 - Camera absence enforcement: if no upper body pose is detected for 5 minutes, the web app sends an in-app/Slack warning. If the user is still absent 5 minutes after that warning, the web timer enters auto-pause and excludes only the paused interval from displayed and saved study time.
+- Camera monitor UI: the top summary cards are the single source for today's study time and monthly accumulated time. The camera section does not render a second timer; it shows goal progress, one camera status line, a larger local preview, and the camera control.
 
 ## Tech Stack
 

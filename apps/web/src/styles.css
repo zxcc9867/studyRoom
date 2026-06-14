@@ -370,9 +370,9 @@ label {
 
 .daily-visual {
   display: grid;
-  grid-template-columns: minmax(220px, 0.8fr) minmax(320px, 1.2fr);
+  grid-template-columns: 1fr;
   align-items: start;
-  gap: 24px;
+  gap: 18px;
   border-color: #78a9c4;
   background:
     linear-gradient(135deg, rgba(255, 249, 223, 0.26) 0 18px, transparent 18px 36px),
@@ -393,7 +393,7 @@ label {
 .focus-control {
   display: grid;
   gap: 18px;
-  justify-items: end;
+  justify-items: stretch;
 }
 
 .progress-block {
@@ -401,7 +401,7 @@ label {
   gap: 10px;
   color: #fff9df;
   font-weight: 900;
-  width: min(100%, 640px);
+  width: 100%;
 }
 
 .progress-track {
@@ -426,9 +426,9 @@ label {
 
 .camera-monitor {
   display: grid;
-  gap: 10px;
-  width: min(100%, 640px);
-  padding: 12px;
+  gap: 12px;
+  width: 100%;
+  padding: 14px;
   border: 2px solid rgba(255, 249, 223, 0.72);
   border-radius: 8px;
   background: rgba(47, 107, 82, 0.2);
@@ -446,13 +446,13 @@ label {
 
 .camera-monitor-body {
   display: grid;
-  grid-template-columns: 128px minmax(180px, 1fr);
+  grid-template-columns: minmax(220px, 320px) minmax(220px, 1fr);
   align-items: center;
-  gap: 12px;
+  gap: 16px;
 }
 
 .camera-preview {
-  width: 128px;
+  width: 100%;
   aspect-ratio: 4 / 3;
   border: 2px solid rgba(255, 249, 223, 0.76);
   border-radius: 8px;
@@ -467,7 +467,7 @@ label {
 
 .camera-toggle {
   justify-content: center;
-  min-height: 48px;
+  min-height: 56px;
 }
 
 .camera-message,
@@ -1294,11 +1294,12 @@ button:active:not(:disabled) {
   }
 
   .camera-monitor-body {
-    grid-template-columns: 96px minmax(0, 1fr);
+    grid-template-columns: 1fr;
   }
 
   .camera-preview {
-    width: 96px;
+    width: min(100%, 280px);
+    justify-self: center;
   }
 
   .study-summary {
