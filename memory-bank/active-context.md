@@ -31,7 +31,8 @@
 - Completed: Wired the web app to reconnect once after 15 seconds of missing current frame/video size.
 - Completed: The camera toggle remains usable when an already-enabled camera falls back to `준비 중`.
 - Completed: `npm.cmd test`, `npm.cmd run build`, and `git diff --check` pass locally.
-- Pending: Commit, push, and verify Vercel production deployment.
+- Completed: Committed and pushed `6fa480a477a9bfc7217bd113f932ed58952515ea` to `origin/main`.
+- Completed: GitHub Actions run `27503047022` succeeded, Vercel deployment `dpl_6hrGHJAkV4zkGfkma9sCuQCanaEo` is `READY`, and production URL returned `HTTP 200`.
 
 ## Notes
 

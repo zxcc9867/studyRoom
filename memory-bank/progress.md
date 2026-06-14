@@ -33,10 +33,14 @@
 - `npm.cmd test` passed 102 tests.
 - `npm.cmd run build` passed.
 - `git diff --check` passed.
+- Committed and pushed `6fa480a477a9bfc7217bd113f932ed58952515ea`.
+- GitHub Actions run `27503047022` completed successfully.
+- Vercel deployment `dpl_6hrGHJAkV4zkGfkma9sCuQCanaEo` is `READY`.
+- `https://study-room-attendance.vercel.app` returned `HTTP 200`.
 
 #### Remaining Work
 
-- Commit, push, and verify Vercel production deployment.
+- Test camera monitoring on the production page with the actual browser/camera device.
 
 #### Next Priority
 
