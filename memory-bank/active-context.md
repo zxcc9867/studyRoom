@@ -28,7 +28,12 @@
 - Completed: Added failing tests for overnight schedule validation and DB migration coverage.
 - Completed: Updated frontend schedule validation to allow overnight ranges.
 - Completed: Applied Supabase migration `allow_overnight_study_todo_times`; remote constraint now uses `start_time <> end_time`.
-- Next: Run full tests/build, commit, push, and confirm Vercel production deployment.
+- Completed: `npm.cmd test`, `npm.cmd run build`, and `git diff --check` pass locally.
+- Completed: Pushed commit `5afb350` to `origin/main`.
+- Completed: GitHub Actions run `27501233411` succeeded.
+- Completed: Vercel production deployment `dpl_AKeaHsZ1kgMz3DvkN8TRdbd9Ny9p` is `READY` for commit `5afb350`.
+- Completed: `https://study-room-attendance.vercel.app` returns HTTP 200.
+- Next: If the user still sees the modal stay open, inspect the browser console and Supabase insert response for the exact account/session.
 
 ## Notes
 

@@ -29,14 +29,21 @@
 - `node --test apps\web\test\todoSchedule.test.mjs`
 - `node --test packages\core\test\sql-migrations.test.mjs`
 - Supabase MCP constraint query confirmed `start_time <> end_time`
+- `npm.cmd test`
+- `npm.cmd run build`
+- `git diff --check`
+- GitHub Actions run `27501233411`: success
+- Vercel deployment `dpl_AKeaHsZ1kgMz3DvkN8TRdbd9Ny9p`: READY
+- `curl -I https://study-room-attendance.vercel.app`: HTTP 200
+- Vercel production runtime logs, level error, since 1h: no logs found
 
 #### Remaining Work
 
-- Run full `npm.cmd test`, `npm.cmd run build`, push, and confirm Vercel production deployment.
+- None for this fix.
 
 #### Next Priority
 
-- Verify production deployment for the updated todo modal behavior.
+- If the modal still stays open, capture the browser console error and Supabase insert response for the exact logged-in user.
 
 ### 2026-06-14 - Scheduled recurring todo save display fixed
 
