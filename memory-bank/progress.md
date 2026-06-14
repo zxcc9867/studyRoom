@@ -33,10 +33,14 @@
 - `git diff --check` passed.
 - Supabase Edge Function list confirmed `attendance-cron` v16, `slack-test-alarm` v5, and `camera-presence-warning` v6 ACTIVE with `verify_jwt=false`.
 - Supabase SQL `net.http_post` invoked `slack-test-alarm` with direct channel `C0BAFS1CSV8`; response id `10977` returned HTTP 200, `ok=true`, and Slack `messageTs=1781477126.922689`.
+- Committed and pushed `47387bcfceabbf560f01fd8a63053cae036b062b` to `origin/main`.
+- Vercel production deployment `dpl_FnM3zWh3Js9mt68NagH6esCE5z4z` is `READY` for commit `47387bcfceabbf560f01fd8a63053cae036b062b`.
+- `https://study-room-attendance.vercel.app/` returned HTTP 200.
+- Vercel production runtime error-log query for deployment `dpl_FnM3zWh3Js9mt68NagH6esCE5z4z` returned no `error` or `fatal` logs in the checked one-hour window.
 
 #### Remaining Work
 
-- Push to GitHub and verify Vercel production.
+- None for the Slack readability change.
 
 #### Next Priority
 

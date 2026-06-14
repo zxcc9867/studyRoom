@@ -27,9 +27,12 @@
 - Completed: `npm.cmd test`, `npm.cmd run build`, and `git diff --check` passed locally.
 - Completed: Deployed `attendance-cron` v16, `slack-test-alarm` v5, and `camera-presence-warning` v6 to Supabase; all are ACTIVE with `verify_jwt=false`.
 - Completed: Sent a direct Slack test alarm to channel `C0BAFS1CSV8`; request `10977` returned HTTP 200, `ok=true`, and Slack `messageTs=1781477126.922689`.
-- In progress: Commit, push, and verify the Vercel production pipeline.
+- Completed: Committed and pushed `47387bcfceabbf560f01fd8a63053cae036b062b` to `origin/main`.
+- Completed: Vercel production deployment `dpl_FnM3zWh3Js9mt68NagH6esCE5z4z` for commit `47387bcfceabbf560f01fd8a63053cae036b062b` is `READY`.
+- Completed: `https://study-room-attendance.vercel.app/` returned HTTP 200.
+- Completed: Vercel production runtime error-log query for deployment `dpl_FnM3zWh3Js9mt68NagH6esCE5z4z` returned no `error` or `fatal` logs in the checked one-hour window.
 - Blocked: None.
-- Next: Verify production availability after push.
+- Next: If the user wants visual confirmation, compare the received Slack message with the new sectioned format in the target channel.
 
 ## Notes
 
