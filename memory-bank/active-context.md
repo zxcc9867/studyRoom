@@ -27,7 +27,11 @@
 - Completed: Fixed schedule formatting to handle Supabase time values such as `09:00:00`.
 - Completed: Added todo save focus helper and tests for selected-date and first-generated-date behavior.
 - Completed: `node --test apps\web\test\todoRecurrence.test.mjs apps\web\test\todoSchedule.test.mjs`, `npm.cmd test`, `npm.cmd run build`, and `git diff --check` pass locally.
-- Next: Commit, push, and confirm Vercel production deployment.
+- Completed: Pushed commit `5d0d936` to `origin/main`.
+- Completed: GitHub Actions run `27500758093` succeeded.
+- Completed: Vercel production deployment `dpl_2x21QLKb9TNXp4NGS8W2j5bybzwN` is `READY` for commit `5d0d936`.
+- Completed: `https://study-room-attendance.vercel.app` returns HTTP 200.
+- Next: If the user still cannot see saved todos, test the exact selected date, weekday selection, and time values from their browser session.
 
 ## Notes
 

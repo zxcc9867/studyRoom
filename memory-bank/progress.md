@@ -29,14 +29,18 @@
 - `npm.cmd test`
 - `npm.cmd run build`
 - `git diff --check`
+- GitHub Actions run `27500758093`: success
+- Vercel deployment `dpl_2x21QLKb9TNXp4NGS8W2j5bybzwN`: READY
+- `curl -I https://study-room-attendance.vercel.app`: HTTP 200
+- Vercel production runtime logs, level error, since 1h: no logs found
 
 #### Remaining Work
 
-- Push the fix and confirm the GitHub Actions Vercel production deployment.
+- None for this fix.
 
 #### Next Priority
 
-- Verify the deployed app at `https://study-room-attendance.vercel.app`.
+- If the issue reproduces, capture the exact selected calendar date, selected weekdays, repeat end date, start time, and end time.
 
 ### 2026-06-14 - Vercel production deployment completed
 
