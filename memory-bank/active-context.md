@@ -29,7 +29,10 @@
 - Completed: Reproduced the failure locally with `TZ=UTC`.
 - Completed: Fixed the test to pass `timeZone: "Asia/Tokyo"`.
 - Completed: `TZ=UTC node --test apps\web\test\reminderPopup.test.mjs`, `npm.cmd test`, and `npm.cmd run build` pass locally.
-- Next: Commit and push the CI timezone fix, then confirm the Vercel production deployment becomes READY.
+- Completed: Commit `9e5b8d3` was pushed to `origin/main`.
+- Completed: GitHub Actions run `27500448036` succeeded.
+- Completed: Vercel deployment `dpl_AE995CdmFTzXne3qAdGV1fnBRfMz` is `READY` for production and `https://study-room-attendance.vercel.app` returns HTTP 200.
+- Next: For future app work, run tests/build, commit, push, and confirm Vercel production deployment as the final step.
 
 ## Notes
 

@@ -2,6 +2,36 @@
 
 ## Timeline
 
+### 2026-06-14 - Vercel production deployment completed
+
+#### Completed Work
+
+- Pushed CI timezone fix commit `9e5b8d3` to `origin/main`.
+- Confirmed GitHub Actions run `27500448036` completed successfully.
+- Confirmed Vercel production deployment `dpl_AE995CdmFTzXne3qAdGV1fnBRfMz` is `READY`.
+- Confirmed `https://study-room-attendance.vercel.app` returns HTTP 200.
+- Confirmed Vercel production error log query for the last hour returned no matching error logs.
+
+#### Changed Files
+
+- `memory-bank/active-context.md`
+- `memory-bank/progress.md`
+
+#### Verification
+
+- GitHub Actions run `27500448036`: success
+- Vercel deployment `dpl_AE995CdmFTzXne3qAdGV1fnBRfMz`: READY
+- `curl -I https://study-room-attendance.vercel.app`: HTTP 200
+- Vercel production runtime logs, level error, since 1h: no logs found
+
+#### Remaining Work
+
+- Local direct Vercel CLI deploy still requires `VERCEL_TOKEN` or `vercel login`; current deploy path is GitHub Actions through `main` pushes.
+
+#### Next Priority
+
+- Treat Vercel production verification as the final step for future user-visible app changes.
+
 ### 2026-06-14 - Vercel deployment pipeline timezone fix
 
 #### Completed Work
