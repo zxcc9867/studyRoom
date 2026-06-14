@@ -1,5 +1,13 @@
 # PRD: Recurring Todos
 
+## 2026-06-14 Update: Overnight Scheduled Todos
+
+- The todo modal supports optional schedule times that cross midnight.
+- A schedule such as `23:00` to `01:00` is valid and means the todo starts on the selected local date and ends on the next day.
+- `start_time` and `end_time` must still be both null or both set.
+- Equal start and end times remain invalid because they represent a zero-length schedule.
+- Supabase constraint `study_todos_time_window_check` allows both null or both non-null with `start_time <> end_time`.
+
 ## 2026-06-14 추가 요구사항: 선택형 시간 설정
 
 - 할 일 등록 모달은 기존 하루만/요일 반복 선택에 더해 `시간 없음`과 `시간 설정` 선택지를 제공한다.

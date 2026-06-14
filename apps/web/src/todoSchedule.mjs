@@ -14,10 +14,10 @@ export function normalizeTodoSchedule({ enabled, startTime, endTime }) {
     };
   }
 
-  if (normalizedStart >= normalizedEnd) {
+  if (normalizedStart === normalizedEnd) {
     return {
       ok: false,
-      message: "종료 시간은 시작 시간보다 늦어야 합니다.",
+      message: "시작 시간과 종료 시간은 같을 수 없습니다.",
       startTime: null,
       endTime: null,
     };

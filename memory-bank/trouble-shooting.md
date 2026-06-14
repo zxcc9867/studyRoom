@@ -1,5 +1,38 @@
 # Trouble Shooting
 
+## 2026-06-14 - Overnight todo schedule did not save
+
+### Situation
+
+The user selected a todo schedule from `23:00` to `01:00`, enabled weekday repeat, and clicked save. The modal did not close and the todo appeared not to save.
+
+### Error Message
+
+```txt
+User-visible symptom: schedule save stays in the modal and no todo appears.
+Frontend validation returned: 종료 시간은 시작 시간보다 늦어야 합니다.
+Remote DB constraint before fix: start_time < end_time
+```
+
+### Cause
+
+The schedule crosses midnight. The frontend treated every `end_time < start_time` range as invalid, and the remote Supabase `study_todos_time_window_check` constraint also required `start_time < end_time`. Because validation failed before insert, the modal stayed open. If the frontend had allowed it, the database would still have rejected the row.
+
+### Fix
+
+Changed the frontend validation to allow `end_time < start_time` as an overnight schedule and reject only equal start/end times. Added migration `0017_allow_overnight_study_todo_times.sql` to replace the DB check with `start_time <> end_time` when both times are present. Applied the same migration to Supabase project `bqohkdzvxbrokkmuhysx`.
+
+### Related Files
+
+* `apps/web/src/todoSchedule.mjs`
+* `apps/web/test/todoSchedule.test.mjs`
+* `supabase/migrations/0017_allow_overnight_study_todo_times.sql`
+* `packages/core/test/sql-migrations.test.mjs`
+
+### Prevention
+
+For schedule-like inputs, decide whether `end < start` means invalid or next-day before adding frontend and DB constraints. Keep frontend validation and database check constraints equivalent so users do not see a save failure after passing client validation.
+
 ## 2026-06-14 - Timed weekday-repeat todos looked unsaved
 
 ### Situation

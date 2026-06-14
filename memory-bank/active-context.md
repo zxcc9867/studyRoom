@@ -2,6 +2,40 @@
 
 ## Current Work
 
+- Task: Fix todo save failure for overnight scheduled recurring todos.
+- Purpose: Allow schedules such as `23:00` to `01:00` to save as next-day ending todo blocks.
+- Related PRD:
+  - `memory-bank/prd-recurring-todos.md`
+- Related files:
+  - `apps/web/src/todoSchedule.mjs`
+  - `apps/web/test/todoSchedule.test.mjs`
+  - `supabase/migrations/0017_allow_overnight_study_todo_times.sql`
+  - `packages/core/test/sql-migrations.test.mjs`
+  - `memory-bank/implementation-plan.md`
+  - `memory-bank/progress.md`
+  - `memory-bank/trouble-shooting.md`
+
+## Recent Decisions
+
+- Decision: Treat `end_time < start_time` as an overnight schedule ending on the next day.
+- Reason: The user's screenshot uses `11:00 PM` to `1:00 AM`; the old frontend and DB constraint treated that as invalid and stopped the save before the modal could close.
+- Alternative: Keep rejecting overnight schedules and show a clearer validation message; rejected because the UI should support Google Calendar-like schedules.
+- Impact: Same-day schedules still work, overnight schedules save, and only equal start/end times remain invalid.
+
+## Current Status
+
+- Completed: Confirmed remote Supabase constraint was `start_time < end_time`.
+- Completed: Added failing tests for overnight schedule validation and DB migration coverage.
+- Completed: Updated frontend schedule validation to allow overnight ranges.
+- Completed: Applied Supabase migration `allow_overnight_study_todo_times`; remote constraint now uses `start_time <> end_time`.
+- Next: Run full tests/build, commit, push, and confirm Vercel production deployment.
+
+## Notes
+
+- The local Supabase CLI is not installed, so the migration file was created manually as `0017_allow_overnight_study_todo_times.sql` and applied through Supabase MCP.
+
+## Current Work
+
 - Task: Fix todo save visibility with optional time and weekday repeat.
 - Purpose: Make scheduled recurring todos visibly appear after save and correctly format Supabase `time` column values.
 - Related PRD:

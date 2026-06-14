@@ -119,6 +119,15 @@ test("study todo time window migration adds optional start and end times", () =>
   assert.match(sql, /study_todos_user_date_time_idx/i);
 });
 
+test("study todo overnight time migration allows next-day end times", () => {
+  const sql = readFileSync("supabase/migrations/0017_allow_overnight_study_todo_times.sql", "utf8");
+
+  assert.match(sql, /alter table public\.study_todos\s+drop constraint if exists study_todos_time_window_check/i);
+  assert.match(sql, /add constraint study_todos_time_window_check check/i);
+  assert.match(sql, /start_time is null and end_time is null/i);
+  assert.match(sql, /start_time is not null and end_time is not null and start_time <> end_time/i);
+});
+
 test("study presence events migration stores camera warnings without media payloads", () => {
   const sql = readFileSync("supabase/migrations/0011_study_presence_events.sql", "utf8");
 

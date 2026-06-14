@@ -37,10 +37,24 @@ test("accepts a valid todo start and end time", () => {
   );
 });
 
-test("rejects incomplete or reversed todo time ranges", () => {
+test("accepts overnight todo time ranges", () => {
+  assert.deepEqual(
+    normalizeTodoSchedule({
+      enabled: true,
+      startTime: "23:00",
+      endTime: "01:00",
+    }),
+    {
+      ok: true,
+      startTime: "23:00",
+      endTime: "01:00",
+    },
+  );
+});
+
+test("rejects incomplete or zero-length todo time ranges", () => {
   assert.equal(normalizeTodoSchedule({ enabled: true, startTime: "", endTime: "10:00" }).ok, false);
   assert.equal(normalizeTodoSchedule({ enabled: true, startTime: "10:00", endTime: "" }).ok, false);
-  assert.equal(normalizeTodoSchedule({ enabled: true, startTime: "10:00", endTime: "09:00" }).ok, false);
   assert.equal(normalizeTodoSchedule({ enabled: true, startTime: "10:00", endTime: "10:00" }).ok, false);
 });
 

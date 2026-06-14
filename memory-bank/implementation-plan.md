@@ -15,7 +15,7 @@
 - In-app popup suppression: if the user already has an active same-day study session at the configured reminder minute, the web app does not show the reminder modal.
 - My Page: the web dashboard uses hash-based client routing (`#me`) to render My Page as a separate SPA page while reusing loaded profile and `study_todos` data to show account summary and completed todo history.
 - Recurring todos: weekday repetition is materialized into dated `study_todos` rows on save. The MVP does not store recurrence rules; this keeps reminders, today's tasks, and completed history on the existing date-based data path.
-- Scheduled todos: `study_todos` can optionally store `start_time` and `end_time`. If one is present, both must be present and `start_time < end_time`.
+- Scheduled todos: `study_todos` can optionally store `start_time` and `end_time`. If one is present, both must be present. Same-day schedules use `start_time < end_time`; overnight schedules use `end_time < start_time`; equal start/end times are invalid.
 - Reminder todo enrichment: `attendance-cron` loads `study_todos` for each due reminder's `user_id` and `local_date`, then appends a compact `오늘 할 일` summary to server-side notification bodies. The open web app also renders the same date's todos in the reminder popup from already loaded dashboard state.
 - Two-step attendance enforcement: `get_due_reminders()` emits an initial reminder at the configured daily reminder time and a `nudge` reminder 15 minutes later if no qualifying timer start exists. `mark_missed_attendance()` marks the day missed at reminder time + 30 minutes.
 - Pre-reminder active attendance: if a study session started before the configured reminder time and is still open, or ended after crossing the reminder timestamp, Supabase treats it as a qualifying attendance session and suppresses initial/nudge reminders.
@@ -150,7 +150,7 @@ docs/images/study-room-thumbnail.png
 - Users can select and insert only their own `study_presence_events`; Edge Functions use the service role after validating session ownership.
 - `end_study_session(p_session_id uuid, p_excluded_seconds integer default 0)` stores `duration_seconds` as elapsed seconds minus non-negative excluded seconds. This keeps camera auto-paused absence time out of saved study totals.
 - Recurring todo rows are stored in `study_todos` with one row per target `local_date`. Duplicate title/date rows are skipped in the client before insert.
-- Scheduled todo rows use nullable `start_time` and `end_time`; the DB check constraint allows both null or both non-null with `start_time < end_time`.
+- Scheduled todo rows use nullable `start_time` and `end_time`; the DB check constraint allows both null or both non-null with `start_time <> end_time`, so overnight schedules such as `23:00` to `01:00` are valid.
 - Todo duplicate filtering uses date, normalized title, and optional time range so the same task title can be scheduled in different time blocks on the same day.
 
 ## Testing Strategy

@@ -2,6 +2,42 @@
 
 ## Timeline
 
+### 2026-06-14 - Overnight scheduled todo save fixed
+
+#### Completed Work
+
+- Investigated why the todo modal did not close and the todo appeared not to save for a schedule like `23:00` to `01:00`.
+- Found the frontend rejected `end_time < start_time`, and the remote Supabase `study_todos_time_window_check` constraint also required `start_time < end_time`.
+- Changed the frontend rule so `end_time < start_time` is treated as an overnight schedule and only equal start/end times are rejected.
+- Added Supabase migration `0017_allow_overnight_study_todo_times.sql` to allow same-day and overnight schedules while rejecting zero-length schedules.
+- Applied remote Supabase migration `allow_overnight_study_todo_times`; the live constraint now checks `start_time <> end_time`.
+
+#### Changed Files
+
+- `apps/web/src/todoSchedule.mjs`
+- `apps/web/test/todoSchedule.test.mjs`
+- `supabase/migrations/0017_allow_overnight_study_todo_times.sql`
+- `packages/core/test/sql-migrations.test.mjs`
+- `memory-bank/active-context.md`
+- `memory-bank/progress.md`
+- `memory-bank/implementation-plan.md`
+- `memory-bank/prd-recurring-todos.md`
+- `memory-bank/trouble-shooting.md`
+
+#### Verification
+
+- `node --test apps\web\test\todoSchedule.test.mjs`
+- `node --test packages\core\test\sql-migrations.test.mjs`
+- Supabase MCP constraint query confirmed `start_time <> end_time`
+
+#### Remaining Work
+
+- Run full `npm.cmd test`, `npm.cmd run build`, push, and confirm Vercel production deployment.
+
+#### Next Priority
+
+- Verify production deployment for the updated todo modal behavior.
+
 ### 2026-06-14 - Scheduled recurring todo save display fixed
 
 #### Completed Work
