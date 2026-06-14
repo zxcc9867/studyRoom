@@ -59,6 +59,7 @@ import {
 } from "./cameraPresence.mjs";
 import { recordCameraPresenceEvent, sendCameraPresenceWarning } from "./cameraWarning.mjs";
 import { createUpperBodyPresenceDetector, type UpperBodyPresenceDetector } from "./bodyPresenceDetection.mjs";
+import { cameraHealthMessage, getCameraFrameHealth, getCameraStreamHealth } from "./cameraVideoHealth.mjs";
 import {
   getDashboardSectionFromHash,
   type DashboardSection,
@@ -225,6 +226,7 @@ function DashboardApp() {
   } | null>(null);
   const [cameraSetupPrompt, setCameraSetupPrompt] = useState<CameraSetupPrompt | null>(null);
   const videoRef = useRef<HTMLVideoElement | null>(null);
+  const cameraFrameCanvasRef = useRef<HTMLCanvasElement | null>(null);
   const cameraStreamRef = useRef<MediaStream | null>(null);
   const presenceDetectorRef = useRef<UpperBodyPresenceDetector | null>(null);
   const presenceStateRef = useRef<PresenceState>(createPresenceState(Date.now()));
@@ -448,12 +450,26 @@ function DashboardApp() {
         return;
       }
 
-      if (videoRef.current.readyState < HTMLMediaElement.HAVE_CURRENT_DATA) {
+      const streamHealth = getCameraStreamHealth(cameraStreamRef.current);
+      if (!streamHealth.ok) {
+        markCameraHealthIssue(streamHealth.reason);
+        return;
+      }
+
+      const video = videoRef.current;
+      const frameHealth = getCameraFrameHealth({
+        readyState: video.readyState,
+        videoWidth: video.videoWidth,
+        videoHeight: video.videoHeight,
+        pixels: readCameraFramePixels(video),
+      });
+      if (!frameHealth.ok) {
+        markCameraHealthIssue(frameHealth.reason);
         return;
       }
 
       try {
-        const presenceDetected = presenceDetectorRef.current.detect(videoRef.current, performance.now());
+        const presenceDetected = presenceDetectorRef.current.detect(video, performance.now());
         const nextState = updatePresenceState(presenceStateRef.current, {
           presenceDetected,
           nowMs: Date.now(),
@@ -461,6 +477,11 @@ function DashboardApp() {
         presenceStateRef.current = nextState;
         setPresenceState(nextState);
         setCameraStatus(nextState.timerPaused ? "warning" : "watching");
+        setCameraMessage(
+          presenceDetected
+            ? "카메라 감시 중"
+            : "상반신이 보이지 않습니다. 머리와 양어깨가 카메라에 나오도록 화면을 조정하세요.",
+        );
 
         if (nextState.warningDue && !warningInFlightRef.current) {
           await sendAbsenceWarning(nextState);
@@ -1064,6 +1085,25 @@ function DashboardApp() {
     setPresenceState(nextState);
   }
 
+  function markCameraHealthIssue(reason: string) {
+    resetPresenceState();
+    setCameraStatus(reason === "no-current-frame" || reason === "no-video-size" ? "starting" : "error");
+    setCameraMessage(cameraHealthMessage(reason));
+  }
+
+  function readCameraFramePixels(video: HTMLVideoElement) {
+    const canvas = cameraFrameCanvasRef.current ?? document.createElement("canvas");
+    cameraFrameCanvasRef.current = canvas;
+    canvas.width = 32;
+    canvas.height = 24;
+    const context = canvas.getContext("2d", { willReadFrequently: true });
+    if (!context) {
+      return null;
+    }
+    context.drawImage(video, 0, 0, canvas.width, canvas.height);
+    return context.getImageData(0, 0, canvas.width, canvas.height).data;
+  }
+
   function stopCameraMonitoring({ recordEvent = false }: { recordEvent?: boolean } = {}) {
     const stoppedSessionId = cameraSessionIdRef.current;
     cleanupCameraResources();
@@ -1197,7 +1237,7 @@ function DashboardApp() {
       setCameraMessage(
         result.slackSent
           ? "카메라 켜기 경고를 Slack으로 보냈습니다."
-          : "카메라 켜기 경고를 기록했습니다. Slack은 아직 등록되지 않았습니다.",
+          : "카메라 켜기 경고를 기록했습니다. 이 계정에는 Slack Channel ID가 저장되어 있지 않습니다.",
       );
     } catch (error) {
       setCameraMessage(formatNotificationError(error));
@@ -1228,7 +1268,7 @@ function DashboardApp() {
       setCameraMessage(
         result.slackSent
           ? "자리 비움 경고를 Slack으로 보냈습니다."
-          : "자리 비움 이벤트를 기록했습니다. Slack은 아직 등록되지 않았습니다.",
+          : "자리 비움 이벤트를 기록했습니다. 설정에서 Slack Channel ID를 저장하면 Slack으로도 받을 수 있습니다.",
       );
     } catch (error) {
       setCameraMessage(formatNotificationError(error));
@@ -1860,7 +1900,7 @@ function DashboardApp() {
                 {absenceWarningPopup.slackSent
                   ? "Slack 경고를 보냈습니다."
                   : absenceWarningPopup.slackMissing
-                    ? "Slack이 등록되지 않아 앱 안에만 기록했습니다."
+                    ? "이 계정에는 Slack Channel ID가 저장되어 있지 않습니다. 설정에서 Slack Channel ID를 저장하세요."
                     : "앱 안에 경고를 표시하고 있습니다."}
               </p>
               <div className="reminder-actions">

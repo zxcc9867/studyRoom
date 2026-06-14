@@ -37,3 +37,10 @@ test("web app exposes an authenticated slack test alarm action", () => {
   assert.match(functionSource, /parseDirectChannelId/);
   assert.match(functionSource, /directChannelId/);
 });
+
+test("web app explains when the current account has no saved slack channel target", () => {
+  const appSource = readFileSync("apps/web/src/main.tsx", "utf8");
+
+  assert.match(appSource, /이 계정에는 Slack Channel ID가 저장되어 있지 않습니다/);
+  assert.match(appSource, /설정에서 Slack Channel ID를 저장/);
+});

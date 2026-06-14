@@ -2,6 +2,78 @@
 
 ## Current Work
 
+- Task: Fix camera false absence when the camera preview is black and clarify Slack target setup.
+- Purpose: Stop counting black/muted/stalled camera feeds as user absence, make upper-body detection more tolerant of webcam cropping, and make Slack missing-target messages clear.
+- Related PRD:
+  - `memory-bank/prd-camera-presence.md`
+  - `memory-bank/prd-slack-notifications.md`
+- Related files:
+  - `apps/web/src/main.tsx`
+  - `apps/web/src/bodyPresenceDetection.mjs`
+  - `apps/web/src/cameraVideoHealth.mjs`
+  - `apps/web/test/cameraVideoHealth.test.mjs`
+  - `apps/web/test/cameraPresence.test.mjs`
+  - `apps/web/test/upperBodyPresence.test.mjs`
+  - `apps/web/test/slackNotifications.test.mjs`
+
+## Recent Decisions
+
+- Decision: Treat unhealthy camera video as a camera error instead of an absence signal.
+- Reason: The user's screenshot showed a black preview while the app kept accumulating absence time and eventually auto-paused the timer.
+- Alternative: Keep using PoseLandmarker absence for every frame; rejected because a black/muted/stalled feed is a camera health problem, not proof the user left the seat.
+- Impact: Missing/ended/muted/disabled tracks, missing current frames, zero video size, and nearly black frames reset the absence timer and show a camera-specific instruction.
+
+- Decision: Accept head plus one shoulder plus same-side hip as seated upper-body presence.
+- Reason: Desktop webcam framing can crop one shoulder, causing false absence even when the user is seated.
+- Alternative: Require both shoulders forever; rejected as too brittle for real webcam framing.
+- Impact: The existing head + both shoulders case remains valid, and head-only still does not pass.
+
+## Current Status
+
+- Completed: Added camera stream/frame health checks to the web app.
+- Completed: Added black-frame detection before PoseLandmarker absence checks.
+- Completed: Relaxed upper-body detection for cropped webcam views.
+- Completed: Clarified Slack missing-target messages so users know they must save Slack Channel ID for the current account.
+- Completed: `npm.cmd test` and `npm.cmd run build` pass locally.
+- Next: Commit, push, and verify Vercel production deployment.
+
+## Notes
+
+- Supabase Edge Functions for Slack are ACTIVE. The screenshot message means the current Supabase user does not have an enabled `notification_targets.kind = 'slack'` row, not that the Slack bot token path is absent.
+- A direct Slack channel test verifies server token/channel/bot membership, but scheduled and camera warnings require the app settings to save Slack Channel ID for the logged-in user.
+
+## Current Work
+
+- Task: Update the app-local `AGENTS.md` for `study-room-attendance`.
+- Purpose: Ensure future Codex work in this repository reads the app's own `memory-bank` documents and follows the app's Vercel deployment rule, not only the parent workspace rule.
+- Related PRD: none; this is an agent workflow/documentation update.
+- Related files:
+  - `AGENTS.md`
+  - `memory-bank/active-context.md`
+  - `memory-bank/progress.md`
+  - `memory-bank/implementation-plan.md`
+  - `memory-bank/trouble-shooting.md`
+
+## Recent Decisions
+
+- Decision: Expand `C:\jini-dev\project\study-room-attendance\AGENTS.md` directly instead of relying on the parent `C:\jini-dev\project\AGENTS.md`.
+- Reason: The user pointed out the previous update was made in the parent workspace, while the relevant app repository has its own root `AGENTS.md`.
+- Alternative: Keep only the parent workspace instruction; rejected because future sessions opened in the app repo may read only the app-local `AGENTS.md`.
+- Impact: Future app work should consult app-local `memory-bank` documents, follow Supabase documentation rules, and deploy Vercel-backed user-visible changes through the existing production workflow.
+
+## Current Status
+
+- Completed: Replaced the minimal Spec Kit-only `AGENTS.md` with app-specific Memory Bank, Supabase, validation, Vercel deployment, Git, and final response rules.
+- Completed: Preserved the Spec Kit marker block inside the expanded `AGENTS.md`.
+- Completed: Restored the parent workspace `AGENTS.md` to generic workspace rules after an accidental edit.
+- Next: Future app changes should start from `C:\jini-dev\project\study-room-attendance` and use this repository's `AGENTS.md`.
+
+## Notes
+
+- This update is documentation/workflow only and does not require Vercel deployment.
+
+## Current Work
+
 - Task: Fix todo save failure for overnight scheduled recurring todos.
 - Purpose: Allow schedules such as `23:00` to `01:00` to save as next-day ending todo blocks.
 - Related PRD:

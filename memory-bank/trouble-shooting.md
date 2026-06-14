@@ -1,5 +1,71 @@
 # Trouble Shooting
 
+## 2026-06-14 - Camera black preview counted as upper-body absence
+
+### Situation
+
+The user showed the web app with an active timer, a black camera preview, and a camera status saying upper body was not detected. After enough time, the app showed a seat-away warning and auto-paused even though the user was present.
+
+### Error Message
+
+```txt
+User-visible symptom: camera preview is black, app says 상반신 미감지, and warning popup says Slack is not registered.
+```
+
+### Cause
+
+The web app treated any PoseLandmarker "no upper body" result as user absence. It did not first verify that the camera stream and video frame were healthy. Therefore a black, muted, ended, stalled, or not-yet-ready camera feed could be interpreted as absence. The upper-body detector also required both shoulders, which was brittle for cropped webcam framing.
+
+The Slack warning path was implemented, but the current user's warning response had `slackMissing=true`, which means no enabled `notification_targets.kind = 'slack'` row was found for that logged-in Supabase user. A server-side direct Slack test does not create this per-user target.
+
+### Fix
+
+Added `cameraVideoHealth.mjs` and wired it into the camera loop before PoseLandmarker detection. Unhealthy camera stream/frame states now reset absence timing and show a camera-specific error instead of accumulating absence. Relaxed upper-body detection so head + one shoulder + same-side hip counts as seated presence. Updated Slack missing-target copy to say the current account needs a saved Slack Channel ID.
+
+### Related Files
+
+* `apps/web/src/main.tsx`
+* `apps/web/src/cameraVideoHealth.mjs`
+* `apps/web/src/bodyPresenceDetection.mjs`
+* `apps/web/test/cameraVideoHealth.test.mjs`
+* `apps/web/test/upperBodyPresence.test.mjs`
+* `apps/web/test/slackNotifications.test.mjs`
+
+### Prevention
+
+Before counting absence, verify camera stream health and visible frame health separately from pose detection. Keep Slack setup language clear: Edge Function token/channel direct tests validate server capability, but camera warnings require the logged-in user to save a Slack Channel ID target in app settings.
+
+## 2026-06-14 - AGENTS update applied to parent workspace instead of app repo
+
+### Situation
+
+The user asked to add memory-bank workflow instructions to the AGENTS file for the study-room app. The previous update was applied to `C:\jini-dev\project\AGENTS.md`, while the app repository's own `C:\jini-dev\project\study-room-attendance\AGENTS.md` still only contained the minimal Spec Kit block.
+
+### Error Message
+
+```txt
+User-visible symptom: C:\jini-dev\project\study-room-attendance\AGENTS.md did not contain the requested memory-bank rules.
+```
+
+### Cause
+
+The shell working directory was `C:\jini-dev\project`, and `apply_patch` paths were relative to that parent workspace. Using `AGENTS.md` without the `study-room-attendance/` prefix edited the parent workspace file instead of the app-local file.
+
+### Fix
+
+Restored the parent workspace `AGENTS.md` to generic workspace rules and updated `study-room-attendance/AGENTS.md` directly with app-specific Memory Bank, Supabase, validation, Vercel deployment, Git, Spec Kit, and final response rules.
+
+### Related Files
+
+* `AGENTS.md`
+* `memory-bank/active-context.md`
+* `memory-bank/progress.md`
+* `memory-bank/implementation-plan.md`
+
+### Prevention
+
+For this app, run commands with `workdir = C:\jini-dev\project\study-room-attendance` or use explicit paths prefixed with `study-room-attendance/` when operating from the parent workspace. Before editing app-local instructions, verify both `C:\jini-dev\project\AGENTS.md` and `C:\jini-dev\project\study-room-attendance\AGENTS.md` if the current working directory is ambiguous.
+
 ## 2026-06-14 - Overnight todo schedule did not save
 
 ### Situation

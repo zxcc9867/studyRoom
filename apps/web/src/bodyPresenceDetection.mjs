@@ -14,6 +14,8 @@ export const landmarkIndexes = {
   rightEar: 8,
   leftShoulder: 11,
   rightShoulder: 12,
+  leftHip: 23,
+  rightHip: 24,
 };
 
 const headLandmarkIndexes = [
@@ -69,20 +71,33 @@ export function hasSeatedUpperBodyPose(result) {
 function hasVisibleHeadAndShoulders(landmarks) {
   const leftShoulder = visibleLandmark(landmarks?.[landmarkIndexes.leftShoulder]);
   const rightShoulder = visibleLandmark(landmarks?.[landmarkIndexes.rightShoulder]);
-  if (!leftShoulder || !rightShoulder) {
+  const visibleHead = headLandmarkIndexes
+    .map((index) => visibleLandmark(landmarks?.[index]))
+    .find((landmark) => landmark);
+
+  if (!visibleHead) {
     return false;
   }
 
-  const shoulderSpan = Math.abs(leftShoulder.x - rightShoulder.x);
-  if (shoulderSpan < minimumShoulderSpan) {
+  if (leftShoulder && rightShoulder) {
+    const shoulderSpan = Math.abs(leftShoulder.x - rightShoulder.x);
+    if (shoulderSpan >= minimumShoulderSpan) {
+      const shoulderY = (leftShoulder.y + rightShoulder.y) / 2;
+      return visibleHead.y < shoulderY + 0.12;
+    }
+  }
+
+  const leftHip = visibleLandmark(landmarks?.[landmarkIndexes.leftHip]);
+  const rightHip = visibleLandmark(landmarks?.[landmarkIndexes.rightHip]);
+  return hasVisibleSideTorso(visibleHead, leftShoulder, leftHip) || hasVisibleSideTorso(visibleHead, rightShoulder, rightHip);
+}
+
+function hasVisibleSideTorso(head, shoulder, hip) {
+  if (!head || !shoulder || !hip) {
     return false;
   }
 
-  const shoulderY = (leftShoulder.y + rightShoulder.y) / 2;
-  return headLandmarkIndexes.some((index) => {
-    const landmark = visibleLandmark(landmarks?.[index]);
-    return landmark && landmark.y < shoulderY + 0.12;
-  });
+  return head.y < shoulder.y + 0.12 && hip.y > shoulder.y + 0.08;
 }
 
 function visibleLandmark(landmark) {

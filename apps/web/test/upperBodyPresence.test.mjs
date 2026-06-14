@@ -60,6 +60,20 @@ test("does not detect seated presence when shoulders are too uncertain", () => {
   assert.equal(hasSeatedUpperBodyPose(poseResult), false);
 });
 
+test("detects seated presence when webcam crop shows head, one shoulder, and one hip", () => {
+  const poseResult = {
+    landmarks: [
+      landmarks({
+        [landmarkIndexes.nose]: { x: 0.5, y: 0.22 },
+        [landmarkIndexes.leftShoulder]: { x: 0.38, y: 0.46 },
+        [landmarkIndexes.leftHip]: { x: 0.4, y: 0.74 },
+      }),
+    ],
+  };
+
+  assert.equal(hasSeatedUpperBodyPose(poseResult), true);
+});
+
 test("web app uses upper body pose detection instead of face detection", () => {
   const appSource = readFileSync("apps/web/src/main.tsx", "utf8");
   const detectorSource = readFileSync("apps/web/src/bodyPresenceDetection.mjs", "utf8");

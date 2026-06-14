@@ -20,7 +20,8 @@
 - Two-step attendance enforcement: `get_due_reminders()` emits an initial reminder at the configured daily reminder time and a `nudge` reminder 15 minutes later if no qualifying timer start exists. `mark_missed_attendance()` marks the day missed at reminder time + 30 minutes.
 - Pre-reminder active attendance: if a study session started before the configured reminder time and is still open, or ended after crossing the reminder timestamp, Supabase treats it as a qualifying attendance session and suppresses initial/nudge reminders.
 - Camera presence warning: web study sessions require camera monitoring before the timer can start. MediaPipe PoseLandmarker runs in the browser only, and the server receives only camera event metadata through `camera-presence-warning`.
-- Camera upper-body presence: the web app treats the user as present when one head landmark and both shoulder landmarks are visible with enough confidence. This allows upper body detection instead of requiring a full face detection.
+- Camera video health: before running PoseLandmarker absence checks, the web app verifies the camera stream has a live unmuted enabled video track and that the current video frame is visible. Missing, muted, ended, disabled, unavailable, or nearly black frames are treated as camera errors instead of user absence.
+- Camera upper-body presence: the web app treats the user as present when one head landmark and both shoulder landmarks are visible with enough confidence. For cropped webcam views, head plus one visible shoulder and the same-side hip also counts as seated upper-body presence. This allows upper body detection instead of requiring a full face detection.
 - Camera absence enforcement: if no upper body pose is detected for 5 minutes, the web app sends an in-app/Slack warning. If the user is still absent 5 minutes after that warning, the web timer enters auto-pause and excludes only the paused interval from displayed and saved study time.
 
 ## Tech Stack
@@ -77,9 +78,11 @@ apps/web/test/dashboardRoute.test.mjs
 apps/web/src/cameraPresence.mjs
 apps/web/src/cameraWarning.mjs
 apps/web/src/bodyPresenceDetection.mjs
+apps/web/src/cameraVideoHealth.mjs
 apps/web/src/sessionExit.mjs
 apps/web/test/cameraPresence.test.mjs
 apps/web/test/upperBodyPresence.test.mjs
+apps/web/test/cameraVideoHealth.test.mjs
 apps/web/test/sessionExit.test.mjs
 supabase/functions/camera-presence-warning/index.ts
 supabase/migrations/0011_study_presence_events.sql
@@ -94,6 +97,8 @@ docs/images/study-room-thumbnail.png
 
 ## Code Conventions
 
+- Work from `C:\jini-dev\project\study-room-attendance` for this app repository. Do not treat the parent workspace `C:\jini-dev\project` as the app root when updating app-local instructions or memory-bank files.
+- Read the app-local `AGENTS.md` and relevant app-local `memory-bank` documents before product, architecture, provider, AI-analysis, automation, auth, notification, DB, or deployment changes.
 - Keep AWS infrastructure code isolated under `infra/aws-cdk`.
 - Keep Lambda logic dependency-free unless a real integration requires an SDK.
 - Prefer deploy-time parameters for MVP secrets to avoid fixed Secrets Manager cost.

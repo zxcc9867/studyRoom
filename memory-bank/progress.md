@@ -2,6 +2,88 @@
 
 ## Timeline
 
+### 2026-06-14 - Camera black preview false absence fixed
+
+#### Completed Work
+
+- Investigated the screenshot where the timer kept running, camera preview was black, and the app reported upper body absence.
+- Added camera video health checks before PoseLandmarker absence detection.
+- Treat missing, ended, muted, disabled, not-yet-ready, zero-size, or nearly black camera frames as camera errors instead of user absence.
+- Reset absence timing when the camera feed is unhealthy so false black-frame absence does not continue to auto-pause the timer.
+- Relaxed upper-body detection for cropped webcam views: head plus one shoulder and same-side hip now counts as seated presence.
+- Clarified Slack missing-target text so it says the current account has no saved Slack Channel ID.
+- Confirmed remote Supabase Edge Functions `attendance-cron`, `camera-presence-warning`, and `slack-test-alarm` are ACTIVE.
+
+#### Changed Files
+
+- `apps/web/src/main.tsx`
+- `apps/web/src/bodyPresenceDetection.mjs`
+- `apps/web/src/cameraVideoHealth.mjs`
+- `apps/web/src/cameraVideoHealth.d.mts`
+- `apps/web/test/cameraVideoHealth.test.mjs`
+- `apps/web/test/cameraPresence.test.mjs`
+- `apps/web/test/upperBodyPresence.test.mjs`
+- `apps/web/test/slackNotifications.test.mjs`
+- `memory-bank/active-context.md`
+- `memory-bank/progress.md`
+- `memory-bank/implementation-plan.md`
+- `memory-bank/prd-camera-presence.md`
+- `memory-bank/prd-slack-notifications.md`
+- `memory-bank/trouble-shooting.md`
+
+#### Verification
+
+- RED: `node --test apps\web\test\cameraVideoHealth.test.mjs` failed because `cameraVideoHealth.mjs` did not exist.
+- RED: `node --test apps\web\test\cameraPresence.test.mjs` failed because the app was not wired to camera video health helpers.
+- RED: `node --test apps\web\test\upperBodyPresence.test.mjs` failed because head + one shoulder + hip was not accepted.
+- RED: `node --test apps\web\test\slackNotifications.test.mjs` failed because the app did not explain missing per-account Slack target.
+- GREEN: all targeted tests passed.
+- `npm.cmd test` passed 92 tests.
+- `npm.cmd run build` passed.
+- Supabase MCP `_list_edge_functions` confirmed Slack/camera functions ACTIVE.
+
+#### Remaining Work
+
+- Commit, push, and verify Vercel production deployment.
+- The user still needs a saved Slack Channel ID target for the logged-in account to receive Slack camera warnings.
+
+#### Next Priority
+
+- After deployment, restart camera monitoring in the production app. If the preview remains black, check browser camera permission, privacy shutter, and whether another app is using the camera.
+
+### 2026-06-14 - App-local AGENTS memory-bank rules added
+
+#### Completed Work
+
+- Confirmed the previous AGENTS update had been applied to the parent workspace `C:\jini-dev\project\AGENTS.md`, not the app repository's `C:\jini-dev\project\study-room-attendance\AGENTS.md`.
+- Restored the parent workspace `AGENTS.md` to generic workspace rules.
+- Expanded the app-local `AGENTS.md` from the minimal Spec Kit block into full study-room workflow rules.
+- Added app-local Memory Bank, Supabase, validation, Vercel production deployment, Git, Spec Kit, and final response rules.
+- Preserved the Spec Kit marker block in the app-local `AGENTS.md`.
+
+#### Changed Files
+
+- `AGENTS.md`
+- `memory-bank/active-context.md`
+- `memory-bank/progress.md`
+- `memory-bank/implementation-plan.md`
+- `memory-bank/trouble-shooting.md`
+- `..\AGENTS.md`
+
+#### Verification
+
+- `Get-Content -Encoding UTF8 -LiteralPath C:\jini-dev\project\AGENTS.md`
+- `Get-Content -Encoding UTF8 -LiteralPath C:\jini-dev\project\study-room-attendance\AGENTS.md`
+- `Select-String` checks for `memory-bank/ko`, `memory-bank/ja`, `/ko`, `/ja`
+
+#### Remaining Work
+
+- None for this documentation update.
+
+#### Next Priority
+
+- Future work inside the app repo should use `C:\jini-dev\project\study-room-attendance` as the working directory and read the app-local `AGENTS.md` plus app-local `memory-bank` documents.
+
 ### 2026-06-14 - Overnight scheduled todo save fixed
 
 #### Completed Work

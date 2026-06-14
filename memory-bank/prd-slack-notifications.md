@@ -6,6 +6,7 @@
 - `STUDY_ALERT_SLACK_BOT_TOKEN` exists because the user configured the Slack bot token with a project-specific secret name.
 - `slack-test-alarm` must support cron-secret protected direct test calls with `{ "channelId": "C..." }` or `{ "channelId": "G..." }`.
 - Direct channel tests verify Slack bot token, channel ID, and bot channel membership, but they do not replace the user-specific `notification_targets.kind = 'slack'` row needed for scheduled reminders.
+- If camera warnings say Slack is missing, it means the logged-in Supabase account has no enabled Slack notification target. The user must save Slack Channel ID in the app settings even if the server bot token direct test already succeeded.
 - Token values must never be printed, committed, or stored in memory-bank.
 
 ## 1. Problem

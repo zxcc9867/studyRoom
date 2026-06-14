@@ -231,6 +231,9 @@ test("web app wires upper body camera monitoring to active sessions and warning 
   assert.match(appSource, /activeSession/);
   assert.match(appSource, /createUpperBodyPresenceDetector/);
   assert.match(appSource, /presenceDetected/);
+  assert.match(appSource, /getCameraStreamHealth/);
+  assert.match(appSource, /getCameraFrameHealth/);
+  assert.match(appSource, /cameraHealthMessage/);
   assert.match(appSource, /sendCameraPresenceWarning\(session/);
   assert.match(warningSource, /\/functions\/v1\/camera-presence-warning/);
   assert.match(warningSource, /authorization: `Bearer \$\{session\.access_token\}`/);
