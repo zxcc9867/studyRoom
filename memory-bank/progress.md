@@ -2,6 +2,62 @@
 
 ## Timeline
 
+### 2026-06-14 - Slack setup UX, Kakao removal, refresh-safe timer, and camera resume
+
+#### Completed Work
+
+- Added a dedicated Slack Channel ID save action so the logged-in user can create/update their own `notification_targets.kind = 'slack'` row before sending a Slack test alarm.
+- Removed Kakao OAuth/link UI helpers and removed Kakao Memo sending from the active `attendance-cron` path.
+- Added migration `0018_disable_kakao_notifications.sql` to disable legacy enabled Kakao notification targets/connections while preserving historical rows and old delivery records.
+- Changed page lifecycle session policy so `visibilitychange`, `pagehide`, and `beforeunload` no longer end active study sessions. This preserves running study time across refresh/reload.
+- Added camera monitoring intent persistence and one-shot camera auto-restore for the same active session after refresh.
+- Applied Supabase migration `disable_kakao_notifications` to project `bqohkdzvxbrokkmuhysx`.
+
+#### Changed Files
+
+- `apps/web/src/main.tsx`
+- `apps/web/src/sessionExit.mjs`
+- `apps/web/src/cameraResume.mjs`
+- `apps/web/src/cameraResume.d.mts`
+- `apps/web/src/authProviders.mjs`
+- `apps/web/src/authProviders.d.mts`
+- `apps/web/test/cameraResume.test.mjs`
+- `apps/web/test/sessionExit.test.mjs`
+- `apps/web/test/slackNotifications.test.mjs`
+- `apps/web/test/authProviders.test.mjs`
+- `packages/core/test/sql-migrations.test.mjs`
+- `supabase/functions/attendance-cron/index.ts`
+- `supabase/migrations/0018_disable_kakao_notifications.sql`
+- `memory-bank/active-context.md`
+- `memory-bank/progress.md`
+- `memory-bank/implementation-plan.md`
+- `memory-bank/prd-slack-notifications.md`
+- `memory-bank/prd-camera-presence.md`
+- `memory-bank/prd-kakao-notifications.md`
+- `memory-bank/trouble-shooting.md`
+
+#### Verification
+
+- RED: `node --test apps\web\test\slackNotifications.test.mjs` failed before implementation because the app had no clear Slack save action and still referenced Kakao.
+- RED: `node --test apps\web\test\sessionExit.test.mjs` failed before implementation because `pagehide` and `beforeunload` still ended the session.
+- RED: `node --test apps\web\test\cameraResume.test.mjs` failed before implementation because `cameraResume.mjs` did not exist.
+- RED: `node --test packages\core\test\sql-migrations.test.mjs` failed before implementation because `attendance-cron` still contained the Kakao path and migration `0018_disable_kakao_notifications.sql` did not exist.
+- GREEN: targeted tests passed after implementation.
+- `npm.cmd test` passed 98 tests.
+- `npm.cmd run build` passed.
+- Supabase migration list confirmed `disable_kakao_notifications`.
+- Supabase Edge Function deploy confirmed `attendance-cron` version 15 ACTIVE.
+- Supabase Management API deleted legacy `kakao-token` and `telegram-test-alarm` Edge Functions.
+- Supabase Edge Function list confirmed only `attendance-cron`, `camera-presence-warning`, and `slack-test-alarm` remain ACTIVE.
+
+#### Remaining Work
+
+- Commit, push, and verify Vercel production deployment.
+
+#### Next Priority
+
+- After deployment, save Slack Channel ID from the app settings for the logged-in user, then run the in-app Slack test alarm.
+
 ### 2026-06-14 - Camera black preview false absence fixed
 
 #### Completed Work

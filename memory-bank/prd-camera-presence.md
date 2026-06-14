@@ -142,7 +142,7 @@
 - 총 10분 이후의 자동 일시정지 시간만 제외 시간으로 계산한다.
 - 상반신이 다시 감지되면 제외 시간을 누적하고 타이머를 다시 진행한다.
 - 자동 종료는 더 이상 수행하지 않는다.
-- 수동 종료와 페이지 이탈 종료는 `p_excluded_seconds`를 `end_study_session` RPC에 전달한다.
+- 수동 종료는 `p_excluded_seconds`를 `end_study_session` RPC에 전달한다.
 
 ### Added Functional Requirements
 
@@ -150,7 +150,7 @@
 - [x] 총 10분 이상 상반신 미감지 시 현재 세션/오늘 공부 시간 표시에서 자동 일시정지 이후 시간을 제외한다.
 - [x] 상반신 복귀 시 제외 시간을 누적하고 세션 타이머를 재개한다.
 - [x] DB 저장 시간도 제외되도록 `end_study_session` RPC에서 `p_excluded_seconds`를 반영한다.
-- [x] 페이지 이탈 자동 종료 요청도 제외 초를 전달한다.
+- [x] 수동 종료 요청은 제외 초를 전달한다.
 
 ## 16. 2026-06-14 Update: Tab Switch Policy
 
@@ -158,7 +158,7 @@
 
 - Browser tab switching is normal study behavior and must not end the active study session.
 - `visibilitychange` is only a visibility signal. It is not treated as proof that the user left the study room.
-- Automatic page-exit session termination remains limited to real page exit events such as `pagehide` and `beforeunload`.
+- Automatic page-exit session termination is disabled because refresh/reload cannot be reliably separated from leaving the page.
 - Camera monitoring should not be intentionally stopped by a tab switch. If the browser throttles camera frame callbacks in the background, the app still relies on camera presence state rather than session-exit logic.
 - Study time should continue during tab switches. Only camera absence auto-pause can exclude time from the study total.
 
@@ -166,7 +166,7 @@
 
 - [x] Switching to another browser tab does not call `end_study_session`.
 - [x] Switching tabs does not intentionally stop camera monitoring.
-- [x] Closing or leaving the page still sends the keepalive `end_study_session` request.
+- [x] Refreshing, closing, or leaving the page does not send automatic `end_study_session`; the explicit `종료` button is the supported session-end action.
 - [x] The tab-switch policy is covered by `sessionExit` regression tests.
 
 ## 15. 2026-06-14 Update: Upper Body Presence Detection
@@ -198,3 +198,19 @@
 - [x] live/unmuted/enabled video track이 없으면 상반신 미감지 시간을 누적하지 않는다.
 - [x] 현재 프레임이 없거나 video size가 0이면 상반신 미감지 시간을 누적하지 않는다.
 - [x] 거의 검은 프레임은 자리 비움이 아니라 카메라 화면 문제로 안내한다.
+
+## 18. 2026-06-14 Update: Refresh Camera Resume
+
+### Decision
+
+- 브라우저 새로고침은 실제 카메라 스트림을 유지할 수 없다.
+- 대신 앱은 활성 세션에서 카메라 감시가 켜져 있었다는 intent만 사용자/세션 단위로 짧게 저장한다.
+- 새로고침 후 같은 사용자의 같은 active session이 복원되면 한 번만 카메라 재연결을 자동 시도한다.
+- 자동 재연결이 실패하면 카메라 켜기 팝업으로 사용자가 직접 권한/장치 상태를 확인하게 한다.
+
+### Added Functional Requirements
+
+- [x] 카메라 감시가 켜진 active session의 userId/sessionId intent를 브라우저 저장소에 보관한다.
+- [x] 저장된 intent가 같은 사용자, 같은 active session, 최근 intent일 때만 카메라 자동 복원을 시도한다.
+- [x] 자동 복원은 한 세션 로드에서 한 번만 시도해 반복 권한 요청을 막는다.
+- [x] 세션을 수동 종료하거나 카메라 감시를 수동으로 끄면 저장된 intent를 삭제한다.

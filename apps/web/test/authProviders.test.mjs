@@ -7,23 +7,12 @@ import {
   getAuthErrorFromUrl,
   getAuthRedirectTo,
   getImplicitOAuthSessionFromUrl,
-  getKakaoNotificationConnectOptions,
   isAuthCallbackUrl,
 } from "../src/authProviders.mjs";
 
 test("builds local OAuth callback redirect URLs", () => {
   assert.equal(getAuthRedirectTo("http://127.0.0.1:5177"), "http://127.0.0.1:5177/auth/callback");
   assert.equal(getAuthRedirectTo("http://127.0.0.1:5177/"), "http://127.0.0.1:5177/auth/callback");
-});
-
-test("builds Kakao notification linking OAuth options with talk_message scope", () => {
-  assert.deepEqual(getKakaoNotificationConnectOptions("http://127.0.0.1:5177/"), {
-    provider: "kakao",
-    options: {
-      redirectTo: "http://127.0.0.1:5177/auth/callback",
-      scopes: "talk_message account_email profile_image profile_nickname",
-    },
-  });
 });
 
 test("detects auth callback URLs", () => {

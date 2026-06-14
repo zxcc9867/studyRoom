@@ -71,9 +71,9 @@ test("does not send an exit request without an access token or active session", 
   assert.equal(calls.length, 0);
 });
 
-test("does not end a study session when the user only switches browser tabs", () => {
+test("does not end a study session for tab switches or browser refresh lifecycle events", () => {
   assert.equal(shouldEndStudySessionForPageEvent({ type: "visibilitychange", visibilityState: "hidden" }), false);
   assert.equal(shouldEndStudySessionForPageEvent({ type: "visibilitychange", visibilityState: "visible" }), false);
-  assert.equal(shouldEndStudySessionForPageEvent({ type: "pagehide" }), true);
-  assert.equal(shouldEndStudySessionForPageEvent({ type: "beforeunload" }), true);
+  assert.equal(shouldEndStudySessionForPageEvent({ type: "pagehide" }), false);
+  assert.equal(shouldEndStudySessionForPageEvent({ type: "beforeunload" }), false);
 });

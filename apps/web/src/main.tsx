@@ -12,7 +12,6 @@ import {
   KeyRound,
   LogOut,
   Mail,
-  MessageCircle,
   Play,
   Plus,
   Repeat2,
@@ -41,7 +40,6 @@ import {
   getAuthErrorFromUrl,
   getAuthRedirectTo,
   getImplicitOAuthSessionFromUrl,
-  getKakaoNotificationConnectOptions,
   isAuthCallbackUrl,
   type IdentityPayload,
 } from "./authProviders.mjs";
@@ -57,6 +55,12 @@ import {
   type PresenceState,
   type PresenceStatus,
 } from "./cameraPresence.mjs";
+import {
+  cameraMonitoringIntentKey,
+  createCameraMonitoringIntent,
+  parseCameraMonitoringIntent,
+  shouldRestoreCameraMonitoring,
+} from "./cameraResume.mjs";
 import { recordCameraPresenceEvent, sendCameraPresenceWarning } from "./cameraWarning.mjs";
 import { createUpperBodyPresenceDetector, type UpperBodyPresenceDetector } from "./bodyPresenceDetection.mjs";
 import { cameraHealthMessage, getCameraFrameHealth, getCameraStreamHealth } from "./cameraVideoHealth.mjs";
@@ -65,12 +69,6 @@ import {
   type DashboardSection,
 } from "./dashboardRoute.mjs";
 import { shouldShowStudyReminderPopup } from "./reminderPopup.mjs";
-import {
-  KAKAO_CONNECT_PENDING_KEY,
-  getKakaoNotificationStatus,
-  saveKakaoProviderTokens,
-  type KakaoNotificationStatus,
-} from "./kakaoNotifications.mjs";
 import { requestEndStudySessionOnExit, shouldEndStudySessionForPageEvent } from "./sessionExit.mjs";
 import { isSupabaseConfigured, supabase, supabaseAnonKey, supabaseUrl } from "./supabase";
 import {
@@ -206,7 +204,6 @@ function DashboardApp() {
   const [busy, setBusy] = useState(false);
   const [todoBusy, setTodoBusy] = useState(false);
   const [webPushStatus, setWebPushStatus] = useState<WebPushStatus | null>(null);
-  const [kakaoStatus, setKakaoStatus] = useState<KakaoNotificationStatus | null>(null);
   const [slackStatus, setSlackStatus] = useState<SlackNotificationStatus | null>(null);
   const [slackChannelId, setSlackChannelId] = useState("");
   const [reminderPopup, setReminderPopup] = useState<{ dateKey: string; reminderTime: string } | null>(null);
@@ -232,6 +229,7 @@ function DashboardApp() {
   const presenceStateRef = useRef<PresenceState>(createPresenceState(Date.now()));
   const cameraSessionIdRef = useRef<string | null>(null);
   const cameraSessionStartingRef = useRef(false);
+  const cameraAutoRestoreAttemptedRef = useRef(false);
   const lastCameraRequiredWarningAtRef = useRef(0);
   const warningInFlightRef = useRef(false);
 
@@ -252,9 +250,6 @@ function DashboardApp() {
 
     void initializeSession();
     const { data } = supabase.auth.onAuthStateChange((_event, nextSession) => {
-      if (nextSession) {
-        void maybeSaveKakaoProviderTokens(nextSession);
-      }
       setSession(nextSession);
     });
     return () => data.subscription.unsubscribe();
@@ -277,7 +272,6 @@ function DashboardApp() {
       void syncSignedInUser(session);
       void loadDashboard(session.user.id);
       void refreshWebPushStatus();
-      void refreshKakaoStatus(session);
       void refreshSlackStatus(session.user.id);
     }
   }, [session?.user.id]);
@@ -427,10 +421,44 @@ function DashboardApp() {
     if (!activeSession && cameraEnabled && !cameraSessionStartingRef.current) {
       stopCameraMonitoring({ recordEvent: true });
     }
+    if (!activeSession) {
+      cameraAutoRestoreAttemptedRef.current = false;
+    }
   }, [activeSession?.id, cameraEnabled]);
 
   useEffect(() => {
-    if (!activeSession || cameraEnabled || cameraStatus === "starting") {
+    if (!activeSession || !session?.user.id || cameraEnabled || cameraStatus === "starting") {
+      return;
+    }
+
+    if (cameraAutoRestoreAttemptedRef.current) {
+      return;
+    }
+
+    const intent = parseCameraMonitoringIntent(
+      window.localStorage.getItem(cameraMonitoringIntentKey(session.user.id)),
+    );
+    if (
+      shouldRestoreCameraMonitoring({
+        intent,
+        userId: session.user.id,
+        activeSessionId: activeSession.id,
+        nowMs: Date.now(),
+      })
+    ) {
+      cameraAutoRestoreAttemptedRef.current = true;
+      setCameraMessage("새로고침 전 카메라 감시를 다시 연결하고 있습니다.");
+      void startCameraMonitoring().then((restored) => {
+        if (!restored) {
+          cameraAutoRestoreAttemptedRef.current = false;
+          setCameraSetupPrompt({ mode: "resume" });
+        }
+      });
+    }
+  }, [activeSession?.id, session?.user.id, cameraEnabled, cameraStatus]);
+
+  useEffect(() => {
+    if (!activeSession || cameraEnabled || cameraStatus === "starting" || cameraAutoRestoreAttemptedRef.current) {
       return;
     }
 
@@ -570,9 +598,7 @@ function DashboardApp() {
       setCodeSent(false);
       setOtp("");
       setSession(data.session);
-      if (!(await maybeSaveKakaoProviderTokens(data.session))) {
-        setMessage("로그인되었습니다.");
-      }
+      setMessage("로그인되었습니다.");
       return;
     }
 
@@ -592,9 +618,7 @@ function DashboardApp() {
     setCodeSent(false);
     setOtp("");
     setSession(data.session);
-    if (!(await maybeSaveKakaoProviderTokens(data.session))) {
-      setMessage("로그인되었습니다.");
-    }
+    setMessage("로그인되었습니다.");
   }
 
   async function signInWithGoogle() {
@@ -617,40 +641,6 @@ function DashboardApp() {
     if (error) {
       setMessage(formatAuthError(error.message));
     }
-  }
-
-  async function connectKakaoNotifications() {
-    if (!session) return;
-
-    window.localStorage.setItem(KAKAO_CONNECT_PENDING_KEY, "1");
-    setBusy(true);
-    const { error } = await supabase.auth.linkIdentity(getKakaoNotificationConnectOptions(window.location.origin));
-    setBusy(false);
-
-    if (error) {
-      window.localStorage.removeItem(KAKAO_CONNECT_PENDING_KEY);
-      setMessage(formatKakaoConnectionError(error));
-    }
-  }
-
-  async function maybeSaveKakaoProviderTokens(nextSession: Session | null) {
-    if (!nextSession?.provider_token || window.localStorage.getItem(KAKAO_CONNECT_PENDING_KEY) !== "1") {
-      return false;
-    }
-
-    window.localStorage.removeItem(KAKAO_CONNECT_PENDING_KEY);
-    setBusy(true);
-    try {
-      const nextStatus = await saveKakaoProviderTokens(nextSession);
-      setKakaoStatus(nextStatus);
-      setMessage("카카오톡 알림이 연결되었습니다.");
-    } catch (error) {
-      setMessage(`카카오톡 연결 실패: ${formatKakaoConnectionError(error)}`);
-    } finally {
-      setBusy(false);
-    }
-
-    return true;
   }
 
   async function syncSignedInUser(nextSession: Session) {
@@ -972,6 +962,33 @@ function DashboardApp() {
     }
   }
 
+  async function saveSlackChannelSettings() {
+    if (!session?.user.id) return;
+
+    const nextSlackChannelId = normalizeSlackChannelId(slackChannelId);
+    if (!nextSlackChannelId) {
+      setMessage("Slack Channel ID를 입력하세요.");
+      return;
+    }
+    if (!isValidSlackChannelId(nextSlackChannelId)) {
+      setMessage("Slack Channel ID 형식을 확인하세요. C 또는 G로 시작하는 채널 ID여야 합니다.");
+      return;
+    }
+
+    setBusy(true);
+    try {
+      const nextStatus = await saveSlackNotificationTarget(session.user.id, nextSlackChannelId);
+      setSlackStatus(nextStatus);
+      setSlackChannelId(nextStatus.channelId);
+      setMessage("Slack Channel ID를 저장했습니다. 이제 Slack 테스트 알림을 보낼 수 있습니다.");
+    } catch (error) {
+      setMessage(formatNotificationError(error));
+    } finally {
+      setBusy(false);
+      await refreshSlackStatus(session.user.id);
+    }
+  }
+
   async function sendSlackTestNotification() {
     if (!session?.user.id) return;
 
@@ -1033,6 +1050,7 @@ function DashboardApp() {
         setNowMs(Date.now());
         if (cameraEnabled || cameraReadyOverride) {
           cameraSessionIdRef.current = startedSession.id;
+          rememberCameraMonitoringIntent(startedSession.id);
           await recordCameraPresenceEvent(session.user.id, startedSession.id, "camera_started", {
             metadata: { source: "web-camera", requiredForAttendance: true },
           }).catch((error) => {
@@ -1064,6 +1082,7 @@ function DashboardApp() {
     if (error) {
       setMessage(error.message);
     } else if (session?.user.id) {
+      forgetCameraMonitoringIntent();
       setMessage(options.successMessage ?? "집중 세션을 종료했습니다.");
       await loadDashboard(session.user.id);
     }
@@ -1104,6 +1123,27 @@ function DashboardApp() {
     return context.getImageData(0, 0, canvas.width, canvas.height).data;
   }
 
+  function rememberCameraMonitoringIntent(sessionId: string) {
+    if (!session?.user.id || !sessionId) return;
+
+    window.localStorage.setItem(
+      cameraMonitoringIntentKey(session.user.id),
+      JSON.stringify(
+        createCameraMonitoringIntent({
+          userId: session.user.id,
+          sessionId,
+          savedAtMs: Date.now(),
+        }),
+      ),
+    );
+  }
+
+  function forgetCameraMonitoringIntent() {
+    if (!session?.user.id) return;
+
+    window.localStorage.removeItem(cameraMonitoringIntentKey(session.user.id));
+  }
+
   function stopCameraMonitoring({ recordEvent = false }: { recordEvent?: boolean } = {}) {
     const stoppedSessionId = cameraSessionIdRef.current;
     cleanupCameraResources();
@@ -1113,6 +1153,9 @@ function DashboardApp() {
     setCameraStatus("idle");
     setCameraMessage("");
     resetPresenceState();
+    if (recordEvent) {
+      forgetCameraMonitoringIntent();
+    }
 
     if (recordEvent && session?.user.id && stoppedSessionId) {
       void recordCameraPresenceEvent(session.user.id, stoppedSessionId, "camera_stopped", {
@@ -1163,6 +1206,9 @@ function DashboardApp() {
 
       presenceDetectorRef.current = await createUpperBodyPresenceDetector();
       cameraSessionIdRef.current = activeSession?.id ?? null;
+      if (activeSession?.id) {
+        rememberCameraMonitoringIntent(activeSession.id);
+      }
       resetPresenceState();
       setCameraEnabled(true);
       setCameraStatus("watching");
@@ -1286,14 +1332,6 @@ function DashboardApp() {
       setWebPushStatus(nextStatus);
     } catch (error) {
       setMessage(formatNotificationError(error));
-    }
-  }
-
-  async function refreshKakaoStatus(nextSession: Session) {
-    try {
-      setKakaoStatus(await getKakaoNotificationStatus(nextSession));
-    } catch {
-      setKakaoStatus(null);
     }
   }
 
@@ -2037,10 +2075,6 @@ function DashboardApp() {
                 <span>컴퓨터 알림</span>
                 <strong>{notificationSummary(webPushStatus)}</strong>
               </div>
-              <div className={`notification-state ${kakaoNotificationStatusClass(kakaoStatus)}`}>
-                <span>카카오톡 알림</span>
-                <strong>{kakaoNotificationSummary(kakaoStatus)}</strong>
-              </div>
               <div className={`notification-state ${slackNotificationStatusClass(slackStatus)}`}>
                 <span>Slack</span>
                 <strong>{slackNotificationSummary(slackStatus)}</strong>
@@ -2076,13 +2110,13 @@ function DashboardApp() {
               inputMode="text"
             />
           </label>
+          <button className="secondary wide-action" onClick={saveSlackChannelSettings} disabled={busy}>
+            <Send size={18} />
+            Slack 채널 저장
+          </button>
           <button className="primary wide-action" onClick={saveNotificationSettings} disabled={busy}>
             <Bell size={18} />
             {busy ? "알림 설정 중" : "저장하고 컴퓨터 알림 켜기"}
-          </button>
-          <button className="secondary wide-action" onClick={connectKakaoNotifications} disabled={busy}>
-            <MessageCircle size={18} />
-            {kakaoStatus?.connected ? "카카오톡 알림 다시 연결" : "카카오톡 알림 연결"}
           </button>
           <button
             className="secondary wide-action"
@@ -2152,7 +2186,6 @@ function formatMonthLabel(monthKey: string) {
 function formatAuthProvider(provider: unknown) {
   if (provider === "google") return "Google";
   if (provider === "email") return "Email";
-  if (provider === "kakao") return "Kakao";
   if (typeof provider === "string" && provider.trim()) return provider;
   return "Email";
 }
@@ -2282,20 +2315,6 @@ function notificationStatusClass(status: WebPushStatus | null) {
   return "notification-ready";
 }
 
-function kakaoNotificationSummary(status: KakaoNotificationStatus | null) {
-  if (!status) return "확인 중";
-  if (!status.connected) return "미연결";
-  if (status.needsTalkMessage) return "권한 확인 필요";
-  return "연결됨";
-}
-
-function kakaoNotificationStatusClass(status: KakaoNotificationStatus | null) {
-  if (!status) return "notification-checking";
-  if (!status.connected) return "notification-needed";
-  if (status.needsTalkMessage) return "notification-blocked";
-  return "notification-ready";
-}
-
 function slackNotificationSummary(status: SlackNotificationStatus | null) {
   if (!status) return "확인 중";
   return status.connected ? "등록됨" : "미등록";
@@ -2304,20 +2323,6 @@ function slackNotificationSummary(status: SlackNotificationStatus | null) {
 function slackNotificationStatusClass(status: SlackNotificationStatus | null) {
   if (!status) return "notification-checking";
   return status.connected ? "notification-ready" : "notification-needed";
-}
-
-function formatKakaoConnectionError(error: unknown) {
-  const message = error instanceof Error ? error.message : String(error);
-  if (/manual linking|linking/i.test(message)) {
-    return "Supabase Auth 설정에서 Manual Linking을 켠 뒤 다시 시도해야 합니다.";
-  }
-  if (/unsupported provider|provider is not enabled/i.test(message)) {
-    return "Supabase Auth에서 Kakao Provider가 켜져 있는지 확인해야 합니다.";
-  }
-  if (/provider token/i.test(message)) {
-    return "카카오 OAuth callback에서 provider token을 받지 못했습니다. talk_message scope와 callback URL을 확인해야 합니다.";
-  }
-  return message;
 }
 
 createRoot(document.getElementById("root")!).render(

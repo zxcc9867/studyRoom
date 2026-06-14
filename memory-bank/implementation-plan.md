@@ -8,7 +8,8 @@
 - Optional AWS scheduler: EventBridge + Lambda can invoke the same Supabase Edge Function when AWS-managed scheduling is preferred.
 - Backend: Supabase remains responsible for Auth, DB, RLS, notification targets, attendance decisions, and actual push/email dispatch.
 - Auth session persistence: the browser Supabase client stores the Supabase session under `study-room-attendance-auth-session` with `persistSession=true` and `autoRefreshToken=true`. OAuth URL handling stays manual with `detectSessionInUrl=false`.
-- Kakao notification channel: the web app links the current Supabase account to Kakao OAuth with `talk_message` scope, `kakao-token` stores Kakao provider tokens server-side, and `attendance-cron` sends Kakao Memo messages when a `kakao_memo` target is enabled.
+- Study session refresh persistence: browser lifecycle events such as `visibilitychange`, `pagehide`, and `beforeunload` do not end active study sessions. Explicit `종료` remains the reliable session-end action, and active sessions continue to be restored from Supabase after refresh.
+- Kakao notification channel: deprecated for active product behavior. Legacy `kakao_memo` rows and `kakao_message_connections` are retained for history, but enabled targets/connections are disabled and `attendance-cron` no longer sends Kakao Memo messages.
 - Slack notification channel: the web app stores a user-specific Slack Channel ID in `notification_targets.destination`, while Slack Edge Functions read `SLACK_BOT_TOKEN` or fallback alias `STUDY_ALERT_SLACK_BOT_TOKEN` from Edge Function secrets and call Slack Bot API `chat.postMessage`.
 - Slack test channel: `slack-test-alarm` is a manually invoked Edge Function. Server/admin calls use `x-cron-secret`; they can either send to a direct `channelId` for setup verification or use the latest enabled Slack target. Browser calls use the logged-in user's Supabase JWT and are limited to that user's Slack target. It sends one test Slack message and records DB delivery results only when a saved target is used.
 - In-app popup: when the dashboard is open at the configured reminder minute, the web app shows a modal reminder popup. This is separate from OS/browser push and does not work when the browser is closed.
@@ -21,6 +22,7 @@
 - Pre-reminder active attendance: if a study session started before the configured reminder time and is still open, or ended after crossing the reminder timestamp, Supabase treats it as a qualifying attendance session and suppresses initial/nudge reminders.
 - Camera presence warning: web study sessions require camera monitoring before the timer can start. MediaPipe PoseLandmarker runs in the browser only, and the server receives only camera event metadata through `camera-presence-warning`.
 - Camera video health: before running PoseLandmarker absence checks, the web app verifies the camera stream has a live unmuted enabled video track and that the current video frame is visible. Missing, muted, ended, disabled, unavailable, or nearly black frames are treated as camera errors instead of user absence.
+- Camera refresh resume: when camera monitoring is enabled for an active session, the web app stores a short-lived per-user/per-session camera intent in browser storage and attempts one automatic camera reconnect for the same active session after refresh.
 - Camera upper-body presence: the web app treats the user as present when one head landmark and both shoulder landmarks are visible with enough confidence. For cropped webcam views, head plus one visible shoulder and the same-side hip also counts as seated upper-body presence. This allows upper body detection instead of requiring a full face detection.
 - Camera absence enforcement: if no upper body pose is detected for 5 minutes, the web app sends an in-app/Slack warning. If the user is still absent 5 minutes after that warning, the web timer enters auto-pause and excludes only the paused interval from displayed and saved study time.
 
@@ -29,7 +31,6 @@
 - Vite React
 - Supabase
 - MediaPipe Tasks Vision
-- Kakao Talk Message API
 - Slack Bot API
 - AWS CDK v2
 - AWS S3
@@ -112,14 +113,14 @@ docs/images/study-room-thumbnail.png
 - Scheduled execution is an invoker pattern: AWS only triggers Supabase Edge Function.
 - SPA fallback maps CloudFront `403` and `404` to `/index.html`.
 - Web study sessions are explicitly ended by button click or by true page-exit events using a `keepalive` RPC request. `visibilitychange` from browser tab switching is not a page-exit event and must not end the session.
+- Web study sessions are explicitly ended by the `종료` button. Browser lifecycle events are not used for automatic session end because refresh/reload cannot be reliably distinguished from leaving the page, and ending on refresh caused study time loss.
 - Auth initialization waits for `supabase.auth.getSession()` before showing the login form, so a stored browser session can restore the dashboard without a misleading login flash.
 
 ## API Conventions
 
 - Supabase Cron sends `POST` to `/functions/v1/attendance-cron`.
 - Supabase Cron sends `x-cron-secret` from Vault secret `cron_secret`.
-- `kakao-token` accepts authenticated `GET`, `POST`, and `DELETE` requests from the web app. It returns connection status only and never returns raw Kakao tokens.
-- `attendance-cron` sends Kakao Memo requests to `https://kapi.kakao.com/v2/api/talk/memo/default/send`.
+- Kakao notification APIs are deprecated. The web app no longer calls a Kakao token endpoint and `attendance-cron` no longer calls Kakao Memo APIs.
 - `attendance-cron` sends Slack messages to `https://slack.com/api/chat.postMessage`.
 - `slack-test-alarm` sends a protected one-off Slack test message and includes same-day `study_todos` in the message body when a saved target is used. Browser requests must include `Authorization: Bearer {supabase_access_token}`. Cron-secret protected admin requests may pass `{ "channelId": "C..." }` or `{ "channelId": "G..." }` for direct Slack channel verification.
 - `camera-presence-warning` receives `POST /functions/v1/camera-presence-warning` from the browser with `Authorization: Bearer {supabase_access_token}` and body `{ sessionId, absenceSeconds, detectedAt, eventType }`.
@@ -130,7 +131,7 @@ docs/images/study-room-thumbnail.png
 - Lambda sends `POST` to `AttendanceCronUrl`.
 - Lambda sends `x-cron-secret` header from `CronSecret`.
 - Lambda body includes `source: "aws-eventbridge"` and `triggeredAt`.
-- Page-exit session termination sends `POST` to `/rest/v1/rpc/end_study_session` with the current user access token and anon key.
+- The page-exit session termination helper remains available for explicit future use, but current browser lifecycle events do not call it. Normal session termination sends `end_study_session` from the explicit `종료` action.
 - My Page does not call a new API. It derives completed todo history from `study_todos` already loaded by the dashboard and is selected through the `#me` hash route.
 - Recurring todo save does not call a new API route. The web app computes target dates locally and bulk inserts rows into `study_todos` through Supabase Data API.
 
@@ -139,9 +140,9 @@ docs/images/study-room-thumbnail.png
 - No AWS database is introduced.
 - Supabase remains the source of truth.
 - RLS remains the user-data isolation boundary.
-- Raw Kakao access/refresh tokens are stored only in `kakao_message_connections`.
-- `notification_targets.kind = 'kakao_memo'` stores only the target marker and does not store Kakao raw tokens.
-- `kakao_message_connections` has RLS enabled but no user-facing select/update policies. Client access must go through the `kakao-token` Edge Function.
+- Legacy Kakao access/refresh tokens remain only in `kakao_message_connections` for historical compatibility. Active Kakao targets/connections are disabled by migration `0018_disable_kakao_notifications.sql`.
+- `notification_targets.kind = 'kakao_memo'` is retained only for legacy history and is not included in active notification dispatch.
+- `kakao_message_connections` remains RLS-protected and is no longer used by the active web app or `attendance-cron`.
 - `notification_targets.kind = 'slack'` stores only the user's Slack Channel ID in `destination`.
 - `notification_targets.kind = 'telegram'` is retained only for legacy delivery history and is disabled by the Slack migration.
 - `start_study_session()` creates a `study_sessions` row at any start time, but it only marks `attendance_days.status = 'present'` when the current timestamp is between the user's `reminder_at` and `deadline_at`.
@@ -179,7 +180,7 @@ docs/images/study-room-thumbnail.png
 6. If Vercel Git integration remains enabled, monitor for duplicate deployments and keep only one deployment path as the source of truth.
 7. Deploy `attendance-cron` Edge Function with `verify_jwt=false`.
 8. Deploy `camera-presence-warning` Edge Function with `verify_jwt=false`; the function performs its own Supabase JWT and session ownership validation.
-9. Set Edge Function secrets: `CRON_SECRET`, `WEB_PUSH_VAPID_PUBLIC_KEY`, `WEB_PUSH_VAPID_PRIVATE_KEY`, `WEB_PUSH_SUBJECT`, optionally `RESEND_API_KEY`, for Slack either `SLACK_BOT_TOKEN` or `STUDY_ALERT_SLACK_BOT_TOKEN`, and for Kakao refresh/link behavior `KAKAO_REST_API_KEY`, optional `KAKAO_CLIENT_SECRET`, and `APP_ORIGIN`.
+9. Set Edge Function secrets: `CRON_SECRET`, `WEB_PUSH_VAPID_PUBLIC_KEY`, `WEB_PUSH_VAPID_PRIVATE_KEY`, `WEB_PUSH_SUBJECT`, optionally `RESEND_API_KEY`, for Slack either `SLACK_BOT_TOKEN` or `STUDY_ALERT_SLACK_BOT_TOKEN`, and `APP_ORIGIN`.
 10. Store `project_url` and `cron_secret` in Supabase Vault.
 11. Run `supabase/cron.sql` or equivalent SQL to register `study-room-attendance-cron`.
 12. Verify `net._http_response` shows 200 responses from automatic cron calls.
@@ -193,10 +194,8 @@ docs/images/study-room-thumbnail.png
 - Camera frames never leave the browser. The app sends only `sessionId`, `absenceSeconds`, `detectedAt`, and `eventType` to the Edge Function.
 - `study_presence_events` has a DB check constraint that rejects media-like metadata keys.
 - Pose landmarks are used only in memory inside the browser and are not sent to Supabase.
-- Kakao raw tokens are never stored in frontend local storage by app code and are not exposed through public RLS policies.
+- Legacy Kakao raw tokens are not exposed through frontend local storage or public RLS policies. The active product path no longer writes or refreshes Kakao tokens.
 - Slack bot tokens are never stored in frontend code or user-managed DB rows.
-- `kakao-token` is deployed with `verify_jwt=false` only to allow browser CORS preflight; the function validates the Supabase JWT itself before doing any user-specific work.
-- Supabase Auth Manual Linking must be enabled before `linkIdentity` can attach Kakao to an existing email/Google account.
 - `CronSecret` is a CloudFormation `NoEcho` parameter and Lambda environment variable.
 - For production with multiple operators, migrate `CronSecret` to Secrets Manager despite small fixed cost.
 - CloudFront is the only public entry point for the static site bucket.
@@ -205,6 +204,16 @@ docs/images/study-room-thumbnail.png
 - GitHub Actions Vercel deployment uses only GitHub Secrets for `VERCEL_TOKEN`, `VERCEL_ORG_ID`, and `VERCEL_PROJECT_ID`; none of those values should be stored in frontend code.
 
 ## Supabase 변경 이력
+
+### 2026-06-14
+
+- 변경 대상: `public.notification_targets`, `public.kakao_message_connections`, `attendance-cron`
+- 변경 내용: `0018_disable_kakao_notifications.sql`로 enabled `kakao_memo` target과 enabled Kakao connection을 비활성화했다. `attendance-cron`에서는 Kakao Memo API 발송 분기를 제거하고 Slack/WebPush/Email/Expo 경로만 유지했다. 원격 `attendance-cron` version 15를 ACTIVE로 배포했고, legacy `kakao-token`과 `telegram-test-alarm` Edge Function은 삭제했다.
+- 변경 이유: 알림 채널을 Slack Bot API 중심으로 정리하고, 사용하지 않는 Kakao OAuth/토큰/발송 경로로 인한 설정 혼동을 제거하기 위해서다.
+- 관련 기능: Slack 알림, 예약 출석 알림, 카메라 경고 알림, Kakao 알림 폐기
+- 마이그레이션 파일: `supabase/migrations/0018_disable_kakao_notifications.sql`
+- 확인 방법: `npm.cmd test`, `npm.cmd run build`, Supabase MCP migration list에서 `disable_kakao_notifications` 확인, Supabase Edge Function list에서 `attendance-cron` v15 ACTIVE 및 legacy 함수 삭제 확인
+- 주의 사항: 과거 Kakao delivery 기록과 legacy schema는 보존한다. 활성 제품 경로에서는 Kakao target을 조회하거나 발송하지 않는다.
 
 ### 2026-06-14
 

@@ -33,11 +33,7 @@ export function requestEndStudySessionOnExit({
 }
 
 export function shouldEndStudySessionForPageEvent({ type, visibilityState } = {}) {
-  if (type === "pagehide" || type === "beforeunload") {
-    return true;
-  }
-
-  if (type === "visibilitychange") {
+  if (type === "pagehide" || type === "beforeunload" || type === "visibilitychange") {
     return false;
   }
 

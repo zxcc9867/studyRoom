@@ -14,7 +14,7 @@ type DueReminder = {
 type NotificationTarget = {
   id: string;
   user_id: string;
-  kind: "expo" | "web_push" | "email" | "kakao_memo" | "slack";
+  kind: "expo" | "web_push" | "email" | "slack";
   destination: string | null;
   subscription: Record<string, unknown> | null;
 };
@@ -28,13 +28,6 @@ type StudyTodo = {
   end_time: string | null;
   position: number;
   created_at: string;
-};
-
-type KakaoConnection = {
-  access_token: string;
-  refresh_token: string | null;
-  access_token_expires_at: string | null;
-  scope: string | null;
 };
 
 const jsonHeaders = { "content-type": "application/json" };
@@ -86,6 +79,7 @@ async function loadTargets(admin: ReturnType<typeof createClient>, userIds: stri
     .from("notification_targets")
     .select("id,user_id,kind,destination,subscription")
     .in("user_id", userIds)
+    .in("kind", ["expo", "web_push", "email", "slack"])
     .eq("enabled", true);
 
   if (error) {
@@ -136,7 +130,7 @@ async function sendReminderNotifications(
     const userTargets = targets.filter((target) => target.user_id === reminder.user_id);
     const todos = todoMap.get(getReminderTodoKey(reminder.user_id, reminder.local_date)) ?? [];
     for (const target of userTargets) {
-      const outcome = await sendTarget(admin, reminder, target, todos);
+      const outcome = await sendTarget(reminder, target, todos);
       results.push(outcome);
       await admin.from("notification_deliveries").insert({
         user_id: reminder.user_id,
@@ -153,7 +147,6 @@ async function sendReminderNotifications(
 }
 
 async function sendTarget(
-  admin: ReturnType<typeof createClient>,
   reminder: DueReminder,
   target: NotificationTarget,
   todos: StudyTodo[],
@@ -165,8 +158,6 @@ async function sendTarget(
       await sendEmail(target.destination ?? reminder.email, reminder, todos);
     } else if (target.kind === "web_push") {
       await sendWebPush(target.subscription!, reminder, todos);
-    } else if (target.kind === "kakao_memo") {
-      await sendKakaoMemo(admin, reminder.user_id, reminder, todos);
     } else if (target.kind === "slack") {
       await sendSlackMessage(target.destination!, reminder, todos);
     } else {
@@ -249,60 +240,6 @@ async function sendWebPush(subscription: Record<string, unknown>, reminder: DueR
       todos: todos.map((todo) => ({ title: formatTodoWithSchedule(todo), isCompleted: todo.is_completed })),
     }),
   );
-}
-
-async function sendKakaoMemo(
-  admin: ReturnType<typeof createClient>,
-  userId: string,
-  reminder: DueReminder,
-  todos: StudyTodo[],
-) {
-  const { data, error } = await admin
-    .from("kakao_message_connections")
-    .select("access_token,refresh_token,access_token_expires_at,scope")
-    .eq("user_id", userId)
-    .eq("enabled", true)
-    .maybeSingle();
-
-  if (error) {
-    throw error;
-  }
-
-  if (!data) {
-    throw new Error("Kakao connection is missing");
-  }
-
-  const accessToken = await getUsableKakaoAccessToken(admin, userId, data as KakaoConnection);
-  const appUrl = Deno.env.get("APP_ORIGIN") ?? Deno.env.get("SITE_URL") ?? "http://127.0.0.1:5177";
-  const templateObject = {
-    object_type: "text",
-    text: buildReminderBody(reminder, todos, { maxTodos: 5 }),
-    link: {
-      web_url: appUrl,
-      mobile_web_url: appUrl,
-    },
-    button_title: "Open study room",
-  };
-  const body = new URLSearchParams();
-  body.set("template_object", JSON.stringify(templateObject));
-
-  const response = await fetch("https://kapi.kakao.com/v2/api/talk/memo/default/send", {
-    method: "POST",
-    headers: {
-      authorization: `Bearer ${accessToken}`,
-      "content-type": "application/x-www-form-urlencoded;charset=utf-8",
-    },
-    body,
-  });
-
-  if (!response.ok) {
-    throw new Error(`Kakao memo failed: ${response.status} ${await response.text()}`);
-  }
-
-  const result = (await response.json().catch(() => null)) as { result_code?: number } | null;
-  if (!result || result.result_code !== 0) {
-    throw new Error(`Kakao memo returned unexpected result: ${JSON.stringify(result)}`);
-  }
 }
 
 async function sendSlackMessage(channelId: string, reminder: DueReminder, todos: StudyTodo[]) {
@@ -406,80 +343,6 @@ function formatTime(value: string) {
 
 function escapeHtml(value: string) {
   return value.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
-}
-
-async function getUsableKakaoAccessToken(
-  admin: ReturnType<typeof createClient>,
-  userId: string,
-  connection: KakaoConnection,
-) {
-  const expiresAtMs = connection.access_token_expires_at
-    ? new Date(connection.access_token_expires_at).getTime()
-    : Number.POSITIVE_INFINITY;
-  const refreshWindowMs = 60 * 1000;
-  if (Number.isFinite(expiresAtMs) && expiresAtMs <= Date.now() + refreshWindowMs) {
-    return await refreshKakaoAccessToken(admin, userId, connection);
-  }
-
-  return connection.access_token;
-}
-
-async function refreshKakaoAccessToken(
-  admin: ReturnType<typeof createClient>,
-  userId: string,
-  connection: KakaoConnection,
-) {
-  if (!connection.refresh_token) {
-    throw new Error("Kakao refresh token is missing");
-  }
-
-  const params = new URLSearchParams({
-    grant_type: "refresh_token",
-    client_id: requiredEnv("KAKAO_REST_API_KEY"),
-    refresh_token: connection.refresh_token,
-  });
-  const clientSecret = Deno.env.get("KAKAO_CLIENT_SECRET");
-  if (clientSecret) {
-    params.set("client_secret", clientSecret);
-  }
-
-  const response = await fetch("https://kauth.kakao.com/oauth/token", {
-    method: "POST",
-    headers: { "content-type": "application/x-www-form-urlencoded;charset=utf-8" },
-    body: params,
-  });
-
-  if (!response.ok) {
-    throw new Error(`Kakao token refresh failed: ${response.status} ${await response.text()}`);
-  }
-
-  const payload = (await response.json()) as {
-    access_token?: string;
-    refresh_token?: string;
-    expires_in?: number;
-    scope?: string;
-  };
-  if (!payload.access_token) {
-    throw new Error("Kakao token refresh did not return an access token");
-  }
-
-  const expiresInSeconds = Number.isFinite(Number(payload.expires_in)) ? Number(payload.expires_in) : 6 * 60 * 60;
-  const nextRefreshToken = payload.refresh_token ?? connection.refresh_token;
-  const { error } = await admin
-    .from("kakao_message_connections")
-    .update({
-      access_token: payload.access_token,
-      refresh_token: nextRefreshToken,
-      access_token_expires_at: new Date(Date.now() + expiresInSeconds * 1000).toISOString(),
-      scope: payload.scope ?? connection.scope,
-    })
-    .eq("user_id", userId);
-
-  if (error) {
-    throw error;
-  }
-
-  return payload.access_token;
 }
 
 function formatDeadline(value: string) {

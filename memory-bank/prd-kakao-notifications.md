@@ -1,5 +1,16 @@
 # PRD: Kakao Notifications
 
+## 2026-06-14 Deprecation
+
+Kakao notifications are no longer part of the active MVP product path.
+
+- Web UI no longer exposes Kakao notification linking.
+- The active auth provider helper no longer requests Kakao `talk_message` linking options.
+- `attendance-cron` no longer sends Kakao Memo messages.
+- Enabled `notification_targets.kind = 'kakao_memo'` rows and enabled `kakao_message_connections` rows are disabled by migration `0018_disable_kakao_notifications.sql`.
+- Historical migrations, delivery records, and legacy rows remain for audit/history compatibility.
+- Slack Bot API is the selected server-side message channel for the current MVP.
+
 ## 1. Problem
 
 컴퓨터 웹 푸시는 브라우저/기기 상태에 영향을 받고, 사용자는 휴대폰 카카오톡 "나와의 채팅방"으로도 독서실 입장 알림을 받고 싶어 한다.

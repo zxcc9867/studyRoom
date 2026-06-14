@@ -1,19 +1,7 @@
 export const GOOGLE_PROVIDER = "google";
-export const KAKAO_PROVIDER = "kakao";
-export const KAKAO_MESSAGE_SCOPES = "talk_message account_email profile_image profile_nickname";
 
 export function getAuthRedirectTo(origin) {
   return `${String(origin ?? "").replace(/\/+$/, "")}/auth/callback`;
-}
-
-export function getKakaoNotificationConnectOptions(origin) {
-  return {
-    provider: KAKAO_PROVIDER,
-    options: {
-      redirectTo: getAuthRedirectTo(origin),
-      scopes: KAKAO_MESSAGE_SCOPES,
-    },
-  };
 }
 
 export function isAuthCallbackUrl(value) {

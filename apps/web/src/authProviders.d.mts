@@ -1,6 +1,4 @@
 export const GOOGLE_PROVIDER: "google";
-export const KAKAO_PROVIDER: "kakao";
-export const KAKAO_MESSAGE_SCOPES: "talk_message account_email profile_image profile_nickname";
 
 export type IdentityPayload = {
   user_id: string;
@@ -12,14 +10,6 @@ export type IdentityPayload = {
 };
 
 export function getAuthRedirectTo(origin: string): string;
-
-export function getKakaoNotificationConnectOptions(origin: string): {
-  provider: "kakao";
-  options: {
-    redirectTo: string;
-    scopes: "talk_message account_email profile_image profile_nickname";
-  };
-};
 
 export function isAuthCallbackUrl(value: string): boolean;
 

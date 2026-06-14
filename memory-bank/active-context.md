@@ -2,6 +2,61 @@
 
 ## Current Work
 
+- Task: Add clear Slack Channel ID setup, remove Kakao alarm behavior, preserve active timers across refresh, and restore camera monitoring after refresh.
+- Purpose: Make Slack alarm setup understandable for the current logged-in account, remove the unused Kakao path from product behavior, and stop refresh/reload from making an active study session look like it lost time or camera monitoring.
+- Related PRD:
+  - `memory-bank/prd-slack-notifications.md`
+  - `memory-bank/prd-camera-presence.md`
+  - `memory-bank/prd-kakao-notifications.md`
+- Related files:
+  - `apps/web/src/main.tsx`
+  - `apps/web/src/sessionExit.mjs`
+  - `apps/web/src/cameraResume.mjs`
+  - `apps/web/src/authProviders.mjs`
+  - `supabase/functions/attendance-cron/index.ts`
+  - `supabase/migrations/0018_disable_kakao_notifications.sql`
+
+## Recent Decisions
+
+- Decision: Add a dedicated `Slack 채널 저장` action next to the Slack Channel ID field.
+- Reason: Saving Slack was previously hidden behind the computer-notification save button, so users could enter a channel ID but still not create the per-user `notification_targets.kind = 'slack'` row.
+- Alternative: Keep Slack save as a side effect of the general notification save; rejected because it made the missing Slack target message look like a server bug.
+- Impact: Users can now save the Slack Channel ID first, then run the Slack test alarm for the same logged-in account.
+
+- Decision: Remove Kakao from the active web UI and scheduled alarm path, while preserving legacy DB history.
+- Reason: The product direction moved to Slack Bot API alarms; keeping Kakao OAuth/link UI and Kakao Memo sending increased setup confusion.
+- Alternative: Keep Kakao as a second optional channel; rejected for the current MVP because Slack is the chosen alarm channel.
+- Impact: Existing Kakao DB records remain for history, but enabled Kakao targets/connections are disabled and `attendance-cron` no longer sends Kakao messages.
+
+- Decision: Do not end a study session on `pagehide`, `beforeunload`, or `visibilitychange`.
+- Reason: Browser refresh fired page-exit handlers and closed the active session, so after logging back in the ongoing timer could appear to have lost previously accumulated time.
+- Alternative: Try to distinguish refresh from tab/window close in lifecycle events; rejected because browser lifecycle signals are not reliable enough for that split.
+- Impact: Active timers survive refresh. Users should end sessions explicitly with the `종료` button; a future heartbeat cleanup can handle abandoned sessions.
+
+- Decision: Remember camera monitoring intent per user/session and attempt one automatic camera reconnect after refresh.
+- Reason: Browser camera streams cannot survive page reload, but the app can remember that the same active session had camera monitoring on and ask the browser to reacquire the stream.
+- Alternative: Always prompt manually after refresh; rejected because it makes refresh recovery feel broken.
+- Impact: Camera monitoring can resume for the same active session if the stored intent is recent and browser permission still allows camera access.
+
+## Current Status
+
+- Completed: Added tests for Slack save UX, Kakao UI removal, page lifecycle no-end policy, camera monitoring resume intent, attendance-cron Kakao exclusion, and Kakao disable migration.
+- Completed: Added `cameraResume.mjs` helpers and wired camera auto-restore into the web app.
+- Completed: Added a clear Slack Channel ID save button and validation.
+- Completed: Removed Kakao OAuth/linking UI helpers and removed Kakao sending from `attendance-cron`.
+- Completed: Added Supabase migration `0018_disable_kakao_notifications.sql` and applied it to project `bqohkdzvxbrokkmuhysx`.
+- Completed: `npm.cmd test` and `npm.cmd run build` pass locally.
+- Completed: Deployed `attendance-cron` version 15 to Supabase and confirmed it is ACTIVE.
+- Completed: Deleted legacy remote Edge Functions `kakao-token` and `telegram-test-alarm`; the remaining remote functions are `attendance-cron`, `camera-presence-warning`, and `slack-test-alarm`.
+- Pending: Commit, push, and verify Vercel production deployment.
+
+## Notes
+
+- The Slack server token/channel direct test only proves the bot can post to a channel. Scheduled reminders and camera warnings still require saving Slack Channel ID in the app for the logged-in Supabase user.
+- Removing automatic page lifecycle session end fixes refresh loss, but it also means browser close is not treated as a reliable session end signal anymore.
+
+## Current Work
+
 - Task: Fix camera false absence when the camera preview is black and clarify Slack target setup.
 - Purpose: Stop counting black/muted/stalled camera feeds as user absence, make upper-body detection more tolerant of webcam cropping, and make Slack missing-target messages clear.
 - Related PRD:

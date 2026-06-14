@@ -1,5 +1,14 @@
 # PRD: Slack Bot Notifications
 
+## 2026-06-14 Update: Clear Per-User Save Action and Kakao Removal
+
+- The settings screen must expose a clear `Slack 채널 저장` action next to the Slack Channel ID field.
+- Saving the channel must create or update the logged-in user's `notification_targets.kind = 'slack'` row.
+- The Slack test alarm button must remain separate from saving; testing is meaningful only after the per-user target exists.
+- Kakao notification UI and active sending are removed from the product path. Legacy Kakao DB rows are preserved but disabled.
+- Legacy remote `kakao-token` and `telegram-test-alarm` Edge Functions are removed from Supabase production.
+- If Slack warnings say no target is registered, the user should save the Slack Channel ID from the app settings for the current account.
+
 ## 2026-06-14 Update: Secret Alias and Direct Test
 
 - Slack Edge Functions must read `SLACK_BOT_TOKEN` first and fall back to `STUDY_ALERT_SLACK_BOT_TOKEN`.
@@ -21,11 +30,11 @@ Slack workspace를 사용하는 개인 사용자. 정해진 시간에 독서실 
 
 - Slack Bot API `chat.postMessage`로 독서실 알림을 보낸다.
 - Slack bot token은 Supabase Edge Function secret에만 저장한다.
-- 웹 설정 화면에서 Slack Channel ID를 저장한다.
+- 웹 설정 화면에서 Slack Channel ID를 명확한 저장 버튼으로 저장한다.
 - 웹 설정 화면에서 Slack 테스트 알림을 보낼 수 있다.
 - 예약 알림, 15분 재촉 알림, 오늘 할 일 요약을 Slack으로 보낸다.
 - 카메라 자리 비움/카메라 켜기 경고도 Slack으로 보낸다.
-- Telegram UI와 새 발송 경로는 제거한다.
+- Telegram/Kakao UI와 새 발송 경로는 제거한다.
 
 ## 4. Non-goals
 
@@ -33,6 +42,7 @@ Slack workspace를 사용하는 개인 사용자. 정해진 시간에 독서실 
 - Slack DM 발송.
 - Slack OAuth 설치 플로우 자동화.
 - 과거 Telegram delivery 기록 삭제.
+- 과거 Kakao delivery 기록 또는 legacy schema 삭제.
 
 ## 5. User Stories
 
@@ -59,6 +69,7 @@ Slack workspace를 사용하는 개인 사용자. 정해진 시간에 독서실 
 - Channel ID가 `C...` 또는 `G...` 형식이 아니면 저장하지 않는다.
 - Slack bot이 채널에 없거나 권한이 부족하면 Slack API 실패를 `notification_deliveries`에 기록한다.
 - Telegram target은 migration에서 disabled 처리하되 과거 delivery 기록은 보존한다.
+- Kakao target과 connection은 migration에서 disabled 처리하되 과거 DB 기록은 보존한다.
 
 ### Error Cases
 
@@ -71,11 +82,12 @@ Slack workspace를 사용하는 개인 사용자. 정해진 시간에 독서실 
 - [x] `notification_targets.kind`와 `notification_deliveries.channel`에 `slack`을 추가한다.
 - [x] 기존 enabled Telegram target을 비활성화한다.
 - [x] Slack Channel ID 저장 helper와 validation을 추가한다.
-- [x] 설정 화면에 Slack 상태, Channel ID 입력, 테스트 버튼을 추가한다.
+- [x] 설정 화면에 Slack 상태, Channel ID 입력, `Slack 채널 저장`, 테스트 버튼을 추가한다.
 - [x] `attendance-cron`에 Slack Bot API 발송 분기를 추가한다.
 - [x] `slack-test-alarm` Edge Function을 추가한다.
 - [x] `camera-presence-warning`을 Slack 발송으로 전환한다.
 - [x] Telegram UI와 새 발송 경로를 제거한다.
+- [x] Kakao UI와 active sending path를 제거하고 legacy Kakao targets/connections를 비활성화한다.
 
 ## 8. Non-functional Requirements
 

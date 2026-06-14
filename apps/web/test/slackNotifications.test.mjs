@@ -38,9 +38,25 @@ test("web app exposes an authenticated slack test alarm action", () => {
   assert.match(functionSource, /directChannelId/);
 });
 
+test("web app exposes a clear slack channel save action before testing", () => {
+  const appSource = readFileSync("apps/web/src/main.tsx", "utf8");
+
+  assert.match(appSource, /saveSlackChannelSettings/);
+  assert.match(appSource, /Slack 채널 저장/);
+  assert.match(appSource, /Slack Channel ID를 저장했습니다/);
+});
+
 test("web app explains when the current account has no saved slack channel target", () => {
   const appSource = readFileSync("apps/web/src/main.tsx", "utf8");
 
   assert.match(appSource, /이 계정에는 Slack Channel ID가 저장되어 있지 않습니다/);
   assert.match(appSource, /설정에서 Slack Channel ID를 저장/);
+});
+
+test("kakao notification UI and OAuth linking are removed from the web app", () => {
+  const appSource = readFileSync("apps/web/src/main.tsx", "utf8");
+  const authProviderSource = readFileSync("apps/web/src/authProviders.mjs", "utf8");
+
+  assert.doesNotMatch(appSource, /Kakao|kakao|카카오/);
+  assert.doesNotMatch(authProviderSource, /Kakao|kakao|talk_message/);
 });

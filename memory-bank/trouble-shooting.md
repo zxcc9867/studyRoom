@@ -1,5 +1,49 @@
 # Trouble Shooting
 
+## 2026-06-14 - Slack target hidden save, refresh-ended sessions, and camera stream reload
+
+### Situation
+
+The user reported that Slack was supposedly configured but camera warnings still said Slack was not registered. They also reported that refreshing or reopening the app could make an active timer show less accumulated study time, and that camera monitoring did not reliably come back after refresh.
+
+### Error Message
+
+```txt
+User-visible symptoms:
+- 자리 비움 이벤트를 기록했습니다. Slack은 아직 등록되지 않았습니다.
+- After refresh/re-login, an active session total can look smaller than before.
+- Camera monitoring was on before refresh, but the real camera preview/monitoring state is not restored.
+```
+
+### Cause
+
+Slack server secrets and direct channel tests do not create a per-user notification target. The web app only saved Slack as a side effect of the general computer notification save button, so users could enter a Channel ID without an obvious action that created `notification_targets.kind = 'slack'` for the logged-in account.
+
+For timer loss, `pagehide` and `beforeunload` fired during refresh/reload and the app sent a keepalive `end_study_session` request. That closed the active session even though the user intended to continue. Browser lifecycle events cannot reliably distinguish refresh from leaving the page.
+
+For camera reload, browser media streams cannot survive a page refresh. The app needed to store only the user's camera-monitoring intent for the same active session and reacquire the camera after reload.
+
+### Fix
+
+Added a dedicated `Slack 채널 저장` button and validation. Removed Kakao UI/linking and Kakao Memo sending from the active product path, and disabled legacy enabled Kakao targets/connections through migration `0018_disable_kakao_notifications.sql`. Deployed the updated `attendance-cron` and deleted legacy remote `kakao-token` and `telegram-test-alarm` Edge Functions from Supabase production.
+
+Changed `shouldEndStudySessionForPageEvent()` so `visibilitychange`, `pagehide`, and `beforeunload` do not automatically end the study session. Added camera monitoring intent helpers and one-shot camera auto-restore for the same active session after refresh.
+
+### Related Files
+
+* `apps/web/src/main.tsx`
+* `apps/web/src/sessionExit.mjs`
+* `apps/web/src/cameraResume.mjs`
+* `apps/web/test/cameraResume.test.mjs`
+* `apps/web/test/sessionExit.test.mjs`
+* `apps/web/test/slackNotifications.test.mjs`
+* `supabase/functions/attendance-cron/index.ts`
+* `supabase/migrations/0018_disable_kakao_notifications.sql`
+
+### Prevention
+
+Treat server-level Slack setup and user-level Slack target setup as separate states. Do not end study sessions from browser lifecycle events unless there is a tested, user-approved policy for abandoned sessions. Camera stream restoration after refresh must reacquire the device; never assume a previous `MediaStream` object remains usable.
+
 ## 2026-06-14 - Camera black preview counted as upper-body absence
 
 ### Situation

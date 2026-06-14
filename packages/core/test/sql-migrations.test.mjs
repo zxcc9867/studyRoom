@@ -42,15 +42,25 @@ test("slack notification migration adds slack and disables legacy telegram targe
   assert.match(sql, /where kind = 'telegram'\s+and enabled = true/i);
 });
 
-test("attendance cron sends slack targets through bot API", () => {
+test("attendance cron sends slack targets through bot API and excludes kakao notifications", () => {
   const source = readFileSync("supabase/functions/attendance-cron/index.ts", "utf8");
 
-  assert.match(source, /kind: "expo" \| "web_push" \| "email" \| "kakao_memo" \| "slack"/);
+  assert.match(source, /kind: "expo" \| "web_push" \| "email" \| "slack"/);
+  assert.match(source, /\.in\("kind", \["expo", "web_push", "email", "slack"\]\)/);
   assert.match(source, /target\.kind === "slack"/);
   assert.match(source, /getSlackBotToken\(\)/);
   assert.match(source, /STUDY_ALERT_SLACK_BOT_TOKEN/);
   assert.match(source, /https:\/\/slack\.com\/api\/chat\.postMessage/);
   assert.doesNotMatch(source, /TELEGRAM_BOT_TOKEN|api\.telegram\.org/);
+  assert.doesNotMatch(source, /sendKakaoMemo|kapi\.kakao\.com|KAKAO_REST_API_KEY|KAKAO_CLIENT_SECRET/);
+});
+
+test("kakao disable migration turns off legacy kakao targets without deleting history", () => {
+  const sql = readFileSync("supabase/migrations/0018_disable_kakao_notifications.sql", "utf8");
+
+  assert.match(sql, /update public\.notification_targets\s+set\s+enabled = false/i);
+  assert.match(sql, /where kind = 'kakao_memo'\s+and enabled = true/i);
+  assert.match(sql, /update public\.kakao_message_connections\s+set\s+enabled = false/i);
 });
 
 test("attendance cron includes reminder date todos in server notifications", () => {
