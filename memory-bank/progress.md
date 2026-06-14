@@ -2,6 +2,36 @@
 
 ## Timeline
 
+### 2026-06-14 - 상반신 감시 운영 배포
+
+#### 완료한 작업
+
+- 상반신 기반 카메라 감시 변경 커밋 `c61c95c`를 `origin/main`에 push했다.
+- GitHub Actions Vercel production run `27495238934`가 완료될 때까지 확인했다.
+- 운영 URL `https://study-room-attendance.vercel.app/`가 새 번들 `/assets/index-a73GJLH-.js`를 서빙하는 것을 확인했다.
+- 운영 JS 번들에 `PoseLandmarker`, `pose_landmarker_lite`, `상반신`, `p_excluded_seconds`, `자동 일시정지`가 포함된 것을 확인했다.
+
+#### 변경된 파일
+
+- `memory-bank/active-context.md`
+- `memory-bank/progress.md`
+
+#### 검증 방법
+
+- `git diff --check`
+- `npm.cmd test` passed 58 tests.
+- `npm.cmd run build` passed.
+- GitHub Actions API 확인: run `27495238934`, job `Test and deploy production`, conclusion `success`.
+- 운영 URL 직접 확인: `https://study-room-attendance.vercel.app/` HTML과 `/assets/index-a73GJLH-.js` 번들 fetch.
+
+#### 남은 작업
+
+- 실제 카메라가 있는 브라우저에서 상반신만 보이는 조건, 5분 미감지 자동 일시정지, 10분 미복귀 자동 종료를 수동 검증한다.
+
+#### 다음 우선순위
+
+- 운영 URL에서 로그인 후 실제 공부 세션을 시작하고 카메라 감시 흐름을 확인한다.
+
 ### 2026-06-14
 
 #### 완료한 작업
