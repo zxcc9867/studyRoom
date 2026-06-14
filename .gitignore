@@ -12,5 +12,6 @@ dist/
 apps/web/dist/
 infra/aws-cdk/cdk.out/
 infra/aws-cdk/dist/
+supabase/.temp/
 
 .vercel

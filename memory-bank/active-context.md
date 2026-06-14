@@ -1,5 +1,40 @@
 # Active Context
 
+## Current Work
+
+- Task: Improve Slack alarm message readability.
+- Purpose: Make scheduled reminders, Slack test alarms, and camera warnings easier to scan in Slack by adding emoji-led sections for deadline, todos, action, and app link.
+- Related PRD:
+  - `memory-bank/prd-slack-notifications.md`
+  - `memory-bank/prd-supabase-cron.md`
+- Related files:
+  - `supabase/functions/attendance-cron/index.ts`
+  - `supabase/functions/slack-test-alarm/index.ts`
+  - `supabase/functions/camera-presence-warning/index.ts`
+  - `packages/core/test/sql-migrations.test.mjs`
+
+## Recent Decisions
+
+- Decision: Keep Slack messages as plain `chat.postMessage.text` with mrkdwn-compatible text instead of introducing Block Kit.
+- Reason: The current Edge Functions already use simple text bodies and the user asked for readability, not a new Slack interaction surface.
+- Alternative: Use Slack Block Kit with sections and dividers; deferred because it adds payload complexity without changing alarm behavior.
+- Impact: Slack reminders now show clear sections such as deadline, today's todos, next action, and app link while keeping the existing bot token, channel target, and delivery logging path.
+
+## Current Status
+
+- Completed: Added source-level regression tests for readable Slack message sections.
+- Completed: Updated `attendance-cron`, `slack-test-alarm`, and `camera-presence-warning` Slack text bodies.
+- Completed: `npm.cmd test`, `npm.cmd run build`, and `git diff --check` passed locally.
+- Completed: Deployed `attendance-cron` v16, `slack-test-alarm` v5, and `camera-presence-warning` v6 to Supabase; all are ACTIVE with `verify_jwt=false`.
+- Completed: Sent a direct Slack test alarm to channel `C0BAFS1CSV8`; request `10977` returned HTTP 200, `ok=true`, and Slack `messageTs=1781477126.922689`.
+- In progress: Commit, push, and verify the Vercel production pipeline.
+- Blocked: None.
+- Next: Verify production availability after push.
+
+## Notes
+
+- This change does not alter DB schema, Slack token names, Slack Channel ID storage, or notification target lookup.
+
 ## 현재 작업
 
 - 작업명: 설정된 알람 편집 UI

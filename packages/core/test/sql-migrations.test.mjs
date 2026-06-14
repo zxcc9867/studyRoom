@@ -55,6 +55,31 @@ test("attendance cron sends slack targets through bot API and excludes kakao not
   assert.doesNotMatch(source, /sendKakaoMemo|kapi\.kakao\.com|KAKAO_REST_API_KEY|KAKAO_CLIENT_SECRET/);
 });
 
+test("slack reminder messages use readable emoji sections", () => {
+  const source = readFileSync("supabase/functions/attendance-cron/index.ts", "utf8");
+
+  assert.match(source, /buildSlackReminderMessage\(reminder, todos, appUrl\)/);
+  assert.match(source, /📚 독서실 입장 알림/);
+  assert.match(source, /⏰ 출석 마감/);
+  assert.match(source, /✅ 오늘 할 일/);
+  assert.match(source, /🎯 지금 할 일/);
+  assert.match(source, /🔗 앱 열기/);
+});
+
+test("slack test alarm and camera warning messages use readable emoji sections", () => {
+  const testAlarmSource = readFileSync("supabase/functions/slack-test-alarm/index.ts", "utf8");
+  const cameraSource = readFileSync("supabase/functions/camera-presence-warning/index.ts", "utf8");
+
+  assert.match(testAlarmSource, /🧪 Slack 테스트 알림/);
+  assert.match(testAlarmSource, /📅 기준 날짜/);
+  assert.match(testAlarmSource, /✅ 오늘 할 일/);
+  assert.match(testAlarmSource, /🔗 앱 열기/);
+  assert.match(cameraSource, /📷 카메라 경고/);
+  assert.match(cameraSource, /⚠️ 감지 상태/);
+  assert.match(cameraSource, /🎯 지금 할 일/);
+  assert.match(cameraSource, /🔗 앱 열기/);
+});
+
 test("kakao disable migration turns off legacy kakao targets without deleting history", () => {
   const sql = readFileSync("supabase/migrations/0018_disable_kakao_notifications.sql", "utf8");
 

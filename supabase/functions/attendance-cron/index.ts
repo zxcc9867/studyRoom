@@ -257,7 +257,7 @@ async function sendSlackMessage(channelId: string, reminder: DueReminder, todos:
     },
     body: JSON.stringify({
       channel: channelId,
-      text: `${buildReminderBody(reminder, todos, { maxTodos: 5 })}\n${appUrl}`,
+      text: buildSlackReminderMessage(reminder, todos, appUrl),
       unfurl_links: false,
       unfurl_media: false,
     }),
@@ -293,6 +293,50 @@ function buildReminderBody(reminder: DueReminder, todos: StudyTodo[], options: {
   const todoSummary = formatTodoSummary(todos, options);
   if (todoSummary) {
     lines.push("", todoSummary);
+  }
+  return lines.join("\n");
+}
+
+function buildSlackReminderMessage(reminder: DueReminder, todos: StudyTodo[], appUrl: string) {
+  const isNudge = reminder.reminder_stage === "nudge";
+  const title = isNudge ? "🚨 독서실 마지막 재촉 알림" : "📚 독서실 입장 알림";
+  const deadlineNote = isNudge
+    ? "• 15분 재촉 알림입니다. 마감 전에 타이머를 시작해야 출석으로 인정됩니다."
+    : "• 30분 안에 타이머를 시작하면 오늘 출석으로 인정됩니다.";
+  const action = isNudge
+    ? "• 아직 타이머 시작 기록이 없습니다. 지금 앱을 열고 [입장하고 시작]을 눌러주세요."
+    : "• 앱을 열고 [입장하고 시작]을 눌러 오늘 공부를 시작하세요.";
+
+  return [
+    `*${title}*`,
+    "",
+    "⏰ 출석 마감",
+    `• ${formatDeadline(reminder.deadline_at)}`,
+    deadlineNote,
+    "",
+    formatSlackTodoSection(todos, 5),
+    "",
+    "🎯 지금 할 일",
+    action,
+    "",
+    "🔗 앱 열기",
+    appUrl,
+  ].join("\n");
+}
+
+function formatSlackTodoSection(todos: StudyTodo[], maxTodos: number) {
+  if (todos.length === 0) {
+    return "✅ 오늘 할 일\n• 아직 등록된 할 일이 없습니다.";
+  }
+
+  const visibleTodos = todos.slice(0, maxTodos);
+  const hiddenCount = Math.max(0, todos.length - visibleTodos.length);
+  const lines = ["✅ 오늘 할 일"];
+  for (const todo of visibleTodos) {
+    lines.push(`• ${todo.is_completed ? "☑️" : "⬜"} ${formatTodoWithSchedule(todo)}`);
+  }
+  if (hiddenCount > 0) {
+    lines.push(`• 외 ${hiddenCount}개 더 있습니다.`);
   }
   return lines.join("\n");
 }

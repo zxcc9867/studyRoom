@@ -2,6 +2,46 @@
 
 ## Timeline
 
+### 2026-06-15 - Readable Slack alarm messages
+
+#### Completed Work
+
+- Added readable Slack message sections for scheduled reminders, Slack test alarms, and camera warnings.
+- Scheduled reminders now show an emoji title, attendance deadline, today's todos, immediate action, and app link.
+- Slack test alarms now show the test purpose, date, today's todos, setup confirmation, and app link.
+- Camera warnings now distinguish camera-off and absence-warning states with status and next-action sections.
+- Kept the existing Slack Bot API, target lookup, secret names, and delivery recording behavior unchanged.
+
+#### Changed Files
+
+- `supabase/functions/attendance-cron/index.ts`
+- `supabase/functions/slack-test-alarm/index.ts`
+- `supabase/functions/camera-presence-warning/index.ts`
+- `.gitignore`
+- `packages/core/test/sql-migrations.test.mjs`
+- `memory-bank/active-context.md`
+- `memory-bank/progress.md`
+- `memory-bank/implementation-plan.md`
+- `memory-bank/prd-slack-notifications.md`
+
+#### Verification
+
+- RED: `node --test packages\core\test\sql-migrations.test.mjs` failed because the Edge Functions did not yet contain the new Slack message sections.
+- GREEN: `node --test packages\core\test\sql-migrations.test.mjs` passed after the Slack message update.
+- `npm.cmd test` passed 110 tests.
+- `npm.cmd run build` passed.
+- `git diff --check` passed.
+- Supabase Edge Function list confirmed `attendance-cron` v16, `slack-test-alarm` v5, and `camera-presence-warning` v6 ACTIVE with `verify_jwt=false`.
+- Supabase SQL `net.http_post` invoked `slack-test-alarm` with direct channel `C0BAFS1CSV8`; response id `10977` returned HTTP 200, `ok=true`, and Slack `messageTs=1781477126.922689`.
+
+#### Remaining Work
+
+- Push to GitHub and verify Vercel production.
+
+#### Next Priority
+
+- Send a Slack test alarm after deployment to confirm the message is readable in the real channel.
+
 ### 2026-06-15 - Editable saved alarm settings UI
 
 #### Completed Work

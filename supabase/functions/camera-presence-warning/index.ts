@@ -241,17 +241,33 @@ async function sendSlackMessage(channelId: string, eventType: PresenceWarningEve
 function buildWarningMessage(appUrl: string, eventType: PresenceWarningEventType) {
   if (eventType === "camera_required_warning") {
     return [
-      "\uCE74\uBA54\uB77C \uAC10\uC2DC \uACBD\uACE0",
-      "\uD604\uC7AC \uACF5\uBD80 \uC138\uC158\uC758 \uCE74\uBA54\uB77C \uAC10\uC2DC\uAC00 \uAEBC\uC838 \uC788\uC2B5\uB2C8\uB2E4. \uCD9C\uC11D\uC744 \uC720\uC9C0\uD558\uB824\uBA74 \uC571\uC73C\uB85C \uB3CC\uC544\uC640 \uCE74\uBA54\uB77C\uB97C \uCF1C\uC138\uC694.",
+      "*📷 카메라 경고*",
       "",
+      "⚠️ 감지 상태",
+      "• 현재 공부 세션의 카메라 감시가 꺼져 있습니다.",
+      "• 출석을 유지하려면 앱으로 돌아와 카메라 감시를 켜세요.",
+      "",
+      "🎯 지금 할 일",
+      "• 앱에서 [카메라 감시 켜기]를 누르세요.",
+      "• 카메라에 머리와 양어깨가 보이도록 화면을 맞추세요.",
+      "",
+      "🔗 앱 열기",
       appUrl,
     ].join("\n");
   }
 
   return [
-    "\uC790\uB9AC \uBE44\uC6C0 \uACBD\uACE0",
-    "5\uBD84 \uB3D9\uC548 \uCE74\uBA54\uB77C\uC5D0\uC11C \uC5BC\uAD74\uC774 \uAC10\uC9C0\uB418\uC9C0 \uC54A\uC558\uC2B5\uB2C8\uB2E4. \uB2E4\uC2DC \uC790\uB9AC\uB85C \uB3CC\uC544\uC640 \uACF5\uBD80\uB97C \uC774\uC5B4\uAC00\uC138\uC694.",
+    "*📷 카메라 경고*",
     "",
+    "⚠️ 감지 상태",
+    "• 5분 동안 카메라에서 상반신이 감지되지 않았습니다.",
+    "• 계속 감지되지 않으면 타이머가 자동 일시정지됩니다.",
+    "",
+    "🎯 지금 할 일",
+    "• 다시 자리에 앉아 공부를 이어가세요.",
+    "• 카메라에 머리와 양어깨가 보이도록 화면을 맞추세요.",
+    "",
+    "🔗 앱 열기",
     appUrl,
   ].join("\n");
 }

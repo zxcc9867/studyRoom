@@ -130,7 +130,7 @@ docs/images/study-room-thumbnail.png
 - `camera-presence-warning` receives `POST /functions/v1/camera-presence-warning` from the browser with `Authorization: Bearer {supabase_access_token}` and body `{ sessionId, absenceSeconds, detectedAt, eventType }`.
 - `camera-presence-warning` validates that `study_sessions.user_id` matches the authenticated Supabase user before inserting `study_presence_events` or sending Slack.
 - `end_study_session` receives `{ p_session_id, p_excluded_seconds }`; `p_excluded_seconds` is the camera absence time that should not be counted as study duration.
-- `attendance-cron` notification bodies include up to a compact subset of reminder-date todo titles and mark completed items with a check indicator.
+- `attendance-cron` Slack notification bodies use emoji-led plain-text sections for `출석 마감`, `오늘 할 일`, `지금 할 일`, and `앱 열기`; they include up to a compact subset of reminder-date todo titles and mark completed items with a check indicator.
 - `get_due_reminders()` returns `reminder_stage = 'initial' | 'nudge'`. `attendance-cron` uses this stage to choose the first-reminder or final-nudge title/body and includes `reminderStage` in push payload data.
 - Lambda sends `POST` to `AttendanceCronUrl`.
 - Lambda sends `x-cron-secret` header from `CronSecret`.

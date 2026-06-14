@@ -1,5 +1,14 @@
 # PRD: Slack Bot Notifications
 
+## 2026-06-15 Update: Readable Slack Message Format
+
+- Slack scheduled reminders, test alarms, and camera warnings must be easy to scan in Slack.
+- Use emoji-led plain-text sections in `chat.postMessage.text`; do not introduce Block Kit for this MVP.
+- Scheduled reminders must include `출석 마감`, `오늘 할 일`, `지금 할 일`, and `앱 열기` sections.
+- Slack test alarms must include setup confirmation, today's todo summary, and the app link.
+- Camera warnings must include the camera/absence status, next action, and the app link.
+- This message-format update must not change Slack token storage, Channel ID storage, notification target lookup, or DB schema.
+
 ## 2026-06-14 Update: Clear Per-User Save Action and Kakao Removal
 
 - The settings screen must expose a clear `Slack 채널 저장` action next to the Slack Channel ID field.

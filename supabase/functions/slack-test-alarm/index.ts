@@ -202,24 +202,38 @@ function parseDirectChannelId(payload: unknown) {
 
 function buildMessage(localDate: string, todos: StudyTodo[], appUrl: string) {
   const lines = [
-    "[Test alarm]",
-    "Study-room check-in time.",
-    "Open the app and start the timer within 30 minutes.",
-    "If you do not start within 15 minutes, one final nudge will be sent.",
-    `Date: ${localDate}`,
+    "*🧪 Slack 테스트 알림*",
+    "",
+    "📅 기준 날짜",
+    `• ${localDate}`,
+    "",
+    formatSlackTodoSection(todos, 5),
+    "",
+    "🎯 설정 확인",
+    "• 이 메시지가 보이면 Slack bot token, 채널 ID, bot 초대 상태가 정상입니다.",
+    "• 실제 알림에는 출석 마감 시간과 오늘 할 일이 함께 표시됩니다.",
+    "",
+    "🔗 앱 열기",
+    appUrl,
   ];
 
-  if (todos.length > 0) {
-    lines.push("", "Today's tasks");
-    for (const todo of todos.slice(0, 5)) {
-      lines.push(`- ${todo.is_completed ? "[x]" : "[ ]"} ${formatTodoWithSchedule(todo)}`);
-    }
-    if (todos.length > 5) {
-      lines.push(`- ...and ${todos.length - 5} more`);
-    }
+  return lines.join("\n");
+}
+
+function formatSlackTodoSection(todos: StudyTodo[], maxTodos: number) {
+  if (todos.length === 0) {
+    return "✅ 오늘 할 일\n• 아직 등록된 할 일이 없습니다.";
   }
 
-  lines.push("", appUrl);
+  const visibleTodos = todos.slice(0, maxTodos);
+  const hiddenCount = Math.max(0, todos.length - visibleTodos.length);
+  const lines = ["✅ 오늘 할 일"];
+  for (const todo of visibleTodos) {
+    lines.push(`• ${todo.is_completed ? "☑️" : "⬜"} ${formatTodoWithSchedule(todo)}`);
+  }
+  if (hiddenCount > 0) {
+    lines.push(`• 외 ${hiddenCount}개 더 있습니다.`);
+  }
   return lines.join("\n");
 }
 
