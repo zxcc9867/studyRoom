@@ -90,6 +90,7 @@ import {
   buildRecurringTodoDates,
   filterNewTodoDates,
   getDefaultRepeatEndDate,
+  getTodoSaveFocusDate,
   getWeekdayFromDateKey,
   todoWeekdayOptions,
 } from "./todoRecurrence.mjs";
@@ -863,6 +864,9 @@ function DashboardApp() {
     if (data?.length) {
       setStudyTodos((current) => sortTodos([...(data as StudyTodo[]), ...current]));
     }
+    const focusDate = getTodoSaveFocusDate({ selectedDate: selectedTodoDate, targetDates });
+    setSelectedTodoDate(focusDate);
+    setCalendarMonth(focusDate.slice(0, 7));
     setTodoDraft("");
     setTodoModalOpen(false);
     setMessage(

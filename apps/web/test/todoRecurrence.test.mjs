@@ -5,6 +5,7 @@ import {
   buildRecurringTodoDates,
   filterNewTodoDates,
   getDefaultRepeatEndDate,
+  getTodoSaveFocusDate,
 } from "../src/todoRecurrence.mjs";
 
 test("builds recurring todo dates from selected weekdays inside an inclusive range", () => {
@@ -67,4 +68,24 @@ test("filters duplicate recurring todos by date, title, and optional time range"
 test("defaults repeat end date to the last day of the selected month", () => {
   assert.equal(getDefaultRepeatEndDate("2026-02-11"), "2026-02-28");
   assert.equal(getDefaultRepeatEndDate("2024-02-11"), "2024-02-29");
+});
+
+test("focuses the selected date after save when a todo was created there", () => {
+  assert.equal(
+    getTodoSaveFocusDate({
+      selectedDate: "2026-06-14",
+      targetDates: ["2026-06-14", "2026-06-21"],
+    }),
+    "2026-06-14",
+  );
+});
+
+test("focuses the first created date when weekday repeat skipped the selected date", () => {
+  assert.equal(
+    getTodoSaveFocusDate({
+      selectedDate: "2026-06-14",
+      targetDates: ["2026-06-15", "2026-06-22"],
+    }),
+    "2026-06-15",
+  );
 });

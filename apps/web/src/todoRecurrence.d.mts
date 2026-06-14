@@ -27,5 +27,9 @@ export type NewTodoDatesInput<T extends ExistingTodoIdentity> = {
 export const todoWeekdayOptions: TodoWeekdayOption[];
 export function buildRecurringTodoDates(input: TodoRecurrenceInput): string[];
 export function filterNewTodoDates<T extends ExistingTodoIdentity>(input: NewTodoDatesInput<T>): string[];
+export function getTodoSaveFocusDate(input: {
+  selectedDate: string;
+  targetDates: string[];
+}): string;
 export function getDefaultRepeatEndDate(startDate: string): string;
 export function getWeekdayFromDateKey(dateKey: string): number;

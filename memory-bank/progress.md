@@ -2,6 +2,42 @@
 
 ## Timeline
 
+### 2026-06-14 - Scheduled recurring todo save display fixed
+
+#### Completed Work
+
+- Investigated why todos with weekday selection and time settings appeared not to save.
+- Confirmed remote Supabase `study_todos` already has `start_time` and `end_time`, so the issue was not a missing database column.
+- Fixed todo schedule formatting so Supabase `time` values like `09:00:00` render as `09:00`.
+- Added save-focus behavior so if weekday repeat creates rows on dates other than the currently open date, the calendar moves to the first created date instead of leaving the visible list empty.
+
+#### Changed Files
+
+- `apps/web/src/main.tsx`
+- `apps/web/src/todoRecurrence.mjs`
+- `apps/web/src/todoRecurrence.d.mts`
+- `apps/web/src/todoSchedule.mjs`
+- `apps/web/test/todoRecurrence.test.mjs`
+- `apps/web/test/todoSchedule.test.mjs`
+- `memory-bank/active-context.md`
+- `memory-bank/progress.md`
+- `memory-bank/trouble-shooting.md`
+
+#### Verification
+
+- `node --test apps\web\test\todoRecurrence.test.mjs apps\web\test\todoSchedule.test.mjs`
+- `npm.cmd test`
+- `npm.cmd run build`
+- `git diff --check`
+
+#### Remaining Work
+
+- Push the fix and confirm the GitHub Actions Vercel production deployment.
+
+#### Next Priority
+
+- Verify the deployed app at `https://study-room-attendance.vercel.app`.
+
 ### 2026-06-14 - Vercel production deployment completed
 
 #### Completed Work

@@ -43,6 +43,13 @@ export function filterNewTodoDates({ dates, title, existingTodos, startTime = nu
   return dates.filter((date) => !existingKeys.has(`${date}:${normalizedTitle}:${targetTimeKey}`));
 }
 
+export function getTodoSaveFocusDate({ selectedDate, targetDates }) {
+  if (targetDates.includes(selectedDate)) {
+    return selectedDate;
+  }
+  return targetDates[0] ?? selectedDate;
+}
+
 export function getDefaultRepeatEndDate(startDate) {
   const date = parseDateKey(startDate);
   if (!date) return startDate;

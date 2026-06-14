@@ -39,6 +39,6 @@ export function formatTodoWithSchedule(todo) {
 }
 
 function normalizeClockTime(value) {
-  const match = /^([01]\d|2[0-3]):([0-5]\d)$/.exec(String(value ?? "").trim());
+  const match = /^([01]\d|2[0-3]):([0-5]\d)(?::[0-5]\d)?$/.exec(String(value ?? "").trim());
   return match ? `${match[1]}:${match[2]}` : null;
 }

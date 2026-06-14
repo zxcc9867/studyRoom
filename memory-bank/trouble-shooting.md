@@ -1,5 +1,42 @@
 # Trouble Shooting
 
+## 2026-06-14 - Timed weekday-repeat todos looked unsaved
+
+### Situation
+
+The user reported that saving a todo with weekday selection and time settings did not appear to persist.
+
+### Error Message
+
+```txt
+User-visible symptom: after selecting weekdays/time and saving, the expected todo was not visible in the calendar's selected-day todo list.
+```
+
+### Cause
+
+There were two UI-side causes:
+
+1. Supabase `time` columns return values such as `09:00:00`, while `formatTodoWithSchedule()` only accepted exact `HH:mm` values. Timed todos could be saved but lose their time label in the UI.
+2. Weekly repeat materializes todos only on the selected weekdays. If the user opened a date that was not one of those weekdays, rows were saved on generated dates but the modal closed while the current visible date stayed empty, making the save look like it failed.
+
+The remote Supabase database already had `study_todos.start_time` and `study_todos.end_time`, and migration `study_todo_time_window` was applied.
+
+### Fix
+
+Updated schedule formatting to accept Supabase `HH:mm:ss` time values and normalize them to `HH:mm`. Added `getTodoSaveFocusDate()` so the UI stays on the selected date when a todo is created there, or moves to the first created date when the repeat rule skipped the selected date.
+
+### Related Files
+
+* `apps/web/src/main.tsx`
+* `apps/web/src/todoRecurrence.mjs`
+* `apps/web/src/todoSchedule.mjs`
+* `apps/web/test/todoRecurrence.test.mjs`
+* `apps/web/test/todoSchedule.test.mjs`
+
+### Prevention
+
+When reading Supabase `time` columns in the browser, normalize both `HH:mm` and `HH:mm:ss`. For materialized recurring todos, make the post-save visible state point to an actual created date so users can immediately see the saved row.
+
 ## 2026-06-14 - GitHub Actions failed reminder popup test in UTC
 
 ### Situation

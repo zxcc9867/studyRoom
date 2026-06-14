@@ -55,3 +55,14 @@ test("formats todo schedule labels for UI and notifications", () => {
   assert.equal(formatTodoWithSchedule(todo), "09:00-10:30 AWS study");
   assert.equal(formatTodoWithSchedule({ title: "No schedule", start_time: null, end_time: null }), "No schedule");
 });
+
+test("formats Supabase time column values that include seconds", () => {
+  assert.equal(
+    formatTodoWithSchedule({
+      title: "React study",
+      start_time: "09:00:00",
+      end_time: "10:30:00",
+    }),
+    "09:00-10:30 React study",
+  );
+});

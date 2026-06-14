@@ -2,6 +2,39 @@
 
 ## Current Work
 
+- Task: Fix todo save visibility with optional time and weekday repeat.
+- Purpose: Make scheduled recurring todos visibly appear after save and correctly format Supabase `time` column values.
+- Related PRD:
+  - `memory-bank/prd-recurring-todos.md`
+- Related files:
+  - `apps/web/src/main.tsx`
+  - `apps/web/src/todoRecurrence.mjs`
+  - `apps/web/src/todoRecurrence.d.mts`
+  - `apps/web/src/todoSchedule.mjs`
+  - `apps/web/test/todoRecurrence.test.mjs`
+  - `apps/web/test/todoSchedule.test.mjs`
+
+## Recent Decisions
+
+- Decision: Keep the existing materialized row model, but after save focus the calendar on the selected date if it received a todo, otherwise on the first generated date.
+- Reason: If the user opens one date and selects weekday repeat for another weekday, the todo is correctly saved to generated dates but the current date can remain empty, making it look like nothing saved.
+- Alternative: Always keep the modal date selected and rely on a toast message; this is weaker because the visible list can still look empty.
+- Impact: After saving a recurring todo, the user immediately sees one of the created todos.
+
+## Current Status
+
+- Completed: Verified remote Supabase `study_todos` includes `start_time` and `end_time`, and migration `study_todo_time_window` is applied.
+- Completed: Fixed schedule formatting to handle Supabase time values such as `09:00:00`.
+- Completed: Added todo save focus helper and tests for selected-date and first-generated-date behavior.
+- Completed: `node --test apps\web\test\todoRecurrence.test.mjs apps\web\test\todoSchedule.test.mjs`, `npm.cmd test`, `npm.cmd run build`, and `git diff --check` pass locally.
+- Next: Commit, push, and confirm Vercel production deployment.
+
+## Notes
+
+- Supabase advisory reports RLS disabled on unrelated `public.Book` and `public.Review` tables. Do not change them automatically because enabling RLS without policies can block existing access.
+
+## Current Work
+
 - Task: Deploy current web app updates to Vercel.
 - Purpose: Push the current Slack/camera/session/todo update set through the GitHub Actions Vercel production pipeline and fix any CI-only failures.
 - Related PRD:
