@@ -478,6 +478,87 @@ label {
   font-weight: 900;
 }
 
+.camera-diagnostic {
+  display: grid;
+  gap: 8px;
+  padding-top: 12px;
+  border-top: 1px dashed rgba(255, 249, 223, 0.56);
+  color: #fff9df;
+}
+
+.camera-diagnostic-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  font-size: 12px;
+  font-weight: 900;
+  text-transform: uppercase;
+}
+
+.camera-diagnostic-head span {
+  color: rgba(255, 249, 223, 0.78);
+  letter-spacing: 0;
+}
+
+.camera-diagnostic-head strong {
+  color: #fff9df;
+  font-size: 14px;
+}
+
+.camera-diagnostic p {
+  margin: 0;
+  color: rgba(255, 249, 223, 0.92);
+  font-size: 13px;
+  font-weight: 800;
+  line-height: 1.5;
+}
+
+.camera-diagnostic ul {
+  display: grid;
+  gap: 4px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.camera-diagnostic li {
+  position: relative;
+  padding-left: 14px;
+  color: rgba(255, 249, 223, 0.88);
+  font-size: 12px;
+  font-weight: 750;
+  line-height: 1.45;
+}
+
+.camera-diagnostic li::before {
+  content: "";
+  position: absolute;
+  top: 0.62em;
+  left: 0;
+  width: 6px;
+  height: 6px;
+  border-radius: 999px;
+  background: currentColor;
+}
+
+.camera-diagnostic-ok .camera-diagnostic-head strong {
+  color: #e9ffd9;
+}
+
+.camera-diagnostic-loading .camera-diagnostic-head strong,
+.camera-diagnostic-notice .camera-diagnostic-head strong {
+  color: #ffe59b;
+}
+
+.camera-diagnostic-warning .camera-diagnostic-head strong {
+  color: #ffd569;
+}
+
+.camera-diagnostic-error .camera-diagnostic-head strong {
+  color: #ffd3c6;
+}
+
 .camera-monitor-warning {
   border-color: #f0c85c;
   background: rgba(139, 78, 49, 0.36);

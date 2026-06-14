@@ -252,3 +252,17 @@ test("today focus layout keeps one study timer and one camera status copy", () =
   assert.doesNotMatch(dailyVisualSource, /session-caption/);
   assert.match(dailyVisualSource, /cameraStatus !== "watching"/);
 });
+
+test("today focus layout renders camera diagnostic UI from diagnostic helper", () => {
+  const appSource = readFileSync("apps/web/src/main.tsx", "utf8");
+  const styleSource = readFileSync("apps/web/src/styles.css", "utf8");
+  const sectionStart = appSource.indexOf('<section className="daily-visual"');
+  const sectionEnd = appSource.indexOf('<section className="today-task-panel"', sectionStart);
+  const dailyVisualSource = appSource.slice(sectionStart, sectionEnd);
+
+  assert.match(appSource, /getCameraDiagnostic/);
+  assert.match(appSource, /cameraDiagnosticReason/);
+  assert.match(dailyVisualSource, /camera-diagnostic/);
+  assert.match(dailyVisualSource, /cameraDiagnostic\.checks\.map/);
+  assert.match(styleSource, /\.camera-diagnostic/);
+});

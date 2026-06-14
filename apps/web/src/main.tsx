@@ -60,6 +60,7 @@ import {
   updateCameraFrameRecoveryState,
   type CameraFrameRecoveryState,
 } from "./cameraFrameRecovery.mjs";
+import { getCameraDiagnostic, type CameraDiagnostic } from "./cameraDiagnostics.mjs";
 import {
   cameraMonitoringIntentKey,
   createCameraMonitoringIntent,
@@ -68,7 +69,12 @@ import {
 } from "./cameraResume.mjs";
 import { recordCameraPresenceEvent, sendCameraPresenceWarning } from "./cameraWarning.mjs";
 import { createUpperBodyPresenceDetector, type UpperBodyPresenceDetector } from "./bodyPresenceDetection.mjs";
-import { cameraHealthMessage, getCameraFrameHealth, getCameraStreamHealth } from "./cameraVideoHealth.mjs";
+import {
+  cameraHealthMessage,
+  getCameraFrameHealth,
+  getCameraStreamHealth,
+  type CameraHealth,
+} from "./cameraVideoHealth.mjs";
 import {
   getDashboardSectionFromHash,
   type DashboardSection,
@@ -115,6 +121,7 @@ type TodoRepeatMode = "single" | "weekly";
 type CameraSetupPrompt = {
   mode: "start" | "resume";
 };
+type CameraDiagnosticReason = CameraHealth["reason"] | "permission-denied" | "unknown-error" | null;
 
 type Profile = {
   user_id: string;
@@ -220,6 +227,7 @@ function DashboardApp() {
   const [cameraEnabled, setCameraEnabled] = useState(false);
   const [cameraStatus, setCameraStatus] = useState<PresenceStatus>("idle");
   const [cameraMessage, setCameraMessage] = useState("");
+  const [cameraDiagnosticReason, setCameraDiagnosticReason] = useState<CameraDiagnosticReason>(null);
   const [presenceState, setPresenceState] = useState<PresenceState>(() => createPresenceState(Date.now()));
   const [absenceWarningPopup, setAbsenceWarningPopup] = useState<{
     absenceSeconds: number;
@@ -295,6 +303,28 @@ function DashboardApp() {
 
   const timeZone = profile?.time_zone ?? Intl.DateTimeFormat().resolvedOptions().timeZone;
   const activeSession = studySessions.find((item) => item.status === "active") ?? null;
+  const cameraSupport = useMemo(() => getCameraSupport(window), []);
+  const cameraDiagnostic: CameraDiagnostic = useMemo(
+    () =>
+      getCameraDiagnostic({
+        activeSession: Boolean(activeSession),
+        cameraEnabled,
+        cameraStatus,
+        supportReason: cameraSupport.reason,
+        healthReason: cameraDiagnosticReason,
+        absenceSeconds: presenceState.absenceSeconds,
+        timerPaused: presenceState.timerPaused,
+      }),
+    [
+      activeSession,
+      cameraDiagnosticReason,
+      cameraEnabled,
+      cameraStatus,
+      cameraSupport.reason,
+      presenceState.absenceSeconds,
+      presenceState.timerPaused,
+    ],
+  );
   const activeExcludedSeconds = activeSession ? getCurrentExcludedSeconds(presenceState) : 0;
   const activeElapsedSeconds = activeSession
     ? getActiveStudySeconds({
@@ -488,6 +518,7 @@ function DashboardApp() {
       const streamHealth = getCameraStreamHealth(cameraStreamRef.current);
       if (!streamHealth.ok) {
         cameraFrameRecoveryStateRef.current = createCameraFrameRecoveryState();
+        setCameraDiagnosticReason(streamHealth.reason);
         markCameraHealthIssue(streamHealth.reason);
         return;
       }
@@ -500,6 +531,7 @@ function DashboardApp() {
         pixels: readCameraFramePixels(video),
       });
       if (!frameHealth.ok) {
+        setCameraDiagnosticReason(frameHealth.reason);
         await handleCameraFrameHealthIssue(frameHealth.reason);
         return;
       }
@@ -507,6 +539,7 @@ function DashboardApp() {
       try {
         cameraFrameRecoveryStateRef.current = createCameraFrameRecoveryState();
         const presenceDetected = presenceDetectorRef.current.detect(video, performance.now());
+        setCameraDiagnosticReason("visible-frame");
         const nextState = updatePresenceState(presenceStateRef.current, {
           presenceDetected,
           nowMs: Date.now(),
@@ -1198,6 +1231,7 @@ function DashboardApp() {
     setCameraEnabled(false);
     setCameraStatus("idle");
     setCameraMessage("");
+    setCameraDiagnosticReason(null);
     resetPresenceState();
     if (recordEvent) {
       forgetCameraMonitoringIntent();
@@ -1226,6 +1260,7 @@ function DashboardApp() {
     const support = getCameraSupport(window);
     if (!support.supported) {
       setCameraStatus("error");
+      setCameraDiagnosticReason(null);
       setCameraMessage(
         support.reason === "secure-context-required"
           ? "HTTPS 또는 localhost에서만 카메라를 사용할 수 있습니다."
@@ -1236,6 +1271,7 @@ function DashboardApp() {
 
     setCameraStatus("starting");
     setCameraMessage("카메라 준비 중");
+    setCameraDiagnosticReason(null);
 
     try {
       if (restart) {
@@ -1266,6 +1302,7 @@ function DashboardApp() {
       setCameraEnabled(true);
       setCameraStatus("watching");
       setCameraMessage("카메라 감시 중");
+      setCameraDiagnosticReason("visible-frame");
       if (activeSession) {
         await recordCameraPresenceEvent(session.user.id, activeSession.id, "camera_started", {
           metadata: { source: "web-camera" },
@@ -1276,6 +1313,11 @@ function DashboardApp() {
       cleanupCameraResources();
       setCameraEnabled(false);
       setCameraStatus("error");
+      setCameraDiagnosticReason(
+        error instanceof DOMException && ["NotAllowedError", "PermissionDeniedError"].includes(error.name)
+          ? "permission-denied"
+          : "unknown-error",
+      );
       setCameraMessage(formatCameraError(error));
 
       const denied = error instanceof DOMException && ["NotAllowedError", "PermissionDeniedError"].includes(error.name);
@@ -2042,6 +2084,18 @@ function DashboardApp() {
                 </button>
               </div>
               {cameraMessage && cameraStatus !== "watching" && <span className="camera-message">{cameraMessage}</span>}
+              <div className={`camera-diagnostic camera-diagnostic-${cameraDiagnostic.tone}`} aria-live="polite">
+                <div className="camera-diagnostic-head">
+                  <span>상태 진단</span>
+                  <strong>{cameraDiagnostic.title}</strong>
+                </div>
+                <p>{cameraDiagnostic.detail}</p>
+                <ul>
+                  {cameraDiagnostic.checks.map((check) => (
+                    <li key={check}>{check}</li>
+                  ))}
+                </ul>
+              </div>
             </div>
           </div>
         </section>

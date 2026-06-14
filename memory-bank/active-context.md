@@ -2,40 +2,43 @@
 
 ## Current Work
 
-- Task: Simplify the Today Focus camera area by removing duplicate timer/status text and enlarging the camera preview.
-- Purpose: Keep today's study time visible in one place and make the camera monitoring card easier to scan.
+- Task: Build a camera status diagnosis UI in the Today Focus camera card.
+- Purpose: Help users understand whether camera problems come from browser support, permissions, stream health, blank frames, loading/reconnect, or upper-body absence.
 - Related PRD:
   - `memory-bank/prd-camera-presence.md`
 - Related files:
   - `apps/web/src/main.tsx`
   - `apps/web/src/styles.css`
+  - `apps/web/src/cameraDiagnostics.mjs`
+  - `apps/web/src/cameraDiagnostics.d.mts`
+  - `apps/web/test/cameraDiagnostics.test.mjs`
   - `apps/web/test/cameraPresence.test.mjs`
 
 ## Recent Decisions
 
-- Decision: Keep the top summary cards as the single source for today's study time and monthly accumulated time.
-- Reason: The user showed that `오늘 공부` appeared in both the top summary and the Today Focus card, making the UI feel duplicated.
-- Alternative: Keep both timers but rename one to current session; rejected because the user asked for one timer only and the top summary already shows the needed time.
-- Impact: The Today Focus camera section now shows progress and camera monitoring only.
+- Decision: Add a client-only `cameraDiagnostics` helper instead of sending media or diagnostics to the server.
+- Reason: The issue is user-facing explanation of existing browser-side camera state, and the privacy rule still says images, frames, pose landmarks, and video must stay in the browser.
+- Alternative: Add a server-side diagnostic event stream; rejected because it would not help diagnose local permissions or device conflicts and would add unnecessary backend scope.
+- Impact: The UI can explain `HTTPS 필요`, `권한 차단`, `검은 화면`, `영상 연결 확인 중`, `상반신 미감지`, and `카메라 정상` without Supabase schema changes.
 
-- Decision: Hide the default `카메라 감시 중` detail message while `cameraStatus === "watching"`.
-- Reason: The card header already shows the active camera status, so the bottom message repeated the same information.
-- Alternative: Remove all camera messages; rejected because starting/error/warning states still need extra guidance.
-- Impact: Normal camera monitoring has one status line, while non-watching states can still show useful guidance.
+- Decision: Render the diagnosis as a slim strip inside the existing camera card.
+- Reason: The user needs the cause and next action at the point where the camera preview appears, but the card should not grow into another full nested card.
+- Alternative: Add a separate modal or page; rejected because the user asked for a camera status diagnosis UI, and the camera card is the most direct place.
+- Impact: The Today Focus card now shows one camera status header plus a small diagnosis area with concise next checks.
 
 ## Current Status
 
-- Completed: Added a failing regression test for duplicated Today Focus timers and camera status copy.
-- Completed: Removed `todaySeconds` and `activeElapsedSeconds` timer rendering from the camera-focused section.
-- Completed: Enlarged the camera preview and made the camera card span the available width.
-- Completed: `node --test apps\web\test\cameraPresence.test.mjs`, `npm.cmd test`, and `npm.cmd run build` pass locally.
-- Completed: Committed and pushed `d033a4a0e02a83c83883114ea1ac134bd3ffb4b3` to `origin/main`.
-- Completed: GitHub Actions run `27503647487` succeeded, Vercel deployment `dpl_A2JSVSmAHuVcpyEjtiK94ndfJ3U4` is `READY`, and production URL returned `HTTP 200`.
+- Completed: Added RED tests for the new `cameraDiagnostics` helper and Today Focus diagnostic UI wiring.
+- Completed: Added browser-side diagnostic mapping for support, permission, stream, frame, absence, loading, paused, and healthy states.
+- Completed: Wired `main.tsx` to track the latest camera diagnostic reason and render the diagnosis checklist.
+- Completed: Added focused CSS for a compact in-card diagnostic strip.
+- Completed: `node --test apps\web\test\cameraDiagnostics.test.mjs`, `node --test apps\web\test\cameraPresence.test.mjs`, `npm.cmd test`, and `npm.cmd run build` pass locally.
+- Pending: Commit, push, and confirm Vercel production deployment.
 
 ## Notes
 
-- This is a frontend display change only. It does not change Supabase data, camera presence detection, Slack warnings, or study-time calculation.
-- Next product direction to consider: after the camera UI is stable, prioritize a production-device verification checklist and a clearer "camera health" diagnosis path for permission/device conflicts.
+- This is a frontend-only camera diagnosis change. It does not change Supabase data, camera warning Slack delivery, or study-time calculation.
+- In-app Browser MCP was closed during this run, so live screenshot verification was not available from the browser tool. Local HTTP responded on `http://127.0.0.1:5177/`.
 
 ## Current Work
 

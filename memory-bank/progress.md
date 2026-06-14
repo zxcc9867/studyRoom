@@ -2,6 +2,47 @@
 
 ## Timeline
 
+### 2026-06-15 - Camera status diagnosis UI
+
+#### Completed Work
+
+- Added a client-only camera diagnostic helper that maps browser support, permission, stream, frame, absence, loading, paused, and healthy states to a clear title, detail, and checklist.
+- Wired the Today Focus camera card to track the latest camera diagnostic reason from `getCameraSupport`, `getCameraStreamHealth`, `getCameraFrameHealth`, permission errors, and upper-body absence timing.
+- Rendered a compact camera diagnosis strip inside the existing camera monitor card without adding a separate modal or server-side media flow.
+- Added regression tests for diagnostic copy/state mapping and UI wiring.
+
+#### Changed Files
+
+- `apps/web/src/main.tsx`
+- `apps/web/src/styles.css`
+- `apps/web/src/cameraDiagnostics.mjs`
+- `apps/web/src/cameraDiagnostics.d.mts`
+- `apps/web/test/cameraDiagnostics.test.mjs`
+- `apps/web/test/cameraPresence.test.mjs`
+- `memory-bank/active-context.md`
+- `memory-bank/progress.md`
+- `memory-bank/implementation-plan.md`
+- `memory-bank/prd-camera-presence.md`
+
+#### Verification
+
+- RED: `node --test apps\web\test\cameraDiagnostics.test.mjs` failed because `cameraDiagnostics.mjs` did not exist.
+- RED: `node --test apps\web\test\cameraPresence.test.mjs` failed because `main.tsx` did not import `getCameraDiagnostic` or render `.camera-diagnostic`.
+- GREEN: `node --test apps\web\test\cameraDiagnostics.test.mjs` passed.
+- GREEN: `node --test apps\web\test\cameraPresence.test.mjs` passed.
+- `npm.cmd test` passed 107 tests.
+- `npm.cmd run build` passed.
+- Local HTTP check: `http://127.0.0.1:5177/` returned `HTTP 200`.
+- Browser screenshot verification was not available because the in-app Browser MCP target page/context was closed.
+
+#### Remaining Work
+
+- Commit, push, and confirm the Vercel production deployment.
+
+#### Next Priority
+
+- Verify the production camera diagnostic strip with the user's actual browser and camera permission state.
+
 ### 2026-06-15 - Today Focus camera UI simplification
 
 #### Completed Work
