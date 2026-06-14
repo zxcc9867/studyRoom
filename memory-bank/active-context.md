@@ -35,7 +35,11 @@
 - Completed: Relaxed upper-body detection for cropped webcam views.
 - Completed: Clarified Slack missing-target messages so users know they must save Slack Channel ID for the current account.
 - Completed: `npm.cmd test` and `npm.cmd run build` pass locally.
-- Next: Commit, push, and verify Vercel production deployment.
+- Completed: Pushed commit `52dd9cd` to `origin/main`.
+- Completed: GitHub Actions run `27501945457` succeeded.
+- Completed: Vercel production deployment `dpl_C1TQMz28PMtYnYRuftEPnx9WDc67` is `READY` for commit `52dd9cd`.
+- Completed: `https://study-room-attendance.vercel.app` returns HTTP 200.
+- Next: User should hard refresh production and restart camera monitoring. If the preview is still black, check browser camera permission, privacy shutter, and whether another app is using the camera.
 
 ## Notes
 
