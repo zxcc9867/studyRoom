@@ -48,7 +48,9 @@
 - Completed: `npm.cmd test` and `npm.cmd run build` pass locally.
 - Completed: Deployed `attendance-cron` version 15 to Supabase and confirmed it is ACTIVE.
 - Completed: Deleted legacy remote Edge Functions `kakao-token` and `telegram-test-alarm`; the remaining remote functions are `attendance-cron`, `camera-presence-warning`, and `slack-test-alarm`.
-- Pending: Commit, push, and verify Vercel production deployment.
+- Completed: Committed and pushed the app changes to `origin/main`.
+- Completed: GitHub Actions production workflow succeeded and Vercel production deployment is READY.
+- Completed: `https://study-room-attendance.vercel.app` returns HTTP 200 and Vercel production error-log query returned no matching errors.
 
 ## Notes
 

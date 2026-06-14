@@ -49,10 +49,15 @@
 - Supabase Edge Function deploy confirmed `attendance-cron` version 15 ACTIVE.
 - Supabase Management API deleted legacy `kakao-token` and `telegram-test-alarm` Edge Functions.
 - Supabase Edge Function list confirmed only `attendance-cron`, `camera-presence-warning`, and `slack-test-alarm` remain ACTIVE.
+- Pushed the app changes to `origin/main`.
+- GitHub Actions production workflow succeeded.
+- Vercel production deployment is READY.
+- `https://study-room-attendance.vercel.app` returned HTTP 200.
+- Vercel production runtime error-log query returned no matching errors.
 
 #### Remaining Work
 
-- Commit, push, and verify Vercel production deployment.
+- None for this change.
 
 #### Next Priority
 
