@@ -14,12 +14,12 @@ import {
   updatePresenceState,
 } from "../src/cameraPresence.mjs";
 
-test("camera presence state does not warn while a face is visible", () => {
+test("camera presence state does not warn while upper body presence is visible", () => {
   const start = Date.UTC(2026, 5, 13, 20, 30, 0);
   const state = createPresenceState(start);
 
   const next = updatePresenceState(state, {
-    faceDetected: true,
+    presenceDetected: true,
     nowMs: start + ABSENCE_WARNING_SECONDS * 1000,
   });
 
@@ -28,15 +28,15 @@ test("camera presence state does not warn while a face is visible", () => {
   assert.equal(next.absenceStartedAtMs, null);
 });
 
-test("camera presence state warns after 5 minutes without a face", () => {
+test("camera presence state warns after 5 minutes without upper body presence", () => {
   const start = Date.UTC(2026, 5, 13, 20, 30, 0);
   const state = updatePresenceState(createPresenceState(start), {
-    faceDetected: false,
+    presenceDetected: false,
     nowMs: start,
   });
 
   const next = updatePresenceState(state, {
-    faceDetected: false,
+    presenceDetected: false,
     nowMs: start + ABSENCE_WARNING_SECONDS * 1000,
   });
 
@@ -44,15 +44,15 @@ test("camera presence state warns after 5 minutes without a face", () => {
   assert.equal(next.warningDue, true);
 });
 
-test("camera presence state resets absence timing when a face returns", () => {
+test("camera presence state resets absence timing when upper body presence returns", () => {
   const start = Date.UTC(2026, 5, 13, 20, 30, 0);
   const absent = updatePresenceState(createPresenceState(start), {
-    faceDetected: false,
+    presenceDetected: false,
     nowMs: start + 120_000,
   });
 
   const returned = updatePresenceState(absent, {
-    faceDetected: true,
+    presenceDetected: true,
     nowMs: start + 180_000,
   });
 
@@ -65,22 +65,22 @@ test("camera presence state suppresses duplicate warnings during cooldown", () =
   const start = Date.UTC(2026, 5, 13, 20, 30, 0);
   const warning = updatePresenceState(
     updatePresenceState(createPresenceState(start), {
-      faceDetected: false,
+      presenceDetected: false,
       nowMs: start,
     }),
     {
-      faceDetected: false,
+      presenceDetected: false,
       nowMs: start + ABSENCE_WARNING_SECONDS * 1000,
     },
   );
   const sent = markPresenceWarningSent(warning, { nowMs: start + ABSENCE_WARNING_SECONDS * 1000 });
 
   const duringCooldown = updatePresenceState(sent, {
-    faceDetected: false,
+    presenceDetected: false,
     nowMs: start + (ABSENCE_WARNING_SECONDS + WARNING_COOLDOWN_SECONDS - 1) * 1000,
   });
   const afterCooldown = updatePresenceState(sent, {
-    faceDetected: false,
+    presenceDetected: false,
     nowMs: start + (ABSENCE_WARNING_SECONDS + WARNING_COOLDOWN_SECONDS) * 1000,
   });
 
@@ -91,15 +91,15 @@ test("camera presence state suppresses duplicate warnings during cooldown", () =
 test("camera absence pauses counted study time after 5 minutes and excludes the absent interval", () => {
   const start = Date.UTC(2026, 5, 13, 20, 30, 0);
   const absent = updatePresenceState(createPresenceState(start), {
-    faceDetected: false,
+    presenceDetected: false,
     nowMs: start,
   });
   const beforePause = updatePresenceState(absent, {
-    faceDetected: false,
+    presenceDetected: false,
     nowMs: start + (ABSENCE_WARNING_SECONDS - 1) * 1000,
   });
   const paused = updatePresenceState(absent, {
-    faceDetected: false,
+    presenceDetected: false,
     nowMs: start + ABSENCE_WARNING_SECONDS * 1000,
   });
 
@@ -118,18 +118,18 @@ test("camera absence pauses counted study time after 5 minutes and excludes the 
   );
 });
 
-test("camera absence resumes counted study time when a face returns", () => {
+test("camera absence resumes counted study time when upper body presence returns", () => {
   const start = Date.UTC(2026, 5, 13, 20, 30, 0);
   const absent = updatePresenceState(createPresenceState(start), {
-    faceDetected: false,
+    presenceDetected: false,
     nowMs: start,
   });
   const paused = updatePresenceState(absent, {
-    faceDetected: false,
+    presenceDetected: false,
     nowMs: start + (ABSENCE_WARNING_SECONDS + 60) * 1000,
   });
   const returned = updatePresenceState(paused, {
-    faceDetected: true,
+    presenceDetected: true,
     nowMs: start + (ABSENCE_WARNING_SECONDS + 60) * 1000,
   });
 
@@ -150,11 +150,11 @@ test("camera absence resumes counted study time when a face returns", () => {
 test("camera absence requests automatic session end after 10 minutes", () => {
   const start = Date.UTC(2026, 5, 13, 20, 30, 0);
   const absent = updatePresenceState(createPresenceState(start), {
-    faceDetected: false,
+    presenceDetected: false,
     nowMs: start,
   });
   const autoEnd = updatePresenceState(absent, {
-    faceDetected: false,
+    presenceDetected: false,
     nowMs: start + ABSENCE_AUTO_END_SECONDS * 1000,
   });
 
@@ -191,7 +191,7 @@ test("study session start is allowed after camera monitoring is enabled", () => 
   );
 });
 
-test("web app wires camera monitoring to active sessions and warning Edge Function", () => {
+test("web app wires upper body camera monitoring to active sessions and warning Edge Function", () => {
   const appSource = readFileSync("apps/web/src/main.tsx", "utf8");
   const warningSource = readFileSync("apps/web/src/cameraWarning.mjs", "utf8");
 
@@ -204,7 +204,8 @@ test("web app wires camera monitoring to active sessions and warning Edge Functi
   assert.match(appSource, /getCurrentExcludedSeconds/);
   assert.match(appSource, /camera_required_warning/);
   assert.match(appSource, /activeSession/);
-  assert.match(appSource, /createFacePresenceDetector/);
+  assert.match(appSource, /createUpperBodyPresenceDetector/);
+  assert.match(appSource, /presenceDetected/);
   assert.match(appSource, /sendCameraPresenceWarning\(session/);
   assert.match(warningSource, /\/functions\/v1\/camera-presence-warning/);
   assert.match(warningSource, /authorization: `Bearer \$\{session\.access_token\}`/);

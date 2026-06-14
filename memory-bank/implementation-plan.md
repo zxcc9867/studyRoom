@@ -14,8 +14,9 @@
 - My Page: the web dashboard includes an in-page `me` section that reuses loaded profile and `study_todos` data to show account summary and completed todo history.
 - Reminder todo enrichment: `attendance-cron` loads `study_todos` for each due reminder's `user_id` and `local_date`, then appends a compact `오늘 할 일` summary to server-side notification bodies. The open web app also renders the same date's todos in the reminder popup from already loaded dashboard state.
 - Two-step attendance enforcement: `get_due_reminders()` emits an initial reminder at the configured daily reminder time and a `nudge` reminder 15 minutes later if no qualifying timer start exists. `mark_missed_attendance()` marks the day missed at reminder time + 30 minutes.
-- Camera presence warning: web study sessions require camera monitoring before the timer can start. MediaPipe FaceDetector runs in the browser only, and the server receives only camera event metadata through `camera-presence-warning`.
-- Camera absence enforcement: if no face is detected for 5 minutes, the web timer enters auto-pause and excludes the current absence interval from displayed study time. If no face is detected for 10 minutes, the web app calls `end_study_session` automatically with excluded seconds.
+- Camera presence warning: web study sessions require camera monitoring before the timer can start. MediaPipe PoseLandmarker runs in the browser only, and the server receives only camera event metadata through `camera-presence-warning`.
+- Camera upper-body presence: the web app treats the user as present when one head landmark and both shoulder landmarks are visible with enough confidence. This allows upper body detection instead of requiring a full face detection.
+- Camera absence enforcement: if no upper body pose is detected for 5 minutes, the web timer enters auto-pause and excludes the current absence interval from displayed study time. If no upper body pose is detected for 10 minutes, the web app calls `end_study_session` automatically with excluded seconds.
 
 ## Tech Stack
 
@@ -64,9 +65,10 @@ apps/web/test/todoHistory.test.mjs
 ```txt
 apps/web/src/cameraPresence.mjs
 apps/web/src/cameraWarning.mjs
-apps/web/src/faceDetection.mjs
+apps/web/src/bodyPresenceDetection.mjs
 apps/web/src/sessionExit.mjs
 apps/web/test/cameraPresence.test.mjs
+apps/web/test/upperBodyPresence.test.mjs
 apps/web/test/sessionExit.test.mjs
 supabase/functions/camera-presence-warning/index.ts
 supabase/migrations/0011_study_presence_events.sql
@@ -139,6 +141,7 @@ docs/images/study-room-thumbnail.png
 - Use `npm.cmd run infra:synth` as deployment-shape verification.
 - Use pure state-machine tests for camera absence timing and warning cooldown.
 - Use pure state-machine tests for camera auto-pause, auto-end, and excluded study seconds.
+- Use upper-body pose tests for head/shoulder landmark based seated presence detection.
 - Use SQL/source tests to verify `study_presence_events` RLS and `camera-presence-warning` session ownership checks.
 
 ## Deployment Strategy
@@ -164,6 +167,7 @@ docs/images/study-room-thumbnail.png
 - `camera-presence-warning` is deployed with `verify_jwt=false` only because it handles CORS preflight and then validates the Supabase JWT with `admin.auth.getUser(jwt)`.
 - Camera frames never leave the browser. The app sends only `sessionId`, `absenceSeconds`, `detectedAt`, and `eventType` to the Edge Function.
 - `study_presence_events` has a DB check constraint that rejects media-like metadata keys.
+- Pose landmarks are used only in memory inside the browser and are not sent to Supabase.
 - Kakao raw tokens are never stored in frontend local storage by app code and are not exposed through public RLS policies.
 - Telegram bot tokens are never stored in frontend code or user-managed DB rows.
 - `kakao-token` is deployed with `verify_jwt=false` only to allow browser CORS preflight; the function validates the Supabase JWT itself before doing any user-specific work.
@@ -190,7 +194,7 @@ docs/images/study-room-thumbnail.png
 
 - 변경 대상: `public.end_study_session`
 - 변경 내용: `end_study_session` RPC를 `p_excluded_seconds integer default 0` 인자를 받도록 교체하고, `duration_seconds`를 전체 경과 시간에서 제외 초를 뺀 값으로 저장하도록 했다.
-- 변경 이유: 5분 이상 얼굴 미감지로 자동 일시정지된 시간과 10분 미복귀 자동 종료 전의 자리 비움 시간을 공부 시간에서 제외하기 위해서다.
+- 변경 이유: 5분 이상 상반신 미감지로 자동 일시정지된 시간과 10분 미복귀 자동 종료 전의 자리 비움 시간을 공부 시간에서 제외하기 위해서다.
 - 관련 기능: 카메라 미감지 자동 일시정지, 10분 미복귀 자동 종료, 공부 시간 제외
 - 마이그레이션 파일: `supabase/migrations/0013_exclude_camera_absence_from_sessions.sql`
 - 확인 방법: `npm.cmd test`, `npm.cmd run build`, Supabase MCP `_apply_migration` success, migration list의 `exclude_camera_absence_from_sessions` 확인.

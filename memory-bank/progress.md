@@ -14,24 +14,30 @@
 - `camera-presence-warning` Edge Function을 version 2 ACTIVE로 배포했다.
 - 커밋 `e726c34`를 `origin/main`에 push해 GitHub Actions Vercel production 배포를 실행했다.
 - GitHub Actions run `27472648244`가 성공했고, Vercel production URL이 최신 카메라 필수 시작 UI 번들을 서빙하는 것을 확인했다.
-- 5분 이상 얼굴이 감지되지 않으면 현재 세션 타이머가 자동 일시정지 상태가 되고, 해당 미감지 구간은 오늘 공부 시간과 현재 세션 시간에서 제외되도록 했다.
-- 얼굴이 다시 감지되면 제외 시간을 누적하고 현재 세션 타이머가 다시 진행되도록 했다.
-- 10분 이상 얼굴이 감지되지 않으면 세션을 자동 종료하고, `end_study_session` RPC에 `p_excluded_seconds`를 전달해 DB 저장 시간에서도 제외되도록 했다.
+- 5분 이상 상반신이 감지되지 않으면 현재 세션 타이머가 자동 일시정지 상태가 되고, 해당 미감지 구간은 오늘 공부 시간과 현재 세션 시간에서 제외되도록 했다.
+- 상반신이 다시 감지되면 제외 시간을 누적하고 현재 세션 타이머가 다시 진행되도록 했다.
+- 10분 이상 상반신이 감지되지 않으면 세션을 자동 종료하고, `end_study_session` RPC에 `p_excluded_seconds`를 전달해 DB 저장 시간에서도 제외되도록 했다.
 - 페이지 이탈 자동 종료 요청도 `p_excluded_seconds`를 전달하도록 수정했다.
 - `end_study_session` RPC를 `p_excluded_seconds integer default 0` 인자로 확장하는 migration을 만들고 원격 Supabase에 적용했다.
 - 커밋 `a461228`를 `origin/main`에 push해 GitHub Actions Vercel production 배포를 실행했다.
 - GitHub Actions run `27473367753`이 성공했고, Vercel production URL이 최신 카메라 자동 일시정지/자동 종료 UI 번들을 서빙하는 것을 확인했다.
+- 얼굴만 감지하던 `FaceDetector` 기반 카메라 감시를 `PoseLandmarker` 기반 상반신 감지로 교체했다.
+- 머리 랜드마크 1개 이상과 좌우 어깨 랜드마크가 일정 confidence 이상이면 사람이 앉아 있는 것으로 판단하도록 했다.
+- 상반신 감지 순수 함수와 앱 연결 테스트를 추가했다.
 
 #### 변경된 파일
 
 - `apps/web/src/main.tsx`
 - `apps/web/src/cameraPresence.mjs`
 - `apps/web/src/cameraPresence.d.mts`
+- `apps/web/src/bodyPresenceDetection.mjs`
+- `apps/web/src/bodyPresenceDetection.d.mts`
 - `apps/web/src/cameraWarning.mjs`
 - `apps/web/src/cameraWarning.d.mts`
 - `apps/web/src/sessionExit.mjs`
 - `apps/web/src/sessionExit.d.mts`
 - `apps/web/test/cameraPresence.test.mjs`
+- `apps/web/test/upperBodyPresence.test.mjs`
 - `apps/web/test/sessionExit.test.mjs`
 - `packages/core/test/sql-migrations.test.mjs`
 - `supabase/functions/camera-presence-warning/index.ts`
@@ -66,10 +72,12 @@
 - GitHub Actions run `27473367753` completed with conclusion `success`.
 - Production HTML at `https://study-room-attendance.vercel.app/` serves `/assets/index-BFOVTlgA.js`.
 - Production JS verification returned `자동 일시정지=true`, `자동 종료=true`, and `p_excluded_seconds=true`.
+- RED: `node --test apps\web\test\upperBodyPresence.test.mjs apps\web\test\cameraPresence.test.mjs` failed because `hasSeatedUpperBodyPose` and `createUpperBodyPresenceDetector` were missing.
+- GREEN: `node --test apps\web\test\upperBodyPresence.test.mjs apps\web\test\cameraPresence.test.mjs` passed 14 tests.
 
 #### 남은 작업
 
-- Manual browser verification with a real camera is still needed: click `입장하고 시작`, allow camera, confirm timer starts, hide face for 5 minutes, confirm auto-pause/excluded timer, then keep hidden until 10 minutes and confirm auto-end.
+- Manual browser verification with a real camera is still needed: click `입장하고 시작`, allow camera, confirm timer starts, move so upper body is visible without a full face, confirm the timer continues, then hide upper body for 5 minutes and confirm auto-pause/excluded timer.
 
 #### 다음 우선순위
 

@@ -20,7 +20,7 @@ export function createPresenceState(nowMs?: number): PresenceState;
 export function updatePresenceState(
   state: PresenceState,
   input: {
-    faceDetected: boolean;
+    presenceDetected: boolean;
     nowMs: number;
   },
 ): PresenceState;

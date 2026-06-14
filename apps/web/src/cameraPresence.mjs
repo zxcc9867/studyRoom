@@ -18,8 +18,8 @@ export function createPresenceState(nowMs = Date.now()) {
   };
 }
 
-export function updatePresenceState(state, { faceDetected, nowMs }) {
-  if (faceDetected) {
+export function updatePresenceState(state, { presenceDetected, nowMs }) {
+  if (presenceDetected) {
     const completedExcludedSeconds =
       state.absenceSeconds >= ABSENCE_WARNING_SECONDS ? state.excludedSeconds + state.absenceSeconds : state.excludedSeconds;
 
@@ -95,9 +95,9 @@ export function getPresenceStatusLabel({ cameraEnabled, status, absenceSeconds }
   if (!cameraEnabled) return "꺼짐";
   if (status === "starting") return "준비 중";
   if (absenceSeconds >= ABSENCE_AUTO_END_SECONDS) return "자동 종료 중";
-  if (absenceSeconds >= ABSENCE_WARNING_SECONDS) return `자동 일시정지 · 얼굴 미감지 ${Math.floor(absenceSeconds / 60)}분`;
+  if (absenceSeconds >= ABSENCE_WARNING_SECONDS) return `자동 일시정지 · 상반신 미감지 ${Math.floor(absenceSeconds / 60)}분`;
   if (status === "warning") return "자리 비움 경고";
   if (status === "error") return "오류";
-  if (absenceSeconds > 0) return `얼굴 미감지 ${Math.floor(absenceSeconds / 60)}분`;
+  if (absenceSeconds > 0) return `상반신 미감지 ${Math.floor(absenceSeconds / 60)}분`;
   return "감시 중";
 }

@@ -55,7 +55,7 @@ import {
   type PresenceStatus,
 } from "./cameraPresence.mjs";
 import { recordCameraPresenceEvent, sendCameraPresenceWarning } from "./cameraWarning.mjs";
-import { createFacePresenceDetector, type FacePresenceDetector } from "./faceDetection.mjs";
+import { createUpperBodyPresenceDetector, type UpperBodyPresenceDetector } from "./bodyPresenceDetection.mjs";
 import {
   KAKAO_CONNECT_PENDING_KEY,
   getKakaoNotificationStatus,
@@ -191,7 +191,7 @@ function DashboardApp() {
   const [cameraSetupPrompt, setCameraSetupPrompt] = useState<CameraSetupPrompt | null>(null);
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const cameraStreamRef = useRef<MediaStream | null>(null);
-  const faceDetectorRef = useRef<FacePresenceDetector | null>(null);
+  const presenceDetectorRef = useRef<UpperBodyPresenceDetector | null>(null);
   const presenceStateRef = useRef<PresenceState>(createPresenceState(Date.now()));
   const cameraSessionIdRef = useRef<string | null>(null);
   const cameraSessionStartingRef = useRef(false);
@@ -417,7 +417,7 @@ function DashboardApp() {
 
     let cancelled = false;
     const checkPresence = async () => {
-      if (cancelled || !videoRef.current || !faceDetectorRef.current) {
+      if (cancelled || !videoRef.current || !presenceDetectorRef.current) {
         return;
       }
 
@@ -426,9 +426,9 @@ function DashboardApp() {
       }
 
       try {
-        const faceDetected = faceDetectorRef.current.detect(videoRef.current, performance.now());
+        const presenceDetected = presenceDetectorRef.current.detect(videoRef.current, performance.now());
         const nextState = updatePresenceState(presenceStateRef.current, {
-          faceDetected,
+          presenceDetected,
           nowMs: Date.now(),
         });
         presenceStateRef.current = nextState;
@@ -955,8 +955,8 @@ function DashboardApp() {
   function cleanupCameraResources() {
     cameraStreamRef.current?.getTracks().forEach((track) => track.stop());
     cameraStreamRef.current = null;
-    faceDetectorRef.current?.close();
-    faceDetectorRef.current = null;
+    presenceDetectorRef.current?.close();
+    presenceDetectorRef.current = null;
     if (videoRef.current) {
       videoRef.current.srcObject = null;
     }
@@ -1026,7 +1026,7 @@ function DashboardApp() {
         await videoRef.current.play().catch(() => undefined);
       }
 
-      faceDetectorRef.current = await createFacePresenceDetector();
+      presenceDetectorRef.current = await createUpperBodyPresenceDetector();
       cameraSessionIdRef.current = activeSession?.id ?? null;
       resetPresenceState();
       setCameraEnabled(true);
@@ -1150,11 +1150,11 @@ function DashboardApp() {
 
     autoEndInFlightRef.current = true;
     const excludedSeconds = getCurrentExcludedSeconds(nextState);
-    setCameraMessage("10분 동안 얼굴이 감지되지 않아 집중 세션을 자동 종료합니다.");
+    setCameraMessage("10분 동안 상반신이 감지되지 않아 집중 세션을 자동 종료합니다.");
 
     await endTimer({
       excludedSeconds,
-      successMessage: "10분 동안 얼굴이 감지되지 않아 집중 세션을 자동 종료했습니다.",
+      successMessage: "10분 동안 상반신이 감지되지 않아 집중 세션을 자동 종료했습니다.",
     });
   }
 
@@ -1647,7 +1647,7 @@ function DashboardApp() {
                 </button>
               </div>
               <p className="reminder-copy">
-                5분 동안 카메라에서 얼굴이 감지되지 않았습니다. 다시 자리로 돌아와 공부를 이어가세요.
+                5분 동안 카메라에서 상반신이 감지되지 않았습니다. 다시 자리로 돌아와 공부를 이어가세요.
               </p>
               <p className="camera-warning-note">
                 {absenceWarningPopup.telegramSent
