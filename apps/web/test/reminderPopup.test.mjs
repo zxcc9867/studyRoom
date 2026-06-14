@@ -6,6 +6,7 @@ import { shouldShowStudyReminderPopup } from "../src/reminderPopup.mjs";
 const reminderTime = "20:30";
 const todayDateKey = "2026-06-14";
 const nowMs = new Date("2026-06-14T20:30:15+09:00").getTime();
+const timeZone = "Asia/Tokyo";
 
 test("study reminder popup is suppressed when a same-day session is already active", () => {
   assert.equal(
@@ -19,6 +20,7 @@ test("study reminder popup is suppressed when a same-day session is already acti
         status: "active",
       },
       hasPopupRecord: false,
+      timeZone,
     }),
     false,
   );
@@ -33,6 +35,7 @@ test("study reminder popup is shown at reminder minute when no active or final a
       attendanceDays: [],
       activeSession: null,
       hasPopupRecord: false,
+      timeZone,
     }),
     true,
   );
@@ -48,6 +51,7 @@ test("study reminder popup is suppressed after present or missed attendance is f
         attendanceDays: [{ local_date: todayDateKey, status }],
         activeSession: null,
         hasPopupRecord: false,
+        timeZone,
       }),
       false,
     );
@@ -63,6 +67,7 @@ test("study reminder popup is suppressed outside the configured reminder minute"
       attendanceDays: [],
       activeSession: null,
       hasPopupRecord: false,
+      timeZone,
     }),
     false,
   );

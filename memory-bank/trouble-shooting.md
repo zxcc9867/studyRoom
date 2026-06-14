@@ -1,5 +1,37 @@
 # Trouble Shooting
 
+## 2026-06-14 - GitHub Actions failed reminder popup test in UTC
+
+### Situation
+
+After pushing commit `309481c` to deploy the current app through GitHub Actions, the `Deploy Web to Vercel` workflow failed before the Vercel deploy step.
+
+### Error Message
+
+```txt
+test at apps/web/test/reminderPopup.test.mjs:27:1
+study reminder popup is shown at reminder minute when no active or final attendance exists
+AssertionError [ERR_ASSERTION]: false !== true
+```
+
+### Cause
+
+`shouldShowStudyReminderPopup()` accepts a `timeZone` parameter and the web app passes the user's profile timezone. The test omitted `timeZone`, so it used the runtime default timezone. On the local machine the default timezone matched the app expectation, but GitHub Actions ran in UTC, converting `2026-06-14T20:30:15+09:00` to `11:30` for the reminder comparison.
+
+### Fix
+
+Updated `apps/web/test/reminderPopup.test.mjs` to pass `timeZone: "Asia/Tokyo"` in all reminder popup assertions. Reproduced the failure with `TZ=UTC` before the fix and verified the targeted test passes after the fix.
+
+### Related Files
+
+* `apps/web/src/reminderPopup.mjs`
+* `apps/web/test/reminderPopup.test.mjs`
+* `.github/workflows/vercel-production.yml`
+
+### Prevention
+
+Any test that compares local date or local time must pass an explicit timezone or run under a fixed `TZ` value. Do not rely on the developer machine's timezone matching CI.
+
 ## 2026-06-14 - Refresh required login because Supabase session persistence was disabled
 
 ### Situation

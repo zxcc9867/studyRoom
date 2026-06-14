@@ -2,6 +2,42 @@
 
 ## Current Work
 
+- Task: Deploy current web app updates to Vercel.
+- Purpose: Push the current Slack/camera/session/todo update set through the GitHub Actions Vercel production pipeline and fix any CI-only failures.
+- Related PRD:
+  - `memory-bank/prd-recurring-todos.md`
+  - `memory-bank/prd-slack-notifications.md`
+  - `memory-bank/prd-camera-presence.md`
+- Related files:
+  - `.github/workflows/vercel-production.yml`
+  - `apps/web/src/main.tsx`
+  - `apps/web/src/reminderPopup.mjs`
+  - `apps/web/test/reminderPopup.test.mjs`
+  - `memory-bank/trouble-shooting.md`
+
+## Recent Decisions
+
+- Decision: Use the existing GitHub Actions production workflow for Vercel deployment because local Vercel CLI has no credentials.
+- Reason: `npx vercel@48.6.0 deploy --prod --yes` failed with `No existing credentials found`, while repository secrets are available in GitHub Actions.
+- Alternative: Add a local `VERCEL_TOKEN` environment variable or run `vercel login`.
+- Impact: Deployments from this environment require committing and pushing to `main`, then monitoring the workflow result.
+
+## Current Status
+
+- Completed: Commit `309481c` was pushed to `origin/main`, triggering GitHub Actions run `27500348234`.
+- Found: The first workflow run failed during `npm test` because `apps/web/test/reminderPopup.test.mjs` did not pass a fixed `timeZone`, so CI's UTC default made the reminder time comparison fail.
+- Completed: Reproduced the failure locally with `TZ=UTC`.
+- Completed: Fixed the test to pass `timeZone: "Asia/Tokyo"`.
+- Completed: `TZ=UTC node --test apps\web\test\reminderPopup.test.mjs`, `npm.cmd test`, and `npm.cmd run build` pass locally.
+- Next: Commit and push the CI timezone fix, then confirm the Vercel production deployment becomes READY.
+
+## Notes
+
+- Local direct Vercel deploy remains blocked until `VERCEL_TOKEN` is exported or `vercel login` is completed.
+- Future work requests should include Vercel production deployment as a final step when the local change is intended for the live app.
+
+## Current Work
+
 - Task: Verify optional todo time, repeat, and weekday selection.
 - Purpose: Ensure the todo creation modal supports optional start/end time, optional weekly recurrence, and optional weekday selection without duplicating existing implementation.
 - Related PRD:

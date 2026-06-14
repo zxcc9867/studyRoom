@@ -2,6 +2,36 @@
 
 ## Timeline
 
+### 2026-06-14 - Vercel deployment pipeline timezone fix
+
+#### Completed Work
+
+- Pushed commit `309481c` to `origin/main` to trigger the Vercel production GitHub Actions workflow.
+- Confirmed workflow run `27500348234` failed in the `Run tests` step before deployment.
+- Identified the CI-only failure as a timezone-dependent `reminderPopup` test.
+- Fixed `apps/web/test/reminderPopup.test.mjs` to pass `timeZone: "Asia/Tokyo"` explicitly, matching the app's runtime call path.
+
+#### Changed Files
+
+- `apps/web/test/reminderPopup.test.mjs`
+- `memory-bank/active-context.md`
+- `memory-bank/progress.md`
+- `memory-bank/trouble-shooting.md`
+
+#### Verification
+
+- `TZ=UTC node --test apps\web\test\reminderPopup.test.mjs`
+- `npm.cmd test`
+- `npm.cmd run build`
+
+#### Remaining Work
+
+- Push the timezone fix and confirm the next Vercel production workflow run succeeds.
+
+#### Next Priority
+
+- Verify the resulting Vercel deployment is `READY` and mapped to `https://study-room-attendance.vercel.app`.
+
 ### 2026-06-14 - Optional todo time and weekly recurrence verified
 
 #### Completed Work
