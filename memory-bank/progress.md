@@ -34,10 +34,15 @@
 - `npm.cmd run build` passed.
 - Local HTTP check: `http://127.0.0.1:5177/` returned `HTTP 200`.
 - Browser screenshot verification was not available because the in-app Browser MCP target page/context was closed.
+- Committed and pushed `6ea6911511ab4a41dea1aa93e43976a4ae356108`.
+- GitHub Actions run `27504384773` completed successfully.
+- Vercel deployment `dpl_3bUuQKGfXrxGLNhCobnYUxELFVjZ` is `READY` for production.
+- `https://study-room-attendance.vercel.app` returned `HTTP 200` and served the latest `index-x8Eql_J7.js` / `index-ChfxTS4e.css` assets.
+- Vercel production runtime error-log query for deployment `dpl_3bUuQKGfXrxGLNhCobnYUxELFVjZ` returned no `error` or `fatal` logs in the checked one-hour window.
 
 #### Remaining Work
 
-- Commit, push, and confirm the Vercel production deployment.
+- Verify the production camera diagnostic strip with the user's actual browser/camera permission state.
 
 #### Next Priority
 

@@ -33,7 +33,8 @@
 - Completed: Wired `main.tsx` to track the latest camera diagnostic reason and render the diagnosis checklist.
 - Completed: Added focused CSS for a compact in-card diagnostic strip.
 - Completed: `node --test apps\web\test\cameraDiagnostics.test.mjs`, `node --test apps\web\test\cameraPresence.test.mjs`, `npm.cmd test`, and `npm.cmd run build` pass locally.
-- Pending: Commit, push, and confirm Vercel production deployment.
+- Completed: Committed and pushed `6ea6911511ab4a41dea1aa93e43976a4ae356108` to `origin/main`.
+- Completed: GitHub Actions run `27504384773` succeeded, Vercel deployment `dpl_3bUuQKGfXrxGLNhCobnYUxELFVjZ` is `READY`, and `https://study-room-attendance.vercel.app` returned `HTTP 200`.
 
 ## Notes
 
