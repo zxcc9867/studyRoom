@@ -1,5 +1,13 @@
 # PRD: User Profile
 
+## 2026-06-14 Update: Browser Session Persistence
+
+- After a successful email OTP or OAuth login, the web app should keep the user signed in across normal browser refreshes.
+- The client should restore an existing Supabase session before displaying the login form.
+- The stored session consists of the Supabase access token JWT and refresh token managed by `supabase-js`.
+- Session maximum lifetime and inactivity timeout are server-side Auth policy concerns and should be configured in Supabase Auth session settings when a stricter expiry is required.
+- Signing out must still clear the stored browser session.
+
 ## 1. 문제 정의
 
 사용자는 매일 정해진 시간에 독서실 앱에 들어오고 공부 타이머를 시작해야 출석으로 인정되는 습관 형성 도구가 필요하다.

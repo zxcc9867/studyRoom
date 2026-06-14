@@ -4,6 +4,7 @@ import {
   Bell,
   Camera,
   CameraOff,
+  CalendarDays,
   CheckCircle2,
   ChevronLeft,
   ChevronRight,
@@ -14,6 +15,8 @@ import {
   MessageCircle,
   Play,
   Plus,
+  Repeat2,
+  Clock3,
   Square,
   Trash2,
   X,
@@ -57,27 +60,44 @@ import {
 import { recordCameraPresenceEvent, sendCameraPresenceWarning } from "./cameraWarning.mjs";
 import { createUpperBodyPresenceDetector, type UpperBodyPresenceDetector } from "./bodyPresenceDetection.mjs";
 import {
+  getDashboardSectionFromHash,
+  type DashboardSection,
+} from "./dashboardRoute.mjs";
+import { shouldShowStudyReminderPopup } from "./reminderPopup.mjs";
+import {
   KAKAO_CONNECT_PENDING_KEY,
   getKakaoNotificationStatus,
   saveKakaoProviderTokens,
   type KakaoNotificationStatus,
 } from "./kakaoNotifications.mjs";
-import { requestEndStudySessionOnExit } from "./sessionExit.mjs";
+import { requestEndStudySessionOnExit, shouldEndStudySessionForPageEvent } from "./sessionExit.mjs";
 import { isSupabaseConfigured, supabase, supabaseAnonKey, supabaseUrl } from "./supabase";
 import {
-  getTelegramNotificationStatus,
-  isValidTelegramChatId,
-  normalizeTelegramChatId,
-  saveTelegramNotificationTarget,
-  sendTelegramTestAlarm,
-  type TelegramNotificationStatus,
-} from "./telegramNotifications.mjs";
+  getSlackNotificationStatus,
+  isValidSlackChannelId,
+  normalizeSlackChannelId,
+  saveSlackNotificationTarget,
+  sendSlackTestAlarm,
+  type SlackNotificationStatus,
+} from "./slackNotifications.mjs";
 import {
   DEFAULT_TODO_HISTORY_PAGE_SIZE,
   calculateTodoHistoryStats,
   getCompletedTodoHistory,
   paginateTodoHistory,
 } from "./todoHistory.mjs";
+import {
+  buildRecurringTodoDates,
+  filterNewTodoDates,
+  getDefaultRepeatEndDate,
+  getWeekdayFromDateKey,
+  todoWeekdayOptions,
+} from "./todoRecurrence.mjs";
+import {
+  formatTodoScheduleLabel,
+  formatTodoWithSchedule,
+  normalizeTodoSchedule,
+} from "./todoSchedule.mjs";
 import { getWebPushStatus, registerWebPushTarget, showLocalTestNotification, type WebPushStatus } from "./webPush";
 import "./styles.css";
 
@@ -86,8 +106,7 @@ const emailOtpLength = EMAIL_OTP_LENGTH;
 const googleAuthEnabled = import.meta.env.VITE_GOOGLE_AUTH_ENABLED === "true";
 const defaultDailyGoalSeconds = 2 * 60 * 60;
 const cameraRequiredWarningCooldownMs = 10 * 60 * 1000;
-const dashboardSections = ["today", "me", "settings"] as const;
-type DashboardSection = (typeof dashboardSections)[number];
+type TodoRepeatMode = "single" | "weekly";
 type CameraSetupPrompt = {
   mode: "start" | "resume";
 };
@@ -123,6 +142,8 @@ type StudyTodo = {
   title: string;
   is_completed: boolean;
   position: number;
+  start_time: string | null;
+  end_time: string | null;
   created_at: string;
 };
 
@@ -155,6 +176,7 @@ VITE_WEB_PUSH_VAPID_PUBLIC_KEY=your-vapid-public-key`}</pre>
 
 function DashboardApp() {
   const [session, setSession] = useState<Session | null>(null);
+  const [sessionInitialized, setSessionInitialized] = useState(false);
   const [email, setEmail] = useState("");
   const [otp, setOtp] = useState("");
   const [codeSent, setCodeSent] = useState(false);
@@ -167,16 +189,28 @@ function DashboardApp() {
   const [reminderTime, setReminderTime] = useState("21:00");
   const [selectedTodoDate, setSelectedTodoDate] = useState(() => getPlainDateKey(new Date()));
   const [todoDraft, setTodoDraft] = useState("");
+  const [todoRepeatMode, setTodoRepeatMode] = useState<TodoRepeatMode>("single");
+  const [todoRepeatEndDate, setTodoRepeatEndDate] = useState(() =>
+    getDefaultRepeatEndDate(getPlainDateKey(new Date())),
+  );
+  const [todoRepeatWeekdays, setTodoRepeatWeekdays] = useState<number[]>(() => [
+    getWeekdayFromDateKey(getPlainDateKey(new Date())),
+  ]);
+  const [todoTimeEnabled, setTodoTimeEnabled] = useState(false);
+  const [todoStartTime, setTodoStartTime] = useState("09:00");
+  const [todoEndTime, setTodoEndTime] = useState("10:00");
   const [todoModalOpen, setTodoModalOpen] = useState(false);
   const [message, setMessage] = useState("");
   const [busy, setBusy] = useState(false);
   const [todoBusy, setTodoBusy] = useState(false);
   const [webPushStatus, setWebPushStatus] = useState<WebPushStatus | null>(null);
   const [kakaoStatus, setKakaoStatus] = useState<KakaoNotificationStatus | null>(null);
-  const [telegramStatus, setTelegramStatus] = useState<TelegramNotificationStatus | null>(null);
-  const [telegramChatId, setTelegramChatId] = useState("");
+  const [slackStatus, setSlackStatus] = useState<SlackNotificationStatus | null>(null);
+  const [slackChannelId, setSlackChannelId] = useState("");
   const [reminderPopup, setReminderPopup] = useState<{ dateKey: string; reminderTime: string } | null>(null);
-  const [activeSection, setActiveSection] = useState<DashboardSection>("today");
+  const [activeSection, setActiveSection] = useState<DashboardSection>(() =>
+    getDashboardSectionFromHash(window.location.hash),
+  );
   const [calendarMonth, setCalendarMonth] = useState(() => getMonthKey(new Date()));
   const [todoHistoryPage, setTodoHistoryPage] = useState(1);
   const [cameraEnabled, setCameraEnabled] = useState(false);
@@ -185,8 +219,8 @@ function DashboardApp() {
   const [presenceState, setPresenceState] = useState<PresenceState>(() => createPresenceState(Date.now()));
   const [absenceWarningPopup, setAbsenceWarningPopup] = useState<{
     absenceSeconds: number;
-    telegramSent: boolean;
-    telegramMissing: boolean;
+    slackSent: boolean;
+    slackMissing: boolean;
   } | null>(null);
   const [cameraSetupPrompt, setCameraSetupPrompt] = useState<CameraSetupPrompt | null>(null);
   const videoRef = useRef<HTMLVideoElement | null>(null);
@@ -197,17 +231,20 @@ function DashboardApp() {
   const cameraSessionStartingRef = useRef(false);
   const lastCameraRequiredWarningAtRef = useRef(0);
   const warningInFlightRef = useRef(false);
-  const autoEndInFlightRef = useRef(false);
 
   useEffect(() => {
     async function initializeSession() {
-      if (isAuthCallbackUrl(window.location.href)) {
-        await finishOAuthCallback();
-        return;
-      }
+      try {
+        if (isAuthCallbackUrl(window.location.href)) {
+          await finishOAuthCallback();
+          return;
+        }
 
-      const { data } = await supabase.auth.getSession();
-      setSession(data.session);
+        const { data } = await supabase.auth.getSession();
+        setSession(data.session);
+      } finally {
+        setSessionInitialized(true);
+      }
     }
 
     void initializeSession();
@@ -238,34 +275,18 @@ function DashboardApp() {
       void loadDashboard(session.user.id);
       void refreshWebPushStatus();
       void refreshKakaoStatus(session);
-      void refreshTelegramStatus(session.user.id);
+      void refreshSlackStatus(session.user.id);
     }
   }, [session?.user.id]);
 
   useEffect(() => {
     if (!session) return;
 
-    const observer = new IntersectionObserver(
-      (entries) => {
-        const visibleEntry = entries
-          .filter((entry) => entry.isIntersecting)
-          .sort((left, right) => right.intersectionRatio - left.intersectionRatio)[0];
-        if (visibleEntry?.target.id && isDashboardSection(visibleEntry.target.id)) {
-          setActiveSection(visibleEntry.target.id);
-        }
-      },
-      {
-        rootMargin: "-24% 0px -58% 0px",
-        threshold: [0.1, 0.35, 0.6],
-      },
-    );
+    const syncRoute = () => setActiveSection(getDashboardSectionFromHash(window.location.hash));
+    syncRoute();
+    window.addEventListener("hashchange", syncRoute);
 
-    dashboardSections.forEach((sectionId) => {
-      const element = document.getElementById(sectionId);
-      if (element) observer.observe(element);
-    });
-
-    return () => observer.disconnect();
+    return () => window.removeEventListener("hashchange", syncRoute);
   }, [session]);
 
   const timeZone = profile?.time_zone ?? Intl.DateTimeFormat().resolvedOptions().timeZone;
@@ -330,19 +351,23 @@ function DashboardApp() {
     if (!session?.user.id || !profile) return;
 
     const configuredReminderTime = (profile.reminder_time ?? reminderTime).slice(0, 5);
-    const now = new Date(nowMs);
-    const currentTime = getLocalHourMinute(now, timeZone);
-    if (currentTime !== configuredReminderTime) return;
-
-    const todayAttendance = attendanceDays.find((day) => day.local_date === todayDateKey);
-    if (todayAttendance?.status === "present" || todayAttendance?.status === "missed") return;
-
     const popupKey = `study-room-reminder-popup:${session.user.id}:${todayDateKey}:${configuredReminderTime}`;
-    if (window.localStorage.getItem(popupKey)) return;
+    const hasPopupRecord = Boolean(window.localStorage.getItem(popupKey));
+    const shouldShowPopup = shouldShowStudyReminderPopup({
+      nowMs,
+      reminderTime: configuredReminderTime,
+      todayDateKey,
+      attendanceDays,
+      activeSession,
+      hasPopupRecord,
+      timeZone,
+    });
+
+    if (!shouldShowPopup) return;
 
     window.localStorage.setItem(popupKey, new Date(nowMs).toISOString());
     setReminderPopup({ dateKey: todayDateKey, reminderTime: configuredReminderTime });
-  }, [attendanceDays, profile, reminderTime, nowMs, session?.user.id, timeZone, todayDateKey]);
+  }, [activeSession, attendanceDays, profile, reminderTime, nowMs, session?.user.id, timeZone, todayDateKey]);
   const attendanceCalendarDays = useMemo(
     () => buildAttendanceCalendar(calendarMonth, attendanceDays),
     [attendanceDays, calendarMonth],
@@ -358,7 +383,11 @@ function DashboardApp() {
     }
 
     let exitRequestSent = false;
-    const sendExitRequest = () => {
+    const sendExitRequest = (eventType: string) => {
+      if (!shouldEndStudySessionForPageEvent({ type: eventType, visibilityState: document.visibilityState })) {
+        return;
+      }
+
       if (exitRequestSent) {
         return;
       }
@@ -373,23 +402,20 @@ function DashboardApp() {
       });
     };
     const handleVisibilityChange = () => {
-      if (document.visibilityState === "hidden") {
-        sendExitRequest();
-        return;
-      }
-
       if (document.visibilityState === "visible" && exitRequestSent && userId) {
         void loadDashboard(userId);
       }
     };
 
-    window.addEventListener("pagehide", sendExitRequest);
-    window.addEventListener("beforeunload", sendExitRequest);
+    const handlePageHide = () => sendExitRequest("pagehide");
+    const handleBeforeUnload = () => sendExitRequest("beforeunload");
+    window.addEventListener("pagehide", handlePageHide);
+    window.addEventListener("beforeunload", handleBeforeUnload);
     document.addEventListener("visibilitychange", handleVisibilityChange);
 
     return () => {
-      window.removeEventListener("pagehide", sendExitRequest);
-      window.removeEventListener("beforeunload", sendExitRequest);
+      window.removeEventListener("pagehide", handlePageHide);
+      window.removeEventListener("beforeunload", handleBeforeUnload);
       document.removeEventListener("visibilitychange", handleVisibilityChange);
     };
   }, [activeSession?.id, session?.access_token, session?.user.id]);
@@ -437,9 +463,6 @@ function DashboardApp() {
 
         if (nextState.warningDue && !warningInFlightRef.current) {
           await sendAbsenceWarning(nextState);
-        }
-        if (nextState.autoEndDue && !autoEndInFlightRef.current) {
-          await autoEndAbsenceSession(nextState);
         }
       } catch (error) {
         setCameraStatus("error");
@@ -742,7 +765,22 @@ function DashboardApp() {
     setSelectedTodoDate(dateKey);
     setCalendarMonth(dateKey.slice(0, 7));
     setTodoDraft("");
+    setTodoRepeatMode("single");
+    setTodoRepeatEndDate(getDefaultRepeatEndDate(dateKey));
+    setTodoRepeatWeekdays([getWeekdayFromDateKey(dateKey)]);
+    setTodoTimeEnabled(false);
+    setTodoStartTime("09:00");
+    setTodoEndTime("10:00");
     setTodoModalOpen(true);
+  }
+
+  function toggleTodoRepeatWeekday(weekday: number) {
+    setTodoRepeatWeekdays((current) => {
+      if (current.includes(weekday)) {
+        return current.filter((item) => item !== weekday);
+      }
+      return [...current, weekday].sort((left, right) => left - right);
+    });
   }
 
   async function addTodo() {
@@ -754,17 +792,67 @@ function DashboardApp() {
       return;
     }
 
+    const schedule = normalizeTodoSchedule({
+      enabled: todoTimeEnabled,
+      startTime: todoStartTime,
+      endTime: todoEndTime,
+    });
+    if (!schedule.ok) {
+      setMessage(schedule.message);
+      return;
+    }
+
+    const candidateDates =
+      todoRepeatMode === "weekly"
+        ? buildRecurringTodoDates({
+            startDate: selectedTodoDate,
+            endDate: todoRepeatEndDate,
+            weekdays: todoRepeatWeekdays,
+          })
+        : [selectedTodoDate];
+    const targetDates = filterNewTodoDates({
+      dates: candidateDates,
+      title,
+      existingTodos: studyTodos,
+      startTime: schedule.startTime,
+      endTime: schedule.endTime,
+    });
+
+    if (candidateDates.length === 0) {
+      setMessage("반복할 요일과 종료일을 확인하세요.");
+      return;
+    }
+
+    if (targetDates.length === 0) {
+      setMessage("이미 같은 날짜에 같은 할 일이 등록되어 있습니다.");
+      return;
+    }
+
+    const nextPositionsByDate = new Map<string, number>();
+    for (const todo of studyTodos) {
+      nextPositionsByDate.set(
+        todo.local_date,
+        Math.max(nextPositionsByDate.get(todo.local_date) ?? 0, todo.position + 1),
+      );
+    }
+    const rows = targetDates.map((localDate) => {
+      const position = nextPositionsByDate.get(localDate) ?? 0;
+      nextPositionsByDate.set(localDate, position + 1);
+      return {
+        user_id: session.user.id,
+        local_date: localDate,
+        title,
+        start_time: schedule.startTime,
+        end_time: schedule.endTime,
+        position,
+      };
+    });
+
     setTodoBusy(true);
     const { data, error } = await supabase
       .from("study_todos")
-      .insert({
-        user_id: session.user.id,
-        local_date: selectedTodoDate,
-        title,
-        position: selectedDateTodos.length,
-      })
-      .select("*")
-      .single();
+      .insert(rows)
+      .select("*");
     setTodoBusy(false);
 
     if (error) {
@@ -772,12 +860,16 @@ function DashboardApp() {
       return;
     }
 
-    if (data) {
-      setStudyTodos((current) => sortTodos([data as StudyTodo, ...current]));
+    if (data?.length) {
+      setStudyTodos((current) => sortTodos([...(data as StudyTodo[]), ...current]));
     }
     setTodoDraft("");
     setTodoModalOpen(false);
-    setMessage(`${formatTodoDate(selectedTodoDate)} 할 일을 저장했습니다.`);
+    setMessage(
+      todoRepeatMode === "weekly"
+        ? `${targetDates.length}개 날짜에 반복 할 일을 저장했습니다.`
+        : `${formatTodoDate(selectedTodoDate)} 할 일을 저장했습니다.`,
+    );
   }
 
   async function toggleTodo(todo: StudyTodo) {
@@ -816,9 +908,9 @@ function DashboardApp() {
   async function saveNotificationSettings() {
     if (!session?.user.id) return;
 
-    const nextTelegramChatId = normalizeTelegramChatId(telegramChatId);
-    if (nextTelegramChatId && !isValidTelegramChatId(nextTelegramChatId)) {
-      setMessage("Telegram Chat ID 형식을 확인하세요. 숫자 ID 또는 @channel_name 형식이어야 합니다.");
+    const nextSlackChannelId = normalizeSlackChannelId(slackChannelId);
+    if (nextSlackChannelId && !isValidSlackChannelId(nextSlackChannelId)) {
+      setMessage("Slack Channel ID 형식을 확인하세요. C 또는 G로 시작하는 채널 ID여야 합니다.");
       return;
     }
 
@@ -838,8 +930,8 @@ function DashboardApp() {
     }
 
     try {
-      if (nextTelegramChatId) {
-        setTelegramStatus(await saveTelegramNotificationTarget(session.user.id, nextTelegramChatId));
+      if (nextSlackChannelId) {
+        setSlackStatus(await saveSlackNotificationTarget(session.user.id, nextSlackChannelId));
       }
       const nextStatus = await registerWebPushTarget(session.user.id);
       setWebPushStatus(nextStatus);
@@ -851,25 +943,25 @@ function DashboardApp() {
       setBusy(false);
       await loadDashboard(session.user.id);
       await refreshWebPushStatus();
-      await refreshTelegramStatus(session.user.id);
+      await refreshSlackStatus(session.user.id);
     }
   }
 
-  async function sendTelegramTestNotification() {
+  async function sendSlackTestNotification() {
     if (!session?.user.id) return;
 
-    if (!telegramStatus?.connected) {
-      setMessage("Telegram Chat ID를 저장한 뒤 테스트 알림을 보낼 수 있습니다.");
+    if (!slackStatus?.connected) {
+      setMessage("Slack Channel ID를 저장한 뒤 테스트 알림을 보낼 수 있습니다.");
       return;
     }
 
     setBusy(true);
     try {
-      const result = await sendTelegramTestAlarm(session);
+      const result = await sendSlackTestAlarm(session);
       const todoMessage =
         result.todoCount > 0
-          ? `오늘 할 일 ${result.todoCount}개를 포함해 Telegram 테스트 알림을 보냈습니다.`
-          : "Telegram 테스트 알림을 보냈습니다. 오늘 할 일은 아직 없습니다.";
+          ? `오늘 할 일 ${result.todoCount}개를 포함해 Slack 테스트 알림을 보냈습니다.`
+          : "Slack 테스트 알림을 보냈습니다. 오늘 할 일은 아직 없습니다.";
       setMessage(todoMessage);
       await loadDashboard(session.user.id);
     } catch (error) {
@@ -973,7 +1065,6 @@ function DashboardApp() {
     cleanupCameraResources();
     cameraSessionIdRef.current = null;
     warningInFlightRef.current = false;
-    autoEndInFlightRef.current = false;
     setCameraEnabled(false);
     setCameraStatus("idle");
     setCameraMessage("");
@@ -1100,9 +1191,9 @@ function DashboardApp() {
         eventType: "camera_required_warning",
       });
       setCameraMessage(
-        result.telegramSent
-          ? "카메라 켜기 경고를 Telegram으로 보냈습니다."
-          : "카메라 켜기 경고를 기록했습니다. Telegram은 아직 등록되지 않았습니다.",
+        result.slackSent
+          ? "카메라 켜기 경고를 Slack으로 보냈습니다."
+          : "카메라 켜기 경고를 기록했습니다. Slack은 아직 등록되지 않았습니다.",
       );
     } catch (error) {
       setCameraMessage(formatNotificationError(error));
@@ -1115,8 +1206,8 @@ function DashboardApp() {
     warningInFlightRef.current = true;
     setAbsenceWarningPopup({
       absenceSeconds: nextState.absenceSeconds,
-      telegramSent: false,
-      telegramMissing: false,
+      slackSent: false,
+      slackMissing: false,
     });
 
     try {
@@ -1127,13 +1218,13 @@ function DashboardApp() {
       });
       setAbsenceWarningPopup({
         absenceSeconds: nextState.absenceSeconds,
-        telegramSent: result.telegramSent,
-        telegramMissing: result.telegramMissing,
+        slackSent: result.slackSent,
+        slackMissing: result.slackMissing,
       });
       setCameraMessage(
-        result.telegramSent
-          ? "자리 비움 경고를 Telegram으로 보냈습니다."
-          : "자리 비움 이벤트를 기록했습니다. Telegram은 아직 등록되지 않았습니다.",
+        result.slackSent
+          ? "자리 비움 경고를 Slack으로 보냈습니다."
+          : "자리 비움 이벤트를 기록했습니다. Slack은 아직 등록되지 않았습니다.",
       );
     } catch (error) {
       setCameraMessage(formatNotificationError(error));
@@ -1143,19 +1234,6 @@ function DashboardApp() {
       setPresenceState(markedState);
       warningInFlightRef.current = false;
     }
-  }
-
-  async function autoEndAbsenceSession(nextState: PresenceState) {
-    if (!activeSession || autoEndInFlightRef.current) return;
-
-    autoEndInFlightRef.current = true;
-    const excludedSeconds = getCurrentExcludedSeconds(nextState);
-    setCameraMessage("10분 동안 상반신이 감지되지 않아 집중 세션을 자동 종료합니다.");
-
-    await endTimer({
-      excludedSeconds,
-      successMessage: "10분 동안 상반신이 감지되지 않아 집중 세션을 자동 종료했습니다.",
-    });
   }
 
   async function refreshWebPushStatus() {
@@ -1175,15 +1253,15 @@ function DashboardApp() {
     }
   }
 
-  async function refreshTelegramStatus(userId: string) {
+  async function refreshSlackStatus(userId: string) {
     try {
-      const nextStatus = await getTelegramNotificationStatus(userId);
-      setTelegramStatus(nextStatus);
-      if (nextStatus.chatId) {
-        setTelegramChatId(nextStatus.chatId);
+      const nextStatus = await getSlackNotificationStatus(userId);
+      setSlackStatus(nextStatus);
+      if (nextStatus.channelId) {
+        setSlackChannelId(nextStatus.channelId);
       }
     } catch {
-      setTelegramStatus(null);
+      setSlackStatus(null);
     }
   }
 
@@ -1203,6 +1281,9 @@ function DashboardApp() {
                 disabled={todoBusy}
                 onChange={() => void toggleTodo(todo)}
               />
+              {formatTodoScheduleLabel(todo) && (
+                <span className="todo-time-chip">{formatTodoScheduleLabel(todo)}</span>
+              )}
               <span>{todo.title}</span>
             </label>
             <button
@@ -1232,7 +1313,7 @@ function DashboardApp() {
           {todos.map((todo) => (
             <li className={todo.is_completed ? "todo-done" : ""} key={todo.id}>
               <span aria-hidden="true">{todo.is_completed ? "✓" : "□"}</span>
-              <span>{todo.title}</span>
+              <span>{formatTodoWithSchedule(todo)}</span>
             </li>
           ))}
         </ul>
@@ -1255,7 +1336,10 @@ function DashboardApp() {
               </span>
               <div>
                 <strong>{todo.title}</strong>
-                <span>{formatTodoDate(todo.local_date)}</span>
+                <span>
+                  {formatTodoDate(todo.local_date)}
+                  {formatTodoScheduleLabel(todo) ? ` · ${formatTodoScheduleLabel(todo)}` : ""}
+                </span>
               </div>
             </li>
           ))}
@@ -1284,6 +1368,18 @@ function DashboardApp() {
           </button>
         </div>
       </div>
+    );
+  }
+
+  if (!sessionInitialized) {
+    return (
+      <main className="login-shell">
+        <section className="login-panel">
+          <p className="eyebrow">session</p>
+          <h1>로그인 상태 확인 중</h1>
+          <p className="login-copy">저장된 세션이 있는지 확인하고 있습니다.</p>
+        </section>
+      </main>
     );
   }
 
@@ -1377,49 +1473,52 @@ function DashboardApp() {
       </aside>
 
       <section className="workspace">
-        <header className="topbar">
-          <div className="topbar-head">
-            <div>
-              <p className="eyebrow">deadline rule</p>
-              <h2>{profile?.reminder_time?.slice(0, 5) ?? reminderTime} 이후 30분 안에 출석</h2>
+        {activeSection === "today" && (
+          <header className="topbar">
+            <div className="topbar-head">
+              <div>
+                <p className="eyebrow">deadline rule</p>
+                <h2>{profile?.reminder_time?.slice(0, 5) ?? reminderTime} 이후 30분 안에 출석</h2>
+              </div>
+              <div className="topbar-actions" aria-label="집중 세션 조작">
+                <button
+                  className="primary"
+                  onClick={() => {
+                    void startTimer();
+                  }}
+                  disabled={busy || Boolean(activeSession)}
+                >
+                  <Play size={18} />
+                  입장하고 시작
+                </button>
+                <button
+                  className="danger"
+                  onClick={() => {
+                    void endTimer();
+                  }}
+                  disabled={busy || !activeSession}
+                >
+                  <Square size={18} />
+                  종료
+                </button>
+              </div>
             </div>
-            <div className="topbar-actions" aria-label="집중 세션 조작">
-              <button
-                className="primary"
-                onClick={() => {
-                  void startTimer();
-                }}
-                disabled={busy || Boolean(activeSession)}
-              >
-                <Play size={18} />
-                입장하고 시작
-              </button>
-              <button
-                className="danger"
-                onClick={() => {
-                  void endTimer();
-                }}
-                disabled={busy || !activeSession}
-              >
-                <Square size={18} />
-                종료
-              </button>
+            <div className="study-summary" aria-label="공부 시간 요약">
+              <div>
+                <span>오늘 공부</span>
+                <strong>{formatTimerClock(todaySeconds)}</strong>
+              </div>
+              <div>
+                <span>{formatMonthLabel(calendarMonth)} 누적</span>
+                <strong>{formatTimerClock(monthSeconds)}</strong>
+              </div>
             </div>
-          </div>
-          <div className="study-summary" aria-label="공부 시간 요약">
-            <div>
-              <span>오늘 공부</span>
-              <strong>{formatTimerClock(todaySeconds)}</strong>
-            </div>
-            <div>
-              <span>{formatMonthLabel(calendarMonth)} 누적</span>
-              <strong>{formatTimerClock(monthSeconds)}</strong>
-            </div>
-          </div>
-        </header>
+          </header>
+        )}
 
         {message && <p className="message">{message}</p>}
 
+        {activeSection === "today" && (
         <section id="today" className="history-panel">
           <div className="history-header">
             <div>
@@ -1469,6 +1568,7 @@ function DashboardApp() {
             <span className="legend-missed">결석</span>
           </div>
         </section>
+        )}
 
         {todoModalOpen && (
           <div
@@ -1510,17 +1610,120 @@ function DashboardApp() {
                   void addTodo();
                 }}
               >
-                <input
-                  value={todoDraft}
-                  onChange={(event) => setTodoDraft(event.target.value)}
-                  placeholder="예: AWS 공부"
-                  disabled={todoBusy}
-                  autoFocus
-                />
-                <button className="secondary" type="submit" disabled={todoBusy}>
-                  <Plus size={18} />
-                  저장
-                </button>
+                <div className="todo-entry-row">
+                  <input
+                    value={todoDraft}
+                    onChange={(event) => setTodoDraft(event.target.value)}
+                    placeholder="예: AWS 공부"
+                    disabled={todoBusy}
+                    autoFocus
+                  />
+                  <button className="secondary" type="submit" disabled={todoBusy}>
+                    <Plus size={18} />
+                    저장
+                  </button>
+                </div>
+                <div className="todo-repeat-panel" aria-label="할 일 시간 설정">
+                  <div className="todo-mode-toggle" role="group" aria-label="시간 설정 방식">
+                    <button
+                      className={!todoTimeEnabled ? "selected" : ""}
+                      type="button"
+                      aria-pressed={!todoTimeEnabled}
+                      onClick={() => setTodoTimeEnabled(false)}
+                      disabled={todoBusy}
+                    >
+                      <Clock3 size={17} />
+                      시간 없음
+                    </button>
+                    <button
+                      className={todoTimeEnabled ? "selected" : ""}
+                      type="button"
+                      aria-pressed={todoTimeEnabled}
+                      onClick={() => setTodoTimeEnabled(true)}
+                      disabled={todoBusy}
+                    >
+                      <Clock3 size={17} />
+                      시간 설정
+                    </button>
+                  </div>
+                  {todoTimeEnabled && (
+                    <div className="todo-time-details">
+                      <label>
+                        시작
+                        <input
+                          type="time"
+                          value={todoStartTime}
+                          onChange={(event) => setTodoStartTime(event.target.value)}
+                          disabled={todoBusy}
+                        />
+                      </label>
+                      <label>
+                        종료
+                        <input
+                          type="time"
+                          value={todoEndTime}
+                          onChange={(event) => setTodoEndTime(event.target.value)}
+                          disabled={todoBusy}
+                        />
+                      </label>
+                    </div>
+                  )}
+                </div>
+                <div className="todo-repeat-panel" aria-label="할 일 반복 설정">
+                  <div className="todo-mode-toggle" role="group" aria-label="저장 방식">
+                    <button
+                      className={todoRepeatMode === "single" ? "selected" : ""}
+                      type="button"
+                      aria-pressed={todoRepeatMode === "single"}
+                      onClick={() => setTodoRepeatMode("single")}
+                      disabled={todoBusy}
+                    >
+                      <CalendarDays size={17} />
+                      하루만
+                    </button>
+                    <button
+                      className={todoRepeatMode === "weekly" ? "selected" : ""}
+                      type="button"
+                      aria-pressed={todoRepeatMode === "weekly"}
+                      onClick={() => setTodoRepeatMode("weekly")}
+                      disabled={todoBusy}
+                    >
+                      <Repeat2 size={17} />
+                      요일 반복
+                    </button>
+                  </div>
+                  {todoRepeatMode === "weekly" && (
+                    <div className="todo-repeat-details">
+                      <label>
+                        반복 종료일
+                        <input
+                          type="date"
+                          min={selectedTodoDate}
+                          value={todoRepeatEndDate}
+                          onChange={(event) => setTodoRepeatEndDate(event.target.value)}
+                          disabled={todoBusy}
+                        />
+                      </label>
+                      <div className="weekday-picker" role="group" aria-label="반복 요일 선택">
+                        {todoWeekdayOptions.map((weekday) => {
+                          const selected = todoRepeatWeekdays.includes(weekday.value);
+                          return (
+                            <button
+                              className={selected ? "selected" : ""}
+                              type="button"
+                              key={weekday.value}
+                              aria-pressed={selected}
+                              onClick={() => toggleTodoRepeatWeekday(weekday.value)}
+                              disabled={todoBusy}
+                            >
+                              {weekday.label}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  )}
+                </div>
               </form>
               {renderTodoList(selectedDateTodos, "이 날짜에 저장된 할 일이 없습니다.")}
             </section>
@@ -1650,10 +1853,10 @@ function DashboardApp() {
                 5분 동안 카메라에서 상반신이 감지되지 않았습니다. 다시 자리로 돌아와 공부를 이어가세요.
               </p>
               <p className="camera-warning-note">
-                {absenceWarningPopup.telegramSent
-                  ? "Telegram 경고를 보냈습니다."
-                  : absenceWarningPopup.telegramMissing
-                    ? "Telegram이 등록되지 않아 앱 안에만 기록했습니다."
+                {absenceWarningPopup.slackSent
+                  ? "Slack 경고를 보냈습니다."
+                  : absenceWarningPopup.slackMissing
+                    ? "Slack이 등록되지 않아 앱 안에만 기록했습니다."
                     : "앱 안에 경고를 표시하고 있습니다."}
               </p>
               <div className="reminder-actions">
@@ -1666,6 +1869,7 @@ function DashboardApp() {
           </div>
         )}
 
+        {activeSection === "today" && (
         <section className="daily-visual" aria-label="오늘 공부 시간과 집중 세션">
           <div>
             <p className="eyebrow">today focus</p>
@@ -1711,7 +1915,9 @@ function DashboardApp() {
             </div>
           </div>
         </section>
+        )}
 
+        {activeSection === "today" && (
         <section className="today-task-panel" aria-label="오늘 할 일">
           <div className="todo-header">
             <div>
@@ -1725,7 +1931,9 @@ function DashboardApp() {
           </div>
           {renderTodoList(todayTodos, "오늘 할 일이 없습니다. 캘린더에서 오늘 날짜를 눌러 추가하세요.")}
         </section>
+        )}
 
+        {activeSection === "me" && (
         <section id="me" className="history-panel my-page-panel">
           <div className="history-header">
             <div>
@@ -1771,7 +1979,9 @@ function DashboardApp() {
           </div>
           {renderTodoHistory()}
         </section>
+        )}
 
+        {activeSection === "settings" && (
         <section id="settings" className="settings-panel">
           <div className="settings-header">
             <div>
@@ -1787,9 +1997,9 @@ function DashboardApp() {
                 <span>카카오톡 알림</span>
                 <strong>{kakaoNotificationSummary(kakaoStatus)}</strong>
               </div>
-              <div className={`notification-state ${telegramNotificationStatusClass(telegramStatus)}`}>
-                <span>Telegram</span>
-                <strong>{telegramNotificationSummary(telegramStatus)}</strong>
+              <div className={`notification-state ${slackNotificationStatusClass(slackStatus)}`}>
+                <span>Slack</span>
+                <strong>{slackNotificationSummary(slackStatus)}</strong>
               </div>
             </div>
           </div>
@@ -1814,11 +2024,11 @@ function DashboardApp() {
             이메일 보완 알림 사용
           </label>
           <label>
-            Telegram Chat ID
+            Slack Channel ID
             <input
-              value={telegramChatId}
-              onChange={(event) => setTelegramChatId(event.target.value)}
-              placeholder="예: 123456789"
+              value={slackChannelId}
+              onChange={(event) => setSlackChannelId(event.target.value)}
+              placeholder="예: C123ABC456"
               inputMode="text"
             />
           </label>
@@ -1832,13 +2042,14 @@ function DashboardApp() {
           </button>
           <button
             className="secondary wide-action"
-            onClick={sendTelegramTestNotification}
-            disabled={busy || !telegramStatus?.connected}
+            onClick={sendSlackTestNotification}
+            disabled={busy || !slackStatus?.connected}
           >
             <Send size={18} />
-            Telegram 테스트 알림
+            Slack 테스트 알림
           </button>
         </section>
+        )}
 
       </section>
     </main>
@@ -1865,6 +2076,11 @@ function sortTodos(todos: StudyTodo[]) {
   return [...todos].sort((left, right) => {
     if (left.local_date !== right.local_date) {
       return right.local_date.localeCompare(left.local_date);
+    }
+    const leftStartTime = left.start_time ?? "99:99";
+    const rightStartTime = right.start_time ?? "99:99";
+    if (leftStartTime !== rightStartTime) {
+      return leftStartTime.localeCompare(rightStartTime);
     }
     if (left.position !== right.position) {
       return left.position - right.position;
@@ -1934,18 +2150,6 @@ function getLocalDateKey(date: Date, timeZone: string) {
   const month = parts.find((part) => part.type === "month")?.value;
   const day = parts.find((part) => part.type === "day")?.value;
   return `${year}-${month}-${day}`;
-}
-
-function getLocalHourMinute(date: Date, timeZone: string) {
-  const parts = new Intl.DateTimeFormat("en-US", {
-    timeZone,
-    hour: "2-digit",
-    minute: "2-digit",
-    hourCycle: "h23",
-  }).formatToParts(date);
-  const hour = parts.find((part) => part.type === "hour")?.value;
-  const minute = parts.find((part) => part.type === "minute")?.value;
-  return `${hour}:${minute}`;
 }
 
 function getMonthKey(date: Date) {
@@ -2048,12 +2252,12 @@ function kakaoNotificationStatusClass(status: KakaoNotificationStatus | null) {
   return "notification-ready";
 }
 
-function telegramNotificationSummary(status: TelegramNotificationStatus | null) {
+function slackNotificationSummary(status: SlackNotificationStatus | null) {
   if (!status) return "확인 중";
   return status.connected ? "등록됨" : "미등록";
 }
 
-function telegramNotificationStatusClass(status: TelegramNotificationStatus | null) {
+function slackNotificationStatusClass(status: SlackNotificationStatus | null) {
   if (!status) return "notification-checking";
   return status.connected ? "notification-ready" : "notification-needed";
 }
@@ -2070,10 +2274,6 @@ function formatKakaoConnectionError(error: unknown) {
     return "카카오 OAuth callback에서 provider token을 받지 못했습니다. talk_message scope와 callback URL을 확인해야 합니다.";
   }
   return message;
-}
-
-function isDashboardSection(value: string): value is DashboardSection {
-  return dashboardSections.includes(value as DashboardSection);
 }
 
 createRoot(document.getElementById("root")!).render(

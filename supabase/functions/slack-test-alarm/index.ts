@@ -1,7 +1,7 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "jsr:@supabase/supabase-js@2";
 
-type TelegramTarget = {
+type SlackTarget = {
   id: string;
   user_id: string;
   destination: string | null;
@@ -10,6 +10,8 @@ type TelegramTarget = {
 type StudyTodo = {
   title: string;
   is_completed: boolean;
+  start_time: string | null;
+  end_time: string | null;
 };
 
 const corsHeaders = {
@@ -38,16 +40,30 @@ Deno.serve(async (request) => {
     return authResult.response;
   }
 
-  const target = await loadTelegramTarget(admin, authResult.userId);
+  const payload = await request.json().catch(() => null);
+  const directChannelId = hasCronSecret ? parseDirectChannelId(payload) : "";
+  if (directChannelId) {
+    const localDate = getLocalDateForTimeZone("Asia/Seoul");
+    const messageTs = await sendSlackMessage(directChannelId, localDate, []);
+    return json({
+      ok: true,
+      directChannelId,
+      localDate,
+      todoCount: 0,
+      messageTs,
+    });
+  }
+
+  const target = await loadSlackTarget(admin, authResult.userId);
   if (!target?.destination) {
-    return json({ error: "Enabled Telegram notification target was not found" }, 404);
+    return json({ error: "Enabled Slack notification target was not found" }, 404);
   }
 
   const localDate = await getLocalDate(admin, target.user_id);
   const todos = await loadTodos(admin, target.user_id, localDate);
 
   try {
-    const messageId = await sendTelegramMessage(target.destination, localDate, todos);
+    const messageTs = await sendSlackMessage(target.destination, localDate, todos);
     await recordDelivery(admin, target, localDate, "sent", null);
 
     return json({
@@ -55,7 +71,7 @@ Deno.serve(async (request) => {
       targetId: target.id,
       localDate,
       todoCount: todos.length,
-      messageId,
+      messageTs,
     });
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
@@ -82,11 +98,11 @@ async function getAuthenticatedUserId(admin: ReturnType<typeof createClient>, re
   return { userId: user.id };
 }
 
-async function loadTelegramTarget(admin: ReturnType<typeof createClient>, userId: string | null) {
+async function loadSlackTarget(admin: ReturnType<typeof createClient>, userId: string | null) {
   let query = admin
     .from("notification_targets")
     .select("id,user_id,destination")
-    .eq("kind", "telegram")
+    .eq("kind", "slack")
     .eq("enabled", true)
     .not("destination", "is", null)
     .order("updated_at", { ascending: false });
@@ -101,7 +117,7 @@ async function loadTelegramTarget(admin: ReturnType<typeof createClient>, userId
     throw error;
   }
 
-  return ((data ?? []) as TelegramTarget[]).find((target) => target.destination?.trim());
+  return ((data ?? []) as SlackTarget[]).find((target) => target.destination?.trim());
 }
 
 async function getLocalDate(admin: ReturnType<typeof createClient>, userId: string) {
@@ -116,6 +132,10 @@ async function getLocalDate(admin: ReturnType<typeof createClient>, userId: stri
   }
 
   const timeZone = typeof data?.time_zone === "string" && data.time_zone ? data.time_zone : "Asia/Seoul";
+  return getLocalDateForTimeZone(timeZone);
+}
+
+function getLocalDateForTimeZone(timeZone: string) {
   return new Intl.DateTimeFormat("en-CA", {
     timeZone,
     year: "numeric",
@@ -127,9 +147,10 @@ async function getLocalDate(admin: ReturnType<typeof createClient>, userId: stri
 async function loadTodos(admin: ReturnType<typeof createClient>, userId: string, localDate: string) {
   const { data, error } = await admin
     .from("study_todos")
-    .select("title,is_completed,position,created_at")
+    .select("title,is_completed,start_time,end_time,position,created_at")
     .eq("user_id", userId)
     .eq("local_date", localDate)
+    .order("start_time", { ascending: true, nullsFirst: false })
     .order("position", { ascending: true })
     .order("created_at", { ascending: true });
 
@@ -140,51 +161,61 @@ async function loadTodos(admin: ReturnType<typeof createClient>, userId: string,
   return (data ?? []) as StudyTodo[];
 }
 
-async function sendTelegramMessage(chatId: string, localDate: string, todos: StudyTodo[]) {
-  const botToken = requiredEnv("TELEGRAM_BOT_TOKEN");
+async function sendSlackMessage(channelId: string, localDate: string, todos: StudyTodo[]) {
+  const botToken = getSlackBotToken();
   const appUrl = Deno.env.get("APP_ORIGIN") ?? "https://study-room-attendance.vercel.app";
-  const response = await fetch(`https://api.telegram.org/bot${botToken}/sendMessage`, {
+  const response = await fetch("https://slack.com/api/chat.postMessage", {
     method: "POST",
-    headers: jsonHeaders,
+    headers: {
+      ...jsonHeaders,
+      authorization: `Bearer ${botToken}`,
+    },
     body: JSON.stringify({
-      chat_id: chatId,
+      channel: channelId,
       text: buildMessage(localDate, todos, appUrl),
-      disable_web_page_preview: true,
+      unfurl_links: false,
+      unfurl_media: false,
     }),
   });
 
   if (!response.ok) {
-    throw new Error(`Telegram message failed: ${response.status} ${await response.text()}`);
+    throw new Error(`Slack message failed: ${response.status} ${await response.text()}`);
   }
 
   const result = (await response.json().catch(() => null)) as {
     ok?: boolean;
-    result?: { message_id?: number };
-    description?: string;
+    ts?: string;
+    error?: string;
   } | null;
   if (!result?.ok) {
-    throw new Error(`Telegram message returned unexpected result: ${JSON.stringify(result)}`);
+    throw new Error(`Slack message returned unexpected result: ${JSON.stringify(result)}`);
   }
 
-  return result.result?.message_id ?? null;
+  return result.ts ?? null;
+}
+
+function parseDirectChannelId(payload: unknown) {
+  const data = payload && typeof payload === "object" ? (payload as Record<string, unknown>) : null;
+  const channelId = typeof data?.channelId === "string" ? data.channelId.trim().toUpperCase() : "";
+  return /^[CG][A-Z0-9]{8,}$/.test(channelId) ? channelId : "";
 }
 
 function buildMessage(localDate: string, todos: StudyTodo[], appUrl: string) {
   const lines = [
-    "[\uD14C\uC2A4\uD2B8 \uC54C\uB9BC]",
-    "\uB3C5\uC11C\uC2E4 \uC785\uC7A5 \uC2DC\uAC04\uC785\uB2C8\uB2E4.",
-    "\uCCAB \uC54C\uB9BC \uD6C4 30\uBD84 \uC548\uC5D0 \uC571\uC5D0 \uB4E4\uC5B4\uAC00 \uD0C0\uC774\uBA38\uB97C \uC2DC\uC791\uD558\uC138\uC694.",
-    "15\uBD84 \uB4A4\uC5D0\uB3C4 \uC2DC\uC791\uD558\uC9C0 \uC54A\uC73C\uBA74 \uD55C \uBC88 \uB354 \uC7AC\uCD09 \uC54C\uB9BC\uC744 \uBCF4\uB0C5\uB2C8\uB2E4.",
-    `\uB0A0\uC9DC: ${localDate}`,
+    "[Test alarm]",
+    "Study-room check-in time.",
+    "Open the app and start the timer within 30 minutes.",
+    "If you do not start within 15 minutes, one final nudge will be sent.",
+    `Date: ${localDate}`,
   ];
 
   if (todos.length > 0) {
-    lines.push("", "\uC624\uB298 \uD560 \uC77C");
+    lines.push("", "Today's tasks");
     for (const todo of todos.slice(0, 5)) {
-      lines.push(`- ${todo.is_completed ? "[x]" : "[ ]"} ${todo.title}`);
+      lines.push(`- ${todo.is_completed ? "[x]" : "[ ]"} ${formatTodoWithSchedule(todo)}`);
     }
     if (todos.length > 5) {
-      lines.push(`- ...\uC678 ${todos.length - 5}\uAC1C`);
+      lines.push(`- ...and ${todos.length - 5} more`);
     }
   }
 
@@ -192,9 +223,16 @@ function buildMessage(localDate: string, todos: StudyTodo[], appUrl: string) {
   return lines.join("\n");
 }
 
+function formatTodoWithSchedule(todo: StudyTodo) {
+  const schedule = todo.start_time && todo.end_time
+    ? `${todo.start_time.slice(0, 5)}-${todo.end_time.slice(0, 5)}`
+    : "";
+  return schedule ? `${schedule} ${todo.title}` : todo.title;
+}
+
 async function recordDelivery(
   admin: ReturnType<typeof createClient>,
-  target: TelegramTarget,
+  target: SlackTarget,
   localDate: string,
   status: "sent" | "failed",
   errorMessage: string | null,
@@ -203,7 +241,7 @@ async function recordDelivery(
     user_id: target.user_id,
     target_id: target.id,
     local_date: localDate,
-    channel: "telegram",
+    channel: "slack",
     status,
     error_message: errorMessage,
   });
@@ -213,6 +251,14 @@ function requiredEnv(name: string) {
   const value = Deno.env.get(name);
   if (!value) {
     throw new Error(`${name} is required`);
+  }
+  return value;
+}
+
+function getSlackBotToken() {
+  const value = Deno.env.get("SLACK_BOT_TOKEN") ?? Deno.env.get("STUDY_ALERT_SLACK_BOT_TOKEN");
+  if (!value) {
+    throw new Error("SLACK_BOT_TOKEN or STUDY_ALERT_SLACK_BOT_TOKEN is required");
   }
   return value;
 }

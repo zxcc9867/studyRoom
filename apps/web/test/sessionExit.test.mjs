@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { requestEndStudySessionOnExit } from "../src/sessionExit.mjs";
+import { requestEndStudySessionOnExit, shouldEndStudySessionForPageEvent } from "../src/sessionExit.mjs";
 
 test("sends end_study_session with keepalive when a page exits with an active session", () => {
   const calls = [];
@@ -69,4 +69,11 @@ test("does not send an exit request without an access token or active session", 
     false,
   );
   assert.equal(calls.length, 0);
+});
+
+test("does not end a study session when the user only switches browser tabs", () => {
+  assert.equal(shouldEndStudySessionForPageEvent({ type: "visibilitychange", visibilityState: "hidden" }), false);
+  assert.equal(shouldEndStudySessionForPageEvent({ type: "visibilitychange", visibilityState: "visible" }), false);
+  assert.equal(shouldEndStudySessionForPageEvent({ type: "pagehide" }), true);
+  assert.equal(shouldEndStudySessionForPageEvent({ type: "beforeunload" }), true);
 });

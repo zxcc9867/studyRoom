@@ -10,14 +10,14 @@ Personal MVP users who want to see what they have completed and use that history
 
 ## 3. Goals
 
-- Add a `내 페이지` section to the existing dashboard.
+- Add a `내 페이지` hash page (`#me`) to the existing static SPA dashboard.
 - Show profile-level information without exposing secrets.
 - Show completed todo history with pagination.
 - Reuse existing `study_todos` data and RLS boundaries.
 
 ## 4. Non-goals
 
-- Add a new router or separate `/me` route.
+- Add a server-rendered `/me` route.
 - Add a new Supabase table.
 - Add charts, search, or advanced filters in this iteration.
 
@@ -32,7 +32,7 @@ Personal MVP users who want to see what they have completed and use that history
 ### Normal Flow
 
 1. User logs in.
-2. User opens `내 페이지` from the sidebar.
+2. User opens `내 페이지` from the sidebar and the URL becomes `#me`.
 3. User sees email, login provider, reminder time, time zone, todo completion counts, and completed todo history.
 4. User moves through the completed todo history with previous/next buttons.
 
@@ -48,6 +48,7 @@ Personal MVP users who want to see what they have completed and use that history
 ## 7. Functional Requirements
 
 * [x] Add a `내 페이지` sidebar tab.
+* [x] Render My Page as a separate hash-routed SPA page.
 * [x] Show profile information.
 * [x] Show completed todo count and current-month completed todo count.
 * [x] Show completed todos only.
@@ -56,7 +57,7 @@ Personal MVP users who want to see what they have completed and use that history
 
 ## 8. Non-functional Requirements
 
-* Performance: Use already loaded dashboard data and pure memoized helpers.
+* Performance: Use already loaded dashboard data, hash routing, and pure memoized helpers.
 * Security: Do not expose tokens, chat IDs, service role keys, or provider secrets.
 * Accessibility: Use readable labels and button states for pagination.
 * Maintainability: Keep filtering and pagination in a small helper module.
@@ -66,7 +67,7 @@ Personal MVP users who want to see what they have completed and use that history
 * Internal dependencies: `studyTodos` loaded by `loadDashboard()`.
 * External dependencies: none.
 * Supabase: existing `study_todos` table.
-* API: no new API.
+* API: no new API route; static hosting serves the same SPA bundle.
 * Environment variables: no new variables.
 
 ## 10. Success Metrics

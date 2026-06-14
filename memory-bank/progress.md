@@ -2,6 +2,431 @@
 
 ## Timeline
 
+### 2026-06-14 - Optional todo time and weekly recurrence verified
+
+#### Completed Work
+
+- Verified the todo creation modal supports optional start/end time entry.
+- Verified the todo creation modal supports optional weekly repeat mode, repeat end date, and weekday selection.
+- Confirmed repeated todos are materialized into `study_todos` rows for the selected dates.
+- Confirmed duplicate prevention uses local date, normalized title, and optional time range, so the same title can be scheduled separately at different times.
+- Confirmed `study_todos.start_time` and `study_todos.end_time` are covered by the time-window migration.
+
+#### Changed Files
+
+- `memory-bank/active-context.md`
+- `memory-bank/progress.md`
+
+#### Verification
+
+- `node --test apps\web\test\todoRecurrence.test.mjs apps\web\test\todoSchedule.test.mjs`
+- `npm.cmd test`
+- `npm.cmd run build`
+- `git diff --check`
+
+#### Remaining Work
+
+- Production users will see this UI only after the current web app changes are deployed.
+- A future version can store reusable recurrence rules if the app needs indefinite weekly schedules instead of materialized date rows.
+
+#### Next Priority
+
+- Deploy the current web build when the user wants the Vercel production URL updated.
+
+### 2026-06-14 - Slack direct channel test succeeded
+
+#### Completed Work
+
+- Confirmed remote Supabase Edge Functions are active:
+  - `slack-test-alarm` v4 ACTIVE
+  - `attendance-cron` v14 ACTIVE
+  - `camera-presence-warning` v5 ACTIVE
+- Invoked `slack-test-alarm` through Supabase `net.http_post` with the cron secret from Vault and direct channel `C0BAFS1CSV8`.
+- Verified response id `10391` returned HTTP 200 with Slack `ok=true`.
+- The function returned `localDate=2026-06-14`, `todoCount=0`, and Slack `messageTs=1781442017.534459`.
+
+#### Changed Files
+
+- `memory-bank/active-context.md`
+- `memory-bank/progress.md`
+
+#### Verification
+
+- Supabase MCP `_list_edge_functions`
+- Supabase SQL `net.http_post` to `/functions/v1/slack-test-alarm`
+- Supabase SQL read of `net._http_response where id = 10391`
+
+#### Remaining Work
+
+- The direct channel test proves the Slack bot token, channel ID, bot membership, and Edge Function path.
+- Scheduled reminders still require the logged-in user's app settings to save a user-scoped `notification_targets.kind = 'slack'` row.
+
+#### Next Priority
+
+- In the web app settings, save Slack Channel ID `C0BAFS1CSV8` and use the in-app Slack test button to verify the user-scoped target path.
+
+### 2026-06-14 - Supabase auth session persists after refresh
+
+#### Completed Work
+
+- Confirmed the refresh-login bug was caused by the Supabase browser client setting `persistSession: false`.
+- Added `authSession.mjs` to centralize Supabase Auth session options.
+- Enabled `persistSession: true` and `autoRefreshToken: true` while keeping `detectSessionInUrl: false` for the app's manual OAuth callback flow.
+- Added an initial session-loading state so the login form is not shown before `supabase.auth.getSession()` finishes restoring a stored session.
+- Added regression tests for session persistence options.
+
+#### Changed Files
+
+- `apps/web/src/authSession.mjs`
+- `apps/web/src/authSession.d.mts`
+- `apps/web/src/supabase.ts`
+- `apps/web/src/main.tsx`
+- `apps/web/test/authSession.test.mjs`
+- `memory-bank/active-context.md`
+- `memory-bank/implementation-plan.md`
+- `memory-bank/prd-user-profile.md`
+- `memory-bank/progress.md`
+- `memory-bank/trouble-shooting.md`
+
+#### Verification
+
+- RED: `node --test apps\web\test\authSession.test.mjs` failed because `authSession.mjs` did not exist.
+- GREEN: `node --test apps\web\test\authSession.test.mjs` passed.
+- `npm.cmd test` passed 80 tests.
+- `npm.cmd run build` passed.
+
+#### Remaining Work
+
+- Production Vercel still needs redeployment before the deployed URL keeps sessions across refreshes.
+- Strict session lifetime or inactivity timeout should be configured in Supabase Auth session settings if required.
+
+#### Next Priority
+
+- Deploy the web app when the user wants production updated, then verify refresh keeps the user on the dashboard.
+
+### 2026-06-14 - Tab switching no longer ends study session
+
+#### Completed Work
+
+- Confirmed the active-session bug was caused by treating `visibilitychange: hidden` as a page-exit event.
+- Added a `shouldEndStudySessionForPageEvent()` helper so exit-event decisions are tested outside React.
+- Updated the dashboard to send the keepalive `end_study_session` request only for `pagehide` and `beforeunload`.
+- Kept tab switching as valid study time; camera monitoring is no longer intentionally stopped by a tab switch.
+- Added regression coverage that proves `visibilitychange` does not end the study session while `pagehide` and `beforeunload` still do.
+
+#### Changed Files
+
+- `apps/web/src/main.tsx`
+- `apps/web/src/sessionExit.mjs`
+- `apps/web/src/sessionExit.d.mts`
+- `apps/web/test/sessionExit.test.mjs`
+- `memory-bank/active-context.md`
+- `memory-bank/progress.md`
+- `memory-bank/trouble-shooting.md`
+- `memory-bank/prd-camera-presence.md`
+- `memory-bank/implementation-plan.md`
+
+#### Verification
+
+- RED: `node --test apps\web\test\sessionExit.test.mjs` failed before implementation because `shouldEndStudySessionForPageEvent` was not exported.
+- GREEN: `node --test apps\web\test\sessionExit.test.mjs` passed.
+- `npm.cmd test` passed 78 tests.
+- `npm.cmd run build` passed.
+
+#### Remaining Work
+
+- The production Vercel app still needs a deployment if this local change should be reflected on `https://study-room-attendance.vercel.app`.
+
+#### Next Priority
+
+- Deploy the web app when the user asks for production update, then verify the production bundle contains the new session-exit behavior.
+
+### 2026-06-14 - Slack token alias and direct channel test
+
+#### Completed Work
+
+- Added Slack bot token fallback support for `STUDY_ALERT_SLACK_BOT_TOKEN` while preserving `SLACK_BOT_TOKEN`.
+- Updated `slack-test-alarm` so cron-secret protected calls can send a direct test message to a provided `channelId`.
+- Redeployed Supabase Edge Functions:
+  - `slack-test-alarm` v4 ACTIVE
+  - `attendance-cron` v14 ACTIVE
+  - `camera-presence-warning` v5 ACTIVE
+- Sent a direct Slack test alarm to channel `C0BAFS1CSV8`; Supabase `net._http_response` returned HTTP 200 and function content returned `ok=true`.
+
+#### Changed Files
+
+- `supabase/functions/slack-test-alarm/index.ts`
+- `supabase/functions/attendance-cron/index.ts`
+- `supabase/functions/camera-presence-warning/index.ts`
+- `apps/web/test/slackNotifications.test.mjs`
+- `packages/core/test/sql-migrations.test.mjs`
+- `memory-bank/active-context.md`
+- `memory-bank/progress.md`
+- `memory-bank/trouble-shooting.md`
+
+#### Verification
+
+- `npm.cmd test`
+- `npm.cmd run build`
+- Supabase Management API deploy responses confirmed ACTIVE function versions.
+- Supabase SQL `net.http_post` invoked `slack-test-alarm` with `channelId = C0BAFS1CSV8`; response id `10360` returned HTTP 200 and Slack `messageTs`.
+
+#### Remaining Work
+
+- Scheduled Slack reminders still require a user-scoped `notification_targets.kind = 'slack'` row saved from the web app settings.
+- Cross-user confirmation of whether `C0BAFS1CSV8` is already saved was rejected by security review and should not be retried without user-scoped context.
+
+#### Next Priority
+
+- Ask the user to save Slack Channel ID in the app settings, or provide the specific account identifier if server-side target setup is requested.
+
+### 2026-06-14 - 반복 할 일 선택형 시간 설정
+
+#### 완료한 작업
+
+- 할 일 등록 모달에 `시간 없음` / `시간 설정` 토글과 시작/종료 시간 입력을 추가했다.
+- `시간 설정`을 켠 경우 시작/종료 시간을 검증하고, 종료 시간이 시작 시간보다 늦을 때만 저장하도록 했다.
+- 요일 반복 등록 시 선택한 시간 범위를 생성되는 모든 날짜의 todo에 함께 저장하도록 했다.
+- 같은 날짜와 제목이라도 시간 범위가 다르면 별도 todo로 등록될 수 있게 중복 판단을 변경했다.
+- 오늘 할 일, 알림 팝업, 완료 이력에 시간 배지를 표시하도록 했다.
+- `attendance-cron`과 `slack-test-alarm`이 todo 시간 범위를 Slack/WebPush/이메일 알림 본문에 포함하도록 변경했다.
+- 원격 Supabase 프로젝트 `bqohkdzvxbrokkmuhysx`에 `20260614115454 study_todo_time_window` migration을 적용했다.
+- Supabase Edge Function `attendance-cron` v12, `slack-test-alarm` v2를 ACTIVE로 배포했다.
+
+#### 변경된 파일
+
+- `apps/web/src/main.tsx`
+- `apps/web/src/styles.css`
+- `apps/web/src/todoRecurrence.mjs`
+- `apps/web/src/todoRecurrence.d.mts`
+- `apps/web/src/todoSchedule.mjs`
+- `apps/web/src/todoSchedule.d.mts`
+- `apps/web/test/todoRecurrence.test.mjs`
+- `apps/web/test/todoSchedule.test.mjs`
+- `packages/core/test/sql-migrations.test.mjs`
+- `supabase/migrations/0016_study_todo_time_window.sql`
+- `supabase/functions/attendance-cron/index.ts`
+- `supabase/functions/slack-test-alarm/index.ts`
+- `memory-bank/active-context.md`
+- `memory-bank/implementation-plan.md`
+- `memory-bank/prd-recurring-todos.md`
+- `memory-bank/progress.md`
+
+#### 검증 방법
+
+- RED 확인: `todoSchedule.mjs` 없음, 시간별 중복 판단 미지원, `0016_study_todo_time_window.sql` 없음으로 테스트 실패 확인
+- `npm.cmd test` 통과: 77개 테스트
+- `npm.cmd run build` 통과
+- Supabase MCP `_list_migrations`에서 `20260614115454 study_todo_time_window` 확인
+- Supabase Edge Function list에서 `attendance-cron` v12, `slack-test-alarm` v2 ACTIVE 확인
+
+#### 남은 작업
+
+- Vercel production 배포 전까지 운영 URL에는 새 시간 설정 UI가 보이지 않을 수 있다.
+- 실제 Slack 테스트 알림에서 시간 포함 todo가 표시되는지 운영 채널에서 한 번 더 확인한다.
+
+#### 다음 우선순위
+
+- production 웹 배포 후 모바일/데스크톱에서 todo 모달의 시간 입력 레이아웃을 확인한다.
+
+### 2026-06-14 - 알림 시간 이전 활성 세션의 입장 알림 억제
+
+#### 완료한 작업
+
+- 웹 인앱 리마인더 팝업 조건을 `shouldShowStudyReminderPopup` helper로 분리했다.
+- 같은 날짜에 `active` 공부 세션이 있으면 알림 시간이어도 "독서실 입장 시간입니다" 모달을 표시하지 않도록 했다.
+- Supabase `get_due_reminders()`가 알림 시간 이전 시작 세션이 `reminder_at`을 지나 열려 있으면 `attendance_days.status = 'present'`로 보정하고, 초기/재촉 알림 대상에서 제외하도록 했다.
+- Supabase `mark_missed_attendance()`가 결석 처리 전에 pre-reminder 세션이 `reminder_at`을 걸쳤는지 확인하고, 해당 pending 행은 `present`로 보정하도록 했다.
+- 원격 Supabase 프로젝트 `bqohkdzvxbrokkmuhysx`에 `20260614114124 pre_reminder_active_session_attendance` migration을 적용했다.
+
+#### 변경된 파일
+
+- `apps/web/src/main.tsx`
+- `apps/web/src/reminderPopup.mjs`
+- `apps/web/src/reminderPopup.d.mts`
+- `apps/web/test/reminderPopup.test.mjs`
+- `packages/core/test/sql-migrations.test.mjs`
+- `supabase/migrations/0015_pre_reminder_active_session_attendance.sql`
+- `memory-bank/active-context.md`
+- `memory-bank/implementation-plan.md`
+- `memory-bank/progress.md`
+- `memory-bank/trouble-shooting.md`
+
+#### 검증 방법
+
+- `npm.cmd test` 통과: 71개 테스트
+- `npm.cmd run build` 통과
+- `git diff --check` 통과: whitespace error 없음, LF/CRLF warning만 출력
+- Supabase MCP `_list_migrations`에서 `20260614114124 pre_reminder_active_session_attendance` 확인
+
+#### 남은 작업
+
+- 웹 인앱 팝업 변경은 Vercel production에 배포해야 배포 URL에 반영된다.
+- 실제 20:30 cron 시간에 Slack/WebPush가 억제되는지 운영 데이터로 한 번 더 확인한다.
+
+#### 다음 우선순위
+
+- Vercel production 배포를 실행하거나 GitHub/Vercel 자동 배포 상태를 확인한다.
+
+### 2026-06-14 - Slack Bot notification switch final status
+
+#### 완료한 작업
+
+- Slack notification target/channel migration을 Supabase 원격 DB에 적용했다.
+- 기존 enabled Telegram target을 migration에서 비활성화하도록 했다.
+- 웹 설정 화면을 Slack Channel ID 저장과 Slack 테스트 알림 중심으로 전환했다.
+- `attendance-cron`의 Telegram 발송 분기를 Slack Bot API `chat.postMessage` 분기로 교체했다.
+- `telegram-test-alarm`을 제거하고 `slack-test-alarm` Edge Function을 추가했다.
+- `camera-presence-warning`을 Slack 경고 발송으로 전환했다.
+- 카메라 미감지 5분에는 경고만 보내고, 총 10분 미감지부터 타이머가 자동 일시정지되도록 변경했다.
+- 총 10분 이후 자동 일시정지 구간만 공부 시간에서 제외되도록 계산을 변경했다.
+- Supabase Edge Function `attendance-cron` v11, `camera-presence-warning` v3, `slack-test-alarm` v1을 ACTIVE로 배포했다.
+
+#### 변경된 파일
+
+- `apps/web/src/main.tsx`
+- `apps/web/src/slackChannelId.mjs`
+- `apps/web/src/slackChannelId.d.mts`
+- `apps/web/src/slackNotifications.mjs`
+- `apps/web/src/slackNotifications.d.mts`
+- `apps/web/src/cameraPresence.mjs`
+- `apps/web/src/cameraPresence.d.mts`
+- `apps/web/src/cameraWarning.mjs`
+- `apps/web/src/cameraWarning.d.mts`
+- `apps/web/test/slackNotifications.test.mjs`
+- `apps/web/test/cameraPresence.test.mjs`
+- `packages/core/test/sql-migrations.test.mjs`
+- `supabase/functions/attendance-cron/index.ts`
+- `supabase/functions/camera-presence-warning/index.ts`
+- `supabase/functions/slack-test-alarm/index.ts`
+- `supabase/migrations/0014_slack_notification_targets.sql`
+- `memory-bank/prd-slack-notifications.md`
+- `memory-bank/prd-camera-presence.md`
+- `memory-bank/active-context.md`
+- `memory-bank/implementation-plan.md`
+- `memory-bank/progress.md`
+- `memory-bank/trouble-shooting.md`
+
+#### 검증 방법
+
+- Edge Function TypeScript parse check 통과: `attendance-cron`, `camera-presence-warning`, `slack-test-alarm`.
+- `npm.cmd test` 통과: 66개 테스트.
+- `npm.cmd run build` 통과.
+- Supabase migration list에 `20260614112431 slack_notification_targets`가 추가됨을 확인했다.
+- Supabase Edge Function list에서 `attendance-cron` v11, `camera-presence-warning` v3, `slack-test-alarm` v1 ACTIVE를 확인했다.
+- Vercel production latest deployment는 아직 이전 커밋 `c61c95c` 기준임을 확인했다.
+
+#### 남은 작업
+
+- Supabase Edge Function secret `SLACK_BOT_TOKEN` 설정.
+- Slack bot을 대상 `C...` 또는 `G...` 채널에 초대하고 앱 설정에서 Channel ID 저장.
+- 실제 Slack 테스트 알림과 예약 알림 수신 확인.
+- Vercel CLI token 또는 GitHub push pipeline으로 웹앱 production 배포.
+
+#### 다음 우선순위
+
+- `SLACK_BOT_TOKEN` secret 설정 후 `slack-test-alarm`을 호출해 `notification_deliveries.channel = 'slack'`, `status = 'sent'`를 확인한다.
+
+### 2026-06-14 - Slack Bot 알림 전환과 카메라 미복귀 일시정지
+
+#### 완료한 작업
+
+- `slack` notification target과 delivery channel을 허용하는 migration을 추가했다.
+- 기존 enabled Telegram target을 비활성화하도록 migration에 반영했다.
+- 웹 설정 화면을 Slack Channel ID 저장과 Slack 테스트 알림 중심으로 전환했다.
+- `attendance-cron`의 Telegram 발송 분기를 Slack Bot API `chat.postMessage` 분기로 교체했다.
+- `telegram-test-alarm`을 제거하고 `slack-test-alarm` Edge Function을 추가했다.
+- `camera-presence-warning`을 Slack 경고 발송으로 전환했다.
+- 카메라 미감지 5분은 경고만 보내고, 총 10분 미감지부터 타이머가 자동 일시정지되도록 상태 머신을 변경했다.
+- 총 10분 이후의 자동 일시정지 시간만 공부 시간에서 제외하도록 계산을 변경했다.
+
+#### 변경된 파일
+
+- `apps/web/src/main.tsx`
+- `apps/web/src/slackChannelId.mjs`
+- `apps/web/src/slackNotifications.mjs`
+- `apps/web/src/cameraPresence.mjs`
+- `apps/web/src/cameraWarning.mjs`
+- `apps/web/test/slackNotifications.test.mjs`
+- `apps/web/test/cameraPresence.test.mjs`
+- `packages/core/test/sql-migrations.test.mjs`
+- `supabase/functions/attendance-cron/index.ts`
+- `supabase/functions/camera-presence-warning/index.ts`
+- `supabase/functions/slack-test-alarm/index.ts`
+- `supabase/migrations/0014_slack_notification_targets.sql`
+- `memory-bank/prd-slack-notifications.md`
+- `memory-bank/prd-camera-presence.md`
+- `memory-bank/active-context.md`
+- `memory-bank/implementation-plan.md`
+- `memory-bank/progress.md`
+
+#### 검증 방법
+
+- `npm.cmd test` 통과: 66개 테스트.
+- `npm.cmd run build` 실행 예정.
+
+#### 남은 작업
+
+- Supabase 원격 DB에 migration 적용.
+- Supabase Edge Function secret `SLACK_BOT_TOKEN` 설정.
+- `attendance-cron`, `camera-presence-warning`, `slack-test-alarm` 배포.
+- Vercel 웹 앱 배포.
+- 실제 Slack 테스트 알림과 예약 알림 수신 확인.
+
+#### 다음 우선순위
+
+- build 통과 후 배포 권한과 Slack bot token을 확인한다.
+
+### 2026-06-14 - 반복 todo 등록과 My Page 해시 페이지
+
+#### 완료한 작업
+
+- 캘린더 todo 모달에 `하루만`/`요일 반복` 저장 모드를 추가했다.
+- 요일 반복 모드에서 반복 종료일과 요일 다중 선택을 지원하도록 했다.
+- 반복 저장 시 선택 기간과 요일에 맞는 날짜별 `study_todos` 행을 bulk insert하도록 했다.
+- 같은 날짜에 같은 제목의 todo가 이미 있으면 해당 날짜는 건너뛰도록 했다.
+- `#me`, `#today`, `#settings` 해시를 기준으로 해당 화면만 렌더링해 My Page를 별도 페이지처럼 구성했다.
+- My Page 요약 카드와 완료 이력 영역 스타일을 별도 화면에 맞게 보강했다.
+- 정적 웹 앱에서도 클라이언트 라우팅으로 페이지 구현이 가능하다는 구조 판단을 active context에 기록했다.
+
+#### 변경된 파일
+
+- `apps/web/src/main.tsx`
+- `apps/web/src/styles.css`
+- `apps/web/src/todoRecurrence.mjs`
+- `apps/web/src/todoRecurrence.d.mts`
+- `apps/web/src/dashboardRoute.mjs`
+- `apps/web/src/dashboardRoute.d.mts`
+- `apps/web/test/todoRecurrence.test.mjs`
+- `apps/web/test/dashboardRoute.test.mjs`
+- `memory-bank/prd-recurring-todos.md`
+- `memory-bank/active-context.md`
+- `memory-bank/progress.md`
+- `memory-bank/implementation-plan.md`
+- `memory-bank/design-document.md`
+- `memory-bank/prd-my-page-todo-history.md`
+
+#### 검증 방법
+
+- RED: `node --test apps\web\test\todoRecurrence.test.mjs` failed because `todoRecurrence.mjs` did not exist.
+- GREEN: `node --test apps\web\test\todoRecurrence.test.mjs` passed 4 tests.
+- RED: `node --test apps\web\test\dashboardRoute.test.mjs` failed because `dashboardRoute.mjs` did not exist, then caught the `me` without `#` fallback case.
+- GREEN: `node --test apps\web\test\dashboardRoute.test.mjs apps\web\test\todoRecurrence.test.mjs` passed 6 tests.
+- `npm.cmd test` passed 64 tests.
+- `npm.cmd run build` passed.
+- Local Vite server returned HTTP 200 at `http://127.0.0.1:5177/`.
+- Browser check reached the login page at `http://127.0.0.1:5177/#me`; dashboard-specific visual verification was blocked because the local browser had no logged-in session.
+- Built output contains `요일 반복`, `반복 종료일`, `하루만`, and the hash route wiring.
+
+#### 남은 작업
+
+- 로그인된 브라우저에서 실제 `요일 반복` 저장 후 Supabase `study_todos`에 날짜별 row가 생성되는지 확인한다.
+- 운영 배포가 필요하면 커밋 후 Vercel pipeline으로 배포한다.
+
+#### 다음 우선순위
+
+- 반복 todo를 실제 공부 알림 시간에 Telegram/Web Push 본문에 포함하는 end-to-end 확인을 수행한다.
+
 ### 2026-06-14 - 상반신 감시 운영 배포
 
 #### 완료한 작업

@@ -7,16 +7,21 @@
 - Primary scheduler: Supabase Cron invokes `attendance-cron` Edge Function every minute through `pg_cron` and `pg_net`.
 - Optional AWS scheduler: EventBridge + Lambda can invoke the same Supabase Edge Function when AWS-managed scheduling is preferred.
 - Backend: Supabase remains responsible for Auth, DB, RLS, notification targets, attendance decisions, and actual push/email dispatch.
+- Auth session persistence: the browser Supabase client stores the Supabase session under `study-room-attendance-auth-session` with `persistSession=true` and `autoRefreshToken=true`. OAuth URL handling stays manual with `detectSessionInUrl=false`.
 - Kakao notification channel: the web app links the current Supabase account to Kakao OAuth with `talk_message` scope, `kakao-token` stores Kakao provider tokens server-side, and `attendance-cron` sends Kakao Memo messages when a `kakao_memo` target is enabled.
-- Telegram notification channel: the web app stores a user-specific Telegram chat ID in `notification_targets.destination`, while `attendance-cron` reads `TELEGRAM_BOT_TOKEN` from Edge Function secrets and calls Telegram Bot API `sendMessage`.
-- Telegram test channel: `telegram-test-alarm` is a manually invoked Edge Function. Server/admin calls use `x-cron-secret`; browser calls use the logged-in user's Supabase JWT and are limited to that user's Telegram target. It sends one test Telegram message and records the result in `notification_deliveries`.
+- Slack notification channel: the web app stores a user-specific Slack Channel ID in `notification_targets.destination`, while Slack Edge Functions read `SLACK_BOT_TOKEN` or fallback alias `STUDY_ALERT_SLACK_BOT_TOKEN` from Edge Function secrets and call Slack Bot API `chat.postMessage`.
+- Slack test channel: `slack-test-alarm` is a manually invoked Edge Function. Server/admin calls use `x-cron-secret`; they can either send to a direct `channelId` for setup verification or use the latest enabled Slack target. Browser calls use the logged-in user's Supabase JWT and are limited to that user's Slack target. It sends one test Slack message and records DB delivery results only when a saved target is used.
 - In-app popup: when the dashboard is open at the configured reminder minute, the web app shows a modal reminder popup. This is separate from OS/browser push and does not work when the browser is closed.
-- My Page: the web dashboard includes an in-page `me` section that reuses loaded profile and `study_todos` data to show account summary and completed todo history.
+- In-app popup suppression: if the user already has an active same-day study session at the configured reminder minute, the web app does not show the reminder modal.
+- My Page: the web dashboard uses hash-based client routing (`#me`) to render My Page as a separate SPA page while reusing loaded profile and `study_todos` data to show account summary and completed todo history.
+- Recurring todos: weekday repetition is materialized into dated `study_todos` rows on save. The MVP does not store recurrence rules; this keeps reminders, today's tasks, and completed history on the existing date-based data path.
+- Scheduled todos: `study_todos` can optionally store `start_time` and `end_time`. If one is present, both must be present and `start_time < end_time`.
 - Reminder todo enrichment: `attendance-cron` loads `study_todos` for each due reminder's `user_id` and `local_date`, then appends a compact `오늘 할 일` summary to server-side notification bodies. The open web app also renders the same date's todos in the reminder popup from already loaded dashboard state.
 - Two-step attendance enforcement: `get_due_reminders()` emits an initial reminder at the configured daily reminder time and a `nudge` reminder 15 minutes later if no qualifying timer start exists. `mark_missed_attendance()` marks the day missed at reminder time + 30 minutes.
+- Pre-reminder active attendance: if a study session started before the configured reminder time and is still open, or ended after crossing the reminder timestamp, Supabase treats it as a qualifying attendance session and suppresses initial/nudge reminders.
 - Camera presence warning: web study sessions require camera monitoring before the timer can start. MediaPipe PoseLandmarker runs in the browser only, and the server receives only camera event metadata through `camera-presence-warning`.
 - Camera upper-body presence: the web app treats the user as present when one head landmark and both shoulder landmarks are visible with enough confidence. This allows upper body detection instead of requiring a full face detection.
-- Camera absence enforcement: if no upper body pose is detected for 5 minutes, the web timer enters auto-pause and excludes the current absence interval from displayed study time. If no upper body pose is detected for 10 minutes, the web app calls `end_study_session` automatically with excluded seconds.
+- Camera absence enforcement: if no upper body pose is detected for 5 minutes, the web app sends an in-app/Slack warning. If the user is still absent 5 minutes after that warning, the web timer enters auto-pause and excludes only the paused interval from displayed and saved study time.
 
 ## Tech Stack
 
@@ -24,7 +29,7 @@
 - Supabase
 - MediaPipe Tasks Vision
 - Kakao Talk Message API
-- Telegram Bot API
+- Slack Bot API
 - AWS CDK v2
 - AWS S3
 - AWS CloudFront
@@ -60,6 +65,12 @@ apps/web/dist/
 apps/web/src/todoHistory.mjs
 apps/web/src/todoHistory.d.mts
 apps/web/test/todoHistory.test.mjs
+apps/web/src/todoRecurrence.mjs
+apps/web/src/todoRecurrence.d.mts
+apps/web/test/todoRecurrence.test.mjs
+apps/web/src/dashboardRoute.mjs
+apps/web/src/dashboardRoute.d.mts
+apps/web/test/dashboardRoute.test.mjs
 ```
 
 ```txt
@@ -95,7 +106,8 @@ docs/images/study-room-thumbnail.png
 - Static web hosting uses private S3 bucket plus CloudFront Origin Access Control.
 - Scheduled execution is an invoker pattern: AWS only triggers Supabase Edge Function.
 - SPA fallback maps CloudFront `403` and `404` to `/index.html`.
-- Web study sessions are explicitly ended by button click or by page-exit events using a `keepalive` RPC request.
+- Web study sessions are explicitly ended by button click or by true page-exit events using a `keepalive` RPC request. `visibilitychange` from browser tab switching is not a page-exit event and must not end the session.
+- Auth initialization waits for `supabase.auth.getSession()` before showing the login form, so a stored browser session can restore the dashboard without a misleading login flash.
 
 ## API Conventions
 
@@ -103,10 +115,10 @@ docs/images/study-room-thumbnail.png
 - Supabase Cron sends `x-cron-secret` from Vault secret `cron_secret`.
 - `kakao-token` accepts authenticated `GET`, `POST`, and `DELETE` requests from the web app. It returns connection status only and never returns raw Kakao tokens.
 - `attendance-cron` sends Kakao Memo requests to `https://kapi.kakao.com/v2/api/talk/memo/default/send`.
-- `attendance-cron` sends Telegram messages to `https://api.telegram.org/bot{token}/sendMessage`.
-- `telegram-test-alarm` sends a protected one-off Telegram test message and includes same-day `study_todos` in the message body. Browser requests must include `Authorization: Bearer {supabase_access_token}`.
+- `attendance-cron` sends Slack messages to `https://slack.com/api/chat.postMessage`.
+- `slack-test-alarm` sends a protected one-off Slack test message and includes same-day `study_todos` in the message body when a saved target is used. Browser requests must include `Authorization: Bearer {supabase_access_token}`. Cron-secret protected admin requests may pass `{ "channelId": "C..." }` or `{ "channelId": "G..." }` for direct Slack channel verification.
 - `camera-presence-warning` receives `POST /functions/v1/camera-presence-warning` from the browser with `Authorization: Bearer {supabase_access_token}` and body `{ sessionId, absenceSeconds, detectedAt, eventType }`.
-- `camera-presence-warning` validates that `study_sessions.user_id` matches the authenticated Supabase user before inserting `study_presence_events` or sending Telegram.
+- `camera-presence-warning` validates that `study_sessions.user_id` matches the authenticated Supabase user before inserting `study_presence_events` or sending Slack.
 - `end_study_session` receives `{ p_session_id, p_excluded_seconds }`; `p_excluded_seconds` is the camera absence time that should not be counted as study duration.
 - `attendance-cron` notification bodies include up to a compact subset of reminder-date todo titles and mark completed items with a check indicator.
 - `get_due_reminders()` returns `reminder_stage = 'initial' | 'nudge'`. `attendance-cron` uses this stage to choose the first-reminder or final-nudge title/body and includes `reminderStage` in push payload data.
@@ -114,7 +126,8 @@ docs/images/study-room-thumbnail.png
 - Lambda sends `x-cron-secret` header from `CronSecret`.
 - Lambda body includes `source: "aws-eventbridge"` and `triggeredAt`.
 - Page-exit session termination sends `POST` to `/rest/v1/rpc/end_study_session` with the current user access token and anon key.
-- My Page does not call a new API. It derives completed todo history from `study_todos` already loaded by the dashboard.
+- My Page does not call a new API. It derives completed todo history from `study_todos` already loaded by the dashboard and is selected through the `#me` hash route.
+- Recurring todo save does not call a new API route. The web app computes target dates locally and bulk inserts rows into `study_todos` through Supabase Data API.
 
 ## Database Conventions
 
@@ -124,15 +137,21 @@ docs/images/study-room-thumbnail.png
 - Raw Kakao access/refresh tokens are stored only in `kakao_message_connections`.
 - `notification_targets.kind = 'kakao_memo'` stores only the target marker and does not store Kakao raw tokens.
 - `kakao_message_connections` has RLS enabled but no user-facing select/update policies. Client access must go through the `kakao-token` Edge Function.
-- `notification_targets.kind = 'telegram'` stores only the user's Telegram chat ID in `destination`.
+- `notification_targets.kind = 'slack'` stores only the user's Slack Channel ID in `destination`.
+- `notification_targets.kind = 'telegram'` is retained only for legacy delivery history and is disabled by the Slack migration.
 - `start_study_session()` creates a `study_sessions` row at any start time, but it only marks `attendance_days.status = 'present'` when the current timestamp is between the user's `reminder_at` and `deadline_at`.
 - Timer starts before the configured reminder time must not create a `present` attendance row, because `get_due_reminders()` excludes days that are already `present` or `missed`.
+- Timer starts before the configured reminder time are converted to `attendance_days.status = 'present'` by `get_due_reminders()` at the reminder minute only when the session spans the reminder timestamp.
 - Attendance deadline is `reminder_at + interval '30 minutes'`. Timer starts qualify only when `started_at >= reminder_at` and `started_at < deadline_at`; starts at the exact deadline or later do not qualify.
+- `mark_missed_attendance()` also checks pre-reminder sessions that span `reminder_at` before marking a pending day missed, and updates such days to `present` with `qualifying_session_id`.
 - The 15-minute nudge is not a separate attendance status. It is derived by `get_due_reminders()` from an existing `attendance_days.status = 'pending'` row and the absence of a qualifying `study_sessions.started_at`.
 - `study_presence_events` stores camera presence events only: `camera_started`, `camera_stopped`, `absence_warning`, `camera_permission_denied`, and `camera_required_warning`.
 - `study_presence_events.metadata` must not contain `image`, `video`, `frame`, `faceEmbedding`, or `landmarks` keys.
 - Users can select and insert only their own `study_presence_events`; Edge Functions use the service role after validating session ownership.
-- `end_study_session(p_session_id uuid, p_excluded_seconds integer default 0)` stores `duration_seconds` as elapsed seconds minus non-negative excluded seconds. This keeps camera absence time out of saved study totals.
+- `end_study_session(p_session_id uuid, p_excluded_seconds integer default 0)` stores `duration_seconds` as elapsed seconds minus non-negative excluded seconds. This keeps camera auto-paused absence time out of saved study totals.
+- Recurring todo rows are stored in `study_todos` with one row per target `local_date`. Duplicate title/date rows are skipped in the client before insert.
+- Scheduled todo rows use nullable `start_time` and `end_time`; the DB check constraint allows both null or both non-null with `start_time < end_time`.
+- Todo duplicate filtering uses date, normalized title, and optional time range so the same task title can be scheduled in different time blocks on the same day.
 
 ## Testing Strategy
 
@@ -142,6 +161,7 @@ docs/images/study-room-thumbnail.png
 - Use pure state-machine tests for camera absence timing and warning cooldown.
 - Use pure state-machine tests for camera auto-pause, auto-end, and excluded study seconds.
 - Use upper-body pose tests for head/shoulder landmark based seated presence detection.
+- Use pure helper tests for recurring todo date calculation, duplicate filtering, and dashboard hash route parsing.
 - Use SQL/source tests to verify `study_presence_events` RLS and `camera-presence-warning` session ownership checks.
 
 ## Deployment Strategy
@@ -154,7 +174,7 @@ docs/images/study-room-thumbnail.png
 6. If Vercel Git integration remains enabled, monitor for duplicate deployments and keep only one deployment path as the source of truth.
 7. Deploy `attendance-cron` Edge Function with `verify_jwt=false`.
 8. Deploy `camera-presence-warning` Edge Function with `verify_jwt=false`; the function performs its own Supabase JWT and session ownership validation.
-9. Set Edge Function secrets: `CRON_SECRET`, `WEB_PUSH_VAPID_PUBLIC_KEY`, `WEB_PUSH_VAPID_PRIVATE_KEY`, `WEB_PUSH_SUBJECT`, optionally `RESEND_API_KEY`, for Telegram `TELEGRAM_BOT_TOKEN`, and for Kakao refresh/link behavior `KAKAO_REST_API_KEY`, optional `KAKAO_CLIENT_SECRET`, and `APP_ORIGIN`.
+9. Set Edge Function secrets: `CRON_SECRET`, `WEB_PUSH_VAPID_PUBLIC_KEY`, `WEB_PUSH_VAPID_PRIVATE_KEY`, `WEB_PUSH_SUBJECT`, optionally `RESEND_API_KEY`, for Slack either `SLACK_BOT_TOKEN` or `STUDY_ALERT_SLACK_BOT_TOKEN`, and for Kakao refresh/link behavior `KAKAO_REST_API_KEY`, optional `KAKAO_CLIENT_SECRET`, and `APP_ORIGIN`.
 10. Store `project_url` and `cron_secret` in Supabase Vault.
 11. Run `supabase/cron.sql` or equivalent SQL to register `study-room-attendance-cron`.
 12. Verify `net._http_response` shows 200 responses from automatic cron calls.
@@ -163,13 +183,13 @@ docs/images/study-room-thumbnail.png
 ## Security Notes
 
 - Supabase Cron uses Vault-stored secrets and never exposes `cron_secret` to the client.
-- `telegram-test-alarm` is deployed with `verify_jwt=false` only because it performs its own `x-cron-secret` or Supabase JWT validation before reading any target or sending any message.
+- `slack-test-alarm` is deployed with `verify_jwt=false` only because it performs its own `x-cron-secret` or Supabase JWT validation before reading any target or sending any message.
 - `camera-presence-warning` is deployed with `verify_jwt=false` only because it handles CORS preflight and then validates the Supabase JWT with `admin.auth.getUser(jwt)`.
 - Camera frames never leave the browser. The app sends only `sessionId`, `absenceSeconds`, `detectedAt`, and `eventType` to the Edge Function.
 - `study_presence_events` has a DB check constraint that rejects media-like metadata keys.
 - Pose landmarks are used only in memory inside the browser and are not sent to Supabase.
 - Kakao raw tokens are never stored in frontend local storage by app code and are not exposed through public RLS policies.
-- Telegram bot tokens are never stored in frontend code or user-managed DB rows.
+- Slack bot tokens are never stored in frontend code or user-managed DB rows.
 - `kakao-token` is deployed with `verify_jwt=false` only to allow browser CORS preflight; the function validates the Supabase JWT itself before doing any user-specific work.
 - Supabase Auth Manual Linking must be enabled before `linkIdentity` can attach Kakao to an existing email/Google account.
 - `CronSecret` is a CloudFormation `NoEcho` parameter and Lambda environment variable.
@@ -180,6 +200,46 @@ docs/images/study-room-thumbnail.png
 - GitHub Actions Vercel deployment uses only GitHub Secrets for `VERCEL_TOKEN`, `VERCEL_ORG_ID`, and `VERCEL_PROJECT_ID`; none of those values should be stored in frontend code.
 
 ## Supabase 변경 이력
+
+### 2026-06-14
+
+- 변경 대상: `public.study_todos`, `attendance-cron`, `slack-test-alarm`
+- 변경 내용: `study_todos`에 선택형 `start_time`, `end_time` 컬럼과 `study_todos_time_window_check` 제약을 추가했다. `attendance-cron`과 `slack-test-alarm`은 todo 조회 시 시간 컬럼을 포함하고, Slack/WebPush/이메일 알림 본문에 시간 범위를 포함하도록 변경했다.
+- 변경 이유: 사용자가 Google Calendar처럼 하루 todo에 선택형 시작/종료 시간을 설정하고, 반복 요일 등록에도 같은 시간 범위를 적용하기 원했기 때문이다.
+- 관련 기능: 할 일 등록, 요일 반복 todo, 오늘 할 일 표시, Slack/WebPush/이메일 알림 본문
+- 마이그레이션 파일: `supabase/migrations/0016_study_todo_time_window.sql`
+- 확인 방법: `npm.cmd test`, `npm.cmd run build`, Supabase MCP migration list에서 `20260614115454 study_todo_time_window` 확인, Edge Function list에서 `attendance-cron` v12와 `slack-test-alarm` v2 ACTIVE 확인
+- 주의 사항: 기존 todo는 시간 컬럼이 null이므로 기존 표시와 동작이 유지된다.
+
+### 2026-06-14
+
+- 변경 대상: `public.get_due_reminders`, `public.mark_missed_attendance`
+- 변경 내용: 알림 시간 이전에 시작한 공부 세션이 `reminder_at` 시각을 지나 계속 열려 있거나, `reminder_at` 이후에 종료된 경우 출석 충족 세션으로 인정한다. 이 경우 초기 알림과 15분 재촉 알림을 보내지 않고, pending 출석은 결석 처리 전에 `present`로 보정한다.
+- 변경 이유: 사용자가 이미 공부 중인데 20:30 알림 모달과 서버 알림이 다시 발생하는 문제를 막기 위해서다.
+- 관련 기능: 강제 출석 알림, Slack/WebPush 예약 알림, 출석/결석 자동 처리
+- 마이그레이션 파일: `supabase/migrations/0015_pre_reminder_active_session_attendance.sql`
+- 확인 방법: `npm.cmd test`, `npm.cmd run build`, Supabase MCP migration list에서 `20260614114124 pre_reminder_active_session_attendance` 확인
+- 주의 사항: 시작 순간에는 pre-reminder 세션을 즉시 `present`로 만들지 않고, 알림 시각 cron에서 세션이 `reminder_at`을 실제로 걸쳤을 때만 보정한다.
+
+### 2026-06-14
+
+- 변경 대상: `public.notification_targets`, `public.notification_deliveries`, `attendance-cron`, `camera-presence-warning`, `slack-test-alarm`
+- 변경 내용: `slack` 알림 채널을 추가하고, 기존 enabled Telegram target을 비활성화하는 migration을 추가했다. `attendance-cron`과 `camera-presence-warning`은 Slack Bot API `chat.postMessage`를 사용하도록 전환했고, 수동 테스트 함수는 `slack-test-alarm`으로 교체했다.
+- 변경 이유: 사용자가 Telegram 대신 Slack bot 기반 알림을 원하고, 기존 예약 알림/오늘 할 일/카메라 경고를 Slack으로 받아야 하기 때문이다.
+- 관련 기능: Slack 알림, Slack 테스트 알림, 카메라 자리 비움 경고, 강제 출석 알림
+- 마이그레이션 파일: `supabase/migrations/0014_slack_notification_targets.sql`
+- 확인 방법: `npm.cmd test`에서 Slack migration, `attendance-cron`, `camera-presence-warning`, `slack-test-alarm` source test 통과. 원격 Supabase migration list에서 `20260614112431 slack_notification_targets`를 확인했고, Edge Function list에서 `attendance-cron` version 11, `camera-presence-warning` version 3, `slack-test-alarm` version 1 ACTIVE를 확인했다.
+- 주의 사항: 실제 Slack 발송에는 Supabase Edge Function secret `SLACK_BOT_TOKEN` 또는 `STUDY_ALERT_SLACK_BOT_TOKEN` 설정과 Slack bot의 채널 초대가 필요하다.
+
+### 2026-06-14
+
+- 변경 대상: `apps/web/src/cameraPresence.mjs`, `public.end_study_session`
+- 변경 내용: 카메라 미감지 5분에는 경고만 보내고, 총 10분 미감지부터 타이머를 자동 일시정지하도록 변경했다. 제외 시간은 10분 이후의 자동 일시정지 구간만 계산한다.
+- 변경 이유: 사용자가 경고 후 5분 복귀 유예 시간을 원했고, 해당 유예 시간은 공부 시간에 포함하기로 결정했기 때문이다.
+- 관련 기능: 카메라 기반 자리 비움 경고, 공부 시간 자동 일시정지, 공부 시간 제외
+- 마이그레이션 파일: 없음
+- 확인 방법: `npm.cmd test`에서 5분 경고/10분 일시정지/제외 시간 계산 테스트 통과.
+- 주의 사항: 10분 미복귀 자동 종료는 더 이상 새 정책에 포함되지 않는다.
 
 ### 2026-06-14
 

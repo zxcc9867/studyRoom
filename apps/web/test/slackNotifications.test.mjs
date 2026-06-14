@@ -1,0 +1,39 @@
+import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
+import { test } from "node:test";
+
+import { isValidSlackChannelId, normalizeSlackChannelId } from "../src/slackChannelId.mjs";
+
+test("normalizes slack channel IDs", () => {
+  assert.equal(normalizeSlackChannelId(" c123abc456 "), "C123ABC456");
+  assert.equal(normalizeSlackChannelId(null), "");
+});
+
+test("validates slack public and private channel IDs", () => {
+  assert.equal(isValidSlackChannelId("C123ABC456"), true);
+  assert.equal(isValidSlackChannelId("G123ABC456"), true);
+  assert.equal(isValidSlackChannelId("D123ABC456"), false);
+  assert.equal(isValidSlackChannelId("@study_room_alerts"), false);
+  assert.equal(isValidSlackChannelId("abc"), false);
+});
+
+test("web app exposes an authenticated slack test alarm action", () => {
+  const source = readFileSync("apps/web/src/slackNotifications.mjs", "utf8");
+  const appSource = readFileSync("apps/web/src/main.tsx", "utf8");
+  const functionSource = readFileSync("supabase/functions/slack-test-alarm/index.ts", "utf8");
+
+  assert.match(source, /export async function sendSlackTestAlarm\(session\)/);
+  assert.match(source, /\/functions\/v1\/slack-test-alarm/);
+  assert.match(source, /authorization: `Bearer \$\{session\.access_token\}`/);
+  assert.match(source, /kind:\s*"slack"/);
+  assert.match(appSource, /sendSlackTestAlarm\(session\)/);
+  assert.match(appSource, /Slack 테스트 알림/);
+  assert.match(functionSource, /admin\.auth\.getUser\(jwt\)/);
+  assert.match(functionSource, /loadSlackTarget\(admin, authResult\.userId\)/);
+  assert.match(functionSource, /\.eq\("user_id", userId\)/);
+  assert.match(functionSource, /https:\/\/slack\.com\/api\/chat\.postMessage/);
+  assert.match(functionSource, /getSlackBotToken\(\)/);
+  assert.match(functionSource, /STUDY_ALERT_SLACK_BOT_TOKEN/);
+  assert.match(functionSource, /parseDirectChannelId/);
+  assert.match(functionSource, /directChannelId/);
+});

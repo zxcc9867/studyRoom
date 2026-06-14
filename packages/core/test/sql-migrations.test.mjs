@@ -33,13 +33,24 @@ test("telegram notification migration adds a destination based channel", () => {
   assert.match(sql, /channel in \('expo', 'web_push', 'email', 'kakao_memo', 'telegram'\)/i);
 });
 
-test("attendance cron sends telegram targets through bot API", () => {
+test("slack notification migration adds slack and disables legacy telegram targets", () => {
+  const sql = readFileSync("supabase/migrations/0014_slack_notification_targets.sql", "utf8");
+
+  assert.match(sql, /kind in \('expo', 'web_push', 'email', 'kakao_memo', 'telegram', 'slack'\)/i);
+  assert.match(sql, /\(kind in \('expo', 'email', 'kakao_memo', 'telegram', 'slack'\) and destination is not null\)/i);
+  assert.match(sql, /channel in \('expo', 'web_push', 'email', 'kakao_memo', 'telegram', 'slack'\)/i);
+  assert.match(sql, /where kind = 'telegram'\s+and enabled = true/i);
+});
+
+test("attendance cron sends slack targets through bot API", () => {
   const source = readFileSync("supabase/functions/attendance-cron/index.ts", "utf8");
 
-  assert.match(source, /kind: "expo" \| "web_push" \| "email" \| "kakao_memo" \| "telegram"/);
-  assert.match(source, /target\.kind === "telegram"/);
-  assert.match(source, /requiredEnv\("TELEGRAM_BOT_TOKEN"\)/);
-  assert.match(source, /https:\/\/api\.telegram\.org\/bot\$\{botToken\}\/sendMessage/);
+  assert.match(source, /kind: "expo" \| "web_push" \| "email" \| "kakao_memo" \| "slack"/);
+  assert.match(source, /target\.kind === "slack"/);
+  assert.match(source, /getSlackBotToken\(\)/);
+  assert.match(source, /STUDY_ALERT_SLACK_BOT_TOKEN/);
+  assert.match(source, /https:\/\/slack\.com\/api\/chat\.postMessage/);
+  assert.doesNotMatch(source, /TELEGRAM_BOT_TOKEN|api\.telegram\.org/);
 });
 
 test("attendance cron includes reminder date todos in server notifications", () => {
@@ -51,7 +62,7 @@ test("attendance cron includes reminder date todos in server notifications", () 
   assert.match(source, /formatTodoSummary\(todos/);
   assert.match(source, /buildReminderBody\(reminder, todos/);
   assert.match(source, /sendWebPush\(target\.subscription!, reminder, todos\)/);
-  assert.match(source, /sendTelegramMessage\(target\.destination!, reminder, todos\)/);
+  assert.match(source, /sendSlackMessage\(target\.destination!, reminder, todos\)/);
 });
 
 test("attendance cron distinguishes initial reminders from 15 minute nudge reminders", () => {
@@ -82,6 +93,30 @@ test("two-step attendance window migration sends nudge at 15 minutes and marks m
   assert.match(sql, /now\(\)\s*<\s*v_deadline_at/i);
   assert.match(sql, /p_now >= ad\.deadline_at/i);
   assert.match(sql, /ss\.started_at < ad\.deadline_at/i);
+});
+
+test("pre-reminder active sessions suppress reminders and count before missed attendance", () => {
+  const sql = readFileSync("supabase/migrations/0015_pre_reminder_active_session_attendance.sql", "utf8");
+
+  assert.match(sql, /create or replace function public\.get_due_reminders/i);
+  assert.match(sql, /create or replace function public\.mark_missed_attendance/i);
+  assert.match(sql, /ss\.started_at <= d\.reminder_at/i);
+  assert.match(sql, /coalesce\(ss\.ended_at, p_now\) >= d\.reminder_at/i);
+  assert.match(sql, /ss\.started_at <= ad\.reminder_at/i);
+  assert.match(sql, /coalesce\(ss\.ended_at, p_now\) >= ad\.reminder_at/i);
+  assert.match(sql, /set status = 'present'/i);
+  assert.match(sql, /qualifying_session_id = qualified\.session_id/i);
+});
+
+test("study todo time window migration adds optional start and end times", () => {
+  const sql = readFileSync("supabase/migrations/0016_study_todo_time_window.sql", "utf8");
+
+  assert.match(sql, /alter table public\.study_todos\s+add column if not exists start_time time/i);
+  assert.match(sql, /alter table public\.study_todos\s+add column if not exists end_time time/i);
+  assert.match(sql, /study_todos_time_window_check/i);
+  assert.match(sql, /start_time is null and end_time is null/i);
+  assert.match(sql, /start_time is not null and end_time is not null and start_time < end_time/i);
+  assert.match(sql, /study_todos_user_date_time_idx/i);
 });
 
 test("study presence events migration stores camera warnings without media payloads", () => {
@@ -120,7 +155,7 @@ test("end_study_session migration excludes camera absence seconds from stored du
   assert.match(sql, /grant execute on function public\.end_study_session\(uuid, integer\) to authenticated/i);
 });
 
-test("camera presence warning Edge Function validates session ownership before telegram warning", () => {
+test("camera presence warning Edge Function validates session ownership before slack warning", () => {
   const source = readFileSync("supabase/functions/camera-presence-warning/index.ts", "utf8");
 
   assert.match(source, /admin\.auth\.getUser\(jwt\)/);
@@ -132,7 +167,10 @@ test("camera presence warning Edge Function validates session ownership before t
   assert.match(source, /"absence_warning"/);
   assert.match(source, /camera_required_warning/);
   assert.match(source, /eventType/);
-  assert.match(source, /loadTelegramTarget\(admin, user\.id\)/);
-  assert.match(source, /https:\/\/api\.telegram\.org\/bot\$\{botToken\}\/sendMessage/);
+  assert.match(source, /loadSlackTarget\(admin, user\.id\)/);
+  assert.match(source, /https:\/\/slack\.com\/api\/chat\.postMessage/);
+  assert.match(source, /getSlackBotToken\(\)/);
+  assert.match(source, /STUDY_ALERT_SLACK_BOT_TOKEN/);
+  assert.doesNotMatch(source, /TELEGRAM_BOT_TOKEN|api\.telegram\.org/);
   assert.doesNotMatch(source, /image|video|frame|faceEmbedding|landmarks/);
 });

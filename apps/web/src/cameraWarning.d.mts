@@ -2,10 +2,10 @@ import type { Session } from "@supabase/supabase-js";
 
 export type CameraWarningResult = {
   ok: boolean;
-  telegramSent: boolean;
-  telegramMissing: boolean;
+  slackSent: boolean;
+  slackMissing: boolean;
   eventId: string;
-  messageId: number | null;
+  messageTs: string | null;
 };
 
 export function sendCameraPresenceWarning(

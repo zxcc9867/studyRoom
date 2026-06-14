@@ -12,10 +12,10 @@
 
 - 활성 공부 세션 중 사용자가 직접 카메라 감시를 켤 수 있다.
 - 브라우저 안에서 머리와 좌우 어깨가 포함된 상반신 포즈 존재 여부만 판단한다.
-- 5분 동안 상반신이 감지되지 않으면 앱 팝업과 Telegram 경고를 보낸다.
-- 5분 동안 상반신이 감지되지 않으면 공부 타이머를 자동 일시정지하고 해당 미감지 시간은 공부 시간에서 제외한다.
-- 10분 동안 상반신이 감지되지 않으면 공부 세션을 자동 종료한다.
-- 경고 후 10분 쿨다운으로 중복 Telegram 발송을 막는다.
+- 5분 동안 상반신이 감지되지 않으면 앱 팝업과 Slack 경고를 보낸다.
+- 경고 후 5분 동안 계속 상반신이 감지되지 않으면 공부 타이머를 자동 일시정지한다.
+- 경고 후 5분 유예 시간은 공부 시간에 포함하고, 자동 일시정지 이후 시간만 공부 시간에서 제외한다.
+- 경고 후 10분 쿨다운으로 중복 Slack 발송을 막는다.
 
 ## 4. Non-goals
 
@@ -40,10 +40,10 @@
 4. 브라우저가 카메라 권한을 요청한다.
 5. 상반신 포즈가 계속 감지되면 경고 없이 감시 상태를 유지한다.
 6. 상반신이 5분 동안 감지되지 않으면 앱 팝업을 표시하고 `camera-presence-warning` Edge Function을 호출한다.
-7. 앱은 현재 미감지 구간을 제외 시간으로 계산하고 현재 세션 타이머를 자동 일시정지 상태로 표시한다.
-8. 상반신이 다시 감지되면 제외 시간을 누적하고 타이머를 다시 진행한다.
-9. 상반신이 10분 동안 감지되지 않으면 앱이 `end_study_session` RPC를 자동 호출하고 제외 초를 함께 전달한다.
-10. Edge Function이 세션 소유자를 확인하고 Telegram target이 있으면 경고를 발송한다.
+7. 경고 후 5분 유예 시간 안에 상반신이 다시 감지되면 타이머는 계속 진행된다.
+8. 총 10분 동안 상반신이 감지되지 않으면 UI는 현재 세션 타이머를 자동 일시정지 상태로 표시한다.
+9. 상반신이 다시 감지되면 10분 이후의 제외 시간을 누적하고 타이머를 다시 진행한다.
+10. Edge Function이 세션 소유자를 확인하고 Slack target이 있으면 경고를 발송한다.
 
 ### Edge Cases
 
@@ -51,7 +51,7 @@
 - 상반신이 다시 보이면 미감지 타이머는 0으로 초기화된다.
 - 5분 미만의 짧은 상반신 미감지는 공부 시간에서 제외하지 않는다.
 - 경고 후 10분 이내에는 중복 경고를 보내지 않는다.
-- Telegram target이 없으면 이벤트만 기록하고 실패로 처리하지 않는다.
+- Slack target이 없으면 이벤트만 기록하고 실패로 처리하지 않는다.
 
 ### Error Cases
 
@@ -66,13 +66,13 @@
 - [x] `@mediapipe/tasks-vision` PoseLandmarker를 사용한다.
 - [x] 머리 랜드마크 1개 이상과 좌우 어깨 랜드마크가 보이면 사람이 앉아 있는 것으로 판단한다.
 - [x] 5분 미감지 시 앱 팝업을 표시한다.
-- [x] 5분 미감지 시 현재 세션 타이머를 자동 일시정지하고 미감지 시간을 제외한다.
-- [x] 10분 미복귀 시 세션을 자동 종료한다.
+- [x] 5분 미감지 시 Slack/앱 경고를 보낸다.
+- [x] 총 10분 미감지 시 현재 세션 타이머를 자동 일시정지하고 10분 이후 미감지 시간만 제외한다.
 - [x] 세션 종료 시 제외 초를 `end_study_session` RPC로 전달해 저장 공부 시간에서 제외한다.
 - [x] 10분 경고 쿨다운을 적용한다.
 - [x] `study_presence_events` 테이블을 추가한다.
 - [x] `camera-presence-warning` Edge Function을 추가한다.
-- [x] Telegram target이 있으면 경고 메시지를 보낸다.
+- [x] Slack target이 있으면 경고 메시지를 보낸다.
 
 ## 8. Non-functional Requirements
 
@@ -85,16 +85,16 @@
 ## 9. Dependencies
 
 - 내부 의존성: `study_sessions`, `notification_targets`, `notification_deliveries`
-- 외부 의존성: MediaPipe Tasks Vision, Telegram Bot API
+- 외부 의존성: MediaPipe Tasks Vision, Slack Bot API
 - Supabase: `study_presence_events`, `camera-presence-warning`
 - API: `POST /functions/v1/camera-presence-warning`
-- 환경 변수: `TELEGRAM_BOT_TOKEN`, `APP_ORIGIN`, Supabase 기본 Edge Function secrets
+- 환경 변수: `SLACK_BOT_TOKEN`, `APP_ORIGIN`, Supabase 기본 Edge Function secrets
 
 ## 10. Success Metrics
 
 - 활성 세션 중 카메라 감시를 켤 수 있다.
 - 5분 상반신 미감지 시 앱 팝업이 표시된다.
-- Telegram target이 있는 사용자는 경고 메시지를 받는다.
+- Slack target이 있는 사용자는 경고 메시지를 받는다.
 - DB에는 이벤트 metadata만 남고 media payload는 저장되지 않는다.
 
 ## 11. Rollout Plan
@@ -117,34 +117,53 @@
 - 웹 앱에서는 공부 타이머 시작 전에 카메라 감시를 필수로 켠다.
 - 카메라가 꺼진 상태에서 `입장하고 시작`을 누르면 Supabase `start_study_session` RPC를 호출하지 않고 카메라 인증 팝업을 먼저 띄운다.
 - `카메라 켜고 시작`을 누르면 브라우저 카메라 권한을 받은 뒤 공부 세션을 생성한다.
-- 활성 세션 중 카메라가 꺼져 있으면 `camera_required_warning` 이벤트를 기록하고 Telegram target이 있으면 경고를 보낸다.
+- 활성 세션 중 카메라가 꺼져 있으면 `camera_required_warning` 이벤트를 기록하고 Slack target이 있으면 경고를 보낸다.
 - `camera_required_warning`은 출석 상태나 공부 시간에는 직접 영향을 주지 않고, 경고 이벤트로만 기록한다.
 
 ### Added Functional Requirements
 
 - [x] 카메라 감시가 꺼져 있으면 공부 세션 시작을 차단한다.
 - [x] 카메라 인증 팝업에서 카메라를 켠 뒤에만 세션 시작 RPC를 호출한다.
-- [x] 활성 세션 중 카메라가 꺼져 있으면 앱 팝업과 Telegram 경고를 보낸다.
+- [x] 활성 세션 중 카메라가 꺼져 있으면 앱 팝업과 Slack 경고를 보낸다.
 - [x] 카메라 꺼짐 경고는 `camera_required_warning` 이벤트 타입으로 기록한다.
 - [x] 사진, 영상, 프레임, 얼굴/포즈 특징값과 랜드마크 원본은 계속 저장하거나 서버로 보내지 않는다.
 
-## 14. 2026-06-14 Update: Absence Auto Pause and Auto End
+## 14. 2026-06-14 Update: Absence Warning Grace and Auto Pause
 
 ### Decision
 
-- 상반신이 5분 이상 감지되지 않으면 현재 미감지 구간 전체를 공부 시간에서 제외한다.
-- 제외 시간이 발생하면 UI는 현재 세션을 `자동 일시정지` 상태로 표시한다.
+- 상반신이 5분 이상 감지되지 않으면 경고만 보낸다.
+- 경고 후 5분 유예 시간 안에 복귀하지 않으면 UI는 현재 세션을 `자동 일시정지` 상태로 표시한다.
+- 유예 시간 5분은 공부 시간에 포함한다.
+- 총 10분 이후의 자동 일시정지 시간만 제외 시간으로 계산한다.
 - 상반신이 다시 감지되면 제외 시간을 누적하고 타이머를 다시 진행한다.
-- 상반신이 10분 이상 감지되지 않으면 앱이 세션을 자동 종료한다.
-- 자동 종료와 수동 종료, 페이지 이탈 종료는 모두 `p_excluded_seconds`를 `end_study_session` RPC에 전달한다.
+- 자동 종료는 더 이상 수행하지 않는다.
+- 수동 종료와 페이지 이탈 종료는 `p_excluded_seconds`를 `end_study_session` RPC에 전달한다.
 
 ### Added Functional Requirements
 
-- [x] 5분 이상 상반신 미감지 시 현재 세션/오늘 공부 시간 표시에서 미감지 시간을 제외한다.
+- [x] 5분 이상 상반신 미감지 시 경고만 보내고 타이머는 계속 진행한다.
+- [x] 총 10분 이상 상반신 미감지 시 현재 세션/오늘 공부 시간 표시에서 자동 일시정지 이후 시간을 제외한다.
 - [x] 상반신 복귀 시 제외 시간을 누적하고 세션 타이머를 재개한다.
-- [x] 10분 이상 상반신 미감지 시 세션을 자동 종료한다.
 - [x] DB 저장 시간도 제외되도록 `end_study_session` RPC에서 `p_excluded_seconds`를 반영한다.
 - [x] 페이지 이탈 자동 종료 요청도 제외 초를 전달한다.
+
+## 16. 2026-06-14 Update: Tab Switch Policy
+
+### Decision
+
+- Browser tab switching is normal study behavior and must not end the active study session.
+- `visibilitychange` is only a visibility signal. It is not treated as proof that the user left the study room.
+- Automatic page-exit session termination remains limited to real page exit events such as `pagehide` and `beforeunload`.
+- Camera monitoring should not be intentionally stopped by a tab switch. If the browser throttles camera frame callbacks in the background, the app still relies on camera presence state rather than session-exit logic.
+- Study time should continue during tab switches. Only camera absence auto-pause can exclude time from the study total.
+
+### Added Functional Requirements
+
+- [x] Switching to another browser tab does not call `end_study_session`.
+- [x] Switching tabs does not intentionally stop camera monitoring.
+- [x] Closing or leaving the page still sends the keepalive `end_study_session` request.
+- [x] The tab-switch policy is covered by `sessionExit` regression tests.
 
 ## 15. 2026-06-14 Update: Upper Body Presence Detection
 
@@ -158,4 +177,4 @@
 
 - [x] 몸/상반신이 보이는 경우 얼굴 정면이 아니어도 자리 있음으로 판정한다.
 - [x] 좌우 어깨와 머리 위치가 없으면 자리 비움으로 판정한다.
-- [x] 기존 5분 자동 일시정지, 10분 자동 종료, 제외 시간 저장 로직은 상반신 미감지 기준으로 동작한다.
+- [x] 기존 5분 경고, 10분 자동 일시정지, 제외 시간 저장 로직은 상반신 미감지 기준으로 동작한다.

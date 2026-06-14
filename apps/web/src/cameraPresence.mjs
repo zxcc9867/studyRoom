@@ -1,8 +1,7 @@
 export const ABSENCE_WARNING_SECONDS = 5 * 60;
-export const ABSENCE_AUTO_END_SECONDS = 10 * 60;
+export const ABSENCE_PAUSE_SECONDS = 10 * 60;
 export const WARNING_COOLDOWN_SECONDS = 10 * 60;
 
-const absenceWarningMs = ABSENCE_WARNING_SECONDS * 1000;
 const warningCooldownMs = WARNING_COOLDOWN_SECONDS * 1000;
 
 export function createPresenceState(nowMs = Date.now()) {
@@ -21,7 +20,9 @@ export function createPresenceState(nowMs = Date.now()) {
 export function updatePresenceState(state, { presenceDetected, nowMs }) {
   if (presenceDetected) {
     const completedExcludedSeconds =
-      state.absenceSeconds >= ABSENCE_WARNING_SECONDS ? state.excludedSeconds + state.absenceSeconds : state.excludedSeconds;
+      state.absenceSeconds >= ABSENCE_PAUSE_SECONDS
+        ? state.excludedSeconds + Math.max(0, state.absenceSeconds - ABSENCE_PAUSE_SECONDS)
+        : state.excludedSeconds;
 
     return {
       ...state,
@@ -43,8 +44,8 @@ export function updatePresenceState(state, { presenceDetected, nowMs }) {
     ...state,
     absenceStartedAtMs,
     absenceSeconds,
-    timerPaused: absenceSeconds >= ABSENCE_WARNING_SECONDS,
-    autoEndDue: absenceSeconds >= ABSENCE_AUTO_END_SECONDS,
+    timerPaused: absenceSeconds >= ABSENCE_PAUSE_SECONDS,
+    autoEndDue: false,
     warningDue: absenceSeconds >= ABSENCE_WARNING_SECONDS && cooldownElapsed,
   };
 }
@@ -58,7 +59,8 @@ export function markPresenceWarningSent(state, { nowMs }) {
 }
 
 export function getCurrentExcludedSeconds(state) {
-  const liveExcludedSeconds = state.absenceSeconds >= ABSENCE_WARNING_SECONDS ? state.absenceSeconds : 0;
+  const liveExcludedSeconds =
+    state.absenceSeconds >= ABSENCE_PAUSE_SECONDS ? Math.max(0, state.absenceSeconds - ABSENCE_PAUSE_SECONDS) : 0;
   return Math.max(0, (state.excludedSeconds ?? 0) + liveExcludedSeconds);
 }
 
@@ -94,8 +96,8 @@ export function getCameraSupport(env = globalThis) {
 export function getPresenceStatusLabel({ cameraEnabled, status, absenceSeconds }) {
   if (!cameraEnabled) return "꺼짐";
   if (status === "starting") return "준비 중";
-  if (absenceSeconds >= ABSENCE_AUTO_END_SECONDS) return "자동 종료 중";
-  if (absenceSeconds >= ABSENCE_WARNING_SECONDS) return `자동 일시정지 · 상반신 미감지 ${Math.floor(absenceSeconds / 60)}분`;
+  if (absenceSeconds >= ABSENCE_PAUSE_SECONDS) return `자동 일시정지 · 상반신 미감지 ${Math.floor(absenceSeconds / 60)}분`;
+  if (absenceSeconds >= ABSENCE_WARNING_SECONDS) return `경고 전송 · 복귀 대기 ${Math.floor(absenceSeconds / 60)}분`;
   if (status === "warning") return "자리 비움 경고";
   if (status === "error") return "오류";
   if (absenceSeconds > 0) return `상반신 미감지 ${Math.floor(absenceSeconds / 60)}분`;

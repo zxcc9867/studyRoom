@@ -1,5 +1,263 @@
 # Trouble Shooting
 
+## 2026-06-14 - Refresh required login because Supabase session persistence was disabled
+
+### Situation
+
+The user reported that refreshing the web app forced them to log in again instead of preserving the authenticated session.
+
+### Error Message
+
+```txt
+User-visible symptom: after refresh, the app shows the login screen again.
+```
+
+### Cause
+
+`apps/web/src/supabase.ts` created the Supabase client with `persistSession: false`. That prevents `supabase-js` from storing the access token JWT and refresh token in browser storage. After a refresh, `supabase.auth.getSession()` had no stored session to restore.
+
+The app also had no initial session-loading state, so the login form could render before the session restoration check completed.
+
+### Fix
+
+Added `apps/web/src/authSession.mjs` and changed the Supabase client auth options to:
+
+```txt
+persistSession: true
+autoRefreshToken: true
+detectSessionInUrl: false
+```
+
+`detectSessionInUrl` remains disabled because the app manually handles OAuth callbacks. The dashboard now waits for the initial `getSession()` call before rendering the login form.
+
+### Related Files
+
+* `apps/web/src/authSession.mjs`
+* `apps/web/src/authSession.d.mts`
+* `apps/web/src/supabase.ts`
+* `apps/web/src/main.tsx`
+* `apps/web/test/authSession.test.mjs`
+
+### Prevention
+
+Keep Supabase Auth browser-session options behind a tested helper. Do not disable `persistSession` unless the login flow intentionally requires stateless, per-refresh authentication. Configure strict maximum session age or inactivity timeout in Supabase Auth session settings instead of relying on the frontend as the security boundary.
+
+## 2026-06-14 - Browser tab switch stopped timer and camera monitoring
+
+### Situation
+
+The user reported that moving to another browser tab turned off camera monitoring and stopped the study timer. The expected behavior is that tab switching still counts as study time, and only actual seat absence should trigger warnings and pause/exclude study time.
+
+### Error Message
+
+```txt
+User-visible symptom: switching browser tabs stops the active study timer and camera monitoring.
+```
+
+### Cause
+
+The dashboard registered `visibilitychange` and called `sendExitRequest()` when `document.visibilityState === "hidden"`. Browsers fire that event when the user simply switches tabs. The keepalive `end_study_session` RPC ended the active session, and the camera lifecycle effect then stopped camera monitoring because there was no active session left.
+
+### Fix
+
+Added `shouldEndStudySessionForPageEvent()` in `apps/web/src/sessionExit.mjs` and changed `main.tsx` so tab visibility changes do not end the session. Automatic exit termination remains active for `pagehide` and `beforeunload`.
+
+### Related Files
+
+* `apps/web/src/main.tsx`
+* `apps/web/src/sessionExit.mjs`
+* `apps/web/src/sessionExit.d.mts`
+* `apps/web/test/sessionExit.test.mjs`
+
+### Prevention
+
+Keep browser lifecycle event handling behind a tested helper. `visibilitychange` should be treated as page visibility state only, not as proof that the user left the study room. Use camera presence state to decide warnings and auto-pause.
+
+## 2026-06-14 - Slack bot token secret name mismatch
+
+### Situation
+
+The user configured the Slack bot token as `STUDY_ALERT_SLACK_BOT_TOKEN` and asked to send a test alarm to Slack channel `C0BAFS1CSV8`.
+
+### Error Message
+
+```txt
+Existing Edge Functions only read SLACK_BOT_TOKEN.
+Old source tests expected requiredEnv("SLACK_BOT_TOKEN").
+```
+
+### Cause
+
+The Slack implementation originally documented and coded a single Edge Function secret name, `SLACK_BOT_TOKEN`. The user configured a project-specific secret name instead. Without a fallback alias, `attendance-cron`, `camera-presence-warning`, and `slack-test-alarm` would fail at runtime even though a valid bot token exists under another secret name.
+
+### Fix
+
+Added `getSlackBotToken()` to all Slack-sending Edge Functions. It reads `SLACK_BOT_TOKEN` first and falls back to `STUDY_ALERT_SLACK_BOT_TOKEN`. `slack-test-alarm` also accepts a cron-secret protected direct `channelId` payload so admins can verify a Slack channel without first creating a user-specific notification target row.
+
+Redeployed:
+
+- `slack-test-alarm` v4 ACTIVE
+- `attendance-cron` v14 ACTIVE
+- `camera-presence-warning` v5 ACTIVE
+
+Tested with Supabase `net.http_post` and channel `C0BAFS1CSV8`; response id `10360` returned HTTP 200 and `ok=true`.
+
+### Related Files
+
+* `supabase/functions/slack-test-alarm/index.ts`
+* `supabase/functions/attendance-cron/index.ts`
+* `supabase/functions/camera-presence-warning/index.ts`
+* `apps/web/test/slackNotifications.test.mjs`
+* `packages/core/test/sql-migrations.test.mjs`
+
+### Prevention
+
+When adding provider secrets, keep the documented secret name and any user-provided project-specific alias synchronized in both code and tests. Do not print or store token values in source, docs, or memory-bank.
+
+## 2026-06-14 - Supabase Management API metadata JSON이 PowerShell에서 계속 깨짐
+
+### 상황
+
+`attendance-cron` Edge Function을 Supabase Management API로 배포할 때 `--form-string`으로 metadata JSON을 전달했지만 PowerShell 인자 처리로 JSON key 따옴표가 깨졌다.
+
+### 에러 메시지
+
+```txt
+{"message":"Invalid metadata JSON payload (reason: key must be a string at line 1 column 2)"}
+{"message":"Invalid metadata JSON payload (reason: expected value at line 1 column 1)"}
+```
+
+### 원인
+
+PowerShell에서 curl native 인자로 JSON을 직접 넘기면 double quote가 손상될 수 있다. 또한 `Set-Content -Encoding utf8`로 metadata 파일을 만들면 Windows PowerShell에서 BOM이 붙어 Supabase API가 JSON 시작 문자를 읽지 못할 수 있다.
+
+### 해결 방법
+
+BOM 없는 ASCII metadata 파일을 만든 뒤 `curl -F "metadata=<file"`로 form field 내용을 전달했다.
+
+```powershell
+$metadataPath = Join-Path $env:TEMP 'supabase-attendance-cron-metadata.json'
+$metadata = '{"entrypoint_path":"index.ts","name":"attendance-cron","verify_jwt":false}'
+[System.IO.File]::WriteAllText($metadataPath, $metadata, [System.Text.Encoding]::ASCII)
+curl.exe --fail-with-body -sS -X POST "https://api.supabase.com/v1/projects/{project-ref}/functions/deploy?slug=attendance-cron" `
+  -H "Authorization: Bearer $env:SUPABASE_ACCESS_TOKEN" `
+  -F "metadata=<$metadataPath" `
+  -F "file=@supabase/functions/attendance-cron/index.ts"
+```
+
+### 관련 파일
+
+* `supabase/functions/attendance-cron/index.ts`
+
+### 재발 방지
+
+PowerShell에서 Supabase Management API multipart deploy를 할 때는 metadata JSON을 직접 command line 문자열로 넘기지 말고 BOM 없는 임시 파일을 사용한다.
+
+## 2026-06-14 - 알림 시간 이전 공부 중에도 입장 알림 모달이 표시됨
+
+### 상황
+
+사용자가 20:30 알림 시간 이전에 이미 독서실에 입장해 공부 세션을 시작했고, 20:30 이후에도 세션이 활성 상태였지만 웹 앱에 "독서실 입장 시간입니다" 모달이 표시됐다.
+
+### 에러 메시지
+
+```txt
+독서실 입장 시간입니다
+20:30 알림이 도착했습니다. 15분 뒤 한 번 더 재촉하고, 30분 안에 타이머를 시작하면 오늘 출석으로 인정됩니다.
+```
+
+### 원인
+
+웹 팝업 조건이 현재 시간이 설정된 알림 시간인지와 오늘 출석 상태가 `present`/`missed`인지 여부만 확인했고, 이미 같은 날짜의 `active` 공부 세션이 있는지는 확인하지 않았다. 서버 측 `get_due_reminders()`와 `mark_missed_attendance()`도 알림 시간 이후에 시작한 세션만 출석 충족으로 보아, 알림 시간 이전에 시작해서 알림 시각을 지나 계속 열린 세션을 알림/결석 정책에서 제외하지 못했다.
+
+### 해결 방법
+
+`apps/web/src/reminderPopup.mjs`에 `shouldShowStudyReminderPopup()` helper를 추가하고, 같은 날짜의 `active` 세션이 있으면 웹 모달을 표시하지 않도록 했다. `supabase/migrations/0015_pre_reminder_active_session_attendance.sql`을 추가해 알림 시간 이전 시작 세션이 `reminder_at`을 지나 열려 있으면 `present`로 보정하고 초기/재촉 알림 및 결석 처리에서 제외하도록 했다. 원격 Supabase 프로젝트에는 `20260614114124 pre_reminder_active_session_attendance` migration을 적용했다.
+
+### 관련 파일
+
+* `apps/web/src/main.tsx`
+* `apps/web/src/reminderPopup.mjs`
+* `apps/web/test/reminderPopup.test.mjs`
+* `supabase/migrations/0015_pre_reminder_active_session_attendance.sql`
+* `packages/core/test/sql-migrations.test.mjs`
+
+### 재발 방지
+
+알림 정책을 변경할 때는 클라이언트 인앱 모달 조건과 Supabase cron 함수 조건을 함께 확인한다. `npm.cmd test`의 `reminderPopup.test.mjs`와 `sql-migrations.test.mjs`를 통해 활성 pre-reminder 세션이 중복 알림과 결석 처리로 이어지지 않는지 확인한다.
+
+## 2026-06-14 - Supabase Edge Function deploy metadata quoting on PowerShell
+
+### 상황
+
+Slack 전환 후 `attendance-cron`, `camera-presence-warning`, `slack-test-alarm` Edge Function을 Supabase Management API deploy endpoint로 배포했다.
+
+### 에러 메시지
+
+```txt
+{"message":"Invalid metadata JSON payload (reason: key must be a string at line 1 column 2)"}
+curl: (22) The requested URL returned error: 400
+```
+
+### 원인
+
+PowerShell에서 `curl.exe -F "metadata={...}"` 형태로 JSON을 넘기면 native executable 인자 전달 과정에서 JSON double quote가 제거되어 `{entrypoint_path:index.ts,...}` 형태로 전달됐다.
+
+### 해결 방법
+
+`metadata`는 `--form-string`으로 보내고 JSON 내부 double quote는 PowerShell backtick으로 escape했다.
+
+```powershell
+curl.exe --fail-with-body -sS -X POST "https://api.supabase.com/v1/projects/{project-ref}/functions/deploy?slug={function-name}" `
+  -H "Authorization: Bearer $env:SUPABASE_ACCESS_TOKEN" `
+  --form-string "metadata={`"entrypoint_path`":`"index.ts`",`"name`":`"{function-name}`",`"verify_jwt`":false}" `
+  -F "file=@supabase/functions/{function-name}/index.ts"
+```
+
+### 관련 파일
+
+* `supabase/functions/attendance-cron/index.ts`
+* `supabase/functions/camera-presence-warning/index.ts`
+* `supabase/functions/slack-test-alarm/index.ts`
+
+### 재발 방지
+
+PowerShell에서 Supabase Management API multipart deploy를 사용할 때는 로컬에서 `node -e "console.log(process.argv)" -- ...`로 argv를 먼저 확인한다.
+
+## 2026-06-14 - Vercel production deploy blocked by missing local CLI/token
+
+### 상황
+
+Slack UI 변경을 Vercel production에 배포하려고 했으나 MCP deploy 도구는 CLI 안내만 반환했고, 로컬에는 `vercel` 명령과 `VERCEL_TOKEN`이 없었다.
+
+### 에러 메시지
+
+```txt
+vercel : 'vercel' 용어가 cmdlet, 함수, 스크립트 파일 또는 실행할 수 있는 프로그램 이름으로 인식되지 않습니다.
+VERCEL_TOKEN=not set
+```
+
+### 원인
+
+현재 세션에서 직접 Vercel production 배포를 실행할 인증 수단이 없다. 프로젝트는 `.vercel/project.json`으로 연결되어 있지만, 직접 배포에는 Vercel CLI 로그인 또는 `VERCEL_TOKEN`이 필요하다.
+
+### 해결 방법
+
+이번 작업에서는 Vercel production 최신 배포가 이전 커밋 `c61c95c` 기준임을 확인하고, 웹 배포는 보류했다. 배포하려면 다음 중 하나가 필요하다.
+
+* `VERCEL_TOKEN`을 세션 환경 변수로 제공하고 `vercel deploy --prod`를 실행한다.
+* 변경 사항을 커밋/푸시해 기존 GitHub Actions/Vercel Git integration pipeline을 사용한다.
+
+### 관련 파일
+
+* `.vercel/project.json`
+* `vercel.json`
+* `.github/workflows/vercel-production.yml`
+
+### 재발 방지
+
+Vercel production 반영까지 필요한 작업은 시작 전에 `VERCEL_TOKEN` 또는 push 기반 배포 허용 여부를 확인한다.
+
 ## 2026-06-14 - endTimer 옵션 인자 변경 후 React onClick 타입 오류
 
 ### Situation

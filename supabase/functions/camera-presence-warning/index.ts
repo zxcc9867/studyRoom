@@ -8,7 +8,7 @@ type StudySessionRow = {
   status: string;
 };
 
-type TelegramTarget = {
+type SlackTarget = {
   id: string;
   user_id: string;
   destination: string | null;
@@ -54,32 +54,32 @@ Deno.serve(async (request) => {
     return json({ error: "Study session was not found" }, 403);
   }
 
-  const target = await loadTelegramTarget(admin, user.id);
+  const target = await loadSlackTarget(admin, user.id);
   const eventId = await recordPresenceEvent(admin, studySession, eventType, absenceSeconds, detectedAt, Boolean(target));
 
   if (!target?.destination) {
     return json({
       ok: true,
-      telegramSent: false,
-      telegramMissing: true,
+      slackSent: false,
+      slackMissing: true,
       eventId,
     });
   }
 
   try {
-    const messageId = await sendTelegramMessage(target.destination, eventType);
+    const messageTs = await sendSlackMessage(target.destination, eventType);
     await recordDelivery(admin, target, studySession.local_date, "sent", null);
     return json({
       ok: true,
-      telegramSent: true,
-      telegramMissing: false,
+      slackSent: true,
+      slackMissing: false,
       eventId,
-      messageId,
+      messageTs,
     });
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
     await recordDelivery(admin, target, studySession.local_date, "failed", message);
-    return json({ error: message, eventId, telegramSent: false }, 502);
+    return json({ error: message, eventId, slackSent: false }, 502);
   }
 });
 
@@ -156,11 +156,11 @@ async function loadStudySession(admin: ReturnType<typeof createClient>, sessionI
   return data as StudySessionRow | null;
 }
 
-async function loadTelegramTarget(admin: ReturnType<typeof createClient>, userId: string) {
+async function loadSlackTarget(admin: ReturnType<typeof createClient>, userId: string) {
   const { data, error } = await admin
     .from("notification_targets")
     .select("id,user_id,destination")
-    .eq("kind", "telegram")
+    .eq("kind", "slack")
     .eq("enabled", true)
     .eq("user_id", userId)
     .not("destination", "is", null)
@@ -171,7 +171,7 @@ async function loadTelegramTarget(admin: ReturnType<typeof createClient>, userId
     throw error;
   }
 
-  return ((data ?? []) as TelegramTarget[]).find((target) => target.destination?.trim());
+  return ((data ?? []) as SlackTarget[]).find((target) => target.destination?.trim());
 }
 
 async function recordPresenceEvent(
@@ -180,7 +180,7 @@ async function recordPresenceEvent(
   eventType: PresenceWarningEventType,
   absenceSeconds: number,
   detectedAt: string,
-  telegramAttempted: boolean,
+  slackAttempted: boolean,
 ) {
   const { data, error } = await admin
     .from("study_presence_events")
@@ -192,7 +192,7 @@ async function recordPresenceEvent(
       detected_at: detectedAt,
       metadata: {
         source: "web-camera",
-        telegramAttempted,
+        slackAttempted,
       },
     })
     .select("id")
@@ -205,32 +205,37 @@ async function recordPresenceEvent(
   return String(data.id);
 }
 
-async function sendTelegramMessage(chatId: string, eventType: PresenceWarningEventType) {
-  const botToken = requiredEnv("TELEGRAM_BOT_TOKEN");
+async function sendSlackMessage(channelId: string, eventType: PresenceWarningEventType) {
+  const botToken = getSlackBotToken();
   const appUrl = Deno.env.get("APP_ORIGIN") ?? "https://study-room-attendance.vercel.app";
-  const response = await fetch(`https://api.telegram.org/bot${botToken}/sendMessage`, {
+  const response = await fetch("https://slack.com/api/chat.postMessage", {
     method: "POST",
-    headers: jsonHeaders,
+    headers: {
+      ...jsonHeaders,
+      authorization: `Bearer ${botToken}`,
+    },
     body: JSON.stringify({
-      chat_id: chatId,
+      channel: channelId,
       text: buildWarningMessage(appUrl, eventType),
-      disable_web_page_preview: true,
+      unfurl_links: false,
+      unfurl_media: false,
     }),
   });
 
   if (!response.ok) {
-    throw new Error(`Telegram message failed: ${response.status} ${await response.text()}`);
+    throw new Error(`Slack message failed: ${response.status} ${await response.text()}`);
   }
 
   const result = (await response.json().catch(() => null)) as {
     ok?: boolean;
-    result?: { message_id?: number };
+    ts?: string;
+    error?: string;
   } | null;
   if (!result?.ok) {
-    throw new Error(`Telegram message returned unexpected result: ${JSON.stringify(result)}`);
+    throw new Error(`Slack message returned unexpected result: ${JSON.stringify(result)}`);
   }
 
-  return result.result?.message_id ?? null;
+  return result.ts ?? null;
 }
 
 function buildWarningMessage(appUrl: string, eventType: PresenceWarningEventType) {
@@ -253,7 +258,7 @@ function buildWarningMessage(appUrl: string, eventType: PresenceWarningEventType
 
 async function recordDelivery(
   admin: ReturnType<typeof createClient>,
-  target: TelegramTarget,
+  target: SlackTarget,
   localDate: string,
   status: "sent" | "failed",
   errorMessage: string | null,
@@ -262,7 +267,7 @@ async function recordDelivery(
     user_id: target.user_id,
     target_id: target.id,
     local_date: localDate,
-    channel: "telegram",
+    channel: "slack",
     status,
     error_message: errorMessage,
   });
@@ -272,6 +277,14 @@ function requiredEnv(name: string) {
   const value = Deno.env.get(name);
   if (!value) {
     throw new Error(`${name} is required`);
+  }
+  return value;
+}
+
+function getSlackBotToken() {
+  const value = Deno.env.get("SLACK_BOT_TOKEN") ?? Deno.env.get("STUDY_ALERT_SLACK_BOT_TOKEN");
+  if (!value) {
+    throw new Error("SLACK_BOT_TOKEN or STUDY_ALERT_SLACK_BOT_TOKEN is required");
   }
   return value;
 }

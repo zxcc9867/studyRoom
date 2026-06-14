@@ -1,5 +1,5 @@
 export const ABSENCE_WARNING_SECONDS: number;
-export const ABSENCE_AUTO_END_SECONDS: number;
+export const ABSENCE_PAUSE_SECONDS: number;
 export const WARNING_COOLDOWN_SECONDS: number;
 
 export type PresenceState = {

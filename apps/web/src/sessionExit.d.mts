@@ -13,3 +13,8 @@ export function requestEndStudySessionOnExit(options: {
   excludedSeconds?: number;
   fetch?: ExitFetch;
 }): boolean;
+
+export function shouldEndStudySessionForPageEvent(event?: {
+  type?: string;
+  visibilityState?: string;
+}): boolean;

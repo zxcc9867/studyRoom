@@ -14,7 +14,7 @@ type DueReminder = {
 type NotificationTarget = {
   id: string;
   user_id: string;
-  kind: "expo" | "web_push" | "email" | "kakao_memo" | "telegram";
+  kind: "expo" | "web_push" | "email" | "kakao_memo" | "slack";
   destination: string | null;
   subscription: Record<string, unknown> | null;
 };
@@ -24,6 +24,8 @@ type StudyTodo = {
   local_date: string;
   title: string;
   is_completed: boolean;
+  start_time: string | null;
+  end_time: string | null;
   position: number;
   created_at: string;
 };
@@ -102,9 +104,10 @@ async function loadTodosByReminder(admin: ReturnType<typeof createClient>, remin
   const reminderDates = [...new Set(reminders.map((reminder) => reminder.local_date))];
   const { data, error } = await admin
     .from("study_todos")
-    .select("user_id,local_date,title,is_completed,position,created_at")
+    .select("user_id,local_date,title,is_completed,start_time,end_time,position,created_at")
     .in("user_id", reminderUserIds)
     .in("local_date", reminderDates)
+    .order("start_time", { ascending: true, nullsFirst: false })
     .order("position", { ascending: true })
     .order("created_at", { ascending: true });
 
@@ -164,8 +167,10 @@ async function sendTarget(
       await sendWebPush(target.subscription!, reminder, todos);
     } else if (target.kind === "kakao_memo") {
       await sendKakaoMemo(admin, reminder.user_id, reminder, todos);
-    } else if (target.kind === "telegram") {
-      await sendTelegramMessage(target.destination!, reminder, todos);
+    } else if (target.kind === "slack") {
+      await sendSlackMessage(target.destination!, reminder, todos);
+    } else {
+      throw new Error(`Unsupported notification target kind: ${String(target.kind)}`);
     }
     return { targetId: target.id, kind: target.kind, ok: true };
   } catch (error) {
@@ -241,7 +246,7 @@ async function sendWebPush(subscription: Record<string, unknown>, reminder: DueR
       localDate: reminder.local_date,
       deadlineAt: reminder.deadline_at,
       reminderStage: reminder.reminder_stage,
-      todos: todos.map((todo) => ({ title: todo.title, isCompleted: todo.is_completed })),
+      todos: todos.map((todo) => ({ title: formatTodoWithSchedule(todo), isCompleted: todo.is_completed })),
     }),
   );
 }
@@ -276,7 +281,7 @@ async function sendKakaoMemo(
       web_url: appUrl,
       mobile_web_url: appUrl,
     },
-    button_title: "독서실 열기",
+    button_title: "Open study room",
   };
   const body = new URLSearchParams();
   body.set("template_object", JSON.stringify(templateObject));
@@ -300,30 +305,34 @@ async function sendKakaoMemo(
   }
 }
 
-async function sendTelegramMessage(chatId: string, reminder: DueReminder, todos: StudyTodo[]) {
-  if (!chatId) {
-    throw new Error("Telegram chat ID is missing");
+async function sendSlackMessage(channelId: string, reminder: DueReminder, todos: StudyTodo[]) {
+  if (!channelId) {
+    throw new Error("Slack channel ID is missing");
   }
 
-  const botToken = requiredEnv("TELEGRAM_BOT_TOKEN");
+  const botToken = getSlackBotToken();
   const appUrl = Deno.env.get("APP_ORIGIN") ?? Deno.env.get("SITE_URL") ?? "http://127.0.0.1:5177";
-  const response = await fetch(`https://api.telegram.org/bot${botToken}/sendMessage`, {
+  const response = await fetch("https://slack.com/api/chat.postMessage", {
     method: "POST",
-    headers: jsonHeaders,
+    headers: {
+      ...jsonHeaders,
+      authorization: `Bearer ${botToken}`,
+    },
     body: JSON.stringify({
-      chat_id: chatId,
+      channel: channelId,
       text: `${buildReminderBody(reminder, todos, { maxTodos: 5 })}\n${appUrl}`,
-      disable_web_page_preview: true,
+      unfurl_links: false,
+      unfurl_media: false,
     }),
   });
 
   if (!response.ok) {
-    throw new Error(`Telegram message failed: ${response.status} ${await response.text()}`);
+    throw new Error(`Slack message failed: ${response.status} ${await response.text()}`);
   }
 
-  const result = (await response.json().catch(() => null)) as { ok?: boolean; description?: string } | null;
+  const result = (await response.json().catch(() => null)) as { ok?: boolean; error?: string } | null;
   if (!result?.ok) {
-    throw new Error(`Telegram message returned unexpected result: ${JSON.stringify(result)}`);
+    throw new Error(`Slack message returned unexpected result: ${JSON.stringify(result)}`);
   }
 }
 
@@ -359,12 +368,12 @@ function formatTodoSummary(todos: StudyTodo[], options: { maxTodos?: number } = 
   const maxTodos = options.maxTodos ?? 5;
   const visibleTodos = todos.slice(0, maxTodos);
   const hiddenCount = Math.max(0, todos.length - visibleTodos.length);
-  const lines = ["오늘 할 일"];
+  const lines = ["Today's tasks"];
   for (const todo of visibleTodos) {
-    lines.push(`${todo.is_completed ? "✓" : "□"} ${todo.title}`);
+    lines.push(`${todo.is_completed ? "[x]" : "[ ]"} ${formatTodoWithSchedule(todo)}`);
   }
   if (hiddenCount > 0) {
-    lines.push(`외 ${hiddenCount}개`);
+    lines.push(`+${hiddenCount} more`);
   }
   return lines.join("\n");
 }
@@ -375,9 +384,24 @@ function formatTodoHtml(todos: StudyTodo[]) {
   }
 
   const items = todos
-    .map((todo) => `<li>${todo.is_completed ? "완료" : "예정"}: ${escapeHtml(todo.title)}</li>`)
+    .map((todo) => `<li>${todo.is_completed ? "Done" : "Todo"}: ${escapeHtml(formatTodoWithSchedule(todo))}</li>`)
     .join("");
-  return `<p>오늘 할 일</p><ul>${items}</ul>`;
+  return `<p>Today's tasks</p><ul>${items}</ul>`;
+}
+
+function formatTodoWithSchedule(todo: StudyTodo) {
+  const schedule = formatTodoScheduleLabel(todo);
+  return schedule ? `${schedule} ${todo.title}` : todo.title;
+}
+
+function formatTodoScheduleLabel(todo: StudyTodo) {
+  return todo.start_time && todo.end_time
+    ? `${formatTime(todo.start_time)}-${formatTime(todo.end_time)}`
+    : "";
+}
+
+function formatTime(value: string) {
+  return value.slice(0, 5);
 }
 
 function escapeHtml(value: string) {
@@ -470,6 +494,14 @@ function requiredEnv(name: string) {
   const value = Deno.env.get(name);
   if (!value) {
     throw new Error(`${name} is required`);
+  }
+  return value;
+}
+
+function getSlackBotToken() {
+  const value = Deno.env.get("SLACK_BOT_TOKEN") ?? Deno.env.get("STUDY_ALERT_SLACK_BOT_TOKEN");
+  if (!value) {
+    throw new Error("SLACK_BOT_TOKEN or STUDY_ALERT_SLACK_BOT_TOKEN is required");
   }
   return value;
 }

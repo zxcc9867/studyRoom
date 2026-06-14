@@ -27,10 +27,10 @@ export async function sendCameraPresenceWarning(session, { sessionId, absenceSec
 
   return {
     ok: Boolean(payload?.ok),
-    telegramSent: Boolean(payload?.telegramSent),
-    telegramMissing: Boolean(payload?.telegramMissing),
+    slackSent: Boolean(payload?.slackSent),
+    slackMissing: Boolean(payload?.slackMissing),
     eventId: typeof payload?.eventId === "string" ? payload.eventId : "",
-    messageId: payload?.messageId ?? null,
+    messageTs: typeof payload?.messageTs === "string" ? payload.messageTs : null,
   };
 }
 

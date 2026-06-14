@@ -31,3 +31,15 @@ export function requestEndStudySessionOnExit({
 
   return true;
 }
+
+export function shouldEndStudySessionForPageEvent({ type, visibilityState } = {}) {
+  if (type === "pagehide" || type === "beforeunload") {
+    return true;
+  }
+
+  if (type === "visibilitychange") {
+    return false;
+  }
+
+  return visibilityState === "unloaded";
+}
