@@ -28,14 +28,20 @@
 - `npm.cmd run build` passed.
 - Local HTTP check: `http://127.0.0.1:5177/` returned `HTTP 200`.
 - Playwright navigation to `http://127.0.0.1:5177/#settings` loaded the app; settings UI was not reachable in that browser context because it was logged out. The only console error observed was the existing `favicon.ico` 404.
+- Committed and pushed `ba79f122c5519853bb28449b62599ab06c1e4686`.
+- GitHub Actions run `27504823847` completed successfully.
+- Vercel deployment `dpl_AN5vRFoQQb74EqgWmuLKT9XgkJ2d` is `READY` for production.
+- `https://study-room-attendance.vercel.app` returned `HTTP 200` and served `index-CO0CemFs.js` / `index-p2a7-PoR.css`.
+- Production JS asset contains the new `설정된 알람`, `알람 편집`, and `알람 저장` UI strings.
+- Vercel production runtime error-log query for deployment `dpl_AN5vRFoQQb74EqgWmuLKT9XgkJ2d` returned no `error` or `fatal` logs in the checked one-hour window.
 
 #### Remaining Work
 
-- Commit, push, and verify the Vercel production deployment.
+- Verify the production settings screen with the user's logged-in account.
 
 #### Next Priority
 
-- Verify the deployed production settings screen after GitHub Actions/Vercel finishes.
+- Log in on production and confirm the saved alarm card enters edit mode, saves the new time, and returns to read mode.
 
 ### 2026-06-15 - Camera status diagnosis UI
 

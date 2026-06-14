@@ -26,9 +26,12 @@
 - 완료: 알림 수단 관리는 별도 `알림 수단` 영역으로 분리해 Slack 저장, 컴퓨터 알림 켜기, Slack 테스트 알림을 유지했다.
 - 완료: `apps/web/test/alarmSettings.test.mjs`를 추가하고 RED/GREEN 순서로 검증했다.
 - 완료: `npm.cmd test`, `npm.cmd run build`가 통과했다.
-- 진행 중: 변경 내용을 커밋하고 GitHub에 푸시한 뒤 Vercel production 배포를 확인해야 한다.
+- 완료: 커밋 `ba79f122c5519853bb28449b62599ab06c1e4686`을 `origin/main`에 푸시했다.
+- 완료: GitHub Actions run `27504823847`이 success로 완료됐다.
+- 완료: Vercel deployment `dpl_AN5vRFoQQb74EqgWmuLKT9XgkJ2d`가 `READY`이고 production URL이 `HTTP 200`으로 응답했다.
+- 진행 중: 배포 결과 기록 커밋을 푸시해야 한다.
 - 막힌 부분: 없음.
-- 다음 작업: GitHub push, GitHub Actions/Vercel 배포 상태 확인, production URL HTTP 200 확인.
+- 다음 작업: 운영 브라우저에서 로그인 후 설정 화면의 알람 편집 UX를 실제 계정 데이터로 확인한다.
 
 ## 주의할 점
 
