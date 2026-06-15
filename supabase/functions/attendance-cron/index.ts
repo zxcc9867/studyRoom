@@ -283,7 +283,7 @@ async function sendEmail(to: string | null, reminder: DueReminder, todos: StudyT
       from,
       to,
       subject: buildReminderTitle(reminder),
-      html: `<p>Open the study room app and start your timer now.</p><p>Check-in deadline: ${reminder.deadline_at}</p>${formatTodoHtml(todos)}`,
+      html: `<p>Open the study room app and start your timer now.</p><p>Check-in deadline: ${reminder.deadline_at}</p><p>If you miss the check-in window, completing today's ${getDailyAttendanceGoalLabel(reminder.local_date)} study goal will still count as present.</p>${formatTodoHtml(todos)}`,
     }),
   });
 
@@ -352,14 +352,20 @@ function buildReminderTitle(reminder: DueReminder) {
 }
 
 function buildReminderBody(reminder: DueReminder, todos: StudyTodo[], options: { maxTodos?: number } = {}) {
+  const goalLabel = getDailyAttendanceGoalLabel(reminder.local_date);
   const lines =
     reminder.reminder_stage === "nudge"
       ? [
           "Final study-room nudge.",
           "15 minutes have passed since the first alarm.",
           `Start the timer before ${formatDeadline(reminder.deadline_at)} or today will be marked missed.`,
+          `If you miss it, completing today's ${goalLabel} study goal will recover attendance.`,
         ]
-      : ["Study-room check-in time.", `Start the timer before ${formatDeadline(reminder.deadline_at)}.`];
+      : [
+          "Study-room check-in time.",
+          `Start the timer before ${formatDeadline(reminder.deadline_at)}.`,
+          `Completing today's ${goalLabel} study goal also counts as present.`,
+        ];
   const todoSummary = formatTodoSummary(todos, options);
   if (todoSummary) {
     lines.push("", todoSummary);
@@ -370,9 +376,10 @@ function buildReminderBody(reminder: DueReminder, todos: StudyTodo[], options: {
 function buildSlackReminderMessage(reminder: DueReminder, todos: StudyTodo[], appUrl: string) {
   const isNudge = reminder.reminder_stage === "nudge";
   const title = isNudge ? "🚨 독서실 마지막 재촉 알림" : "📚 독서실 입장 알림";
+  const goalLabel = getDailyAttendanceGoalLabel(reminder.local_date);
   const deadlineNote = isNudge
-    ? "• 15분 재촉 알림입니다. 마감 전에 타이머를 시작해야 출석으로 인정됩니다."
-    : "• 30분 안에 타이머를 시작하면 오늘 출석으로 인정됩니다.";
+    ? `• 15분 재촉 알림입니다. 마감 전에 시작하면 즉시 출석이고, 놓쳤다면 오늘 ${goalLabel} 목표를 채우면 출석으로 전환됩니다.`
+    : `• 30분 안에 타이머를 시작하거나 오늘 ${goalLabel} 목표를 채우면 출석으로 인정됩니다.`;
   const action = isNudge
     ? "• 아직 타이머 시작 기록이 없습니다. 지금 앱을 열고 [입장하고 시작]을 눌러주세요."
     : "• 앱을 열고 [입장하고 시작]을 눌러 오늘 공부를 시작하세요.";
@@ -392,6 +399,12 @@ function buildSlackReminderMessage(reminder: DueReminder, todos: StudyTodo[], ap
     "🔗 앱 열기",
     appUrl,
   ].join("\n");
+}
+
+function getDailyAttendanceGoalLabel(localDate: string) {
+  const date = new Date(`${localDate}T00:00:00.000Z`);
+  const day = date.getUTCDay();
+  return day === 0 || day === 6 ? "4시간" : "2시간";
 }
 
 function formatSlackTodoSection(todos: StudyTodo[], maxTodos: number) {

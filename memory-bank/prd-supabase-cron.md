@@ -14,6 +14,8 @@
 - Edge Function이 알림 대상자를 조회하고 웹푸시/이메일/Expo Push 발송을 시도한다.
 - 알림 시각에는 1차 알림을 보내고, 15분 내 타이머 시작 기록이 없으면 재촉 알림을 한 번 더 보낸다.
 - 알림 후 30분까지 타이머 시작 기록이 없으면 `missed`로 처리한다.
+- 평일은 20:30 기본 알림과 2시간 공부 목표를 사용하고, 주말은 14:00 알림과 4시간 공부 목표를 사용한다.
+- 알림 후 30분 출석 창을 놓쳐도 같은 날짜의 완료 공부 시간이 목표를 채우면 `present`로 전환한다.
 - 브라우저 웹푸시는 현재 VAPID 공개키와 맞는 subscription으로 저장된다.
 
 ## 4. Non-goals
@@ -34,19 +36,21 @@
 
 ### Normal Flow
 
-1. 사용자가 웹앱에서 알림 시간을 저장한다.
-2. 웹앱이 `profiles.reminder_time`과 `notification_targets`를 저장한다.
+1. 사용자가 웹앱에서 평일 알림 시간을 저장한다.
+2. 웹앱이 `profiles.reminder_time`과 `notification_targets`를 저장한다. 주말 알림은 서버에서 14:00으로 계산한다.
 3. Supabase Cron이 매분 `attendance-cron`을 호출한다.
 4. Edge Function이 `get_due_reminders`와 `mark_missed_attendance`를 실행한다.
 5. 알림 시각에는 `reminder_stage = initial` 알림이 발송되고 `attendance_days.status = pending`이 저장된다.
 6. 15분 뒤에도 출석 타이머 시작이 없으면 `reminder_stage = nudge` 재촉 알림이 발송된다.
-7. 30분 뒤에도 출석 타이머 시작이 없으면 `attendance_days.status = missed`로 바뀐다.
-8. 발송 결과가 `notification_deliveries`에 저장된다.
+7. 30분 뒤에도 출석 타이머 시작과 완료된 목표 공부 시간이 없으면 `attendance_days.status = missed`로 바뀐다.
+8. 이후 사용자가 같은 날짜의 완료 공부 시간을 평일 2시간 또는 주말 4시간까지 채우면 `attendance_days.status = present`로 전환된다.
+9. 발송 결과가 `notification_deliveries`에 저장된다.
 
 ### Edge Cases
 
 * VAPID key가 바뀐 경우 기존 브라우저 subscription을 해제하고 다시 구독한다.
 * 지금 보낼 알림이 없으면 Edge Function은 200과 `dueReminderCount: 0`을 반환한다.
+* 오늘 목표 공부 시간이 이미 충족된 경우 초기 알림/재촉 알림을 보내지 않고 출석으로 보정한다.
 
 ### Error Cases
 
@@ -64,6 +68,8 @@
 * [x] 웹푸시 구독이 현재 VAPID 공개키와 다르면 재구독한다.
 * [x] `get_due_reminders`가 `initial`과 `nudge` reminder stage를 구분한다.
 * [x] 알림 후 15분에 재촉 알림을 발송하고, 알림 후 30분에 결석 처리한다.
+* [x] 주말 알림을 14:00으로 계산한다.
+* [x] 평일 2시간/주말 4시간 완료 공부 목표를 출석 인정 조건으로 추가한다.
 
 ## 8. Non-functional Requirements
 

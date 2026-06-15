@@ -3,12 +3,16 @@ import assert from "node:assert/strict";
 
 import {
   ATTENDANCE_WINDOW_MINUTES,
+  DEFAULT_WEEKDAY_REMINDER_TIME,
+  DEFAULT_WEEKEND_REMINDER_TIME,
   NUDGE_AFTER_MINUTES,
   EMAIL_OTP_LENGTH,
   calculateFocusSeconds,
   calculateTodoCompletion,
   evaluateAttendance,
+  getDailyAttendanceGoalSeconds,
   getDateKey,
+  getEffectiveReminderTime,
   isValidEmailOtp,
   normalizeEmailOtp,
 } from "../src/index.mjs";
@@ -59,6 +63,40 @@ test("marks the day missed when no timer starts before the 30 minute deadline", 
   });
 
   assert.equal(result.status, "missed");
+});
+
+test("uses weekend reminder time and weekend study goal", () => {
+  const result = evaluateAttendance({
+    now: new Date("2026-06-14T05:00:00.000Z"),
+    reminderTime: "20:30",
+    timeZone: "Asia/Tokyo",
+    sessions: [],
+  });
+
+  assert.equal(DEFAULT_WEEKDAY_REMINDER_TIME, "20:30");
+  assert.equal(DEFAULT_WEEKEND_REMINDER_TIME, "14:00");
+  assert.equal(getEffectiveReminderTime("2026-06-14", "20:30"), "14:00");
+  assert.equal(getDailyAttendanceGoalSeconds("2026-06-14"), 4 * 60 * 60);
+  assert.equal(result.status, "checkin_open");
+  assert.equal(result.deadlineIso, "2026-06-14T05:30:00.000Z");
+});
+
+test("marks late study totals present after the attendance deadline", () => {
+  const result = evaluateAttendance({
+    now: new Date("2026-06-15T13:30:00.000Z"),
+    reminderTime: "20:30",
+    timeZone: "Asia/Tokyo",
+    sessions: [
+      {
+        startedAt: "2026-06-15T12:00:00.000Z",
+        endedAt: "2026-06-15T14:00:00.000Z",
+        durationSeconds: 2 * 60 * 60,
+      },
+    ],
+  });
+
+  assert.equal(result.status, "present");
+  assert.equal(result.attendanceReason, "daily_study_goal");
 });
 
 test("calculates focus seconds from completed sessions and ignores invalid ranges", () => {

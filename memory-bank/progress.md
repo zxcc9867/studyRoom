@@ -2,6 +2,57 @@
 
 ## Timeline
 
+### 2026-06-16 - Weekday/weekend attendance goals and late study recovery
+
+#### Completed Work
+
+- Added a date-based attendance policy: weekdays require 2 hours of completed study, weekends require 4 hours.
+- Set weekday reminders to use the saved profile reminder time with a `20:30` default, and weekend reminders to use fixed `14:00`.
+- Added Supabase helper functions for daily study goal seconds, effective reminder time, completed study totals, and late-study attendance promotion.
+- Updated `get_due_reminders()` and `mark_missed_attendance()` to suppress reminders or missed marking when the daily study goal is already complete.
+- Updated `end_study_session()` so ending a session that reaches the daily goal promotes the day to `present`, even after an earlier `missed` status.
+- Adjusted `start_study_session()` and the web UI so same-day `missed_attendance` recovery does not block late recovery study, while camera-repeat and old recovery requests still block.
+- Updated Slack/Web Push/Email reminder bodies to mention the daily study-goal recovery path.
+- Updated web and mobile UI copy to show weekday/weekend reminder and goal rules.
+
+#### Changed Files
+
+- `apps/web/src/main.tsx`
+- `apps/web/src/styles.css`
+- `apps/web/src/attendancePolicy.mjs`
+- `apps/web/src/attendancePolicy.mjs.d.ts`
+- `apps/web/test/attendancePolicy.test.mjs`
+- `apps/web/test/slackNotifications.test.mjs`
+- `apps/mobile/App.tsx`
+- `packages/core/src/index.mjs`
+- `packages/core/test/attendance.test.mjs`
+- `packages/core/test/sql-migrations.test.mjs`
+- `supabase/functions/attendance-cron/index.ts`
+- `supabase/migrations/0021_late_study_goal_attendance_policy.sql`
+- `memory-bank/active-context.md`
+- `memory-bank/progress.md`
+- `memory-bank/implementation-plan.md`
+- `memory-bank/prd-supabase-cron.md`
+- `memory-bank/prd-user-profile.md`
+- `memory-bank/trouble-shooting.md`
+
+#### Verification
+
+- RED: new attendance policy tests failed before `attendancePolicy.mjs` and migration `0021_late_study_goal_attendance_policy.sql` existed.
+- GREEN: `npm.cmd test` passed 127 tests.
+- `npm.cmd run build` passed.
+- Supabase MCP migration list confirmed remote migration `20260615161759 late_study_goal_attendance_policy`.
+- Supabase Edge Function list confirmed `attendance-cron` version 18 is `ACTIVE` with `verify_jwt=false`.
+
+#### Remaining Work
+
+- Commit and push the changes.
+- Verify the Vercel production deployment reaches `READY` and `https://study-room-attendance.vercel.app/` returns HTTP 200.
+
+#### Next Priority
+
+- Production smoke-test a weekday and weekend policy scenario with a logged-in account if manual verification is needed.
+
 ### 2026-06-16 - Editable scheduled recurring todos
 
 #### Completed Work

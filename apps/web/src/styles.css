@@ -406,6 +406,17 @@ label {
   color: #2f2a1f;
 }
 
+.recovery-soft {
+  border-color: #4f916f;
+  background: #f0ffd8;
+  box-shadow: 0 8px 0 rgba(67, 109, 82, 0.18);
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.recovery-soft h3 {
+  color: #2f6b52;
+}
+
 .daily-visual,
 .settings-panel,
 .history-panel {
@@ -754,7 +765,7 @@ label {
 
 .alarm-detail-grid {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
   gap: 10px;
 }
 

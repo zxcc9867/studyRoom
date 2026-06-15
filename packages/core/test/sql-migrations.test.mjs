@@ -68,11 +68,13 @@ test("slack reminder messages use readable emoji sections", () => {
   const source = readFileSync("supabase/functions/attendance-cron/index.ts", "utf8");
 
   assert.match(source, /buildSlackReminderMessage\(reminder, todos, appUrl\)/);
+  assert.match(source, /getDailyAttendanceGoalLabel\(reminder\.local_date\)/);
   assert.match(source, /📚 독서실 입장 알림/);
   assert.match(source, /⏰ 출석 마감/);
   assert.match(source, /✅ 오늘 할 일/);
   assert.match(source, /🎯 지금 할 일/);
   assert.match(source, /🔗 앱 열기/);
+  assert.match(source, /목표를 채우면 출석으로 전환/);
 });
 
 test("slack test alarm and camera warning messages use readable emoji sections", () => {
@@ -250,6 +252,39 @@ test("study recovery migration stores pending recovery requests and blocks sessi
   assert.match(sql, /create or replace function public\.start_study_session/i);
   assert.match(sql, /from public\.study_recovery_requests rr/i);
   assert.match(sql, /rr\.status = 'pending'/i);
+  assert.match(sql, /Recovery routine required/i);
+});
+
+test("attendance policy migration supports weekday and weekend study goals", () => {
+  const sql = readMigrationContaining(/study_attendance_goal_seconds/i);
+
+  assert.match(sql, /create or replace function public\.study_attendance_goal_seconds\(p_local_date date\)/i);
+  assert.match(sql, /extract\(isodow from p_local_date\) in \(6, 7\)/i);
+  assert.match(sql, /4 \* 60 \* 60/i);
+  assert.match(sql, /2 \* 60 \* 60/i);
+  assert.match(sql, /create or replace function public\.effective_reminder_time\(p_local_date date, p_reminder_time time\)/i);
+  assert.match(sql, /time '14:00'/i);
+  assert.match(sql, /time '20:30'/i);
+});
+
+test("attendance policy migration promotes late study totals to present", () => {
+  const sql = readMigrationContaining(/promote_attendance_by_daily_study_total/i);
+
+  assert.match(sql, /create or replace function public\.promote_attendance_by_daily_study_total/i);
+  assert.match(sql, /sum\(duration_seconds\)/i);
+  assert.match(sql, /public\.study_attendance_goal_seconds\(p_local_date\)/i);
+  assert.match(sql, /status = 'present'/i);
+  assert.match(sql, /trigger_type = 'missed_attendance'/i);
+  assert.match(sql, /status = 'submitted'/i);
+  assert.match(sql, /create or replace function public\.end_study_session/i);
+  assert.match(sql, /perform public\.promote_attendance_by_daily_study_total/i);
+});
+
+test("attendance policy migration keeps camera recovery blocking while allowing late missed recovery study", () => {
+  const sql = readMigrationContaining(/late_study_goal_attendance_policy/i);
+
+  assert.match(sql, /from public\.study_recovery_requests rr/i);
+  assert.match(sql, /rr\.trigger_type <> 'missed_attendance'/i);
   assert.match(sql, /Recovery routine required/i);
 });
 

@@ -1,5 +1,35 @@
 # Trouble Shooting
 
+## 2026-06-16 - New `.mjs` helper missing TypeScript declaration
+
+### Situation
+
+After adding `apps/web/src/attendancePolicy.mjs` and importing it from `main.tsx`, `npm.cmd run build` failed during `tsc -b`.
+
+### Error Message
+
+```txt
+src/main.tsx(36,8): error TS7016: Could not find a declaration file for module './attendancePolicy.mjs'.
+```
+
+### Cause
+
+The web app compiles TypeScript with `strict: true` and `allowJs: false`. A newly added `.mjs` helper imported by a `.tsx` file needs an adjacent declaration file or TypeScript treats the module as implicitly `any`.
+
+### Fix
+
+Added `apps/web/src/attendancePolicy.mjs.d.ts` with explicit exports for the attendance policy constants and helper functions.
+
+### Related Files
+
+* `apps/web/src/attendancePolicy.mjs`
+* `apps/web/src/attendancePolicy.mjs.d.ts`
+* `apps/web/src/main.tsx`
+
+### Prevention
+
+When adding a new `.mjs` helper that is imported by TypeScript, add the matching declaration file in the same change before running the production build.
+
 ## 2026-06-15 - Camera monitoring stuck in ready state
 
 ### Situation

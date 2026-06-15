@@ -20,7 +20,8 @@
 - Recurring todos: weekday repetition is materialized into dated `study_todos` rows on save, and each generated weekly row stores lightweight repeat metadata (`repeat_group_id`, `repeat_mode`, `repeat_weekdays`, `repeat_until`) so the group can be edited later from the calendar modal. This keeps reminders, today's tasks, and completed history on the existing date-based data path without adding a separate recurrence-rule table.
 - Scheduled todos: `study_todos` can optionally store `start_time` and `end_time`. If one is present, both must be present. Same-day schedules use `start_time < end_time`; overnight schedules use `end_time < start_time`; equal start/end times are invalid.
 - Reminder todo enrichment: `attendance-cron` loads `study_todos` for each due reminder's `user_id` and `local_date`, then appends a compact `오늘 할 일` summary to server-side notification bodies. The open web app also renders the same date's todos in the reminder popup from already loaded dashboard state.
-- Two-step attendance enforcement: `get_due_reminders()` emits an initial reminder at the configured daily reminder time and a `nudge` reminder 15 minutes later if no qualifying timer start exists. `mark_missed_attendance()` marks the day missed at reminder time + 30 minutes.
+- Two-step attendance enforcement: `get_due_reminders()` emits an initial reminder at the effective reminder time and a `nudge` reminder 15 minutes later if no qualifying timer start or completed daily goal exists. Weekdays use the saved profile reminder time with a `20:30` default; weekends use fixed `14:00`. `mark_missed_attendance()` marks the day missed at reminder time + 30 minutes only when no qualifying timer start and no completed daily goal exists.
+- Daily attendance goals: weekdays require 2 hours of completed saved study time, weekends require 4 hours. If the user misses the 30-minute check-in window but later ends sessions whose same-day total reaches the goal, `end_study_session()` promotes `attendance_days.status` to `present`.
 - Pre-reminder active attendance: if a study session started before the configured reminder time and is still open, or ended after crossing the reminder timestamp, Supabase treats it as a qualifying attendance session and suppresses initial/nudge reminders.
 - Camera presence warning: web study sessions require camera monitoring before the timer can start. MediaPipe PoseLandmarker runs in the browser only, and the server receives only camera event metadata through `camera-presence-warning`.
 - Camera video health: before running PoseLandmarker absence checks, the web app verifies the camera stream has a live unmuted enabled video track and that the current video frame is visible. Missing, muted, ended, disabled, unavailable, or nearly black frames are treated as camera errors instead of user absence.
@@ -135,7 +136,7 @@ docs/images/study-room-thumbnail.png
 - `camera-presence-warning` receives `POST /functions/v1/camera-presence-warning` from the browser with `Authorization: Bearer {supabase_access_token}` and body `{ sessionId, absenceSeconds, detectedAt, eventType }`.
 - `camera-presence-warning` validates that `study_sessions.user_id` matches the authenticated Supabase user before inserting `study_presence_events` or sending Slack.
 - `end_study_session` receives `{ p_session_id, p_excluded_seconds }`; `p_excluded_seconds` is the camera absence time that should not be counted as study duration.
-- `attendance-cron` Slack notification bodies use emoji-led plain-text sections for `출석 마감`, `오늘 할 일`, `지금 할 일`, and `앱 열기`; they include up to a compact subset of reminder-date todo titles and mark completed items with a check indicator.
+- `attendance-cron` Slack notification bodies use emoji-led plain-text sections for `출석 마감`, `오늘 할 일`, `지금 할 일`, and `앱 열기`; they include up to a compact subset of reminder-date todo titles, mark completed items with a check indicator, and mention the 2-hour weekday or 4-hour weekend late-study recovery goal.
 - `get_due_reminders()` returns `reminder_stage = 'initial' | 'nudge'`. `attendance-cron` uses this stage to choose the first-reminder or final-nudge title/body and includes `reminderStage` in push payload data.
 - Lambda sends `POST` to `AttendanceCronUrl`.
 - Lambda sends `x-cron-secret` header from `CronSecret`.
@@ -154,16 +155,18 @@ docs/images/study-room-thumbnail.png
 - `kakao_message_connections` remains RLS-protected and is no longer used by the active web app or `attendance-cron`.
 - `notification_targets.kind = 'slack'` stores only the user's Slack Channel ID in `destination`.
 - `notification_targets.kind = 'telegram'` is retained only for legacy delivery history and is disabled by the Slack migration.
-- `start_study_session()` creates a `study_sessions` row at any start time, but it only marks `attendance_days.status = 'present'` when the current timestamp is between the user's `reminder_at` and `deadline_at`.
+- `start_study_session()` creates a `study_sessions` row at any start time, but it only marks `attendance_days.status = 'present'` when the current timestamp is between the effective `reminder_at` and `deadline_at`.
+- `start_study_session()` blocks pending recovery requests except same-day `missed_attendance` requests. Same-day missed-attendance recovery must allow a late study session so the daily study-goal path can convert the day back to `present`.
 - Timer starts before the configured reminder time must not create a `present` attendance row, because `get_due_reminders()` excludes days that are already `present` or `missed`.
 - Timer starts before the configured reminder time are converted to `attendance_days.status = 'present'` by `get_due_reminders()` at the reminder minute only when the session spans the reminder timestamp.
-- Attendance deadline is `reminder_at + interval '30 minutes'`. Timer starts qualify only when `started_at >= reminder_at` and `started_at < deadline_at`; starts at the exact deadline or later do not qualify.
+- Attendance deadline is `reminder_at + interval '30 minutes'`. Timer starts qualify only when `started_at >= reminder_at` and `started_at < deadline_at`; starts at the exact deadline or later do not qualify through the check-in window, but the day can still become `present` when completed study total reaches the weekday/weekend goal.
 - `mark_missed_attendance()` also checks pre-reminder sessions that span `reminder_at` before marking a pending day missed, and updates such days to `present` with `qualifying_session_id`.
 - The 15-minute nudge is not a separate attendance status. It is derived by `get_due_reminders()` from an existing `attendance_days.status = 'pending'` row and the absence of a qualifying `study_sessions.started_at`.
 - `study_presence_events` stores camera presence events only: `camera_started`, `camera_stopped`, `absence_warning`, `camera_permission_denied`, and `camera_required_warning`.
 - `study_presence_events.metadata` must not contain `image`, `video`, `frame`, `faceEmbedding`, or `landmarks` keys.
 - Users can select and insert only their own `study_presence_events`; Edge Functions use the service role after validating session ownership.
 - `end_study_session(p_session_id uuid, p_excluded_seconds integer default 0)` stores `duration_seconds` as elapsed seconds minus non-negative excluded seconds. This keeps camera auto-paused absence time out of saved study totals.
+- `end_study_session()` calls `promote_attendance_by_daily_study_total()` after saving duration. If same-day completed study seconds reach `study_attendance_goal_seconds(local_date)`, the function upserts `attendance_days.status = 'present'` and auto-resolves same-day pending `missed_attendance` recovery as `submitted`.
 - Recurring todo rows are stored in `study_todos` with one row per target `local_date`. Weekly rows share `repeat_group_id` and repeat metadata so editing one generated row can update the group, add newly selected dates, and delete removed dates. Duplicate title/date/time rows are skipped in the client before new inserts.
 - Scheduled todo rows use nullable `start_time` and `end_time`; the DB check constraint allows both null or both non-null with `start_time <> end_time`, so overnight schedules such as `23:00` to `01:00` are valid.
 - Todo duplicate filtering uses date, normalized title, and optional time range so the same task title can be scheduled in different time blocks on the same day.
@@ -213,6 +216,16 @@ docs/images/study-room-thumbnail.png
 - GitHub Actions Vercel deployment uses only GitHub Secrets for `VERCEL_TOKEN`, `VERCEL_ORG_ID`, and `VERCEL_PROJECT_ID`; none of those values should be stored in frontend code.
 
 ## Supabase 변경 이력
+
+### 2026-06-16
+
+- 변경 대상: `public.profiles`, `public.get_due_reminders`, `public.mark_missed_attendance`, `public.start_study_session`, `public.end_study_session`, `attendance-cron`
+- 변경 내용: profile reminder default를 `20:30`으로 맞추고, `study_attendance_goal_seconds`, `effective_reminder_time`, `daily_completed_study_seconds`, `promote_attendance_by_daily_study_total` 함수를 추가했다. 평일은 2시간, 주말은 4시간 누적 공부 목표를 출석 인정 조건으로 추가했고, 주말 알림은 14:00으로 고정했다. `attendance-cron` Slack/WebPush/Email 본문에는 목표 시간 회복 경로를 포함했다.
+- 변경 이유: 사용자가 30분 출석 창을 놓쳐도 당일 목표 공부 시간을 채우면 출석으로 인정하고, 주말 알림 시간을 오후 2시로 분리하기를 요청했다.
+- 관련 기능: 강제 출석, Supabase Cron 알림, Slack 알림, 회복 루틴, 공부 시간 누적.
+- 마이그레이션 파일: `supabase/migrations/0021_late_study_goal_attendance_policy.sql`
+- 확인 방법: `npm.cmd test`, `npm.cmd run build`, Supabase MCP migration list에서 `20260615161759 late_study_goal_attendance_policy` 확인, Supabase Edge Function list에서 `attendance-cron` version 18 ACTIVE 확인.
+- 주의 사항: 늦은 공부 출석 승격은 세션 종료 후 `duration_seconds`가 저장되는 시점에 평가된다. 진행 중인 active session만으로는 DB 출석 상태가 즉시 바뀌지 않는다.
 
 ### 2026-06-16
 

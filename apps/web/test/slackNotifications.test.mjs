@@ -9,16 +9,20 @@ test("normalizes slack channel IDs", () => {
   assert.equal(normalizeSlackChannelId(null), "");
 });
 
-test("web app blocks study start while a recovery routine is pending", () => {
+test("web app blocks study start for blocking recovery routines while allowing same-day missed recovery study", () => {
   const appSource = readFileSync("apps/web/src/main.tsx", "utf8");
 
   assert.match(appSource, /type StudyRecoveryRequest/);
   assert.match(appSource, /studyRecoveryRequests/);
   assert.match(appSource, /\.from\("study_recovery_requests"\)/);
   assert.match(appSource, /pendingRecoveryRequests/);
+  assert.match(appSource, /blockingRecoveryRequests/);
+  assert.match(appSource, /lateStudyRecoveryRequests/);
   assert.match(appSource, /recovery-blocker/);
   assert.match(appSource, /회복 루틴 필요/);
-  assert.match(appSource, /pendingRecoveryRequests\.length > 0/);
+  assert.match(appSource, /trigger_type !== "missed_attendance"/);
+  assert.match(appSource, /목표 시간을 채우면 출석으로 전환/);
+  assert.match(appSource, /blockingRecoveryRequests\.length > 0/);
   assert.match(appSource, /Recovery routine required/);
 });
 

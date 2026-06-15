@@ -1,6 +1,10 @@
 export const ATTENDANCE_WINDOW_MINUTES = 30;
 export const NUDGE_AFTER_MINUTES = 15;
 export const EMAIL_OTP_LENGTH = 8;
+export const DEFAULT_WEEKDAY_REMINDER_TIME = "20:30";
+export const DEFAULT_WEEKEND_REMINDER_TIME = "14:00";
+export const WEEKDAY_ATTENDANCE_GOAL_SECONDS = 2 * 60 * 60;
+export const WEEKEND_ATTENDANCE_GOAL_SECONDS = 4 * 60 * 60;
 
 const minuteMs = 60 * 1000;
 const emailOtpPattern = new RegExp(`^\\d{${EMAIL_OTP_LENGTH}}$`);
@@ -13,11 +17,15 @@ export function getDateKey(date, timeZone) {
 export function evaluateAttendance({ now, reminderTime, timeZone, sessions }) {
   const current = asDate(now);
   const dateKey = getDateKey(current, timeZone);
-  const reminderAt = zonedTimeToUtc(dateKey, reminderTime, timeZone);
+  const effectiveReminderTime = getEffectiveReminderTime(dateKey, reminderTime);
+  const reminderAt = zonedTimeToUtc(dateKey, effectiveReminderTime, timeZone);
   const deadlineAt = new Date(reminderAt.getTime() + ATTENDANCE_WINDOW_MINUTES * minuteMs);
   const qualifyingSession = sessions
     .map((session) => ({ ...session, startedAtDate: asDate(session.startedAt) }))
     .find((session) => session.startedAtDate >= reminderAt && session.startedAtDate < deadlineAt);
+  const dailyStudySeconds = sessions
+    .filter((session) => session.localDate === undefined || session.localDate === dateKey)
+    .reduce((total, session) => total + getSessionDurationSeconds(session), 0);
 
   if (qualifyingSession) {
     return {
@@ -26,6 +34,18 @@ export function evaluateAttendance({ now, reminderTime, timeZone, sessions }) {
       reminderIso: reminderAt.toISOString(),
       deadlineIso: deadlineAt.toISOString(),
       qualifyingSessionStartedAt: qualifyingSession.startedAtDate.toISOString(),
+      attendanceReason: "attendance_window",
+      minutesRemaining: 0,
+    };
+  }
+
+  if (dailyStudySeconds >= getDailyAttendanceGoalSeconds(dateKey)) {
+    return {
+      status: "present",
+      dateKey,
+      reminderIso: reminderAt.toISOString(),
+      deadlineIso: deadlineAt.toISOString(),
+      attendanceReason: "daily_study_goal",
       minutesRemaining: 0,
     };
   }
@@ -43,16 +63,20 @@ export function evaluateAttendance({ now, reminderTime, timeZone, sessions }) {
 
 export function calculateFocusSeconds(sessions) {
   return sessions.reduce((total, session) => {
-    if (!session.startedAt || !session.endedAt) {
-      return total;
-    }
-
-    const startedAt = asDate(session.startedAt);
-    const endedAt = asDate(session.endedAt);
-    const seconds = Math.floor((endedAt.getTime() - startedAt.getTime()) / 1000);
-
-    return seconds > 0 ? total + seconds : total;
+    return total + getSessionDurationSeconds(session);
   }, 0);
+}
+
+export function getDailyAttendanceGoalSeconds(dateKey) {
+  return isWeekendDateKey(dateKey) ? WEEKEND_ATTENDANCE_GOAL_SECONDS : WEEKDAY_ATTENDANCE_GOAL_SECONDS;
+}
+
+export function getEffectiveReminderTime(dateKey, weekdayReminderTime = DEFAULT_WEEKDAY_REMINDER_TIME) {
+  if (isWeekendDateKey(dateKey)) {
+    return DEFAULT_WEEKEND_REMINDER_TIME;
+  }
+
+  return isValidReminderTime(weekdayReminderTime) ? weekdayReminderTime.slice(0, 5) : DEFAULT_WEEKDAY_REMINDER_TIME;
 }
 
 export function calculateTodoCompletion(todos) {
@@ -133,6 +157,31 @@ function getZonedParts(date, timeZone) {
 
 function asDate(value) {
   return value instanceof Date ? value : new Date(value);
+}
+
+function getSessionDurationSeconds(session) {
+  if (Number.isFinite(session.durationSeconds) && session.durationSeconds > 0) {
+    return Math.floor(session.durationSeconds);
+  }
+
+  if (!session.startedAt || !session.endedAt) {
+    return 0;
+  }
+
+  const startedAt = asDate(session.startedAt);
+  const endedAt = asDate(session.endedAt);
+  const seconds = Math.floor((endedAt.getTime() - startedAt.getTime()) / 1000);
+  return seconds > 0 ? seconds : 0;
+}
+
+function isWeekendDateKey(dateKey) {
+  const normalized = String(dateKey ?? "");
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(normalized)) {
+    return false;
+  }
+
+  const day = new Date(`${normalized}T00:00:00.000Z`).getUTCDay();
+  return day === 0 || day === 6;
 }
 
 function pad(value) {

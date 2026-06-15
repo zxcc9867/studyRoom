@@ -27,6 +27,14 @@ import type { Session } from "@supabase/supabase-js";
 
 import { EMAIL_OTP_LENGTH, extractEmailOtpCandidate, isValidEmailOtp, sanitizeEmailOtp } from "./authCode.mjs";
 import {
+  DEFAULT_WEEKDAY_REMINDER_TIME,
+  WEEKEND_REMINDER_TIME,
+  formatAttendanceGoalHours,
+  getAttendanceRuleLabel,
+  getDailyAttendanceGoalSeconds,
+  getEffectiveReminderTime,
+} from "./attendancePolicy.mjs";
+import {
   MAX_AUTH_RETRY_COOLDOWN_MS,
   OTP_RETRY_COOLDOWN_MS,
   formatRetryWait,
@@ -119,7 +127,6 @@ import "./styles.css";
 const resendCooldownKey = "study-room-auth-resend-available-at";
 const emailOtpLength = EMAIL_OTP_LENGTH;
 const googleAuthEnabled = import.meta.env.VITE_GOOGLE_AUTH_ENABLED === "true";
-const defaultDailyGoalSeconds = 2 * 60 * 60;
 const cameraRequiredWarningCooldownMs = 10 * 60 * 1000;
 type TodoRepeatMode = "single" | "weekly";
 type CameraSetupPrompt = {
@@ -216,7 +223,7 @@ function DashboardApp() {
   const [studySessions, setStudySessions] = useState<StudySession[]>([]);
   const [studyTodos, setStudyTodos] = useState<StudyTodo[]>([]);
   const [studyRecoveryRequests, setStudyRecoveryRequests] = useState<StudyRecoveryRequest[]>([]);
-  const [reminderTime, setReminderTime] = useState("21:00");
+  const [reminderTime, setReminderTime] = useState(DEFAULT_WEEKDAY_REMINDER_TIME);
   const [emailRemindersEnabled, setEmailRemindersEnabled] = useState(true);
   const [alarmEditing, setAlarmEditing] = useState(false);
   const [selectedTodoDate, setSelectedTodoDate] = useState(() => getPlainDateKey(new Date()));
@@ -359,6 +366,20 @@ function DashboardApp() {
       })
     : 0;
   const todayDateKey = getLocalDateKey(new Date(nowMs), timeZone);
+  const blockingRecoveryRequests = useMemo(
+    () =>
+      pendingRecoveryRequests.filter(
+        (item) => item.trigger_type !== "missed_attendance" || item.local_date !== todayDateKey,
+      ),
+    [pendingRecoveryRequests, todayDateKey],
+  );
+  const lateStudyRecoveryRequests = useMemo(
+    () =>
+      pendingRecoveryRequests.filter(
+        (item) => item.trigger_type === "missed_attendance" && item.local_date === todayDateKey,
+      ),
+    [pendingRecoveryRequests, todayDateKey],
+  );
   const todayCompletedSeconds = studySessions
     .filter((item) => item.local_date === todayDateKey && item.status !== "active")
     .reduce((sum, item) => sum + item.duration_seconds, 0);
@@ -369,7 +390,11 @@ function DashboardApp() {
   const monthSeconds =
     monthCompletedSeconds +
     (activeSession?.local_date.startsWith(calendarMonth) ? activeElapsedSeconds : 0);
-  const todayProgress = Math.min(100, Math.round((todaySeconds / defaultDailyGoalSeconds) * 100));
+  const todayGoalSeconds = getDailyAttendanceGoalSeconds(todayDateKey);
+  const todayGoalLabel = formatAttendanceGoalHours(todayGoalSeconds);
+  const effectiveReminderTime = getEffectiveReminderTime(todayDateKey, profile?.reminder_time ?? reminderTime);
+  const todayAttendanceRuleLabel = getAttendanceRuleLabel(todayDateKey, profile?.reminder_time ?? reminderTime);
+  const todayProgress = Math.min(100, Math.round((todaySeconds / todayGoalSeconds) * 100));
   const todayTodos = useMemo(
     () => studyTodos.filter((todo) => todo.local_date === todayDateKey),
     [studyTodos, todayDateKey],
@@ -413,7 +438,7 @@ function DashboardApp() {
   useEffect(() => {
     if (!session?.user.id || !profile) return;
 
-    const configuredReminderTime = (profile.reminder_time ?? reminderTime).slice(0, 5);
+    const configuredReminderTime = getEffectiveReminderTime(todayDateKey, profile.reminder_time ?? reminderTime);
     const popupKey = `study-room-reminder-popup:${session.user.id}:${todayDateKey}:${configuredReminderTime}`;
     const hasPopupRecord = Boolean(window.localStorage.getItem(popupKey));
     const shouldShowPopup = shouldShowStudyReminderPopup({
@@ -1269,7 +1294,7 @@ function DashboardApp() {
   }
 
   function cancelAlarmEditing() {
-    setReminderTime((profile?.reminder_time ?? "21:00").slice(0, 5));
+    setReminderTime((profile?.reminder_time ?? DEFAULT_WEEKDAY_REMINDER_TIME).slice(0, 5));
     setEmailRemindersEnabled(profile?.email_reminders_enabled ?? true);
     setAlarmEditing(false);
   }
@@ -1359,7 +1384,7 @@ function DashboardApp() {
   }
 
   async function startTimer(cameraReadyOverride = false) {
-    if (pendingRecoveryRequests.length > 0) {
+    if (blockingRecoveryRequests.length > 0) {
       setMessage("회복 루틴 필요: Slack에서 사유와 보충 계획을 제출해야 다음 공부 세션을 시작할 수 있습니다.");
       return;
     }
@@ -1902,8 +1927,8 @@ function DashboardApp() {
           <p className="eyebrow">forced attendance</p>
           <h1>매일 같은 시간, 독서실 입장</h1>
           <p className="login-copy">
-            이메일로 받은 8자리 코드를 입력하면 로그인됩니다. 알림 후 30분 안에 타이머를 시작해야 출석으로
-            인정됩니다.
+            이메일로 받은 8자리 코드를 입력하면 로그인됩니다. 알림 후 30분 안에 타이머를 시작하거나,
+            오늘 목표 시간을 채우면 출석으로 인정됩니다.
           </p>
           <div className="login-form">
             <button
@@ -1990,7 +2015,7 @@ function DashboardApp() {
             <div className="topbar-head">
               <div>
                 <p className="eyebrow">deadline rule</p>
-                <h2>{profile?.reminder_time?.slice(0, 5) ?? reminderTime} 이후 30분 안에 출석</h2>
+                <h2>{todayAttendanceRuleLabel}</h2>
               </div>
               <div className="topbar-actions" aria-label="집중 세션 조작">
                 <button
@@ -1998,7 +2023,7 @@ function DashboardApp() {
                   onClick={() => {
                     void startTimer();
                   }}
-                  disabled={busy || Boolean(activeSession) || pendingRecoveryRequests.length > 0}
+                  disabled={busy || Boolean(activeSession) || blockingRecoveryRequests.length > 0}
                 >
                   <Play size={18} />
                   입장하고 시작
@@ -2028,7 +2053,7 @@ function DashboardApp() {
           </header>
         )}
 
-        {activeSection === "today" && pendingRecoveryRequests.length > 0 && (
+        {activeSection === "today" && blockingRecoveryRequests.length > 0 && (
           <section className="recovery-blocker" role="status" aria-live="polite">
             <div>
               <p className="eyebrow">recovery required</p>
@@ -2038,7 +2063,7 @@ function DashboardApp() {
               </p>
             </div>
             <ul>
-              {pendingRecoveryRequests.map((request) => (
+              {blockingRecoveryRequests.map((request) => (
                 <li key={request.id}>
                   <span>{request.local_date}</span>
                   <strong>
@@ -2047,6 +2072,18 @@ function DashboardApp() {
                 </li>
               ))}
             </ul>
+          </section>
+        )}
+
+        {activeSection === "today" && lateStudyRecoveryRequests.length > 0 && (
+          <section className="recovery-blocker recovery-soft" role="status" aria-live="polite">
+            <div>
+              <p className="eyebrow">late study recovery</p>
+              <h3>목표 시간을 채우면 출석으로 전환됩니다</h3>
+              <p>
+                오늘 출석 마감은 지났지만 {todayGoalLabel} 이상 공부를 완료하면 오늘 출석으로 인정됩니다.
+              </p>
+            </div>
           </section>
         )}
 
@@ -2288,14 +2325,14 @@ function DashboardApp() {
               </div>
               <p className="reminder-copy">
                 {reminderPopup.reminderTime} 알림이 도착했습니다. 15분 뒤 한 번 더 재촉하고, 30분 안에 타이머를
-                시작하면 오늘 출석으로 인정됩니다.
+                시작하거나 오늘 {todayGoalLabel} 목표를 채우면 출석으로 인정됩니다.
               </p>
               {renderReminderTodoList(reminderTodos)}
               <div className="reminder-actions">
                 <button
                   className="primary"
                   type="button"
-                  disabled={busy || Boolean(activeSession) || pendingRecoveryRequests.length > 0}
+                  disabled={busy || Boolean(activeSession) || blockingRecoveryRequests.length > 0}
                   onClick={() => {
                     setReminderPopup(null);
                     void startTimer();
@@ -2410,7 +2447,7 @@ function DashboardApp() {
               <div className="progress-track">
                 <span className="progress-fill" style={{ width: `${todayProgress}%` }} />
               </div>
-              <span>{todayProgress}% / 2시간</span>
+              <span>{todayProgress}% / {todayGoalLabel}</span>
             </div>
             <div className={`camera-monitor camera-monitor-${cameraStatus}`}>
               <div className="camera-monitor-head">
@@ -2491,7 +2528,7 @@ function DashboardApp() {
             </div>
             <div>
               <span>알림 시간</span>
-              <strong>{profile?.reminder_time?.slice(0, 5) ?? reminderTime}</strong>
+              <strong>평일 {profile?.reminder_time?.slice(0, 5) ?? reminderTime} · 주말 {WEEKEND_REMINDER_TIME}</strong>
             </div>
             <div>
               <span>타임존</span>
@@ -2553,7 +2590,7 @@ function DashboardApp() {
             {alarmEditing ? (
               <div className="alarm-edit-fields">
                 <label>
-                  매일 알림 시간
+                  평일 알림 시간
                   <input
                     type="time"
                     value={reminderTime}
@@ -2584,11 +2621,19 @@ function DashboardApp() {
                 <div className="alarm-summary-main">
                   <Clock3 size={30} />
                   <div>
-                    <span>매일 알림 시간</span>
-                    <strong>{formatAlarmTime(profile?.reminder_time ?? reminderTime)}</strong>
+                    <span>오늘 적용 알림</span>
+                    <strong>{formatAlarmTime(effectiveReminderTime)}</strong>
                   </div>
                 </div>
                 <div className="alarm-detail-grid">
+                  <div>
+                    <span>평일 알림</span>
+                    <strong>{formatAlarmTime(profile?.reminder_time ?? reminderTime)}</strong>
+                  </div>
+                  <div>
+                    <span>주말 알림</span>
+                    <strong>{formatAlarmTime(WEEKEND_REMINDER_TIME)}</strong>
+                  </div>
                   <div>
                     <span>이메일 보완</span>
                     <strong>{emailRemindersEnabled ? "사용" : "사용 안 함"}</strong>

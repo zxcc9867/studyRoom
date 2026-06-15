@@ -2,6 +2,52 @@
 
 ## Current Work
 
+- Task: Weekday/weekend attendance policy and late study recovery.
+- Purpose: Keep the 30-minute forced check-in window, but allow a missed same-day attendance to become present when the user completes the daily study goal: 2 hours on weekdays and 4 hours on weekends.
+- Related PRD:
+  - `memory-bank/prd-user-profile.md`
+  - `memory-bank/prd-supabase-cron.md`
+- Related files:
+  - `apps/web/src/main.tsx`
+  - `apps/web/src/attendancePolicy.mjs`
+  - `apps/web/src/attendancePolicy.mjs.d.ts`
+  - `apps/mobile/App.tsx`
+  - `packages/core/src/index.mjs`
+  - `packages/core/test/attendance.test.mjs`
+  - `packages/core/test/sql-migrations.test.mjs`
+  - `supabase/functions/attendance-cron/index.ts`
+  - `supabase/migrations/0021_late_study_goal_attendance_policy.sql`
+
+## Recent Decisions
+
+- Decision: Weekdays use the saved profile reminder time, defaulting to `20:30`, while weekends use a fixed `14:00` reminder time.
+- Reason: The user explicitly wants weekday reminders from 20:30 and weekend reminders from 14:00.
+- Alternative: Add a second editable profile column for weekend reminder time; deferred because the request specifies a fixed weekend time and the MVP already has a single editable weekday reminder field.
+- Impact: `get_due_reminders()`, `mark_missed_attendance()`, `start_study_session()`, and the web UI all compute effective reminder time from the local date.
+
+- Decision: Same-day pending `missed_attendance` recovery no longer blocks study start; camera-repeat recovery and old recovery requests still block.
+- Reason: If a missed-attendance recovery blocks `start_study_session()`, the user cannot complete the requested late 2-hour/4-hour recovery study.
+- Alternative: Require Slack recovery submission before late study; rejected because it conflicts with the new late-study attendance path.
+- Impact: Ending a session that reaches the daily goal promotes `attendance_days.status` to `present` and auto-resolves same-day pending missed-attendance recovery as `submitted`.
+
+## Current Status
+
+- Completed: Added TDD coverage for weekday/weekend goals, weekend 14:00 reminders, late-study present promotion, and the adjusted recovery blocker.
+- Completed: Added `0021_late_study_goal_attendance_policy.sql` and applied remote Supabase migration `20260615161759 late_study_goal_attendance_policy` to project `bqohkdzvxbrokkmuhysx`.
+- Completed: Redeployed `attendance-cron` as Supabase Edge Function version 18 with `verify_jwt=false`.
+- Completed: Updated the web dashboard and mobile copy so the UI no longer implies that only the 30-minute start window can produce attendance.
+- Completed: `npm.cmd test` passed 127 tests.
+- Completed: `npm.cmd run build` passed.
+- Blocked: none.
+- Next: Commit/push the changes, verify Vercel production deployment, and confirm production URL returns HTTP 200.
+
+## Notes
+
+- Late-study promotion is evaluated on completed saved study time. An active late session becomes attendance-eligible when it is ended and `duration_seconds` is persisted.
+- Supabase changelog checked on 2026-06-16: new public tables should use explicit grants for Data API access. This change adds functions and no new Data API table.
+
+## Current Work
+
 - Task: Editable scheduled and recurring todos in the attendance calendar modal.
 - Purpose: Let users click an existing todo, see its saved time/repeat metadata, edit title/time/weekdays/repeat end date, and save the changes without leaving stale recurring rows behind.
 - Related PRD:
