@@ -2,6 +2,51 @@
 
 ## Timeline
 
+### 2026-06-16 - Editable scheduled recurring todos
+
+#### Completed Work
+
+- Added repeat metadata columns to `study_todos`: `repeat_group_id`, `repeat_mode`, `repeat_weekdays`, and `repeat_until`.
+- Added constraints and an index so weekly recurring todos are grouped and single todos remain clean default rows.
+- Added explicit Supabase Data API grants for authenticated access to `study_todos`.
+- Added todo recurrence helpers for weekday normalization, weekly metadata detection, and repeat label formatting.
+- Added edit support in the calendar todo modal: existing todos now prefill title, optional time, repeat mode, weekdays, and repeat end date.
+- Added group update behavior for recurring todos: save updates existing dates, inserts newly selected dates, and deletes removed dates in the same repeat group.
+- Added compact metadata chips plus edit/delete controls to todo list rows.
+
+#### Changed Files
+
+- `apps/web/src/main.tsx`
+- `apps/web/src/styles.css`
+- `apps/web/src/todoRecurrence.mjs`
+- `apps/web/src/todoRecurrence.d.mts`
+- `apps/web/test/todoRecurrence.test.mjs`
+- `apps/web/test/slackNotifications.test.mjs`
+- `packages/core/test/sql-migrations.test.mjs`
+- `supabase/migrations/0020_study_todo_repeat_metadata.sql`
+- `docs/superpowers/plans/2026-06-16-editable-recurring-todos.md`
+- `memory-bank/active-context.md`
+- `memory-bank/progress.md`
+- `memory-bank/implementation-plan.md`
+- `memory-bank/prd-recurring-todos.md`
+
+#### Verification
+
+- RED: targeted todo recurrence, SQL migration, and web source tests failed before the helper/schema/UI implementation existed.
+- GREEN: `node --test packages\core\test\sql-migrations.test.mjs`, `node --test apps\web\test\todoRecurrence.test.mjs apps\web\test\slackNotifications.test.mjs` passed after implementation.
+- `npm.cmd test` passed 119 tests.
+- `npm.cmd run build` passed.
+- Supabase MCP migration list confirmed remote migration `20260615152037 study_todo_repeat_metadata` is applied to project `bqohkdzvxbrokkmuhysx`.
+
+#### Remaining Work
+
+- Commit and push the change set.
+- Confirm GitHub Actions/Vercel production deployment succeeds and the production URL returns HTTP 200.
+
+#### Next Priority
+
+- Verify in production with a real logged-in account that editing a scheduled weekly todo closes the modal and updates all generated dates.
+
 ### 2026-06-15 - Slack recovery routine enforcement
 
 #### Completed Work

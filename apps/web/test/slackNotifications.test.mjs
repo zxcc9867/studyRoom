@@ -22,6 +22,21 @@ test("web app blocks study start while a recovery routine is pending", () => {
   assert.match(appSource, /Recovery routine required/);
 });
 
+test("web app exposes editing controls for scheduled and recurring todos", () => {
+  const appSource = readFileSync("apps/web/src/main.tsx", "utf8");
+  const styleSource = readFileSync("apps/web/src/styles.css", "utf8");
+
+  assert.match(appSource, /editingTodoId/);
+  assert.match(appSource, /startTodoEditing/);
+  assert.match(appSource, /saveTodo/);
+  assert.match(appSource, /repeat_group_id/);
+  assert.match(appSource, /repeat_weekdays/);
+  assert.match(appSource, /repeat_until/);
+  assert.match(appSource, /formatTodoRepeatLabel/);
+  assert.match(appSource, /todo-meta-chip/);
+  assert.match(styleSource, /\.todo-meta-row/);
+});
+
 test("validates slack public and private channel IDs", () => {
   assert.equal(isValidSlackChannelId("C123ABC456"), true);
   assert.equal(isValidSlackChannelId("G123ABC456"), true);

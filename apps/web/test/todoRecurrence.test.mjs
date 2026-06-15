@@ -4,8 +4,11 @@ import { test } from "node:test";
 import {
   buildRecurringTodoDates,
   filterNewTodoDates,
+  formatTodoRepeatLabel,
   getDefaultRepeatEndDate,
   getTodoSaveFocusDate,
+  isWeeklyTodo,
+  normalizeTodoRepeatWeekdays,
 } from "../src/todoRecurrence.mjs";
 
 test("builds recurring todo dates from selected weekdays inside an inclusive range", () => {
@@ -88,4 +91,23 @@ test("focuses the first created date when weekday repeat skipped the selected da
     }),
     "2026-06-15",
   );
+});
+
+test("normalizes repeat weekdays and detects weekly todo metadata", () => {
+  assert.deepEqual(normalizeTodoRepeatWeekdays([5, 1, 1, 8, "2"]), [1, 2, 5]);
+  assert.deepEqual(normalizeTodoRepeatWeekdays(null), []);
+  assert.equal(isWeeklyTodo({ repeat_mode: "weekly", repeat_weekdays: [1], repeat_until: "2026-07-05" }), true);
+  assert.equal(isWeeklyTodo({ repeat_mode: "single", repeat_weekdays: [1], repeat_until: "2026-07-05" }), false);
+});
+
+test("formats repeat metadata labels for todo list rows", () => {
+  assert.equal(
+    formatTodoRepeatLabel({
+      repeat_mode: "weekly",
+      repeat_weekdays: [1, 3, 5],
+      repeat_until: "2026-07-05",
+    }),
+    "월/수/금 반복 · ~ 2026-07-05",
+  );
+  assert.equal(formatTodoRepeatLabel({ repeat_mode: "single", repeat_weekdays: [], repeat_until: null }), "하루만");
 });

@@ -253,6 +253,19 @@ test("study recovery migration stores pending recovery requests and blocks sessi
   assert.match(sql, /Recovery routine required/i);
 });
 
+test("study todo repeat metadata migration supports editable recurring todos", () => {
+  const sql = readMigrationContaining(/repeat_group_id/i);
+
+  assert.match(sql, /alter table public\.study_todos\s+add column if not exists repeat_group_id uuid/i);
+  assert.match(sql, /alter table public\.study_todos\s+add column if not exists repeat_mode text/i);
+  assert.match(sql, /alter table public\.study_todos\s+add column if not exists repeat_weekdays smallint\[\]/i);
+  assert.match(sql, /alter table public\.study_todos\s+add column if not exists repeat_until date/i);
+  assert.match(sql, /study_todos_repeat_mode_check/i);
+  assert.match(sql, /study_todos_repeat_weekdays_check/i);
+  assert.match(sql, /study_todos_repeat_group_idx/i);
+  assert.match(sql, /grant select, insert, update, delete on public\.study_todos to authenticated/i);
+});
+
 test("attendance cron creates missed recovery requests and one follow-up", () => {
   const source = readFileSync("supabase/functions/attendance-cron/index.ts", "utf8");
 

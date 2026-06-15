@@ -8,13 +8,42 @@ export const todoWeekdayOptions = [
   { value: 6, label: "토" },
 ];
 
+export function normalizeTodoRepeatWeekdays(weekdays) {
+  return [
+    ...new Set(
+      (Array.isArray(weekdays) ? weekdays : [])
+        .map((weekday) => Number(weekday))
+        .filter((weekday) => Number.isInteger(weekday) && weekday >= 0 && weekday <= 6),
+    ),
+  ].sort((left, right) => left - right);
+}
+
+export function isWeeklyTodo(todo) {
+  return (
+    todo?.repeat_mode === "weekly" &&
+    normalizeTodoRepeatWeekdays(todo.repeat_weekdays).length > 0 &&
+    Boolean(todo.repeat_until)
+  );
+}
+
+export function formatTodoRepeatLabel(todo) {
+  if (!isWeeklyTodo(todo)) {
+    return "하루만";
+  }
+
+  const weekdayLabels = normalizeTodoRepeatWeekdays(todo.repeat_weekdays)
+    .map((weekday) => todoWeekdayOptions.find((option) => option.value === weekday)?.label)
+    .filter(Boolean)
+    .join("/");
+
+  return `${weekdayLabels} 반복 · ~ ${todo.repeat_until}`;
+}
+
 export function buildRecurringTodoDates({ startDate, endDate, weekdays }) {
   const start = parseDateKey(startDate);
   const end = parseDateKey(endDate);
   const selectedWeekdays = new Set(
-    weekdays
-      .map((weekday) => Number(weekday))
-      .filter((weekday) => Number.isInteger(weekday) && weekday >= 0 && weekday <= 6),
+    normalizeTodoRepeatWeekdays(weekdays),
   );
 
   if (!start || !end || end.getTime() < start.getTime() || selectedWeekdays.size === 0) {

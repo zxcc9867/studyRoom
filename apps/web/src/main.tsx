@@ -12,6 +12,7 @@ import {
   KeyRound,
   LogOut,
   Mail,
+  Pencil,
   Play,
   Plus,
   Repeat2,
@@ -99,9 +100,12 @@ import {
 import {
   buildRecurringTodoDates,
   filterNewTodoDates,
+  formatTodoRepeatLabel,
   getDefaultRepeatEndDate,
   getTodoSaveFocusDate,
   getWeekdayFromDateKey,
+  isWeeklyTodo,
+  normalizeTodoRepeatWeekdays,
   todoWeekdayOptions,
 } from "./todoRecurrence.mjs";
 import {
@@ -156,6 +160,10 @@ type StudyTodo = {
   position: number;
   start_time: string | null;
   end_time: string | null;
+  repeat_group_id: string | null;
+  repeat_mode: TodoRepeatMode;
+  repeat_weekdays: number[] | null;
+  repeat_until: string | null;
   created_at: string;
 };
 
@@ -213,6 +221,7 @@ function DashboardApp() {
   const [alarmEditing, setAlarmEditing] = useState(false);
   const [selectedTodoDate, setSelectedTodoDate] = useState(() => getPlainDateKey(new Date()));
   const [todoDraft, setTodoDraft] = useState("");
+  const [editingTodoId, setEditingTodoId] = useState<string | null>(null);
   const [todoRepeatMode, setTodoRepeatMode] = useState<TodoRepeatMode>("single");
   const [todoRepeatEndDate, setTodoRepeatEndDate] = useState(() =>
     getDefaultRepeatEndDate(getPlainDateKey(new Date())),
@@ -368,6 +377,10 @@ function DashboardApp() {
   const selectedDateTodos = useMemo(
     () => studyTodos.filter((todo) => todo.local_date === selectedTodoDate),
     [studyTodos, selectedTodoDate],
+  );
+  const editingTodo = useMemo(
+    () => studyTodos.find((todo) => todo.id === editingTodoId) ?? null,
+    [studyTodos, editingTodoId],
   );
   const reminderTodos = useMemo(
     () => (reminderPopup ? studyTodos.filter((todo) => todo.local_date === reminderPopup.dateKey) : []),
@@ -848,6 +861,12 @@ function DashboardApp() {
   function selectTodoDate(dateKey: string) {
     setSelectedTodoDate(dateKey);
     setCalendarMonth(dateKey.slice(0, 7));
+    resetTodoDraftForDate(dateKey);
+    setTodoModalOpen(true);
+  }
+
+  function resetTodoDraftForDate(dateKey: string) {
+    setEditingTodoId(null);
     setTodoDraft("");
     setTodoRepeatMode("single");
     setTodoRepeatEndDate(getDefaultRepeatEndDate(dateKey));
@@ -855,6 +874,34 @@ function DashboardApp() {
     setTodoTimeEnabled(false);
     setTodoStartTime("09:00");
     setTodoEndTime("10:00");
+  }
+
+  function closeTodoModal() {
+    setTodoModalOpen(false);
+    setEditingTodoId(null);
+  }
+
+  function startTodoEditing(todo: StudyTodo) {
+    setSelectedTodoDate(todo.local_date);
+    setCalendarMonth(todo.local_date.slice(0, 7));
+    setEditingTodoId(todo.id);
+    setTodoDraft(todo.title);
+
+    const hasTime = Boolean(todo.start_time && todo.end_time);
+    setTodoTimeEnabled(hasTime);
+    setTodoStartTime(todo.start_time?.slice(0, 5) ?? "09:00");
+    setTodoEndTime(todo.end_time?.slice(0, 5) ?? "10:00");
+
+    if (isWeeklyTodo(todo)) {
+      setTodoRepeatMode("weekly");
+      setTodoRepeatEndDate(todo.repeat_until ?? getDefaultRepeatEndDate(todo.local_date));
+      setTodoRepeatWeekdays(normalizeTodoRepeatWeekdays(todo.repeat_weekdays));
+    } else {
+      setTodoRepeatMode("single");
+      setTodoRepeatEndDate(getDefaultRepeatEndDate(todo.local_date));
+      setTodoRepeatWeekdays([getWeekdayFromDateKey(todo.local_date)]);
+    }
+
     setTodoModalOpen(true);
   }
 
@@ -867,7 +914,59 @@ function DashboardApp() {
     });
   }
 
-  async function addTodo() {
+  function getNextTodoPositions(excludedTodoIds = new Set<string>()) {
+    const nextPositionsByDate = new Map<string, number>();
+    for (const todo of studyTodos) {
+      if (excludedTodoIds.has(todo.id)) continue;
+      nextPositionsByDate.set(
+        todo.local_date,
+        Math.max(nextPositionsByDate.get(todo.local_date) ?? 0, todo.position + 1),
+      );
+    }
+    return nextPositionsByDate;
+  }
+
+  function buildTodoInsertRows({
+    targetDates,
+    title,
+    userId,
+    schedule,
+    repeatGroupId,
+    repeatMode,
+    repeatWeekdays,
+    repeatUntil,
+    excludedTodoIds = new Set<string>(),
+  }: {
+    targetDates: string[];
+    title: string;
+    userId: string;
+    schedule: { startTime: string | null; endTime: string | null };
+    repeatGroupId: string | null;
+    repeatMode: TodoRepeatMode;
+    repeatWeekdays: number[];
+    repeatUntil: string | null;
+    excludedTodoIds?: Set<string>;
+  }) {
+    const nextPositionsByDate = getNextTodoPositions(excludedTodoIds);
+    return targetDates.map((localDate) => {
+      const position = nextPositionsByDate.get(localDate) ?? 0;
+      nextPositionsByDate.set(localDate, position + 1);
+      return {
+        user_id: userId,
+        local_date: localDate,
+        title,
+        start_time: schedule.startTime,
+        end_time: schedule.endTime,
+        repeat_group_id: repeatGroupId,
+        repeat_mode: repeatMode,
+        repeat_weekdays: repeatMode === "weekly" ? repeatWeekdays : [],
+        repeat_until: repeatMode === "weekly" ? repeatUntil : null,
+        position,
+      };
+    });
+  }
+
+  async function saveTodo() {
     if (!session?.user.id) return;
 
     const title = todoDraft.trim();
@@ -886,14 +985,26 @@ function DashboardApp() {
       return;
     }
 
+    const repeatWeekdays = normalizeTodoRepeatWeekdays(todoRepeatWeekdays);
     const candidateDates =
       todoRepeatMode === "weekly"
         ? buildRecurringTodoDates({
             startDate: selectedTodoDate,
             endDate: todoRepeatEndDate,
-            weekdays: todoRepeatWeekdays,
+            weekdays: repeatWeekdays,
           })
         : [selectedTodoDate];
+
+    if (candidateDates.length === 0) {
+      setMessage("반복할 요일과 종료일을 확인하세요.");
+      return;
+    }
+
+    if (editingTodo) {
+      await updateTodo(editingTodo, title, schedule, candidateDates, repeatWeekdays);
+      return;
+    }
+
     const targetDates = filterNewTodoDates({
       dates: candidateDates,
       title,
@@ -902,34 +1013,21 @@ function DashboardApp() {
       endTime: schedule.endTime,
     });
 
-    if (candidateDates.length === 0) {
-      setMessage("반복할 요일과 종료일을 확인하세요.");
-      return;
-    }
-
     if (targetDates.length === 0) {
       setMessage("이미 같은 날짜에 같은 할 일이 등록되어 있습니다.");
       return;
     }
 
-    const nextPositionsByDate = new Map<string, number>();
-    for (const todo of studyTodos) {
-      nextPositionsByDate.set(
-        todo.local_date,
-        Math.max(nextPositionsByDate.get(todo.local_date) ?? 0, todo.position + 1),
-      );
-    }
-    const rows = targetDates.map((localDate) => {
-      const position = nextPositionsByDate.get(localDate) ?? 0;
-      nextPositionsByDate.set(localDate, position + 1);
-      return {
-        user_id: session.user.id,
-        local_date: localDate,
-        title,
-        start_time: schedule.startTime,
-        end_time: schedule.endTime,
-        position,
-      };
+    const repeatGroupId = todoRepeatMode === "weekly" ? crypto.randomUUID() : null;
+    const rows = buildTodoInsertRows({
+      targetDates,
+      title,
+      userId: session.user.id,
+      schedule,
+      repeatGroupId,
+      repeatMode: todoRepeatMode,
+      repeatWeekdays,
+      repeatUntil: todoRepeatMode === "weekly" ? todoRepeatEndDate : null,
     });
 
     setTodoBusy(true);
@@ -951,12 +1049,142 @@ function DashboardApp() {
     setSelectedTodoDate(focusDate);
     setCalendarMonth(focusDate.slice(0, 7));
     setTodoDraft("");
-    setTodoModalOpen(false);
+    closeTodoModal();
     setMessage(
       todoRepeatMode === "weekly"
         ? `${targetDates.length}개 날짜에 반복 할 일을 저장했습니다.`
         : `${formatTodoDate(selectedTodoDate)} 할 일을 저장했습니다.`,
     );
+  }
+
+  async function updateTodo(
+    todo: StudyTodo,
+    title: string,
+    schedule: { startTime: string | null; endTime: string | null },
+    targetDates: string[],
+    repeatWeekdays: number[],
+  ) {
+    if (!session?.user.id) return;
+
+    setTodoBusy(true);
+    try {
+      if (todoRepeatMode === "single") {
+        const { data, error } = await supabase
+          .from("study_todos")
+          .update({
+            title,
+            start_time: schedule.startTime,
+            end_time: schedule.endTime,
+            repeat_group_id: null,
+            repeat_mode: "single",
+            repeat_weekdays: [],
+            repeat_until: null,
+          })
+          .eq("id", todo.id)
+          .select("*")
+          .single();
+
+        if (error) throw new Error(error.message);
+
+        if (todo.repeat_group_id) {
+          const { error: deleteError } = await supabase
+            .from("study_todos")
+            .delete()
+            .eq("repeat_group_id", todo.repeat_group_id)
+            .neq("id", todo.id);
+          if (deleteError) throw new Error(deleteError.message);
+        }
+
+        const updatedTodo = data as StudyTodo;
+        setStudyTodos((current) =>
+          sortTodos(
+            current
+              .filter((item) => !todo.repeat_group_id || item.id === todo.id || item.repeat_group_id !== todo.repeat_group_id)
+              .map((item) => (item.id === todo.id ? updatedTodo : item)),
+          ),
+        );
+        setSelectedTodoDate(updatedTodo.local_date);
+        setCalendarMonth(updatedTodo.local_date.slice(0, 7));
+        setMessage(`${formatTodoDate(updatedTodo.local_date)} 할 일을 수정했습니다.`);
+        closeTodoModal();
+        return;
+      }
+
+      const repeatGroupId = todo.repeat_group_id ?? crypto.randomUUID();
+      const targetDateSet = new Set(targetDates);
+      const groupTodos = todo.repeat_group_id
+        ? studyTodos.filter((item) => item.repeat_group_id === todo.repeat_group_id)
+        : [todo];
+      const groupTodoIds = new Set(groupTodos.map((item) => item.id));
+      const updateIds = groupTodos.filter((item) => targetDateSet.has(item.local_date)).map((item) => item.id);
+      const removeIds = groupTodos.filter((item) => !targetDateSet.has(item.local_date)).map((item) => item.id);
+      const existingTargetDates = new Set(
+        groupTodos.filter((item) => targetDateSet.has(item.local_date)).map((item) => item.local_date),
+      );
+      const missingDates = targetDates.filter((dateKey) => !existingTargetDates.has(dateKey));
+
+      const updatePayload = {
+        title,
+        start_time: schedule.startTime,
+        end_time: schedule.endTime,
+        repeat_group_id: repeatGroupId,
+        repeat_mode: "weekly",
+        repeat_weekdays: repeatWeekdays,
+        repeat_until: todoRepeatEndDate,
+      };
+      const updatedRows: StudyTodo[] = [];
+      const insertedRows: StudyTodo[] = [];
+
+      if (updateIds.length > 0) {
+        const { data, error } = await supabase
+          .from("study_todos")
+          .update(updatePayload)
+          .in("id", updateIds)
+          .select("*");
+        if (error) throw new Error(error.message);
+        updatedRows.push(...((data ?? []) as StudyTodo[]));
+      }
+
+      if (missingDates.length > 0) {
+        const rows = buildTodoInsertRows({
+          targetDates: missingDates,
+          title,
+          userId: session.user.id,
+          schedule,
+          repeatGroupId,
+          repeatMode: "weekly",
+          repeatWeekdays,
+          repeatUntil: todoRepeatEndDate,
+          excludedTodoIds: groupTodoIds,
+        });
+        const { data, error } = await supabase.from("study_todos").insert(rows).select("*");
+        if (error) throw new Error(error.message);
+        insertedRows.push(...((data ?? []) as StudyTodo[]));
+      }
+
+      if (removeIds.length > 0) {
+        const { error } = await supabase.from("study_todos").delete().in("id", removeIds);
+        if (error) throw new Error(error.message);
+      }
+
+      const touchedIds = new Set([...updateIds, ...removeIds]);
+      setStudyTodos((current) =>
+        sortTodos([
+          ...current.filter((item) => !touchedIds.has(item.id)),
+          ...updatedRows,
+          ...insertedRows,
+        ]),
+      );
+      const focusDate = getTodoSaveFocusDate({ selectedDate: selectedTodoDate, targetDates });
+      setSelectedTodoDate(focusDate);
+      setCalendarMonth(focusDate.slice(0, 7));
+      setMessage(`${targetDates.length}개 날짜의 반복 할 일을 수정했습니다.`);
+      closeTodoModal();
+    } catch (error) {
+      setMessage(formatNotificationError(error));
+    } finally {
+      setTodoBusy(false);
+    }
   }
 
   async function toggleTodo(todo: StudyTodo) {
@@ -1542,27 +1770,43 @@ function DashboardApp() {
       <ul className="todo-list">
         {todos.map((todo) => (
           <li className={`todo-item ${todo.is_completed ? "todo-done" : ""}`} key={todo.id}>
-            <label>
-              <input
-                type="checkbox"
-                checked={todo.is_completed}
+            <div className="todo-main">
+              <label className="todo-check-row">
+                <input
+                  type="checkbox"
+                  checked={todo.is_completed}
+                  disabled={todoBusy}
+                  onChange={() => void toggleTodo(todo)}
+                />
+                <span className="todo-title">{todo.title}</span>
+              </label>
+              <div className="todo-meta-row" aria-label={`${todo.title} 설정`}>
+                {formatTodoScheduleLabel(todo) && (
+                  <span className="todo-time-chip">{formatTodoScheduleLabel(todo)}</span>
+                )}
+                <span className="todo-meta-chip">{formatTodoRepeatLabel(todo)}</span>
+              </div>
+            </div>
+            <div className="todo-actions">
+              <button
+                className="todo-edit"
+                type="button"
+                aria-label={`${todo.title} 편집`}
                 disabled={todoBusy}
-                onChange={() => void toggleTodo(todo)}
-              />
-              {formatTodoScheduleLabel(todo) && (
-                <span className="todo-time-chip">{formatTodoScheduleLabel(todo)}</span>
-              )}
-              <span>{todo.title}</span>
-            </label>
-            <button
-              className="todo-delete"
-              type="button"
-              aria-label={`${todo.title} 삭제`}
-              disabled={todoBusy}
-              onClick={() => void deleteTodo(todo.id)}
-            >
-              <Trash2 size={16} />
-            </button>
+                onClick={() => startTodoEditing(todo)}
+              >
+                <Pencil size={16} />
+              </button>
+              <button
+                className="todo-delete"
+                type="button"
+                aria-label={`${todo.title} 삭제`}
+                disabled={todoBusy}
+                onClick={() => void deleteTodo(todo.id)}
+              >
+                <Trash2 size={16} />
+              </button>
+            </div>
           </li>
         ))}
       </ul>
@@ -1864,7 +2108,7 @@ function DashboardApp() {
           <div
             className="modal-backdrop"
             role="presentation"
-            onClick={() => setTodoModalOpen(false)}
+            onClick={closeTodoModal}
           >
             <section
               className="todo-modal"
@@ -1882,7 +2126,7 @@ function DashboardApp() {
                   className="modal-close"
                   type="button"
                   aria-label="할 일 창 닫기"
-                  onClick={() => setTodoModalOpen(false)}
+                  onClick={closeTodoModal}
                 >
                   <X size={18} />
                 </button>
@@ -1897,7 +2141,7 @@ function DashboardApp() {
                 className="todo-form"
                 onSubmit={(event) => {
                   event.preventDefault();
-                  void addTodo();
+                  void saveTodo();
                 }}
               >
                 <div className="todo-entry-row">
@@ -1909,8 +2153,8 @@ function DashboardApp() {
                     autoFocus
                   />
                   <button className="secondary" type="submit" disabled={todoBusy}>
-                    <Plus size={18} />
-                    저장
+                    {editingTodo ? <Pencil size={18} /> : <Plus size={18} />}
+                    {editingTodo ? "수정 저장" : "저장"}
                   </button>
                 </div>
                 <div className="todo-repeat-panel" aria-label="할 일 시간 설정">

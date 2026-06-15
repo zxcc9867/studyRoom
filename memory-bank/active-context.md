@@ -2,6 +2,46 @@
 
 ## Current Work
 
+- Task: Editable scheduled and recurring todos in the attendance calendar modal.
+- Purpose: Let users click an existing todo, see its saved time/repeat metadata, edit title/time/weekdays/repeat end date, and save the changes without leaving stale recurring rows behind.
+- Related PRD:
+  - `memory-bank/prd-recurring-todos.md`
+- Related files:
+  - `apps/web/src/main.tsx`
+  - `apps/web/src/styles.css`
+  - `apps/web/src/todoRecurrence.mjs`
+  - `apps/web/src/todoRecurrence.d.mts`
+  - `apps/web/test/todoRecurrence.test.mjs`
+  - `apps/web/test/slackNotifications.test.mjs`
+  - `packages/core/test/sql-migrations.test.mjs`
+  - `supabase/migrations/0020_study_todo_repeat_metadata.sql`
+
+## Recent Decisions
+
+- Decision: Keep dated `study_todos` rows, but persist lightweight repeat metadata on each generated row through `repeat_group_id`, `repeat_mode`, `repeat_weekdays`, and `repeat_until`.
+- Reason: The app already depends on dated todo rows for daily checklists, notification enrichment, and todo history, while editing recurring rows requires knowing which rows belong to the same repeated item.
+- Alternative: Add a separate recurrence-rule table and generate dated todos server-side; deferred because it is larger than the requested calendar modal editing scope.
+- Impact: Existing single todos remain default `single` rows. Weekly recurring todos can now be edited as a group from any generated date.
+
+## Current Status
+
+- Completed: Added repeat metadata migration and applied remote Supabase migration `study_todo_repeat_metadata` to project `bqohkdzvxbrokkmuhysx`.
+- Completed: Added repeat metadata helpers and tests for weekday normalization, weekly detection, and todo list labels.
+- Completed: Added edit-state UI so an existing todo fills the modal with saved title, time, repeat mode, weekdays, and repeat end date.
+- Completed: Added update logic for converting recurring rows to single rows, updating existing recurring rows, inserting newly selected dates, and deleting dates removed from the repeat rule.
+- Completed: `npm.cmd test` passed 119 tests.
+- Completed: `npm.cmd run build` passed.
+- In progress: Vercel production deployment and GitHub push still need to be completed for the user-visible web change.
+- Blocked: none.
+- Next: Commit, push, monitor the Vercel production deployment, and verify the production URL returns HTTP 200.
+
+## Notes
+
+- This change updates `study_todos` schema and client-side todo editing only. It does not introduce a new API route or a server-side recurrence generator.
+- Supabase Data API access remains explicit through `grant select, insert, update, delete on public.study_todos to authenticated`.
+
+## Current Work
+
 - Task: Slack recovery routine enforcement for missed attendance and repeated camera absence.
 - Purpose: Require the user to submit a Slack modal with a reason, makeup task, and next-day pledge before a new study session can start after a missed attendance or repeated absence warnings.
 - Related PRD:

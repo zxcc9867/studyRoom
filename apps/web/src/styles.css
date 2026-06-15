@@ -1384,7 +1384,13 @@ label {
   padding: 9px 10px;
 }
 
-.todo-item label {
+.todo-main {
+  display: grid;
+  gap: 7px;
+  min-width: 0;
+}
+
+.todo-check-row {
   display: flex;
   grid-template-columns: none;
   align-items: center;
@@ -1400,12 +1406,21 @@ label {
   accent-color: #4f916f;
 }
 
-.todo-item span {
+.todo-title,
+.todo-meta-row span {
   overflow-wrap: anywhere;
   line-height: 1.35;
 }
 
-.todo-time-chip {
+.todo-meta-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  padding-left: 30px;
+}
+
+.todo-time-chip,
+.todo-meta-chip {
   flex: 0 0 auto;
   border: 2px solid rgba(47, 107, 82, 0.35);
   border-radius: 999px;
@@ -1417,19 +1432,41 @@ label {
   line-height: 1.2;
 }
 
-.todo-done span {
+.todo-meta-chip {
+  border-color: rgba(210, 181, 111, 0.85);
+  background: #fff3bf;
+  color: #6a5325;
+}
+
+.todo-done .todo-title {
   color: #6f6a5e;
   text-decoration: line-through;
 }
 
+.todo-actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.todo-edit,
 .todo-delete {
   width: 36px;
   min-height: 36px;
+  padding: 0;
+  box-shadow: none;
+}
+
+.todo-edit {
+  border: 2px solid #4f916f;
+  background: #e7f5d4;
+  color: #2f6b52;
+}
+
+.todo-delete {
   border: 2px solid #bf5c42;
   background: #ffe0d3;
   color: #8b3e2f;
-  padding: 0;
-  box-shadow: none;
 }
 
 .todo-empty {

@@ -1,5 +1,14 @@
 # PRD: Recurring Todos
 
+## 2026-06-16 Update: Editable Scheduled Recurring Todos
+
+- Existing todos in the calendar modal can be edited, not only deleted and recreated.
+- A todo row shows saved schedule and repeat metadata when configured.
+- Editing a single todo updates only that row.
+- Editing a weekly todo updates rows in the same `repeat_group_id`, creates newly selected dates, and removes dates no longer selected.
+- Weekly repeat metadata is stored directly on each generated `study_todos` row through `repeat_group_id`, `repeat_mode`, `repeat_weekdays`, and `repeat_until`.
+- A separate recurrence-rule table remains out of scope for this MVP.
+
 ## 2026-06-14 Update: Overnight Scheduled Todos
 
 - The todo modal supports optional schedule times that cross midnight.
@@ -34,7 +43,7 @@
 ## 4. Non-goals
 
 - 서버가 매주 자동으로 미래 todo를 무한 생성하는 규칙 엔진은 이번 범위에서 제외한다.
-- 별도 `todo_recurrence_rules` 테이블은 이번 범위에서 만들지 않는다.
+- 별도 `todo_recurrence_rules` 테이블은 이번 범위에서 만들지 않는다. 대신 편집 가능한 weekly group metadata만 `study_todos`에 저장한다.
 
 ## 5. User Stories
 
@@ -66,20 +75,22 @@
 * [x] 반복 요일을 다중 선택할 수 있다.
 * [x] 반복 날짜를 `study_todos` 행으로 materialize한다.
 * [x] 같은 날짜와 같은 제목의 기존 todo는 중복 생성하지 않는다.
+* [x] 기존 todo의 제목, 시간, 반복 요일, 반복 종료일을 모달에서 다시 편집할 수 있다.
+* [x] weekly 반복 todo는 같은 repeat group 안에서 추가/수정/삭제를 일괄 반영한다.
 
 ## 8. Non-functional Requirements
 
 * 성능: 반복 저장은 클라이언트에서 날짜 목록을 계산하고 한 번의 bulk insert로 처리한다.
 * 보안: 기존 `study_todos` RLS와 authenticated user insert 정책을 그대로 사용한다.
 * 접근성: 반복 모드와 요일 버튼은 `aria-pressed` 상태를 제공한다.
-* 확장성: 무한 반복이 필요하면 후속으로 `todo_recurrence_rules`를 추가할 수 있게 순수 함수로 날짜 계산을 분리한다.
+* 확장성: 무한 반복이 필요하면 후속으로 `todo_recurrence_rules`를 추가할 수 있게 순수 함수로 날짜 계산을 분리하고, 현재는 `study_todos`의 repeat group metadata로 편집 가능한 MVP를 유지한다.
 * 유지보수성: 반복 날짜 계산은 `todoRecurrence.mjs`에서 테스트한다.
 
 ## 9. Dependencies
 
 * 내부 의존성: `apps/web/src/main.tsx`, `apps/web/src/todoRecurrence.mjs`
 * 외부 의존성: 없음
-* Supabase: 기존 `study_todos` 테이블
+* Supabase: `study_todos` 테이블과 repeat metadata columns
 * API: Supabase Data API insert/select
 * 환경 변수: 기존 Supabase Vite 환경 변수
 
@@ -97,4 +108,4 @@
 
 ## 12. Open Questions
 
-* 장기적으로 반복 규칙 자체를 저장하고 매월 자동 생성할지 여부
+* 장기적으로 별도 반복 규칙 테이블을 만들고 매월/매주 서버에서 자동 생성할지 여부

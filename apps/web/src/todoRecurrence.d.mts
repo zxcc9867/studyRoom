@@ -16,6 +16,12 @@ export type ExistingTodoIdentity = {
   end_time?: string | null;
 };
 
+export type TodoRepeatMetadata = {
+  repeat_mode?: "single" | "weekly" | string | null;
+  repeat_weekdays?: number[] | null;
+  repeat_until?: string | null;
+};
+
 export type NewTodoDatesInput<T extends ExistingTodoIdentity> = {
   dates: string[];
   title: string;
@@ -25,6 +31,9 @@ export type NewTodoDatesInput<T extends ExistingTodoIdentity> = {
 };
 
 export const todoWeekdayOptions: TodoWeekdayOption[];
+export function normalizeTodoRepeatWeekdays(weekdays: unknown): number[];
+export function isWeeklyTodo(todo: TodoRepeatMetadata | null | undefined): boolean;
+export function formatTodoRepeatLabel(todo: TodoRepeatMetadata | null | undefined): string;
 export function buildRecurringTodoDates(input: TodoRecurrenceInput): string[];
 export function filterNewTodoDates<T extends ExistingTodoIdentity>(input: NewTodoDatesInput<T>): string[];
 export function getTodoSaveFocusDate(input: {

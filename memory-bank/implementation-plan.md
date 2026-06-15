@@ -17,7 +17,7 @@
 - In-app popup: when the dashboard is open at the configured reminder minute, the web app shows a modal reminder popup. This is separate from OS/browser push and does not work when the browser is closed.
 - In-app popup suppression: if the user already has an active same-day study session at the configured reminder minute, the web app does not show the reminder modal.
 - My Page: the web dashboard uses hash-based client routing (`#me`) to render My Page as a separate SPA page while reusing loaded profile and `study_todos` data to show account summary and completed todo history.
-- Recurring todos: weekday repetition is materialized into dated `study_todos` rows on save. The MVP does not store recurrence rules; this keeps reminders, today's tasks, and completed history on the existing date-based data path.
+- Recurring todos: weekday repetition is materialized into dated `study_todos` rows on save, and each generated weekly row stores lightweight repeat metadata (`repeat_group_id`, `repeat_mode`, `repeat_weekdays`, `repeat_until`) so the group can be edited later from the calendar modal. This keeps reminders, today's tasks, and completed history on the existing date-based data path without adding a separate recurrence-rule table.
 - Scheduled todos: `study_todos` can optionally store `start_time` and `end_time`. If one is present, both must be present. Same-day schedules use `start_time < end_time`; overnight schedules use `end_time < start_time`; equal start/end times are invalid.
 - Reminder todo enrichment: `attendance-cron` loads `study_todos` for each due reminder's `user_id` and `local_date`, then appends a compact `오늘 할 일` summary to server-side notification bodies. The open web app also renders the same date's todos in the reminder popup from already loaded dashboard state.
 - Two-step attendance enforcement: `get_due_reminders()` emits an initial reminder at the configured daily reminder time and a `nudge` reminder 15 minutes later if no qualifying timer start exists. `mark_missed_attendance()` marks the day missed at reminder time + 30 minutes.
@@ -142,7 +142,7 @@ docs/images/study-room-thumbnail.png
 - Lambda body includes `source: "aws-eventbridge"` and `triggeredAt`.
 - The page-exit session termination helper remains available for explicit future use, but current browser lifecycle events do not call it. Normal session termination sends `end_study_session` from the explicit `종료` action.
 - My Page does not call a new API. It derives completed todo history from `study_todos` already loaded by the dashboard and is selected through the `#me` hash route.
-- Recurring todo save does not call a new API route. The web app computes target dates locally and bulk inserts rows into `study_todos` through Supabase Data API.
+- Recurring todo save/edit does not call a new API route. The web app computes target dates locally and inserts, updates, or deletes rows in `study_todos` through Supabase Data API.
 
 ## Database Conventions
 
@@ -164,7 +164,7 @@ docs/images/study-room-thumbnail.png
 - `study_presence_events.metadata` must not contain `image`, `video`, `frame`, `faceEmbedding`, or `landmarks` keys.
 - Users can select and insert only their own `study_presence_events`; Edge Functions use the service role after validating session ownership.
 - `end_study_session(p_session_id uuid, p_excluded_seconds integer default 0)` stores `duration_seconds` as elapsed seconds minus non-negative excluded seconds. This keeps camera auto-paused absence time out of saved study totals.
-- Recurring todo rows are stored in `study_todos` with one row per target `local_date`. Duplicate title/date rows are skipped in the client before insert.
+- Recurring todo rows are stored in `study_todos` with one row per target `local_date`. Weekly rows share `repeat_group_id` and repeat metadata so editing one generated row can update the group, add newly selected dates, and delete removed dates. Duplicate title/date/time rows are skipped in the client before new inserts.
 - Scheduled todo rows use nullable `start_time` and `end_time`; the DB check constraint allows both null or both non-null with `start_time <> end_time`, so overnight schedules such as `23:00` to `01:00` are valid.
 - Todo duplicate filtering uses date, normalized title, and optional time range so the same task title can be scheduled in different time blocks on the same day.
 
@@ -213,6 +213,16 @@ docs/images/study-room-thumbnail.png
 - GitHub Actions Vercel deployment uses only GitHub Secrets for `VERCEL_TOKEN`, `VERCEL_ORG_ID`, and `VERCEL_PROJECT_ID`; none of those values should be stored in frontend code.
 
 ## Supabase 변경 이력
+
+### 2026-06-16
+
+- 변경 대상: `public.study_todos`
+- 변경 내용: 반복 todo 편집을 위해 `repeat_group_id`, `repeat_mode`, `repeat_weekdays`, `repeat_until` 컬럼을 추가했다. weekly todo는 같은 `repeat_group_id`로 묶고, single todo는 repeat metadata를 비운 상태로 유지한다. `study_todos_repeat_mode_check`, `study_todos_repeat_weekdays_check`, `study_todos_repeat_consistency_check`, `study_todos_repeat_group_idx`를 추가했다.
+- 변경 이유: 캘린더 모달에서 이미 등록된 할 일의 시간, 요일, 반복 종료일을 다시 열어 수정할 수 있어야 하기 때문이다.
+- 관련 기능: 출석 캘린더 todo 편집, 요일 반복 todo, 선택형 시간 todo
+- 마이그레이션 파일: `supabase/migrations/0020_study_todo_repeat_metadata.sql`
+- 확인 방법: `npm.cmd test`, `npm.cmd run build`, Supabase MCP migration list에서 `20260615152037 study_todo_repeat_metadata` 확인
+- 주의 사항: 반복 규칙 전용 테이블은 아직 없다. 기존 date-based `study_todos` 행을 유지하되, weekly row에만 가벼운 반복 메타데이터를 저장한다.
 
 ### 2026-06-14
 
