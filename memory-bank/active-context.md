@@ -31,9 +31,12 @@
 - Completed: Added update logic for converting recurring rows to single rows, updating existing recurring rows, inserting newly selected dates, and deleting dates removed from the repeat rule.
 - Completed: `npm.cmd test` passed 119 tests.
 - Completed: `npm.cmd run build` passed.
-- In progress: Vercel production deployment and GitHub push still need to be completed for the user-visible web change.
+- Completed: Committed and pushed `3d763c39564a7985052783cd72e2c905d6208d79` to `origin/main`.
+- Completed: Vercel production deployment `dpl_36noV75oS5vakytBrPCiFHWfsdyL` for commit `3d763c39564a7985052783cd72e2c905d6208d79` is `READY`.
+- Completed: `https://study-room-attendance.vercel.app/` returned HTTP 200.
+- Completed: Vercel production runtime error-log query for deployment `dpl_36noV75oS5vakytBrPCiFHWfsdyL` returned no `error` or `fatal` logs in the checked 30-minute window.
 - Blocked: none.
-- Next: Commit, push, monitor the Vercel production deployment, and verify the production URL returns HTTP 200.
+- Next: Verify in production with a logged-in account that editing a scheduled weekly todo closes the modal and updates all generated dates.
 
 ## Notes
 

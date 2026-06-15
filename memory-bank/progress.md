@@ -37,11 +37,14 @@
 - `npm.cmd test` passed 119 tests.
 - `npm.cmd run build` passed.
 - Supabase MCP migration list confirmed remote migration `20260615152037 study_todo_repeat_metadata` is applied to project `bqohkdzvxbrokkmuhysx`.
+- Committed and pushed `3d763c39564a7985052783cd72e2c905d6208d79` to `origin/main`.
+- Vercel production deployment `dpl_36noV75oS5vakytBrPCiFHWfsdyL` is `READY` for commit `3d763c39564a7985052783cd72e2c905d6208d79`.
+- `https://study-room-attendance.vercel.app/` returned HTTP 200.
+- Vercel production runtime error-log query for deployment `dpl_36noV75oS5vakytBrPCiFHWfsdyL` returned no `error` or `fatal` logs in the checked 30-minute window.
 
 #### Remaining Work
 
-- Commit and push the change set.
-- Confirm GitHub Actions/Vercel production deployment succeeds and the production URL returns HTTP 200.
+- Verify in production with a real logged-in account that editing a scheduled weekly todo closes the modal and updates all generated dates.
 
 #### Next Priority
 
