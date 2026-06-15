@@ -48,12 +48,13 @@
 - Vercel production deployment `dpl_2P8wuQNyPh9qgEov37rAkvzzqctZ` is `READY` for commit `6cf4cad084bdd6d6a2d23380d3e5ad9f425fd119`.
 - `https://study-room-attendance.vercel.app/` returned HTTP 200.
 - Vercel production runtime error-log query for deployment `dpl_2P8wuQNyPh9qgEov37rAkvzzqctZ` returned no `error` or `fatal` logs in the checked one-hour window.
+- Supabase secrets list confirmed `STUDY_ALERT_SLACK_BOT_TOKEN` exists, but `SLACK_SIGNING_SECRET` is not configured yet.
 
 #### Remaining Work
 
 - Redeploy `camera-presence-warning` after explicit approval for the documented `verify_jwt=false` setting.
-- Commit, push, and verify Vercel production deployment.
-- Configure Slack App Interactivity Request URL and `SLACK_SIGNING_SECRET` if not already configured.
+- Add `SLACK_SIGNING_SECRET` before testing Slack recovery modal submissions.
+- Configure Slack App Interactivity Request URL if not already configured.
 
 #### Next Priority
 

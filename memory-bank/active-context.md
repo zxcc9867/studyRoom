@@ -40,7 +40,9 @@
 - Completed: `https://study-room-attendance.vercel.app/` returned HTTP 200.
 - Completed: Vercel production runtime error-log query for deployment `dpl_2P8wuQNyPh9qgEov37rAkvzzqctZ` returned no `error` or `fatal` logs in the checked one-hour window.
 - Blocked: `camera-presence-warning` redeploy was rejected by the execution approval reviewer because the per-function command still uses `--no-verify-jwt`; explicit user approval is required before trying again.
+- Blocked: Supabase Edge Function secrets include `STUDY_ALERT_SLACK_BOT_TOKEN`, but `SLACK_SIGNING_SECRET` is not configured yet. Slack recovery modal submissions will fail request verification until the user adds the Slack app signing secret.
 - Next: After explicit approval, redeploy `camera-presence-warning` so repeated camera absence can create recovery requests remotely.
+- Next: Add `SLACK_SIGNING_SECRET` from Slack App `Basic Information > App Credentials > Signing Secret`, then test the recovery modal.
 
 ## Notes
 

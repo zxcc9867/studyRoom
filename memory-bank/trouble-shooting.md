@@ -1607,3 +1607,35 @@ Use a narrower deployment path:
 ### Prevention
 
 Avoid broad `supabase functions deploy ... --no-verify-jwt` commands that cover multiple functions. Prefer one function per deploy when `verify_jwt=false` is involved, and document why the function has its own authentication boundary.
+
+## 2026-06-15 - Slack recovery modal secret missing
+
+### Situation
+
+`slack-recovery-interactions` was deployed, but Slack modal submissions require request verification with a Slack signing secret.
+
+### Error Message
+
+```txt
+SLACK_SIGNING_SECRET is required
+```
+
+### Cause
+
+Supabase Edge Function secrets include `STUDY_ALERT_SLACK_BOT_TOKEN`, but not `SLACK_SIGNING_SECRET`.
+
+### Resolution
+
+Add the Slack App signing secret to Supabase Edge Function secrets as `SLACK_SIGNING_SECRET`, then configure the Slack App Interactivity Request URL:
+
+```txt
+https://bqohkdzvxbrokkmuhysx.supabase.co/functions/v1/slack-recovery-interactions
+```
+
+### Related Files
+
+* `supabase/functions/slack-recovery-interactions/index.ts`
+
+### Prevention
+
+For Slack interactive components, always check both bot-token and signing-secret secrets. Bot token is enough for sending messages, but not enough for receiving signed Slack interactivity payloads.
