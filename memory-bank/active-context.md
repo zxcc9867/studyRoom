@@ -38,8 +38,11 @@
 - Completed: Updated the web dashboard and mobile copy so the UI no longer implies that only the 30-minute start window can produce attendance.
 - Completed: `npm.cmd test` passed 127 tests.
 - Completed: `npm.cmd run build` passed.
+- Completed: Committed and pushed `ac8d6ff4d822664faa4d9664679b8858a56a2188` to `origin/main`.
+- Completed: GitHub Actions run `27560595135` succeeded for the Vercel production workflow.
+- Completed: `https://study-room-attendance.vercel.app/` returned HTTP 200 and served the post-deploy asset `index-CcuqWrmS.js`.
 - Blocked: none.
-- Next: Commit/push the changes, verify Vercel production deployment, and confirm production URL returns HTTP 200.
+- Next: Production smoke-test a weekday and weekend policy scenario with a logged-in account if manual verification is needed.
 
 ## Notes
 

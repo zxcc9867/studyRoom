@@ -43,11 +43,13 @@
 - `npm.cmd run build` passed.
 - Supabase MCP migration list confirmed remote migration `20260615161759 late_study_goal_attendance_policy`.
 - Supabase Edge Function list confirmed `attendance-cron` version 18 is `ACTIVE` with `verify_jwt=false`.
+- Committed and pushed `ac8d6ff4d822664faa4d9664679b8858a56a2188` to `origin/main`.
+- GitHub Actions run `27560595135` completed successfully for the Vercel production workflow.
+- `https://study-room-attendance.vercel.app/` returned HTTP 200 and served the post-deploy asset `index-CcuqWrmS.js`.
 
 #### Remaining Work
 
-- Commit and push the changes.
-- Verify the Vercel production deployment reaches `READY` and `https://study-room-attendance.vercel.app/` returns HTTP 200.
+- Production smoke-test a weekday and weekend policy scenario with a logged-in account if manual verification is needed.
 
 #### Next Priority
 
