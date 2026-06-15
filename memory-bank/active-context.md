@@ -2,6 +2,51 @@
 
 ## Current Work
 
+- Task: Slack recovery routine enforcement for missed attendance and repeated camera absence.
+- Purpose: Require the user to submit a Slack modal with a reason, makeup task, and next-day pledge before a new study session can start after a missed attendance or repeated absence warnings.
+- Related PRD:
+  - `memory-bank/prd-slack-recovery-routines.md`
+  - `memory-bank/prd-slack-notifications.md`
+  - `memory-bank/prd-camera-presence.md`
+- Related files:
+  - `supabase/migrations/0019_study_recovery_requests.sql`
+  - `supabase/functions/_shared/recovery.ts`
+  - `supabase/functions/attendance-cron/index.ts`
+  - `supabase/functions/camera-presence-warning/index.ts`
+  - `supabase/functions/slack-recovery-interactions/index.ts`
+  - `apps/web/src/main.tsx`
+  - `apps/web/src/styles.css`
+  - `packages/core/test/sql-migrations.test.mjs`
+  - `apps/web/test/slackNotifications.test.mjs`
+
+## Recent Decisions
+
+- Decision: Slack recovery input uses a signed Slack button plus `views.open` modal instead of an in-app recovery form.
+- Reason: The product goal is to force the user to acknowledge failures in the notification channel, and the user explicitly selected Slack modal submission as the v1 input path.
+- Alternative: Build a web form in the app; deferred because the plan excludes an in-app recovery form for v1.
+- Impact: `slack-recovery-interactions` must be configured as the Slack App Interactivity Request URL and must have `SLACK_SIGNING_SECRET`.
+
+## Current Status
+
+- Completed: Added `study_recovery_requests` schema with RLS read access, duplicate pending prevention, follow-up tracking, and `start_study_session()` blocking for pending recovery.
+- Completed: Added Slack recovery button/modal handling and todo creation for submitted recovery routines.
+- Completed: Wired missed attendance and second same-day camera absence warning to create recovery requests and Slack recovery messages.
+- Completed: Added a Today Focus recovery blocker that disables study start while pending recovery exists.
+- Completed: `npm.cmd test`, `npm.cmd run build`, and `git diff --check` passed locally.
+- Completed: Supabase migration `study_recovery_requests` is applied to project `bqohkdzvxbrokkmuhysx`.
+- Completed: Deployed `slack-recovery-interactions` v1 and `attendance-cron` v17; both are ACTIVE with `verify_jwt=false`.
+- In progress: Vercel deployment and GitHub push.
+- Blocked: `camera-presence-warning` redeploy was rejected by the execution approval reviewer because the per-function command still uses `--no-verify-jwt`; explicit user approval is required before trying again.
+- Next: Commit, push, verify Vercel production, then request/perform the explicit `camera-presence-warning` deploy approval.
+
+## Notes
+
+- Slack tokens and signing secrets must stay in Supabase Edge Function secrets only.
+- The Slack bot must be invited to the saved channel before recovery messages can be delivered.
+- `camera_required_warning` remains a camera setup warning and does not trigger recovery.
+
+## Current Work
+
 - Task: Improve Slack alarm message readability.
 - Purpose: Make scheduled reminders, Slack test alarms, and camera warnings easier to scan in Slack by adding emoji-led sections for deadline, todos, action, and app link.
 - Related PRD:

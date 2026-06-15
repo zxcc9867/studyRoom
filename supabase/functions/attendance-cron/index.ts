@@ -1,6 +1,12 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "jsr:@supabase/supabase-js@2";
 import webpush from "npm:web-push@3.6.7";
+import {
+  createRecoveryRequest,
+  loadSlackTarget as loadRecoverySlackTarget,
+  sendPendingRecoveryFollowups,
+  sendRecoveryRequestSlackMessage,
+} from "../_shared/recovery.ts";
 
 type DueReminder = {
   user_id: string;
@@ -9,6 +15,13 @@ type DueReminder = {
   reminder_at: string;
   deadline_at: string;
   reminder_stage: "initial" | "nudge";
+};
+
+type MissedAttendance = {
+  user_id: string;
+  local_date: string;
+  reminder_at: string;
+  deadline_at: string;
 };
 
 type NotificationTarget = {
@@ -59,12 +72,20 @@ Deno.serve(async (request) => {
   const targets = await loadTargets(admin, reminders.map((reminder) => reminder.user_id));
   const todoMap = await loadTodosByReminder(admin, reminders);
   const deliveryResults = await sendReminderNotifications(admin, reminders, targets, todoMap);
+  const missedRecoveryResults = await sendMissedRecoveryRequests(
+    admin,
+    (missed ?? []) as MissedAttendance[],
+  );
+  // sendPendingRecoveryFollowups updates study_recovery_requests.followup_sent_at to avoid repeated nudges.
+  const recoveryFollowupResults = await sendPendingRecoveryFollowups(admin, now);
 
   return new Response(
     JSON.stringify({
       dueReminderCount: reminders.length,
       missedCount: missed?.length ?? 0,
       deliveryResults,
+      missedRecoveryResults,
+      recoveryFollowupResults,
     }),
     { status: 200, headers: jsonHeaders },
   );
@@ -139,6 +160,55 @@ async function sendReminderNotifications(
         channel: target.kind,
         status: outcome.ok ? "sent" : "failed",
         error_message: outcome.ok ? null : outcome.error,
+      });
+    }
+  }
+
+  return results;
+}
+
+async function sendMissedRecoveryRequests(
+  admin: ReturnType<typeof createClient>,
+  missedRows: MissedAttendance[],
+) {
+  const results = [];
+
+  for (const missedRow of missedRows) {
+    try {
+      const { request, created } = await createRecoveryRequest(admin, {
+        userId: missedRow.user_id,
+        localDate: missedRow.local_date,
+        triggerType: "missed_attendance",
+      });
+
+      if (!created && request.slack_message_ts) {
+        results.push({
+          ok: true,
+          skipped: true,
+          recoveryRequestId: request.id,
+          triggerType: request.trigger_type,
+        });
+        continue;
+      }
+
+      const target = await loadRecoverySlackTarget(admin, missedRow.user_id);
+      if (!target?.destination) {
+        results.push({
+          ok: true,
+          slackMissing: true,
+          recoveryRequestId: request.id,
+          triggerType: request.trigger_type,
+        });
+        continue;
+      }
+
+      results.push(await sendRecoveryRequestSlackMessage(admin, target, request));
+    } catch (error) {
+      results.push({
+        ok: false,
+        userId: missedRow.user_id,
+        localDate: missedRow.local_date,
+        error: error instanceof Error ? error.message : String(error),
       });
     }
   }

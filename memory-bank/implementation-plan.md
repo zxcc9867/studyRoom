@@ -11,6 +11,8 @@
 - Study session refresh persistence: browser lifecycle events such as `visibilitychange`, `pagehide`, and `beforeunload` do not end active study sessions. Explicit `종료` remains the reliable session-end action, and active sessions continue to be restored from Supabase after refresh.
 - Kakao notification channel: deprecated for active product behavior. Legacy `kakao_memo` rows and `kakao_message_connections` are retained for history, but enabled targets/connections are disabled and `attendance-cron` no longer sends Kakao Memo messages.
 - Slack notification channel: the web app stores a user-specific Slack Channel ID in `notification_targets.destination`, while Slack Edge Functions read `SLACK_BOT_TOKEN` or fallback alias `STUDY_ALERT_SLACK_BOT_TOKEN` from Edge Function secrets and call Slack Bot API `chat.postMessage`.
+- Slack recovery routines: missed attendance and repeated same-day camera absence create `study_recovery_requests` rows. Pending recovery requests block `start_study_session()` and the web start button until the user submits a Slack modal with a reason, makeup todo, and next-day pledge.
+- Slack interactivity: `slack-recovery-interactions` is deployed with `verify_jwt=false` and authenticates Slack requests by verifying `X-Slack-Signature` and `X-Slack-Request-Timestamp` with `SLACK_SIGNING_SECRET`. It opens the modal through Slack `views.open` and creates dated `study_todos` on submission.
 - Slack test channel: `slack-test-alarm` is a manually invoked Edge Function. Server/admin calls use `x-cron-secret`; they can either send to a direct `channelId` for setup verification or use the latest enabled Slack target. Browser calls use the logged-in user's Supabase JWT and are limited to that user's Slack target. It sends one test Slack message and records DB delivery results only when a saved target is used.
 - In-app popup: when the dashboard is open at the configured reminder minute, the web app shows a modal reminder popup. This is separate from OS/browser push and does not work when the browser is closed.
 - In-app popup suppression: if the user already has an active same-day study session at the configured reminder minute, the web app does not show the reminder modal.
@@ -90,9 +92,12 @@ apps/web/test/upperBodyPresence.test.mjs
 apps/web/test/cameraVideoHealth.test.mjs
 apps/web/test/sessionExit.test.mjs
 supabase/functions/camera-presence-warning/index.ts
+supabase/functions/slack-recovery-interactions/index.ts
+supabase/functions/_shared/recovery.ts
 supabase/migrations/0011_study_presence_events.sql
 supabase/migrations/0012_camera_required_warning.sql
 supabase/migrations/0013_exclude_camera_absence_from_sessions.sql
+supabase/migrations/0019_study_recovery_requests.sql
 ```
 
 ```txt

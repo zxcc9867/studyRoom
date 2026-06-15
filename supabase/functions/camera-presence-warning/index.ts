@@ -1,5 +1,9 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "jsr:@supabase/supabase-js@2";
+import {
+  createRecoveryRequest,
+  sendRecoveryRequestSlackMessage,
+} from "../_shared/recovery.ts";
 
 type StudySessionRow = {
   id: string;
@@ -56,6 +60,14 @@ Deno.serve(async (request) => {
 
   const target = await loadSlackTarget(admin, user.id);
   const eventId = await recordPresenceEvent(admin, studySession, eventType, absenceSeconds, detectedAt, Boolean(target));
+  const absenceWarningCount =
+    eventType === "absence_warning"
+      ? await countAbsenceWarningsForDate(admin, studySession.user_id, studySession.local_date)
+      : 0;
+  const recoveryResult =
+    eventType === "absence_warning" && absenceWarningCount >= 2
+      ? await sendRepeatedAbsenceRecoveryRequest(admin, studySession, target)
+      : null;
 
   if (!target?.destination) {
     return json({
@@ -63,6 +75,8 @@ Deno.serve(async (request) => {
       slackSent: false,
       slackMissing: true,
       eventId,
+      absenceWarningCount,
+      recoveryResult,
     });
   }
 
@@ -75,11 +89,13 @@ Deno.serve(async (request) => {
       slackMissing: false,
       eventId,
       messageTs,
+      absenceWarningCount,
+      recoveryResult,
     });
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
     await recordDelivery(admin, target, studySession.local_date, "failed", message);
-    return json({ error: message, eventId, slackSent: false }, 502);
+    return json({ error: message, eventId, slackSent: false, absenceWarningCount, recoveryResult }, 502);
   }
 });
 
@@ -192,6 +208,7 @@ async function recordPresenceEvent(
       detected_at: detectedAt,
       metadata: {
         source: "web-camera",
+        localDate: studySession.local_date,
         slackAttempted,
       },
     })
@@ -203,6 +220,66 @@ async function recordPresenceEvent(
   }
 
   return String(data.id);
+}
+
+async function countAbsenceWarningsForDate(
+  admin: ReturnType<typeof createClient>,
+  userId: string,
+  localDate: string,
+) {
+  const { count, error } = await admin
+    .from("study_presence_events")
+    .select("id", { count: "exact", head: true })
+    .eq("user_id", userId)
+    .eq("event_type", "absence_warning")
+    .contains("metadata", { localDate });
+
+  if (error) {
+    throw error;
+  }
+
+  return count ?? 0;
+}
+
+async function sendRepeatedAbsenceRecoveryRequest(
+  admin: ReturnType<typeof createClient>,
+  studySession: StudySessionRow,
+  target: SlackTarget | null,
+) {
+  const { request, created } = await createRecoveryRequest(admin, {
+    userId: studySession.user_id,
+    localDate: studySession.local_date,
+    triggerType: "camera_absence_repeat",
+  });
+
+  if (!target?.destination) {
+    return {
+      ok: true,
+      slackMissing: true,
+      recoveryRequestId: request.id,
+      triggerType: request.trigger_type,
+    };
+  }
+
+  if (!created && request.slack_message_ts) {
+    return {
+      ok: true,
+      skipped: true,
+      recoveryRequestId: request.id,
+      triggerType: request.trigger_type,
+    };
+  }
+
+  try {
+    return await sendRecoveryRequestSlackMessage(admin, target, request);
+  } catch (error) {
+    return {
+      ok: false,
+      recoveryRequestId: request.id,
+      triggerType: request.trigger_type,
+      error: error instanceof Error ? error.message : String(error),
+    };
+  }
 }
 
 async function sendSlackMessage(channelId: string, eventType: PresenceWarningEventType) {

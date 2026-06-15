@@ -159,6 +159,15 @@ type StudyTodo = {
   created_at: string;
 };
 
+type StudyRecoveryRequest = {
+  id: string;
+  local_date: string;
+  trigger_type: "missed_attendance" | "camera_absence_repeat";
+  status: "pending" | "submitted";
+  reason: string | null;
+  created_at: string;
+};
+
 function App() {
   if (!isSupabaseConfigured) {
     return <SetupRequired />;
@@ -198,6 +207,7 @@ function DashboardApp() {
   const [attendanceDays, setAttendanceDays] = useState<AttendanceDay[]>([]);
   const [studySessions, setStudySessions] = useState<StudySession[]>([]);
   const [studyTodos, setStudyTodos] = useState<StudyTodo[]>([]);
+  const [studyRecoveryRequests, setStudyRecoveryRequests] = useState<StudyRecoveryRequest[]>([]);
   const [reminderTime, setReminderTime] = useState("21:00");
   const [emailRemindersEnabled, setEmailRemindersEnabled] = useState(true);
   const [alarmEditing, setAlarmEditing] = useState(false);
@@ -305,6 +315,10 @@ function DashboardApp() {
 
   const timeZone = profile?.time_zone ?? Intl.DateTimeFormat().resolvedOptions().timeZone;
   const activeSession = studySessions.find((item) => item.status === "active") ?? null;
+  const pendingRecoveryRequests = useMemo(
+    () => studyRecoveryRequests.filter((item) => item.status === "pending"),
+    [studyRecoveryRequests],
+  );
   const cameraSupport = useMemo(() => getCameraSupport(window), []);
   const cameraDiagnostic: CameraDiagnostic = useMemo(
     () =>
@@ -783,7 +797,13 @@ function DashboardApp() {
 
   async function loadDashboard(userId: string) {
     setBusy(true);
-    const [{ data: profileData }, { data: attendanceData }, { data: sessionData }, { data: todoData }] = await Promise.all([
+    const [
+      { data: profileData },
+      { data: attendanceData },
+      { data: sessionData },
+      { data: todoData },
+      { data: recoveryData },
+    ] = await Promise.all([
       supabase.from("profiles").select("*").eq("user_id", userId).maybeSingle(),
       supabase
         .from("attendance_days")
@@ -805,6 +825,12 @@ function DashboardApp() {
         .order("position", { ascending: true })
         .order("created_at", { ascending: true })
         .limit(500),
+      supabase
+        .from("study_recovery_requests")
+        .select("id,local_date,trigger_type,status,reason,created_at")
+        .eq("user_id", userId)
+        .order("created_at", { ascending: false })
+        .limit(50),
     ]);
 
     if (profileData) {
@@ -815,6 +841,7 @@ function DashboardApp() {
     setAttendanceDays(attendanceData ?? []);
     setStudySessions(sessionData ?? []);
     setStudyTodos(todoData ?? []);
+    setStudyRecoveryRequests((recoveryData ?? []) as StudyRecoveryRequest[]);
     setBusy(false);
   }
 
@@ -1104,6 +1131,11 @@ function DashboardApp() {
   }
 
   async function startTimer(cameraReadyOverride = false) {
+    if (pendingRecoveryRequests.length > 0) {
+      setMessage("회복 루틴 필요: Slack에서 사유와 보충 계획을 제출해야 다음 공부 세션을 시작할 수 있습니다.");
+      return;
+    }
+
     const startGate = canStartStudySessionWithCamera({
       activeSession,
       cameraEnabled: cameraEnabled || cameraReadyOverride,
@@ -1125,7 +1157,14 @@ function DashboardApp() {
     const { data, error } = await supabase.rpc("start_study_session");
     setBusy(false);
     if (error) {
-      setMessage(error.message);
+      if (error.message.includes("Recovery routine required")) {
+        setMessage("회복 루틴 필요: Slack에서 회복 루틴을 제출한 뒤 다시 시작하세요.");
+        if (session?.user.id) {
+          await loadDashboard(session.user.id);
+        }
+      } else {
+        setMessage(error.message);
+      }
       if (cameraSessionStartingRef.current && cameraEnabled && !activeSession) {
         stopCameraMonitoring({ recordEvent: false });
       }
@@ -1715,7 +1754,7 @@ function DashboardApp() {
                   onClick={() => {
                     void startTimer();
                   }}
-                  disabled={busy || Boolean(activeSession)}
+                  disabled={busy || Boolean(activeSession) || pendingRecoveryRequests.length > 0}
                 >
                   <Play size={18} />
                   입장하고 시작
@@ -1743,6 +1782,28 @@ function DashboardApp() {
               </div>
             </div>
           </header>
+        )}
+
+        {activeSection === "today" && pendingRecoveryRequests.length > 0 && (
+          <section className="recovery-blocker" role="status" aria-live="polite">
+            <div>
+              <p className="eyebrow">recovery required</p>
+              <h3>회복 루틴 필요</h3>
+              <p>
+                Slack에서 결석/이탈 사유와 보충 계획을 제출해야 다음 공부 세션을 시작할 수 있습니다.
+              </p>
+            </div>
+            <ul>
+              {pendingRecoveryRequests.map((request) => (
+                <li key={request.id}>
+                  <span>{request.local_date}</span>
+                  <strong>
+                    {request.trigger_type === "missed_attendance" ? "출석 실패" : "자리 비움 반복"}
+                  </strong>
+                </li>
+              ))}
+            </ul>
+          </section>
         )}
 
         {message && <p className="message">{message}</p>}
@@ -1990,7 +2051,7 @@ function DashboardApp() {
                 <button
                   className="primary"
                   type="button"
-                  disabled={busy || Boolean(activeSession)}
+                  disabled={busy || Boolean(activeSession) || pendingRecoveryRequests.length > 0}
                   onClick={() => {
                     setReminderPopup(null);
                     void startTimer();

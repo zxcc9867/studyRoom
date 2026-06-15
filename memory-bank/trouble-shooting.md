@@ -1574,3 +1574,36 @@ ERR_MODULE_NOT_FOUND
 ### 재발 방지
 
 이 오류는 RED 단계에서 의도된 실패다. 실패 원인이 오타가 아니라 구현 부재인지 확인한 뒤 GREEN 단계로 넘어간다.
+## 2026-06-15 - Broad Supabase no-JWT function deploy command rejected
+
+### Situation
+
+While deploying the Slack recovery routine feature, a single Supabase CLI command attempted to deploy `attendance-cron`, `camera-presence-warning`, and `slack-recovery-interactions` together with `--no-verify-jwt`.
+
+### Error Message
+
+```txt
+Sandbox escalation was rejected by the execution approval reviewer because the command disabled JWT verification broadly across multiple functions.
+```
+
+### Cause
+
+`attendance-cron` and `camera-presence-warning` are intentionally deployed with `verify_jwt=false` and perform their own internal authentication, but the broad command looked risky because it applied that flag to all listed functions at once.
+
+### Resolution
+
+Use a narrower deployment path:
+
+- Deploy only the new Slack interactivity function with `verify_jwt=false` because Slack cannot send Supabase JWTs.
+- Redeploy existing no-JWT functions only through an explicitly approved, per-function deployment step or a Supabase MCP deployment that preserves the documented function configuration.
+
+### Related Files
+
+- `supabase/functions/attendance-cron/index.ts`
+- `supabase/functions/camera-presence-warning/index.ts`
+- `supabase/functions/slack-recovery-interactions/index.ts`
+- `memory-bank/implementation-plan.md`
+
+### Prevention
+
+Avoid broad `supabase functions deploy ... --no-verify-jwt` commands that cover multiple functions. Prefer one function per deploy when `verify_jwt=false` is involved, and document why the function has its own authentication boundary.

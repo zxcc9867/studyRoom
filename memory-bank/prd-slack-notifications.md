@@ -1,5 +1,14 @@
 # PRD: Slack Bot Notifications
 
+## 2026-06-15 Update: Recovery Routine Buttons and Modal
+
+- Slack is now the active recovery workflow after missed attendance or repeated camera absence.
+- Recovery messages use Block Kit buttons because the user must submit a structured Slack modal.
+- `slack-recovery-interactions` verifies Slack signatures, opens a `views.open` modal, and stores submitted recovery details.
+- Recovery submission creates a makeup todo for the recovery date and a pledge todo for the next local date.
+- Pending recovery requests block new study sessions until submitted.
+- `SLACK_SIGNING_SECRET` is required in Supabase Edge Function secrets, and the Slack App Interactivity Request URL must point to `/functions/v1/slack-recovery-interactions`.
+
 ## 2026-06-15 Update: Readable Slack Message Format
 
 - Slack scheduled reminders, test alarms, and camera warnings must be easy to scan in Slack.

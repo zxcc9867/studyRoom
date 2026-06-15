@@ -1,6 +1,15 @@
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
+import { readdirSync, readFileSync } from "node:fs";
 import { test } from "node:test";
+
+function readMigrationContaining(pattern) {
+  const migrationFile = readdirSync("supabase/migrations")
+    .filter((file) => file.endsWith(".sql"))
+    .find((file) => pattern.test(readFileSync(`supabase/migrations/${file}`, "utf8")));
+
+  assert.ok(migrationFile, `Expected a migration matching ${pattern}`);
+  return readFileSync(`supabase/migrations/${migrationFile}`, "utf8");
+}
 
 test("get_due_reminders migration qualifies due reminder columns to avoid PL/pgSQL ambiguity", () => {
   const sql = readFileSync("supabase/migrations/0006_fix_due_reminders_ambiguity.sql", "utf8");
@@ -217,4 +226,67 @@ test("camera presence warning Edge Function validates session ownership before s
   assert.match(source, /STUDY_ALERT_SLACK_BOT_TOKEN/);
   assert.doesNotMatch(source, /TELEGRAM_BOT_TOKEN|api\.telegram\.org/);
   assert.doesNotMatch(source, /image|video|frame|faceEmbedding|landmarks/);
+});
+
+test("study recovery migration stores pending recovery requests and blocks session start", () => {
+  const sql = readMigrationContaining(/study_recovery_requests/i);
+
+  assert.match(sql, /create table if not exists public\.study_recovery_requests/i);
+  assert.match(sql, /trigger_type text not null/i);
+  assert.match(sql, /trigger_type in \('missed_attendance', 'camera_absence_repeat'\)/i);
+  assert.match(sql, /status text not null default 'pending'/i);
+  assert.match(sql, /status in \('pending', 'submitted'\)/i);
+  assert.match(sql, /reason text/i);
+  assert.match(sql, /makeup_todo_title text/i);
+  assert.match(sql, /pledge_todo_title text/i);
+  assert.match(sql, /makeup_todo_id uuid references public\.study_todos\(id\)/i);
+  assert.match(sql, /pledge_todo_id uuid references public\.study_todos\(id\)/i);
+  assert.match(sql, /slack_submitter_id text/i);
+  assert.match(sql, /followup_sent_at timestamptz/i);
+  assert.match(sql, /where status = 'pending'/i);
+  assert.match(sql, /alter table public\.study_recovery_requests enable row level security/i);
+  assert.match(sql, /Users can read their study recovery requests/i);
+  assert.match(sql, /grant select on public\.study_recovery_requests to authenticated/i);
+  assert.match(sql, /create or replace function public\.start_study_session/i);
+  assert.match(sql, /from public\.study_recovery_requests rr/i);
+  assert.match(sql, /rr\.status = 'pending'/i);
+  assert.match(sql, /Recovery routine required/i);
+});
+
+test("attendance cron creates missed recovery requests and one follow-up", () => {
+  const source = readFileSync("supabase/functions/attendance-cron/index.ts", "utf8");
+
+  assert.match(source, /createRecoveryRequest/);
+  assert.match(source, /triggerType:\s*"missed_attendance"/);
+  assert.match(source, /sendRecoveryRequestSlackMessage/);
+  assert.match(source, /sendPendingRecoveryFollowups/);
+  assert.match(source, /followup_sent_at/);
+});
+
+test("camera warning creates recovery request on repeated absence warnings only", () => {
+  const source = readFileSync("supabase/functions/camera-presence-warning/index.ts", "utf8");
+
+  assert.match(source, /countAbsenceWarningsForDate/);
+  assert.match(source, /absenceWarningCount >= 2/);
+  assert.match(source, /triggerType:\s*"camera_absence_repeat"/);
+  assert.match(source, /sendRecoveryRequestSlackMessage/);
+  assert.doesNotMatch(source, /camera_required_warning[\s\S]{0,240}camera_absence_repeat/);
+});
+
+test("slack recovery interactions verify signatures, open modal, and create todos", () => {
+  const source = readFileSync("supabase/functions/slack-recovery-interactions/index.ts", "utf8");
+
+  assert.match(source, /SLACK_SIGNING_SECRET/);
+  assert.match(source, /x-slack-signature/i);
+  assert.match(source, /x-slack-request-timestamp/i);
+  assert.match(source, /crypto\.subtle\.sign/);
+  assert.match(source, /views\.open/);
+  assert.match(source, /type === "block_actions"/);
+  assert.match(source, /type === "view_submission"/);
+  assert.match(source, /reason/);
+  assert.match(source, /makeup_todo_title/);
+  assert.match(source, /pledge_todo_title/);
+  assert.match(source, /\.from\("study_recovery_requests"\)/);
+  assert.match(source, /\.from\("study_todos"\)/);
+  assert.match(source, /slack_submitter_id/);
 });

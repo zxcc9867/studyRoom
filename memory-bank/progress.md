@@ -2,6 +2,59 @@
 
 ## Timeline
 
+### 2026-06-15 - Slack recovery routine enforcement
+
+#### Completed Work
+
+- Added a recovery routine data model for missed attendance and repeated camera absence.
+- Added server-side blocking so `start_study_session()` rejects new sessions while a pending recovery request exists.
+- Added Slack recovery button messages and Slack modal submission handling.
+- Added automatic creation of today's makeup todo and tomorrow's pledge todo when the Slack modal is submitted.
+- Added missed-attendance recovery creation from `attendance-cron`.
+- Added repeated camera absence recovery creation when the second same-day `absence_warning` is recorded.
+- Added 30-minute one-time pending recovery follow-up messages.
+- Added a web Today Focus blocker that disables `입장하고 시작` until the pending recovery is submitted.
+- Added regression coverage for SQL, Slack interactivity source behavior, trigger paths, and web blocking UI.
+
+#### Changed Files
+
+- `supabase/migrations/0019_study_recovery_requests.sql`
+- `supabase/functions/_shared/recovery.ts`
+- `supabase/functions/attendance-cron/index.ts`
+- `supabase/functions/camera-presence-warning/index.ts`
+- `supabase/functions/slack-recovery-interactions/index.ts`
+- `apps/web/src/main.tsx`
+- `apps/web/src/styles.css`
+- `packages/core/test/sql-migrations.test.mjs`
+- `apps/web/test/slackNotifications.test.mjs`
+- `memory-bank/active-context.md`
+- `memory-bank/progress.md`
+- `memory-bank/implementation-plan.md`
+- `memory-bank/prd-slack-notifications.md`
+- `memory-bank/prd-slack-recovery-routines.md`
+- `memory-bank/trouble-shooting.md`
+
+#### Verification
+
+- RED: targeted tests first failed because recovery schema and UI/function hooks did not exist.
+- GREEN: targeted migration and Slack notification tests passed after implementation.
+- `npm.cmd test` passed 115 tests.
+- `npm.cmd run build` passed.
+- `git diff --check` passed with only existing LF-to-CRLF warnings.
+- Supabase migration `study_recovery_requests` was applied to project `bqohkdzvxbrokkmuhysx`.
+- Supabase Edge Function list confirmed `slack-recovery-interactions` v1 and `attendance-cron` v17 ACTIVE with `verify_jwt=false`.
+- Supabase Edge Function list confirmed `camera-presence-warning` remains ACTIVE at v6; the local recovery-trigger update is not deployed yet because the per-function no-JWT deploy command needs explicit user approval.
+
+#### Remaining Work
+
+- Redeploy `camera-presence-warning` after explicit approval for the documented `verify_jwt=false` setting.
+- Commit, push, and verify Vercel production deployment.
+- Configure Slack App Interactivity Request URL and `SLACK_SIGNING_SECRET` if not already configured.
+
+#### Next Priority
+
+- Validate the real Slack modal flow from a recovery button click after Supabase function deployment.
+
 ### 2026-06-15 - Readable Slack alarm messages
 
 #### Completed Work

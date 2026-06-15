@@ -9,6 +9,19 @@ test("normalizes slack channel IDs", () => {
   assert.equal(normalizeSlackChannelId(null), "");
 });
 
+test("web app blocks study start while a recovery routine is pending", () => {
+  const appSource = readFileSync("apps/web/src/main.tsx", "utf8");
+
+  assert.match(appSource, /type StudyRecoveryRequest/);
+  assert.match(appSource, /studyRecoveryRequests/);
+  assert.match(appSource, /\.from\("study_recovery_requests"\)/);
+  assert.match(appSource, /pendingRecoveryRequests/);
+  assert.match(appSource, /recovery-blocker/);
+  assert.match(appSource, /회복 루틴 필요/);
+  assert.match(appSource, /pendingRecoveryRequests\.length > 0/);
+  assert.match(appSource, /Recovery routine required/);
+});
+
 test("validates slack public and private channel IDs", () => {
   assert.equal(isValidSlackChannelId("C123ABC456"), true);
   assert.equal(isValidSlackChannelId("G123ABC456"), true);

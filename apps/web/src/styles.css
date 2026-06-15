@@ -354,6 +354,58 @@ label {
   font-variant-numeric: tabular-nums;
 }
 
+.recovery-blocker {
+  border: 3px solid #c75b42;
+  border-radius: 8px;
+  background: #fff0d2;
+  box-shadow: 0 8px 0 rgba(111, 48, 36, 0.18);
+  padding: 18px 20px;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(180px, auto);
+  gap: 16px;
+  align-items: center;
+}
+
+.recovery-blocker h3 {
+  margin: 0;
+  color: #8f3f2e;
+  font-size: clamp(24px, 3vw, 34px);
+  line-height: 1.05;
+}
+
+.recovery-blocker p {
+  margin: 6px 0 0;
+  color: #5a513d;
+  font-weight: 850;
+}
+
+.recovery-blocker ul {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: grid;
+  gap: 8px;
+}
+
+.recovery-blocker li {
+  border: 2px solid rgba(199, 91, 66, 0.45);
+  border-radius: 8px;
+  background: #fff9df;
+  padding: 10px 12px;
+  display: grid;
+  gap: 2px;
+}
+
+.recovery-blocker li span {
+  color: #8d7452;
+  font-size: 12px;
+  font-weight: 950;
+}
+
+.recovery-blocker li strong {
+  color: #2f2a1f;
+}
+
 .daily-visual,
 .settings-panel,
 .history-panel {
@@ -1480,6 +1532,10 @@ button:active:not(:disabled) {
   }
 
   .daily-visual {
+    grid-template-columns: 1fr;
+  }
+
+  .recovery-blocker {
     grid-template-columns: 1fr;
   }
 
