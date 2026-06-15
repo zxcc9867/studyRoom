@@ -35,9 +35,12 @@
 - Completed: `npm.cmd test`, `npm.cmd run build`, and `git diff --check` passed locally.
 - Completed: Supabase migration `study_recovery_requests` is applied to project `bqohkdzvxbrokkmuhysx`.
 - Completed: Deployed `slack-recovery-interactions` v1 and `attendance-cron` v17; both are ACTIVE with `verify_jwt=false`.
-- In progress: Vercel deployment and GitHub push.
+- Completed: Committed and pushed `6cf4cad084bdd6d6a2d23380d3e5ad9f425fd119` to `origin/main`.
+- Completed: Vercel production deployment `dpl_2P8wuQNyPh9qgEov37rAkvzzqctZ` for commit `6cf4cad084bdd6d6a2d23380d3e5ad9f425fd119` is `READY`.
+- Completed: `https://study-room-attendance.vercel.app/` returned HTTP 200.
+- Completed: Vercel production runtime error-log query for deployment `dpl_2P8wuQNyPh9qgEov37rAkvzzqctZ` returned no `error` or `fatal` logs in the checked one-hour window.
 - Blocked: `camera-presence-warning` redeploy was rejected by the execution approval reviewer because the per-function command still uses `--no-verify-jwt`; explicit user approval is required before trying again.
-- Next: Commit, push, verify Vercel production, then request/perform the explicit `camera-presence-warning` deploy approval.
+- Next: After explicit approval, redeploy `camera-presence-warning` so repeated camera absence can create recovery requests remotely.
 
 ## Notes
 

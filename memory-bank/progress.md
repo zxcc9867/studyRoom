@@ -44,6 +44,10 @@
 - Supabase migration `study_recovery_requests` was applied to project `bqohkdzvxbrokkmuhysx`.
 - Supabase Edge Function list confirmed `slack-recovery-interactions` v1 and `attendance-cron` v17 ACTIVE with `verify_jwt=false`.
 - Supabase Edge Function list confirmed `camera-presence-warning` remains ACTIVE at v6; the local recovery-trigger update is not deployed yet because the per-function no-JWT deploy command needs explicit user approval.
+- Committed and pushed `6cf4cad084bdd6d6a2d23380d3e5ad9f425fd119` to `origin/main`.
+- Vercel production deployment `dpl_2P8wuQNyPh9qgEov37rAkvzzqctZ` is `READY` for commit `6cf4cad084bdd6d6a2d23380d3e5ad9f425fd119`.
+- `https://study-room-attendance.vercel.app/` returned HTTP 200.
+- Vercel production runtime error-log query for deployment `dpl_2P8wuQNyPh9qgEov37rAkvzzqctZ` returned no `error` or `fatal` logs in the checked one-hour window.
 
 #### Remaining Work
 
