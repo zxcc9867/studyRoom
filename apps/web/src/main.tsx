@@ -89,6 +89,15 @@ import {
   type DashboardSection,
 } from "./dashboardRoute.mjs";
 import { shouldShowStudyReminderPopup } from "./reminderPopup.mjs";
+import {
+  createSessionLeaseDeadlineMs,
+  getLeaseAwareActiveNowMs,
+  getSessionLeaseExcludedSeconds,
+  getSessionLeaseRemainingSeconds,
+  getSessionLeaseStorageKey,
+  getStoredSessionLeaseDeadlineMs,
+  isSessionLeaseExpired,
+} from "./sessionLease.mjs";
 import { requestEndStudySessionOnExit, shouldEndStudySessionForPageEvent } from "./sessionExit.mjs";
 import { isSupabaseConfigured, supabase, supabaseAnonKey, supabaseUrl } from "./supabase";
 import {
@@ -133,6 +142,10 @@ type CameraSetupPrompt = {
   mode: "start" | "resume";
 };
 type CameraDiagnosticReason = CameraHealth["reason"] | "permission-denied" | "unknown-error" | null;
+type SessionLeaseState = {
+  sessionId: string;
+  deadlineMs: number;
+};
 
 type Profile = {
   user_id: string;
@@ -263,6 +276,7 @@ function DashboardApp() {
     slackMissing: boolean;
   } | null>(null);
   const [cameraSetupPrompt, setCameraSetupPrompt] = useState<CameraSetupPrompt | null>(null);
+  const [sessionLease, setSessionLease] = useState<SessionLeaseState | null>(null);
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const cameraFrameCanvasRef = useRef<HTMLCanvasElement | null>(null);
   const cameraStreamRef = useRef<MediaStream | null>(null);
@@ -275,6 +289,7 @@ function DashboardApp() {
   const cameraFrameRecoveryStateRef = useRef<CameraFrameRecoveryState>(createCameraFrameRecoveryState());
   const lastCameraRequiredWarningAtRef = useRef(0);
   const warningInFlightRef = useRef(false);
+  const sessionLeaseAutoEndInFlightRef = useRef(false);
 
   useEffect(() => {
     async function initializeSession() {
@@ -358,10 +373,21 @@ function DashboardApp() {
     ],
   );
   const activeExcludedSeconds = activeSession ? getCurrentExcludedSeconds(presenceState) : 0;
+  const activeSessionStartedAtMs = activeSession ? new Date(activeSession.started_at).getTime() : null;
+  const activeSessionLeaseDeadlineMs =
+    activeSession && activeSessionStartedAtMs !== null && Number.isFinite(activeSessionStartedAtMs)
+      ? sessionLease?.sessionId === activeSession.id
+        ? sessionLease.deadlineMs
+        : createSessionLeaseDeadlineMs(activeSessionStartedAtMs)
+      : null;
+  const activeSessionClockNowMs =
+    activeSessionLeaseDeadlineMs !== null
+      ? getLeaseAwareActiveNowMs({ deadlineMs: activeSessionLeaseDeadlineMs, nowMs })
+      : nowMs;
   const activeElapsedSeconds = activeSession
     ? getActiveStudySeconds({
-        startedAtMs: new Date(activeSession.started_at).getTime(),
-        nowMs,
+        startedAtMs: activeSessionStartedAtMs ?? nowMs,
+        nowMs: activeSessionClockNowMs,
         excludedSeconds: activeExcludedSeconds,
       })
     : 0;
@@ -383,13 +409,18 @@ function DashboardApp() {
   const todayCompletedSeconds = studySessions
     .filter((item) => item.local_date === todayDateKey && item.status !== "active")
     .reduce((sum, item) => sum + item.duration_seconds, 0);
-  const todaySeconds = todayCompletedSeconds + (activeSession ? activeElapsedSeconds : 0);
+  const activeCountsForToday = activeSession?.local_date === todayDateKey;
+  const todaySeconds = todayCompletedSeconds + (activeCountsForToday ? activeElapsedSeconds : 0);
   const monthCompletedSeconds = studySessions
     .filter((item) => item.local_date.startsWith(calendarMonth) && item.status !== "active")
     .reduce((sum, item) => sum + item.duration_seconds, 0);
   const monthSeconds =
     monthCompletedSeconds +
     (activeSession?.local_date.startsWith(calendarMonth) ? activeElapsedSeconds : 0);
+  const sessionLeaseRemainingSeconds =
+    activeSessionLeaseDeadlineMs !== null
+      ? getSessionLeaseRemainingSeconds({ deadlineMs: activeSessionLeaseDeadlineMs, nowMs })
+      : 0;
   const todayGoalSeconds = getDailyAttendanceGoalSeconds(todayDateKey);
   const todayGoalLabel = formatAttendanceGoalHours(todayGoalSeconds);
   const effectiveReminderTime = getEffectiveReminderTime(todayDateKey, profile?.reminder_time ?? reminderTime);
@@ -434,6 +465,72 @@ function DashboardApp() {
       setTodoHistoryPage(todoHistoryPageData.currentPage);
     }
   }, [todoHistoryPage, todoHistoryPageData.currentPage]);
+
+  useEffect(() => {
+    if (!session?.user.id || !activeSession || activeSessionStartedAtMs === null || !Number.isFinite(activeSessionStartedAtMs)) {
+      setSessionLease(null);
+      sessionLeaseAutoEndInFlightRef.current = false;
+      return;
+    }
+
+    const storageKey = getSessionLeaseStorageKey({
+      userId: session.user.id,
+      sessionId: activeSession.id,
+    });
+    const deadlineMs = getStoredSessionLeaseDeadlineMs({
+      rawValue: window.localStorage.getItem(storageKey),
+      startedAtMs: activeSessionStartedAtMs,
+    });
+
+    window.localStorage.setItem(storageKey, String(deadlineMs));
+    setSessionLease((current) =>
+      current?.sessionId === activeSession.id && current.deadlineMs === deadlineMs
+        ? current
+        : { sessionId: activeSession.id, deadlineMs },
+    );
+    sessionLeaseAutoEndInFlightRef.current = false;
+  }, [activeSession?.id, activeSession?.started_at, activeSessionStartedAtMs, session?.user.id]);
+
+  useEffect(() => {
+    if (
+      !activeSession ||
+      activeSessionStartedAtMs === null ||
+      activeSessionLeaseDeadlineMs === null ||
+      !session?.user.id ||
+      busy
+    ) {
+      return;
+    }
+
+    if (!isSessionLeaseExpired({ deadlineMs: activeSessionLeaseDeadlineMs, nowMs })) {
+      return;
+    }
+
+    if (sessionLeaseAutoEndInFlightRef.current) {
+      return;
+    }
+
+    sessionLeaseAutoEndInFlightRef.current = true;
+    const excludedSeconds = getSessionLeaseExcludedSeconds({
+      deadlineMs: activeSessionLeaseDeadlineMs,
+      nowMs,
+      baseExcludedSeconds: getCurrentExcludedSeconds(presenceStateRef.current),
+    });
+
+    void endTimer({
+      excludedSeconds,
+      successMessage: "세션 유지 시간이 만료되어 자동 종료되었습니다.",
+    }).finally(() => {
+      sessionLeaseAutoEndInFlightRef.current = false;
+    });
+  }, [
+    activeSession?.id,
+    activeSessionLeaseDeadlineMs,
+    activeSessionStartedAtMs,
+    busy,
+    nowMs,
+    session?.user.id,
+  ]);
 
   useEffect(() => {
     if (!session?.user.id || !profile) return;
@@ -1383,6 +1480,38 @@ function DashboardApp() {
     }
   }
 
+  function persistSessionLease(sessionId: string, deadlineMs: number) {
+    if (!session?.user.id) return;
+
+    window.localStorage.setItem(
+      getSessionLeaseStorageKey({
+        userId: session.user.id,
+        sessionId,
+      }),
+      String(deadlineMs),
+    );
+    setSessionLease({ sessionId, deadlineMs });
+  }
+
+  function forgetSessionLease(sessionId: string) {
+    if (!session?.user.id) return;
+
+    window.localStorage.removeItem(
+      getSessionLeaseStorageKey({
+        userId: session.user.id,
+        sessionId,
+      }),
+    );
+    setSessionLease((current) => (current?.sessionId === sessionId ? null : current));
+  }
+
+  function extendSessionLease() {
+    if (!activeSession) return;
+
+    persistSessionLease(activeSession.id, createSessionLeaseDeadlineMs(Date.now()));
+    setMessage("세션을 2시간 더 유지합니다.");
+  }
+
   async function startTimer(cameraReadyOverride = false) {
     if (blockingRecoveryRequests.length > 0) {
       setMessage("회복 루틴 필요: Slack에서 사유와 보충 계획을 제출해야 다음 공부 세션을 시작할 수 있습니다.");
@@ -1425,6 +1554,7 @@ function DashboardApp() {
     } else if (session?.user.id) {
       if (data) {
         const startedSession = data as StudySession;
+        persistSessionLease(startedSession.id, createSessionLeaseDeadlineMs(Date.now()));
         setStudySessions((current) => [
           startedSession,
           ...current.filter((item) => item.id !== startedSession.id),
@@ -1465,6 +1595,7 @@ function DashboardApp() {
       setMessage(error.message);
     } else if (session?.user.id) {
       forgetCameraMonitoringIntent();
+      forgetSessionLease(activeSession.id);
       setMessage(options.successMessage ?? "집중 세션을 종료했습니다.");
       await loadDashboard(session.user.id);
     }
@@ -2050,6 +2181,24 @@ function DashboardApp() {
                 <strong>{formatTimerClock(monthSeconds)}</strong>
               </div>
             </div>
+            {activeSession && activeSessionLeaseDeadlineMs !== null && (
+              <div
+                className={`session-lease ${
+                  sessionLeaseRemainingSeconds <= 5 * 60 ? "session-lease-warning" : ""
+                }`}
+                aria-live="polite"
+              >
+                <div>
+                  <span>세션 유지 남은 시간</span>
+                  <strong>{formatTimerClock(sessionLeaseRemainingSeconds)}</strong>
+                  <small>2시간마다 유지 버튼을 눌러야 세션이 계속됩니다.</small>
+                </div>
+                <button className="secondary" type="button" onClick={extendSessionLease} disabled={busy}>
+                  <Clock3 size={18} />
+                  세션 유지
+                </button>
+              </div>
+            )}
           </header>
         )}
 
