@@ -24,7 +24,10 @@
 - Completed: Added web modal state, auto-open behavior for pending recovery requests, manual `회복 루틴 작성` buttons, and RPC submission from the app.
 - Completed: Added `submit_study_recovery_request` migration to validate `auth.uid()`, lock the pending request, create makeup/pledge todos, and mark the request submitted.
 - Completed: Added source-level regression coverage in `apps/web/test/recoveryRoutine.test.mjs`.
-- Next: Apply the Supabase migration remotely, run the full test/build suite, commit/push, and verify Vercel production deployment.
+- Completed: Applied Supabase migrations `in_app_recovery_submission` and `revoke_anon_recovery_submission`.
+- Completed: `npm.cmd test` and `npm.cmd run build` passed.
+- Completed: Committed and pushed `1230076056739485f5acdc4ddf889726736706df`; GitHub Actions run `27760013203` succeeded and Vercel deployment `dpl_5wQdvFgqWzAbaJa1UTEEN5iKoFWC` is `READY`.
+- Next: If a pending recovery request exists, verify the in-app modal with a logged-in browser session.
 
 ## Notes
 

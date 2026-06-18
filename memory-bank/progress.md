@@ -36,15 +36,20 @@
 - Supabase MCP migration list confirmed `20260618122857 in_app_recovery_submission` and `20260618123154 revoke_anon_recovery_submission`.
 - Supabase SQL confirmed `submit_study_recovery_request` has `authenticated_can_execute=true`, `anon_can_execute=false`, uses `auth.uid()`, and locks the pending request.
 - Anonymous PostgREST RPC call returned HTTP 401 with `permission denied for function submit_study_recovery_request`.
-- Pending: commit, push, and verify Vercel production deployment.
+- Committed and pushed `1230076056739485f5acdc4ddf889726736706df` to `origin/main`.
+- GitHub Actions run `27760013203` completed successfully for the Vercel production workflow.
+- Vercel production deployment `dpl_5wQdvFgqWzAbaJa1UTEEN5iKoFWC` is `READY` for commit `1230076056739485f5acdc4ddf889726736706df`.
+- `https://study-room-attendance.vercel.app/` returned HTTP 200 and served `/assets/index-a8DUvK7H.js`.
+- Production JS contains `submit_study_recovery_request`, `recovery-modal`, `recoveryReason`, `makeupTodoTitle`, and `pledgeTodoTitle`.
+- Vercel production runtime error-log query returned no `error` or `fatal` logs in the checked 30-minute window.
 
 #### Remaining Work
 
-- Verify the remote RPC exists and production bundle contains the in-app recovery modal.
+- Manual browser check with a real pending recovery request can confirm the modal opens automatically after login.
 
 #### Next Priority
 
-- Complete Supabase migration, test/build, GitHub Actions, and Vercel production verification.
+- If Slack interactivity still fails, use the in-app modal to unblock study and then inspect Slack signing-secret configuration separately.
 ### 2026-06-16 - Weekday/weekend attendance goals and late study recovery
 
 #### Completed Work
