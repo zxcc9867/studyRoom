@@ -13,6 +13,7 @@ Students using the Slack notification channel who want stronger accountability a
 - Create a pending recovery request after missed attendance.
 - Create a pending recovery request after the second same-day camera absence warning.
 - Send a Slack button that opens a recovery modal.
+- Show an in-app recovery modal when a logged-in user opens the app with pending recovery requests.
 - Require reason, today's makeup task, and tomorrow's pledge before another session can start.
 - Create dated todos from submitted recovery content.
 - Send one follow-up if the pending request is not submitted for 30 minutes.
@@ -20,7 +21,7 @@ Students using the Slack notification channel who want stronger accountability a
 ## 4. Non-goals
 
 - Do not change a missed day back to present.
-- Do not build an in-app recovery form in v1.
+- Do not require Slack as the only recovery submission path.
 - Do not map Slack users to Supabase users by Slack OAuth.
 - Do not include camera-required setup warnings as recovery triggers.
 
@@ -29,6 +30,7 @@ Students using the Slack notification channel who want stronger accountability a
 - As a student, I want Slack to ask for a recovery routine after a missed attendance, so that I must acknowledge the failure before studying again.
 - As a student, I want repeated camera absence to require a recovery plan, so that leaving the seat has a concrete consequence.
 - As a student, I want submitted recovery tasks to become todos, so that the plan is visible in the app.
+- As a student, I want to submit the recovery routine inside the app when I open the URL directly, so that Slack configuration problems do not permanently block study.
 
 ## 6. User Scenarios
 
@@ -37,21 +39,24 @@ Students using the Slack notification channel who want stronger accountability a
 1. Attendance is missed or the second same-day camera absence warning is recorded.
 2. Supabase creates a pending recovery request.
 3. Slack receives a message with a `회복 루틴 작성` button.
-4. The user clicks the button and submits a modal.
-5. Supabase marks the request submitted and creates today/tomorrow todos.
-6. The app allows the next study session to start.
+4. The web app also opens a recovery routine modal after login when pending requests exist.
+5. The user submits the recovery routine through Slack or the app modal.
+6. Supabase marks the request submitted and creates today/tomorrow todos.
+7. The app allows the next study session to start.
 
 ### Edge Cases
 
 - If the same trigger fires again while a pending request exists, no duplicate pending request is created.
-- If Slack target is missing, the recovery request remains pending and the app still blocks study start.
+- If Slack target is missing, the recovery request remains pending but the app modal still lets the logged-in user submit the routine.
 - If the user waits 30 minutes, one follow-up message is sent.
+- If the user dismisses the auto-opened modal, the app still shows a manual `회복 루틴 작성` action while the request remains pending.
 
 ### Error Cases
 
 - Invalid Slack signatures return 401.
 - Missing modal fields return Slack field errors.
 - Pending recovery causes `start_study_session()` to raise `Recovery routine required`.
+- Invalid app modal submission returns the Supabase RPC validation error and leaves the request pending.
 
 ## 7. Functional Requirements
 
@@ -63,6 +68,8 @@ Students using the Slack notification channel who want stronger accountability a
 - [x] Add missed-attendance and repeated-camera-absence trigger paths.
 - [x] Add one-time 30-minute follow-up.
 - [x] Show pending recovery in the web app and disable the start button.
+- [x] Add an in-app recovery modal that submits through an authenticated Supabase RPC.
+- [x] Create the same makeup and pledge todos when the app modal is submitted.
 
 ## 8. Non-functional Requirements
 
@@ -70,10 +77,12 @@ Students using the Slack notification channel who want stronger accountability a
 - Privacy: No camera image, video, or landmark data is stored.
 - Reliability: Duplicate pending requests are prevented by a partial unique index.
 - Maintainability: Slack recovery message creation is shared by cron and camera functions.
+- Availability: The app can submit a pending recovery even if Slack interactivity is unavailable.
 
 ## 9. Dependencies
 
 - Supabase: `study_recovery_requests`, `study_todos`, `notification_targets`, `notification_deliveries`, Edge Functions.
+- Supabase RPC: `submit_study_recovery_request(p_request_id, p_reason, p_makeup_todo_title, p_pledge_todo_title)`.
 - Slack API: `chat.postMessage`, `views.open`, signed interactivity requests.
 - Environment variables: `SLACK_SIGNING_SECRET`, `SLACK_BOT_TOKEN` or `STUDY_ALERT_SLACK_BOT_TOKEN`, `SUPABASE_SERVICE_ROLE_KEY`, `APP_ORIGIN`.
 
@@ -83,16 +92,17 @@ Students using the Slack notification channel who want stronger accountability a
 - The second same-day absence warning creates exactly one pending camera recovery request.
 - Pending recovery blocks web and RPC session starts.
 - Slack modal submission creates two todos and unblocks study start.
+- App modal submission creates the same two todos and unblocks study start.
 
 ## 11. Rollout Plan
 
 - Develop migration, Edge Function, UI, and tests.
 - Apply Supabase migration.
+- Apply the authenticated app submission RPC migration.
 - Deploy `slack-recovery-interactions`, `attendance-cron`, and `camera-presence-warning`.
 - Configure Slack App Interactivity Request URL.
 - Deploy the web app to Vercel and verify production.
 
 ## 12. Open Questions
 
-- Whether to add an optional in-app fallback recovery form if Slack is unavailable.
 - Whether repeated recovery failures should create stronger penalties later.

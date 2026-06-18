@@ -445,6 +445,12 @@ label {
   color: #2f2a1f;
 }
 
+.recovery-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
 .recovery-soft {
   border-color: #4f916f;
   background: #f0ffd8;
@@ -1305,6 +1311,35 @@ label {
 
 .reminder-actions button {
   flex: 1 1 180px;
+}
+
+.recovery-form {
+  display: grid;
+  gap: 14px;
+}
+
+.recovery-form label {
+  display: grid;
+  gap: 7px;
+  color: #4f4737;
+  font-weight: 900;
+}
+
+.recovery-form input,
+.recovery-form textarea {
+  width: 100%;
+  border: 2px solid #bda46f;
+  border-radius: 8px;
+  background: #fff9df;
+  color: #2f2a1f;
+  font: inherit;
+  font-weight: 850;
+  padding: 11px 12px;
+  resize: vertical;
+}
+
+.recovery-form textarea {
+  min-height: 116px;
 }
 
 .todo-header {

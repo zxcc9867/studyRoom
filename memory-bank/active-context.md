@@ -2,6 +2,36 @@
 
 ## Current Work
 
+- Task: Add in-app recovery routine submission.
+- Purpose: Let users recover from a pending missed-attendance or repeated-absence request directly in the web app after opening the URL, instead of being blocked when Slack interactivity is unavailable.
+- Related PRD:
+  - `memory-bank/prd-slack-recovery-routines.md`
+- Related files:
+  - `apps/web/src/main.tsx`
+  - `apps/web/src/styles.css`
+  - `apps/web/test/recoveryRoutine.test.mjs`
+  - `supabase/migrations/20260618121536_in_app_recovery_submission.sql`
+
+## Recent Decisions
+
+- Decision: Keep Slack recovery buttons, but add an authenticated in-app fallback modal that submits the same reason, makeup todo, and pledge fields.
+- Reason: The user wants Slack submission and direct URL submission to both unblock study, and Slack interactivity can fail due to Signing Secret or Slack app configuration.
+- Alternative: Force the user to fix Slack before any recovery; rejected because it can permanently block study when Slack is misconfigured.
+- Impact: Pending recovery requests still block study start, but the app now gives the logged-in user a first-party way to submit the recovery routine and create the same todos.
+
+## Current Status
+
+- Completed: Added web modal state, auto-open behavior for pending recovery requests, manual `회복 루틴 작성` buttons, and RPC submission from the app.
+- Completed: Added `submit_study_recovery_request` migration to validate `auth.uid()`, lock the pending request, create makeup/pledge todos, and mark the request submitted.
+- Completed: Added source-level regression coverage in `apps/web/test/recoveryRoutine.test.mjs`.
+- Next: Apply the Supabase migration remotely, run the full test/build suite, commit/push, and verify Vercel production deployment.
+
+## Notes
+
+- The app fallback does not remove Slack. Slack remains the notification and modal path when correctly configured.
+- Do not store Slack signing secret or bot token values in memory-bank or committed files.
+
+## Current Work
 - Task: Weekday/weekend attendance policy and late study recovery.
 - Purpose: Keep the 30-minute forced check-in window, but allow a missed same-day attendance to become present when the user completes the daily study goal: 2 hours on weekdays and 4 hours on weekends.
 - Related PRD:

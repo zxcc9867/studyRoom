@@ -1,4 +1,4 @@
-import { StrictMode, useEffect, useMemo, useRef, useState, type ClipboardEvent } from "react";
+import { StrictMode, useEffect, useMemo, useRef, useState, type ClipboardEvent, type FormEvent } from "react";
 import { createRoot } from "react-dom/client";
 import {
   Bell,
@@ -193,6 +193,8 @@ type StudyRecoveryRequest = {
   trigger_type: "missed_attendance" | "camera_absence_repeat";
   status: "pending" | "submitted";
   reason: string | null;
+  makeup_todo_title: string | null;
+  pledge_todo_title: string | null;
   created_at: string;
 };
 
@@ -236,6 +238,11 @@ function DashboardApp() {
   const [studySessions, setStudySessions] = useState<StudySession[]>([]);
   const [studyTodos, setStudyTodos] = useState<StudyTodo[]>([]);
   const [studyRecoveryRequests, setStudyRecoveryRequests] = useState<StudyRecoveryRequest[]>([]);
+  const [recoveryModalRequest, setRecoveryModalRequest] = useState<StudyRecoveryRequest | null>(null);
+  const [recoveryReason, setRecoveryReason] = useState("");
+  const [makeupTodoTitle, setMakeupTodoTitle] = useState("");
+  const [pledgeTodoTitle, setPledgeTodoTitle] = useState("");
+  const [recoverySubmitBusy, setRecoverySubmitBusy] = useState(false);
   const [reminderTime, setReminderTime] = useState(DEFAULT_WEEKDAY_REMINDER_TIME);
   const [emailRemindersEnabled, setEmailRemindersEnabled] = useState(true);
   const [alarmEditing, setAlarmEditing] = useState(false);
@@ -290,6 +297,7 @@ function DashboardApp() {
   const lastCameraRequiredWarningAtRef = useRef(0);
   const warningInFlightRef = useRef(false);
   const sessionLeaseAutoEndInFlightRef = useRef(false);
+  const recoveryModalDismissedIdsRef = useRef<Set<string>>(new Set());
 
   useEffect(() => {
     async function initializeSession() {
@@ -406,6 +414,18 @@ function DashboardApp() {
       ),
     [pendingRecoveryRequests, todayDateKey],
   );
+
+  useEffect(() => {
+    if (!session?.user.id || recoveryModalRequest || pendingRecoveryRequests.length === 0) {
+      return;
+    }
+
+    const nextRequest = pendingRecoveryRequests.find((request) => !recoveryModalDismissedIdsRef.current.has(request.id));
+    if (nextRequest) {
+      openRecoveryRoutineModal(nextRequest, { auto: true });
+    }
+  }, [session?.user.id, pendingRecoveryRequests, recoveryModalRequest?.id]);
+
   const todayCompletedSeconds = studySessions
     .filter((item) => item.local_date === todayDateKey && item.status !== "active")
     .reduce((sum, item) => sum + item.duration_seconds, 0);
@@ -962,7 +982,7 @@ function DashboardApp() {
         .limit(500),
       supabase
         .from("study_recovery_requests")
-        .select("id,local_date,trigger_type,status,reason,created_at")
+        .select("id,local_date,trigger_type,status,reason,makeup_todo_title,pledge_todo_title,created_at")
         .eq("user_id", userId)
         .order("created_at", { ascending: false })
         .limit(50),
@@ -1512,8 +1532,53 @@ function DashboardApp() {
     setMessage("세션을 2시간 더 유지합니다.");
   }
 
+  function openRecoveryRoutineModal(request: StudyRecoveryRequest, options: { auto?: boolean } = {}) {
+    if (!options.auto) {
+      recoveryModalDismissedIdsRef.current.delete(request.id);
+    }
+    setRecoveryModalRequest(request);
+    setRecoveryReason(request.reason ?? "");
+    setMakeupTodoTitle(request.makeup_todo_title ?? "");
+    setPledgeTodoTitle(request.pledge_todo_title ?? "");
+  }
+
+  function closeRecoveryRoutineModal() {
+    if (recoveryModalRequest) {
+      recoveryModalDismissedIdsRef.current.add(recoveryModalRequest.id);
+    }
+    setRecoveryModalRequest(null);
+  }
+
+  async function submitRecoveryRoutine(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (!session?.user.id || !recoveryModalRequest) return;
+
+    setRecoverySubmitBusy(true);
+    const { error } = await supabase.rpc("submit_study_recovery_request", {
+      p_request_id: recoveryModalRequest.id,
+      p_reason: recoveryReason,
+      p_makeup_todo_title: makeupTodoTitle,
+      p_pledge_todo_title: pledgeTodoTitle,
+    });
+    setRecoverySubmitBusy(false);
+
+    if (error) {
+      setMessage(formatNotificationError(error));
+      return;
+    }
+
+    recoveryModalDismissedIdsRef.current.delete(recoveryModalRequest.id);
+    setRecoveryModalRequest(null);
+    setRecoveryReason("");
+    setMakeupTodoTitle("");
+    setPledgeTodoTitle("");
+    setMessage("회복 루틴을 제출했습니다. 다시 공부를 시작할 수 있습니다.");
+    await loadDashboard(session.user.id);
+  }
+
   async function startTimer(cameraReadyOverride = false) {
     if (blockingRecoveryRequests.length > 0) {
+      openRecoveryRoutineModal(blockingRecoveryRequests[0]);
       setMessage("회복 루틴 필요: Slack에서 사유와 보충 계획을 제출해야 다음 공부 세션을 시작할 수 있습니다.");
       return;
     }
@@ -2221,6 +2286,11 @@ function DashboardApp() {
                 </li>
               ))}
             </ul>
+            <div className="recovery-actions">
+              <button className="secondary" type="button" onClick={() => openRecoveryRoutineModal(blockingRecoveryRequests[0])}>
+                회복 루틴 작성
+              </button>
+            </div>
           </section>
         )}
 
@@ -2232,6 +2302,11 @@ function DashboardApp() {
               <p>
                 오늘 출석 마감은 지났지만 {todayGoalLabel} 이상 공부를 완료하면 오늘 출석으로 인정됩니다.
               </p>
+            </div>
+            <div className="recovery-actions">
+              <button className="secondary" type="button" onClick={() => openRecoveryRoutineModal(lateStudyRecoveryRequests[0])}>
+                회복 루틴 작성
+              </button>
             </div>
           </section>
         )}
@@ -2495,6 +2570,81 @@ function DashboardApp() {
                   나중에
                 </button>
               </div>
+            </section>
+          </div>
+        )}
+
+        {recoveryModalRequest && (
+          <div className="modal-backdrop reminder-backdrop" role="presentation">
+            <section
+              className="todo-modal reminder-modal recovery-modal"
+              role="dialog"
+              aria-modal="true"
+              aria-label="회복 루틴 작성"
+            >
+              <div className="todo-header">
+                <div>
+                  <p className="eyebrow">recovery routine</p>
+                  <h3>회복 루틴 작성</h3>
+                </div>
+                <button
+                  className="modal-close"
+                  type="button"
+                  aria-label="회복 루틴 모달 닫기"
+                  onClick={closeRecoveryRoutineModal}
+                >
+                  <X size={18} />
+                </button>
+              </div>
+              <p className="reminder-copy">
+                Slack에서 작성해도 되고, 여기에서 바로 사유와 보충 계획을 제출해도 됩니다.
+              </p>
+              <form className="recovery-form" onSubmit={submitRecoveryRoutine}>
+                <label>
+                  <span>결석/이탈 사유</span>
+                  <textarea
+                    name="recoveryReason"
+                    value={recoveryReason}
+                    maxLength={400}
+                    required
+                    rows={4}
+                    onChange={(event) => setRecoveryReason(event.target.value)}
+                    placeholder="예: 알림을 봤지만 바로 시작하지 못했습니다."
+                  />
+                </label>
+                <label>
+                  <span>오늘 보충 과제</span>
+                  <input
+                    name="makeupTodoTitle"
+                    value={makeupTodoTitle}
+                    maxLength={120}
+                    required
+                    onChange={(event) => setMakeupTodoTitle(event.target.value)}
+                    placeholder="예: MOS 공부 1시간 보충"
+                  />
+                </label>
+                <label>
+                  <span>내일 재도전 약속</span>
+                  <input
+                    name="pledgeTodoTitle"
+                    value={pledgeTodoTitle}
+                    maxLength={120}
+                    required
+                    onChange={(event) => setPledgeTodoTitle(event.target.value)}
+                    placeholder="예: 20:30 전에 카메라 켜고 입장"
+                  />
+                </label>
+                <div className="reminder-actions">
+                  <button className="primary" type="submit" disabled={recoverySubmitBusy}>
+                    <CheckCircle2 size={18} />
+                    제출하고 잠금 해제
+                  </button>
+                  <button className="secondary" type="button" onClick={closeRecoveryRoutineModal}>
+                    <X size={18} />
+                    나중에
+                  </button>
+                </div>
+              </form>
             </section>
           </div>
         )}

@@ -12,6 +12,7 @@
 - Kakao notification channel: deprecated for active product behavior. Legacy `kakao_memo` rows and `kakao_message_connections` are retained for history, but enabled targets/connections are disabled and `attendance-cron` no longer sends Kakao Memo messages.
 - Slack notification channel: the web app stores a user-specific Slack Channel ID in `notification_targets.destination`, while Slack Edge Functions read `SLACK_BOT_TOKEN` or fallback alias `STUDY_ALERT_SLACK_BOT_TOKEN` from Edge Function secrets and call Slack Bot API `chat.postMessage`.
 - Slack recovery routines: missed attendance and repeated same-day camera absence create `study_recovery_requests` rows. Pending recovery requests block `start_study_session()` and the web start button until the user submits a Slack modal with a reason, makeup todo, and next-day pledge.
+- In-app recovery routine fallback: the web app also opens a recovery modal after login when pending `study_recovery_requests` exist. It submits the same reason, makeup todo, and pledge fields through authenticated RPC `submit_study_recovery_request`, so direct app access can unblock study even when Slack interactivity is unavailable.
 - Slack interactivity: `slack-recovery-interactions` is deployed with `verify_jwt=false` and authenticates Slack requests by verifying `X-Slack-Signature` and `X-Slack-Request-Timestamp` with `SLACK_SIGNING_SECRET`. It opens the modal through Slack `views.open` and creates dated `study_todos` on submission.
 - Slack test channel: `slack-test-alarm` is a manually invoked Edge Function. Server/admin calls use `x-cron-secret`; they can either send to a direct `channelId` for setup verification or use the latest enabled Slack target. Browser calls use the logged-in user's Supabase JWT and are limited to that user's Slack target. It sends one test Slack message and records DB delivery results only when a saved target is used.
 - In-app popup: when the dashboard is open at the configured reminder minute, the web app shows a modal reminder popup. This is separate from OS/browser push and does not work when the browser is closed.
@@ -135,6 +136,7 @@ docs/images/study-room-thumbnail.png
 - `slack-test-alarm` sends a protected one-off Slack test message and includes same-day `study_todos` in the message body when a saved target is used. Browser requests must include `Authorization: Bearer {supabase_access_token}`. Cron-secret protected admin requests may pass `{ "channelId": "C..." }` or `{ "channelId": "G..." }` for direct Slack channel verification.
 - `camera-presence-warning` receives `POST /functions/v1/camera-presence-warning` from the browser with `Authorization: Bearer {supabase_access_token}` and body `{ sessionId, absenceSeconds, detectedAt, eventType }`.
 - `camera-presence-warning` validates that `study_sessions.user_id` matches the authenticated Supabase user before inserting `study_presence_events` or sending Slack.
+- `submit_study_recovery_request(p_request_id uuid, p_reason text, p_makeup_todo_title text, p_pledge_todo_title text)` is called by the web app with the logged-in Supabase session. It verifies `auth.uid()`, locks the user's pending recovery request, inserts the makeup/pledge todos, marks the request submitted, and returns the updated recovery request.
 - `end_study_session` receives `{ p_session_id, p_excluded_seconds }`; `p_excluded_seconds` is the camera absence time that should not be counted as study duration.
 - `attendance-cron` Slack notification bodies use emoji-led plain-text sections for `출석 마감`, `오늘 할 일`, `지금 할 일`, and `앱 열기`; they include up to a compact subset of reminder-date todo titles, mark completed items with a check indicator, and mention the 2-hour weekday or 4-hour weekend late-study recovery goal.
 - `get_due_reminders()` returns `reminder_stage = 'initial' | 'nudge'`. `attendance-cron` uses this stage to choose the first-reminder or final-nudge title/body and includes `reminderStage` in push payload data.
@@ -167,6 +169,7 @@ docs/images/study-room-thumbnail.png
 - Users can select and insert only their own `study_presence_events`; Edge Functions use the service role after validating session ownership.
 - `end_study_session(p_session_id uuid, p_excluded_seconds integer default 0)` stores `duration_seconds` as elapsed seconds minus non-negative excluded seconds. This keeps camera auto-paused absence time out of saved study totals.
 - `end_study_session()` calls `promote_attendance_by_daily_study_total()` after saving duration. If same-day completed study seconds reach `study_attendance_goal_seconds(local_date)`, the function upserts `attendance_days.status = 'present'` and auto-resolves same-day pending `missed_attendance` recovery as `submitted`.
+- `submit_study_recovery_request()` is an authenticated `security definer` RPC in `public` because the existing app RPC path is exposed through Supabase Data API. It must always check `auth.uid()` against the locked `study_recovery_requests.user_id` before creating todos or changing recovery status.
 - Recurring todo rows are stored in `study_todos` with one row per target `local_date`. Weekly rows share `repeat_group_id` and repeat metadata so editing one generated row can update the group, add newly selected dates, and delete removed dates. Duplicate title/date/time rows are skipped in the client before new inserts.
 - Scheduled todo rows use nullable `start_time` and `end_time`; the DB check constraint allows both null or both non-null with `start_time <> end_time`, so overnight schedules such as `23:00` to `01:00` are valid.
 - Todo duplicate filtering uses date, normalized title, and optional time range so the same task title can be scheduled in different time blocks on the same day.
@@ -217,6 +220,15 @@ docs/images/study-room-thumbnail.png
 
 ## Supabase 변경 이력
 
+### 2026-06-18
+
+- 변경 대상: `public.submit_study_recovery_request`
+- 변경 내용: 앱에서 pending `study_recovery_requests`를 직접 제출할 수 있도록 인증 사용자용 RPC를 추가했다. RPC는 `auth.uid()`로 소유자를 확인하고, pending 요청을 lock한 뒤 오늘 보충 todo와 내일 재도전 todo를 생성하고 recovery request를 `submitted`로 변경한다. 후속 migration으로 `anon` 실행 권한을 제거하고 `authenticated`만 실행 가능하게 보강했다.
+- 변경 이유: Slack interactivity가 실패하거나 사용자가 앱 URL로 직접 접속한 경우에도 회복 루틴을 제출하고 공부 시작 차단을 해제할 수 있어야 하기 때문이다.
+- 관련 기능: Slack 회복 루틴, 앱 내부 회복 루틴 모달, 공부 시작 차단 해제, todo 자동 생성
+- 마이그레이션 파일: `supabase/migrations/20260618121536_in_app_recovery_submission.sql`, `supabase/migrations/20260618123154_revoke_anon_recovery_submission.sql`
+- 확인 방법: `npm.cmd test`, `npm.cmd run build`, Supabase MCP migration list에서 `in_app_recovery_submission`과 `revoke_anon_recovery_submission` 확인, SQL 권한 확인에서 `anon_can_execute=false`, `authenticated_can_execute=true`, 익명 PostgREST 호출이 `permission denied for function submit_study_recovery_request`로 401 반환
+- 주의 사항: 이 RPC는 Slack 모달을 대체하지 않는다. Slack modal submit과 앱 modal submit 모두 같은 recovery request를 `submitted`로 만들고 같은 todo 생성 효과를 가진다.
 ### 2026-06-16
 
 - 변경 대상: `public.profiles`, `public.get_due_reminders`, `public.mark_missed_attendance`, `public.start_study_session`, `public.end_study_session`, `attendance-cron`

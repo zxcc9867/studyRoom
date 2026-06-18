@@ -2,6 +2,49 @@
 
 ## Timeline
 
+### 2026-06-18 - In-app recovery routine submission
+
+#### Completed Work
+
+- Added an in-app recovery routine modal for pending `study_recovery_requests`.
+- The modal auto-opens after login when pending recovery exists and can also be opened manually from recovery blocker cards.
+- Added authenticated Supabase RPC `submit_study_recovery_request` so the logged-in user can submit reason, makeup todo, and pledge directly from the web app.
+- The RPC creates today's makeup todo and tomorrow's pledge todo, then marks the recovery request submitted.
+- Updated Slack recovery PRD and implementation notes so Slack and app modal are both valid submission paths.
+
+#### Changed Files
+
+- `apps/web/src/main.tsx`
+- `apps/web/src/styles.css`
+- `apps/web/test/recoveryRoutine.test.mjs`
+- `supabase/migrations/20260618121536_in_app_recovery_submission.sql`
+- `supabase/migrations/20260618123154_revoke_anon_recovery_submission.sql`
+- `docs/superpowers/plans/2026-06-18-in-app-recovery-routine.md`
+- `memory-bank/prd-slack-recovery-routines.md`
+- `memory-bank/active-context.md`
+- `memory-bank/progress.md`
+- `memory-bank/implementation-plan.md`
+
+#### Verification
+
+- RED: `node --test apps\web\test\slackNotifications.test.mjs` failed before the modal/RPC source markers existed.
+- GREEN: `node --test apps\web\test\slackNotifications.test.mjs` passed after the first implementation.
+- `node --test apps\web\test\recoveryRoutine.test.mjs` passed.
+- `node --test apps\web\test\slackNotifications.test.mjs` passed.
+- `npm.cmd test` passed 136 tests.
+- `npm.cmd run build` passed.
+- Supabase MCP migration list confirmed `20260618122857 in_app_recovery_submission` and `20260618123154 revoke_anon_recovery_submission`.
+- Supabase SQL confirmed `submit_study_recovery_request` has `authenticated_can_execute=true`, `anon_can_execute=false`, uses `auth.uid()`, and locks the pending request.
+- Anonymous PostgREST RPC call returned HTTP 401 with `permission denied for function submit_study_recovery_request`.
+- Pending: commit, push, and verify Vercel production deployment.
+
+#### Remaining Work
+
+- Verify the remote RPC exists and production bundle contains the in-app recovery modal.
+
+#### Next Priority
+
+- Complete Supabase migration, test/build, GitHub Actions, and Vercel production verification.
 ### 2026-06-16 - Weekday/weekend attendance goals and late study recovery
 
 #### Completed Work
