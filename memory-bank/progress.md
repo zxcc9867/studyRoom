@@ -2,6 +2,42 @@
 
 ## Timeline
 
+### 2026-06-18 - Recovery prompt loop clarification
+
+#### Completed Work
+
+- Investigated why the app kept asking for a recovery routine after the user submitted one.
+- Confirmed the submitted 2026-06-18 request was correctly marked `submitted` in Supabase.
+- Confirmed an older 2026-06-17 `missed_attendance` recovery request for the same user remained `pending`, which continued to block study start.
+- Changed automatic in-app recovery modal opening to use only blocking recovery requests.
+- Added recovery modal date, request type, queue position, and remaining request count.
+- Updated submit handling to mark the submitted request locally before dashboard reload and show the next remaining blocking request explicitly.
+
+#### Changed Files
+
+- `apps/web/src/main.tsx`
+- `apps/web/src/styles.css`
+- `apps/web/test/recoveryRoutine.test.mjs`
+- `memory-bank/prd-slack-recovery-routines.md`
+- `memory-bank/active-context.md`
+- `memory-bank/progress.md`
+- `memory-bank/implementation-plan.md`
+- `memory-bank/trouble-shooting.md`
+
+#### Verification
+
+- Supabase SQL query for recent `study_recovery_requests`.
+- `node --test apps\web\test\recoveryRoutine.test.mjs`
+- `npm.cmd test` passed 137 tests.
+- `npm.cmd run build` passed.
+
+#### Remaining Work
+
+- Commit, push, and verify Vercel production deployment.
+
+#### Next Priority
+
+- In production, submit the remaining older recovery request or confirm the modal no longer appears once no blocking pending requests remain.
 ### 2026-06-18 - In-app recovery routine submission
 
 #### Completed Work

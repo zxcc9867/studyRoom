@@ -355,7 +355,7 @@ function DashboardApp() {
   const timeZone = profile?.time_zone ?? Intl.DateTimeFormat().resolvedOptions().timeZone;
   const activeSession = studySessions.find((item) => item.status === "active") ?? null;
   const pendingRecoveryRequests = useMemo(
-    () => studyRecoveryRequests.filter((item) => item.status === "pending"),
+    () => studyRecoveryRequests.filter((item) => item.status === "pending").sort(compareRecoveryRequests),
     [studyRecoveryRequests],
   );
   const cameraSupport = useMemo(() => getCameraSupport(window), []);
@@ -401,10 +401,7 @@ function DashboardApp() {
     : 0;
   const todayDateKey = getLocalDateKey(new Date(nowMs), timeZone);
   const blockingRecoveryRequests = useMemo(
-    () =>
-      pendingRecoveryRequests.filter(
-        (item) => item.trigger_type !== "missed_attendance" || item.local_date !== todayDateKey,
-      ),
+    () => pendingRecoveryRequests.filter((item) => isBlockingRecoveryRequest(item, todayDateKey)),
     [pendingRecoveryRequests, todayDateKey],
   );
   const lateStudyRecoveryRequests = useMemo(
@@ -414,17 +411,26 @@ function DashboardApp() {
       ),
     [pendingRecoveryRequests, todayDateKey],
   );
+  const autoOpenRecoveryRequests = useMemo(() => blockingRecoveryRequests, [blockingRecoveryRequests]);
+  const recoveryModalQueuePosition = recoveryModalRequest
+    ? pendingRecoveryRequests.findIndex((request) => request.id === recoveryModalRequest.id) + 1
+    : 0;
+  const recoveryModalRemainingCount = recoveryModalRequest
+    ? pendingRecoveryRequests.filter((request) => request.id !== recoveryModalRequest.id).length
+    : 0;
 
   useEffect(() => {
-    if (!session?.user.id || recoveryModalRequest || pendingRecoveryRequests.length === 0) {
+    if (!session?.user.id || recoveryModalRequest || autoOpenRecoveryRequests.length === 0) {
       return;
     }
 
-    const nextRequest = pendingRecoveryRequests.find((request) => !recoveryModalDismissedIdsRef.current.has(request.id));
+    const nextRequest = autoOpenRecoveryRequests.find(
+      (request) => !recoveryModalDismissedIdsRef.current.has(request.id),
+    );
     if (nextRequest) {
       openRecoveryRoutineModal(nextRequest, { auto: true });
     }
-  }, [session?.user.id, pendingRecoveryRequests, recoveryModalRequest?.id]);
+  }, [session?.user.id, autoOpenRecoveryRequests, recoveryModalRequest?.id]);
 
   const todayCompletedSeconds = studySessions
     .filter((item) => item.local_date === todayDateKey && item.status !== "active")
@@ -1553,9 +1559,13 @@ function DashboardApp() {
     event.preventDefault();
     if (!session?.user.id || !recoveryModalRequest) return;
 
+    const submittedRequest = recoveryModalRequest;
+    const remainingRequests = pendingRecoveryRequests.filter((request) => request.id !== submittedRequest.id);
+    const nextBlockingRequest = remainingRequests.find((request) => isBlockingRecoveryRequest(request, todayDateKey));
+
     setRecoverySubmitBusy(true);
     const { error } = await supabase.rpc("submit_study_recovery_request", {
-      p_request_id: recoveryModalRequest.id,
+      p_request_id: submittedRequest.id,
       p_reason: recoveryReason,
       p_makeup_todo_title: makeupTodoTitle,
       p_pledge_todo_title: pledgeTodoTitle,
@@ -1567,12 +1577,37 @@ function DashboardApp() {
       return;
     }
 
-    recoveryModalDismissedIdsRef.current.delete(recoveryModalRequest.id);
+    recoveryModalDismissedIdsRef.current.delete(submittedRequest.id);
+    setStudyRecoveryRequests((requests) =>
+      requests.map((request) =>
+        request.id === submittedRequest.id
+          ? {
+              ...request,
+              status: "submitted",
+              reason: recoveryReason,
+              makeup_todo_title: makeupTodoTitle,
+              pledge_todo_title: pledgeTodoTitle,
+            }
+          : request,
+      ),
+    );
     setRecoveryModalRequest(null);
     setRecoveryReason("");
     setMakeupTodoTitle("");
     setPledgeTodoTitle("");
-    setMessage("회복 루틴을 제출했습니다. 다시 공부를 시작할 수 있습니다.");
+    if (nextBlockingRequest) {
+      setMessage(
+        `회복 루틴을 제출했습니다. 아직 ${remainingRequests.length}건이 남아 있습니다: ${formatRecoveryRequestSummary(nextBlockingRequest)}`,
+      );
+      openRecoveryRoutineModal(nextBlockingRequest, { auto: true });
+    } else if (remainingRequests.length > 0) {
+      setMessage(
+        `회복 루틴을 제출했습니다. 남은 ${remainingRequests.length}건은 오늘 목표 시간을 채우면 자동 회복될 수 있습니다.`,
+      );
+    } else {
+      setMessage("회복 루틴을 제출했습니다. 다시 공부를 시작할 수 있습니다.");
+    }
+
     await loadDashboard(session.user.id);
   }
 
@@ -2599,6 +2634,16 @@ function DashboardApp() {
               <p className="reminder-copy">
                 Slack에서 작성해도 되고, 여기에서 바로 사유와 보충 계획을 제출해도 됩니다.
               </p>
+              <div className="recovery-modal-summary">
+                <span>{formatTodoDate(recoveryModalRequest.local_date)}</span>
+                <strong>{getRecoveryRequestTitle(recoveryModalRequest)}</strong>
+                <small>
+                  {recoveryModalQueuePosition > 0
+                    ? `${recoveryModalQueuePosition}/${pendingRecoveryRequests.length}번째 회복 루틴`
+                    : "회복 루틴"}
+                  {recoveryModalRemainingCount > 0 ? ` · 제출 후 ${recoveryModalRemainingCount}건 남음` : ""}
+                </small>
+              </div>
               <form className="recovery-form" onSubmit={submitRecoveryRoutine}>
                 <label>
                   <span>결석/이탈 사유</span>
@@ -2998,6 +3043,25 @@ function attendanceLabel(status: AttendanceDay["status"]) {
   if (status === "present") return "출석";
   if (status === "missed") return "결석";
   return "대기";
+}
+
+function compareRecoveryRequests(left: StudyRecoveryRequest, right: StudyRecoveryRequest) {
+  if (left.local_date !== right.local_date) {
+    return left.local_date.localeCompare(right.local_date);
+  }
+  return left.created_at.localeCompare(right.created_at);
+}
+
+function isBlockingRecoveryRequest(request: StudyRecoveryRequest, todayDateKey: string) {
+  return request.trigger_type !== "missed_attendance" || request.local_date !== todayDateKey;
+}
+
+function getRecoveryRequestTitle(request: StudyRecoveryRequest) {
+  return request.trigger_type === "missed_attendance" ? "출석 실패" : "자리 비움 반복";
+}
+
+function formatRecoveryRequestSummary(request: StudyRecoveryRequest) {
+  return `${formatTodoDate(request.local_date)} · ${getRecoveryRequestTitle(request)}`;
 }
 
 function calculateTodoStats(todos: StudyTodo[]) {

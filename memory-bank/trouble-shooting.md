@@ -1,5 +1,39 @@
 # Trouble Shooting
 
+## 2026-06-18 - Recovery routine looked like it was still required after submission
+
+### Situation
+
+The user submitted a recovery routine but the app continued to show the recovery routine prompt.
+
+### Error Message
+
+```txt
+User-visible symptom:
+- The recovery routine modal still appeared after submitting a routine.
+- The user interpreted this as the submitted routine not being accepted.
+```
+
+### Cause
+
+Supabase showed the user's 2026-06-18 `missed_attendance` recovery request was correctly `submitted` with reason, makeup todo, pledge todo, and created todo ids. However, an older 2026-06-17 `missed_attendance` request for the same user was still `pending`, so the app correctly had another blocking recovery request.
+
+The UI made this confusing because automatic modal opening used all `pendingRecoveryRequests`, and the modal did not prominently show the recovery request date, queue position, or remaining count.
+
+### Fix
+
+The web app now sorts pending recovery requests oldest first, auto-opens only blocking recovery requests, and treats same-day missed-attendance recovery as a soft late-study action. After successful submission, the app marks the submitted request locally before reloading the dashboard and shows a message plus the next blocking request if one remains. The modal displays the recovery date, trigger type, queue position, and remaining count.
+
+### Related Files
+
+* `apps/web/src/main.tsx`
+* `apps/web/src/styles.css`
+* `apps/web/test/recoveryRoutine.test.mjs`
+* `memory-bank/prd-slack-recovery-routines.md`
+
+### Prevention
+
+When multiple pending recovery requests exist, show which date and trigger the user is submitting. Do not infer that a submitted request failed until checking the specific `study_recovery_requests.id` status in Supabase.
 ## 2026-06-16 - New `.mjs` helper missing TypeScript declaration
 
 ### Situation

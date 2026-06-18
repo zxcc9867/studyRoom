@@ -8,6 +8,12 @@ test("web app exposes an in-app recovery routine modal and authenticated submit 
   const revokeMigrationSource = readFileSync("supabase/migrations/20260618123154_revoke_anon_recovery_submission.sql", "utf8");
 
   assert.match(appSource, /recoveryModalRequest/);
+  assert.match(appSource, /autoOpenRecoveryRequests/);
+  assert.match(appSource, /blockingRecoveryRequests/);
+  assert.match(appSource, /compareRecoveryRequests/);
+  assert.match(appSource, /formatRecoveryRequestSummary/);
+  assert.match(appSource, /recoveryModalQueuePosition/);
+  assert.match(appSource, /recovery-modal-summary/);
   assert.match(appSource, /openRecoveryRoutineModal/);
   assert.match(appSource, /submitRecoveryRoutine/);
   assert.match(appSource, /submit_study_recovery_request/);
@@ -25,4 +31,18 @@ test("web app exposes an in-app recovery routine modal and authenticated submit 
   assert.match(migrationSource, /study_todos/);
   assert.match(migrationSource, /grant execute on function public\.submit_study_recovery_request/);
   assert.match(revokeMigrationSource, /revoke all on function public\.submit_study_recovery_request[\s\S]+from anon/);
+});
+
+test("web app does not auto-open non-blocking same-day missed recovery requests", () => {
+  const appSource = readFileSync("apps/web/src/main.tsx", "utf8");
+  const autoOpenStart = appSource.indexOf("const autoOpenRecoveryRequests");
+  const autoOpenEnd = appSource.indexOf("const todayCompletedSeconds");
+  assert.notEqual(autoOpenStart, -1);
+  assert.notEqual(autoOpenEnd, -1);
+
+  const autoOpenSnippet = appSource.slice(autoOpenStart, autoOpenEnd);
+  assert.match(autoOpenSnippet, /autoOpenRecoveryRequests/);
+  assert.match(autoOpenSnippet, /blockingRecoveryRequests/);
+  assert.match(autoOpenSnippet, /openRecoveryRoutineModal/);
+  assert.doesNotMatch(autoOpenSnippet, /pendingRecoveryRequests\.length === 0/);
 });

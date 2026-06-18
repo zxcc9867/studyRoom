@@ -1318,6 +1318,30 @@ label {
   gap: 14px;
 }
 
+.recovery-modal-summary {
+  border: 2px solid rgba(79, 145, 111, 0.45);
+  border-radius: 8px;
+  background: #f0ffd8;
+  color: #2f2a1f;
+  padding: 12px 14px;
+  margin: 12px 0 16px;
+  display: grid;
+  gap: 4px;
+}
+
+.recovery-modal-summary span,
+.recovery-modal-summary small {
+  color: #5a513d;
+  font-size: 13px;
+  font-weight: 900;
+}
+
+.recovery-modal-summary strong {
+  color: #2f6b52;
+  font-size: 20px;
+  line-height: 1.1;
+}
+
 .recovery-form label {
   display: grid;
   gap: 7px;

@@ -2,6 +2,37 @@
 
 ## Current Work
 
+- Task: Clarify repeated recovery routine prompts after submission.
+- Purpose: Fix the UX where a submitted recovery routine looked as if it was still being requested, even though another older pending recovery request was the real blocker.
+- Related PRD:
+  - `memory-bank/prd-slack-recovery-routines.md`
+- Related files:
+  - `apps/web/src/main.tsx`
+  - `apps/web/src/styles.css`
+  - `apps/web/test/recoveryRoutine.test.mjs`
+
+## Recent Decisions
+
+- Decision: Auto-open only blocking recovery requests, not every pending recovery request.
+- Reason: Same-day missed-attendance recovery is a soft late-study path and should not interrupt study start, while older missed requests and repeated camera absence still block.
+- Alternative: Continue auto-opening every pending request; rejected because it makes successful submissions look like a loop when multiple pending requests exist.
+- Impact: After submission, the app immediately marks the request submitted locally, shows the next remaining blocking request if one exists, and displays the modal date/count.
+
+## Current Status
+
+- Completed: Confirmed production Supabase shows the user's 2026-06-18 recovery request is `submitted`, while an older 2026-06-17 `missed_attendance` request remains `pending`.
+- Completed: Updated the web modal to display recovery date, type, queue position, and remaining count.
+- Completed: Updated auto-open behavior to use `blockingRecoveryRequests` only.
+- Completed: Added regression coverage for non-blocking same-day missed recovery requests.
+- Completed: `node --test apps\web\test\recoveryRoutine.test.mjs`, `npm.cmd test`, and `npm.cmd run build` passed.
+- Next: Commit, push, and verify Vercel production deployment.
+
+## Notes
+
+- Multiple pending recovery requests are valid. The UI must make it clear when the next prompt is a different date/request.
+- Do not treat same-day missed recovery as a hard blocker because it would prevent the late-study attendance recovery path.
+## Current Work
+
 - Task: Add in-app recovery routine submission.
 - Purpose: Let users recover from a pending missed-attendance or repeated-absence request directly in the web app after opening the URL, instead of being blocked when Slack interactivity is unavailable.
 - Related PRD:

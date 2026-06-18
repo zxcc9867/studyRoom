@@ -13,7 +13,8 @@ Students using the Slack notification channel who want stronger accountability a
 - Create a pending recovery request after missed attendance.
 - Create a pending recovery request after the second same-day camera absence warning.
 - Send a Slack button that opens a recovery modal.
-- Show an in-app recovery modal when a logged-in user opens the app with pending recovery requests.
+- Show an in-app recovery modal when a logged-in user opens the app with blocking pending recovery requests.
+- Show same-day missed-attendance recovery as a soft action because same-day late study can still restore attendance after the daily goal is completed.
 - Require reason, today's makeup task, and tomorrow's pledge before another session can start.
 - Create dated todos from submitted recovery content.
 - Send one follow-up if the pending request is not submitted for 30 minutes.
@@ -39,7 +40,7 @@ Students using the Slack notification channel who want stronger accountability a
 1. Attendance is missed or the second same-day camera absence warning is recorded.
 2. Supabase creates a pending recovery request.
 3. Slack receives a message with a `회복 루틴 작성` button.
-4. The web app also opens a recovery routine modal after login when pending requests exist.
+4. The web app also opens a recovery routine modal after login when blocking pending requests exist.
 5. The user submits the recovery routine through Slack or the app modal.
 6. Supabase marks the request submitted and creates today/tomorrow todos.
 7. The app allows the next study session to start.
