@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
 import { test } from "node:test";
 
 import {
@@ -9,6 +10,8 @@ import {
   getGoalLinkedTodos,
   sortStudyGoals,
 } from "../src/studyGoals.mjs";
+
+const mainSource = readFileSync(new URL("../src/main.tsx", import.meta.url), "utf8");
 
 function goal(overrides) {
   return {
@@ -134,4 +137,12 @@ test("calculates goal study seconds inside the goal date window", () => {
   });
 
   assert.equal(result, 2400);
+});
+
+test("dashboard goal summary hides study timers and target study hour inputs", () => {
+  assert.doesNotMatch(mainSource, /목표 공부/);
+  assert.doesNotMatch(mainSource, /목표 공부 시간/);
+  assert.doesNotMatch(mainSource, /activeGoalStudySeconds/);
+  assert.doesNotMatch(mainSource, /formatGoalTargetSeconds/);
+  assert.match(mainSource, /goal-view-link/);
 });

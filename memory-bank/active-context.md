@@ -2,6 +2,38 @@
 
 ## Current Work
 
+- Task: Simplify the study goal dashboard card.
+- Purpose: Remove the moving study-time timer and target study-hour UI from the goal summary so the card focuses on D-day and linked todo progress.
+- Related PRD:
+  - `memory-bank/prd-study-goals.md`
+- Related files:
+  - `apps/web/src/main.tsx`
+  - `apps/web/src/styles.css`
+  - `apps/web/test/studyGoals.test.mjs`
+
+## Recent Decisions
+
+- Decision: Keep the legacy `study_goals.target_study_seconds` column for DB compatibility, but save `0` from the web UI and calculate visible goal progress from linked todo completion only.
+- Reason: The user said the study-time timer and goal study-time target are unnecessary and the moving timer made the goal card noisy.
+- Alternative: Hide only the timer while keeping the target-hour input; rejected because it would leave a hidden progress source that users cannot understand.
+- Impact: The top goal card and goals page no longer show moving study time, and the goal form no longer asks for target study hours.
+
+## Current Status
+
+- Completed: Removed the target study-hour input from the goal modal.
+- Completed: Removed active study-time display from the top goal card and goal list cards.
+- Completed: Styled the `목표 보기` link as a stable button-like action.
+- Completed: `node --test apps\web\test\studyGoals.test.mjs`, `npm.cmd test`, and `npm.cmd run build` passed.
+- In progress: Commit, push, and verify Vercel production deployment.
+- Next: Verify production shows the simplified goal card.
+
+## Notes
+
+- This change is UI/UX focused. No Supabase schema migration is required.
+- Existing rows may still contain non-zero `target_study_seconds`, but the current web UI ignores that value for visible progress.
+
+## Current Work
+
 - Task: Add study goal setting with D-day display.
 - Purpose: Let the user create long-term study goals, see the nearest active goal's D-day on the dashboard, and connect todos to goals so daily work is tied to a larger target.
 - Related PRD:

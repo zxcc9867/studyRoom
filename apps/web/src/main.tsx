@@ -102,7 +102,6 @@ import {
 import { requestEndStudySessionOnExit, shouldEndStudySessionForPageEvent } from "./sessionExit.mjs";
 import {
   calculateGoalProgress,
-  calculateGoalStudySeconds,
   formatDdayLabel,
   getActiveStudyGoal,
   getGoalLinkedTodos,
@@ -287,7 +286,6 @@ function DashboardApp() {
   const [editingGoalId, setEditingGoalId] = useState<string | null>(null);
   const [goalTitle, setGoalTitle] = useState("");
   const [goalTargetDate, setGoalTargetDate] = useState(() => addDaysToDateKey(getPlainDateKey(new Date()), 30));
-  const [goalTargetHours, setGoalTargetHours] = useState("20");
   const [goalLinkedTodoIds, setGoalLinkedTodoIds] = useState<string[]>([]);
   const [goalBusy, setGoalBusy] = useState(false);
   const [message, setMessage] = useState("");
@@ -520,19 +518,11 @@ function DashboardApp() {
     () => (activeGoal ? getGoalLinkedTodos(activeGoal.id, studyTodos) : []),
     [activeGoal?.id, studyTodos],
   );
-  const activeGoalStudySeconds = activeGoal
-    ? calculateGoalStudySeconds({
-        goal: activeGoal,
-        sessions: studySessions,
-        activeSessionId: activeSession?.id ?? null,
-        activeElapsedSeconds,
-      })
-    : 0;
   const activeGoalProgress = activeGoal
     ? calculateGoalProgress({
-        goal: activeGoal,
+        goal: { ...activeGoal, target_study_seconds: 0 },
         linkedTodos: activeGoalTodos,
-        studiedSeconds: activeGoalStudySeconds,
+        studiedSeconds: 0,
       })
     : null;
   const todoHistoryPageData = useMemo(
@@ -1445,7 +1435,6 @@ function DashboardApp() {
     setEditingGoalId(null);
     setGoalTitle("");
     setGoalTargetDate(addDaysToDateKey(todayDateKey, 30));
-    setGoalTargetHours("20");
     setGoalLinkedTodoIds([]);
     setGoalModalOpen(true);
   }
@@ -1454,7 +1443,6 @@ function DashboardApp() {
     setEditingGoalId(goal.id);
     setGoalTitle(goal.title);
     setGoalTargetDate(goal.target_date);
-    setGoalTargetHours(formatGoalHoursInput(goal.target_study_seconds));
     setGoalLinkedTodoIds(studyTodos.filter((todo) => todo.goal_id === goal.id).map((todo) => todo.id));
     setGoalModalOpen(true);
   }
@@ -1499,17 +1487,12 @@ function DashboardApp() {
     if (!session?.user.id) return;
 
     const title = goalTitle.trim();
-    const targetHours = Number(goalTargetHours);
     if (!title) {
       setMessage("목표 이름을 입력하세요.");
       return;
     }
     if (!goalTargetDate) {
       setMessage("목표 날짜를 선택하세요.");
-      return;
-    }
-    if (!Number.isFinite(targetHours) || targetHours < 0) {
-      setMessage("목표 공부 시간은 0 이상의 숫자로 입력하세요.");
       return;
     }
 
@@ -1519,7 +1502,7 @@ function DashboardApp() {
         user_id: session.user.id,
         title,
         target_date: goalTargetDate,
-        target_study_seconds: Math.round(targetHours * 3600),
+        target_study_seconds: 0,
         status: "active",
       };
       const goalResult = editingGoalId
@@ -2286,14 +2269,12 @@ function DashboardApp() {
 
   function getGoalView(goal: StudyGoal) {
     const linkedTodos = getGoalLinkedTodos(goal.id, studyTodos);
-    const studiedSeconds = calculateGoalStudySeconds({
-      goal,
-      sessions: studySessions,
-      activeSessionId: activeSession?.id ?? null,
-      activeElapsedSeconds,
+    const progress = calculateGoalProgress({
+      goal: { ...goal, target_study_seconds: 0 },
+      linkedTodos,
+      studiedSeconds: 0,
     });
-    const progress = calculateGoalProgress({ goal, linkedTodos, studiedSeconds });
-    return { linkedTodos, studiedSeconds, progress };
+    return { linkedTodos, progress };
   }
 
   function renderReminderTodoList(todos: StudyTodo[]) {
@@ -2520,7 +2501,7 @@ function DashboardApp() {
                     <div>
                       <p className="eyebrow">today goal</p>
                       <h3>{activeGoal.title}</h3>
-                      <p>{formatGoalDate(activeGoal.target_date)}까지 · 목표 공부 {formatGoalTargetSeconds(activeGoal.target_study_seconds)}</p>
+                      <p>{formatGoalDate(activeGoal.target_date)}까지</p>
                     </div>
                   </div>
                   <div className="goal-hero-progress">
@@ -2529,8 +2510,9 @@ function DashboardApp() {
                     </div>
                     <strong>{activeGoalProgress.percent}%</strong>
                     <span>
-                      할 일 {activeGoalProgress.completedTodoCount}/{activeGoalProgress.linkedTodoCount} · 공부{" "}
-                      {formatTimerClock(activeGoalStudySeconds)}
+                      {activeGoalProgress.linkedTodoCount > 0
+                        ? `할 일 ${activeGoalProgress.completedTodoCount}/${activeGoalProgress.linkedTodoCount}`
+                        : "연결된 할 일이 없습니다"}
                     </span>
                   </div>
                   <div className="goal-hero-actions">
@@ -2538,7 +2520,7 @@ function DashboardApp() {
                       <Pencil size={16} />
                       목표 편집
                     </button>
-                    <a className="secondary compact-action" href="#goals">
+                    <a className="secondary compact-action goal-view-link" href="#goals">
                       목표 보기
                     </a>
                   </div>
@@ -2896,17 +2878,6 @@ function DashboardApp() {
                       onChange={(event) => setGoalTargetDate(event.target.value)}
                       disabled={goalBusy}
                       required
-                    />
-                  </label>
-                  <label>
-                    목표 공부 시간
-                    <input
-                      type="number"
-                      min="0"
-                      step="0.5"
-                      value={goalTargetHours}
-                      onChange={(event) => setGoalTargetHours(event.target.value)}
-                      disabled={goalBusy}
                     />
                   </label>
                 </div>
@@ -3283,7 +3254,9 @@ function DashboardApp() {
                       </div>
                       <strong>{view.progress.percent}% 완료</strong>
                       <span>
-                        공부 {formatTimerClock(view.studiedSeconds)} / {formatGoalTargetSeconds(goal.target_study_seconds)}
+                        {view.progress.linkedTodoCount > 0
+                          ? `할 일 ${view.progress.completedTodoCount}/${view.progress.linkedTodoCount}`
+                          : "연결된 할 일이 없습니다"}
                       </span>
                     </div>
                     <div className="goal-stat-row">
@@ -3585,18 +3558,6 @@ function formatGoalDate(dateKey: string) {
     month: "2-digit",
     day: "2-digit",
   }).format(new Date(year, month - 1, day));
-}
-
-function formatGoalTargetSeconds(seconds: number) {
-  if (!seconds) return "미설정";
-  const hours = seconds / 3600;
-  return `${Number.isInteger(hours) ? hours : hours.toFixed(1)}시간`;
-}
-
-function formatGoalHoursInput(seconds: number) {
-  if (!seconds) return "0";
-  const hours = seconds / 3600;
-  return Number.isInteger(hours) ? String(hours) : hours.toFixed(1);
 }
 
 function formatTodoDate(dateKey: string) {

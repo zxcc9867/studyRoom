@@ -2,6 +2,38 @@
 
 ## Timeline
 
+### 2026-06-20 - Study goal card simplification
+
+#### Completed Work
+
+- Removed the moving study-time timer from the top goal card and goal list cards.
+- Removed the target study-hour input from the goal create/edit modal.
+- Changed visible goal progress to use linked todo completion only.
+- Restyled the `목표 보기` link so it renders like the adjacent action button.
+
+#### Changed Files
+
+- `apps/web/src/main.tsx`
+- `apps/web/src/styles.css`
+- `apps/web/test/studyGoals.test.mjs`
+- `memory-bank/prd-study-goals.md`
+- `memory-bank/active-context.md`
+- `memory-bank/progress.md`
+
+#### Verification
+
+- `node --test apps\web\test\studyGoals.test.mjs` passed.
+- `npm.cmd test` passed 146 tests.
+- `npm.cmd run build` passed.
+
+#### Remaining Work
+
+- Push to `origin/main` and verify Vercel production deployment.
+
+#### Next Priority
+
+- Confirm the production goal card shows only D-day, target date, and linked todo progress.
+
 ### 2026-06-20 - Study goal D-day dashboard
 
 #### Completed Work

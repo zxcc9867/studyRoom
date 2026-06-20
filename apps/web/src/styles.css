@@ -438,6 +438,18 @@ label {
   text-decoration: none;
 }
 
+.goal-view-link {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 50px;
+  color: #2f2a1f;
+  font: inherit;
+  font-weight: 950;
+  line-height: 1;
+  white-space: nowrap;
+}
+
 .goals-panel {
   display: grid;
   gap: 18px;
