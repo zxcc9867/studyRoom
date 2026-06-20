@@ -2,6 +2,37 @@
 
 ## Current Work
 
+- Task: Auto-dismiss success status messages.
+- Purpose: Prevent success banners such as `목표를 만들었습니다.` from staying visible indefinitely after the action has completed.
+- Related PRD:
+  - `memory-bank/prd-study-goals.md`
+- Related files:
+  - `apps/web/src/main.tsx`
+  - `apps/web/src/appMessage.mjs`
+  - `apps/web/src/appMessage.d.mts`
+  - `apps/web/test/appMessage.test.mjs`
+
+## Recent Decisions
+
+- Decision: Auto-dismiss only success-style status messages after 5 seconds while keeping validation, permission, and failure messages visible.
+- Reason: Success banners are transient feedback, but error and required-action messages may need to remain available until the user acts.
+- Alternative: Clear every message after a timeout; rejected because it can hide important login, permission, or setup guidance.
+- Impact: Goal creation success no longer leaves a permanent message banner on the dashboard.
+
+## Current Status
+
+- Completed: Added an `appMessage` helper that classifies auto-dismissable success messages.
+- Completed: Wired the dashboard `message` state to clear success messages with cleanup.
+- Completed: `node --test apps\web\test\appMessage.test.mjs`, `npm.cmd test`, and `npm.cmd run build` passed.
+- In progress: Commit, push, and verify Vercel production deployment.
+- Next: Verify production responds after deployment.
+
+## Notes
+
+- This is a frontend state cleanup fix. No Supabase schema or Edge Function change is required.
+
+## Current Work
+
 - Task: Simplify the study goal dashboard card.
 - Purpose: Remove the moving study-time timer and target study-hour UI from the goal summary so the card focuses on D-day and linked todo progress.
 - Related PRD:

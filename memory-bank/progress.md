@@ -2,6 +2,38 @@
 
 ## Timeline
 
+### 2026-06-20 - Success message auto-dismiss
+
+#### Completed Work
+
+- Added automatic dismissal for success-style app status messages after 5 seconds.
+- Kept validation, permission, required-action, and failure messages persistent.
+- Added regression coverage for goal success messages and timeout cleanup wiring.
+
+#### Changed Files
+
+- `apps/web/src/main.tsx`
+- `apps/web/src/appMessage.mjs`
+- `apps/web/src/appMessage.d.mts`
+- `apps/web/test/appMessage.test.mjs`
+- `memory-bank/active-context.md`
+- `memory-bank/progress.md`
+- `memory-bank/trouble-shooting.md`
+
+#### Verification
+
+- `node --test apps\web\test\appMessage.test.mjs` passed.
+- `npm.cmd test` passed 149 tests.
+- `npm.cmd run build` passed.
+
+#### Remaining Work
+
+- Push to `origin/main` and verify Vercel production deployment.
+
+#### Next Priority
+
+- Visually confirm that `목표를 만들었습니다.` disappears from the dashboard after the timeout.
+
 ### 2026-06-20 - Study goal card simplification
 
 #### Completed Work

@@ -1,5 +1,35 @@
 # Trouble Shooting
 
+## 2026-06-20 - Success message banner stayed visible
+
+### Situation
+
+After creating a study goal, the dashboard continued to show the success banner `목표를 만들었습니다.`.
+
+### Error Message
+
+```txt
+목표를 만들었습니다.
+```
+
+### Cause
+
+The web app stored action feedback in a single `message` state and rendered it in the dashboard, but successful actions did not clear that state after the user had seen the feedback.
+
+### Fix
+
+Added `appMessage.mjs` to classify success-style messages and wired `main.tsx` to clear only those messages after 5 seconds with `window.setTimeout` cleanup. Validation, required-action, permission, and failure messages stay visible.
+
+### Related Files
+
+* `apps/web/src/main.tsx`
+* `apps/web/src/appMessage.mjs`
+* `apps/web/test/appMessage.test.mjs`
+
+### Prevention
+
+When adding a new transient success `setMessage(...)`, make sure it matches the success-message classifier or use a dedicated typed notification state if message behavior becomes more complex.
+
 ## 2026-06-18 - Recovery routine looked like it was still required after submission
 
 ### Situation

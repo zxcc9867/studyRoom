@@ -27,6 +27,7 @@ import {
 import type { Session } from "@supabase/supabase-js";
 
 import { EMAIL_OTP_LENGTH, extractEmailOtpCandidate, isValidEmailOtp, sanitizeEmailOtp } from "./authCode.mjs";
+import { SUCCESS_MESSAGE_AUTO_DISMISS_MS, shouldAutoDismissMessage } from "./appMessage.mjs";
 import {
   DEFAULT_WEEKDAY_REMINDER_TIME,
   WEEKEND_REMINDER_TIME,
@@ -360,6 +361,13 @@ function DashboardApp() {
     }
     return () => window.clearInterval(timerId);
   }, []);
+
+  useEffect(() => {
+    if (!shouldAutoDismissMessage(message)) return;
+
+    const timeoutId = window.setTimeout(() => setMessage(""), SUCCESS_MESSAGE_AUTO_DISMISS_MS);
+    return () => window.clearTimeout(timeoutId);
+  }, [message]);
 
   useEffect(() => {
     if (session?.user.id) {
