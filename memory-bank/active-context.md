@@ -24,8 +24,10 @@
 - Completed: Removed active study-time display from the top goal card and goal list cards.
 - Completed: Styled the `목표 보기` link as a stable button-like action.
 - Completed: `node --test apps\web\test\studyGoals.test.mjs`, `npm.cmd test`, and `npm.cmd run build` passed.
-- In progress: Commit, push, and verify Vercel production deployment.
-- Next: Verify production shows the simplified goal card.
+- Completed: Committed and pushed `7904f7071d25cad285928ba48235208f2985a760`.
+- Completed: Vercel production deployment `dpl_85PvEfUeYkJL42QJKUi3FcpUeEFR` is `READY` for commit `7904f7071d25cad285928ba48235208f2985a760`.
+- Completed: `https://study-room-attendance.vercel.app/` returned HTTP 200.
+- Next: Visually verify the simplified goal card with a logged-in browser session.
 
 ## Notes
 
