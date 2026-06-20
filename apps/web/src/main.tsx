@@ -102,6 +102,13 @@ import {
 } from "./sessionLease.mjs";
 import { requestEndStudySessionOnExit, shouldEndStudySessionForPageEvent } from "./sessionExit.mjs";
 import {
+  buildSessionTodoLinkRows,
+  getIncompleteTodayTodos,
+  getSessionLinkedTodos,
+  shouldRequestSessionTodoSelection,
+  summarizeSessionTodos,
+} from "./sessionTodoLinks.mjs";
+import {
   calculateGoalProgress,
   formatDdayLabel,
   getActiveStudyGoal,
@@ -197,6 +204,15 @@ type StudyTodo = {
   created_at: string;
 };
 
+type StudySessionTodoLink = {
+  id: string;
+  user_id: string;
+  session_id: string;
+  todo_id: string;
+  linked_at: string;
+  completed_during_session: boolean;
+};
+
 type StudyGoal = {
   id: string;
   user_id: string;
@@ -258,6 +274,7 @@ function DashboardApp() {
   const [attendanceDays, setAttendanceDays] = useState<AttendanceDay[]>([]);
   const [studySessions, setStudySessions] = useState<StudySession[]>([]);
   const [studyTodos, setStudyTodos] = useState<StudyTodo[]>([]);
+  const [studySessionTodoLinks, setStudySessionTodoLinks] = useState<StudySessionTodoLink[]>([]);
   const [studyGoals, setStudyGoals] = useState<StudyGoal[]>([]);
   const [studyRecoveryRequests, setStudyRecoveryRequests] = useState<StudyRecoveryRequest[]>([]);
   const [recoveryModalRequest, setRecoveryModalRequest] = useState<StudyRecoveryRequest | null>(null);
@@ -283,6 +300,9 @@ function DashboardApp() {
   const [todoEndTime, setTodoEndTime] = useState("10:00");
   const [todoGoalId, setTodoGoalId] = useState("");
   const [todoModalOpen, setTodoModalOpen] = useState(false);
+  const [sessionTodoModalOpen, setSessionTodoModalOpen] = useState(false);
+  const [sessionTodoStartRequest, setSessionTodoStartRequest] = useState<{ cameraReadyOverride: boolean } | null>(null);
+  const [selectedSessionTodoIds, setSelectedSessionTodoIds] = useState<string[]>([]);
   const [goalModalOpen, setGoalModalOpen] = useState(false);
   const [editingGoalId, setEditingGoalId] = useState<string | null>(null);
   const [goalTitle, setGoalTitle] = useState("");
@@ -491,6 +511,19 @@ function DashboardApp() {
   const todayTodos = useMemo(
     () => studyTodos.filter((todo) => todo.local_date === todayDateKey),
     [studyTodos, todayDateKey],
+  );
+  const incompleteTodayTodos = useMemo(
+    () => getIncompleteTodayTodos(studyTodos, todayDateKey),
+    [studyTodos, todayDateKey],
+  );
+  const activeSessionTodos = useMemo(
+    () =>
+      getSessionLinkedTodos({
+        activeSessionId: activeSession?.id,
+        links: studySessionTodoLinks,
+        todos: studyTodos,
+      }),
+    [activeSession?.id, studySessionTodoLinks, studyTodos],
   );
   const selectedDateTodos = useMemo(
     () => studyTodos.filter((todo) => todo.local_date === selectedTodoDate),
@@ -1016,6 +1049,7 @@ function DashboardApp() {
       { data: attendanceData },
       { data: sessionData },
       { data: todoData },
+      { data: sessionTodoLinkData },
       { data: goalData },
       { data: recoveryData },
     ] = await Promise.all([
@@ -1041,6 +1075,12 @@ function DashboardApp() {
         .order("created_at", { ascending: true })
         .limit(500),
       supabase
+        .from("study_session_todos")
+        .select("*")
+        .eq("user_id", userId)
+        .order("linked_at", { ascending: false })
+        .limit(1000),
+      supabase
         .from("study_goals")
         .select("*")
         .eq("user_id", userId)
@@ -1063,6 +1103,7 @@ function DashboardApp() {
     setAttendanceDays(attendanceData ?? []);
     setStudySessions(sessionData ?? []);
     setStudyTodos(todoData ?? []);
+    setStudySessionTodoLinks((sessionTodoLinkData ?? []) as StudySessionTodoLink[]);
     setStudyGoals(sortStudyGoals((goalData ?? []) as StudyGoal[]));
     setStudyRecoveryRequests((recoveryData ?? []) as StudyRecoveryRequest[]);
     setBusy(false);
@@ -1124,6 +1165,42 @@ function DashboardApp() {
       }
       return [...current, weekday].sort((left, right) => left - right);
     });
+  }
+
+  function toggleSessionTodoSelection(todoId: string) {
+    setSelectedSessionTodoIds((current) =>
+      current.includes(todoId)
+        ? current.filter((item) => item !== todoId)
+        : [...current, todoId],
+    );
+  }
+
+  function openSessionTodoSelection(cameraReadyOverride: boolean) {
+    setSessionTodoStartRequest({ cameraReadyOverride });
+    setSelectedSessionTodoIds([]);
+    setSessionTodoModalOpen(true);
+  }
+
+  function closeSessionTodoSelection() {
+    if (sessionTodoStartRequest?.cameraReadyOverride && !activeSession) {
+      stopCameraMonitoring({ recordEvent: false });
+      cameraSessionStartingRef.current = false;
+    }
+    setSessionTodoModalOpen(false);
+    setSessionTodoStartRequest(null);
+    setSelectedSessionTodoIds([]);
+  }
+
+  async function confirmSessionTodoSelection() {
+    if (selectedSessionTodoIds.length === 0) {
+      setMessage("이번 세션에서 할 일을 1개 이상 선택하세요.");
+      return;
+    }
+
+    const request = sessionTodoStartRequest;
+    setSessionTodoModalOpen(false);
+    setSessionTodoStartRequest(null);
+    await startTimer(request?.cameraReadyOverride ?? false, selectedSessionTodoIds);
   }
 
   function getNextTodoPositions(excludedTodoIds = new Set<string>()) {
@@ -1407,10 +1484,11 @@ function DashboardApp() {
   }
 
   async function toggleTodo(todo: StudyTodo) {
+    const nextCompleted = !todo.is_completed;
     setTodoBusy(true);
     const { error } = await supabase
       .from("study_todos")
-      .update({ is_completed: !todo.is_completed })
+      .update({ is_completed: nextCompleted })
       .eq("id", todo.id);
     setTodoBusy(false);
 
@@ -1421,9 +1499,27 @@ function DashboardApp() {
 
     setStudyTodos((current) =>
       current.map((item) =>
-        item.id === todo.id ? { ...item, is_completed: !todo.is_completed } : item,
+        item.id === todo.id ? { ...item, is_completed: nextCompleted } : item,
       ),
     );
+
+    if (activeSession && studySessionTodoLinks.some((link) => link.session_id === activeSession.id && link.todo_id === todo.id)) {
+      const { data: linkData, error: linkError } = await supabase
+        .from("study_session_todos")
+        .update({ completed_during_session: nextCompleted })
+        .eq("session_id", activeSession.id)
+        .eq("todo_id", todo.id)
+        .select("*");
+
+      if (!linkError && linkData) {
+        const updatedLinks = linkData as StudySessionTodoLink[];
+        const updatedIds = new Set(updatedLinks.map((link) => link.id));
+        setStudySessionTodoLinks((current) => [
+          ...updatedLinks,
+          ...current.filter((link) => !updatedIds.has(link.id)),
+        ]);
+      }
+    }
   }
 
   async function deleteTodo(todoId: string) {
@@ -1814,7 +1910,7 @@ function DashboardApp() {
     await loadDashboard(session.user.id);
   }
 
-  async function startTimer(cameraReadyOverride = false) {
+  async function startTimer(cameraReadyOverride = false, selectedTodoIds?: string[]) {
     if (blockingRecoveryRequests.length > 0) {
       openRecoveryRoutineModal(blockingRecoveryRequests[0]);
       setMessage("회복 루틴 필요: Slack에서 사유와 보충 계획을 제출해야 다음 공부 세션을 시작할 수 있습니다.");
@@ -1838,6 +1934,27 @@ function DashboardApp() {
       return;
     }
 
+    const todoSelection = shouldRequestSessionTodoSelection({
+      activeSession: Boolean(activeSession),
+      incompleteTodayTodos,
+      selectedTodoIds,
+    });
+
+    if (todoSelection.required) {
+      if (todoSelection.reason === "no-todos") {
+        if (cameraReadyOverride && !activeSession) {
+          stopCameraMonitoring({ recordEvent: false });
+          cameraSessionStartingRef.current = false;
+        }
+        setMessage("오늘 할 일을 먼저 등록하세요.");
+        selectTodoDate(todayDateKey);
+        return;
+      }
+
+      openSessionTodoSelection(cameraReadyOverride);
+      return;
+    }
+
     setBusy(true);
     const { data, error } = await supabase.rpc("start_study_session");
     setBusy(false);
@@ -1855,6 +1972,7 @@ function DashboardApp() {
       }
       cameraSessionStartingRef.current = false;
     } else if (session?.user.id) {
+      let startMessage = "집중 세션을 시작했습니다.";
       if (data) {
         const startedSession = data as StudySession;
         persistSessionLease(startedSession.id, createSessionLeaseDeadlineMs(Date.now()));
@@ -1862,6 +1980,26 @@ function DashboardApp() {
           startedSession,
           ...current.filter((item) => item.id !== startedSession.id),
         ]);
+        const linkRows = buildSessionTodoLinkRows({
+          userId: session.user.id,
+          sessionId: startedSession.id,
+          todoIds: selectedTodoIds ?? [],
+        });
+        if (linkRows.length > 0) {
+          const { data: linkData, error: linkError } = await supabase
+            .from("study_session_todos")
+            .insert(linkRows)
+            .select("*");
+          if (linkError) {
+            startMessage = `세션은 시작됐지만 할 일 연결에 실패했습니다: ${linkError.message}`;
+          } else if (linkData) {
+            setStudySessionTodoLinks((current) => [
+              ...((linkData ?? []) as StudySessionTodoLink[]),
+              ...current.filter((link) => link.session_id !== startedSession.id),
+            ]);
+            startMessage = `집중 세션을 시작했습니다. 이번 세션 할 일 ${linkRows.length}개를 연결했습니다.`;
+          }
+        }
         setNowMs(Date.now());
         if (cameraEnabled || cameraReadyOverride) {
           cameraSessionIdRef.current = startedSession.id;
@@ -1874,7 +2012,7 @@ function DashboardApp() {
           setCameraMessage("카메라 감시 중");
         }
       }
-      setMessage("집중 세션을 시작했습니다.");
+      setMessage(startMessage);
       setCameraSetupPrompt(null);
       cameraSessionStartingRef.current = false;
       await loadDashboard(session.user.id);
@@ -1884,6 +2022,7 @@ function DashboardApp() {
   async function endTimer(options: { excludedSeconds?: number; successMessage?: string } = {}) {
     if (!activeSession) return;
 
+    const sessionTodoSummary = summarizeSessionTodos(activeSessionTodos);
     const excludedSeconds = Math.max(
       0,
       Math.floor(options.excludedSeconds ?? getCurrentExcludedSeconds(presenceStateRef.current)),
@@ -1899,7 +2038,7 @@ function DashboardApp() {
     } else if (session?.user.id) {
       forgetCameraMonitoringIntent();
       forgetSessionLease(activeSession.id);
-      setMessage(options.successMessage ?? "집중 세션을 종료했습니다.");
+      setMessage(options.successMessage ?? sessionTodoSummary.message);
       await loadDashboard(session.user.id);
     }
   }
@@ -2272,6 +2411,56 @@ function DashboardApp() {
           </li>
         ))}
       </ul>
+    );
+  }
+
+  function renderSessionTodoList() {
+    if (!activeSession) {
+      return null;
+    }
+
+    const summary = summarizeSessionTodos(activeSessionTodos);
+
+    return (
+      <div className="session-todo-panel" aria-label="이번 세션 할 일">
+        <div className="session-todo-head">
+          <div>
+            <p className="eyebrow">session tasks</p>
+            <h3>이번 세션 할 일</h3>
+          </div>
+          <strong>{summary.completed}/{summary.total} 완료</strong>
+        </div>
+        {activeSessionTodos.length === 0 ? (
+          <p className="todo-empty">이번 세션에 연결된 할 일이 없습니다.</p>
+        ) : (
+          <ul className="session-todo-list">
+            {activeSessionTodos.map((todo) => (
+              <li className={`todo-item ${todo.is_completed ? "todo-done" : ""}`} key={todo.id}>
+                <div className="todo-main">
+                  <label className="todo-check-row">
+                    <input
+                      type="checkbox"
+                      checked={todo.is_completed}
+                      disabled={todoBusy}
+                      onChange={() => void toggleTodo(todo)}
+                    />
+                    <span className="todo-title">{todo.title}</span>
+                  </label>
+                  <div className="todo-meta-row" aria-label={`${todo.title} 설정`}>
+                    {formatTodoScheduleLabel(todo) && (
+                      <span className="todo-time-chip">{formatTodoScheduleLabel(todo)}</span>
+                    )}
+                    <span className="todo-meta-chip">{formatTodoRepeatLabel(todo)}</span>
+                    {todo.goal_id && goalTitleById.has(todo.goal_id) && (
+                      <span className="todo-goal-chip">{goalTitleById.get(todo.goal_id)}</span>
+                    )}
+                  </div>
+                </div>
+              </li>
+            ))}
+          </ul>
+        )}
+      </div>
     );
   }
 
@@ -2846,6 +3035,75 @@ function DashboardApp() {
           </div>
         )}
 
+        {sessionTodoModalOpen && (
+          <div
+            className="modal-backdrop"
+            role="presentation"
+            onClick={closeSessionTodoSelection}
+          >
+            <section
+              className="todo-modal session-todo-modal"
+              role="dialog"
+              aria-modal="true"
+              aria-label="이번 세션에서 할 일 선택"
+              onClick={(event) => event.stopPropagation()}
+            >
+              <div className="todo-header">
+                <div>
+                  <p className="eyebrow">session plan</p>
+                  <h3>이번 세션에서 할 일</h3>
+                </div>
+                <button
+                  className="modal-close"
+                  type="button"
+                  aria-label="세션 할 일 선택 닫기"
+                  onClick={closeSessionTodoSelection}
+                >
+                  <X size={18} />
+                </button>
+              </div>
+              <p className="reminder-copy">
+                오늘 미완료 할 일 중 이번 집중 세션에서 처리할 일을 1개 이상 선택하세요.
+              </p>
+              <ul className="session-todo-choice-list">
+                {incompleteTodayTodos.map((todo) => {
+                  const selected = selectedSessionTodoIds.includes(todo.id);
+                  return (
+                    <li key={todo.id}>
+                      <label className={selected ? "selected" : ""}>
+                        <input
+                          type="checkbox"
+                          checked={selected}
+                          onChange={() => toggleSessionTodoSelection(todo.id)}
+                          disabled={busy}
+                        />
+                        <span>{formatTodoWithSchedule(todo)}</span>
+                      </label>
+                    </li>
+                  );
+                })}
+              </ul>
+              <div className="reminder-actions">
+                <button
+                  className="primary"
+                  type="button"
+                  disabled={busy || selectedSessionTodoIds.length === 0}
+                  onClick={() => {
+                    void confirmSessionTodoSelection();
+                  }}
+                >
+                  <Play size={18} />
+                  선택한 할 일로 시작
+                </button>
+                <button className="secondary" type="button" onClick={closeSessionTodoSelection}>
+                  <X size={18} />
+                  나중에
+                </button>
+              </div>
+            </section>
+          </div>
+        )}
+
         {goalModalOpen && (
           <div className="modal-backdrop" role="presentation" onClick={closeGoalModal}>
             <section
@@ -3163,6 +3421,7 @@ function DashboardApp() {
               </div>
               <span>{todayProgress}% / {todayGoalLabel}</span>
             </div>
+            {renderSessionTodoList()}
             <div className={`camera-monitor camera-monitor-${cameraStatus}`}>
               <div className="camera-monitor-head">
                 <strong>카메라 감시 · {getPresenceStatusLabel({ cameraEnabled, status: cameraStatus, absenceSeconds: presenceState.absenceSeconds })}</strong>

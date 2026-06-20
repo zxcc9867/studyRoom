@@ -320,6 +320,23 @@ test("study goals migration stores user scoped goals and links todos", () => {
   assert.match(sql, /study_todos_goal_idx/i);
 });
 
+test("study session todo links migration stores user scoped session plans", () => {
+  const sql = readMigrationContaining(/study_session_todos/i);
+
+  assert.match(sql, /create table if not exists public\.study_session_todos/i);
+  assert.match(sql, /session_id uuid not null/i);
+  assert.match(sql, /todo_id uuid not null/i);
+  assert.match(sql, /completed_during_session boolean not null default false/i);
+  assert.match(sql, /unique \(session_id, todo_id\)/i);
+  assert.match(sql, /foreign key \(session_id, user_id\)\s+references public\.study_sessions\(id, user_id\)/i);
+  assert.match(sql, /foreign key \(todo_id, user_id\)\s+references public\.study_todos\(id, user_id\)/i);
+  assert.match(sql, /alter table public\.study_session_todos enable row level security/i);
+  assert.match(sql, /Users can read their study session todo links/i);
+  assert.match(sql, /Users can insert their study session todo links/i);
+  assert.match(sql, /Users can update their study session todo links/i);
+  assert.match(sql, /grant select, insert, update, delete on public\.study_session_todos to authenticated/i);
+});
+
 test("attendance cron creates missed recovery requests and one follow-up", () => {
   const source = readFileSync("supabase/functions/attendance-cron/index.ts", "utf8");
 

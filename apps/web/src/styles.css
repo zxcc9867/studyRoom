@@ -804,6 +804,52 @@ label {
   background: rgba(47, 107, 82, 0.2);
 }
 
+.session-todo-panel {
+  display: grid;
+  gap: 12px;
+  width: 100%;
+  padding: 14px;
+  border: 2px solid rgba(255, 249, 223, 0.72);
+  border-radius: 8px;
+  background: rgba(255, 249, 223, 0.18);
+  color: #fff9df;
+}
+
+.session-todo-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.session-todo-head h3 {
+  margin: 0;
+  color: #fff9df;
+  font-size: clamp(18px, 2.2vw, 24px);
+}
+
+.session-todo-head strong {
+  flex: 0 0 auto;
+  border: 2px solid rgba(255, 249, 223, 0.72);
+  border-radius: 999px;
+  padding: 6px 10px;
+  background: rgba(47, 107, 82, 0.24);
+  font-size: 13px;
+}
+
+.session-todo-list {
+  list-style: none;
+  display: grid;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+}
+
+.session-todo-list .todo-item {
+  grid-template-columns: 1fr;
+  background: rgba(255, 249, 223, 0.92);
+}
+
 .camera-monitor-head {
   display: flex;
   align-items: center;
@@ -1508,6 +1554,39 @@ label {
   color: #2f6b52;
   padding: 7px 11px;
   white-space: nowrap;
+}
+
+.session-todo-choice-list {
+  list-style: none;
+  display: grid;
+  gap: 10px;
+  margin: 0 0 18px;
+  padding: 0;
+}
+
+.session-todo-choice-list label {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  align-items: center;
+  gap: 12px;
+  border: 2px solid rgba(210, 181, 111, 0.72);
+  border-radius: 8px;
+  background: #fff9df;
+  padding: 12px;
+  color: #2f2a1f;
+  font-weight: 900;
+  cursor: pointer;
+}
+
+.session-todo-choice-list label.selected {
+  border-color: #4f916f;
+  background: #dff4cd;
+}
+
+.session-todo-choice-list input {
+  width: 20px;
+  min-height: 20px;
+  accent-color: #4f916f;
 }
 
 .reminder-backdrop {
