@@ -21,6 +21,7 @@ import {
   Trash2,
   X,
   Send,
+  Target,
   UserRound,
 } from "lucide-react";
 import type { Session } from "@supabase/supabase-js";
@@ -99,6 +100,14 @@ import {
   isSessionLeaseExpired,
 } from "./sessionLease.mjs";
 import { requestEndStudySessionOnExit, shouldEndStudySessionForPageEvent } from "./sessionExit.mjs";
+import {
+  calculateGoalProgress,
+  calculateGoalStudySeconds,
+  formatDdayLabel,
+  getActiveStudyGoal,
+  getGoalLinkedTodos,
+  sortStudyGoals,
+} from "./studyGoals.mjs";
 import { isSupabaseConfigured, supabase, supabaseAnonKey, supabaseUrl } from "./supabase";
 import {
   getSlackNotificationStatus,
@@ -180,11 +189,23 @@ type StudyTodo = {
   position: number;
   start_time: string | null;
   end_time: string | null;
+  goal_id: string | null;
   repeat_group_id: string | null;
   repeat_mode: TodoRepeatMode;
   repeat_weekdays: number[] | null;
   repeat_until: string | null;
   created_at: string;
+};
+
+type StudyGoal = {
+  id: string;
+  user_id: string;
+  title: string;
+  target_date: string;
+  target_study_seconds: number;
+  status: "active" | "completed" | "archived";
+  created_at: string;
+  updated_at: string;
 };
 
 type StudyRecoveryRequest = {
@@ -237,6 +258,7 @@ function DashboardApp() {
   const [attendanceDays, setAttendanceDays] = useState<AttendanceDay[]>([]);
   const [studySessions, setStudySessions] = useState<StudySession[]>([]);
   const [studyTodos, setStudyTodos] = useState<StudyTodo[]>([]);
+  const [studyGoals, setStudyGoals] = useState<StudyGoal[]>([]);
   const [studyRecoveryRequests, setStudyRecoveryRequests] = useState<StudyRecoveryRequest[]>([]);
   const [recoveryModalRequest, setRecoveryModalRequest] = useState<StudyRecoveryRequest | null>(null);
   const [recoveryReason, setRecoveryReason] = useState("");
@@ -259,7 +281,15 @@ function DashboardApp() {
   const [todoTimeEnabled, setTodoTimeEnabled] = useState(false);
   const [todoStartTime, setTodoStartTime] = useState("09:00");
   const [todoEndTime, setTodoEndTime] = useState("10:00");
+  const [todoGoalId, setTodoGoalId] = useState("");
   const [todoModalOpen, setTodoModalOpen] = useState(false);
+  const [goalModalOpen, setGoalModalOpen] = useState(false);
+  const [editingGoalId, setEditingGoalId] = useState<string | null>(null);
+  const [goalTitle, setGoalTitle] = useState("");
+  const [goalTargetDate, setGoalTargetDate] = useState(() => addDaysToDateKey(getPlainDateKey(new Date()), 30));
+  const [goalTargetHours, setGoalTargetHours] = useState("20");
+  const [goalLinkedTodoIds, setGoalLinkedTodoIds] = useState<string[]>([]);
+  const [goalBusy, setGoalBusy] = useState(false);
   const [message, setMessage] = useState("");
   const [busy, setBusy] = useState(false);
   const [todoBusy, setTodoBusy] = useState(false);
@@ -480,6 +510,31 @@ function DashboardApp() {
     () => calculateTodoHistoryStats(studyTodos, calendarMonth),
     [studyTodos, calendarMonth],
   );
+  const sortedGoals = useMemo(() => sortStudyGoals(studyGoals), [studyGoals]);
+  const goalTitleById = useMemo(
+    () => new Map(studyGoals.map((goal) => [goal.id, goal.title])),
+    [studyGoals],
+  );
+  const activeGoal = useMemo(() => getActiveStudyGoal(sortedGoals), [sortedGoals]);
+  const activeGoalTodos = useMemo(
+    () => (activeGoal ? getGoalLinkedTodos(activeGoal.id, studyTodos) : []),
+    [activeGoal?.id, studyTodos],
+  );
+  const activeGoalStudySeconds = activeGoal
+    ? calculateGoalStudySeconds({
+        goal: activeGoal,
+        sessions: studySessions,
+        activeSessionId: activeSession?.id ?? null,
+        activeElapsedSeconds,
+      })
+    : 0;
+  const activeGoalProgress = activeGoal
+    ? calculateGoalProgress({
+        goal: activeGoal,
+        linkedTodos: activeGoalTodos,
+        studiedSeconds: activeGoalStudySeconds,
+      })
+    : null;
   const todoHistoryPageData = useMemo(
     () => paginateTodoHistory(completedTodoHistory, todoHistoryPage, DEFAULT_TODO_HISTORY_PAGE_SIZE),
     [completedTodoHistory, todoHistoryPage],
@@ -963,6 +1018,7 @@ function DashboardApp() {
       { data: attendanceData },
       { data: sessionData },
       { data: todoData },
+      { data: goalData },
       { data: recoveryData },
     ] = await Promise.all([
       supabase.from("profiles").select("*").eq("user_id", userId).maybeSingle(),
@@ -987,6 +1043,13 @@ function DashboardApp() {
         .order("created_at", { ascending: true })
         .limit(500),
       supabase
+        .from("study_goals")
+        .select("*")
+        .eq("user_id", userId)
+        .order("status", { ascending: true })
+        .order("target_date", { ascending: true })
+        .limit(100),
+      supabase
         .from("study_recovery_requests")
         .select("id,local_date,trigger_type,status,reason,makeup_todo_title,pledge_todo_title,created_at")
         .eq("user_id", userId)
@@ -1002,6 +1065,7 @@ function DashboardApp() {
     setAttendanceDays(attendanceData ?? []);
     setStudySessions(sessionData ?? []);
     setStudyTodos(todoData ?? []);
+    setStudyGoals(sortStudyGoals((goalData ?? []) as StudyGoal[]));
     setStudyRecoveryRequests((recoveryData ?? []) as StudyRecoveryRequest[]);
     setBusy(false);
   }
@@ -1022,6 +1086,7 @@ function DashboardApp() {
     setTodoTimeEnabled(false);
     setTodoStartTime("09:00");
     setTodoEndTime("10:00");
+    setTodoGoalId(activeGoal?.id ?? "");
   }
 
   function closeTodoModal() {
@@ -1039,6 +1104,7 @@ function DashboardApp() {
     setTodoTimeEnabled(hasTime);
     setTodoStartTime(todo.start_time?.slice(0, 5) ?? "09:00");
     setTodoEndTime(todo.end_time?.slice(0, 5) ?? "10:00");
+    setTodoGoalId(todo.goal_id ?? "");
 
     if (isWeeklyTodo(todo)) {
       setTodoRepeatMode("weekly");
@@ -1083,6 +1149,7 @@ function DashboardApp() {
     repeatMode,
     repeatWeekdays,
     repeatUntil,
+    goalId,
     excludedTodoIds = new Set<string>(),
   }: {
     targetDates: string[];
@@ -1093,6 +1160,7 @@ function DashboardApp() {
     repeatMode: TodoRepeatMode;
     repeatWeekdays: number[];
     repeatUntil: string | null;
+    goalId: string | null;
     excludedTodoIds?: Set<string>;
   }) {
     const nextPositionsByDate = getNextTodoPositions(excludedTodoIds);
@@ -1105,6 +1173,7 @@ function DashboardApp() {
         title,
         start_time: schedule.startTime,
         end_time: schedule.endTime,
+        goal_id: goalId,
         repeat_group_id: repeatGroupId,
         repeat_mode: repeatMode,
         repeat_weekdays: repeatMode === "weekly" ? repeatWeekdays : [],
@@ -1176,6 +1245,7 @@ function DashboardApp() {
       repeatMode: todoRepeatMode,
       repeatWeekdays,
       repeatUntil: todoRepeatMode === "weekly" ? todoRepeatEndDate : null,
+      goalId: todoGoalId || null,
     });
 
     setTodoBusy(true);
@@ -1223,6 +1293,7 @@ function DashboardApp() {
             title,
             start_time: schedule.startTime,
             end_time: schedule.endTime,
+            goal_id: todoGoalId || null,
             repeat_group_id: null,
             repeat_mode: "single",
             repeat_weekdays: [],
@@ -1275,6 +1346,7 @@ function DashboardApp() {
         title,
         start_time: schedule.startTime,
         end_time: schedule.endTime,
+        goal_id: todoGoalId || null,
         repeat_group_id: repeatGroupId,
         repeat_mode: "weekly",
         repeat_weekdays: repeatWeekdays,
@@ -1303,6 +1375,7 @@ function DashboardApp() {
           repeatMode: "weekly",
           repeatWeekdays,
           repeatUntil: todoRepeatEndDate,
+          goalId: todoGoalId || null,
           excludedTodoIds: groupTodoIds,
         });
         const { data, error } = await supabase.from("study_todos").insert(rows).select("*");
@@ -1366,6 +1439,145 @@ function DashboardApp() {
     }
 
     setStudyTodos((current) => current.filter((todo) => todo.id !== todoId));
+  }
+
+  function openNewGoalModal() {
+    setEditingGoalId(null);
+    setGoalTitle("");
+    setGoalTargetDate(addDaysToDateKey(todayDateKey, 30));
+    setGoalTargetHours("20");
+    setGoalLinkedTodoIds([]);
+    setGoalModalOpen(true);
+  }
+
+  function openGoalEditor(goal: StudyGoal) {
+    setEditingGoalId(goal.id);
+    setGoalTitle(goal.title);
+    setGoalTargetDate(goal.target_date);
+    setGoalTargetHours(formatGoalHoursInput(goal.target_study_seconds));
+    setGoalLinkedTodoIds(studyTodos.filter((todo) => todo.goal_id === goal.id).map((todo) => todo.id));
+    setGoalModalOpen(true);
+  }
+
+  function closeGoalModal() {
+    setGoalModalOpen(false);
+    setEditingGoalId(null);
+  }
+
+  function toggleGoalLinkedTodo(todoId: string) {
+    setGoalLinkedTodoIds((current) =>
+      current.includes(todoId) ? current.filter((id) => id !== todoId) : [...current, todoId],
+    );
+  }
+
+  async function applyGoalTodoLinks(goalId: string, selectedTodoIds: string[]) {
+    const selectedSet = new Set(selectedTodoIds);
+    const currentlyLinkedIds = studyTodos.filter((todo) => todo.goal_id === goalId).map((todo) => todo.id);
+    const removeIds = currentlyLinkedIds.filter((todoId) => !selectedSet.has(todoId));
+
+    if (removeIds.length > 0) {
+      const { error } = await supabase.from("study_todos").update({ goal_id: null }).in("id", removeIds);
+      if (error) throw new Error(error.message);
+    }
+
+    if (selectedTodoIds.length > 0) {
+      const { error } = await supabase.from("study_todos").update({ goal_id: goalId }).in("id", selectedTodoIds);
+      if (error) throw new Error(error.message);
+    }
+
+    setStudyTodos((current) =>
+      current.map((todo) => {
+        if (selectedSet.has(todo.id)) return { ...todo, goal_id: goalId };
+        if (removeIds.includes(todo.id)) return { ...todo, goal_id: null };
+        return todo;
+      }),
+    );
+  }
+
+  async function saveGoal(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (!session?.user.id) return;
+
+    const title = goalTitle.trim();
+    const targetHours = Number(goalTargetHours);
+    if (!title) {
+      setMessage("목표 이름을 입력하세요.");
+      return;
+    }
+    if (!goalTargetDate) {
+      setMessage("목표 날짜를 선택하세요.");
+      return;
+    }
+    if (!Number.isFinite(targetHours) || targetHours < 0) {
+      setMessage("목표 공부 시간은 0 이상의 숫자로 입력하세요.");
+      return;
+    }
+
+    setGoalBusy(true);
+    try {
+      const payload = {
+        user_id: session.user.id,
+        title,
+        target_date: goalTargetDate,
+        target_study_seconds: Math.round(targetHours * 3600),
+        status: "active",
+      };
+      const goalResult = editingGoalId
+        ? await supabase.from("study_goals").update(payload).eq("id", editingGoalId).select("*").single()
+        : await supabase.from("study_goals").insert(payload).select("*").single();
+
+      if (goalResult.error) throw new Error(goalResult.error.message);
+      const savedGoal = goalResult.data as StudyGoal;
+      await applyGoalTodoLinks(savedGoal.id, goalLinkedTodoIds);
+      setStudyGoals((current) =>
+        sortStudyGoals(
+          editingGoalId
+            ? current.map((goal) => (goal.id === savedGoal.id ? savedGoal : goal))
+            : [savedGoal, ...current],
+        ),
+      );
+      closeGoalModal();
+      setMessage(editingGoalId ? "목표를 수정했습니다." : "목표를 만들었습니다.");
+    } catch (error) {
+      setMessage(formatNotificationError(error));
+    } finally {
+      setGoalBusy(false);
+    }
+  }
+
+  async function updateGoalStatus(goal: StudyGoal, status: StudyGoal["status"]) {
+    setGoalBusy(true);
+    const { data, error } = await supabase.from("study_goals").update({ status }).eq("id", goal.id).select("*").single();
+    setGoalBusy(false);
+
+    if (error) {
+      setMessage(error.message);
+      return;
+    }
+
+    setStudyGoals((current) => sortStudyGoals(current.map((item) => (item.id === goal.id ? (data as StudyGoal) : item))));
+    setMessage(status === "completed" ? "목표를 완료 처리했습니다." : "목표 상태를 변경했습니다.");
+  }
+
+  async function deleteGoal(goal: StudyGoal) {
+    setGoalBusy(true);
+    try {
+      const linkedTodoIds = studyTodos.filter((todo) => todo.goal_id === goal.id).map((todo) => todo.id);
+      if (linkedTodoIds.length > 0) {
+        const { error: unlinkError } = await supabase.from("study_todos").update({ goal_id: null }).in("id", linkedTodoIds);
+        if (unlinkError) throw new Error(unlinkError.message);
+      }
+      const { error } = await supabase.from("study_goals").delete().eq("id", goal.id);
+      if (error) throw new Error(error.message);
+
+      setStudyTodos((current) => current.map((todo) => (todo.goal_id === goal.id ? { ...todo, goal_id: null } : todo)));
+      setStudyGoals((current) => current.filter((item) => item.id !== goal.id));
+      setMessage("목표를 삭제했습니다.");
+    } catch (error) {
+      setMessage(formatNotificationError(error));
+    } finally {
+      setGoalBusy(false);
+    }
   }
 
   async function saveNotificationSettings() {
@@ -2041,6 +2253,9 @@ function DashboardApp() {
                   <span className="todo-time-chip">{formatTodoScheduleLabel(todo)}</span>
                 )}
                 <span className="todo-meta-chip">{formatTodoRepeatLabel(todo)}</span>
+                {todo.goal_id && goalTitleById.has(todo.goal_id) && (
+                  <span className="todo-goal-chip">{goalTitleById.get(todo.goal_id)}</span>
+                )}
               </div>
             </div>
             <div className="todo-actions">
@@ -2067,6 +2282,18 @@ function DashboardApp() {
         ))}
       </ul>
     );
+  }
+
+  function getGoalView(goal: StudyGoal) {
+    const linkedTodos = getGoalLinkedTodos(goal.id, studyTodos);
+    const studiedSeconds = calculateGoalStudySeconds({
+      goal,
+      sessions: studySessions,
+      activeSessionId: activeSession?.id ?? null,
+      activeElapsedSeconds,
+    });
+    const progress = calculateGoalProgress({ goal, linkedTodos, studiedSeconds });
+    return { linkedTodos, studiedSeconds, progress };
   }
 
   function renderReminderTodoList(todos: StudyTodo[]) {
@@ -2226,6 +2453,10 @@ function DashboardApp() {
           <a className={activeSection === "today" ? "active" : ""} href="#today">
             오늘
           </a>
+          <a className={activeSection === "goals" ? "active" : ""} href="#goals">
+            <Target size={17} />
+            목표
+          </a>
           <a className={activeSection === "me" ? "active" : ""} href="#me">
             <UserRound size={17} />
             내 페이지
@@ -2281,6 +2512,54 @@ function DashboardApp() {
                 <strong>{formatTimerClock(monthSeconds)}</strong>
               </div>
             </div>
+            <section className="goal-hero-card" aria-label="대표 목표">
+              {activeGoal && activeGoalProgress ? (
+                <>
+                  <div className="goal-hero-main">
+                    <span className="goal-dday">{formatDdayLabel(todayDateKey, activeGoal.target_date)}</span>
+                    <div>
+                      <p className="eyebrow">today goal</p>
+                      <h3>{activeGoal.title}</h3>
+                      <p>{formatGoalDate(activeGoal.target_date)}까지 · 목표 공부 {formatGoalTargetSeconds(activeGoal.target_study_seconds)}</p>
+                    </div>
+                  </div>
+                  <div className="goal-hero-progress">
+                    <div className="progress-track">
+                      <span className="progress-fill" style={{ width: `${activeGoalProgress.percent}%` }} />
+                    </div>
+                    <strong>{activeGoalProgress.percent}%</strong>
+                    <span>
+                      할 일 {activeGoalProgress.completedTodoCount}/{activeGoalProgress.linkedTodoCount} · 공부{" "}
+                      {formatTimerClock(activeGoalStudySeconds)}
+                    </span>
+                  </div>
+                  <div className="goal-hero-actions">
+                    <button className="secondary compact-action" type="button" onClick={() => openGoalEditor(activeGoal)}>
+                      <Pencil size={16} />
+                      목표 편집
+                    </button>
+                    <a className="secondary compact-action" href="#goals">
+                      목표 보기
+                    </a>
+                  </div>
+                </>
+              ) : (
+                <>
+                  <div className="goal-hero-main">
+                    <span className="goal-dday">D-day</span>
+                    <div>
+                      <p className="eyebrow">today goal</p>
+                      <h3>아직 목표가 없습니다</h3>
+                      <p>시험일이나 프로젝트 마감일을 등록하면 남은 D-day와 연결된 할 일이 표시됩니다.</p>
+                    </div>
+                  </div>
+                  <button className="primary" type="button" onClick={openNewGoalModal}>
+                    <Plus size={18} />
+                    목표 만들기
+                  </button>
+                </>
+              )}
+            </section>
             {activeSession && activeSessionLeaseDeadlineMs !== null && (
               <div
                 className={`session-lease ${
@@ -2554,8 +2833,120 @@ function DashboardApp() {
                     </div>
                   )}
                 </div>
+                <label className="todo-goal-select">
+                  목표 연결
+                  <select
+                    value={todoGoalId}
+                    onChange={(event) => setTodoGoalId(event.target.value)}
+                    disabled={todoBusy}
+                  >
+                    <option value="">연결 안 함</option>
+                    {sortedGoals
+                      .filter((goal) => goal.status === "active")
+                      .map((goal) => (
+                        <option value={goal.id} key={goal.id}>
+                          {goal.title}
+                        </option>
+                      ))}
+                  </select>
+                </label>
               </form>
               {renderTodoList(selectedDateTodos, "이 날짜에 저장된 할 일이 없습니다.")}
+            </section>
+          </div>
+        )}
+
+        {goalModalOpen && (
+          <div className="modal-backdrop" role="presentation" onClick={closeGoalModal}>
+            <section
+              className="todo-modal goal-modal"
+              role="dialog"
+              aria-modal="true"
+              aria-label={editingGoalId ? "목표 편집" : "목표 만들기"}
+              onClick={(event) => event.stopPropagation()}
+            >
+              <div className="todo-header">
+                <div>
+                  <p className="eyebrow">study goal</p>
+                  <h3>{editingGoalId ? "목표 편집" : "목표 만들기"}</h3>
+                </div>
+                <button className="modal-close" type="button" aria-label="목표 모달 닫기" onClick={closeGoalModal}>
+                  <X size={18} />
+                </button>
+              </div>
+              <form className="goal-form" onSubmit={saveGoal}>
+                <label>
+                  목표 이름
+                  <input
+                    value={goalTitle}
+                    maxLength={80}
+                    required
+                    onChange={(event) => setGoalTitle(event.target.value)}
+                    placeholder="예: 정보처리기사 실기 합격"
+                    disabled={goalBusy}
+                    autoFocus
+                  />
+                </label>
+                <div className="goal-form-grid">
+                  <label>
+                    목표 날짜
+                    <input
+                      type="date"
+                      value={goalTargetDate}
+                      onChange={(event) => setGoalTargetDate(event.target.value)}
+                      disabled={goalBusy}
+                      required
+                    />
+                  </label>
+                  <label>
+                    목표 공부 시간
+                    <input
+                      type="number"
+                      min="0"
+                      step="0.5"
+                      value={goalTargetHours}
+                      onChange={(event) => setGoalTargetHours(event.target.value)}
+                      disabled={goalBusy}
+                    />
+                  </label>
+                </div>
+                <div className="goal-link-panel">
+                  <div>
+                    <p className="eyebrow">linked tasks</p>
+                    <strong>연결할 할 일</strong>
+                  </div>
+                  {studyTodos.length === 0 ? (
+                    <p className="todo-empty">아직 연결할 할 일이 없습니다. 캘린더에서 할 일을 먼저 추가해도 됩니다.</p>
+                  ) : (
+                    <div className="goal-link-list">
+                      {sortTodos(studyTodos).slice(0, 80).map((todo) => (
+                        <label className="goal-link-row" key={todo.id}>
+                          <input
+                            type="checkbox"
+                            checked={goalLinkedTodoIds.includes(todo.id)}
+                            onChange={() => toggleGoalLinkedTodo(todo.id)}
+                            disabled={goalBusy}
+                          />
+                          <span>
+                            <strong>{todo.title}</strong>
+                            <small>{formatTodoDate(todo.local_date)} · {formatTodoScheduleLabel(todo) || "시간 없음"}</small>
+                          </span>
+                        </label>
+                      ))}
+                    </div>
+                  )}
+                </div>
+                <div className="reminder-actions">
+                  <button className="primary" type="submit" disabled={goalBusy}>
+                    <CheckCircle2 size={18} />
+                    저장
+                  </button>
+                  <button className="secondary" type="button" onClick={closeGoalModal} disabled={goalBusy}>
+                    <X size={18} />
+                    취소
+                  </button>
+                </div>
+              </form>
             </section>
           </div>
         )}
@@ -2851,6 +3242,95 @@ function DashboardApp() {
         </section>
         )}
 
+        {activeSection === "goals" && (
+        <section id="goals" className="history-panel goals-panel">
+          <div className="history-header">
+            <div>
+              <p className="eyebrow">study goals</p>
+              <h2>목표</h2>
+            </div>
+            <button className="primary compact-action" type="button" onClick={openNewGoalModal}>
+              <Plus size={18} />
+              새 목표
+            </button>
+          </div>
+
+          {sortedGoals.length === 0 ? (
+            <div className="goal-empty-state">
+              <span className="goal-dday">D-day</span>
+              <div>
+                <h3>목표를 만들면 공부의 마감일이 보입니다</h3>
+                <p>시험일, 자격증, 프로젝트 마감일을 등록하고 관련 할 일을 연결하세요.</p>
+              </div>
+            </div>
+          ) : (
+            <div className="goal-grid">
+              {sortedGoals.map((goal) => {
+                const view = getGoalView(goal);
+                return (
+                  <article className={`goal-card goal-card-${goal.status}`} key={goal.id}>
+                    <div className="goal-card-head">
+                      <span className="goal-dday">{formatDdayLabel(todayDateKey, goal.target_date)}</span>
+                      <div>
+                        <p className="eyebrow">{goal.status}</p>
+                        <h3>{goal.title}</h3>
+                        <p>{formatGoalDate(goal.target_date)}까지</p>
+                      </div>
+                    </div>
+                    <div className="goal-hero-progress">
+                      <div className="progress-track">
+                        <span className="progress-fill" style={{ width: `${view.progress.percent}%` }} />
+                      </div>
+                      <strong>{view.progress.percent}% 완료</strong>
+                      <span>
+                        공부 {formatTimerClock(view.studiedSeconds)} / {formatGoalTargetSeconds(goal.target_study_seconds)}
+                      </span>
+                    </div>
+                    <div className="goal-stat-row">
+                      <span>연결 할 일</span>
+                      <strong>{view.progress.completedTodoCount}/{view.progress.linkedTodoCount}</strong>
+                    </div>
+                    <ul className="goal-linked-list">
+                      {view.linkedTodos.slice(0, 4).map((todo) => (
+                        <li className={todo.is_completed ? "todo-done" : ""} key={todo.id}>
+                          <span>{todo.is_completed ? "✓" : "□"}</span>
+                          {formatTodoWithSchedule(todo)}
+                        </li>
+                      ))}
+                      {view.linkedTodos.length === 0 && <li>아직 연결된 할 일이 없습니다.</li>}
+                    </ul>
+                    <div className="goal-card-actions">
+                      <button className="secondary compact-action" type="button" onClick={() => openGoalEditor(goal)}>
+                        <Pencil size={16} />
+                        편집
+                      </button>
+                      <button
+                        className="secondary compact-action"
+                        type="button"
+                        disabled={goalBusy}
+                        onClick={() => void updateGoalStatus(goal, goal.status === "completed" ? "active" : "completed")}
+                      >
+                        <CheckCircle2 size={16} />
+                        {goal.status === "completed" ? "다시 진행" : "완료"}
+                      </button>
+                      <button
+                        className="todo-delete"
+                        type="button"
+                        aria-label={`${goal.title} 삭제`}
+                        disabled={goalBusy}
+                        onClick={() => void deleteGoal(goal)}
+                      >
+                        <Trash2 size={16} />
+                      </button>
+                    </div>
+                  </article>
+                );
+              })}
+            </div>
+          )}
+        </section>
+        )}
+
         {activeSection === "me" && (
         <section id="me" className="history-panel my-page-panel">
           <div className="history-header">
@@ -3089,6 +3569,34 @@ function sortTodos(todos: StudyTodo[]) {
     }
     return left.created_at.localeCompare(right.created_at);
   });
+}
+
+function addDaysToDateKey(dateKey: string, days: number) {
+  const [year, month, day] = dateKey.split("-").map(Number);
+  const date = new Date(year, month - 1, day);
+  date.setDate(date.getDate() + days);
+  return getPlainDateKey(date);
+}
+
+function formatGoalDate(dateKey: string) {
+  const [year, month, day] = dateKey.split("-").map(Number);
+  return new Intl.DateTimeFormat("ko-KR", {
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).format(new Date(year, month - 1, day));
+}
+
+function formatGoalTargetSeconds(seconds: number) {
+  if (!seconds) return "미설정";
+  const hours = seconds / 3600;
+  return `${Number.isInteger(hours) ? hours : hours.toFixed(1)}시간`;
+}
+
+function formatGoalHoursInput(seconds: number) {
+  if (!seconds) return "0";
+  const hours = seconds / 3600;
+  return Number.isInteger(hours) ? String(hours) : hours.toFixed(1);
 }
 
 function formatTodoDate(dateKey: string) {

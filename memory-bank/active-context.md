@@ -2,6 +2,47 @@
 
 ## Current Work
 
+- Task: Add study goal setting with D-day display.
+- Purpose: Let the user create long-term study goals, see the nearest active goal's D-day on the dashboard, and connect todos to goals so daily work is tied to a larger target.
+- Related PRD:
+  - `memory-bank/prd-study-goals.md`
+- Related files:
+  - `apps/web/src/main.tsx`
+  - `apps/web/src/styles.css`
+  - `apps/web/src/studyGoals.mjs`
+  - `apps/web/src/studyGoals.d.mts`
+  - `apps/web/src/dashboardRoute.mjs`
+  - `apps/web/src/dashboardRoute.d.mts`
+  - `apps/web/test/studyGoals.test.mjs`
+  - `apps/web/test/dashboardRoute.test.mjs`
+  - `packages/core/test/sql-migrations.test.mjs`
+  - `supabase/migrations/20260620071258_study_goals.sql`
+
+## Recent Decisions
+
+- Decision: Model goals as a separate `study_goals` table and link dated todos through nullable `study_todos.goal_id`.
+- Reason: Goals have their own lifecycle and target date, while todos remain date-based for daily checklists, reminders, and history.
+- Alternative: Store goal metadata directly on todos; rejected because a goal can exist before todos are attached and can span many dates.
+- Impact: The dashboard loads `study_goals` with existing data, displays a representative active goal in the topbar, and adds a dedicated `#goals` page for full management.
+
+## Current Status
+
+- Completed: Added D-day/progress helper tests and implementation.
+- Completed: Added `#goals` route and goal management UI.
+- Completed: Added Supabase migration for `study_goals`, RLS, explicit authenticated grants, and `study_todos.goal_id`.
+- Completed: Applied the remote Supabase migration to project `bqohkdzvxbrokkmuhysx` and verified table/RLS/policies/FK.
+- Completed: `node --test apps\web\test\studyGoals.test.mjs apps\web\test\dashboardRoute.test.mjs packages\core\test\sql-migrations.test.mjs` passed.
+- Completed: `npm.cmd test` passed 145 tests.
+- Completed: `npm.cmd run build` passed.
+- Next: Commit/push and verify the Vercel production deployment.
+
+## Notes
+
+- Supabase Data API access for the new `study_goals` table uses an explicit `grant select, insert, update, delete` to `authenticated`.
+- Goal progress combines linked todo completion and target study time when both are present; if one side is absent, the available side is used.
+
+## Current Work
+
 - Task: Clarify repeated recovery routine prompts after submission.
 - Purpose: Fix the UX where a submitted recovery routine looked as if it was still being requested, even though another older pending recovery request was the real blocker.
 - Related PRD:

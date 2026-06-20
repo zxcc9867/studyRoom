@@ -301,6 +301,25 @@ test("study todo repeat metadata migration supports editable recurring todos", (
   assert.match(sql, /grant select, insert, update, delete on public\.study_todos to authenticated/i);
 });
 
+test("study goals migration stores user scoped goals and links todos", () => {
+  const sql = readMigrationContaining(/study_goals/i);
+
+  assert.match(sql, /create table if not exists public\.study_goals/i);
+  assert.match(sql, /target_date date not null/i);
+  assert.match(sql, /target_study_seconds integer not null default 0/i);
+  assert.match(sql, /status text not null default 'active'/i);
+  assert.match(sql, /status in \('active', 'completed', 'archived'\)/i);
+  assert.match(sql, /alter table public\.study_goals enable row level security/i);
+  assert.match(sql, /Users can read their study goals/i);
+  assert.match(sql, /Users can insert their study goals/i);
+  assert.match(sql, /Users can update their study goals/i);
+  assert.match(sql, /Users can delete their study goals/i);
+  assert.match(sql, /grant select, insert, update, delete on public\.study_goals to authenticated/i);
+  assert.match(sql, /alter table public\.study_todos\s+add column if not exists goal_id uuid/i);
+  assert.match(sql, /foreign key \(goal_id, user_id\) references public\.study_goals\(id, user_id\)/i);
+  assert.match(sql, /study_todos_goal_idx/i);
+});
+
 test("attendance cron creates missed recovery requests and one follow-up", () => {
   const source = readFileSync("supabase/functions/attendance-cron/index.ts", "utf8");
 

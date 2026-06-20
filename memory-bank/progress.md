@@ -2,6 +2,50 @@
 
 ## Timeline
 
+### 2026-06-20 - Study goal D-day dashboard
+
+#### Completed Work
+
+- Added a study goal feature so users can create D-day based long-term goals.
+- Added `study_goals` with user-scoped RLS and linked `study_todos.goal_id` for optional todo-to-goal association.
+- Added a top dashboard goal card that shows the nearest active goal's D-day, target date, linked todo completion, and study progress.
+- Added a dedicated hash-routed `#goals` page for creating, editing, completing, and deleting goals.
+- Added goal linking controls to the todo modal and goal modal.
+- Applied the Supabase migration to project `bqohkdzvxbrokkmuhysx` and verified the remote table, RLS, policies, todo column, and FK.
+
+#### Changed Files
+
+- `apps/web/src/main.tsx`
+- `apps/web/src/styles.css`
+- `apps/web/src/studyGoals.mjs`
+- `apps/web/src/studyGoals.d.mts`
+- `apps/web/src/dashboardRoute.mjs`
+- `apps/web/src/dashboardRoute.d.mts`
+- `apps/web/test/studyGoals.test.mjs`
+- `apps/web/test/dashboardRoute.test.mjs`
+- `packages/core/test/sql-migrations.test.mjs`
+- `supabase/migrations/20260620071258_study_goals.sql`
+- `memory-bank/prd-study-goals.md`
+- `memory-bank/active-context.md`
+- `memory-bank/progress.md`
+- `memory-bank/implementation-plan.md`
+
+#### Verification
+
+- RED: `node --test apps\web\test\studyGoals.test.mjs apps\web\test\dashboardRoute.test.mjs packages\core\test\sql-migrations.test.mjs` failed before the helper, route, and migration existed.
+- GREEN: `node --test apps\web\test\studyGoals.test.mjs apps\web\test\dashboardRoute.test.mjs packages\core\test\sql-migrations.test.mjs` passed after implementation.
+- `npm.cmd test` passed 145 tests.
+- `npm.cmd run build` passed.
+- Supabase SQL verification returned `study_goals_exists=true`, `study_goals_rls_enabled=true`, `study_todos_goal_id_exists=true`, `study_goal_policy_count=4`, and `study_todos_goal_fk_exists=true`.
+
+#### Remaining Work
+
+- Commit, push, and verify Vercel production deployment.
+
+#### Next Priority
+
+- Production smoke-test goal creation and todo linking with a logged-in account.
+
 ### 2026-06-18 - Recovery prompt loop clarification
 
 #### Completed Work
