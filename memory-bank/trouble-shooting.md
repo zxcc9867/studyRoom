@@ -1,5 +1,34 @@
 # Trouble Shooting
 
+## 2026-06-23 - Supabase migration new timed out
+
+### Situation
+
+While adding forever recurring todo support, `npx.cmd supabase migration new study_todo_repeat_forever` was attempted from the repository root.
+
+### Error Message
+
+```txt
+command timed out after 60269 milliseconds
+```
+
+### Cause
+
+The local Supabase CLI invocation did not finish in this Windows environment. No migration file was created under `supabase/migrations`.
+
+### Fix
+
+Created `supabase/migrations/20260623143000_study_todo_repeat_forever.sql` manually and applied the DDL to project `bqohkdzvxbrokkmuhysx` with Supabase MCP `_apply_migration`.
+
+### Related Files
+
+* `supabase/migrations/20260623143000_study_todo_repeat_forever.sql`
+* `packages/core/test/sql-migrations.test.mjs`
+
+### Prevention
+
+If `supabase migration new` hangs again, check whether a file was actually created. If not, create a clearly named migration file manually, then use Supabase MCP for remote DDL and verify with `_list_migrations` plus SQL schema checks.
+
 ## 2026-06-23 - Camera source tests failed after adding layout-order classes
 
 ### Situation

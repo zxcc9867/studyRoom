@@ -2,6 +2,52 @@
 
 ## Timeline
 
+### 2026-06-23 - Forever recurring todos
+
+#### Completed Work
+
+- Added a `영구 반복` option to the todo repeat panel.
+- Added `repeat_forever` metadata to `study_todos`.
+- Changed weekly repeat validation so rows can use either `repeat_until` or `repeat_forever = true`.
+- Added one-year rolling date generation for no-end weekly repeats.
+- Updated repeat labels so forever groups display `영구 반복`.
+- Changed todo delete behavior so repeated todos can delete the entire `repeat_group_id` group or only the selected date.
+- Applied Supabase migration `study_todo_repeat_forever` to project `bqohkdzvxbrokkmuhysx`.
+
+#### Changed Files
+
+- `apps/web/src/main.tsx`
+- `apps/web/src/styles.css`
+- `apps/web/src/todoRecurrence.mjs`
+- `apps/web/src/todoRecurrence.d.mts`
+- `apps/web/test/todoRecurrence.test.mjs`
+- `apps/web/test/slackNotifications.test.mjs`
+- `packages/core/test/sql-migrations.test.mjs`
+- `supabase/migrations/20260623143000_study_todo_repeat_forever.sql`
+- `memory-bank/prd-recurring-todos.md`
+- `memory-bank/implementation-plan.md`
+- `memory-bank/active-context.md`
+- `memory-bank/progress.md`
+- `memory-bank/trouble-shooting.md`
+
+#### Verification
+
+- RED: `npm.cmd test -- apps/web/test/todoRecurrence.test.mjs packages/core/test/sql-migrations.test.mjs` failed because `getForeverRepeatEndDate` and the `repeat_forever` migration did not exist yet.
+- GREEN: `npm.cmd test -- apps/web/test/todoRecurrence.test.mjs apps/web/test/slackNotifications.test.mjs packages/core/test/sql-migrations.test.mjs` passed.
+- `npm.cmd test` passed 169 tests.
+- `npm.cmd run build` passed.
+- Supabase SQL confirmed `repeat_forever_exists=true` and the active `study_todos_repeat_consistency_check` accepts weekly rows with `repeat_forever = true`.
+- Supabase migration list shows `20260623134937 study_todo_repeat_forever`.
+
+#### Remaining Work
+
+- Commit, push, and verify Vercel production deployment.
+- Manual production smoke-test: create a weekday forever repeat, confirm generated dates appear, then delete the whole repeat group.
+
+#### Next Priority
+
+- Decide whether forever repeats should auto-extend beyond the one-year materialized horizon through a future recurrence-rule table or scheduled extension job.
+
 ### 2026-06-23 - Daily planner view and Today dashboard order
 
 #### Completed Work

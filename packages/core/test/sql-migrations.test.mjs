@@ -302,6 +302,15 @@ test("study todo repeat metadata migration supports editable recurring todos", (
   assert.match(sql, /grant select, insert, update, delete on public\.study_todos to authenticated/i);
 });
 
+test("study todo repeat forever migration supports no-end weekly schedules", () => {
+  const sql = readMigrationContaining(/repeat_forever/i);
+
+  assert.match(sql, /alter table public\.study_todos\s+add column if not exists repeat_forever boolean not null default false/i);
+  assert.match(sql, /drop constraint if exists study_todos_repeat_consistency_check/i);
+  assert.match(sql, /repeat_mode = 'single'[\s\S]*repeat_forever = false/i);
+  assert.match(sql, /repeat_mode = 'weekly'[\s\S]*\(repeat_forever = true or repeat_until is not null\)/i);
+});
+
 test("study goals migration stores user scoped goals and links todos", () => {
   const sql = readMigrationContaining(/study_goals/i);
 

@@ -22,7 +22,7 @@ export function isWeeklyTodo(todo) {
   return (
     todo?.repeat_mode === "weekly" &&
     normalizeTodoRepeatWeekdays(todo.repeat_weekdays).length > 0 &&
-    Boolean(todo.repeat_until)
+    (Boolean(todo.repeat_until) || Boolean(todo.repeat_forever))
   );
 }
 
@@ -35,6 +35,10 @@ export function formatTodoRepeatLabel(todo) {
     .map((weekday) => todoWeekdayOptions.find((option) => option.value === weekday)?.label)
     .filter(Boolean)
     .join("/");
+
+  if (todo.repeat_forever) {
+    return `${weekdayLabels} 반복 · 영구 반복`;
+  }
 
   return `${weekdayLabels} 반복 · ~ ${todo.repeat_until}`;
 }
@@ -83,6 +87,16 @@ export function getDefaultRepeatEndDate(startDate) {
   const date = parseDateKey(startDate);
   if (!date) return startDate;
   return formatDateKey(new Date(date.getFullYear(), date.getMonth() + 1, 0));
+}
+
+export function getForeverRepeatEndDate(startDate) {
+  const date = parseDateKey(startDate);
+  if (!date) return startDate;
+  const nextYearDate = new Date(date.getFullYear() + 1, date.getMonth(), date.getDate());
+  if (nextYearDate.getMonth() !== date.getMonth()) {
+    return formatDateKey(new Date(date.getFullYear() + 1, date.getMonth() + 1, 0));
+  }
+  return formatDateKey(nextYearDate);
 }
 
 export function getWeekdayFromDateKey(dateKey) {

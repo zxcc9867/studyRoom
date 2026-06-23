@@ -1,5 +1,14 @@
 # PRD: Recurring Todos
 
+## 2026-06-23 Update: Forever Weekly Repeats
+
+- The todo modal supports a `영구 반복` option for weekly todos.
+- A forever weekly todo does not store `repeat_until`; generated rows use `repeat_forever = true`.
+- The MVP keeps the existing materialized row model and generates a rolling one-year set of dated `study_todos` rows from the selected start date.
+- The UI labels no-end weekly groups as `영구 반복`.
+- Deleting a repeated todo gives the user a repeat-group delete path so all generated dates for the same task, such as `회사`, can be removed together.
+- A separate recurrence-rule table and automatic infinite future generation remain future work.
+
 ## 2026-06-16 Update: Editable Scheduled Recurring Todos
 
 - Existing todos in the calendar modal can be edited, not only deleted and recreated.

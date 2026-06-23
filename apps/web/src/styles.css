@@ -2046,12 +2046,33 @@ label {
   color: #fff9df;
 }
 
+.todo-mode-toggle.compact {
+  grid-column: 1 / -1;
+}
+
+.todo-mode-toggle.compact button {
+  min-height: 34px;
+  font-size: 14px;
+}
+
 .todo-repeat-details,
 .todo-time-details {
   display: grid;
   grid-template-columns: minmax(180px, 0.7fr) minmax(0, 1fr);
   align-items: end;
   gap: 10px;
+}
+
+.todo-repeat-note {
+  grid-column: 1 / -1;
+  margin: 0;
+  border: 2px dashed rgba(79, 145, 111, 0.45);
+  border-radius: 8px;
+  background: rgba(255, 249, 223, 0.72);
+  color: #5a513d;
+  padding: 10px 12px;
+  font-size: 14px;
+  line-height: 1.45;
 }
 
 .todo-repeat-details label,

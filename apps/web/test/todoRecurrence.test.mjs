@@ -6,6 +6,7 @@ import {
   filterNewTodoDates,
   formatTodoRepeatLabel,
   getDefaultRepeatEndDate,
+  getForeverRepeatEndDate,
   getTodoSaveFocusDate,
   isWeeklyTodo,
   normalizeTodoRepeatWeekdays,
@@ -73,6 +74,11 @@ test("defaults repeat end date to the last day of the selected month", () => {
   assert.equal(getDefaultRepeatEndDate("2024-02-11"), "2024-02-29");
 });
 
+test("uses a rolling one-year horizon for forever recurring todos", () => {
+  assert.equal(getForeverRepeatEndDate("2026-06-23"), "2027-06-23");
+  assert.equal(getForeverRepeatEndDate("2024-02-29"), "2025-02-28");
+});
+
 test("focuses the selected date after save when a todo was created there", () => {
   assert.equal(
     getTodoSaveFocusDate({
@@ -97,6 +103,7 @@ test("normalizes repeat weekdays and detects weekly todo metadata", () => {
   assert.deepEqual(normalizeTodoRepeatWeekdays([5, 1, 1, 8, "2"]), [1, 2, 5]);
   assert.deepEqual(normalizeTodoRepeatWeekdays(null), []);
   assert.equal(isWeeklyTodo({ repeat_mode: "weekly", repeat_weekdays: [1], repeat_until: "2026-07-05" }), true);
+  assert.equal(isWeeklyTodo({ repeat_mode: "weekly", repeat_weekdays: [1], repeat_until: null, repeat_forever: true }), true);
   assert.equal(isWeeklyTodo({ repeat_mode: "single", repeat_weekdays: [1], repeat_until: "2026-07-05" }), false);
 });
 
@@ -108,6 +115,15 @@ test("formats repeat metadata labels for todo list rows", () => {
       repeat_until: "2026-07-05",
     }),
     "월/수/금 반복 · ~ 2026-07-05",
+  );
+  assert.match(
+    formatTodoRepeatLabel({
+      repeat_mode: "weekly",
+      repeat_weekdays: [1, 3, 5],
+      repeat_until: null,
+      repeat_forever: true,
+    }),
+    /영구 반복/,
   );
   assert.equal(formatTodoRepeatLabel({ repeat_mode: "single", repeat_weekdays: [], repeat_until: null }), "하루만");
 });

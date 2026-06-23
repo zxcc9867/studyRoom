@@ -36,9 +36,15 @@ test("web app exposes editing controls for scheduled and recurring todos", () =>
   assert.match(appSource, /repeat_group_id/);
   assert.match(appSource, /repeat_weekdays/);
   assert.match(appSource, /repeat_until/);
+  assert.match(appSource, /repeat_forever/);
+  assert.match(appSource, /todoRepeatForever/);
+  assert.match(appSource, /getForeverRepeatEndDate/);
+  assert.match(appSource, /\.eq\("repeat_group_id", todo\.repeat_group_id\)/);
   assert.match(appSource, /formatTodoRepeatLabel/);
   assert.match(appSource, /todo-meta-chip/);
+  assert.match(appSource, /영구 반복/);
   assert.match(styleSource, /\.todo-meta-row/);
+  assert.match(styleSource, /\.todo-repeat-note/);
 });
 
 test("validates slack public and private channel IDs", () => {

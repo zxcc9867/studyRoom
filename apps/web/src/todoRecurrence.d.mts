@@ -20,6 +20,7 @@ export type TodoRepeatMetadata = {
   repeat_mode?: "single" | "weekly" | string | null;
   repeat_weekdays?: number[] | null;
   repeat_until?: string | null;
+  repeat_forever?: boolean | null;
 };
 
 export type NewTodoDatesInput<T extends ExistingTodoIdentity> = {
@@ -41,4 +42,5 @@ export function getTodoSaveFocusDate(input: {
   targetDates: string[];
 }): string;
 export function getDefaultRepeatEndDate(startDate: string): string;
+export function getForeverRepeatEndDate(startDate: string): string;
 export function getWeekdayFromDateKey(dateKey: string): number;

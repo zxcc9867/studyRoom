@@ -166,6 +166,7 @@ import {
   filterNewTodoDates,
   formatTodoRepeatLabel,
   getDefaultRepeatEndDate,
+  getForeverRepeatEndDate,
   getTodoSaveFocusDate,
   getWeekdayFromDateKey,
   isWeeklyTodo,
@@ -234,6 +235,7 @@ type StudyTodo = {
   repeat_mode: TodoRepeatMode;
   repeat_weekdays: number[] | null;
   repeat_until: string | null;
+  repeat_forever: boolean;
   created_at: string;
 };
 
@@ -378,6 +380,7 @@ function DashboardApp() {
   const [todoRepeatEndDate, setTodoRepeatEndDate] = useState(() =>
     getDefaultRepeatEndDate(getPlainDateKey(new Date())),
   );
+  const [todoRepeatForever, setTodoRepeatForever] = useState(false);
   const [todoRepeatWeekdays, setTodoRepeatWeekdays] = useState<number[]>(() => [
     getWeekdayFromDateKey(getPlainDateKey(new Date())),
   ]);
@@ -1254,6 +1257,7 @@ function DashboardApp() {
     setTodoDraft("");
     setTodoRepeatMode("single");
     setTodoRepeatEndDate(getDefaultRepeatEndDate(dateKey));
+    setTodoRepeatForever(false);
     setTodoRepeatWeekdays([getWeekdayFromDateKey(dateKey)]);
     setTodoTimeEnabled(false);
     setTodoStartTime("09:00");
@@ -1396,10 +1400,12 @@ function DashboardApp() {
 
     if (isWeeklyTodo(todo)) {
       setTodoRepeatMode("weekly");
-      setTodoRepeatEndDate(todo.repeat_until ?? getDefaultRepeatEndDate(todo.local_date));
+      setTodoRepeatForever(Boolean(todo.repeat_forever));
+      setTodoRepeatEndDate(todo.repeat_until ?? getForeverRepeatEndDate(todo.local_date));
       setTodoRepeatWeekdays(normalizeTodoRepeatWeekdays(todo.repeat_weekdays));
     } else {
       setTodoRepeatMode("single");
+      setTodoRepeatForever(false);
       setTodoRepeatEndDate(getDefaultRepeatEndDate(todo.local_date));
       setTodoRepeatWeekdays([getWeekdayFromDateKey(todo.local_date)]);
     }
@@ -1474,6 +1480,7 @@ function DashboardApp() {
     repeatMode,
     repeatWeekdays,
     repeatUntil,
+    repeatForever,
     goalId,
     excludedTodoIds = new Set<string>(),
   }: {
@@ -1485,6 +1492,7 @@ function DashboardApp() {
     repeatMode: TodoRepeatMode;
     repeatWeekdays: number[];
     repeatUntil: string | null;
+    repeatForever: boolean;
     goalId: string | null;
     excludedTodoIds?: Set<string>;
   }) {
@@ -1503,6 +1511,7 @@ function DashboardApp() {
         repeat_mode: repeatMode,
         repeat_weekdays: repeatMode === "weekly" ? repeatWeekdays : [],
         repeat_until: repeatMode === "weekly" ? repeatUntil : null,
+        repeat_forever: repeatMode === "weekly" ? repeatForever : false,
         position,
       };
     });
@@ -1526,6 +1535,7 @@ function DashboardApp() {
       repeatMode: "single",
       repeatWeekdays: [],
       repeatUntil: null,
+      repeatForever: false,
       goalId: activeGoal?.id ?? null,
     });
 
@@ -1573,11 +1583,14 @@ function DashboardApp() {
     }
 
     const repeatWeekdays = normalizeTodoRepeatWeekdays(todoRepeatWeekdays);
+    const repeatEndDateForGeneration = todoRepeatForever
+      ? getForeverRepeatEndDate(selectedTodoDate)
+      : todoRepeatEndDate;
     const candidateDates =
       todoRepeatMode === "weekly"
         ? buildRecurringTodoDates({
             startDate: selectedTodoDate,
-            endDate: todoRepeatEndDate,
+            endDate: repeatEndDateForGeneration,
             weekdays: repeatWeekdays,
           })
         : [selectedTodoDate];
@@ -1614,7 +1627,8 @@ function DashboardApp() {
       repeatGroupId,
       repeatMode: todoRepeatMode,
       repeatWeekdays,
-      repeatUntil: todoRepeatMode === "weekly" ? todoRepeatEndDate : null,
+      repeatUntil: todoRepeatMode === "weekly" && !todoRepeatForever ? todoRepeatEndDate : null,
+      repeatForever: todoRepeatMode === "weekly" ? todoRepeatForever : false,
       goalId: todoGoalId || null,
     });
 
@@ -1668,6 +1682,7 @@ function DashboardApp() {
             repeat_mode: "single",
             repeat_weekdays: [],
             repeat_until: null,
+            repeat_forever: false,
           })
           .eq("id", todo.id)
           .select("*")
@@ -1720,7 +1735,8 @@ function DashboardApp() {
         repeat_group_id: repeatGroupId,
         repeat_mode: "weekly",
         repeat_weekdays: repeatWeekdays,
-        repeat_until: todoRepeatEndDate,
+        repeat_until: todoRepeatForever ? null : todoRepeatEndDate,
+        repeat_forever: todoRepeatForever,
       };
       const updatedRows: StudyTodo[] = [];
       const insertedRows: StudyTodo[] = [];
@@ -1744,7 +1760,8 @@ function DashboardApp() {
           repeatGroupId,
           repeatMode: "weekly",
           repeatWeekdays,
-          repeatUntil: todoRepeatEndDate,
+          repeatUntil: todoRepeatForever ? null : todoRepeatEndDate,
+          repeatForever: todoRepeatForever,
           goalId: todoGoalId || null,
           excludedTodoIds: groupTodoIds,
         });
@@ -1817,9 +1834,19 @@ function DashboardApp() {
     }
   }
 
-  async function deleteTodo(todoId: string) {
+  async function deleteTodo(todo: StudyTodo) {
+    const deleteRepeatGroup =
+      Boolean(todo.repeat_group_id) &&
+      window.confirm(
+        "이 반복 일정 전체를 삭제할까요?\n확인: 모든 날짜의 반복 일정 삭제\n취소: 이 날짜의 할 일만 삭제",
+      );
+
     setTodoBusy(true);
-    const { error } = await supabase.from("study_todos").delete().eq("id", todoId);
+    const deleteQuery = supabase.from("study_todos").delete();
+    const { error } =
+      deleteRepeatGroup && todo.repeat_group_id
+        ? await deleteQuery.eq("repeat_group_id", todo.repeat_group_id)
+        : await deleteQuery.eq("id", todo.id);
     setTodoBusy(false);
 
     if (error) {
@@ -1827,7 +1854,12 @@ function DashboardApp() {
       return;
     }
 
-    setStudyTodos((current) => current.filter((todo) => todo.id !== todoId));
+    setStudyTodos((current) =>
+      deleteRepeatGroup && todo.repeat_group_id
+        ? current.filter((item) => item.repeat_group_id !== todo.repeat_group_id)
+        : current.filter((item) => item.id !== todo.id),
+    );
+    setMessage(deleteRepeatGroup ? "반복 일정 전체를 삭제했습니다." : "할 일을 삭제했습니다.");
   }
 
   function openNewGoalModal() {
@@ -2696,7 +2728,7 @@ function DashboardApp() {
                 type="button"
                 aria-label={`${todo.title} 삭제`}
                 disabled={todoBusy}
-                onClick={() => void deleteTodo(todo.id)}
+                onClick={() => void deleteTodo(todo)}
               >
                 <Trash2 size={16} />
               </button>
@@ -2816,7 +2848,7 @@ function DashboardApp() {
                     <CheckCircle2 size={16} />
                     완료 체크
                   </button>
-                  <button className="todo-delete" type="button" onClick={() => void deleteTodo(selectedPlannerSegment.todo.id)}>
+                  <button className="todo-delete" type="button" onClick={() => void deleteTodo(selectedPlannerSegment.todo)}>
                     <Trash2 size={16} />
                   </button>
                 </div>
@@ -3481,7 +3513,10 @@ function DashboardApp() {
                       className={todoRepeatMode === "single" ? "selected" : ""}
                       type="button"
                       aria-pressed={todoRepeatMode === "single"}
-                      onClick={() => setTodoRepeatMode("single")}
+                      onClick={() => {
+                        setTodoRepeatMode("single");
+                        setTodoRepeatForever(false);
+                      }}
                       disabled={todoBusy}
                     >
                       <CalendarDays size={17} />
@@ -3500,16 +3535,42 @@ function DashboardApp() {
                   </div>
                   {todoRepeatMode === "weekly" && (
                     <div className="todo-repeat-details">
-                      <label>
-                        반복 종료일
-                        <input
-                          type="date"
-                          min={selectedTodoDate}
-                          value={todoRepeatEndDate}
-                          onChange={(event) => setTodoRepeatEndDate(event.target.value)}
+                      <div className="todo-mode-toggle compact" role="group" aria-label="반복 종료 방식">
+                        <button
+                          className={!todoRepeatForever ? "selected" : ""}
+                          type="button"
+                          aria-pressed={!todoRepeatForever}
+                          onClick={() => setTodoRepeatForever(false)}
                           disabled={todoBusy}
-                        />
-                      </label>
+                        >
+                          반복 종료일
+                        </button>
+                        <button
+                          className={todoRepeatForever ? "selected" : ""}
+                          type="button"
+                          aria-pressed={todoRepeatForever}
+                          onClick={() => setTodoRepeatForever(true)}
+                          disabled={todoBusy}
+                        >
+                          영구 반복
+                        </button>
+                      </div>
+                      {todoRepeatForever ? (
+                        <p className="todo-repeat-note">
+                          종료일 없이 반복합니다. 앱은 앞으로 1년치 일정을 먼저 만들고, 같은 반복 그룹으로 관리합니다.
+                        </p>
+                      ) : (
+                        <label>
+                          반복 종료일
+                          <input
+                            type="date"
+                            min={selectedTodoDate}
+                            value={todoRepeatEndDate}
+                            onChange={(event) => setTodoRepeatEndDate(event.target.value)}
+                            disabled={todoBusy}
+                          />
+                        </label>
+                      )}
                       <div className="weekday-picker" role="group" aria-label="반복 요일 선택">
                         {todoWeekdayOptions.map((weekday) => {
                           const selected = todoRepeatWeekdays.includes(weekday.value);

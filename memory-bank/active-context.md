@@ -2,6 +2,51 @@
 
 ## Current Work
 
+- Task: Forever recurring todos and repeat-group deletion.
+- Purpose: Let the user create weekday-repeat todos without choosing an end date and remove all generated dates for a repeated task such as `회사` from one delete action.
+- Related PRD:
+  - `memory-bank/prd-recurring-todos.md`
+- Related files:
+  - `apps/web/src/main.tsx`
+  - `apps/web/src/styles.css`
+  - `apps/web/src/todoRecurrence.mjs`
+  - `apps/web/src/todoRecurrence.d.mts`
+  - `apps/web/test/todoRecurrence.test.mjs`
+  - `apps/web/test/slackNotifications.test.mjs`
+  - `packages/core/test/sql-migrations.test.mjs`
+  - `supabase/migrations/20260623143000_study_todo_repeat_forever.sql`
+
+## Recent Decisions
+
+- Decision: Keep the materialized `study_todos` model and represent no-end weekly repeats with `repeat_forever = true`.
+- Reason: The current app, reminders, planner, history, and session todo selection all read dated `study_todos` rows directly.
+- Alternative: Add a separate recurrence-rule table now; rejected for this change because it would require broader query, reminder, and UI rewiring.
+- Impact: The web app creates a rolling one-year set of rows for forever repeats and stores them in one repeat group. The row metadata has no `repeat_until`, so the UI labels the group as `영구 반복`.
+
+- Decision: Deleting a repeated todo asks whether to delete the whole repeat group.
+- Reason: A task such as `회사` should be removable from every generated date, not only the clicked calendar date.
+- Alternative: Always delete only one row; rejected because it leaves many unwanted generated rows behind.
+- Impact: Confirming the delete removes every row with the same `repeat_group_id`; cancelling removes only the selected date.
+
+## Current Status
+
+- Completed: Added `repeat_forever` to local and remote `study_todos`.
+- Completed: Replaced `study_todos_repeat_consistency_check` so weekly rows may have either `repeat_until` or `repeat_forever = true`.
+- Completed: Added `영구 반복` UI in the todo modal.
+- Completed: Added one-year rolling generation for no-end weekly repeats.
+- Completed: Added repeat-group delete behavior.
+- Completed: `npm.cmd test` passed 169 tests.
+- Completed: `npm.cmd run build` passed.
+- Completed: Supabase project `bqohkdzvxbrokkmuhysx` shows migration `20260623134937 study_todo_repeat_forever`.
+- In progress: Commit, push, and verify Vercel production deployment.
+
+## Notes
+
+- This is still a materialized-row MVP, not a recurrence-rule engine. Forever repeats generate rows one year ahead and are marked with `repeat_forever`.
+- The local `npx.cmd supabase migration new study_todo_repeat_forever` attempt timed out, so the migration file was created manually and applied through Supabase MCP.
+
+## Current Work
+
 - Task: Daily planner task view and Today dashboard order personalization.
 - Purpose: Let the user view today's timed todos as an Animal Crossing-style circular life planner and customize the order of Today sections.
 - Related PRD:
