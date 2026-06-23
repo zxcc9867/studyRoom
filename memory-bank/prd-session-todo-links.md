@@ -33,9 +33,9 @@ The study timer can run without an explicit plan for what the user will study in
 
 1. User clicks `입장하고 시작`.
 2. App checks camera/recovery gates first.
-3. If today has no incomplete todos, app opens today's todo modal and asks the user to add one.
-4. If incomplete todos exist, app opens a session-todo selection modal.
-5. User selects one or more todos.
+3. App opens a session-todo selection modal.
+4. If today has no incomplete todos, user can quick-add a plain today todo inside the same session modal.
+5. User selects one or more todos. Quick-added todos are selected automatically.
 6. App creates a `study_sessions` row, inserts `study_session_todos` link rows, and shows the session task list in Today Focus.
 
 ### Edge Cases
@@ -55,6 +55,7 @@ The study timer can run without an explicit plan for what the user will study in
 - [x] RLS allows users to read/write only their own link rows.
 - [x] App blocks a new session when there are no incomplete todos for today.
 - [x] App requires selecting at least one incomplete todo before starting.
+- [x] App lets the user quick-add a today todo from the session planning modal when no plan was pre-registered.
 - [x] App shows active session linked todos separately from the full daily todo list.
 - [x] App records whether a linked todo was completed during the session.
 

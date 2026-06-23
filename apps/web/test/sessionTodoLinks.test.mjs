@@ -5,6 +5,8 @@ import {
   buildSessionTodoLinkRows,
   getIncompleteTodayTodos,
   getSessionLinkedTodos,
+  normalizeSessionTodoDraft,
+  shouldDisableSessionTodoStart,
   shouldRequestSessionTodoSelection,
   summarizeSessionTodos,
 } from "../src/sessionTodoLinks.mjs";
@@ -77,6 +79,37 @@ test("shouldRequestSessionTodoSelection blocks starting without an active sessio
       selectedTodoIds: ["todo-two"],
     }),
     { required: false, reason: null },
+  );
+});
+
+test("normalizeSessionTodoDraft trims and compacts quick-add titles", () => {
+  assert.equal(normalizeSessionTodoDraft("  AWS   자격증   복습  "), "AWS 자격증 복습");
+});
+
+test("shouldDisableSessionTodoStart blocks start while quick add is saving", () => {
+  assert.equal(
+    shouldDisableSessionTodoStart({
+      busy: false,
+      addBusy: false,
+      selectedTodoIds: ["todo-one"],
+    }),
+    false,
+  );
+  assert.equal(
+    shouldDisableSessionTodoStart({
+      busy: false,
+      addBusy: true,
+      selectedTodoIds: ["todo-one"],
+    }),
+    true,
+  );
+  assert.equal(
+    shouldDisableSessionTodoStart({
+      busy: false,
+      addBusy: false,
+      selectedTodoIds: [],
+    }),
+    true,
   );
 });
 

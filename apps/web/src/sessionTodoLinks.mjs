@@ -24,6 +24,14 @@ export function shouldRequestSessionTodoSelection({
   return { required: true, reason: "select-todos" };
 }
 
+export function normalizeSessionTodoDraft(value) {
+  return String(value ?? "").trim().replace(/\s+/g, " ");
+}
+
+export function shouldDisableSessionTodoStart({ busy, addBusy, selectedTodoIds }) {
+  return Boolean(busy || addBusy || !Array.isArray(selectedTodoIds) || selectedTodoIds.length === 0);
+}
+
 export function buildSessionTodoLinkRows({ userId, sessionId, todoIds }) {
   return [...new Set(todoIds)]
     .filter(Boolean)

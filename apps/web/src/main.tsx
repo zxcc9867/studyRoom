@@ -105,6 +105,8 @@ import {
   buildSessionTodoLinkRows,
   getIncompleteTodayTodos,
   getSessionLinkedTodos,
+  normalizeSessionTodoDraft,
+  shouldDisableSessionTodoStart,
   shouldRequestSessionTodoSelection,
   summarizeSessionTodos,
 } from "./sessionTodoLinks.mjs";
@@ -303,6 +305,8 @@ function DashboardApp() {
   const [sessionTodoModalOpen, setSessionTodoModalOpen] = useState(false);
   const [sessionTodoStartRequest, setSessionTodoStartRequest] = useState<{ cameraReadyOverride: boolean } | null>(null);
   const [selectedSessionTodoIds, setSelectedSessionTodoIds] = useState<string[]>([]);
+  const [sessionTodoDraft, setSessionTodoDraft] = useState("");
+  const [sessionTodoAddBusy, setSessionTodoAddBusy] = useState(false);
   const [goalModalOpen, setGoalModalOpen] = useState(false);
   const [editingGoalId, setEditingGoalId] = useState<string | null>(null);
   const [goalTitle, setGoalTitle] = useState("");
@@ -1189,6 +1193,7 @@ function DashboardApp() {
     setSessionTodoModalOpen(false);
     setSessionTodoStartRequest(null);
     setSelectedSessionTodoIds([]);
+    setSessionTodoDraft("");
   }
 
   async function confirmSessionTodoSelection() {
@@ -1256,6 +1261,51 @@ function DashboardApp() {
         position,
       };
     });
+  }
+
+  async function addSessionTodo() {
+    if (!session?.user.id) return;
+
+    const title = normalizeSessionTodoDraft(sessionTodoDraft);
+    if (!title) {
+      setMessage("이번 세션에 추가할 할 일을 입력하세요.");
+      return;
+    }
+
+    const rows = buildTodoInsertRows({
+      targetDates: [todayDateKey],
+      title,
+      userId: session.user.id,
+      schedule: { startTime: null, endTime: null },
+      repeatGroupId: null,
+      repeatMode: "single",
+      repeatWeekdays: [],
+      repeatUntil: null,
+      goalId: activeGoal?.id ?? null,
+    });
+
+    setSessionTodoAddBusy(true);
+    const { data, error } = await supabase
+      .from("study_todos")
+      .insert(rows)
+      .select("*")
+      .single();
+    setSessionTodoAddBusy(false);
+
+    if (error) {
+      setMessage(error.message);
+      return;
+    }
+
+    if (data) {
+      const insertedTodo = data as StudyTodo;
+      setStudyTodos((current) => sortTodos([insertedTodo, ...current]));
+      setSelectedSessionTodoIds((current) =>
+        current.includes(insertedTodo.id) ? current : [...current, insertedTodo.id],
+      );
+      setSessionTodoDraft("");
+      setMessage("이번 세션 할 일을 추가했습니다.");
+    }
   }
 
   async function saveTodo() {
@@ -1942,12 +1992,8 @@ function DashboardApp() {
 
     if (todoSelection.required) {
       if (todoSelection.reason === "no-todos") {
-        if (cameraReadyOverride && !activeSession) {
-          stopCameraMonitoring({ recordEvent: false });
-          cameraSessionStartingRef.current = false;
-        }
-        setMessage("오늘 할 일을 먼저 등록하세요.");
-        selectTodoDate(todayDateKey);
+        setMessage("이번 세션에서 할 일을 추가하거나 선택하세요.");
+        openSessionTodoSelection(cameraReadyOverride);
         return;
       }
 
@@ -3065,6 +3111,30 @@ function DashboardApp() {
               <p className="reminder-copy">
                 오늘 미완료 할 일 중 이번 집중 세션에서 처리할 일을 1개 이상 선택하세요.
               </p>
+              <form
+                className="session-todo-quick-add"
+                onSubmit={(event: FormEvent<HTMLFormElement>) => {
+                  event.preventDefault();
+                  void addSessionTodo();
+                }}
+              >
+                <input
+                  type="text"
+                  value={sessionTodoDraft}
+                  onChange={(event) => setSessionTodoDraft(event.target.value)}
+                  placeholder="예: AWS 기출 1회 풀기"
+                  disabled={busy || sessionTodoAddBusy}
+                />
+                <button className="secondary" type="submit" disabled={busy || sessionTodoAddBusy}>
+                  <Plus size={18} />
+                  추가
+                </button>
+              </form>
+              {incompleteTodayTodos.length === 0 && (
+                <p className="todo-empty session-todo-empty">
+                  미리 등록한 할 일이 없습니다. 위에서 바로 추가하면 이번 세션 할 일로 선택됩니다.
+                </p>
+              )}
               <ul className="session-todo-choice-list">
                 {incompleteTodayTodos.map((todo) => {
                   const selected = selectedSessionTodoIds.includes(todo.id);
@@ -3075,7 +3145,7 @@ function DashboardApp() {
                           type="checkbox"
                           checked={selected}
                           onChange={() => toggleSessionTodoSelection(todo.id)}
-                          disabled={busy}
+                          disabled={busy || sessionTodoAddBusy}
                         />
                         <span>{formatTodoWithSchedule(todo)}</span>
                       </label>
@@ -3087,7 +3157,11 @@ function DashboardApp() {
                 <button
                   className="primary"
                   type="button"
-                  disabled={busy || selectedSessionTodoIds.length === 0}
+                  disabled={shouldDisableSessionTodoStart({
+                    busy,
+                    addBusy: sessionTodoAddBusy,
+                    selectedTodoIds: selectedSessionTodoIds,
+                  })}
                   onClick={() => {
                     void confirmSessionTodoSelection();
                   }}

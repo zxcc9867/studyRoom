@@ -1556,6 +1556,34 @@ label {
   white-space: nowrap;
 }
 
+.session-todo-quick-add {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 10px;
+  align-items: stretch;
+  margin: 0 0 14px;
+}
+
+.session-todo-quick-add input {
+  width: 100%;
+  min-height: 54px;
+  border: 2px solid #d2b56f;
+  border-radius: 8px;
+  background: #fff9df;
+  color: #2f2a1f;
+  padding: 0 14px;
+  font: inherit;
+  font-weight: 850;
+}
+
+.session-todo-quick-add button {
+  min-width: 104px;
+}
+
+.session-todo-empty {
+  margin: 0 0 14px;
+}
+
 .session-todo-choice-list {
   list-style: none;
   display: grid;
@@ -2135,6 +2163,7 @@ button:active:not(:disabled) {
 
   .todo-header,
   .todo-entry-row,
+  .session-todo-quick-add,
   .todo-repeat-details,
   .todo-time-details {
     grid-template-columns: 1fr;

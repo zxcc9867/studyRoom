@@ -30,6 +30,14 @@ export function shouldRequestSessionTodoSelection(input: {
   selectedTodoIds?: string[];
 }): SessionTodoSelectionDecision;
 
+export function normalizeSessionTodoDraft(value: unknown): string;
+
+export function shouldDisableSessionTodoStart(input: {
+  busy: boolean;
+  addBusy: boolean;
+  selectedTodoIds: string[];
+}): boolean;
+
 export function buildSessionTodoLinkRows(input: {
   userId: string;
   sessionId: string;
