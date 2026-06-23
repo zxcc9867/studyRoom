@@ -23,6 +23,8 @@ Personal MVP users who want a lightweight study room dashboard with attendance p
 - Attendance recognition when a study timer starts within the allowed window
 - Study sessions and daily/monthly time visualization
 - Calendar todos, weekday recurring todo creation, and completion rate
+- Today task checklist plus a pinned circular life-planner view for timed todos
+- User-customizable Today dashboard section order
 - My Page hash page with account summary and completed todo history
 - Web/Expo/email notification targets
 - Scheduled reminder dispatch through Supabase Edge Function

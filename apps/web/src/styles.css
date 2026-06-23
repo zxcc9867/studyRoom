@@ -1379,6 +1379,239 @@ label {
   box-shadow: 0 8px 0 rgba(156, 124, 56, 0.22);
 }
 
+.today-ordered-section {
+  min-width: 0;
+}
+
+.section-order-toolbar,
+.section-order-editor {
+  border: 2px dashed rgba(79, 145, 111, 0.68);
+  border-radius: 8px;
+  background: rgba(223, 244, 205, 0.76);
+  padding: 12px;
+}
+
+.section-order-editor {
+  display: grid;
+  gap: 12px;
+  border-style: solid;
+}
+
+.section-order-actions,
+.section-order-move {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.section-order-list {
+  display: grid;
+  gap: 8px;
+}
+
+.section-order-row {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 10px;
+  border: 2px solid rgba(210, 181, 111, 0.8);
+  border-radius: 8px;
+  background: #fff9df;
+  padding: 10px 12px;
+  box-shadow: 0 4px 0 rgba(156, 124, 56, 0.18);
+}
+
+.section-order-row-dragging {
+  opacity: 0.72;
+  border-color: #4f916f;
+  background: #dff4cd;
+}
+
+.section-order-handle {
+  color: #2f6b52;
+  display: inline-grid;
+  place-items: center;
+  cursor: grab;
+}
+
+.icon-action {
+  width: 38px;
+  min-height: 38px;
+  padding: 0;
+  display: inline-grid;
+  place-items: center;
+}
+
+.task-view-switcher {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin: 12px 0;
+}
+
+.task-view-switcher button {
+  min-height: 40px;
+  border: 2px solid #4f916f;
+  background: #fff9df;
+  color: #2f6b52;
+  box-shadow: 0 4px 0 rgba(47, 107, 82, 0.18);
+}
+
+.task-view-switcher button.selected {
+  background: #4f916f;
+  color: #fff9df;
+  box-shadow: inset 0 -3px 0 rgba(47, 42, 31, 0.24);
+}
+
+.daily-planner {
+  display: grid;
+  gap: 14px;
+  margin-top: 12px;
+}
+
+.daily-planner-layout {
+  display: grid;
+  grid-template-columns: minmax(280px, 420px) minmax(220px, 1fr);
+  align-items: stretch;
+  gap: 14px;
+}
+
+.planner-wheel-card,
+.planner-detail-panel,
+.planner-unscheduled {
+  border: 2px solid rgba(79, 145, 111, 0.65);
+  border-radius: 8px;
+  background: #fff9df;
+  padding: 12px;
+}
+
+.planner-wheel-card {
+  display: grid;
+  justify-items: center;
+  gap: 10px;
+}
+
+.planner-wheel {
+  width: min(100%, 380px);
+  aspect-ratio: 1;
+  display: block;
+  cursor: crosshair;
+  filter: drop-shadow(0 8px 0 rgba(47, 107, 82, 0.12));
+}
+
+.planner-wheel-bg {
+  fill: #fff6c7;
+  stroke: #2f6b52;
+  stroke-width: 4;
+}
+
+.planner-wheel-inner {
+  fill: #fff9df;
+  stroke: #d2b56f;
+  stroke-width: 3;
+}
+
+.planner-wheel-pin {
+  fill: #2f6b52;
+  stroke: #fff9df;
+  stroke-width: 3;
+  pointer-events: none;
+}
+
+.planner-hour-line {
+  stroke: rgba(47, 107, 82, 0.3);
+  stroke-width: 2;
+  pointer-events: none;
+}
+
+.planner-hour-label,
+.planner-segment-label {
+  text-anchor: middle;
+  dominant-baseline: middle;
+  pointer-events: none;
+  font-weight: 950;
+}
+
+.planner-hour-label {
+  fill: #5a513d;
+  font-size: 12px;
+}
+
+.planner-segment path {
+  stroke: #fff9df;
+  stroke-width: 3;
+  cursor: pointer;
+  transition:
+    filter 160ms ease,
+    stroke-width 160ms ease;
+}
+
+.planner-segment path:hover,
+.planner-segment path:focus {
+  outline: none;
+  stroke-width: 5;
+  filter: brightness(1.03);
+}
+
+.planner-segment-overlap path {
+  stroke: #bf5c42;
+  stroke-width: 4;
+  stroke-dasharray: 8 5;
+}
+
+.planner-segment-label {
+  fill: #2f2a1f;
+  font-size: 11px;
+}
+
+.planner-quick-add {
+  justify-self: stretch;
+}
+
+.planner-detail-panel {
+  display: grid;
+  align-content: start;
+  gap: 9px;
+}
+
+.planner-detail-panel h3 {
+  color: #2f6b52;
+  font-size: clamp(22px, 3vw, 32px);
+}
+
+.planner-detail-panel p,
+.planner-help {
+  color: #5a513d;
+  font-weight: 850;
+}
+
+.planner-overlap-note {
+  border: 2px dashed #bf5c42;
+  border-radius: 8px;
+  background: #ffe0d3;
+  color: #8d3e2e;
+  padding: 8px 10px;
+}
+
+.planner-detail-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+.planner-unscheduled {
+  display: grid;
+  gap: 10px;
+}
+
+.todo-header.compact {
+  margin-bottom: 0;
+}
+
 .my-page-panel {
   display: grid;
   gap: 18px;
@@ -2090,6 +2323,23 @@ button:active:not(:disabled) {
 
   .session-lease button {
     width: 100%;
+  }
+
+  .daily-planner-layout {
+    grid-template-columns: 1fr;
+  }
+
+  .planner-wheel {
+    width: min(100%, 340px);
+  }
+
+  .section-order-row {
+    grid-template-columns: auto minmax(0, 1fr);
+  }
+
+  .section-order-move {
+    grid-column: 1 / -1;
+    justify-content: flex-start;
   }
 
   .profile-summary-grid {

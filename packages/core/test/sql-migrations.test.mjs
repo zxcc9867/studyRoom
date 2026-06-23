@@ -338,6 +338,20 @@ test("study session todo links migration stores user scoped session plans", () =
   assert.match(sql, /grant select, insert, update, delete on public\.study_session_todos to authenticated/i);
 });
 
+test("dashboard planner preferences migration stores task view and section order", () => {
+  const sql = readMigrationContaining(/today_task_view/i);
+
+  assert.match(sql, /alter table public\.profiles\s+add column if not exists today_task_view text not null default 'checklist'/i);
+  assert.match(sql, /today_task_view in \('checklist', 'planner'\)/i);
+  assert.match(sql, /alter table public\.profiles\s+add column if not exists today_section_order jsonb not null default/i);
+  assert.match(sql, /jsonb_typeof\(today_section_order\) = 'array'/i);
+  assert.match(sql, /topbar/i);
+  assert.match(sql, /attendance/i);
+  assert.match(sql, /focus/i);
+  assert.match(sql, /tasks/i);
+  assert.match(sql, /grant select, insert, update on public\.profiles to authenticated/i);
+});
+
 test("attendance cron creates missed recovery requests and one follow-up", () => {
   const source = readFileSync("supabase/functions/attendance-cron/index.ts", "utf8");
 

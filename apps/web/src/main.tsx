@@ -1,4 +1,13 @@
-import { StrictMode, useEffect, useMemo, useRef, useState, type ClipboardEvent, type FormEvent } from "react";
+import {
+  StrictMode,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type ClipboardEvent,
+  type FormEvent,
+  type MouseEvent,
+} from "react";
 import { createRoot } from "react-dom/client";
 import {
   Bell,
@@ -9,13 +18,19 @@ import {
   ChevronLeft,
   ChevronRight,
   Chrome,
+  ArrowDown,
+  ArrowUp,
+  GripVertical,
   KeyRound,
+  ListChecks,
   LogOut,
   Mail,
   Pencil,
+  Pin,
   Play,
   Plus,
   Repeat2,
+  Save,
   Clock3,
   Square,
   Trash2,
@@ -90,6 +105,20 @@ import {
   getDashboardSectionFromHash,
   type DashboardSection,
 } from "./dashboardRoute.mjs";
+import {
+  buildDailyPlannerSegments,
+  plannerAngleToTime,
+  type DailyPlannerSegment,
+} from "./dailyPlanner.mjs";
+import {
+  DEFAULT_TODAY_SECTION_ORDER,
+  DEFAULT_TODAY_TASK_VIEW,
+  moveTodaySection,
+  normalizeTodaySectionOrder,
+  normalizeTodayTaskView,
+  type TodaySectionId,
+  type TodayTaskView,
+} from "./dashboardLayout.mjs";
 import { shouldShowStudyReminderPopup } from "./reminderPopup.mjs";
 import {
   createSessionLeaseDeadlineMs,
@@ -171,6 +200,8 @@ type Profile = {
   time_zone: string;
   reminder_time: string;
   email_reminders_enabled: boolean;
+  today_task_view?: string | null;
+  today_section_order?: unknown;
 };
 
 type AttendanceDay = {
@@ -237,6 +268,59 @@ type StudyRecoveryRequest = {
   created_at: string;
 };
 
+const todaySectionLabels: Record<TodaySectionId, string> = {
+  topbar: "타이머/목표",
+  attendance: "출석 캘린더",
+  focus: "카메라 감시",
+  tasks: "오늘 할 일",
+};
+
+function addMinutesToTime(time: string, minutesToAdd: number) {
+  const [hour = "0", minute = "0"] = time.slice(0, 5).split(":");
+  const totalMinutes = ((Number(hour) * 60 + Number(minute) + minutesToAdd) % 1440 + 1440) % 1440;
+  return `${String(Math.floor(totalMinutes / 60)).padStart(2, "0")}:${String(totalMinutes % 60).padStart(2, "0")}`;
+}
+
+function getPlannerClickAngle(event: MouseEvent<SVGSVGElement>) {
+  const rect = event.currentTarget.getBoundingClientRect();
+  const centerX = rect.left + rect.width / 2;
+  const centerY = rect.top + rect.height / 2;
+  const x = event.clientX - centerX;
+  const y = event.clientY - centerY;
+  return (Math.atan2(y, x) * 180) / Math.PI + 90 + 360;
+}
+
+function getPlannerPoint(angle: number, radius: number, center = 180) {
+  const radians = ((angle - 90) * Math.PI) / 180;
+  return {
+    x: center + radius * Math.cos(radians),
+    y: center + radius * Math.sin(radians),
+  };
+}
+
+function getPlannerArcPath(startAngle: number, endAngle: number, innerRadius = 72, outerRadius = 168) {
+  const normalizedEndAngle = endAngle <= startAngle ? endAngle + 360 : endAngle;
+  const sweep = normalizedEndAngle - startAngle;
+  const largeArcFlag = sweep > 180 ? 1 : 0;
+  const startOuter = getPlannerPoint(startAngle, outerRadius);
+  const endOuter = getPlannerPoint(normalizedEndAngle, outerRadius);
+  const startInner = getPlannerPoint(startAngle, innerRadius);
+  const endInner = getPlannerPoint(normalizedEndAngle, innerRadius);
+
+  return [
+    `M ${startOuter.x} ${startOuter.y}`,
+    `A ${outerRadius} ${outerRadius} 0 ${largeArcFlag} 1 ${endOuter.x} ${endOuter.y}`,
+    `L ${endInner.x} ${endInner.y}`,
+    `A ${innerRadius} ${innerRadius} 0 ${largeArcFlag} 0 ${startInner.x} ${startInner.y}`,
+    "Z",
+  ].join(" ");
+}
+
+function getPlannerLabelPoint(startAngle: number, endAngle: number) {
+  const normalizedEndAngle = endAngle <= startAngle ? endAngle + 360 : endAngle;
+  return getPlannerPoint(startAngle + (normalizedEndAngle - startAngle) / 2, 120);
+}
+
 function App() {
   if (!isSupabaseConfigured) {
     return <SetupRequired />;
@@ -302,6 +386,17 @@ function DashboardApp() {
   const [todoEndTime, setTodoEndTime] = useState("10:00");
   const [todoGoalId, setTodoGoalId] = useState("");
   const [todoModalOpen, setTodoModalOpen] = useState(false);
+  const [todayTaskView, setTodayTaskView] = useState<TodayTaskView>(DEFAULT_TODAY_TASK_VIEW);
+  const [savedTodayTaskView, setSavedTodayTaskView] = useState<TodayTaskView>(DEFAULT_TODAY_TASK_VIEW);
+  const [todaySectionOrder, setTodaySectionOrder] = useState<TodaySectionId[]>(() => [
+    ...DEFAULT_TODAY_SECTION_ORDER,
+  ]);
+  const [draftTodaySectionOrder, setDraftTodaySectionOrder] = useState<TodaySectionId[]>(() => [
+    ...DEFAULT_TODAY_SECTION_ORDER,
+  ]);
+  const [sectionOrderEditing, setSectionOrderEditing] = useState(false);
+  const [draggingSectionId, setDraggingSectionId] = useState<TodaySectionId | null>(null);
+  const [selectedPlannerTodoId, setSelectedPlannerTodoId] = useState<string | null>(null);
   const [sessionTodoModalOpen, setSessionTodoModalOpen] = useState(false);
   const [sessionTodoStartRequest, setSessionTodoStartRequest] = useState<{ cameraReadyOverride: boolean } | null>(null);
   const [selectedSessionTodoIds, setSelectedSessionTodoIds] = useState<string[]>([]);
@@ -526,6 +621,18 @@ function DashboardApp() {
     () => studyTodos.filter((todo) => todo.local_date === todayDateKey),
     [studyTodos, todayDateKey],
   );
+  const dailyPlanner = useMemo(
+    () => buildDailyPlannerSegments(todayTodos, todayDateKey),
+    [todayTodos, todayDateKey],
+  );
+  const selectedPlannerSegment = useMemo(
+    () =>
+      dailyPlanner.segments.find((segment) => segment.id === selectedPlannerTodoId) ??
+      dailyPlanner.segments[0] ??
+      null,
+    [dailyPlanner.segments, selectedPlannerTodoId],
+  );
+  const renderedTodaySectionOrder = sectionOrderEditing ? draftTodaySectionOrder : todaySectionOrder;
   const incompleteTodayTodos = useMemo(
     () => getIncompleteTodayTodos(studyTodos, todayDateKey),
     [studyTodos, todayDateKey],
@@ -1110,9 +1217,21 @@ function DashboardApp() {
     ]);
 
     if (profileData) {
-      setProfile(profileData);
+      const typedProfile = profileData as Profile;
+      const normalizedTaskView = normalizeTodayTaskView(typedProfile.today_task_view);
+      const normalizedSectionOrder = normalizeTodaySectionOrder(typedProfile.today_section_order);
+      setProfile(typedProfile);
       setReminderTime(profileData.reminder_time.slice(0, 5));
       setEmailRemindersEnabled(profileData.email_reminders_enabled ?? true);
+      setTodayTaskView(normalizedTaskView);
+      setSavedTodayTaskView(normalizedTaskView);
+      setTodaySectionOrder(normalizedSectionOrder);
+      setDraftTodaySectionOrder(normalizedSectionOrder);
+    } else {
+      setTodayTaskView(DEFAULT_TODAY_TASK_VIEW);
+      setSavedTodayTaskView(DEFAULT_TODAY_TASK_VIEW);
+      setTodaySectionOrder([...DEFAULT_TODAY_SECTION_ORDER]);
+      setDraftTodaySectionOrder([...DEFAULT_TODAY_SECTION_ORDER]);
     }
     setAttendanceDays(attendanceData ?? []);
     setStudySessions(sessionData ?? []);
@@ -1145,6 +1264,122 @@ function DashboardApp() {
   function closeTodoModal() {
     setTodoModalOpen(false);
     setEditingTodoId(null);
+  }
+
+  function openPlannerTodoCreate(startTime: string) {
+    const normalizedStartTime = startTime.slice(0, 5);
+    setSelectedTodoDate(todayDateKey);
+    setCalendarMonth(todayDateKey.slice(0, 7));
+    resetTodoDraftForDate(todayDateKey);
+    setTodoTimeEnabled(true);
+    setTodoStartTime(normalizedStartTime);
+    setTodoEndTime(addMinutesToTime(normalizedStartTime, 60));
+    setTodoModalOpen(true);
+  }
+
+  function openPlannerTodoFromClick(event: MouseEvent<SVGSVGElement>) {
+    openPlannerTodoCreate(plannerAngleToTime(getPlannerClickAngle(event)));
+  }
+
+  function getTodaySectionSortOrder(sectionId: TodaySectionId) {
+    const sectionIndex = renderedTodaySectionOrder.indexOf(sectionId);
+    return (sectionIndex >= 0 ? sectionIndex + 1 : 1) * 10;
+  }
+
+  function moveDraftTodaySection(sectionId: TodaySectionId, direction: "up" | "down") {
+    setDraftTodaySectionOrder((current) => moveTodaySection(current, sectionId, direction));
+  }
+
+  function dropDraftTodaySection(targetSectionId: TodaySectionId) {
+    if (!draggingSectionId || draggingSectionId === targetSectionId) {
+      setDraggingSectionId(null);
+      return;
+    }
+
+    setDraftTodaySectionOrder((current) => {
+      const normalized = normalizeTodaySectionOrder(current).filter((sectionId) => sectionId !== draggingSectionId);
+      const targetIndex = normalized.indexOf(targetSectionId);
+      if (targetIndex < 0) {
+        return normalizeTodaySectionOrder(current);
+      }
+      const next = [...normalized];
+      next.splice(targetIndex, 0, draggingSectionId);
+      return normalizeTodaySectionOrder(next);
+    });
+    setDraggingSectionId(null);
+  }
+
+  async function saveTodayTaskViewPreference() {
+    if (!session?.user.id) return;
+
+    setBusy(true);
+    const { error } = await supabase.from("profiles").upsert({
+      user_id: session.user.id,
+      email: session.user.email ?? profile?.email ?? null,
+      reminder_time: profile?.reminder_time ?? reminderTime,
+      time_zone: profile?.time_zone ?? Intl.DateTimeFormat().resolvedOptions().timeZone,
+      email_reminders_enabled: profile?.email_reminders_enabled ?? emailRemindersEnabled,
+      today_task_view: todayTaskView,
+    });
+    setBusy(false);
+
+    if (error) {
+      setMessage(error.message);
+      return;
+    }
+
+    setSavedTodayTaskView(todayTaskView);
+    setProfile((current) => ({
+      user_id: session.user.id,
+      email: session.user.email ?? current?.email ?? null,
+      time_zone: current?.time_zone ?? Intl.DateTimeFormat().resolvedOptions().timeZone,
+      reminder_time: current?.reminder_time ?? reminderTime,
+      email_reminders_enabled: current?.email_reminders_enabled ?? emailRemindersEnabled,
+      today_task_view: todayTaskView,
+      today_section_order: current?.today_section_order ?? todaySectionOrder,
+    }));
+    setMessage("오늘 할 일 보기를 고정했습니다.");
+  }
+
+  async function saveTodaySectionOrderPreference() {
+    if (!session?.user.id) return;
+
+    const normalizedOrder = normalizeTodaySectionOrder(draftTodaySectionOrder);
+    setBusy(true);
+    const { error } = await supabase.from("profiles").upsert({
+      user_id: session.user.id,
+      email: session.user.email ?? profile?.email ?? null,
+      reminder_time: profile?.reminder_time ?? reminderTime,
+      time_zone: profile?.time_zone ?? Intl.DateTimeFormat().resolvedOptions().timeZone,
+      email_reminders_enabled: profile?.email_reminders_enabled ?? emailRemindersEnabled,
+      today_section_order: normalizedOrder,
+    });
+    setBusy(false);
+
+    if (error) {
+      setMessage(error.message);
+      return;
+    }
+
+    setTodaySectionOrder(normalizedOrder);
+    setDraftTodaySectionOrder(normalizedOrder);
+    setSectionOrderEditing(false);
+    setProfile((current) => ({
+      user_id: session.user.id,
+      email: session.user.email ?? current?.email ?? null,
+      time_zone: current?.time_zone ?? Intl.DateTimeFormat().resolvedOptions().timeZone,
+      reminder_time: current?.reminder_time ?? reminderTime,
+      email_reminders_enabled: current?.email_reminders_enabled ?? emailRemindersEnabled,
+      today_task_view: current?.today_task_view ?? savedTodayTaskView,
+      today_section_order: normalizedOrder,
+    }));
+    setMessage("오늘 화면 순서를 저장했습니다.");
+  }
+
+  function cancelTodaySectionOrderEditing() {
+    setDraftTodaySectionOrder(todaySectionOrder);
+    setDraggingSectionId(null);
+    setSectionOrderEditing(false);
   }
 
   function startTodoEditing(todo: StudyTodo) {
@@ -1808,6 +2043,8 @@ function DashboardApp() {
       time_zone: nextTimeZone,
       reminder_time: nextReminderTime,
       email_reminders_enabled: emailRemindersEnabled,
+      today_task_view: current?.today_task_view ?? savedTodayTaskView,
+      today_section_order: current?.today_section_order ?? todaySectionOrder,
     }));
     setReminderTime(nextReminderTime);
     setAlarmEditing(false);
@@ -2470,6 +2707,230 @@ function DashboardApp() {
     );
   }
 
+  function renderDailyPlanner() {
+    const hasOverlap = dailyPlanner.segments.some((segment) => segment.overlaps);
+
+    return (
+      <div className="daily-planner">
+        <div className="daily-planner-layout">
+          <div className="planner-wheel-card">
+            <svg
+              className="planner-wheel"
+              viewBox="0 0 360 360"
+              role="img"
+              aria-label="24시간 생활계획표"
+              onClick={openPlannerTodoFromClick}
+            >
+              <circle className="planner-wheel-bg" cx="180" cy="180" r="168" />
+              <circle className="planner-wheel-inner" cx="180" cy="180" r="72" />
+              {[0, 90, 180, 270].map((angle) => {
+                const outer = getPlannerPoint(angle, 171);
+                const inner = getPlannerPoint(angle, 74);
+                return (
+                  <line
+                    className="planner-hour-line"
+                    key={angle}
+                    x1={inner.x}
+                    y1={inner.y}
+                    x2={outer.x}
+                    y2={outer.y}
+                  />
+                );
+              })}
+              {[
+                { label: "12AM", angle: 0 },
+                { label: "6AM", angle: 90 },
+                { label: "12PM", angle: 180 },
+                { label: "6PM", angle: 270 },
+              ].map((mark) => {
+                const point = getPlannerPoint(mark.angle, 150);
+                return (
+                  <text className="planner-hour-label" key={mark.label} x={point.x} y={point.y}>
+                    {mark.label}
+                  </text>
+                );
+              })}
+              {dailyPlanner.segments.map((segment: DailyPlannerSegment<StudyTodo>) => {
+                const labelPoint = getPlannerLabelPoint(segment.startAngle, segment.endAngle);
+                const shortTitle = segment.title.length > 8 ? `${segment.title.slice(0, 8)}...` : segment.title;
+                return (
+                  <g
+                    className={`planner-segment ${segment.overlaps ? "planner-segment-overlap" : ""}`}
+                    key={segment.id}
+                    onMouseEnter={() => setSelectedPlannerTodoId(segment.id)}
+                    onFocus={() => setSelectedPlannerTodoId(segment.id)}
+                  >
+                    <path
+                      d={getPlannerArcPath(segment.startAngle, segment.endAngle)}
+                      fill={segment.color}
+                      role="button"
+                      tabIndex={0}
+                      aria-label={`${segment.title} 편집`}
+                      onClick={(event) => {
+                        event.stopPropagation();
+                        startTodoEditing(segment.todo);
+                      }}
+                      onKeyDown={(event) => {
+                        if (event.key === "Enter" || event.key === " ") {
+                          event.preventDefault();
+                          startTodoEditing(segment.todo);
+                        }
+                      }}
+                    />
+                    <text className="planner-segment-label" x={labelPoint.x} y={labelPoint.y}>
+                      {shortTitle}
+                    </text>
+                  </g>
+                );
+              })}
+              <circle className="planner-wheel-pin" cx="180" cy="180" r="11" />
+            </svg>
+            <button
+              className="secondary compact-action planner-quick-add"
+              type="button"
+              onClick={() => openPlannerTodoCreate("09:00")}
+            >
+              <Plus size={16} />
+              일정 추가
+            </button>
+          </div>
+
+          <div className="planner-detail-panel">
+            {selectedPlannerSegment ? (
+              <>
+                <p className="eyebrow">selected plan</p>
+                <h3>{selectedPlannerSegment.title}</h3>
+                <p>
+                  {selectedPlannerSegment.startTime} - {selectedPlannerSegment.endTime}
+                  {selectedPlannerSegment.todo.is_completed ? " · 완료" : " · 미완료"}
+                </p>
+                {selectedPlannerSegment.overlaps && (
+                  <strong className="planner-overlap-note">시간 겹침이 있습니다.</strong>
+                )}
+                <div className="planner-detail-actions">
+                  <button className="secondary compact-action" type="button" onClick={() => startTodoEditing(selectedPlannerSegment.todo)}>
+                    <Pencil size={16} />
+                    수정
+                  </button>
+                  <button className="secondary compact-action" type="button" onClick={() => void toggleTodo(selectedPlannerSegment.todo)}>
+                    <CheckCircle2 size={16} />
+                    완료 체크
+                  </button>
+                  <button className="todo-delete" type="button" onClick={() => void deleteTodo(selectedPlannerSegment.todo.id)}>
+                    <Trash2 size={16} />
+                  </button>
+                </div>
+              </>
+            ) : (
+              <>
+                <p className="eyebrow">selected plan</p>
+                <h3>시간 있는 할 일이 없습니다.</h3>
+                <p>원형 빈 시간대를 누르면 해당 시간으로 새 할 일을 만들 수 있습니다.</p>
+              </>
+            )}
+            {hasOverlap && <p className="planner-help">점선 테두리는 서로 겹치는 일정입니다.</p>}
+          </div>
+        </div>
+
+        <div className="planner-unscheduled">
+          <div className="todo-header compact">
+            <div>
+              <p className="eyebrow">no time</p>
+              <h3>시간 없는 할 일</h3>
+            </div>
+            <button className="secondary compact-action" type="button" onClick={() => selectTodoDate(todayDateKey)}>
+              <Plus size={16} />
+              추가
+            </button>
+          </div>
+          {renderTodoList(dailyPlanner.unscheduledTodos, "시간 없는 할 일이 없습니다.")}
+        </div>
+      </div>
+    );
+  }
+
+  function renderTodaySectionOrderEditor() {
+    if (!sectionOrderEditing) {
+      return (
+        <section className="section-order-toolbar today-ordered-section" style={{ order: 0 }}>
+          <button
+            className="secondary compact-action"
+            type="button"
+            onClick={() => {
+              setDraftTodaySectionOrder(todaySectionOrder);
+              setSectionOrderEditing(true);
+            }}
+          >
+            <GripVertical size={16} />
+            화면 순서 편집
+          </button>
+        </section>
+      );
+    }
+
+    return (
+      <section className="section-order-editor today-ordered-section" style={{ order: 0 }}>
+        <div className="history-header">
+          <div>
+            <p className="eyebrow">dashboard order</p>
+            <h2>오늘 화면 순서 편집</h2>
+          </div>
+          <div className="section-order-actions">
+            <button className="primary compact-action" type="button" onClick={saveTodaySectionOrderPreference} disabled={busy}>
+              <Save size={16} />
+              순서 저장
+            </button>
+            <button className="secondary compact-action" type="button" onClick={cancelTodaySectionOrderEditing}>
+              <X size={16} />
+              취소
+            </button>
+          </div>
+        </div>
+        <div className="section-order-list" aria-label="오늘 화면 섹션 순서">
+          {draftTodaySectionOrder.map((sectionId, index) => (
+            <div
+              className={`section-order-row ${draggingSectionId === sectionId ? "section-order-row-dragging" : ""}`}
+              draggable
+              key={sectionId}
+              onDragStart={() => setDraggingSectionId(sectionId)}
+              onDragEnd={() => setDraggingSectionId(null)}
+              onDragOver={(event) => event.preventDefault()}
+              onDrop={(event) => {
+                event.preventDefault();
+                dropDraftTodaySection(sectionId);
+              }}
+            >
+              <span className="section-order-handle" aria-hidden="true">
+                <GripVertical size={18} />
+              </span>
+              <strong>{todaySectionLabels[sectionId]}</strong>
+              <div className="section-order-move">
+                <button
+                  className="secondary icon-action"
+                  type="button"
+                  aria-label={`${todaySectionLabels[sectionId]} 위로 이동`}
+                  disabled={index === 0}
+                  onClick={() => moveDraftTodaySection(sectionId, "up")}
+                >
+                  <ArrowUp size={16} />
+                </button>
+                <button
+                  className="secondary icon-action"
+                  type="button"
+                  aria-label={`${todaySectionLabels[sectionId]} 아래로 이동`}
+                  disabled={index === draftTodaySectionOrder.length - 1}
+                  onClick={() => moveDraftTodaySection(sectionId, "down")}
+                >
+                  <ArrowDown size={16} />
+                </button>
+              </div>
+            </div>
+          ))}
+        </div>
+      </section>
+    );
+  }
+
   function renderSessionTodoList() {
     if (!activeSession) {
       return null;
@@ -2706,8 +3167,10 @@ function DashboardApp() {
       </aside>
 
       <section className="workspace">
+        {activeSection === "today" && renderTodaySectionOrderEditor()}
+
         {activeSection === "today" && (
-          <header className="topbar">
+          <header className="topbar today-ordered-section" style={{ order: getTodaySectionSortOrder("topbar") }}>
             <div className="topbar-head">
               <div>
                 <p className="eyebrow">deadline rule</p>
@@ -2817,7 +3280,12 @@ function DashboardApp() {
         )}
 
         {activeSection === "today" && blockingRecoveryRequests.length > 0 && (
-          <section className="recovery-blocker" role="status" aria-live="polite">
+          <section
+            className="recovery-blocker today-ordered-section"
+            style={{ order: getTodaySectionSortOrder("topbar") + 1 }}
+            role="status"
+            aria-live="polite"
+          >
             <div>
               <p className="eyebrow">recovery required</p>
               <h3>회복 루틴 필요</h3>
@@ -2843,10 +3311,21 @@ function DashboardApp() {
           </section>
         )}
 
-        {message && <p className="message">{message}</p>}
+        {message && (
+          <p
+            className="message"
+            style={activeSection === "today" ? { order: getTodaySectionSortOrder("topbar") + 2 } : undefined}
+          >
+            {message}
+          </p>
+        )}
 
         {activeSection === "today" && (
-        <section id="today" className="history-panel">
+        <section
+          id="today"
+          className="history-panel today-ordered-section"
+          style={{ order: getTodaySectionSortOrder("attendance") }}
+        >
           <div className="history-header">
             <div>
               <p className="eyebrow">attendance map</p>
@@ -3480,7 +3959,10 @@ function DashboardApp() {
         )}
 
         {activeSection === "today" && (
-        <section className="daily-visual" aria-label="집중 세션 카메라 감시와 목표 진행률">
+        <section className="daily-visual"
+          style={{ order: getTodaySectionSortOrder("focus") }}
+          aria-label="집중 세션 카메라 감시와 목표 진행률"
+        >
           <div className="focus-control">
             <div className="progress-block">
               <div className="progress-track">
@@ -3532,7 +4014,10 @@ function DashboardApp() {
         )}
 
         {activeSection === "today" && (
-        <section className="today-task-panel" aria-label="오늘 할 일">
+        <section className="today-task-panel"
+          style={{ order: getTodaySectionSortOrder("tasks") }}
+          aria-label="오늘 할 일"
+        >
           <div className="todo-header">
             <div>
               <p className="eyebrow">today tasks</p>
@@ -3540,10 +4025,41 @@ function DashboardApp() {
             </div>
             <strong>{todayTodoStats.percent}% 달성</strong>
           </div>
+          <div className="task-view-switcher" aria-label="오늘 할 일 보기 방식">
+            <button
+              className={todayTaskView === "checklist" ? "selected" : ""}
+              type="button"
+              aria-pressed={todayTaskView === "checklist"}
+              onClick={() => setTodayTaskView("checklist")}
+            >
+              <ListChecks size={16} />
+              체크리스트
+            </button>
+            <button
+              className={todayTaskView === "planner" ? "selected" : ""}
+              type="button"
+              aria-pressed={todayTaskView === "planner"}
+              onClick={() => setTodayTaskView("planner")}
+            >
+              <CalendarDays size={16} />
+              생활계획표
+            </button>
+            <button
+              className="secondary compact-action"
+              type="button"
+              onClick={saveTodayTaskViewPreference}
+              disabled={busy || todayTaskView === savedTodayTaskView}
+            >
+              <Pin size={16} />
+              {todayTaskView === savedTodayTaskView ? "고정됨" : "고정"}
+            </button>
+          </div>
           <div className="todo-progress-track">
             <span className="todo-progress-fill" style={{ width: `${todayTodoStats.percent}%` }} />
           </div>
-          {renderTodoList(todayTodos, "오늘 할 일이 없습니다. 캘린더에서 오늘 날짜를 눌러 추가하세요.")}
+          {todayTaskView === "planner"
+            ? renderDailyPlanner()
+            : renderTodoList(todayTodos, "오늘 할 일이 없습니다. 캘린더에서 오늘 날짜를 눌러 추가하세요.")}
         </section>
         )}
 

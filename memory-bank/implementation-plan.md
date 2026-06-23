@@ -35,6 +35,17 @@
 - Camera absence enforcement: if no upper body pose is detected for 5 minutes, the web app sends an in-app/Slack warning. If the user is still absent 5 minutes after that warning, the web timer enters auto-pause and excludes only the paused interval from displayed and saved study time.
 - Camera monitor UI: the top summary cards are the single source for today's study time and monthly accumulated time. The camera section does not render a second timer; it shows goal progress, one camera status line, a larger local preview, the camera control, and a compact client-only diagnosis strip for support, permission, stream, frame, absence, loading, paused, and healthy states.
 
+## Daily Planner Dashboard Notes
+
+- Today task views: the Today task card supports `checklist` and `planner`. The planner is a browser-rendered SVG life planner built from already loaded `study_todos`.
+- Planner data source: timed todos use `study_todos.start_time` and `study_todos.end_time`; untimed todos remain in a separate list below the wheel. Overnight todos wrap across midnight and overlapping todos show a warning state.
+- Planner interactions: clicking an empty wheel area opens the existing todo modal with a default one-hour time block; clicking a segment opens the same modal for editing that todo.
+- Preference storage: `profiles.today_task_view` stores the pinned task view, and `profiles.today_section_order` stores the Today section order for `topbar`, `attendance`, `focus`, and `tasks`.
+- Client helpers: daily-planner math belongs in `apps/web/src/dailyPlanner.mjs`; task-view and section-order normalization belongs in `apps/web/src/dashboardLayout.mjs`.
+- API shape: no new server API is required. The web app persists preferences through Supabase Data API upsert on `profiles`.
+- DB shape: migration `20260623131001_dashboard_planner_preferences.sql` adds the two `profiles` columns and constraints.
+- Tests: use `apps/web/test/dailyPlanner.test.mjs`, `apps/web/test/dashboardLayout.test.mjs`, and SQL migration coverage in `packages/core/test/sql-migrations.test.mjs`.
+
 ## Tech Stack
 
 - Vite React

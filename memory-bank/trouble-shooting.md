@@ -1,5 +1,35 @@
 # Trouble Shooting
 
+## 2026-06-23 - Camera source tests failed after adding layout-order classes
+
+### Situation
+
+While wiring the Today dashboard section order editor, the camera layout source tests failed even though the camera UI behavior had not changed.
+
+### Error Message
+
+```txt
+AssertionError [ERR_ASSERTION]: assert.ok(sectionStart > 0)
+AssertionError [ERR_ASSERTION]: The input did not match the regular expression /camera-diagnostic/. Input: ''
+```
+
+### Cause
+
+`apps/web/test/cameraPresence.test.mjs` locates the Today Focus block by searching for the literal source string `<section className="daily-visual"` and the following `<section className="today-task-panel"`. Changing those opening tags to multiline tags or changing the literal class start to `daily-visual today-ordered-section` made the source slice empty.
+
+### Fix
+
+Kept the original `className="daily-visual"` and `className="today-task-panel"` literals intact, and applied dashboard section ordering through inline `style.order` instead of adding an extra class to those two sections.
+
+### Related Files
+
+* `apps/web/src/main.tsx`
+* `apps/web/test/cameraPresence.test.mjs`
+
+### Prevention
+
+Before changing Today Focus or Today Task section opening tags, check source-based tests that use `indexOf()` against literal JSX strings. Prefer preserving those literals or update the test intentionally in the same change.
+
 ## 2026-06-23 - Same-day missed recovery did not block study
 
 ### Situation

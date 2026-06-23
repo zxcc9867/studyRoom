@@ -2,6 +2,52 @@
 
 ## Current Work
 
+- Task: Daily planner task view and Today dashboard order personalization.
+- Purpose: Let the user view today's timed todos as an Animal Crossing-style circular life planner and customize the order of Today sections.
+- Related PRD:
+  - `memory-bank/prd-daily-planner-dashboard.md`
+- Related files:
+  - `apps/web/src/main.tsx`
+  - `apps/web/src/styles.css`
+  - `apps/web/src/dailyPlanner.mjs`
+  - `apps/web/src/dailyPlanner.d.mts`
+  - `apps/web/test/dailyPlanner.test.mjs`
+  - `apps/web/src/dashboardLayout.mjs`
+  - `apps/web/src/dashboardLayout.d.mts`
+  - `apps/web/test/dashboardLayout.test.mjs`
+  - `packages/core/test/sql-migrations.test.mjs`
+  - `supabase/migrations/20260623131001_dashboard_planner_preferences.sql`
+
+## Recent Decisions
+
+- Decision: Reuse existing `study_todos` for the circular planner instead of introducing a new schedule table.
+- Reason: The app already stores dated todos with optional start/end times, repeat metadata, completion state, and goal links.
+- Alternative: Create a separate daily schedule table; rejected because it would duplicate todo state and complicate reminders.
+- Impact: Checklist and planner stay in sync automatically because both render the same todo rows.
+
+- Decision: Store user UI preferences on `profiles`.
+- Reason: `profiles` is already user-scoped and loaded at dashboard startup.
+- Alternative: Store preferences only in localStorage; rejected because the user wants the setting to survive next login and device changes.
+- Impact: Migration adds `today_task_view` and `today_section_order` with constraints.
+
+## Current Status
+
+- Completed: Added RED tests for planner math, task view normalization, section order normalization, and profile migration coverage.
+- Completed: Added `dailyPlanner.mjs` and `dashboardLayout.mjs`.
+- Completed: Wired the Today task card to switch between checklist and circular planner views.
+- Completed: Added planner click-to-create and segment click-to-edit using the existing todo modal.
+- Completed: Added task view pinning through `profiles.today_task_view`.
+- Completed: Added Today section order editor with drag-and-drop and up/down buttons, saved through `profiles.today_section_order`.
+- Completed: `node --test apps\web\test\dailyPlanner.test.mjs apps\web\test\dashboardLayout.test.mjs apps\web\test\cameraPresence.test.mjs packages\core\test\sql-migrations.test.mjs` passed.
+- Completed: `npm.cmd --workspace apps/web run build` passed.
+- In progress: Apply Supabase migration, run full verification, commit, push, and Vercel deploy.
+
+## Notes
+
+- Existing source tests expect the literal `className="daily-visual"` and `className="today-task-panel"` strings, so section ordering is applied with inline `style.order` while preserving those class names.
+
+## Current Work
+
 - Task: Hard block pending recovery routines.
 - Purpose: Align the web app and Supabase RPC with the Slack recovery message so users cannot keep studying while any recovery routine is pending.
 - Related PRD:

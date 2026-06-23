@@ -2,6 +2,57 @@
 
 ## Timeline
 
+### 2026-06-23 - Daily planner view and Today dashboard order
+
+#### Completed Work
+
+- Added a checklist/planner view switcher to the Today task card.
+- Added a circular SVG daily planner that renders timed `study_todos` as 24-hour wheel segments.
+- Kept untimed todos visible in a separate planner list.
+- Reused the existing todo modal for planner click-to-create and segment click-to-edit.
+- Added a task-view pin button that stores `profiles.today_task_view`.
+- Added a Today section order editor with drag-and-drop and up/down buttons.
+- Added `profiles.today_section_order` support for persisted Today layout order.
+- Added helper tests for planner segment math, overnight schedules, untimed todos, overlaps, task view normalization, and section order normalization.
+- Added SQL migration coverage for the new profile preference columns.
+
+#### Changed Files
+
+- `apps/web/src/main.tsx`
+- `apps/web/src/styles.css`
+- `apps/web/src/dailyPlanner.mjs`
+- `apps/web/src/dailyPlanner.d.mts`
+- `apps/web/test/dailyPlanner.test.mjs`
+- `apps/web/src/dashboardLayout.mjs`
+- `apps/web/src/dashboardLayout.d.mts`
+- `apps/web/test/dashboardLayout.test.mjs`
+- `packages/core/test/sql-migrations.test.mjs`
+- `supabase/migrations/20260623131001_dashboard_planner_preferences.sql`
+- `memory-bank/prd-daily-planner-dashboard.md`
+- `memory-bank/design-document.md`
+- `memory-bank/implementation-plan.md`
+- `memory-bank/active-context.md`
+- `memory-bank/progress.md`
+- `memory-bank/trouble-shooting.md`
+
+#### Verification
+
+- RED: planner/dashboard preference tests failed before `dailyPlanner.mjs`, `dashboardLayout.mjs`, and the migration existed.
+- GREEN: `node --test apps\web\test\dailyPlanner.test.mjs apps\web\test\dashboardLayout.test.mjs packages\core\test\sql-migrations.test.mjs` passed.
+- GREEN: `node --test apps\web\test\dailyPlanner.test.mjs apps\web\test\dashboardLayout.test.mjs apps\web\test\cameraPresence.test.mjs packages\core\test\sql-migrations.test.mjs` passed.
+- GREEN: `npm.cmd --workspace apps/web run build` passed.
+- Pending: `npm.cmd test`, Supabase migration apply, commit/push, Vercel production deployment and HTTP check.
+
+#### Remaining Work
+
+- Apply `20260623131001_dashboard_planner_preferences.sql` to Supabase project `bqohkdzvxbrokkmuhysx`.
+- Run full test/build verification.
+- Commit, push, and verify Vercel production deployment.
+
+#### Next Priority
+
+- Production smoke-test planner view pinning, wheel click-to-create, segment click-to-edit, and section order save.
+
 ### 2026-06-23 - Hard block pending recovery routines
 
 #### 완료한 작업
