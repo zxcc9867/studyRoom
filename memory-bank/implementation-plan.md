@@ -8,16 +8,19 @@
 - Optional AWS scheduler: EventBridge + Lambda can invoke the same Supabase Edge Function when AWS-managed scheduling is preferred.
 - Backend: Supabase remains responsible for Auth, DB, RLS, notification targets, attendance decisions, and actual push/email dispatch.
 - Auth session persistence: the browser Supabase client stores the Supabase session under `study-room-attendance-auth-session` with `persistSession=true` and `autoRefreshToken=true`. OAuth URL handling stays manual with `detectSessionInUrl=false`.
-- Study session refresh persistence: browser lifecycle events such as `visibilitychange`, `pagehide`, and `beforeunload` do not end active study sessions. Explicit `종료` remains the reliable session-end action, and active sessions continue to be restored from Supabase after refresh.
+- Study session refresh persistence: browser lifecycle events such as `visibilitychange`, `pagehide`, and `beforeunload` do not end active study sessions. Active sessions continue to be restored from Supabase after refresh.
+- Study session lease: every active web study session has a 2-hour keep-alive lease stored in browser localStorage per user/session. The dashboard shows the remaining lease time and a `세션 유지` button. If the lease expires while the app is open, the app calls `end_study_session` and adds lease-overrun seconds to `p_excluded_seconds` so forgotten time after the deadline is excluded from saved study duration. Existing active sessions without a stored lease fall back to `started_at + 2 hours`.
+- Study session todo links: before a new web study session starts, the app requires the user to choose at least one incomplete todo for the current local date. If no suitable todo was pre-registered, the same session planning modal can quick-add a plain today todo and auto-select it. The selection is persisted in `study_session_todos`, and the active Today Focus card shows only the todos linked to the current session.
 - Kakao notification channel: deprecated for active product behavior. Legacy `kakao_memo` rows and `kakao_message_connections` are retained for history, but enabled targets/connections are disabled and `attendance-cron` no longer sends Kakao Memo messages.
 - Slack notification channel: the web app stores a user-specific Slack Channel ID in `notification_targets.destination`, while Slack Edge Functions read `SLACK_BOT_TOKEN` or fallback alias `STUDY_ALERT_SLACK_BOT_TOKEN` from Edge Function secrets and call Slack Bot API `chat.postMessage`.
-- Slack recovery routines: missed attendance and repeated same-day camera absence create `study_recovery_requests` rows. Pending recovery requests block `start_study_session()` and the web start button until the user submits a Slack modal with a reason, makeup todo, and next-day pledge.
-- In-app recovery routine fallback: the web app opens a recovery modal after login when blocking pending `study_recovery_requests` exist. Same-day `missed_attendance` requests remain visible as soft late-study recovery actions because the user can still recover attendance by completing the daily goal. The app submits reason, makeup todo, and pledge fields through authenticated RPC `submit_study_recovery_request`, immediately marks the submitted request locally, and shows the next remaining blocking request with its date/count so users do not mistake multiple pending requests for a failed submission.
+- Slack recovery routines: missed attendance and repeated same-day camera absence create `study_recovery_requests` rows. Every pending recovery request blocks `start_study_session()` and the web start button until the user submits a Slack or in-app recovery modal with a reason, makeup todo, and next-day pledge.
+- In-app recovery routine fallback: the web app opens a recovery modal after login when pending `study_recovery_requests` exist. Same-day `missed_attendance` requests are no longer soft late-study exceptions; if a pending recovery request is detected while a session is already active, the web app ends that session and requires recovery submission before study can restart. The app submits reason, makeup todo, and pledge fields through authenticated RPC `submit_study_recovery_request`, immediately marks the submitted request locally, and shows the next remaining pending request with its date/count so users do not mistake multiple pending requests for a failed submission.
 - Slack interactivity: `slack-recovery-interactions` is deployed with `verify_jwt=false` and authenticates Slack requests by verifying `X-Slack-Signature` and `X-Slack-Request-Timestamp` with `SLACK_SIGNING_SECRET`. It opens the modal through Slack `views.open` and creates dated `study_todos` on submission.
-- Slack test channel: `slack-test-alarm` is a manually invoked Edge Function. Server/admin calls use `x-cron-secret`; they can either send to a direct `channelId` for setup verification or use the latest enabled Slack target. Browser calls use the logged-in user's Supabase JWT and are limited to that user's Slack target. It sends one test Slack message and records DB delivery results only when a saved target is used.
+- Slack test channel: `slack-test-alarm` is a manually invoked Edge Function. Server/admin calls use `x-cron-secret`; they can either send to a direct `channelId` for setup verification, send a recovery routine test button for a specific `recoveryRequestId`, or use the latest enabled Slack target. Browser calls use the logged-in user's Supabase JWT and are limited to that user's Slack target. It sends one test Slack message and records DB delivery results only when a saved target is used.
 - In-app popup: when the dashboard is open at the configured reminder minute, the web app shows a modal reminder popup. This is separate from OS/browser push and does not work when the browser is closed.
 - In-app popup suppression: if the user already has an active same-day study session at the configured reminder minute, the web app does not show the reminder modal.
 - My Page: the web dashboard uses hash-based client routing (`#me`) to render My Page as a separate SPA page while reusing loaded profile and `study_todos` data to show account summary and completed todo history.
+- Study goals: the web dashboard uses hash-based client routing (`#goals`) to render a dedicated goal page. Goals are stored in `study_goals`, shown as a D-day card in the dashboard topbar, and can be linked to dated `study_todos` through `study_todos.goal_id`.
 - Recurring todos: weekday repetition is materialized into dated `study_todos` rows on save, and each generated weekly row stores lightweight repeat metadata (`repeat_group_id`, `repeat_mode`, `repeat_weekdays`, `repeat_until`) so the group can be edited later from the calendar modal. This keeps reminders, today's tasks, and completed history on the existing date-based data path without adding a separate recurrence-rule table.
 - Scheduled todos: `study_todos` can optionally store `start_time` and `end_time`. If one is present, both must be present. Same-day schedules use `start_time < end_time`; overnight schedules use `end_time < start_time`; equal start/end times are invalid.
 - Reminder todo enrichment: `attendance-cron` loads `study_todos` for each due reminder's `user_id` and `local_date`, then appends a compact `오늘 할 일` summary to server-side notification bodies. The open web app also renders the same date's todos in the reminder popup from already loaded dashboard state.
@@ -79,6 +82,12 @@ apps/web/test/todoRecurrence.test.mjs
 apps/web/src/dashboardRoute.mjs
 apps/web/src/dashboardRoute.d.mts
 apps/web/test/dashboardRoute.test.mjs
+apps/web/src/studyGoals.mjs
+apps/web/src/studyGoals.d.mts
+apps/web/test/studyGoals.test.mjs
+apps/web/src/sessionTodoLinks.mjs
+apps/web/src/sessionTodoLinks.d.mts
+apps/web/test/sessionTodoLinks.test.mjs
 ```
 
 ```txt
@@ -124,7 +133,7 @@ docs/images/study-room-thumbnail.png
 - Scheduled execution is an invoker pattern: AWS only triggers Supabase Edge Function.
 - SPA fallback maps CloudFront `403` and `404` to `/index.html`.
 - Web study sessions are explicitly ended by button click or by true page-exit events using a `keepalive` RPC request. `visibilitychange` from browser tab switching is not a page-exit event and must not end the session.
-- Web study sessions are explicitly ended by the `종료` button. Browser lifecycle events are not used for automatic session end because refresh/reload cannot be reliably distinguished from leaving the page, and ending on refresh caused study time loss.
+- Web study sessions are ended by the explicit `종료` button or by the in-app 2-hour session lease expiry. Browser lifecycle events are not used for automatic session end because refresh/reload cannot be reliably distinguished from leaving the page, and ending on refresh caused study time loss.
 - Auth initialization waits for `supabase.auth.getSession()` before showing the login form, so a stored browser session can restore the dashboard without a misleading login flash.
 
 ## API Conventions
@@ -143,9 +152,11 @@ docs/images/study-room-thumbnail.png
 - Lambda sends `POST` to `AttendanceCronUrl`.
 - Lambda sends `x-cron-secret` header from `CronSecret`.
 - Lambda body includes `source: "aws-eventbridge"` and `triggeredAt`.
-- The page-exit session termination helper remains available for explicit future use, but current browser lifecycle events do not call it. Normal session termination sends `end_study_session` from the explicit `종료` action.
+- The page-exit session termination helper remains available for explicit future use, but current browser lifecycle events do not call it. Normal session termination sends `end_study_session` from the explicit `종료` action or the in-app 2-hour session lease expiry.
 - My Page does not call a new API. It derives completed todo history from `study_todos` already loaded by the dashboard and is selected through the `#me` hash route.
+- Study goals do not call a new server API route. The web app reads and writes `study_goals` through the Supabase Data API, and links existing todos by updating `study_todos.goal_id`.
 - Recurring todo save/edit does not call a new API route. The web app computes target dates locally and inserts, updates, or deletes rows in `study_todos` through Supabase Data API.
+- Session todo linking does not call a new server API route. The web app creates the study session through `start_study_session()` and then inserts selected todo links into `study_session_todos` through the Supabase Data API.
 
 ## Database Conventions
 
@@ -158,7 +169,7 @@ docs/images/study-room-thumbnail.png
 - `notification_targets.kind = 'slack'` stores only the user's Slack Channel ID in `destination`.
 - `notification_targets.kind = 'telegram'` is retained only for legacy delivery history and is disabled by the Slack migration.
 - `start_study_session()` creates a `study_sessions` row at any start time, but it only marks `attendance_days.status = 'present'` when the current timestamp is between the effective `reminder_at` and `deadline_at`.
-- `start_study_session()` blocks pending recovery requests except same-day `missed_attendance` requests. Same-day missed-attendance recovery must allow a late study session so the daily study-goal path can convert the day back to `present`.
+- `start_study_session()` blocks all pending recovery requests, including same-day `missed_attendance` requests. The Slack message and app behavior must match: users must submit the recovery routine before another session can start.
 - Timer starts before the configured reminder time must not create a `present` attendance row, because `get_due_reminders()` excludes days that are already `present` or `missed`.
 - Timer starts before the configured reminder time are converted to `attendance_days.status = 'present'` by `get_due_reminders()` at the reminder minute only when the session spans the reminder timestamp.
 - Attendance deadline is `reminder_at + interval '30 minutes'`. Timer starts qualify only when `started_at >= reminder_at` and `started_at < deadline_at`; starts at the exact deadline or later do not qualify through the check-in window, but the day can still become `present` when completed study total reaches the weekday/weekend goal.
@@ -168,8 +179,11 @@ docs/images/study-room-thumbnail.png
 - `study_presence_events.metadata` must not contain `image`, `video`, `frame`, `faceEmbedding`, or `landmarks` keys.
 - Users can select and insert only their own `study_presence_events`; Edge Functions use the service role after validating session ownership.
 - `end_study_session(p_session_id uuid, p_excluded_seconds integer default 0)` stores `duration_seconds` as elapsed seconds minus non-negative excluded seconds. This keeps camera auto-paused absence time out of saved study totals.
-- `end_study_session()` calls `promote_attendance_by_daily_study_total()` after saving duration. If same-day completed study seconds reach `study_attendance_goal_seconds(local_date)`, the function upserts `attendance_days.status = 'present'` and auto-resolves same-day pending `missed_attendance` recovery as `submitted`.
+- `end_study_session()` calls `promote_attendance_by_daily_study_total()` after saving duration. If same-day completed study seconds reach `study_attendance_goal_seconds(local_date)`, the function upserts `attendance_days.status = 'present'`; pending recovery still requires explicit recovery routine submission before another new session can start.
 - `submit_study_recovery_request()` is an authenticated `security definer` RPC in `public` because the existing app RPC path is exposed through Supabase Data API. It must always check `auth.uid()` against the locked `study_recovery_requests.user_id` before creating todos or changing recovery status.
+- `study_goals` stores one row per user goal with `title`, `target_date`, `target_study_seconds`, and `status`. RLS policies restrict select/insert/update/delete to `auth.uid() = user_id`, and the table has explicit authenticated Data API grants.
+- `study_todos.goal_id` is nullable and references `(study_goals.id, study_goals.user_id)` so a todo cannot be linked to another user's goal.
+- `study_session_todos` stores one row per selected session todo with `user_id`, `session_id`, `todo_id`, `linked_at`, and `completed_during_session`. Composite foreign keys reference `(study_sessions.id, study_sessions.user_id)` and `(study_todos.id, study_todos.user_id)` so a user cannot link another user's session or todo. RLS and explicit authenticated grants allow users to manage only their own link rows.
 - Recurring todo rows are stored in `study_todos` with one row per target `local_date`. Weekly rows share `repeat_group_id` and repeat metadata so editing one generated row can update the group, add newly selected dates, and delete removed dates. Duplicate title/date/time rows are skipped in the client before new inserts.
 - Scheduled todo rows use nullable `start_time` and `end_time`; the DB check constraint allows both null or both non-null with `start_time <> end_time`, so overnight schedules such as `23:00` to `01:00` are valid.
 - Todo duplicate filtering uses date, normalized title, and optional time range so the same task title can be scheduled in different time blocks on the same day.
@@ -183,6 +197,10 @@ docs/images/study-room-thumbnail.png
 - Use pure state-machine tests for camera auto-pause, auto-end, and excluded study seconds.
 - Use upper-body pose tests for head/shoulder landmark based seated presence detection.
 - Use pure helper tests for recurring todo date calculation, duplicate filtering, and dashboard hash route parsing.
+- Use pure helper tests for study goal D-day labels, active-goal selection, linked todo filtering, and goal progress calculation.
+- Use pure helper tests for session todo selection gates, link row construction, active-session linked todo lookup, and end-session summary text.
+- Use SQL migration tests for `study_goals` RLS, explicit authenticated grants, and owner-safe todo goal links.
+- Use SQL migration tests for `study_session_todos` RLS, explicit authenticated grants, and user-scoped composite foreign keys.
 - Use SQL/source tests to verify `study_presence_events` RLS and `camera-presence-warning` session ownership checks.
 
 ## Deployment Strategy
@@ -229,6 +247,7 @@ docs/images/study-room-thumbnail.png
 - 마이그레이션 파일: `supabase/migrations/20260618121536_in_app_recovery_submission.sql`, `supabase/migrations/20260618123154_revoke_anon_recovery_submission.sql`
 - 확인 방법: `npm.cmd test`, `npm.cmd run build`, Supabase MCP migration list에서 `in_app_recovery_submission`과 `revoke_anon_recovery_submission` 확인, SQL 권한 확인에서 `anon_can_execute=false`, `authenticated_can_execute=true`, 익명 PostgREST 호출이 `permission denied for function submit_study_recovery_request`로 401 반환
 - 주의 사항: 이 RPC는 Slack 모달을 대체하지 않는다. Slack modal submit과 앱 modal submit 모두 같은 recovery request를 `submitted`로 만들고 같은 todo 생성 효과를 가진다.
+
 ### 2026-06-16
 
 - 변경 대상: `public.profiles`, `public.get_due_reminders`, `public.mark_missed_attendance`, `public.start_study_session`, `public.end_study_session`, `attendance-cron`

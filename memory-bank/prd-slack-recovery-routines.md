@@ -14,8 +14,8 @@ Students using the Slack notification channel who want stronger accountability a
 - Create a pending recovery request after the second same-day camera absence warning.
 - Send a Slack button that opens a recovery modal.
 - Show an in-app recovery modal when a logged-in user opens the app with blocking pending recovery requests.
-- Show same-day missed-attendance recovery as a soft action because same-day late study can still restore attendance after the daily goal is completed.
-- Require reason, today's makeup task, and tomorrow's pledge before another session can start.
+- Treat every pending recovery request as blocking, including same-day missed-attendance requests.
+- Require reason, today's makeup task, and tomorrow's pledge before another session can start or continue.
 - Create dated todos from submitted recovery content.
 - Send one follow-up if the pending request is not submitted for 30 minutes.
 
@@ -50,6 +50,7 @@ Students using the Slack notification channel who want stronger accountability a
 - If the same trigger fires again while a pending request exists, no duplicate pending request is created.
 - If Slack target is missing, the recovery request remains pending but the app modal still lets the logged-in user submit the routine.
 - If the user waits 30 minutes, one follow-up message is sent.
+- If a pending recovery request is detected while a web study session is already active, the app ends that session and opens the recovery modal.
 - If the user dismisses the auto-opened modal, the app still shows a manual `회복 루틴 작성` action while the request remains pending.
 
 ### Error Cases
@@ -69,6 +70,7 @@ Students using the Slack notification channel who want stronger accountability a
 - [x] Add missed-attendance and repeated-camera-absence trigger paths.
 - [x] Add one-time 30-minute follow-up.
 - [x] Show pending recovery in the web app and disable the start button.
+- [x] End an already-active web session when a pending recovery request appears.
 - [x] Add an in-app recovery modal that submits through an authenticated Supabase RPC.
 - [x] Create the same makeup and pledge todos when the app modal is submitted.
 
@@ -91,7 +93,8 @@ Students using the Slack notification channel who want stronger accountability a
 
 - Missed attendance creates exactly one pending recovery request per user/date/trigger.
 - The second same-day absence warning creates exactly one pending camera recovery request.
-- Pending recovery blocks web and RPC session starts.
+- Pending recovery blocks web and RPC session starts, including same-day missed-attendance recovery.
+- Pending recovery stops an already-active web session when the app detects it.
 - Slack modal submission creates two todos and unblocks study start.
 - App modal submission creates the same two todos and unblocks study start.
 

@@ -1,5 +1,42 @@
 # Trouble Shooting
 
+## 2026-06-23 - Same-day missed recovery did not block study
+
+### Situation
+
+After the 21:00 missed-attendance deadline, Slack sent a recovery routine message saying the user must submit reason and makeup plan before the next study session. The web app still allowed a same-day late study session to continue.
+
+### Error Message
+
+```txt
+Slack: 회복 루틴이 아직 제출되지 않았습니다.
+Web symptom: active study timer continued while a missed_attendance recovery request was pending.
+```
+
+### Cause
+
+The previous late-study policy intentionally treated same-day `missed_attendance` recovery requests as a soft action. The web app filtered them out of `blockingRecoveryRequests`, rendered a `lateStudyRecoveryRequests` soft card, and the Supabase `start_study_session()` RPC allowed them with `rr.trigger_type <> 'missed_attendance' or rr.local_date <> v_local_date`.
+
+This contradicted the Slack recovery message and the newer product expectation that recovery submission is mandatory before studying again.
+
+### Fix
+
+Removed the same-day missed-attendance exception. The web app now treats every pending recovery request as blocking, removes the soft late-study card, auto-opens the recovery modal, and ends an already-active web session if pending recovery appears. Supabase migration `20260623123718_hard_block_pending_recovery_requests.sql` redefines `start_study_session()` so any pending recovery request raises `Recovery routine required`.
+
+### Related Files
+
+* `apps/web/src/main.tsx`
+* `apps/web/src/styles.css`
+* `apps/web/test/recoveryRoutine.test.mjs`
+* `apps/web/test/slackNotifications.test.mjs`
+* `packages/core/test/sql-migrations.test.mjs`
+* `supabase/migrations/20260623123718_hard_block_pending_recovery_requests.sql`
+* `memory-bank/prd-slack-recovery-routines.md`
+
+### Prevention
+
+Keep Slack copy, web blockers, and `start_study_session()` policy aligned. If the message says recovery is required before studying, do not add a frontend or RPC exception for late same-day study.
+
 ## 2026-06-20 - Success message banner stayed visible
 
 ### Situation
@@ -29,6 +66,42 @@ Added `appMessage.mjs` to classify success-style messages and wired `main.tsx` t
 ### Prevention
 
 When adding a new transient success `setMessage(...)`, make sure it matches the success-message classifier or use a dedicated typed notification state if message behavior becomes more complex.
+
+## 2026-06-20 - Goal feature deployment blocked by GitHub network and missing Vercel credentials
+
+### Situation
+
+After implementing the study goal D-day dashboard and applying the Supabase migration, local verification passed and commit `9974e2e Add study goal D-day dashboard` was created. The final deployment step could not complete from the current Codex environment.
+
+### Error Message
+
+```txt
+fatal: unable to access 'https://github.com/zxcc9867/studyRoom.git/': Failed to connect to github.com port 443
+Error: No existing credentials found. Please run `vercel login` or pass "--token"
+```
+
+### Cause
+
+The environment could not connect to GitHub over HTTPS, so `git push origin main` could not trigger the GitHub Actions Vercel workflow. Direct Vercel CLI deployment also failed because `VERCEL_TOKEN` was not present in the shell and there was no local Vercel login session.
+
+### Fix
+
+The code, tests, migration, and local commit are complete, and the Supabase migration is already applied to project `bqohkdzvxbrokkmuhysx`. Deployment still requires one of the following:
+
+* Restore GitHub network access and run `git push origin main`.
+* Set `VERCEL_TOKEN` in the shell and run `npx.cmd --cache .\.npm-cache vercel@48.6.0 deploy --prod --yes --token $env:VERCEL_TOKEN`.
+* Run `vercel login` locally, then run `npx.cmd --cache .\.npm-cache vercel@48.6.0 deploy --prod --yes`.
+
+### Related Files
+
+* `apps/web/src/main.tsx`
+* `apps/web/src/studyGoals.mjs`
+* `supabase/migrations/20260620071258_study_goals.sql`
+* `memory-bank/prd-study-goals.md`
+
+### Prevention
+
+Before claiming a Vercel deployment, verify both GitHub push connectivity and one available Vercel credential path. Vercel MCP deployment listing can confirm existing deployments but does not upload this project by itself.
 
 ## 2026-06-18 - Recovery routine looked like it was still required after submission
 
@@ -64,6 +137,126 @@ The web app now sorts pending recovery requests oldest first, auto-opens only bl
 ### Prevention
 
 When multiple pending recovery requests exist, show which date and trigger the user is submitting. Do not infer that a submitted request failed until checking the specific `study_recovery_requests.id` status in Supabase.
+
+## 2026-06-18 - Missed attendance despite perceived pre-deadline start
+
+### Situation
+
+The user reported that 2026-06-18 showed `missed` even though they believed they turned the app on at 20:59 JST, before the 21:00 deadline.
+
+### Error Message
+
+```txt
+User-visible symptom:
+- Attendance calendar 2026-06-18 showed missed.
+- The dashboard also displayed a large today-study value, which made it look as if study time existed for the day.
+```
+
+### Cause
+
+Production Supabase showed the 2026-06-18 attendance row was marked missed at 2026-06-18 12:00 UTC / 21:00 JST, with reminder 20:30 JST and deadline 21:00 JST. There was no `study_sessions` row for 2026-06-18 and no session near the deadline window, so the cron job had no persisted start record to qualify. `daily_completed_study_seconds()` for the day returned 0 against the 7200 second weekday goal.
+
+The large dashboard study time appears to come from an older completed 2026-06-16 session with a very large duration, not from a saved 2026-06-18 start. Opening the app or camera is not enough; attendance requires a successful `start_study_session()` RPC and a persisted `study_sessions` row.
+
+### Fix
+
+No code fix was applied in this diagnosis step. Recommended product fixes:
+
+* Make the UI clearly show "study session saved" only after `start_study_session()` succeeds.
+* Keep the latest two-hour lease and stale-session cleanup behavior visible so old sessions cannot keep confusing today's totals.
+* Consider adding a local warning when the user turns on camera but has not yet created a study session.
+
+### Related Files
+
+* `apps/web/src/main.tsx`
+* `supabase/migrations/0021_late_study_goal_attendance_policy.sql`
+* `supabase/functions/attendance-cron/index.ts`
+
+### Prevention
+
+When debugging attendance failures, first compare `attendance_days`, same-day `study_sessions`, and `daily_completed_study_seconds()`. Do not infer a successful start from camera state or a dashboard timer alone.
+
+## 2026-06-17 - Previous-day active session kept today's status pending
+
+### Situation
+
+The user pressed `입장하고 시작`, but the attendance calendar still showed today's date as `대기`. The top summary also showed an abnormally large `오늘 공부` value.
+
+### Error Message
+
+```txt
+User-visible symptoms:
+- Attendance calendar date 2026-06-17 remained `대기`.
+- Top summary showed more than 21 hours of today study time.
+- Supabase showed an active study_sessions row from 2026-06-16 with ended_at = null.
+```
+
+### Cause
+
+The app intentionally stopped ending sessions on `pagehide`, `beforeunload`, or `visibilitychange` to avoid losing study time on refresh or tab switches. That preserved active sessions, but it also let forgotten sessions remain `active` across days. The dashboard selected the latest `status = 'active'` row regardless of local date, and `todaySeconds` added its elapsed time even when `activeSession.local_date` was not today's date.
+
+### Fix
+
+Added a two-hour in-app session lease. Active sessions now have a per-user/per-session localStorage deadline, the UI shows a countdown and `세션 유지` button, and expired sessions automatically call `end_study_session`. If an old active session has no stored lease, the app falls back to `started_at + 2 hours`, so previous-day abandoned sessions auto-end after load. The dashboard also only adds active elapsed time to today's summary when the active row's `local_date` matches today's local date.
+
+### Related Files
+
+* `apps/web/src/main.tsx`
+* `apps/web/src/sessionLease.mjs`
+* `apps/web/test/sessionLease.test.mjs`
+
+### Prevention
+
+Refresh persistence and abandoned-session cleanup must be separate policies. Do not reintroduce browser lifecycle auto-end for tab switches or refresh; use the tested session lease or a future server-side stale-session cleanup job.
+
+## 2026-06-16 - Slack recovery button returns 401
+
+### Situation
+
+The user clicked the Slack `회복 루틴 작성` button, but the recovery modal did not work. The user also requested a Slack test alarm.
+
+### Error Message
+
+```txt
+Supabase Edge Function logs:
+POST | 401 | https://bqohkdzvxbrokkmuhysx.supabase.co/functions/v1/slack-recovery-interactions
+POST | 401 | https://bqohkdzvxbrokkmuhysx.supabase.co/functions/v1/slack-recovery-interactions
+POST | 401 | https://bqohkdzvxbrokkmuhysx.supabase.co/functions/v1/slack-recovery-interactions
+```
+
+### Cause
+
+The Slack interactivity request reached the correct Supabase Edge Function, but `verifySlackSignature()` rejected it before payload handling. `SLACK_SIGNING_SECRET` exists as a Supabase Edge Function secret, so the likely root cause is that the stored value does not match the Signing Secret from the Slack App that sent the interactive button request.
+
+This is distinct from Slack message delivery. `slack-test-alarm` and existing recovery messages can post to channel `C0BAFS1CSV8`, so the bot token, channel id, and bot channel membership are working.
+
+### Fix
+
+Update Supabase Edge Function secret `SLACK_SIGNING_SECRET` with the Slack App value from:
+
+```txt
+Slack App Dashboard > Basic Information > App Credentials > Signing Secret
+```
+
+Confirm the same Slack App has:
+
+```txt
+Interactivity & Shortcuts: On
+Request URL: https://bqohkdzvxbrokkmuhysx.supabase.co/functions/v1/slack-recovery-interactions
+```
+
+Then click the same recovery button again. No code change is required if the Signing Secret comes from the correct Slack App.
+
+### Related Files
+
+* `supabase/functions/slack-recovery-interactions/index.ts`
+* `supabase/functions/slack-test-alarm/index.ts`
+* `memory-bank/prd-slack-recovery-routines.md`
+
+### Prevention
+
+Do not confuse Slack `Client Secret`, `Verification Token`, `Bot User OAuth Token`, or app-level secrets from a different Slack App with the Signing Secret. Recovery interactivity requires the Signing Secret from the exact Slack App that owns the installed bot token and sent the message button.
+
 ## 2026-06-16 - New `.mjs` helper missing TypeScript declaration
 
 ### Situation

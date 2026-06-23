@@ -14,6 +14,13 @@ type StudyTodo = {
   end_time: string | null;
 };
 
+type RecoveryRequest = {
+  id: string;
+  local_date: string;
+  trigger_type: "missed_attendance" | "camera_absence_repeat";
+  status: "pending" | "submitted";
+};
+
 const corsHeaders = {
   "access-control-allow-origin": "*",
   "access-control-allow-headers": "authorization, x-client-info, apikey, content-type, x-cron-secret",
@@ -42,6 +49,26 @@ Deno.serve(async (request) => {
 
   const payload = await request.json().catch(() => null);
   const directChannelId = hasCronSecret ? parseDirectChannelId(payload) : "";
+  const recoveryRequestId = hasCronSecret ? parseRecoveryRequestId(payload) : "";
+  if (directChannelId && recoveryRequestId) {
+    const recoveryRequest = await loadRecoveryRequest(admin, recoveryRequestId);
+    if (!recoveryRequest) {
+      return json({ error: "Recovery request was not found" }, 404);
+    }
+    if (recoveryRequest.status !== "pending") {
+      return json({ error: "Recovery request is not pending" }, 409);
+    }
+
+    const messageTs = await sendRecoveryRoutineTestMessage(directChannelId, recoveryRequest);
+    return json({
+      ok: true,
+      directChannelId,
+      recoveryRequestId: recoveryRequest.id,
+      localDate: recoveryRequest.local_date,
+      messageTs,
+    });
+  }
+
   if (directChannelId) {
     const localDate = getLocalDateForTimeZone("Asia/Seoul");
     const messageTs = await sendSlackMessage(directChannelId, localDate, []);
@@ -200,6 +227,109 @@ function parseDirectChannelId(payload: unknown) {
   return /^[CG][A-Z0-9]{8,}$/.test(channelId) ? channelId : "";
 }
 
+function parseRecoveryRequestId(payload: unknown) {
+  const data = payload && typeof payload === "object" ? (payload as Record<string, unknown>) : null;
+  const recoveryRequestId = typeof data?.recoveryRequestId === "string" ? data.recoveryRequestId.trim() : "";
+  return isUuid(recoveryRequestId) ? recoveryRequestId : "";
+}
+
+async function loadRecoveryRequest(admin: ReturnType<typeof createClient>, recoveryRequestId: string) {
+  const { data, error } = await admin
+    .from("study_recovery_requests")
+    .select("id,local_date,trigger_type,status")
+    .eq("id", recoveryRequestId)
+    .maybeSingle();
+
+  if (error) {
+    throw error;
+  }
+
+  return (data as RecoveryRequest | null) ?? null;
+}
+
+async function sendRecoveryRoutineTestMessage(channelId: string, recoveryRequest: RecoveryRequest) {
+  const botToken = getSlackBotToken();
+  const appUrl = Deno.env.get("APP_ORIGIN") ?? "https://study-room-attendance.vercel.app";
+  const response = await fetch("https://slack.com/api/chat.postMessage", {
+    method: "POST",
+    headers: {
+      ...jsonHeaders,
+      authorization: `Bearer ${botToken}`,
+    },
+    body: JSON.stringify({
+      channel: channelId,
+      text: buildRecoveryRoutineTestMessage(recoveryRequest, appUrl),
+      blocks: buildRecoveryRoutineTestBlocks(recoveryRequest, appUrl),
+      unfurl_links: false,
+      unfurl_media: false,
+    }),
+  });
+
+  if (!response.ok) {
+    throw new Error(`Slack recovery routine test failed: ${response.status} ${await response.text()}`);
+  }
+
+  const result = (await response.json().catch(() => null)) as {
+    ok?: boolean;
+    ts?: string;
+    error?: string;
+  } | null;
+  if (!result?.ok) {
+    throw new Error(`Slack recovery routine test returned unexpected result: ${JSON.stringify(result)}`);
+  }
+
+  return result.ts ?? null;
+}
+
+function buildRecoveryRoutineTestMessage(recoveryRequest: RecoveryRequest, appUrl: string) {
+  return [
+    "*🧪 회복 루틴 테스트*",
+    "아래 버튼을 눌러 Slack 모달이 열리는지 확인하세요.",
+    `날짜: ${recoveryRequest.local_date}`,
+    `요청 ID: ${recoveryRequest.id}`,
+    appUrl,
+  ].join("\n");
+}
+
+function buildRecoveryRoutineTestBlocks(recoveryRequest: RecoveryRequest, appUrl: string) {
+  const reason = recoveryRequest.trigger_type === "missed_attendance"
+    ? "오늘 출석 실패"
+    : "자리 비움 반복 감지";
+
+  return [
+    {
+      type: "section",
+      text: {
+        type: "mrkdwn",
+        text: `*🧪 회복 루틴 테스트*\n${reason} 상태의 pending 요청으로 Slack 모달을 확인합니다.`,
+      },
+    },
+    {
+      type: "section",
+      fields: [
+        { type: "mrkdwn", text: `*날짜*\n${recoveryRequest.local_date}` },
+        { type: "mrkdwn", text: "*상태*\n회복 루틴 필요" },
+      ],
+    },
+    {
+      type: "actions",
+      elements: [
+        {
+          type: "button",
+          text: { type: "plain_text", text: "회복 루틴 작성", emoji: true },
+          style: "danger",
+          action_id: "open_recovery_routine",
+          value: recoveryRequest.id,
+        },
+      ],
+    },
+    {
+      type: "context",
+      elements: [{ type: "mrkdwn", text: `앱: ${appUrl}` }],
+    },
+  ];
+}
+
 function buildMessage(localDate: string, todos: StudyTodo[], appUrl: string) {
   const lines = [
     "*🧪 Slack 테스트 알림*",
@@ -275,6 +405,10 @@ function getSlackBotToken() {
     throw new Error("SLACK_BOT_TOKEN or STUDY_ALERT_SLACK_BOT_TOKEN is required");
   }
   return value;
+}
+
+function isUuid(value: string) {
+  return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value);
 }
 
 function json(body: Record<string, unknown>, status = 200) {

@@ -280,11 +280,12 @@ test("attendance policy migration promotes late study totals to present", () => 
   assert.match(sql, /perform public\.promote_attendance_by_daily_study_total/i);
 });
 
-test("attendance policy migration keeps camera recovery blocking while allowing late missed recovery study", () => {
-  const sql = readMigrationContaining(/late_study_goal_attendance_policy/i);
+test("recovery hard-block migration blocks same-day missed recovery study", () => {
+  const sql = readMigrationContaining(/hard_block_pending_recovery_requests/i);
 
   assert.match(sql, /from public\.study_recovery_requests rr/i);
-  assert.match(sql, /rr\.trigger_type <> 'missed_attendance'/i);
+  assert.match(sql, /rr\.status = 'pending'/i);
+  assert.doesNotMatch(sql, /trigger_type <> 'missed_attendance'/i);
   assert.match(sql, /Recovery routine required/i);
 });
 

@@ -33,7 +33,7 @@ test("web app exposes an in-app recovery routine modal and authenticated submit 
   assert.match(revokeMigrationSource, /revoke all on function public\.submit_study_recovery_request[\s\S]+from anon/);
 });
 
-test("web app does not auto-open non-blocking same-day missed recovery requests", () => {
+test("web app treats same-day missed recovery requests as blocking", () => {
   const appSource = readFileSync("apps/web/src/main.tsx", "utf8");
   const autoOpenStart = appSource.indexOf("const autoOpenRecoveryRequests");
   const autoOpenEnd = appSource.indexOf("const todayCompletedSeconds");
@@ -43,6 +43,8 @@ test("web app does not auto-open non-blocking same-day missed recovery requests"
   const autoOpenSnippet = appSource.slice(autoOpenStart, autoOpenEnd);
   assert.match(autoOpenSnippet, /autoOpenRecoveryRequests/);
   assert.match(autoOpenSnippet, /blockingRecoveryRequests/);
+  assert.match(autoOpenSnippet, /pendingRecoveryRequests/);
   assert.match(autoOpenSnippet, /openRecoveryRoutineModal/);
-  assert.doesNotMatch(autoOpenSnippet, /pendingRecoveryRequests\.length === 0/);
+  assert.doesNotMatch(appSource, /lateStudyRecoveryRequests/);
+  assert.doesNotMatch(appSource, /trigger_type !== "missed_attendance"/);
 });

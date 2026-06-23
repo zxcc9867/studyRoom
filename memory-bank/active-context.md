@@ -2,6 +2,114 @@
 
 ## Current Work
 
+- Task: Hard block pending recovery routines.
+- Purpose: Align the web app and Supabase RPC with the Slack recovery message so users cannot keep studying while any recovery routine is pending.
+- Related PRD:
+  - `memory-bank/prd-slack-recovery-routines.md`
+- Related files:
+  - `apps/web/src/main.tsx`
+  - `apps/web/src/styles.css`
+  - `apps/web/test/recoveryRoutine.test.mjs`
+  - `apps/web/test/slackNotifications.test.mjs`
+  - `packages/core/test/sql-migrations.test.mjs`
+  - `supabase/migrations/20260623123718_hard_block_pending_recovery_requests.sql`
+
+## Recent Decisions
+
+- Decision: Same-day `missed_attendance` recovery requests are no longer soft late-study actions.
+- Reason: Slack tells the user that recovery must be submitted before the next study session, and the latest user report showed that allowing study to continue undermines the forced-attendance loop.
+- Alternative: Keep late-study recovery as a soft path; rejected because it contradicts the recovery routine consequence.
+- Impact: Every pending recovery request blocks `start_study_session()`, disables the web start button, and ends an already-active web session when detected.
+
+## Current Status
+
+- Completed: Added migration `20260623123718_hard_block_pending_recovery_requests.sql`.
+- Completed: Applied the migration to Supabase project `bqohkdzvxbrokkmuhysx`.
+- Completed: Verified remote `start_study_session()` checks pending recovery and no longer has the same-day missed exception.
+- Completed: Updated web UI and tests for hard-block recovery behavior.
+- Next: Run full build, deploy to Vercel, and verify production URL.
+
+## Notes
+
+- Existing active browser tabs may need a refresh to load the new auto-end behavior.
+
+## Current Work
+
+- Task: Quick-add todos from the session planning modal.
+- Purpose: Let the user start a focused session even when they forgot to pre-register today's schedule by adding a plain today todo directly inside the session selection modal.
+- Related PRD:
+  - `memory-bank/prd-session-todo-links.md`
+- Related files:
+  - `apps/web/src/main.tsx`
+  - `apps/web/src/styles.css`
+  - `apps/web/src/sessionTodoLinks.mjs`
+  - `apps/web/src/sessionTodoLinks.d.mts`
+  - `apps/web/test/sessionTodoLinks.test.mjs`
+
+## Recent Decisions
+
+- Decision: Reuse the existing `study_todos` table and session selection modal instead of opening the calendar todo modal when no incomplete todo exists.
+- Reason: The user is already in the session-start flow and needs the smallest possible path to create a plan and start studying.
+- Alternative: Keep redirecting to the full calendar todo modal; rejected because it makes starting a session depend on pre-registration and extra navigation.
+- Impact: A quick-added todo is saved for today's local date with no time or recurrence metadata, linked to the active goal when one exists, and selected automatically for the pending session.
+
+## Current Status
+
+- Completed: Added quick-add state and UI to the session planning modal.
+- Completed: Changed the no-todos start gate to open the session planning modal instead of the calendar todo modal.
+- Completed: Added helper coverage for quick-add title normalization and start-button disabling while saving.
+- Completed: `node --test apps\web\test\sessionTodoLinks.test.mjs`, `npm.cmd test`, and `npm.cmd run build` passed.
+- Completed: Committed and pushed `902724e82a83c3c86e1496e851282f41152635a9` to `origin/main`.
+- Completed: Vercel production deployment `dpl_7f1F9ZJsgYFJDHEuXrCmjHPy1d1B` is `READY` for commit `902724e82a83c3c86e1496e851282f41152635a9`.
+- Completed: `https://study-room-attendance.vercel.app/` returned HTTP 200 and served asset `assets/index-HNuTwUZy.js`.
+- Next: Production smoke-test the session modal quick-add flow with a logged-in account.
+
+## Notes
+
+- This change does not require a Supabase schema migration. Quick-added session todos are ordinary `study_todos` rows for `todayDateKey`.
+- Existing full todo scheduling, time, weekday repeat, and recurrence editing remain in the calendar todo modal.
+
+## Current Work
+
+- Task: Link study sessions to selected todos.
+- Purpose: Prevent timer-only study sessions by requiring the user to select at least one incomplete daily todo before starting a new focused session.
+- Related PRD:
+  - `memory-bank/prd-session-todo-links.md`
+- Related files:
+  - `apps/web/src/main.tsx`
+  - `apps/web/src/styles.css`
+  - `apps/web/src/sessionTodoLinks.mjs`
+  - `apps/web/src/sessionTodoLinks.d.mts`
+  - `apps/web/test/sessionTodoLinks.test.mjs`
+  - `packages/core/test/sql-migrations.test.mjs`
+  - `supabase/migrations/20260621083000_study_session_todo_links.sql`
+
+## Recent Decisions
+
+- Decision: Add a separate `study_session_todos` link table instead of storing todo ids directly on `study_sessions`.
+- Reason: One session can include multiple todos and one todo may need reliable user-scoped ownership checks.
+- Alternative: Store a JSON array of todo ids on the session row; rejected because it would weaken FK/RLS checks and make future history queries harder.
+- Impact: New sessions require a selected todo plan, active sessions show a dedicated session task list, and refreshes can restore the linked task list from Supabase.
+
+## Current Status
+
+- Completed: Added TDD coverage for session todo selection, link row construction, active-session linked todo lookup, and end-summary text.
+- Completed: Added `study_session_todos` migration with user-scoped composite foreign keys, RLS policies, indexes, and explicit authenticated grants.
+- Completed: Applied the migration to Supabase project `bqohkdzvxbrokkmuhysx` and verified RLS, grants, and 4 policies.
+- Completed: Added web UI for selecting session todos before start and showing active session tasks.
+- Completed: `npm.cmd test` and `npm.cmd run build` passed.
+- Completed: Committed and pushed `2dd1fc37de7b74529db28537863f5293698eca4e` to `origin/main`.
+- Completed: Vercel production deployment `dpl_A64oVi2NBr7bKUynwQbRSFKxiueo` is `READY` for commit `2dd1fc37de7b74529db28537863f5293698eca4e`.
+- Completed: `https://study-room-attendance.vercel.app/` returned HTTP 200.
+- Next: Production smoke-test the session todo selection flow with a logged-in account.
+
+## Notes
+
+- The selection modal is shown after recovery and camera checks. If no incomplete todo exists for today, the app opens today's todo modal instead.
+- If the user enabled the camera only for a pending start and then closes the todo-selection modal, camera monitoring is stopped without creating a camera event.
+
+## Current Work
+
 - Task: Auto-dismiss success status messages.
 - Purpose: Prevent success banners such as `목표를 만들었습니다.` from staying visible indefinitely after the action has completed.
 - Related PRD:
@@ -99,7 +207,9 @@
 - Completed: `node --test apps\web\test\studyGoals.test.mjs apps\web\test\dashboardRoute.test.mjs packages\core\test\sql-migrations.test.mjs` passed.
 - Completed: `npm.cmd test` passed 145 tests.
 - Completed: `npm.cmd run build` passed.
-- Next: Commit/push and verify the Vercel production deployment.
+- Blocked: GitHub push failed because the environment cannot connect to `github.com:443`.
+- Blocked: Direct Vercel CLI deploy failed because there is no `VERCEL_TOKEN` in the shell and no local Vercel login session.
+- Next: Push local commit `9974e2e` when GitHub network access is available, or provide `VERCEL_TOKEN`/Vercel login for direct production deploy.
 
 ## Notes
 
@@ -137,6 +247,7 @@
 
 - Multiple pending recovery requests are valid. The UI must make it clear when the next prompt is a different date/request.
 - Do not treat same-day missed recovery as a hard blocker because it would prevent the late-study attendance recovery path.
+
 ## Current Work
 
 - Task: Add in-app recovery routine submission.
@@ -172,6 +283,146 @@
 - Do not store Slack signing secret or bot token values in memory-bank or committed files.
 
 ## Current Work
+
+- Task: Diagnose why 2026-06-18 showed missed even though the user thought they started before 21:00.
+- Purpose: Confirm whether the attendance failure came from deadline logic, session start persistence, or stale dashboard totals.
+- Related PRD:
+  - `memory-bank/prd-user-profile.md`
+- Related files:
+  - `apps/web/src/main.tsx`
+  - `supabase/migrations/0021_late_study_goal_attendance_policy.sql`
+  - `supabase/functions/attendance-cron/index.ts`
+
+## Recent Decisions
+
+- Decision: Treat the issue as a missing persisted study session unless new browser-side evidence shows otherwise.
+- Reason: Production Supabase has a `missed` attendance row at the 21:00 JST deadline, but no `study_sessions` row for 2026-06-18 and no nearby session before the deadline.
+- Alternative: Assume the deadline comparison is wrong; rejected because the recorded deadline is 2026-06-18 12:00 UTC / 21:00 JST and the DB had no qualifying session to promote.
+- Impact: The likely product fix is clearer start-success feedback and dashboard cleanup for stale/old long sessions, not changing the deadline window itself.
+
+## Current Status
+
+- Completed: Queried production `attendance_days` for 2026-06-18 and confirmed status `missed`, reminder 20:30 JST, deadline 21:00 JST, marked at 21:00 JST.
+- Completed: Queried production `study_sessions` and confirmed there is no 2026-06-18 study session and no session near the 21:00 deadline.
+- Completed: Confirmed DB completed study seconds for 2026-06-18 is 0 against a 7200 second weekday goal.
+- Completed: Found the large displayed study time likely came from an older abandoned 2026-06-16 completed session with a 24-hour-level duration, not a valid 2026-06-18 session.
+- Next: Add UI safeguards so users can distinguish camera/app open from a successfully persisted study session start.
+
+## Notes
+
+- Opening the app or camera does not count as attendance unless `start_study_session()` succeeds and a `study_sessions` row is created.
+- Same-day missed recovery can still become present after completing the weekday 2-hour goal, but there must be completed same-day `study_sessions` duration in the DB.
+
+## Current Work
+
+- Task: Add a two-hour study session lease timer.
+- Purpose: Prevent forgotten active study sessions from running overnight by showing an in-app session-expiry countdown and requiring the user to press a keep-alive button every 2 hours.
+- Related PRD:
+  - `memory-bank/prd-user-profile.md`
+- Related files:
+  - `apps/web/src/main.tsx`
+  - `apps/web/src/sessionLease.mjs`
+  - `apps/web/src/sessionLease.d.mts`
+  - `apps/web/src/styles.css`
+  - `apps/web/test/sessionLease.test.mjs`
+
+## Recent Decisions
+
+- Decision: Store the active session lease deadline in browser localStorage per user/session and fall back to `started_at + 2 hours` when an old active session has no stored lease.
+- Reason: This preserves refresh continuity without adding a DB migration, and it lets old abandoned active sessions auto-end instead of blocking the next day.
+- Alternative: Add a `lease_deadline_at` column to `study_sessions`; deferred because the requested MVP can be enforced in the web app and existing stale sessions need a no-migration fallback.
+- Impact: The web app caps displayed active time at the lease deadline, adds lease overrun seconds to `p_excluded_seconds` on auto-end, and only adds active elapsed time to today's total when the active row's `local_date` is today.
+
+## Current Status
+
+- Completed: Added `sessionLease.mjs` helper and tests for two-hour deadlines, extension, countdown, stale-session capping, and localStorage keying.
+- Completed: Added topbar session lease UI with a `세션 유지` button and 5-minute warning styling.
+- Completed: Wired automatic `end_study_session` when the lease expires.
+- Completed: `npm.cmd test` passed 135 tests.
+- Completed: `npm.cmd run build` passed.
+- Completed: Committed and pushed `257e8ea135d312b9189b80eeeb3fa78c6982edf8` to `origin/main`.
+- Completed: GitHub Actions run `27687938261` succeeded for the Vercel production workflow.
+- Completed: Vercel production deployment `dpl_3TxZyd6k9Q1m5hq5dzdiCdfD9aYF` is `READY` for commit `257e8ea135d312b9189b80eeeb3fa78c6982edf8`.
+- Completed: `https://study-room-attendance.vercel.app/` returned HTTP 200 and served `assets/index-B1_8AaYG.js` / `assets/index-BlOsAQsR.css`.
+- Completed: Production JS contains the session lease code (`study-room-session-lease` and the keep-alive UI string).
+- Completed: Vercel production runtime error-log query returned no `error` or `fatal` logs in the checked one-hour window.
+- Next: Verify the countdown and keep-alive button with a logged-in active session in the browser.
+
+## Notes
+
+- This change does not use browser lifecycle events to end sessions. Tab switching and refresh still preserve the active session, but the two-hour lease eventually closes abandoned sessions.
+- Server-side cleanup for users who never reopen the web app is still a separate future improvement.
+
+## Current Work
+
+- Task: Re-test Slack recovery routine after the user updated `SLACK_SIGNING_SECRET`.
+- Purpose: Explain the Windows `npx.cmd` convention and provide a fresh Slack recovery routine button message for verification.
+- Related PRD:
+  - `memory-bank/prd-slack-recovery-routines.md`
+  - `memory-bank/prd-slack-notifications.md`
+- Related files:
+  - `supabase/functions/slack-recovery-interactions/index.ts`
+  - `supabase/functions/slack-test-alarm/index.ts`
+  - `memory-bank/trouble-shooting.md`
+
+## Recent Decisions
+
+- Decision: A new Slack recovery routine test message is required after updating `SLACK_SIGNING_SECRET`.
+- Reason: The previous failure was a Slack signature 401. The only meaningful end-to-end verification is a real Slack button click against the signed interactivity endpoint.
+- Alternative: Simulate a Slack request locally; rejected because the secret value is not exposed to the local shell and real Slack request headers are the trusted path.
+- Impact: The latest Slack message with `messageTs=1781620566.269929` should be used for the next click test.
+
+## Current Status
+
+- Completed: Explained that `npx.cmd` is the Windows command-wrapper form used to run local package CLIs reliably from PowerShell.
+- Completed: Sent a fresh recovery routine test message to Slack channel `C0BAFS1CSV8`.
+- Completed: Supabase async request `13371` returned HTTP 200 with `ok=true` for `recoveryRequestId=df8694be-5eae-4529-adfe-d97942112542`.
+- Completed: After the user set the Slack Signing Secret, sent another recovery routine test message. Supabase async request `13379` returned HTTP 200 with `ok=true` and Slack `messageTs=1781620988.738379`.
+- Next: User should click the new Slack `회복 루틴 작성` button. If it still fails, inspect the newest `slack-recovery-interactions` Edge Function log entry.
+
+## Notes
+
+- The fresh test message only verifies Slack posting. The actual fix is verified only when the Slack button request returns 200 instead of 401.
+- Do not log or store the actual Slack signing secret in code, documents, or memory-bank.
+
+## Current Work
+
+- Task: Diagnose Slack recovery routine button failure.
+- Purpose: Confirm why clicking the Slack `회복 루틴 작성` button does not open or submit the recovery modal, and verify Slack test alarm delivery.
+- Related PRD:
+  - `memory-bank/prd-slack-recovery-routines.md`
+  - `memory-bank/prd-slack-notifications.md`
+- Related files:
+  - `supabase/functions/slack-recovery-interactions/index.ts`
+  - `supabase/functions/slack-test-alarm/index.ts`
+  - `memory-bank/trouble-shooting.md`
+
+## Recent Decisions
+
+- Decision: Treat the current recovery button failure as a Slack signing-secret mismatch/configuration issue rather than a Slack delivery issue.
+- Reason: Supabase Edge Function logs show recent `POST | 401` requests to `slack-recovery-interactions`, while Slack message delivery and `slack-test-alarm` still return `ok=true`.
+- Alternative: Change the recovery modal code immediately; rejected because the remote function receives the request and rejects it before payload handling due to signature verification.
+- Impact: The user must set `SLACK_SIGNING_SECRET` to the Signing Secret from the same Slack App that owns the bot token and has Interactivity enabled.
+
+## Current Status
+
+- Completed: Confirmed remote `slack-recovery-interactions` v2 is `ACTIVE` with `verify_jwt=false`.
+- Completed: Confirmed Slack button clicks reached Supabase but returned `401` three times from `slack-recovery-interactions`.
+- Completed: Confirmed `SLACK_SIGNING_SECRET` secret name exists, so the likely issue is value mismatch with the Slack App's actual Signing Secret.
+- Completed: Sent Slack test alarm to channel `C0BAFS1CSV8` through `slack-test-alarm`; request id `13350` returned HTTP 200 and `ok=true` with Slack `messageTs=1781619471.681719`.
+- Completed: Added and deployed a cron-secret protected recovery routine test path to `slack-test-alarm` v7.
+- Completed: Sent a recovery routine test message to Slack channel `C0BAFS1CSV8`; request id `13360` returned HTTP 200 and `ok=true` with Slack `messageTs=1781620002.856819`.
+- Blocked: Correct Slack Signing Secret is only visible in the user's Slack App dashboard and cannot be derived from the bot token or Supabase.
+- Next: Update Supabase `SLACK_SIGNING_SECRET` with the correct Slack App `Basic Information > App Credentials > Signing Secret`, keep Interactivity Request URL pointing to `/functions/v1/slack-recovery-interactions`, then click the recovery button again.
+
+## Notes
+
+- Slack 401 on interactivity plus successful `chat.postMessage` means the bot token/channel path is healthy, but signed Slack interactivity requests are failing authentication.
+- Slack may retry failed interactivity requests, which explains multiple close-together `401` log entries for one button click.
+- The recovery routine test message uses existing pending request `df8694be-5eae-4529-adfe-d97942112542` and action id `open_recovery_routine`; it does not run attendance marking or reminder cron logic.
+
+## Current Work
+
 - Task: Weekday/weekend attendance policy and late study recovery.
 - Purpose: Keep the 30-minute forced check-in window, but allow a missed same-day attendance to become present when the user completes the daily study goal: 2 hours on weekdays and 4 hours on weekends.
 - Related PRD:
@@ -302,9 +553,9 @@
 - Completed: `https://study-room-attendance.vercel.app/` returned HTTP 200.
 - Completed: Vercel production runtime error-log query for deployment `dpl_2P8wuQNyPh9qgEov37rAkvzzqctZ` returned no `error` or `fatal` logs in the checked one-hour window.
 - Blocked: `camera-presence-warning` redeploy was rejected by the execution approval reviewer because the per-function command still uses `--no-verify-jwt`; explicit user approval is required before trying again.
-- Blocked: Supabase Edge Function secrets include `STUDY_ALERT_SLACK_BOT_TOKEN`, but `SLACK_SIGNING_SECRET` is not configured yet. Slack recovery modal submissions will fail request verification until the user adds the Slack app signing secret.
+- Completed: Supabase secrets list confirmed `SLACK_SIGNING_SECRET` is configured for project `bqohkdzvxbrokkmuhysx`.
 - Next: After explicit approval, redeploy `camera-presence-warning` so repeated camera absence can create recovery requests remotely.
-- Next: Add `SLACK_SIGNING_SECRET` from Slack App `Basic Information > App Credentials > Signing Secret`, then test the recovery modal.
+- Next: Configure Slack App Interactivity Request URL if needed, then test the recovery modal from the real Slack `회복 루틴 작성` button.
 
 ## Notes
 

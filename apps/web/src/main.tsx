@@ -350,6 +350,7 @@ function DashboardApp() {
   const lastCameraRequiredWarningAtRef = useRef(0);
   const warningInFlightRef = useRef(false);
   const sessionLeaseAutoEndInFlightRef = useRef(false);
+  const recoveryAutoEndInFlightRef = useRef(false);
   const recoveryModalDismissedIdsRef = useRef<Set<string>>(new Set());
 
   useEffect(() => {
@@ -460,17 +461,7 @@ function DashboardApp() {
       })
     : 0;
   const todayDateKey = getLocalDateKey(new Date(nowMs), timeZone);
-  const blockingRecoveryRequests = useMemo(
-    () => pendingRecoveryRequests.filter((item) => isBlockingRecoveryRequest(item, todayDateKey)),
-    [pendingRecoveryRequests, todayDateKey],
-  );
-  const lateStudyRecoveryRequests = useMemo(
-    () =>
-      pendingRecoveryRequests.filter(
-        (item) => item.trigger_type === "missed_attendance" && item.local_date === todayDateKey,
-      ),
-    [pendingRecoveryRequests, todayDateKey],
-  );
+  const blockingRecoveryRequests = pendingRecoveryRequests;
   const autoOpenRecoveryRequests = useMemo(() => blockingRecoveryRequests, [blockingRecoveryRequests]);
   const recoveryModalQueuePosition = recoveryModalRequest
     ? pendingRecoveryRequests.findIndex((request) => request.id === recoveryModalRequest.id) + 1
@@ -491,6 +482,25 @@ function DashboardApp() {
       openRecoveryRoutineModal(nextRequest, { auto: true });
     }
   }, [session?.user.id, autoOpenRecoveryRequests, recoveryModalRequest?.id]);
+
+  useEffect(() => {
+    if (!session?.user.id || !activeSession || blockingRecoveryRequests.length === 0 || busy) {
+      return;
+    }
+
+    if (recoveryAutoEndInFlightRef.current) {
+      return;
+    }
+
+    recoveryAutoEndInFlightRef.current = true;
+    const nextRequest = blockingRecoveryRequests[0];
+    openRecoveryRoutineModal(nextRequest, { auto: true });
+    void endTimer({
+      successMessage: "회복 루틴이 필요해 진행 중인 세션을 자동 종료했습니다. 회복 루틴을 제출한 뒤 다시 시작하세요.",
+    }).finally(() => {
+      recoveryAutoEndInFlightRef.current = false;
+    });
+  }, [activeSession?.id, blockingRecoveryRequests, busy, session?.user.id]);
 
   const todayCompletedSeconds = studySessions
     .filter((item) => item.local_date === todayDateKey && item.status !== "active")
@@ -1910,7 +1920,7 @@ function DashboardApp() {
 
     const submittedRequest = recoveryModalRequest;
     const remainingRequests = pendingRecoveryRequests.filter((request) => request.id !== submittedRequest.id);
-    const nextBlockingRequest = remainingRequests.find((request) => isBlockingRecoveryRequest(request, todayDateKey));
+    const nextBlockingRequest = remainingRequests[0] ?? null;
 
     setRecoverySubmitBusy(true);
     const { error } = await supabase.rpc("submit_study_recovery_request", {
@@ -1951,7 +1961,7 @@ function DashboardApp() {
       openRecoveryRoutineModal(nextBlockingRequest, { auto: true });
     } else if (remainingRequests.length > 0) {
       setMessage(
-        `회복 루틴을 제출했습니다. 남은 ${remainingRequests.length}건은 오늘 목표 시간을 채우면 자동 회복될 수 있습니다.`,
+        `회복 루틴을 제출했습니다. 아직 ${remainingRequests.length}건이 남아 있습니다. 다음 회복 루틴을 제출해야 공부를 다시 시작할 수 있습니다.`,
       );
     } else {
       setMessage("회복 루틴을 제출했습니다. 다시 공부를 시작할 수 있습니다.");
@@ -2827,23 +2837,6 @@ function DashboardApp() {
             </ul>
             <div className="recovery-actions">
               <button className="secondary" type="button" onClick={() => openRecoveryRoutineModal(blockingRecoveryRequests[0])}>
-                회복 루틴 작성
-              </button>
-            </div>
-          </section>
-        )}
-
-        {activeSection === "today" && lateStudyRecoveryRequests.length > 0 && (
-          <section className="recovery-blocker recovery-soft" role="status" aria-live="polite">
-            <div>
-              <p className="eyebrow">late study recovery</p>
-              <h3>목표 시간을 채우면 출석으로 전환됩니다</h3>
-              <p>
-                오늘 출석 마감은 지났지만 {todayGoalLabel} 이상 공부를 완료하면 오늘 출석으로 인정됩니다.
-              </p>
-            </div>
-            <div className="recovery-actions">
-              <button className="secondary" type="button" onClick={() => openRecoveryRoutineModal(lateStudyRecoveryRequests[0])}>
                 회복 루틴 작성
               </button>
             </div>
@@ -3844,10 +3837,6 @@ function compareRecoveryRequests(left: StudyRecoveryRequest, right: StudyRecover
     return left.local_date.localeCompare(right.local_date);
   }
   return left.created_at.localeCompare(right.created_at);
-}
-
-function isBlockingRecoveryRequest(request: StudyRecoveryRequest, todayDateKey: string) {
-  return request.trigger_type !== "missed_attendance" || request.local_date !== todayDateKey;
 }
 
 function getRecoveryRequestTitle(request: StudyRecoveryRequest) {
