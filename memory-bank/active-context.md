@@ -27,7 +27,11 @@
 - Completed: Applied the migration to Supabase project `bqohkdzvxbrokkmuhysx`.
 - Completed: Verified remote `start_study_session()` checks pending recovery and no longer has the same-day missed exception.
 - Completed: Updated web UI and tests for hard-block recovery behavior.
-- Next: Run full build, deploy to Vercel, and verify production URL.
+- Completed: `npm.cmd test` passed 157 tests and `npm.cmd run build` passed.
+- Completed: Committed and pushed `b38118518c2ee8942a0eaded97087c0b79126cd9` to `origin/main`.
+- Completed: Vercel production deployment `dpl_G83faqJ6ppEGU2grthT3TtTJUd7j` is `READY` for commit `b38118518c2ee8942a0eaded97087c0b79126cd9`.
+- Completed: `https://study-room-attendance.vercel.app/` returned HTTP 200 and served `assets/index-DzLaOTTB.js`.
+- Next: Refresh existing browser tabs before testing the recovery blocker because already-open tabs may still run older JS.
 
 ## Notes
 

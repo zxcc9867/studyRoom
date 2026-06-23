@@ -12,6 +12,9 @@
 - Added Supabase migration `20260623123718_hard_block_pending_recovery_requests.sql` so `start_study_session()` rejects any pending recovery request.
 - Applied the migration to Supabase project `bqohkdzvxbrokkmuhysx` and verified the remote function definition no longer contains the missed-attendance exception.
 - Updated recovery routine tests to cover the hard-block policy.
+- Committed and pushed `b38118518c2ee8942a0eaded97087c0b79126cd9` to `origin/main`.
+- Vercel production deployment `dpl_G83faqJ6ppEGU2grthT3TtTJUd7j` is `READY`.
+- `https://study-room-attendance.vercel.app/` returned HTTP 200 and served `assets/index-DzLaOTTB.js`.
 
 #### 변경된 파일
 
@@ -29,15 +32,19 @@
 #### 검증 방법
 
 - `npm.cmd test -- apps/web/test/recoveryRoutine.test.mjs apps/web/test/slackNotifications.test.mjs packages/core/test/sql-migrations.test.mjs`
+- `npm.cmd test`
+- `npm.cmd run build`
 - Supabase SQL verification against `pg_get_functiondef('public.start_study_session()')`
+- Vercel deployment check for `dpl_G83faqJ6ppEGU2grthT3TtTJUd7j`
+- Production HTTP check for `https://study-room-attendance.vercel.app/`
 
 #### 남은 작업
 
-- Run full build and deploy the updated web app to Vercel.
+- Refresh existing browser tabs before testing the recovery blocker because already-open tabs may still run older JS.
 
 #### 다음 우선순위
 
-- Verify production UI after deployment with a pending recovery request.
+- Production smoke-test with a pending recovery request: the app should auto-open the recovery modal, stop an active session, and keep `입장하고 시작` disabled until submission.
 
 ### 2026-06-23 - Session todo quick add
 
