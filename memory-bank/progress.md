@@ -40,14 +40,16 @@
 - RED: planner/dashboard preference tests failed before `dailyPlanner.mjs`, `dashboardLayout.mjs`, and the migration existed.
 - GREEN: `node --test apps\web\test\dailyPlanner.test.mjs apps\web\test\dashboardLayout.test.mjs packages\core\test\sql-migrations.test.mjs` passed.
 - GREEN: `node --test apps\web\test\dailyPlanner.test.mjs apps\web\test\dashboardLayout.test.mjs apps\web\test\cameraPresence.test.mjs packages\core\test\sql-migrations.test.mjs` passed.
+- GREEN: `npm.cmd test` passed 167 tests.
 - GREEN: `npm.cmd --workspace apps/web run build` passed.
-- Pending: `npm.cmd test`, Supabase migration apply, commit/push, Vercel production deployment and HTTP check.
+- Supabase migration `dashboard_planner_preferences` applied to project `bqohkdzvxbrokkmuhysx`; remote migration list shows version `20260623132728`.
+- Committed and pushed `c08f06dd3a533b457ea74325886f68b34c705685` to `origin/main`.
+- Vercel production deployment `dpl_78NJgmwGrS1fezbevW2bNR2MEcw2` is `READY` for commit `c08f06dd3a533b457ea74325886f68b34c705685`.
+- `https://study-room-attendance.vercel.app/` returned HTTP 200 and served `assets/index-BzeR6gEr.js`.
 
 #### Remaining Work
 
-- Apply `20260623131001_dashboard_planner_preferences.sql` to Supabase project `bqohkdzvxbrokkmuhysx`.
-- Run full test/build verification.
-- Commit, push, and verify Vercel production deployment.
+- Manual logged-in production smoke-test of planner view pinning, wheel click-to-create, segment click-to-edit, and section order save.
 
 #### Next Priority
 

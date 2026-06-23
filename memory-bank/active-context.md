@@ -39,8 +39,12 @@
 - Completed: Added task view pinning through `profiles.today_task_view`.
 - Completed: Added Today section order editor with drag-and-drop and up/down buttons, saved through `profiles.today_section_order`.
 - Completed: `node --test apps\web\test\dailyPlanner.test.mjs apps\web\test\dashboardLayout.test.mjs apps\web\test\cameraPresence.test.mjs packages\core\test\sql-migrations.test.mjs` passed.
+- Completed: `npm.cmd test` passed 167 tests.
 - Completed: `npm.cmd --workspace apps/web run build` passed.
-- In progress: Apply Supabase migration, run full verification, commit, push, and Vercel deploy.
+- Completed: Applied Supabase migration `dashboard_planner_preferences` to project `bqohkdzvxbrokkmuhysx`; remote migration list shows version `20260623132728`.
+- Completed: Committed and pushed feature commit `c08f06dd3a533b457ea74325886f68b34c705685` to `origin/main`.
+- Completed: Vercel production deployment `dpl_78NJgmwGrS1fezbevW2bNR2MEcw2` is `READY` for commit `c08f06dd3a533b457ea74325886f68b34c705685`.
+- Completed: `https://study-room-attendance.vercel.app/` returned HTTP 200 and served `assets/index-BzeR6gEr.js`.
 
 ## Notes
 
