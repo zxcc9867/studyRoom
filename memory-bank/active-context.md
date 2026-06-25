@@ -30,7 +30,10 @@
 - Completed: Applied the RPC change to Supabase project `bqohkdzvxbrokkmuhysx` with MCP SQL and verified the remote function no longer inserts a next-day pledge todo.
 - Completed: Deployed `slack-recovery-interactions` version 5 with `verify_jwt=false`; a live unsigned POST returned HTTP 401.
 - Completed: `npm.cmd test` passed 170 tests and `npm.cmd run build` passed with the existing Vite chunk-size warning.
-- Next: Commit, push, and verify the Vercel production deployment.
+- Completed: Committed and pushed `4c56b67b608ad08b6b9ec1bae0730695e34bba9b` to `origin/main`.
+- Completed: Vercel production deployment `dpl_Fsy5Nkqveewz14dJCcPtwyw36Apk` is `READY` for commit `4c56b67b608ad08b6b9ec1bae0730695e34bba9b`.
+- Completed: `https://study-room-attendance.vercel.app/` returned HTTP 200 from Vercel.
+- Next: Manually submit a real recovery routine with a pledge such as `9시에 시작` to confirm no next-day todo row appears in the user account.
 
 ## Notes
 

@@ -35,10 +35,13 @@
 - Deployed `slack-recovery-interactions` version 5 with `verify_jwt=false`; the live endpoint returned HTTP 401 for an unsigned POST.
 - `npm.cmd test` passed 170 tests.
 - `npm.cmd run build` passed with the existing Vite chunk-size warning.
+- Committed and pushed `4c56b67b608ad08b6b9ec1bae0730695e34bba9b` to `origin/main`.
+- Vercel production deployment `dpl_Fsy5Nkqveewz14dJCcPtwyw36Apk` is `READY` for commit `4c56b67b608ad08b6b9ec1bae0730695e34bba9b`.
+- `https://study-room-attendance.vercel.app/` returned HTTP 200 from Vercel.
 
 #### Remaining Work
 
-- Commit, push, and verify the Vercel production deployment triggered by `origin/main`.
+- Manually submit a real recovery routine with a pledge such as `9시에 시작` to confirm no next-day todo row appears in the user account.
 
 #### Next Priority
 
