@@ -2,6 +2,48 @@
 
 ## Timeline
 
+### 2026-06-25 - Recovery pledge stored without todo creation
+
+#### Completed Work
+
+- Updated the recovery routine product rule so the final `내일 재도전 약속` field is stored on the recovery request but no longer becomes a `study_todos` row.
+- Added Supabase migration `20260625115531_recovery_pledge_note_only.sql` to redefine `submit_study_recovery_request`.
+- Updated `slack-recovery-interactions` so Slack submissions create only the makeup todo and set `pledge_todo_id` to `null`.
+- Added regression coverage in `apps/web/test/recoveryRoutine.test.mjs`.
+- Updated recovery PRD and implementation notes to remove the old pledge-todo requirement.
+
+#### Changed Files
+
+- `apps/web/test/recoveryRoutine.test.mjs`
+- `packages/core/test/sql-migrations.test.mjs`
+- `supabase/functions/slack-recovery-interactions/index.ts`
+- `supabase/migrations/20260625115531_recovery_pledge_note_only.sql`
+- `memory-bank/prd-slack-recovery-routines.md`
+- `memory-bank/prd-slack-notifications.md`
+- `memory-bank/implementation-plan.md`
+- `memory-bank/active-context.md`
+- `memory-bank/progress.md`
+- `memory-bank/trouble-shooting.md`
+
+#### Verification
+
+- RED: `node --test apps\web\test\recoveryRoutine.test.mjs` failed because `20260625115531_recovery_pledge_note_only.sql` did not exist yet.
+- GREEN: `node --test apps\web\test\recoveryRoutine.test.mjs` passed.
+- `node --test apps\web\test\recoveryRoutine.test.mjs apps\web\test\slackNotifications.test.mjs packages\core\test\sql-migrations.test.mjs` passed.
+- Supabase MCP SQL applied the `submit_study_recovery_request` change to project `bqohkdzvxbrokkmuhysx`.
+- Supabase SQL verification returned `no_pledge_todo_var=true`, `clears_pledge_todo_id=true`, `no_next_day_pledge_insert=true`, `anon_can_execute=false`, and `authenticated_can_execute=true`.
+- Deployed `slack-recovery-interactions` version 5 with `verify_jwt=false`; the live endpoint returned HTTP 401 for an unsigned POST.
+- `npm.cmd test` passed 170 tests.
+- `npm.cmd run build` passed with the existing Vite chunk-size warning.
+
+#### Remaining Work
+
+- Commit, push, and verify the Vercel production deployment triggered by `origin/main`.
+
+#### Next Priority
+
+- Confirm in production that submitting a recovery pledge such as `9시에 시작` does not add that phrase to today's or tomorrow's todo list.
+
 ### 2026-06-23 - Forever recurring todos
 
 #### Completed Work

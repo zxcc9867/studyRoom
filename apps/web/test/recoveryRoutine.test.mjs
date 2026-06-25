@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import { test } from "node:test";
 
 test("web app exposes an in-app recovery routine modal and authenticated submit rpc", () => {
@@ -47,4 +47,24 @@ test("web app treats same-day missed recovery requests as blocking", () => {
   assert.match(autoOpenSnippet, /openRecoveryRoutineModal/);
   assert.doesNotMatch(appSource, /lateStudyRecoveryRequests/);
   assert.doesNotMatch(appSource, /trigger_type !== "missed_attendance"/);
+});
+
+test("recovery pledge is stored on the request but not created as a todo", () => {
+  const appSource = readFileSync("apps/web/src/main.tsx", "utf8");
+  const slackSource = readFileSync("supabase/functions/slack-recovery-interactions/index.ts", "utf8");
+  const migrationPath = "supabase/migrations/20260625115531_recovery_pledge_note_only.sql";
+  const migrationSource = existsSync(migrationPath) ? readFileSync(migrationPath, "utf8") : "";
+
+  assert.match(appSource, /p_pledge_todo_title:\s*pledgeTodoTitle/);
+  assert.match(migrationSource, /create or replace function public\.submit_study_recovery_request/);
+  assert.match(migrationSource, /pledge_todo_title = v_pledge_title/);
+  assert.match(migrationSource, /pledge_todo_id = null/);
+  assert.doesNotMatch(migrationSource, /v_pledge_todo_id/);
+  assert.doesNotMatch(migrationSource, /insert into public\.study_todos[\s\S]*values \([^;]*v_pledge_title/);
+
+  const slackTodoCreations = slackSource.match(/await createTodo\(/g) ?? [];
+  assert.equal(slackTodoCreations.length, 1);
+  assert.match(slackSource, /pledge_todo_title:\s*pledgeTodoTitle/);
+  assert.match(slackSource, /pledge_todo_id:\s*null/);
+  assert.doesNotMatch(slackSource, /const pledgeTodo = await createTodo/);
 });

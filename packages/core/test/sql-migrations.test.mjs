@@ -381,7 +381,7 @@ test("camera warning creates recovery request on repeated absence warnings only"
   assert.doesNotMatch(source, /camera_required_warning[\s\S]{0,240}camera_absence_repeat/);
 });
 
-test("slack recovery interactions verify signatures, open modal, and create todos", () => {
+test("slack recovery interactions verify signatures, open modal, and create the makeup todo", () => {
   const source = readFileSync("supabase/functions/slack-recovery-interactions/index.ts", "utf8");
 
   assert.match(source, /SLACK_SIGNING_SECRET/);

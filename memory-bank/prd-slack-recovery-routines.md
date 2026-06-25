@@ -16,7 +16,7 @@ Students using the Slack notification channel who want stronger accountability a
 - Show an in-app recovery modal when a logged-in user opens the app with blocking pending recovery requests.
 - Treat every pending recovery request as blocking, including same-day missed-attendance requests.
 - Require reason, today's makeup task, and tomorrow's pledge before another session can start or continue.
-- Create dated todos from submitted recovery content.
+- Create one dated todo from the submitted makeup task; keep tomorrow's pledge on the recovery request only, not as a todo.
 - Send one follow-up if the pending request is not submitted for 30 minutes.
 
 ## 4. Non-goals
@@ -30,7 +30,8 @@ Students using the Slack notification channel who want stronger accountability a
 
 - As a student, I want Slack to ask for a recovery routine after a missed attendance, so that I must acknowledge the failure before studying again.
 - As a student, I want repeated camera absence to require a recovery plan, so that leaving the seat has a concrete consequence.
-- As a student, I want submitted recovery tasks to become todos, so that the plan is visible in the app.
+- As a student, I want the submitted makeup task to become a todo, so that the actionable recovery work is visible in the app.
+- As a student, I want tomorrow's pledge to be stored as a promise, not as a todo, so that time phrases such as `9시에 시작` do not clutter the task list.
 - As a student, I want to submit the recovery routine inside the app when I open the URL directly, so that Slack configuration problems do not permanently block study.
 
 ## 6. User Scenarios
@@ -42,7 +43,7 @@ Students using the Slack notification channel who want stronger accountability a
 3. Slack receives a message with a `회복 루틴 작성` button.
 4. The web app also opens a recovery routine modal after login when blocking pending requests exist.
 5. The user submits the recovery routine through Slack or the app modal.
-6. Supabase marks the request submitted and creates today/tomorrow todos.
+6. Supabase marks the request submitted, creates today's makeup todo, and stores tomorrow's pledge on the recovery request without creating a todo.
 7. The app allows the next study session to start.
 
 ### Edge Cases
@@ -66,13 +67,13 @@ Students using the Slack notification channel who want stronger accountability a
 - [x] Allow users to read only their own recovery requests.
 - [x] Keep recovery creation and submission on the service-role Edge Function path.
 - [x] Block session start while a pending request exists.
-- [x] Create makeup and pledge todos on Slack modal submit.
+- [x] Create only the makeup todo on Slack modal submit and store the pledge as recovery-request text.
 - [x] Add missed-attendance and repeated-camera-absence trigger paths.
 - [x] Add one-time 30-minute follow-up.
 - [x] Show pending recovery in the web app and disable the start button.
 - [x] End an already-active web session when a pending recovery request appears.
 - [x] Add an in-app recovery modal that submits through an authenticated Supabase RPC.
-- [x] Create the same makeup and pledge todos when the app modal is submitted.
+- [x] Create only the makeup todo when the app modal is submitted and store the pledge as recovery-request text.
 
 ## 8. Non-functional Requirements
 
@@ -95,8 +96,8 @@ Students using the Slack notification channel who want stronger accountability a
 - The second same-day absence warning creates exactly one pending camera recovery request.
 - Pending recovery blocks web and RPC session starts, including same-day missed-attendance recovery.
 - Pending recovery stops an already-active web session when the app detects it.
-- Slack modal submission creates two todos and unblocks study start.
-- App modal submission creates the same two todos and unblocks study start.
+- Slack modal submission creates one makeup todo, stores the pledge without a todo row, and unblocks study start.
+- App modal submission creates one makeup todo, stores the pledge without a todo row, and unblocks study start.
 
 ## 11. Rollout Plan
 

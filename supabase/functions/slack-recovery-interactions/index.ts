@@ -125,12 +125,6 @@ async function handleRecoverySubmission(admin: ReturnType<typeof createClient>, 
     title: makeupTodoTitle,
     position: 0,
   });
-  const pledgeTodo = await createTodo(admin, {
-    userId: recoveryRequest.user_id,
-    localDate: addDaysToDateKey(recoveryRequest.local_date, 1),
-    title: pledgeTodoTitle,
-    position: 0,
-  });
 
   const { error } = await admin
     .from("study_recovery_requests")
@@ -140,7 +134,7 @@ async function handleRecoverySubmission(admin: ReturnType<typeof createClient>, 
       makeup_todo_title: makeupTodoTitle,
       pledge_todo_title: pledgeTodoTitle,
       makeup_todo_id: makeupTodo.id,
-      pledge_todo_id: pledgeTodo.id,
+      pledge_todo_id: null,
       slack_submitter_id: payload.user?.id ?? null,
       submitted_at: new Date().toISOString(),
     })

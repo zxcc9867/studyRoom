@@ -156,7 +156,7 @@ docs/images/study-room-thumbnail.png
 - `slack-test-alarm` sends a protected one-off Slack test message and includes same-day `study_todos` in the message body when a saved target is used. Browser requests must include `Authorization: Bearer {supabase_access_token}`. Cron-secret protected admin requests may pass `{ "channelId": "C..." }` or `{ "channelId": "G..." }` for direct Slack channel verification.
 - `camera-presence-warning` receives `POST /functions/v1/camera-presence-warning` from the browser with `Authorization: Bearer {supabase_access_token}` and body `{ sessionId, absenceSeconds, detectedAt, eventType }`.
 - `camera-presence-warning` validates that `study_sessions.user_id` matches the authenticated Supabase user before inserting `study_presence_events` or sending Slack.
-- `submit_study_recovery_request(p_request_id uuid, p_reason text, p_makeup_todo_title text, p_pledge_todo_title text)` is called by the web app with the logged-in Supabase session. It verifies `auth.uid()`, locks the user's pending recovery request, inserts the makeup/pledge todos, marks the request submitted, and returns the updated recovery request.
+- `submit_study_recovery_request(p_request_id uuid, p_reason text, p_makeup_todo_title text, p_pledge_todo_title text)` is called by the web app with the logged-in Supabase session. It verifies `auth.uid()`, locks the user's pending recovery request, inserts only the makeup todo, stores the pledge on `study_recovery_requests.pledge_todo_title` without creating a todo row, marks the request submitted, and returns the updated recovery request.
 - `end_study_session` receives `{ p_session_id, p_excluded_seconds }`; `p_excluded_seconds` is the camera absence time that should not be counted as study duration.
 - `attendance-cron` Slack notification bodies use emoji-led plain-text sections for `출석 마감`, `오늘 할 일`, `지금 할 일`, and `앱 열기`; they include up to a compact subset of reminder-date todo titles, mark completed items with a check indicator, and mention the 2-hour weekday or 4-hour weekend late-study recovery goal.
 - `get_due_reminders()` returns `reminder_stage = 'initial' | 'nudge'`. `attendance-cron` uses this stage to choose the first-reminder or final-nudge title/body and includes `reminderStage` in push payload data.
@@ -248,6 +248,16 @@ docs/images/study-room-thumbnail.png
 - GitHub Actions Vercel deployment uses only GitHub Secrets for `VERCEL_TOKEN`, `VERCEL_ORG_ID`, and `VERCEL_PROJECT_ID`; none of those values should be stored in frontend code.
 
 ## Supabase 변경 이력
+
+### 2026-06-25
+
+- 변경 대상: `public.submit_study_recovery_request`, `slack-recovery-interactions`, `study_recovery_requests`, `study_todos`
+- 변경 내용: 회복 루틴 제출 시 `p_pledge_todo_title` / Slack pledge 입력값은 `study_recovery_requests.pledge_todo_title`에만 저장하고, `study_todos`에는 오늘 보충 과제 1건만 생성하도록 변경했다. 새 제출의 `pledge_todo_id`는 `null`로 남긴다.
+- 변경 이유: 마지막 입력칸인 내일 재도전 약속에는 `9시에 시작` 같은 시간 문구가 자주 들어가며, 이를 다음날 할 일로 자동 생성하면 실제 처리할 todo 목록이 약속 문장으로 오염되기 때문이다.
+- 관련 기능: Slack 회복 루틴, 앱 내부 회복 루틴 모달, todo 자동 생성, 세션 시작 차단 해제
+- 마이그레이션 파일: `supabase/migrations/20260625115531_recovery_pledge_note_only.sql`
+- 확인 방법: `node --test apps\web\test\recoveryRoutine.test.mjs apps\web\test\slackNotifications.test.mjs packages\core\test\sql-migrations.test.mjs`
+- 주의 사항: 기존 과거 제출에서 이미 생성된 pledge todo는 자동 삭제하지 않는다. 이 변경은 새 회복 루틴 제출부터 적용된다.
 
 ### 2026-06-23
 

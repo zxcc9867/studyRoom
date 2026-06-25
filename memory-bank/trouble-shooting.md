@@ -1,5 +1,38 @@
 # Trouble Shooting
 
+## 2026-06-25 - Recovery pledge was created as a todo
+
+### Situation
+
+The user entered a recovery routine after going to the study room. When the final `내일 재도전 약속` field contained phrases such as `8시30분에 시작` or `9시에 시작`, that pledge appeared as a todo in the next session planning list.
+
+### Error Message
+
+```txt
+User-visible symptom:
+- The recovery pledge field is reflected as a todo.
+- Appointment-style text appears in the session todo selection modal.
+```
+
+### Cause
+
+Both recovery submission paths treated the pledge as a task. The app RPC `submit_study_recovery_request` inserted `p_pledge_todo_title` into `study_todos` for the next local date, and Slack `slack-recovery-interactions` created a second todo from `pledgeTodoTitle`.
+
+### Fix
+
+Keep `pledge_todo_title` as required recovery-request text, but create only the makeup todo. The new migration `20260625115531_recovery_pledge_note_only.sql` redefines the RPC to store the pledge and set `pledge_todo_id = null`; the Slack Edge Function now creates only the makeup todo and updates `pledge_todo_id: null`.
+
+### Related Files
+
+* `apps/web/test/recoveryRoutine.test.mjs`
+* `supabase/functions/slack-recovery-interactions/index.ts`
+* `supabase/migrations/20260625115531_recovery_pledge_note_only.sql`
+* `memory-bank/prd-slack-recovery-routines.md`
+
+### Prevention
+
+Treat recovery pledge text as a promise/note, not a session-selectable task. If future recovery fields are added, decide explicitly whether each field should create a `study_todos` row.
+
 ## 2026-06-23 - Supabase migration new timed out
 
 ### Situation

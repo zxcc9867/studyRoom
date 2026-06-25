@@ -2,6 +2,42 @@
 
 ## Current Work
 
+- Task: Recovery pledge should not become a todo.
+- Purpose: Keep the final recovery-routine pledge field as a promise/note so phrases like `9시에 시작` do not appear in the session todo picker or daily task list.
+- Related PRD:
+  - `memory-bank/prd-slack-recovery-routines.md`
+  - `memory-bank/prd-slack-notifications.md`
+- Related files:
+  - `supabase/functions/slack-recovery-interactions/index.ts`
+  - `supabase/migrations/20260625115531_recovery_pledge_note_only.sql`
+  - `apps/web/test/recoveryRoutine.test.mjs`
+  - `packages/core/test/sql-migrations.test.mjs`
+  - `memory-bank/implementation-plan.md`
+
+## Recent Decisions
+
+- Decision: Keep `pledge_todo_title` as required recovery-request text, but stop creating a `study_todos` row or `pledge_todo_id` for it.
+- Reason: The field is a next-day commitment, not an actionable todo item to select for a focus session.
+- Alternative: Keep creating tomorrow's pledge todo and rely on the user to delete it; rejected because it pollutes the todo list with appointment-style promises.
+- Impact: Recovery submission still blocks/unblocks study as before, but new submissions create only one makeup todo.
+
+## Current Status
+
+- Completed: Added RED regression coverage showing pledge must be stored without todo creation.
+- Completed: Added migration `20260625115531_recovery_pledge_note_only.sql`.
+- Completed: Updated Slack recovery submission to create only the makeup todo and set `pledge_todo_id: null`.
+- Completed: Updated recovery PRDs and implementation notes to remove the old pledge-todo requirement.
+- Completed: Applied the RPC change to Supabase project `bqohkdzvxbrokkmuhysx` with MCP SQL and verified the remote function no longer inserts a next-day pledge todo.
+- Completed: Deployed `slack-recovery-interactions` version 5 with `verify_jwt=false`; a live unsigned POST returned HTTP 401.
+- Completed: `npm.cmd test` passed 170 tests and `npm.cmd run build` passed with the existing Vite chunk-size warning.
+- Next: Commit, push, and verify the Vercel production deployment.
+
+## Notes
+
+- Existing pledge todos already created by older recovery submissions are not automatically deleted by this change.
+
+## Current Work
+
 - Task: Forever recurring todos and repeat-group deletion.
 - Purpose: Let the user create weekday-repeat todos without choosing an end date and remove all generated dates for a repeated task such as `회사` from one delete action.
 - Related PRD:
@@ -361,15 +397,15 @@
 
 ## Recent Decisions
 
-- Decision: Keep Slack recovery buttons, but add an authenticated in-app fallback modal that submits the same reason, makeup todo, and pledge fields.
+- Decision: Keep Slack recovery buttons, but add an authenticated in-app fallback modal that submits the same reason, makeup task, and pledge fields.
 - Reason: The user wants Slack submission and direct URL submission to both unblock study, and Slack interactivity can fail due to Signing Secret or Slack app configuration.
 - Alternative: Force the user to fix Slack before any recovery; rejected because it can permanently block study when Slack is misconfigured.
-- Impact: Pending recovery requests still block study start, but the app now gives the logged-in user a first-party way to submit the recovery routine and create the same todos.
+- Impact: Pending recovery requests still block study start, but the app now gives the logged-in user a first-party way to submit the recovery routine, create the makeup todo, and store the pledge.
 
 ## Current Status
 
 - Completed: Added web modal state, auto-open behavior for pending recovery requests, manual `회복 루틴 작성` buttons, and RPC submission from the app.
-- Completed: Added `submit_study_recovery_request` migration to validate `auth.uid()`, lock the pending request, create makeup/pledge todos, and mark the request submitted.
+- Completed: Added `submit_study_recovery_request` migration to validate `auth.uid()`, lock the pending request, create recovery todos, and mark the request submitted. As of 2026-06-25, only makeup is created as a todo and pledge is stored on the recovery request.
 - Completed: Added source-level regression coverage in `apps/web/test/recoveryRoutine.test.mjs`.
 - Completed: Applied Supabase migrations `in_app_recovery_submission` and `revoke_anon_recovery_submission`.
 - Completed: `npm.cmd test` and `npm.cmd run build` passed.
