@@ -1,3 +1,44 @@
+# Progress
+
+### 2026-06-29 - Selected-date planner and multi-date plan copy
+
+#### Completed Work
+
+- Changed the Today Tasks card so it can show yesterday, today, tomorrow, or an arbitrary selected calendar date.
+- Changed attendance calendar date clicks to update the visible planner date while keeping the todo modal available from planner add/edit actions.
+- Added a multi-date apply modal that copies the selected date's plan to chosen calendar dates.
+- Added duplicate-safe copy-row helpers that skip matching title/date/time rows and reset copied rows to single-date incomplete todos.
+- Added regression tests for selected-date planner labels, copy targets, copy row construction, and source-level UI wiring.
+
+#### Changed Files
+
+- `apps/web/src/main.tsx`
+- `apps/web/src/styles.css`
+- `apps/web/src/plannerDate.mjs`
+- `apps/web/src/plannerDate.d.mts`
+- `apps/web/test/plannerDate.test.mjs`
+- `apps/web/test/slackNotifications.test.mjs`
+- `memory-bank/active-context.md`
+- `memory-bank/progress.md`
+- `memory-bank/implementation-plan.md`
+- `memory-bank/prd-daily-planner-dashboard.md`
+
+#### Verification
+
+- RED: `node --test apps\web\test\plannerDate.test.mjs` failed before `plannerDate.mjs` existed.
+- RED: `node --test apps\web\test\slackNotifications.test.mjs` failed before the selected-date planner wiring existed.
+- GREEN: `node --test apps\web\test\plannerDate.test.mjs apps\web\test\slackNotifications.test.mjs` passed after implementation.
+- Full suite: `npm.cmd test` passed 197 tests.
+- Build: `npm.cmd run build` passed with the existing Vite chunk-size warning.
+
+#### Remaining Work
+
+- Commit, push, and verify Vercel production deployment.
+
+#### Next Priority
+
+- Production smoke-test: select a non-today calendar date, add/edit a timed planner item, copy that plan to multiple dates, and confirm the calendar todo badges update.
+
 
 ### 2026-06-28 - Daily planner direct completion outside sessions
 

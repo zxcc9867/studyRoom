@@ -105,6 +105,18 @@ test("untimed planner todos can be completed from their checkbox outside active 
   assert.ok(listSource.includes("onChange={() => void toggleTodoCompletion(todo)}"));
   assert.equal(listSource.includes("readOnly"), false);
 });
+test("daily planner follows the selected calendar date and can copy a plan to multiple dates", () => {
+  const appSource = readFileSync("apps/web/src/main.tsx", "utf8");
+
+  assert.ok(appSource.includes("getPlannerDateLabel(selectedTodoDate, todayDateKey)"));
+  assert.ok(appSource.includes("const selectedPlannerTodos = useMemo("));
+  assert.ok(appSource.includes("buildDailyPlannerSegments(selectedPlannerTodos, selectedTodoDate)"));
+  assert.ok(appSource.includes("showPlannerDate(day.dateKey)"));
+  assert.ok(appSource.includes("planCopyModalOpen"));
+  assert.ok(appSource.includes("copySelectedPlannerDateToTargets"));
+  assert.ok(appSource.includes("buildPlanCopyRows({"));
+  assert.ok(appSource.includes("normalizePlanCopyTargetDates({"));
+});
 test("validates slack public and private channel IDs", () => {
   assert.equal(isValidSlackChannelId("C123ABC456"), true);
   assert.equal(isValidSlackChannelId("G123ABC456"), true);

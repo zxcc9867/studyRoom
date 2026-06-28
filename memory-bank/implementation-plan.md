@@ -40,8 +40,10 @@
 ## Daily Planner Dashboard Notes
 
 - Today task views: the Today task card supports `checklist` and `planner`. The planner is a browser-rendered SVG life planner built from already loaded `study_todos`.
+- Selected-date planner scope: the Today task card can render yesterday, today, tomorrow, or any calendar-selected local date by filtering `study_todos.local_date` with `selectedTodoDate`; real attendance/session gates still use the actual `todayDateKey`.
 - Planner data source: timed todos use `study_todos.start_time` and `study_todos.end_time`; untimed todos remain in a separate list below the wheel. Overnight todos wrap across midnight and overlapping todos show a warning state.
 - Planner interactions: clicking an empty wheel area opens the existing todo modal with a default one-hour time block; clicking a segment opens the same modal for editing that todo.
+- Multi-date plan copy: the planner copy modal creates explicit single-date `study_todos` rows for selected target dates, skips duplicate title/date/time rows, resets copied rows to incomplete, and clears repeat metadata so the copies do not unexpectedly edit the original recurrence group.
 - Existing todo scheduling: inside the todo modal, checking an existing unscheduled todo applies the current start/end time fields to that row. Checking an already scheduled todo loads it into edit mode. These checkboxes do not mark todos complete.
 - Planner todo completion: outside active study sessions, the Today checklist/planner can toggle `study_todos.is_completed` directly through the existing authenticated update path. During active sessions, direct completion controls stay disabled and completion remains part of the End-session completion modal.
 - Preference storage: `profiles.today_task_view` stores the pinned task view, and `profiles.today_section_order` stores the Today section order for `topbar`, `attendance`, `focus`, and `tasks`.
@@ -103,6 +105,9 @@ apps/web/test/studyGoals.test.mjs
 apps/web/src/sessionTodoLinks.mjs
 apps/web/src/sessionTodoLinks.d.mts
 apps/web/test/sessionTodoLinks.test.mjs
+apps/web/src/plannerDate.mjs
+apps/web/src/plannerDate.d.mts
+apps/web/test/plannerDate.test.mjs
 ```
 
 ```txt
@@ -214,6 +219,7 @@ docs/images/study-room-thumbnail.png
 - Use pure helper tests for recurring todo date calculation, duplicate filtering, and dashboard hash route parsing.
 - Use pure helper tests for study goal D-day labels, active-goal selection, linked todo filtering, and goal progress calculation.
 - Use pure helper tests for session todo selection gates, link row construction, active-session linked todo lookup, and end-session summary text.
+- Use pure helper tests for selected planner date labels, multi-date copy target normalization, and duplicate-safe copy row construction.
 - Use SQL migration tests for `study_goals` RLS, explicit authenticated grants, and owner-safe todo goal links.
 - Use SQL migration tests for `study_session_todos` RLS, explicit authenticated grants, and user-scoped composite foreign keys.
 - Use SQL/source tests to verify `study_presence_events` RLS and `camera-presence-warning` session ownership checks.

@@ -2,6 +2,37 @@
 
 ## Current Work
 
+- Task: Selected-date planner and multi-date plan copy.
+- Purpose: Let the Today Tasks planner inspect and edit not only today, but also yesterday, tomorrow, or any selected calendar date, and apply the same selected-date plan to multiple calendar dates at once.
+- Related PRD:
+  - memory-bank/prd-daily-planner-dashboard.md
+  - memory-bank/prd-recurring-todos.md
+- Related files:
+  - apps/web/src/main.tsx
+  - apps/web/src/plannerDate.mjs
+  - apps/web/test/plannerDate.test.mjs
+  - apps/web/test/slackNotifications.test.mjs
+
+## Recent Decisions
+
+- Decision: Keep `study_todos.local_date` as the source of truth and drive the planner from `selectedTodoDate` instead of only `todayDateKey`.
+- Reason: The attendance calendar already exposes per-date todo counts, so the least disruptive path is to let date selection change the planner data source while preserving the existing todo modal and Supabase Data API path.
+- Impact: Clicking a calendar date now changes the visible planner date. The todo modal still edits the selected date, and the new copy modal creates duplicate-safe single-date rows for selected target dates.
+
+## Current Status
+
+- Completed: Added planner-date helper tests for label normalization, multi-date target normalization, and duplicate-safe copy-row construction.
+- Completed: Added source-level regression coverage that verifies planner state follows `selectedTodoDate` and invokes `buildPlanCopyRows`.
+- Completed: Updated the Today Tasks card with date shortcuts, a date input, and a multi-date apply modal.
+- Completed: `npm.cmd test` passed 197 tests and `npm.cmd run build` passed with the existing Vite chunk-size warning.
+- Next: Commit, push, and verify Vercel production deployment.
+
+## Notes
+
+- No Supabase schema change is required. Multi-date apply inserts additional `study_todos` rows and clears repeat metadata so copied plans behave as explicit one-day schedules.
+
+## Current Work
+
 - Task: Daily planner direct todo completion outside active sessions.
 - Purpose: Let users mark selected planner todos and untimed planner todos complete from the Today task area when no study session is active.
 - Related PRD:

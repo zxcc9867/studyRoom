@@ -111,6 +111,11 @@ import {
   type DailyPlannerSegment,
 } from "./dailyPlanner.mjs";
 import {
+  buildPlanCopyRows,
+  getPlannerDateLabel,
+  normalizePlanCopyTargetDates,
+} from "./plannerDate.mjs";
+import {
   DEFAULT_TODAY_SECTION_ORDER,
   DEFAULT_TODAY_TASK_VIEW,
   moveTodaySection,
@@ -413,6 +418,10 @@ function DashboardApp() {
   const [sectionOrderEditing, setSectionOrderEditing] = useState(false);
   const [draggingSectionId, setDraggingSectionId] = useState<TodaySectionId | null>(null);
   const [selectedPlannerTodoId, setSelectedPlannerTodoId] = useState<string | null>(null);
+  const [planCopyModalOpen, setPlanCopyModalOpen] = useState(false);
+  const [planCopyMonth, setPlanCopyMonth] = useState(() => getMonthKey(new Date()));
+  const [planCopyTargetDates, setPlanCopyTargetDates] = useState<string[]>([]);
+  const [planCopyBusy, setPlanCopyBusy] = useState(false);
   const [sessionTodoModalOpen, setSessionTodoModalOpen] = useState(false);
   const [sessionTodoStartRequest, setSessionTodoStartRequest] = useState<{ cameraReadyOverride: boolean } | null>(null);
   const [selectedSessionTodoIds, setSelectedSessionTodoIds] = useState<string[]>([]);
@@ -665,9 +674,14 @@ function DashboardApp() {
     () => studyTodos.filter((todo) => todo.local_date === todayDateKey),
     [studyTodos, todayDateKey],
   );
+  const selectedPlannerTodos = useMemo(
+    () => studyTodos.filter((todo) => todo.local_date === selectedTodoDate),
+    [studyTodos, selectedTodoDate],
+  );
+  const plannerDateLabel = getPlannerDateLabel(selectedTodoDate, todayDateKey);
   const dailyPlanner = useMemo(
-    () => buildDailyPlannerSegments(todayTodos, todayDateKey),
-    [todayTodos, todayDateKey],
+    () => buildDailyPlannerSegments(selectedPlannerTodos, selectedTodoDate),
+    [selectedPlannerTodos, selectedTodoDate],
   );
   const selectedPlannerSegment = useMemo(
     () =>
@@ -694,10 +708,7 @@ function DashboardApp() {
     () => getEndSessionCompletionCandidates({ activeSessionTodos, todayTodos }),
     [activeSessionTodos, todayTodos],
   );
-  const selectedDateTodos = useMemo(
-    () => studyTodos.filter((todo) => todo.local_date === selectedTodoDate),
-    [studyTodos, selectedTodoDate],
-  );
+  const selectedDateTodos = selectedPlannerTodos;
   const editingTodo = useMemo(
     () => studyTodos.find((todo) => todo.id === editingTodoId) ?? null,
     [studyTodos, editingTodoId],
@@ -706,7 +717,7 @@ function DashboardApp() {
     () => (reminderPopup ? studyTodos.filter((todo) => todo.local_date === reminderPopup.dateKey) : []),
     [studyTodos, reminderPopup?.dateKey],
   );
-  const todayTodoStats = useMemo(() => calculateTodoStats(todayTodos), [todayTodos]);
+  const selectedPlannerTodoStats = useMemo(() => calculateTodoStats(selectedPlannerTodos), [selectedPlannerTodos]);
   const visibleTodoModalItems = useMemo(() => editingTodo ? [editingTodo] : selectedDateTodos, [editingTodo, selectedDateTodos]);
   const selectedTodoStats = useMemo(() => calculateTodoStats(visibleTodoModalItems), [visibleTodoModalItems]);
   const todoCountsByDate = useMemo(() => {
@@ -916,6 +927,10 @@ function DashboardApp() {
   const attendanceCalendarDays = useMemo(
     () => buildAttendanceCalendar(calendarMonth, attendanceDays),
     [attendanceDays, calendarMonth],
+  );
+  const planCopyCalendarDays = useMemo(
+    () => buildAttendanceCalendar(planCopyMonth, attendanceDays),
+    [attendanceDays, planCopyMonth],
   );
   const resendSeconds = Math.max(0, Math.ceil((resendAvailableAt - nowMs) / 1000));
 
@@ -1369,9 +1384,14 @@ function DashboardApp() {
     setBusy(false);
   }
 
-  function selectTodoDate(dateKey: string) {
+  function showPlannerDate(dateKey: string) {
     setSelectedTodoDate(dateKey);
     setCalendarMonth(dateKey.slice(0, 7));
+    setSelectedPlannerTodoId(null);
+  }
+
+  function selectTodoDate(dateKey: string) {
+    showPlannerDate(dateKey);
     resetTodoDraftForDate(dateKey);
     setTodoModalOpen(true);
   }
@@ -1396,9 +1416,9 @@ function DashboardApp() {
 
   function openPlannerTodoCreate(startTime: string) {
     const normalizedStartTime = startTime.slice(0, 5);
-    setSelectedTodoDate(todayDateKey);
-    setCalendarMonth(todayDateKey.slice(0, 7));
-    resetTodoDraftForDate(todayDateKey);
+    const targetDate = selectedTodoDate;
+    showPlannerDate(targetDate);
+    resetTodoDraftForDate(targetDate);
     setTodoTimeEnabled(true);
     setTodoStartTime(normalizedStartTime);
     setTodoEndTime(addMinutesToTime(normalizedStartTime, 60));
@@ -1407,6 +1427,74 @@ function DashboardApp() {
 
   function openPlannerTodoFromClick(event: MouseEvent<SVGSVGElement>) {
     openPlannerTodoCreate(plannerAngleToTime(getPlannerClickAngle(event)));
+  }
+
+  function openPlanCopyModal() {
+    setPlanCopyMonth(selectedTodoDate.slice(0, 7));
+    setPlanCopyTargetDates([]);
+    setPlanCopyModalOpen(true);
+  }
+
+  function closePlanCopyModal() {
+    setPlanCopyModalOpen(false);
+    setPlanCopyTargetDates([]);
+  }
+
+  function togglePlanCopyTargetDate(dateKey: string) {
+    if (dateKey === selectedTodoDate) return;
+    setPlanCopyTargetDates((current) =>
+      current.includes(dateKey)
+        ? current.filter((item) => item !== dateKey)
+        : [...current, dateKey].sort(),
+    );
+  }
+
+  async function copySelectedPlannerDateToTargets() {
+    if (!session?.user.id) return;
+
+    const targetDates = normalizePlanCopyTargetDates({
+      sourceDate: selectedTodoDate,
+      selectedDates: planCopyTargetDates,
+    });
+
+    if (selectedPlannerTodos.length === 0) {
+      setMessage("\uBCF5\uC0AC\uD560 \uD560 \uC77C\uC774 \uC5C6\uC2B5\uB2C8\uB2E4.");
+      return;
+    }
+
+    if (targetDates.length === 0) {
+      setMessage("\uACC4\uD68D\uC744 \uC801\uC6A9\uD560 \uB0A0\uC9DC\uB97C \uC120\uD0DD\uD558\uC138\uC694.");
+      return;
+    }
+
+    const rows = buildPlanCopyRows({
+      sourceTodos: selectedPlannerTodos,
+      targetDates,
+      existingTodos: studyTodos,
+      userId: session.user.id,
+    });
+
+    if (rows.length === 0) {
+      setMessage("\uC120\uD0DD\uD55C \uB0A0\uC9DC\uC5D0 \uC774\uBBF8 \uAC19\uC740 \uACC4\uD68D\uC774 \uC788\uC2B5\uB2C8\uB2E4.");
+      closePlanCopyModal();
+      return;
+    }
+
+    setPlanCopyBusy(true);
+    const { data, error } = await supabase.from("study_todos").insert(rows).select("*");
+    setPlanCopyBusy(false);
+
+    if (error) {
+      setMessage(error.message);
+      return;
+    }
+
+    if (data?.length) {
+      setStudyTodos((current) => sortTodos([...(data as StudyTodo[]), ...current]));
+    }
+
+    closePlanCopyModal();
+    setMessage(String(rows.length) + "\uAC1C \uD560 \uC77C\uC744 " + String(targetDates.length) + "\uAC1C \uB0A0\uC9DC\uC5D0 \uC801\uC6A9\uD588\uC2B5\uB2C8\uB2E4.");
   }
 
   function getTodaySectionSortOrder(sectionId: TodaySectionId) {
@@ -3242,7 +3330,7 @@ function DashboardApp() {
               <p className="eyebrow">no time</p>
               <h3>시간 없는 할 일</h3>
             </div>
-            <button className="secondary compact-action" type="button" onClick={() => selectTodoDate(todayDateKey)}>
+            <button className="secondary compact-action" type="button" onClick={() => selectTodoDate(selectedTodoDate)}>
               <Plus size={16} />
               추가
             </button>
@@ -3763,7 +3851,7 @@ function DashboardApp() {
                   key={day.dateKey}
                   type="button"
                   aria-pressed={selectedTodoDate === day.dateKey}
-                  onClick={() => selectTodoDate(day.dateKey)}
+                  onClick={() => showPlannerDate(day.dateKey)}
                 >
                   <strong>{day.dayNumber}</strong>
                   {day.status && <small>{attendanceLabel(day.status)}</small>}
@@ -3982,6 +4070,94 @@ function DashboardApp() {
                 </label>
               </form>
               {renderTodoScheduleList(visibleTodoModalItems, "\uC774 \uB0A0\uC9DC\uC5D0 \uC800\uC7A5\uB41C \uD560 \uC77C\uC774 \uC5C6\uC2B5\uB2C8\uB2E4.")}
+            </section>
+          </div>
+        )}
+
+        {planCopyModalOpen && (
+          <div
+            className="modal-backdrop"
+            role="presentation"
+            onClick={closePlanCopyModal}
+          >
+            <section
+              className="todo-modal plan-copy-modal"
+              role="dialog"
+              aria-modal="true"
+              aria-label="copy planner to dates"
+              onClick={(event) => event.stopPropagation()}
+            >
+              <div className="todo-header">
+                <div>
+                  <p className="eyebrow">copy planner</p>
+                  <h3>{"\uC5EC\uB7EC \uB0A0\uC9DC\uC5D0 \uC801\uC6A9"}</h3>
+                </div>
+                <button className="modal-close" type="button" aria-label="close" onClick={closePlanCopyModal}>
+                  <X size={18} />
+                </button>
+              </div>
+              <p className="plan-copy-description">
+                {formatTodoDate(selectedTodoDate)}{"\uC758 \uD560 \uC77C\uC744 \uC120\uD0DD\uD55C \uB0A0\uC9DC\uC5D0 \uBCF5\uC0AC\uD569\uB2C8\uB2E4. \uAC19\uC740 \uC81C\uBAA9\uACFC \uC2DC\uAC04\uC774 \uC774\uBBF8 \uC788\uC73C\uBA74 \uAC74\uB108\uB701\uB2C8\uB2E4."}
+              </p>
+              <label className="plan-copy-month">
+                {"\uC6D4 \uC120\uD0DD"}
+                <input
+                  type="month"
+                  value={planCopyMonth}
+                  onChange={(event) => setPlanCopyMonth(event.target.value)}
+                />
+              </label>
+              <div className="calendar-weekdays" aria-hidden="true">
+                {["\uC77C", "\uC6D4", "\uD654", "\uC218", "\uBAA9", "\uAE08", "\uD1A0"].map((weekday) => (
+                  <span key={weekday}>{weekday}</span>
+                ))}
+              </div>
+              <div className="attendance-calendar plan-copy-calendar" aria-label="plan copy target dates">
+                {planCopyCalendarDays.map((day) => {
+                  const todoCount = todoCountsByDate.get(day.dateKey) ?? 0;
+                  const selected = planCopyTargetDates.includes(day.dateKey);
+                  const isSourceDate = day.dateKey === selectedTodoDate;
+                  return (
+                    <button
+                      className={[
+                        "calendar-day",
+                        "calendar-" + (day.status ?? "empty"),
+                        day.inMonth ? "" : "calendar-outside",
+                        selected ? "calendar-copy-selected" : "",
+                        isSourceDate ? "calendar-copy-source" : "",
+                      ].filter(Boolean).join(" ")}
+                      key={day.dateKey}
+                      type="button"
+                      aria-pressed={selected}
+                      disabled={isSourceDate}
+                      onClick={() => togglePlanCopyTargetDate(day.dateKey)}
+                    >
+                      <strong>{day.dayNumber}</strong>
+                      <small>{isSourceDate ? "\uC6D0\uBCF8" : selected ? "\uC120\uD0DD" : ""}</small>
+                      {todoCount > 0 && <span className="todo-badge">{todoCount}</span>}
+                    </button>
+                  );
+                })}
+              </div>
+              <div className="plan-copy-summary">
+                <strong>{selectedPlannerTodos.length}{"\uAC1C \uACC4\uD68D"}</strong>
+                <span>{planCopyTargetDates.length}{"\uAC1C \uB0A0\uC9DC \uC120\uD0DD"}</span>
+              </div>
+              <div className="modal-actions">
+                <button
+                  className="primary"
+                  type="button"
+                  disabled={planCopyBusy || planCopyTargetDates.length === 0 || selectedPlannerTodos.length === 0}
+                  onClick={() => void copySelectedPlannerDateToTargets()}
+                >
+                  <Save size={18} />
+                  {"\uC801\uC6A9"}
+                </button>
+                <button className="secondary" type="button" disabled={planCopyBusy} onClick={closePlanCopyModal}>
+                  <X size={18} />
+                  {"\uCDE8\uC18C"}
+                </button>
+              </div>
             </section>
           </div>
         )}
@@ -4518,10 +4694,31 @@ function DashboardApp() {
         >
           <div className="todo-header">
             <div>
-              <p className="eyebrow">today tasks</p>
-              <h2>오늘 할 일</h2>
+              <p className="eyebrow">selected tasks</p>
+              <h2>{plannerDateLabel}</h2>
             </div>
-            <strong>{todayTodoStats.percent}% 달성</strong>
+            <strong>{selectedPlannerTodoStats.percent}% {"\uB2EC\uC131"}</strong>
+          </div>
+          <div className="planner-date-controls" aria-label="planner date selector">
+            <div className="date-shortcut-group">
+              <button type="button" onClick={() => showPlannerDate(addDaysToDateKey(todayDateKey, -1))}>{"\uC5B4\uC81C"}</button>
+              <button type="button" onClick={() => showPlannerDate(todayDateKey)}>{"\uC624\uB298"}</button>
+              <button type="button" onClick={() => showPlannerDate(addDaysToDateKey(todayDateKey, 1))}>{"\uB0B4\uC77C"}</button>
+            </div>
+            <input
+              type="date"
+              value={selectedTodoDate}
+              onChange={(event) => showPlannerDate(event.target.value)}
+            />
+            <button
+              className="secondary compact-action"
+              type="button"
+              onClick={openPlanCopyModal}
+              disabled={selectedPlannerTodos.length === 0}
+            >
+              <CalendarDays size={16} />
+              {"\uC5EC\uB7EC \uB0A0\uC9DC\uC5D0 \uC801\uC6A9"}
+            </button>
           </div>
           <div className="task-view-switcher" aria-label="오늘 할 일 보기 방식">
             <button
@@ -4553,11 +4750,11 @@ function DashboardApp() {
             </button>
           </div>
           <div className="todo-progress-track">
-            <span className="todo-progress-fill" style={{ width: `${todayTodoStats.percent}%` }} />
+            <span className="todo-progress-fill" style={{ width: `${selectedPlannerTodoStats.percent}%` }} />
           </div>
           {todayTaskView === "planner"
             ? renderDailyPlanner()
-            : renderTodoList(todayTodos, "오늘 할 일이 없습니다. 캘린더에서 오늘 날짜를 눌러 추가하세요.")}
+            : renderTodoList(selectedPlannerTodos, "\uC120\uD0DD\uD55C \uB0A0\uC9DC\uC5D0 \uD560 \uC77C\uC774 \uC5C6\uC2B5\uB2C8\uB2E4. \uB0A0\uC9DC\uB97C \uACE0\uB978 \uB4A4 \uCD94\uAC00\uD558\uC138\uC694.")}
         </section>
         )}
 

@@ -10,7 +10,9 @@ Personal MVP users who want to plan and visualize today's study tasks in either 
 
 ## 3. Goals
 
-- Let the user switch today's tasks between checklist and circular daily planner views.
+- Let the user switch dated tasks between checklist and circular daily planner views.
+- Let the user inspect and edit yesterday, today, tomorrow, or any selected calendar date from the same Today Tasks card.
+- Let the user apply one selected date's plan to multiple calendar dates at once.
 - Show timed todos as 24-hour SVG wheel segments and untimed todos in a separate list.
 - Let the user create a timed todo by clicking an empty planner time area.
 - Let the user edit an existing timed todo by clicking a planner segment.
@@ -33,6 +35,8 @@ Personal MVP users who want to plan and visualize today's study tasks in either 
 - As a user, I want to pin checklist or planner view, so that the next login opens with my preferred task view.
 - As a user, I want to reorder the Today sections, so that the timer, calendar, tasks, and camera appear in the order I prefer.
 - As a user, I want to mark a planner task complete when I finish it outside a running study session, so that the Today progress and history update immediately.
+- As a user, I want to click a calendar date and see that date's checklist or life planner, so that I can prepare yesterday, tomorrow, or future schedules without leaving the dashboard.
+- As a user, I want to copy a finished daily plan to multiple dates, so that repeated study days can be set up quickly without manually recreating each todo.
 
 ## 6. User Scenarios
 
@@ -68,18 +72,21 @@ Personal MVP users who want to plan and visualize today's study tasks in either 
 - [x] Add circular SVG daily planner using existing `study_todos`.
 - [x] Let existing todos be loaded or scheduled from the todo modal without toggling completion.
 - [x] Let planner detail and untimed todo checkboxes toggle completion only when no study session is active.
+- [x] Let the Today Tasks card follow a selected local date instead of only the real current date.
+- [x] Add previous/today/next/date input controls for planner date navigation.
+- [x] Add a multi-date apply modal that copies a selected date's plan to chosen calendar dates while skipping duplicates.
 - [x] Add dashboard section order editor with drag-and-drop and up/down buttons.
 
 ## 8. Non-functional Requirements
 
-- Performance: planner calculation runs client-side over today's loaded todos only.
+- Performance: planner calculation runs client-side over the selected date's loaded todos only.
 - Security: preferences are stored on the existing RLS-protected `profiles` row.
 - Accessibility: view buttons use `aria-pressed`; planner segments are keyboard-focusable buttons.
 - Maintainability: planner math stays in `dailyPlanner.mjs`; layout preference normalization stays in `dashboardLayout.mjs`.
 
 ## 9. Dependencies
 
-- Internal: `apps/web/src/main.tsx`, `apps/web/src/dailyPlanner.mjs`, `apps/web/src/dashboardLayout.mjs`, `apps/web/src/todoSchedule.mjs`, `apps/web/src/todoRecurrence.mjs`
+- Internal: `apps/web/src/main.tsx`, `apps/web/src/dailyPlanner.mjs`, `apps/web/src/dashboardLayout.mjs`, `apps/web/src/todoSchedule.mjs`, `apps/web/src/todoRecurrence.mjs`, `apps/web/src/plannerDate.mjs`
 - Supabase: `profiles`, `study_todos`
 - API: Supabase Data API upsert on `profiles`, select/insert/update/delete on `study_todos`
 - Environment: existing Supabase Vite env vars
@@ -88,6 +95,8 @@ Personal MVP users who want to plan and visualize today's study tasks in either 
 
 - A user can persist planner view and see it restored after reload/login.
 - A user can create/edit timed todos from the planner without leaving Today.
+- A user can select another calendar date and create/edit todos for that date from the planner.
+- A user can copy one date's plan to multiple selected dates without creating duplicate title/date/time rows.
 - Section order changes are reflected immediately and persist after saving.
 
 ## 11. Rollout Plan
