@@ -17,6 +17,7 @@ Students using the Slack notification channel who want stronger accountability a
 - Treat every pending recovery request as blocking, including same-day missed-attendance requests.
 - Require reason, today's makeup task, and tomorrow's pledge before another session can start or continue.
 - Create one dated todo from the submitted makeup task; keep tomorrow's pledge on the recovery request only, not as a todo.
+- Resume the normal study-start flow after the final pending recovery is submitted if the modal was opened from a blocked `입장하고 시작` action.
 - Send one follow-up if the pending request is not submitted for 30 minutes.
 
 ## 4. Non-goals
@@ -45,6 +46,7 @@ Students using the Slack notification channel who want stronger accountability a
 5. The user submits the recovery routine through Slack or the app modal.
 6. Supabase marks the request submitted, creates today's makeup todo, and stores tomorrow's pledge on the recovery request without creating a todo.
 7. The app allows the next study session to start.
+8. If the user was originally blocked by recovery while pressing `입장하고 시작`, the app closes the modal and continues the start flow automatically.
 
 ### Edge Cases
 
@@ -53,6 +55,8 @@ Students using the Slack notification channel who want stronger accountability a
 - If the user waits 30 minutes, one follow-up message is sent.
 - If a pending recovery request is detected while a web study session is already active, the app ends that session and opens the recovery modal.
 - If the user dismisses the auto-opened modal, the app still shows a manual `회복 루틴 작성` action while the request remains pending.
+
+- If the user clicks `나중에` or closes a recovery modal that was opened from a blocked start, the app clears the auto-start intent and waits for the user to press `입장하고 시작` again.
 
 ### Error Cases
 
@@ -74,6 +78,7 @@ Students using the Slack notification channel who want stronger accountability a
 - [x] End an already-active web session when a pending recovery request appears.
 - [x] Add an in-app recovery modal that submits through an authenticated Supabase RPC.
 - [x] Create only the makeup todo when the app modal is submitted and store the pledge as recovery-request text.
+- [x] Resume a user-initiated study start after the final blocking in-app recovery request is submitted.
 
 ## 8. Non-functional Requirements
 
@@ -98,6 +103,7 @@ Students using the Slack notification channel who want stronger accountability a
 - Pending recovery stops an already-active web session when the app detects it.
 - Slack modal submission creates one makeup todo, stores the pledge without a todo row, and unblocks study start.
 - App modal submission creates one makeup todo, stores the pledge without a todo row, and unblocks study start.
+- App modal submission after a blocked `입장하고 시작` closes the modal and resumes the normal start flow.
 
 ## 11. Rollout Plan
 

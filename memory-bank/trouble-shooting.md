@@ -1,5 +1,37 @@
 # Trouble Shooting
 
+## 2026-06-28 - Recovery submit did not resume blocked start
+
+### Situation
+
+The user clicked `입장하고 시작`, was blocked by a pending in-app recovery routine, filled in the recovery reason and plan, and expected the modal to close and the study session to start. The app only submitted the recovery request and left the user without a resumed start flow.
+
+### Error Message
+
+```txt
+User-visible symptom:
+- The recovery routine modal appears to remain part of the flow after submit.
+- A study session does not start automatically after clicking "제출하고 잠금 해제".
+```
+
+### Cause
+
+`startTimer()` opened the recovery modal when pending recovery existed, but it did not persist that the user had originally attempted to start a study session. After `submitRecoveryRoutine()` succeeded, the code marked the recovery request as submitted and reloaded dashboard data, but no code resumed the original start action.
+
+### Fix
+
+Added `shouldResumeStartAfterRecoveryUnlock()` and a short-lived `resumeStartAfterRecoveryUnlock` state. `startTimer()` sets this state only when pending recovery blocks a user-initiated start. After successful recovery submission, the app waits for dashboard data refresh, closes the recovery modal, clears the blocker, and a React effect calls `startTimer()` again when no pending recovery remains.
+
+### Related Files
+
+* `apps/web/src/main.tsx`
+* `apps/web/src/recoveryStartResume.mjs`
+* `apps/web/test/recoveryStartResume.test.mjs`
+
+### Prevention
+
+Any future modal gate that blocks a user-initiated start should either resume the original action after successful unlock or explicitly clear the start intent when the user chooses `나중에`.
+
 ## 2026-06-25 - Recovery pledge was created as a todo
 
 ### Situation

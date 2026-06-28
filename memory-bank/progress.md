@@ -2,6 +2,45 @@
 
 ## Timeline
 
+### 2026-06-28 - Recovery unlock resumes blocked study start
+
+#### Completed Work
+
+- Fixed the in-app recovery routine flow so a start attempt blocked by recovery can continue after the recovery routine is submitted.
+- Added a focused helper `shouldResumeStartAfterRecoveryUnlock()` to keep the resume condition explicit and tested.
+- Added React state for the blocked start intent and dashboard refresh gate.
+- Cleared the blocked start intent when the user closes the recovery modal manually.
+- Preserved the normal camera-required and session-todo selection gates after recovery unlock.
+
+#### Changed Files
+
+- `apps/web/src/main.tsx`
+- `apps/web/src/recoveryStartResume.mjs`
+- `apps/web/src/recoveryStartResume.d.mts`
+- `apps/web/test/recoveryStartResume.test.mjs`
+- `memory-bank/prd-slack-recovery-routines.md`
+- `memory-bank/implementation-plan.md`
+- `memory-bank/active-context.md`
+- `memory-bank/progress.md`
+- `memory-bank/trouble-shooting.md`
+
+#### Verification
+
+- RED: `node --test apps\web\test\recoveryStartResume.test.mjs` first failed because the helper was missing, then failed on the intended resume assertion.
+- GREEN: `node --test apps\web\test\recoveryStartResume.test.mjs` passed.
+- Related coverage: `node --test apps\web\test\recoveryStartResume.test.mjs apps\web\test\recoveryRoutine.test.mjs apps\web\test\sessionTodoLinks.test.mjs apps\web\test\slackNotifications.test.mjs` passed.
+- Full suite: `npm.cmd test` passed 173 tests.
+- Build: `npm.cmd run build` passed with the existing Vite chunk-size warning.
+
+#### Remaining Work
+
+- Commit, push, and verify Vercel production deployment.
+- Manual production smoke-test: click `입장하고 시작` while one pending recovery exists, submit the modal, confirm it closes and the start flow continues.
+
+#### Next Priority
+
+- Confirm the production app starts or reaches the expected camera/session-todo gate after in-app recovery submission.
+
 ### 2026-06-25 - Recovery pledge stored without todo creation
 
 #### Completed Work

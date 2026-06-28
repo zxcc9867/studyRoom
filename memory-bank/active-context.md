@@ -2,6 +2,42 @@
 
 ## Current Work
 
+- Task: Resume study start after in-app recovery unlock.
+- Purpose: When the user clicks `입장하고 시작`, gets blocked by a pending recovery routine, submits the in-app recovery form, the modal should close and the original study-start flow should continue automatically.
+- Related PRD:
+  - `memory-bank/prd-slack-recovery-routines.md`
+  - `memory-bank/prd-session-todo-links.md`
+- Related files:
+  - `apps/web/src/main.tsx`
+  - `apps/web/src/recoveryStartResume.mjs`
+  - `apps/web/src/recoveryStartResume.d.mts`
+  - `apps/web/test/recoveryStartResume.test.mjs`
+
+## Recent Decisions
+
+- Decision: Store a short-lived `resumeStartAfterRecoveryUnlock` flag only when `startTimer()` is blocked by pending recovery.
+- Reason: Submitting a recovery modal opened automatically after login should only unlock the app, while submitting a recovery modal opened from a blocked start should resume the user's original start intent.
+- Alternative: Always start a session after any recovery submission; rejected because some recovery submissions happen during login or manual cleanup without an explicit start action.
+- Impact: After the last pending recovery request is submitted, the app reloads dashboard data, closes the recovery modal, and resumes the normal start flow. Camera and session-todo gates still run as usual.
+
+## Current Status
+
+- Completed: Added `shouldResumeStartAfterRecoveryUnlock()` helper and regression tests.
+- Completed: Wired `startTimer()` to remember when recovery blocked a user-initiated start.
+- Completed: Wired a React effect to resume `startTimer()` only after no blocking recovery remains, the modal is closed, no active session exists, and dashboard refresh is done.
+- Completed: `node --test apps\web\test\recoveryStartResume.test.mjs` passed.
+- Completed: Related recovery/session/slack tests passed.
+- Completed: `npm.cmd test` passed 173 tests.
+- Completed: `npm.cmd run build` passed with the existing Vite chunk-size warning.
+- Next: Commit, push, and verify the Vercel production deployment.
+
+## Notes
+
+- Closing the recovery modal manually clears the pending auto-start intent, so `나중에` remains a real postpone action.
+- The resumed start still respects camera-required and session-todo selection gates.
+
+## Current Work
+
 - Task: Recovery pledge should not become a todo.
 - Purpose: Keep the final recovery-routine pledge field as a promise/note so phrases like `9시에 시작` do not appear in the session todo picker or daily task list.
 - Related PRD:

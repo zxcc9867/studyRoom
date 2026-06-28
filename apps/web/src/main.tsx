@@ -120,6 +120,7 @@ import {
   type TodayTaskView,
 } from "./dashboardLayout.mjs";
 import { shouldShowStudyReminderPopup } from "./reminderPopup.mjs";
+import { shouldResumeStartAfterRecoveryUnlock } from "./recoveryStartResume.mjs";
 import {
   createSessionLeaseDeadlineMs,
   getLeaseAwareActiveNowMs,
@@ -370,6 +371,8 @@ function DashboardApp() {
   const [makeupTodoTitle, setMakeupTodoTitle] = useState("");
   const [pledgeTodoTitle, setPledgeTodoTitle] = useState("");
   const [recoverySubmitBusy, setRecoverySubmitBusy] = useState(false);
+  const [resumeStartAfterRecoveryUnlock, setResumeStartAfterRecoveryUnlock] = useState(false);
+  const [recoveryUnlockRefreshing, setRecoveryUnlockRefreshing] = useState(false);
   const [reminderTime, setReminderTime] = useState(DEFAULT_WEEKDAY_REMINDER_TIME);
   const [emailRemindersEnabled, setEmailRemindersEnabled] = useState(true);
   const [alarmEditing, setAlarmEditing] = useState(false);
@@ -599,6 +602,31 @@ function DashboardApp() {
       recoveryAutoEndInFlightRef.current = false;
     });
   }, [activeSession?.id, blockingRecoveryRequests, busy, session?.user.id]);
+
+  useEffect(() => {
+    if (
+      !shouldResumeStartAfterRecoveryUnlock({
+        resumeRequested: resumeStartAfterRecoveryUnlock,
+        blockingRecoveryCount: blockingRecoveryRequests.length,
+        recoveryModalOpen: Boolean(recoveryModalRequest),
+        activeSession: Boolean(activeSession),
+        busy,
+        refreshing: recoveryUnlockRefreshing,
+      })
+    ) {
+      return;
+    }
+
+    setResumeStartAfterRecoveryUnlock(false);
+    void startTimer();
+  }, [
+    activeSession?.id,
+    blockingRecoveryRequests.length,
+    busy,
+    recoveryModalRequest?.id,
+    recoveryUnlockRefreshing,
+    resumeStartAfterRecoveryUnlock,
+  ]);
 
   const todayCompletedSeconds = studySessions
     .filter((item) => item.local_date === todayDateKey && item.status !== "active")
@@ -2180,6 +2208,7 @@ function DashboardApp() {
     if (recoveryModalRequest) {
       recoveryModalDismissedIdsRef.current.add(recoveryModalRequest.id);
     }
+    setResumeStartAfterRecoveryUnlock(false);
     setRecoveryModalRequest(null);
   }
 
@@ -2190,6 +2219,7 @@ function DashboardApp() {
     const submittedRequest = recoveryModalRequest;
     const remainingRequests = pendingRecoveryRequests.filter((request) => request.id !== submittedRequest.id);
     const nextBlockingRequest = remainingRequests[0] ?? null;
+    const shouldResumeStart = resumeStartAfterRecoveryUnlock && !nextBlockingRequest;
 
     setRecoverySubmitBusy(true);
     const { error } = await supabase.rpc("submit_study_recovery_request", {
@@ -2205,6 +2235,7 @@ function DashboardApp() {
       return;
     }
 
+    setRecoveryUnlockRefreshing(shouldResumeStart);
     recoveryModalDismissedIdsRef.current.delete(submittedRequest.id);
     setStudyRecoveryRequests((requests) =>
       requests.map((request) =>
@@ -2236,11 +2267,18 @@ function DashboardApp() {
       setMessage("회복 루틴을 제출했습니다. 다시 공부를 시작할 수 있습니다.");
     }
 
-    await loadDashboard(session.user.id);
+    try {
+      await loadDashboard(session.user.id);
+    } finally {
+      if (shouldResumeStart) {
+        setRecoveryUnlockRefreshing(false);
+      }
+    }
   }
 
   async function startTimer(cameraReadyOverride = false, selectedTodoIds?: string[]) {
     if (blockingRecoveryRequests.length > 0) {
+      setResumeStartAfterRecoveryUnlock(true);
       openRecoveryRoutineModal(blockingRecoveryRequests[0]);
       setMessage("회복 루틴 필요: Slack에서 사유와 보충 계획을 제출해야 다음 공부 세션을 시작할 수 있습니다.");
       return;
