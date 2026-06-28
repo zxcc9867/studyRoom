@@ -142,6 +142,7 @@ import {
   parseStudySessionActivityMs,
   shouldEndStudySessionForInactivity,
 } from "./sessionActivity.mjs";
+import { isStaleActiveSessionEndError } from "./sessionEnd.mjs";
 import { requestEndStudySessionOnExit, shouldEndStudySessionForPageEvent } from "./sessionExit.mjs";
 import {
   buildSessionTodoLinkRows,
@@ -473,6 +474,7 @@ function DashboardApp() {
   const warningInFlightRef = useRef(false);
   const sessionLeaseAutoEndInFlightRef = useRef(false);
   const sessionActivityAutoEndInFlightRef = useRef(false);
+  const endSessionInFlightRef = useRef<string | null>(null);
   const recoveryAutoEndInFlightRef = useRef(false);
   const recoveryModalDismissedIdsRef = useRef<Set<string>>(new Set());
 
@@ -2741,25 +2743,53 @@ function DashboardApp() {
   async function endTimer(options: { excludedSeconds?: number; successMessage?: string } = {}) {
     if (!activeSession) return;
 
+    const endingSession = activeSession;
+    if (endSessionInFlightRef.current === endingSession.id) {
+      return;
+    }
+
     const sessionTodoSummary = summarizeSessionTodos(activeSessionTodos);
     const excludedSeconds = Math.max(
       0,
       Math.floor(options.excludedSeconds ?? getCurrentExcludedSeconds(presenceStateRef.current)),
     );
+
+    endSessionInFlightRef.current = endingSession.id;
     setBusy(true);
-    const { error } = await supabase.rpc("end_study_session", {
-      p_session_id: activeSession.id,
-      p_excluded_seconds: excludedSeconds,
-    });
-    setBusy(false);
-    if (error) {
-      setMessage(error.message);
-    } else if (session?.user.id) {
-      forgetCameraMonitoringIntent();
-      forgetSessionLease(activeSession.id);
-      forgetStudySessionActivity(activeSession.id);
-      setMessage(options.successMessage ?? sessionTodoSummary.message);
-      await loadDashboard(session.user.id);
+    try {
+      const { error } = await supabase.rpc("end_study_session", {
+        p_session_id: endingSession.id,
+        p_excluded_seconds: excludedSeconds,
+      });
+
+      if (error) {
+        if (isStaleActiveSessionEndError(error)) {
+          forgetCameraMonitoringIntent();
+          forgetSessionLease(endingSession.id);
+          forgetStudySessionActivity(endingSession.id);
+          setEndSessionCompletionModalOpen(false);
+          setSelectedEndSessionCompletionTodoIds([]);
+          setMessage("\uC774\uBBF8 \uC885\uB8CC\uB41C \uC138\uC158 \uC0C1\uD0DC\uB97C \uC0C8\uB85C\uACE0\uCE68\uD588\uC2B5\uB2C8\uB2E4.");
+          if (session?.user.id) {
+            await loadDashboard(session.user.id);
+          }
+          return;
+        }
+
+        setMessage(error.message);
+        return;
+      }
+
+      if (session?.user.id) {
+        forgetCameraMonitoringIntent();
+        forgetSessionLease(endingSession.id);
+        forgetStudySessionActivity(endingSession.id);
+        setMessage(options.successMessage ?? sessionTodoSummary.message);
+        await loadDashboard(session.user.id);
+      }
+    } finally {
+      endSessionInFlightRef.current = null;
+      setBusy(false);
     }
   }
 

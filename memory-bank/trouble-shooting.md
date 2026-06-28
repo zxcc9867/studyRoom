@@ -1,5 +1,36 @@
 # Trouble Shooting
 
+## 2026-06-29 - End button left stale active session after Active study session not found
+
+### Situation
+
+The user pressed End from the session completion modal. The app showed `Active study session not found`, but the topbar still showed an active lease, the End button stayed enabled, and the monthly timer kept moving.
+
+### Error Message
+
+```txt
+Active study session not found
+```
+
+### Cause
+
+`endTimer()` only refreshed dashboard data on a successful `end_study_session` RPC. If the DB session had already been ended by another path or a duplicate end request, Supabase correctly returned `Active study session not found`. The frontend then kept the old `studySessions` array, so `activeSession` stayed truthy and UI-derived active elapsed time kept running.
+
+### Fix
+
+Added `sessionEnd.mjs` with `isStaleActiveSessionEndError()`. `endTimer()` now captures `endingSession`, prevents duplicate same-session end calls, and treats stale-not-found responses as a refresh/cleanup path: clear camera intent, session lease, activity heartbeat, end-completion modal state, and reload dashboard data.
+
+### Related Files
+
+- `apps/web/src/main.tsx`
+- `apps/web/src/sessionEnd.mjs`
+- `apps/web/test/sessionEnd.test.mjs`
+- `apps/web/test/sessionActivity.test.mjs`
+
+### Prevention
+
+End-session RPC handling must be idempotent from the user's perspective. If the server says the active row is already gone, refresh the local dashboard instead of leaving stale active state on screen.
+
 ## 2026-06-28 - Slack schedule extension kept selected todo start fixed
 
 ### Situation

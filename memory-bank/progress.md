@@ -1,5 +1,44 @@
 # Progress
 
+### 2026-06-29 - Stale active session cleanup after manual End
+
+#### Completed Work
+
+- Investigated a user-visible state where pressing End could show `Active study session not found` while the UI still showed an active lease and moving monthly timer.
+- Added `sessionEnd.mjs` to identify stale active-session end errors from Supabase.
+- Updated `endTimer()` to prevent duplicate end requests for the same session and to use a captured `endingSession.id` across async boundaries.
+- On stale-not-found end errors, the web app now clears session lease/activity/camera intent, closes completion modal state, refreshes dashboard data, and stops leaving the stale active session in UI state.
+- Added regression tests for the stale end error and updated session activity source-level coverage.
+
+#### Changed Files
+
+- `apps/web/src/main.tsx`
+- `apps/web/src/sessionEnd.mjs`
+- `apps/web/src/sessionEnd.d.mts`
+- `apps/web/test/sessionEnd.test.mjs`
+- `apps/web/test/sessionActivity.test.mjs`
+- `memory-bank/active-context.md`
+- `memory-bank/progress.md`
+- `memory-bank/implementation-plan.md`
+- `memory-bank/trouble-shooting.md`
+- `memory-bank/prd-session-activity-heartbeat.md`
+
+#### Verification
+
+- RED: `node --test apps\web\test\sessionEnd.test.mjs` failed because `sessionEnd.mjs` did not exist.
+- GREEN: targeted session end/activity/lease/source tests passed after implementation.
+- Full suite: `npm.cmd test` passed 199 tests.
+- Build: `npm.cmd run build` passed with the existing Vite chunk-size warning.
+- Diff hygiene: `git diff --check` passed with Windows LF/CRLF warnings only.
+
+#### Remaining Work
+
+- Commit, push, and verify Vercel production deployment.
+
+#### Next Priority
+
+- Production smoke-test: start a study session, press End, choose either completion path, and confirm the End button disables and monthly active elapsed time stops.
+
 ### 2026-06-29 - Selected-date planner and multi-date plan copy
 
 #### Completed Work

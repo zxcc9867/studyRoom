@@ -68,7 +68,7 @@ test("web dashboard wires study session activity without changing auth session p
   assert.match(appSource, /shouldEndStudySessionForInactivity/);
   assert.match(appSource, /getStudySessionActivityExcludedSeconds/);
   assert.match(appSource, /persistStudySessionActivity\(startedSession\.id/);
-  assert.match(appSource, /forgetStudySessionActivity\(activeSession\.id/);
+  assert.match(appSource, /forgetStudySessionActivity\(endingSession\.id/);
   assert.match(appSource, /document\.addEventListener\("visibilitychange", persistVisibleActivity\)/);
   assert.match(appSource, /document\.removeEventListener\("visibilitychange", persistVisibleActivity\)/);
   assert.match(authSessionSource, /study-room-attendance-auth-session/);

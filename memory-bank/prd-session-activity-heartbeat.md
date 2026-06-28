@@ -33,6 +33,7 @@ Users who study through the web app and expect authentication persistence to be 
 - On restoring an active session, if the stored activity timestamp is older than the inactivity grace, call end_study_session and pass the inactive seconds as excluded time.
 - Update activity when a hidden tab becomes visible so tab switching does not look like a closed browser.
 - Clear activity storage after manual or automatic session end.
+- If `end_study_session` says `Active study session not found`, refresh dashboard state and clear local activity/lease state because the browser is holding a stale active session.
 
 ## 7. Non-functional Requirements
 

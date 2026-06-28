@@ -2,6 +2,37 @@
 
 ## Current Work
 
+- Task: Stale active session cleanup after manual End.
+- Purpose: Fix the case where the user presses End, Supabase reports `Active study session not found`, but the browser keeps a stale active session that leaves the End button enabled and keeps the monthly timer moving.
+- Related PRD:
+  - memory-bank/prd-session-activity-heartbeat.md
+  - memory-bank/prd-session-todo-links.md
+- Related files:
+  - apps/web/src/main.tsx
+  - apps/web/src/sessionEnd.mjs
+  - apps/web/test/sessionEnd.test.mjs
+  - apps/web/test/sessionActivity.test.mjs
+
+## Recent Decisions
+
+- Decision: Treat `Active study session not found` from `end_study_session` as a stale local active-session state, not as a user-blocking failure.
+- Reason: The DB session is already no longer active, so leaving local `studySessions` unchanged is what keeps the lease UI, End button, and monthly active elapsed seconds alive.
+- Impact: `endTimer()` now guards duplicate end requests per session, captures the ending session id before awaiting RPC, clears local lease/activity/camera intent for stale-not-found responses, closes the completion modal state, and reloads dashboard data.
+
+## Current Status
+
+- Completed: Added RED regression coverage for stale active-session end errors.
+- Completed: Added `sessionEnd.mjs` helper and wired stale end cleanup in `endTimer()`.
+- Completed: `npm.cmd test` passed 199 tests.
+- Completed: `npm.cmd run build` passed with the existing Vite chunk-size warning.
+- Next: Commit, push, and verify Vercel production deployment.
+
+## Notes
+
+- No Supabase schema change is required. This is a frontend stale-state handling fix around the existing `end_study_session` RPC.
+
+## Current Work
+
 - Task: Selected-date planner and multi-date plan copy.
 - Purpose: Let the Today Tasks planner inspect and edit not only today, but also yesterday, tomorrow, or any selected calendar date, and apply the same selected-date plan to multiple calendar dates at once.
 - Related PRD:
