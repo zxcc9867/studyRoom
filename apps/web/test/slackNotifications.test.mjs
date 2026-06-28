@@ -80,6 +80,31 @@ test("end study button opens a completion modal before ending the session", () =
   assert.ok(appSource.includes("void openEndSessionCompletionModal();"));
 });
 
+test("daily planner detail exposes direct completion only outside active sessions", () => {
+  const appSource = readFileSync("apps/web/src/main.tsx", "utf8");
+  const plannerStart = appSource.indexOf("function renderDailyPlanner");
+  const plannerEnd = appSource.indexOf("function renderTodaySectionOrderEditor", plannerStart);
+  const plannerSource = appSource.slice(plannerStart, plannerEnd);
+
+  assert.ok(appSource.includes("async function toggleTodoCompletion(todo: StudyTodo)"));
+  assert.ok(appSource.includes("if (activeSession)"));
+  assert.ok(appSource.includes("setTodosCompleted([todo.id], !todo.is_completed)"));
+  assert.ok(plannerSource.includes("toggleTodoCompletion(selectedPlannerSegment.todo)"));
+  assert.ok(plannerSource.includes('selectedPlannerSegment.todo.is_completed ? "\\uBBF8\\uC644\\uB8CC\\uB85C \\uBCC0\\uACBD" : "\\uC644\\uB8CC \\uCCB4\\uD06C"'));
+  assert.ok(plannerSource.includes("disabled={todoBusy || Boolean(activeSession)}"));
+});
+
+test("untimed planner todos can be completed from their checkbox outside active sessions", () => {
+  const appSource = readFileSync("apps/web/src/main.tsx", "utf8");
+  const listStart = appSource.indexOf("function renderTodoList");
+  const listEnd = appSource.indexOf("function renderTodoScheduleList", listStart);
+  const listSource = appSource.slice(listStart, listEnd);
+
+  assert.ok(listSource.includes("checked={todo.is_completed}"));
+  assert.ok(listSource.includes("disabled={todoBusy || Boolean(activeSession)}"));
+  assert.ok(listSource.includes("onChange={() => void toggleTodoCompletion(todo)}"));
+  assert.equal(listSource.includes("readOnly"), false);
+});
 test("validates slack public and private channel IDs", () => {
   assert.equal(isValidSlackChannelId("C123ABC456"), true);
   assert.equal(isValidSlackChannelId("G123ABC456"), true);

@@ -43,6 +43,7 @@
 - Planner data source: timed todos use `study_todos.start_time` and `study_todos.end_time`; untimed todos remain in a separate list below the wheel. Overnight todos wrap across midnight and overlapping todos show a warning state.
 - Planner interactions: clicking an empty wheel area opens the existing todo modal with a default one-hour time block; clicking a segment opens the same modal for editing that todo.
 - Existing todo scheduling: inside the todo modal, checking an existing unscheduled todo applies the current start/end time fields to that row. Checking an already scheduled todo loads it into edit mode. These checkboxes do not mark todos complete.
+- Planner todo completion: outside active study sessions, the Today checklist/planner can toggle `study_todos.is_completed` directly through the existing authenticated update path. During active sessions, direct completion controls stay disabled and completion remains part of the End-session completion modal.
 - Preference storage: `profiles.today_task_view` stores the pinned task view, and `profiles.today_section_order` stores the Today section order for `topbar`, `attendance`, `focus`, and `tasks`.
 - Client helpers: daily-planner math belongs in `apps/web/src/dailyPlanner.mjs`; task-view and section-order normalization belongs in `apps/web/src/dashboardLayout.mjs`.
 - API shape: no new server API is required. The web app persists preferences through Supabase Data API upsert on `profiles`.

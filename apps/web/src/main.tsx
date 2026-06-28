@@ -2017,7 +2017,19 @@ function DashboardApp() {
     }
   }
 
+  async function toggleTodoCompletion(todo: StudyTodo) {
+    if (activeSession) {
+      setMessage("\uC138\uC158 \uC911\uC5D0\uB294 \uC885\uB8CC \uBC84\uD2BC\uC5D0\uC11C \uC644\uB8CC\uD560 \uC77C\uC744 \uC120\uD0DD\uD558\uC138\uC694.");
+      return;
+    }
 
+    try {
+      await setTodosCompleted([todo.id], !todo.is_completed);
+      setMessage(todo.is_completed ? "\uD560 \uC77C\uC744 \uBBF8\uC644\uB8CC\uB85C \uB418\uB3CC\uB838\uC2B5\uB2C8\uB2E4." : "\uD560 \uC77C\uC744 \uC644\uB8CC \uCC98\uB9AC\uD588\uC2B5\uB2C8\uB2E4.");
+    } catch (error) {
+      setMessage(formatNotificationError(error));
+    }
+  }
   function openEndSessionCompletionModal() {
     if (!activeSession) return;
     setSelectedEndSessionCompletionTodoIds([]);
@@ -2993,8 +3005,9 @@ function DashboardApp() {
                 <input
                   type="checkbox"
                   checked={todo.is_completed}
-                  disabled
-                  readOnly
+                  disabled={todoBusy || Boolean(activeSession)}
+                  title={activeSession ? "\uC138\uC158 \uC911\uC5D0\uB294 \uC885\uB8CC\uD560 \uB54C \uC644\uB8CC\uD560 \uC77C\uC744 \uC120\uD0DD\uD558\uC138\uC694." : undefined}
+                  onChange={() => void toggleTodoCompletion(todo)}
                 />
                 <span className="todo-title">{todo.title}</span>
               </label>
@@ -3193,9 +3206,19 @@ function DashboardApp() {
                   <strong className="planner-overlap-note">시간 겹침이 있습니다.</strong>
                 )}
                 <div className="planner-detail-actions">
+                  <button
+                    className="secondary compact-action"
+                    type="button"
+                    disabled={todoBusy || Boolean(activeSession)}
+                    title={activeSession ? "\uC138\uC158 \uC911\uC5D0\uB294 \uC885\uB8CC\uD560 \uB54C \uC644\uB8CC\uD560 \uC77C\uC744 \uC120\uD0DD\uD558\uC138\uC694." : undefined}
+                    onClick={() => void toggleTodoCompletion(selectedPlannerSegment.todo)}
+                  >
+                    <CheckCircle2 size={16} />
+                    {selectedPlannerSegment.todo.is_completed ? "\uBBF8\uC644\uB8CC\uB85C \uBCC0\uACBD" : "\uC644\uB8CC \uCCB4\uD06C"}
+                  </button>
                   <button className="secondary compact-action" type="button" onClick={() => startTodoEditing(selectedPlannerSegment.todo)}>
                     <Pencil size={16} />
-                    수정
+                    {"\uC218\uC815"}
                   </button>
                   <button className="todo-delete" type="button" onClick={() => void deleteTodo(selectedPlannerSegment.todo)}>
                     <Trash2 size={16} />

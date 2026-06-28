@@ -2224,3 +2224,33 @@ Added migration 20260628174500_clear_future_todo_schedule_deliveries.sql. It cre
 ### Prevention
 
 When schedule timing changes, include both current-row due calculation and duplicate-lock invalidation in tests. Remote Supabase MCP auth may expire; if so, use npx supabase db query --linked --file after linking the project, and record that db push can be blocked by migration-history mismatch.
+
+## 2026-06-28 - PowerShell regex replacement inserted literal capture text
+
+### Situation
+
+While adding the planner completion action, `apply_patch` failed with `apply deny-read ACLs`, so a PowerShell file API fallback was used.
+
+### Error Message
+
+```txt
+planner detail actions block not found
+literal `$1` appeared in inserted JSX
+```
+
+### Cause
+
+The first replacement used a literal PowerShell here-string with `$1`, so the regex capture was not expanded. It also exposed Korean text encoding problems in this shell.
+
+### Resolution
+
+Replaced the whole planner detail actions block by explicit string indexes, then used `\uXXXX` JavaScript string escapes for new Korean UI messages.
+
+### Related Files
+
+- `apps/web/src/main.tsx`
+- `apps/web/test/slackNotifications.test.mjs`
+
+### Prevention
+
+When `apply_patch` is blocked in this repo, prefer explicit start/end index replacements for JSX blocks and use ASCII-safe string escapes for new Korean text.

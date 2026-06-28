@@ -2,6 +2,35 @@
 
 ## Current Work
 
+- Task: Daily planner direct todo completion outside active sessions.
+- Purpose: Let users mark selected planner todos and untimed planner todos complete from the Today task area when no study session is active.
+- Related PRD:
+  - memory-bank/prd-daily-planner-dashboard.md
+  - memory-bank/prd-session-todo-links.md
+- Related files:
+  - apps/web/src/main.tsx
+  - apps/web/test/slackNotifications.test.mjs
+  - docs/superpowers/plans/2026-06-28-daily-planner-completion.md
+
+## Recent Decisions
+
+- Decision: Direct completion is allowed only when there is no active study session.
+- Reason: During an active study session, completion must still be captured by the End-session completion modal so the session-to-todo record remains accurate.
+- Impact: The planner detail panel now shows a completion toggle, and untimed planner/list checkboxes toggle completion outside sessions. During active sessions, these controls are disabled and point users to the End flow.
+
+## Current Status
+
+- Completed: Added regression tests for planner detail completion and untimed planner todo checkboxes.
+- Completed: Reused setTodosCompleted() for direct completion toggles.
+- Completed: npm.cmd test passed 193 tests.
+- Completed: npm.cmd run build passed with the existing Vite chunk-size warning.
+- Next: Commit, push, and verify Vercel production deployment.
+
+## Notes
+
+- No Supabase schema change is required. The feature reuses study_todos.is_completed and the existing authenticated update path.
+## Current Work
+
 - Task: Reschedule Slack todo reminders after timed todo schedule changes.
 - Purpose: When a timed todo is moved or extended, future Slack start/end-soon reminder locks for the changed todo must be cleared so the next cron run uses the current schedule time.
 - Related PRD:

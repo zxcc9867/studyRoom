@@ -1,3 +1,38 @@
+
+### 2026-06-28 - Daily planner direct completion outside sessions
+
+#### Completed Work
+
+- Added a selected-plan completion toggle to the life planner detail panel.
+- Enabled untimed todo checkboxes in the Today task list/planner when no study session is active.
+- Kept direct completion disabled during active study sessions so completion still happens through the End-session completion modal.
+- Added source-level regression tests for the planner detail action and untimed todo checkbox behavior.
+
+#### Changed Files
+
+- `apps/web/src/main.tsx`
+- `apps/web/test/slackNotifications.test.mjs`
+- `docs/superpowers/plans/2026-06-28-daily-planner-completion.md`
+- `memory-bank/active-context.md`
+- `memory-bank/progress.md`
+- `memory-bank/implementation-plan.md`
+- `memory-bank/prd-daily-planner-dashboard.md`
+- `memory-bank/trouble-shooting.md`
+
+#### Verification
+
+- RED: `node --test apps\web\test\slackNotifications.test.mjs` failed before the planner completion hooks existed.
+- GREEN: `node --test apps\web\test\slackNotifications.test.mjs` passed after implementation.
+- Full suite: `npm.cmd test` passed 193 tests.
+- Build: `npm.cmd run build` passed with the existing Vite chunk-size warning.
+
+#### Remaining Work
+
+- Commit, push, and verify Vercel production deployment.
+
+#### Next Priority
+
+- Production smoke-test completion from the planner detail panel and from the untimed todo list while no study session is active.
 # Progress
 
 ### 2026-06-28 - Todo scheduling selection and end-session completion
