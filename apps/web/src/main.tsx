@@ -690,7 +690,8 @@ function DashboardApp() {
     [studyTodos, reminderPopup?.dateKey],
   );
   const todayTodoStats = useMemo(() => calculateTodoStats(todayTodos), [todayTodos]);
-  const selectedTodoStats = useMemo(() => calculateTodoStats(selectedDateTodos), [selectedDateTodos]);
+  const visibleTodoModalItems = useMemo(() => editingTodo ? [editingTodo] : selectedDateTodos, [editingTodo, selectedDateTodos]);
+  const selectedTodoStats = useMemo(() => calculateTodoStats(visibleTodoModalItems), [visibleTodoModalItems]);
   const todoCountsByDate = useMemo(() => {
     const counts = new Map<string, number>();
     studyTodos.forEach((todo) => counts.set(todo.local_date, (counts.get(todo.local_date) ?? 0) + 1));
@@ -3647,7 +3648,7 @@ function DashboardApp() {
                   </select>
                 </label>
               </form>
-              {renderTodoList(selectedDateTodos, "이 날짜에 저장된 할 일이 없습니다.")}
+              {renderTodoList(visibleTodoModalItems, "이 날짜에 저장된 할 일이 없습니다.")}
             </section>
           </div>
         )}

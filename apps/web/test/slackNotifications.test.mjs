@@ -47,6 +47,15 @@ test("web app exposes editing controls for scheduled and recurring todos", () =>
   assert.match(styleSource, /\.todo-repeat-note/);
 });
 
+test("todo edit modal scopes the visible checklist to the edited todo", () => {
+  const appSource = readFileSync("apps/web/src/main.tsx", "utf8");
+
+  assert.match(appSource, /visibleTodoModalItems/);
+  assert.match(appSource, /editingTodo \? \[editingTodo\] : selectedDateTodos/);
+  assert.match(appSource, /renderTodoList\(visibleTodoModalItems,/);
+  assert.doesNotMatch(appSource, /renderTodoList\(selectedDateTodos,/);
+});
+
 test("validates slack public and private channel IDs", () => {
   assert.equal(isValidSlackChannelId("C123ABC456"), true);
   assert.equal(isValidSlackChannelId("G123ABC456"), true);

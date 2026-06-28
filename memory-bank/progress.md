@@ -2,6 +2,36 @@
 
 ## Timeline
 
+### 2026-06-28
+
+#### Completed Work
+
+- Scoped the todo edit modal checklist to the currently edited todo so unrelated same-day todos do not appear below the edit form.
+- Added regression coverage in apps/web/test/slackNotifications.test.mjs.
+
+#### Changed Files
+
+- apps/web/src/main.tsx
+- apps/web/test/slackNotifications.test.mjs
+
+#### Verification
+
+- node --test apps\web\test\slackNotifications.test.mjs
+
+#### Remaining Work
+
+- Run full npm test and build before deploy.
+- Push and verify Vercel production deployment because this is a user-visible UI change.
+
+#### Next Priority
+
+- Continue the previously requested direct time entry enhancement if still needed.
+
+
+# Progress
+
+## Timeline
+
 ### 2026-06-28 - Recovery unlock resumes blocked study start
 
 #### Completed Work

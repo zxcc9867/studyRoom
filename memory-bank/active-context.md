@@ -2,6 +2,37 @@
 
 ## Current Work
 
+- Task: Scope the todo edit modal checklist to the edited item.
+- Purpose: When the user opens a todo from the planner/checklist for editing, the modal should not show unrelated same-day todos such as other schedules below the edit form.
+- Related PRD:
+  - memory-bank/prd-recurring-todos.md
+  - memory-bank/prd-daily-planner-dashboard.md
+- Related files:
+  - apps/web/src/main.tsx
+  - apps/web/test/slackNotifications.test.mjs
+
+## Recent Decisions
+
+- Decision: Keep the existing date checklist modal, but derive visibleTodoModalItems from editingTodo when edit mode is active.
+- Reason: The current modal combines create/edit fields with the selected date's full checklist. In edit mode this made the user think unrelated todos were part of the edited item.
+- Alternative: Build a separate edit-only modal. Deferred because the requested fix is the confusing extra list, not a wider modal redesign.
+- Impact: Create mode still shows all todos for the selected date. Edit mode shows only the edited todo and its per-item completion summary.
+
+## Current Status
+
+- Completed: Added a source-level regression test for edit-modal checklist scoping.
+- Completed: Updated main.tsx to render visibleTodoModalItems instead of selectedDateTodos in the modal list.
+- Completed: Targeted test apps/web/test/slackNotifications.test.mjs passes.
+
+## Notes
+
+- A PowerShell rewrite attempt briefly corrupted Korean text while editing; the affected files were restored from HEAD before reapplying the minimal UTF-8-safe changes.
+
+
+# Active Context
+
+## Current Work
+
 - Task: Resume study start after in-app recovery unlock.
 - Purpose: When the user clicks `입장하고 시작`, gets blocked by a pending recovery routine, submits the in-app recovery form, the modal should close and the original study-start flow should continue automatically.
 - Related PRD:

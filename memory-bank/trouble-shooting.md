@@ -1,5 +1,62 @@
 # Trouble Shooting
 
+## 2026-06-28 - Todo edit modal showed unrelated same-day todos
+
+### Situation
+
+The user edited a todo such as React study from the daily planner, but the modal still displayed other same-day todos such as Excel study and stock automation bot below the edit form.
+
+### Error Message
+
+No runtime error. User-visible symptom: unrelated todos appear in the edit modal.
+
+### Cause
+
+The app reused the selected date checklist modal for both create and edit flows. The form entered edit mode through editingTodoId, but the checklist below the form always rendered selectedDateTodos.
+
+### Fix
+
+Added visibleTodoModalItems. In create mode it uses selectedDateTodos. In edit mode it uses [editingTodo], so the modal list and completion summary only reflect the todo being edited.
+
+### Related Files
+
+- apps/web/src/main.tsx
+- apps/web/test/slackNotifications.test.mjs
+
+### Prevention
+
+When a shared create/edit modal includes contextual lists, derive visible list data from the current mode instead of always rendering the parent date collection.
+
+## 2026-06-28 - PowerShell rewrite corrupted Korean strings during todo modal patch
+
+### Situation
+
+While applying the fix, a PowerShell Set-Content based edit rewrote main.tsx and converted many Korean strings into mojibake.
+
+### Error Message
+
+The git diff showed hundreds of unrelated Korean string changes in apps/web/src/main.tsx.
+
+### Cause
+
+PowerShell text decoding/encoding did not preserve the existing UTF-8 content during whole-file rewrite.
+
+### Fix
+
+Restored the affected files from HEAD, then reapplied the patch through a UTF-8-safe Node script using ASCII search patterns only.
+
+### Related Files
+
+- apps/web/src/main.tsx
+- apps/web/test/slackNotifications.test.mjs
+
+### Prevention
+
+For UTF-8 TSX files with Korean UI text, avoid PowerShell Get-Content/Set-Content whole-file rewrites. Prefer apply_patch. If apply_patch is unavailable due sandbox ACLs, use Node fs.readFileSync/writeFileSync with UTF-8 and ASCII-only replacement patterns.
+
+
+# Trouble Shooting
+
 ## 2026-06-28 - Recovery submit did not resume blocked start
 
 ### Situation
