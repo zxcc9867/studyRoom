@@ -500,3 +500,11 @@ docs/images/study-room-thumbnail.png
 - pagehide and beforeunload only update the final activity timestamp; they still do not directly end the session.
 - visibilitychange to visible refreshes the activity timestamp so ordinary tab switching is not mistaken for browser close.
 - This MVP is same-browser only. A server-side heartbeat or Supabase Cron cleanup would be needed for cross-device enforcement.
+
+## Timed Todo Reminder Rescheduling
+
+- Timed todo Slack reminders are still computed by Supabase Cron from current study_todos rows through get_due_todo_schedule_reminders(p_now).
+- study_todo_schedule_deliveries remains the duplicate-lock table keyed by todo_id, target_id, reminder_type, and scheduled_at.
+- Migration 20260628174500_clear_future_todo_schedule_deliveries.sql adds clear_future_todo_schedule_deliveries(p_todo_ids, p_changed_at) and an AFTER UPDATE trigger on study_todos(start_time, end_time, is_completed).
+- When a schedule changes, future reminder locks for that todo are deleted so the next cron evaluation can send according to the current start/end time.
+- Past sent reminders are retained as delivery history and cannot be unsent.

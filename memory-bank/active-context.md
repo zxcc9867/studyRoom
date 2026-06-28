@@ -2,6 +2,37 @@
 
 ## Current Work
 
+- Task: Reschedule Slack todo reminders after timed todo schedule changes.
+- Purpose: When a timed todo is moved or extended, future Slack start/end-soon reminder locks for the changed todo must be cleared so the next cron run uses the current schedule time.
+- Related PRD:
+  - memory-bank/prd-slack-notifications.md
+  - memory-bank/prd-daily-planner-dashboard.md
+- Related files:
+  - supabase/migrations/20260628174500_clear_future_todo_schedule_deliveries.sql
+  - packages/core/test/sql-migrations.test.mjs
+
+## Recent Decisions
+
+- Decision: Keep reminder dispatch as computed-on-cron from current study_todos, but add a DB trigger to invalidate future study_todo_schedule_deliveries rows whenever start_time, end_time, or is_completed changes.
+- Reason: Reminder duplicate locks include scheduled_at, but stale future locks can still block or confuse rescheduled alerts when a todo moves away and back to a previously locked time.
+- Impact: Schedule edits from the web app and schedule shifts from Slack extension both clear future locks for changed rows. Already-sent past reminders remain historical records.
+
+## Current Status
+
+- Completed: Added RED SQL migration test for future schedule-delivery invalidation.
+- Completed: Added migration 20260628174500_clear_future_todo_schedule_deliveries.sql.
+- Completed: Applied the SQL to Supabase project bqohkdzvxbrokkmuhysx through npx supabase db query --linked --file because MCP auth was expired and db push was blocked by remote migration-history mismatch.
+- Completed: Remote verification returned function_exists=true and trigger_exists=true.
+- Completed: npm.cmd test passed 191 tests.
+- Completed: npm.cmd run build passed with the existing Vite chunk-size warning.
+- Next: Commit, push, and confirm Vercel production workflow if required.
+
+## Notes
+
+- A reminder that was already sent before a schedule change cannot be unsent. The fix affects future reminders after the schedule row changes.
+
+## Current Work
+
 - Task: Separate todo scheduling selection from todo completion.
 - Purpose: In the daily todo modal, checking an existing todo should load or apply the configured schedule time to that todo instead of marking it complete. Actual completion should happen when the user ends a study session.
 - Related PRD:

@@ -2195,3 +2195,32 @@ Added a separate client-side study-session activity heartbeat. Active sessions u
 ### Prevention
 
 Keep Auth persistence separate from study-time persistence. Do not reintroduce lifecycle-based session ending for pagehide/beforeunload; use heartbeat cleanup or a future server-side stale-session cleanup instead.
+
+## 2026-06-28 - Slack schedule reminders could use stale future reminder locks
+
+### Situation
+
+The user observed that after changing a timed schedule, Slack still appeared to send the old 5-minute-before reminder time. Example: moving a task end from 10:00 to 10:10 should move the end-soon reminder from 09:55 to 10:05.
+
+### Error Message
+
+    User-visible symptom:
+    - Slack end-soon reminder appears at the previous schedule time after a schedule change.
+
+### Cause
+
+The scheduler computes due reminders from current study_todos rows, but duplicate locks in study_todo_schedule_deliveries are persistent. If a future lock exists for a schedule that is later changed, that lock is not automatically invalidated by the schedule update. This can make changed schedules fail to behave like a clean reschedule, especially when a todo moves away from and back to a previously locked scheduled_at.
+
+### Fix
+
+Added migration 20260628174500_clear_future_todo_schedule_deliveries.sql. It creates clear_future_todo_schedule_deliveries(p_todo_ids, p_changed_at) and a trigger on study_todos. Updates to start_time, end_time, or is_completed delete future delivery locks for the changed todo while preserving past sent delivery history.
+
+### Related Files
+
+- supabase/migrations/20260628174500_clear_future_todo_schedule_deliveries.sql
+- supabase/migrations/20260628064614_study_todo_schedule_reminders.sql
+- packages/core/test/sql-migrations.test.mjs
+
+### Prevention
+
+When schedule timing changes, include both current-row due calculation and duplicate-lock invalidation in tests. Remote Supabase MCP auth may expire; if so, use npx supabase db query --linked --file after linking the project, and record that db push can be blocked by migration-history mismatch.

@@ -444,6 +444,24 @@ test("schedule extension migration shifts selected and later incomplete timed to
   assert.match(sql, /grant execute on function public\.extend_todo_schedule\(uuid, integer\) to authenticated/i);
 });
 
+test("schedule changes invalidate future todo reminder locks so shifted times can reschedule", () => {
+  const sql = readLatestMigrationContaining(/clear_future_todo_schedule_deliveries/i);
+
+  assert.match(sql, /create or replace function public\.clear_future_todo_schedule_deliveries/i);
+  assert.match(sql, /p_todo_ids uuid\[\]/i);
+  assert.match(sql, /delete from public\.study_todo_schedule_deliveries/i);
+  assert.match(sql, /scheduled_at >= p_changed_at/i);
+  assert.match(sql, /todo_id = any\(p_todo_ids\)/i);
+  assert.match(sql, /create trigger study_todos_clear_future_schedule_deliveries/i);
+  assert.match(sql, /after update of start_time, end_time, is_completed on public\.study_todos/i);
+  assert.match(sql, /old\.start_time is distinct from new\.start_time/i);
+  assert.match(sql, /old\.end_time is distinct from new\.end_time/i);
+  assert.match(sql, /old\.is_completed is distinct from new\.is_completed/i);
+  assert.match(sql, /perform public\.clear_future_todo_schedule_deliveries\(array\[new\.id\]/i);
+  assert.match(sql, /grant execute on function public\.clear_future_todo_schedule_deliveries\(uuid\[\], timestamptz\) to authenticated/i);
+  assert.match(sql, /grant execute on function public\.clear_future_todo_schedule_deliveries\(uuid\[\], timestamptz\) to service_role/i);
+});
+
 test("slack schedule reminders expose extension actions and interaction handler", () => {
   const attendanceSource = readFileSync("supabase/functions/attendance-cron/index.ts", "utf8");
   const interactionSource = readFileSync("supabase/functions/slack-recovery-interactions/index.ts", "utf8");

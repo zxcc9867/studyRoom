@@ -3296,3 +3296,37 @@
 #### Next Priority
 
 - Production deployment and live URL HTTP 200 verification.
+### 2026-06-28 - Slack todo reminders reschedule after schedule changes
+
+#### Completed Work
+
+- Added a Supabase trigger that clears future todo schedule reminder locks when a timed todo start time, end time, or completion state changes.
+- This lets future Slack start/end-soon reminders be recalculated from the current schedule after web edits or Slack schedule extension shifts.
+- Applied the SQL to remote Supabase project bqohkdzvxbrokkmuhysx.
+
+#### Changed Files
+
+- packages/core/test/sql-migrations.test.mjs
+- supabase/migrations/20260628174500_clear_future_todo_schedule_deliveries.sql
+- memory-bank/active-context.md
+- memory-bank/progress.md
+- memory-bank/implementation-plan.md
+- memory-bank/trouble-shooting.md
+
+#### Verification
+
+- RED: npm.cmd test -- packages/core/test/sql-migrations.test.mjs --test-name-pattern "schedule changes invalidate" failed before the migration existed.
+- GREEN: the same targeted test passed after adding the migration.
+- Supabase remote apply: npx.cmd supabase db query --linked --file supabase\migrations\20260628174500_clear_future_todo_schedule_deliveries.sql returned success.
+- Remote verification: function_exists=true and trigger_exists=true.
+- Full suite: npm.cmd test passed 191 tests.
+- Build: npm.cmd run build passed with the existing Vite chunk-size warning.
+
+#### Remaining Work
+
+- Commit and push the local migration/test/docs.
+- Verify production deployment status if the GitHub Actions Vercel workflow runs for the commit.
+
+#### Next Priority
+
+- Live smoke test: create a timed todo, move it before the old end-soon reminder time, and confirm Slack sends only at the new 5-minute-before-end time.
