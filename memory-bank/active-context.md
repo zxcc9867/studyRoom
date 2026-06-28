@@ -2,6 +2,40 @@
 
 ## Current Work
 
+- Task: Slack schedule extension from timed todo reminders.
+- Purpose: Let a user extend a timed todo from Slack by 5 minutes, 10 minutes, or a custom 1-120 minute value, then move every later incomplete timed todo on the same local date by the same amount.
+- Related PRD:
+  - `memory-bank/prd-slack-notifications.md`
+  - `memory-bank/prd-daily-planner-dashboard.md`
+- Related files:
+  - `supabase/migrations/20260628080450_extend_todo_schedule.sql`
+  - `supabase/functions/attendance-cron/index.ts`
+  - `supabase/functions/slack-recovery-interactions/index.ts`
+  - `packages/core/test/sql-migrations.test.mjs`
+
+## Recent Decisions
+
+- Decision: Use the existing `slack-recovery-interactions` Edge Function as the Slack Interactivity router instead of adding a second request URL.
+- Reason: Slack Apps have one Interactivity Request URL; replacing it with a schedule-only endpoint would break recovery routine buttons.
+- Decision: Extension shifts all later same-day incomplete timed todos together. Completed todos are never shifted or extended.
+- Decision: Preset buttons use 5 and 10 minutes; custom input accepts 1-120 minutes through a Slack modal.
+
+## Current Status
+
+- Completed: Added TDD coverage for `extend_todo_schedule` and Slack schedule extension actions.
+- Completed: Added `extend_todo_schedule(p_todo_id, p_extension_minutes)` migration locally.
+- Completed: Added Slack Block Kit extension buttons to timed todo schedule reminder messages.
+- Completed: Extended the existing Slack interactivity Edge Function to handle schedule extension buttons and custom modal submissions.
+- Completed: Full local verification passed, Supabase migration was applied, and `attendance-cron`/`slack-recovery-interactions` were deployed to production Supabase.
+- Next: Commit, push, and verify Vercel production deployment.
+
+## Notes
+
+- The Slack App Interactivity URL should continue pointing at `/functions/v1/slack-recovery-interactions`.
+- If a user extends a schedule after an earlier reminder was already sent, the shifted time can create a new future reminder because duplicate locks include `scheduled_at`.
+
+## Current Work
+
 - Task: Send Slack reminders for timed daily planner todos.
 - Purpose: When a `study_todos` row has `start_time` and `end_time`, Supabase Cron should send Slack at the todo start time and 5 minutes before the todo end time, even if the browser or computer is closed.
 - Related PRD:

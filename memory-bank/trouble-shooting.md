@@ -1,5 +1,33 @@
 # Trouble Shooting
 
+## 2026-06-28 - Slack schedule extension must reuse the existing Interactivity URL
+
+### Situation
+
+While adding Slack buttons for timed todo schedule extension, a separate `slack-schedule-interactions` Edge Function was considered.
+
+### Error Message
+
+No runtime error was emitted yet. The likely user-visible failure would be one of the Slack button families not responding, depending on which endpoint was configured in Slack App Interactivity.
+
+### Cause
+
+A Slack App has a single Interactivity Request URL. The product already uses `/functions/v1/slack-recovery-interactions` for recovery routine buttons and modals. Adding a second schedule-only request URL would require changing Slack App settings and would break recovery routine actions.
+
+### Fix
+
+Keep `/functions/v1/slack-recovery-interactions` as the single Slack interaction router. Route schedule extension actions and `study_schedule_extension` modal submissions inside the same function, while preserving existing recovery routine action handling.
+
+### Related Files
+
+- `supabase/functions/slack-recovery-interactions/index.ts`
+- `supabase/functions/attendance-cron/index.ts`
+- `packages/core/test/sql-migrations.test.mjs`
+
+### Prevention
+
+Before adding Slack interactive features, check whether they can be routed through the existing Slack Interactivity endpoint. Add a new function only if it is called by the existing router or if the Slack App configuration is intentionally redesigned.
+
 ## 2026-06-28 - Todo edit modal showed unrelated same-day todos
 
 ### Situation

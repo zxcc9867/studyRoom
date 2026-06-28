@@ -1,5 +1,42 @@
 # Progress
 
+### 2026-06-28 - Slack schedule extension actions
+
+#### Completed Work
+
+- Added Slack reminder action buttons for timed todos: `5분 연장`, `10분 연장`, and `직접 입력`.
+- Added `extend_todo_schedule` so the selected incomplete timed todo extends and every later incomplete timed todo on the same date shifts by the same number of minutes.
+- Integrated schedule extension handling into the existing `slack-recovery-interactions` Edge Function so the single Slack Interactivity Request URL keeps working for both recovery routines and schedule extensions.
+
+#### Changed Files
+
+- `packages/core/test/sql-migrations.test.mjs`
+- `supabase/migrations/20260628080450_extend_todo_schedule.sql`
+- `supabase/functions/attendance-cron/index.ts`
+- `supabase/functions/slack-recovery-interactions/index.ts`
+- `docs/superpowers/plans/2026-06-28-slack-schedule-extension.md`
+- `memory-bank/active-context.md`
+- `memory-bank/progress.md`
+- `memory-bank/implementation-plan.md`
+- `memory-bank/prd-slack-notifications.md`
+- `memory-bank/trouble-shooting.md`
+
+#### Verification
+
+- `node --test packages\core\test\sql-migrations.test.mjs` passed.
+- `npm.cmd test` passed with 185 tests.
+- `npm.cmd run build` passed.
+- Supabase MCP `_apply_migration` returned success for `extend_todo_schedule`.
+- Remote Supabase function list/source verification confirmed `attendance-cron` version 23 and `slack-recovery-interactions` version 6.
+
+#### Remaining Work
+
+- Commit/push and verify Vercel production deployment.
+
+#### Next Priority
+
+- Add visible in-app history for schedule extensions if the user wants auditability inside the dashboard.
+
 ## Timeline
 
 ### 2026-06-28 - Timed planner Slack reminders

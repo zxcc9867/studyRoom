@@ -412,6 +412,52 @@ test("camera warning creates recovery request on repeated absence warnings only"
   assert.doesNotMatch(source, /camera_required_warning[\s\S]{0,240}camera_absence_repeat/);
 });
 
+
+test("schedule extension migration pushes later incomplete timed todos", () => {
+  const sql = readMigrationContaining(/extend_todo_schedule/i);
+
+  assert.match(sql, /create or replace function public\.extend_todo_schedule/i);
+  assert.match(sql, /p_todo_id uuid/i);
+  assert.match(sql, /p_extension_minutes integer/i);
+  assert.match(sql, /p_extension_minutes not between 1 and 120/i);
+  assert.match(sql, /selected_todo\.is_completed = true/i);
+  assert.match(sql, /raise exception 'Completed todo schedules cannot be extended'/i);
+  assert.match(sql, /candidate_todos/i);
+  assert.match(sql, /where st\.user_id = selected_todo\.user_id/i);
+  assert.match(sql, /and st\.local_date = selected_todo\.local_date/i);
+  assert.match(sql, /and st\.is_completed = false/i);
+  assert.match(sql, /st\.start_time >= selected_todo\.start_time/i);
+  assert.match(sql, /update public\.study_todos st/i);
+  assert.match(sql, /make_interval\(mins => p_extension_minutes\)/i);
+  assert.match(sql, /grant execute on function public\.extend_todo_schedule\(uuid, integer\) to service_role/i);
+  assert.match(sql, /grant execute on function public\.extend_todo_schedule\(uuid, integer\) to authenticated/i);
+});
+
+test("slack schedule reminders expose extension actions and interaction handler", () => {
+  const attendanceSource = readFileSync("supabase/functions/attendance-cron/index.ts", "utf8");
+  const interactionSource = readFileSync("supabase/functions/slack-recovery-interactions/index.ts", "utf8");
+
+  assert.match(attendanceSource, /blocks: buildSlackTodoScheduleReminderBlocks\(reminder\)/);
+  assert.match(attendanceSource, /extend_schedule_5/);
+  assert.match(attendanceSource, /extend_schedule_10/);
+  assert.match(attendanceSource, /extend_schedule_custom/);
+  assert.match(attendanceSource, /schedule_extension\|\$\{reminder\.todo_id\}\|5/);
+  assert.match(attendanceSource, /schedule_extension\|\$\{reminder\.todo_id\}\|10/);
+
+  assert.match(interactionSource, /SLACK_SIGNING_SECRET/);
+  assert.match(interactionSource, /x-slack-signature/i);
+  assert.match(interactionSource, /x-slack-request-timestamp/i);
+  assert.match(interactionSource, /crypto\.subtle\.sign/);
+  assert.match(interactionSource, /type === "block_actions"/);
+  assert.match(interactionSource, /extend_schedule_5|extend_schedule_10/);
+  assert.match(interactionSource, /extend_todo_schedule/);
+  assert.match(interactionSource, /p_todo_id/);
+  assert.match(interactionSource, /p_extension_minutes/);
+  assert.match(interactionSource, /views\.open/);
+  assert.match(interactionSource, /type === "view_submission"/);
+  assert.match(interactionSource, /chat\.postEphemeral/);
+});
+
 test("slack recovery interactions verify signatures, open modal, and create the makeup todo", () => {
   const source = readFileSync("supabase/functions/slack-recovery-interactions/index.ts", "utf8");
 

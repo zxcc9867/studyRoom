@@ -445,6 +445,7 @@ async function sendSlackTodoScheduleReminderMessage(channelId: string, reminder:
     body: JSON.stringify({
       channel: channelId,
       text: buildSlackTodoScheduleReminderMessage(reminder, appUrl),
+      blocks: buildSlackTodoScheduleReminderBlocks(reminder),
       unfurl_links: false,
       unfurl_media: false,
     }),
@@ -585,6 +586,42 @@ function buildSlackTodoScheduleReminderMessage(reminder: DueTodoScheduleReminder
   ].join("\n");
 }
 
+function buildSlackTodoScheduleReminderBlocks(reminder: DueTodoScheduleReminder) {
+  const scheduleLabel = formatTodoScheduleWindow(reminder.start_time, reminder.end_time);
+  const title = reminder.reminder_type === "end_soon" ? "⏳ 일정 종료 5분 전" : "📌 지금 시작할 일정";
+  return [
+    {
+      type: "section",
+      text: {
+        type: "mrkdwn",
+        text: `*${title}*\n${scheduleLabel} ${reminder.title}`,
+      },
+    },
+    {
+      type: "actions",
+      elements: [
+        {
+          type: "button",
+          text: { type: "plain_text", text: "5분 연장", emoji: true },
+          action_id: "extend_schedule_5",
+          value: `schedule_extension|${reminder.todo_id}|5`,
+        },
+        {
+          type: "button",
+          text: { type: "plain_text", text: "10분 연장", emoji: true },
+          action_id: "extend_schedule_10",
+          value: `schedule_extension|${reminder.todo_id}|10`,
+        },
+        {
+          type: "button",
+          text: { type: "plain_text", text: "직접 입력", emoji: true },
+          action_id: "extend_schedule_custom",
+          value: `schedule_extension|${reminder.todo_id}|custom`,
+        },
+      ],
+    },
+  ];
+}
 function formatTodoScheduleWindow(startTime: string, endTime: string) {
   return `${formatTime(startTime)}-${formatTime(endTime)}`;
 }

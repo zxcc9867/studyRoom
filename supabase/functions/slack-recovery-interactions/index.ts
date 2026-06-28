@@ -5,8 +5,10 @@ type SlackPayload = {
   type: string;
   trigger_id?: string;
   user?: { id?: string };
+  channel?: { id?: string };
   actions?: Array<{ action_id?: string; value?: string }>;
   view?: {
+    callback_id?: string;
     private_metadata?: string;
     state?: {
       values?: Record<string, Record<string, { value?: string }>>;
@@ -28,6 +30,7 @@ type StudyTodoRow = {
 };
 
 const jsonHeaders = { "content-type": "application/json" };
+const supportedScheduleExtensionActionIds = new Set(["extend_schedule_5", "extend_schedule_10", "extend_schedule_custom"]);
 const modalFieldLimits = {
   reason: 400,
   makeup_todo_title: 120,
@@ -54,16 +57,197 @@ Deno.serve(async (request) => {
   });
 
   if (payload.type === "block_actions") {
+    if (hasScheduleExtensionAction(payload)) {
+      return await handleScheduleExtensionAction(admin, payload);
+    }
     return await handleRecoveryButton(admin, payload);
   }
 
   if (payload.type === "view_submission") {
+    if (payload.view?.callback_id === "study_schedule_extension") {
+      return await handleScheduleExtensionSubmission(admin, payload);
+    }
     return await handleRecoverySubmission(admin, payload);
   }
 
   return json({ ok: true });
 });
 
+function hasScheduleExtensionAction(payload: SlackPayload) {
+  return payload.actions?.some((item) => item.action_id && supportedScheduleExtensionActionIds.has(item.action_id)) ?? false;
+}
+
+async function handleScheduleExtensionAction(admin: ReturnType<typeof createClient>, payload: SlackPayload) {
+  const action = payload.actions?.find((item) => item.action_id && supportedScheduleExtensionActionIds.has(item.action_id));
+  const parsed = parseScheduleExtensionValue(action?.value ?? "");
+  if (!action?.action_id || !parsed) {
+    return json({ error: "Invalid schedule extension action" }, 400);
+  }
+
+  if (action.action_id === "extend_schedule_custom" || parsed.minutes === "custom") {
+    const triggerId = payload.trigger_id ?? "";
+    if (!triggerId) {
+      return json({ error: "Missing Slack trigger" }, 400);
+    }
+
+    await openScheduleExtensionModal(triggerId, {
+      todoId: parsed.todoId,
+      channelId: payload.channel?.id ?? null,
+      userId: payload.user?.id ?? null,
+    });
+    return json({ ok: true });
+  }
+
+  const updatedCount = await extendSchedule(admin, parsed.todoId, parsed.minutes);
+  await postEphemeralIfPossible(
+    payload.channel?.id ?? null,
+    payload.user?.id ?? null,
+    `일정을 ${parsed.minutes}분 연장했습니다. 뒤쪽 미완료 일정 ${Math.max(0, updatedCount - 1)}개도 같이 이동했습니다.`,
+  );
+  return json({ ok: true, updatedCount });
+}
+
+async function handleScheduleExtensionSubmission(admin: ReturnType<typeof createClient>, payload: SlackPayload) {
+  const metadata = parseScheduleExtensionMetadata(payload.view?.private_metadata ?? "");
+  if (!metadata || !isUuid(metadata.todoId)) {
+    return slackErrors({ extension_minutes: "연장할 일정을 찾을 수 없습니다." });
+  }
+
+  const minutesValue = readModalValue(payload.view?.state?.values ?? {}, "extension_minutes", "extension_minutes");
+  const minutes = Number(minutesValue);
+  if (!Number.isInteger(minutes) || minutes < 1 || minutes > 120) {
+    return slackErrors({ extension_minutes: "1분부터 120분 사이의 숫자를 입력해주세요." });
+  }
+
+  try {
+    const updatedCount = await extendSchedule(admin, metadata.todoId, minutes);
+    await postEphemeralIfPossible(
+      metadata.channelId,
+      metadata.userId,
+      `일정을 ${minutes}분 연장했습니다. 뒤쪽 미완료 일정 ${Math.max(0, updatedCount - 1)}개도 같이 이동했습니다.`,
+    );
+    return json({ response_action: "clear" });
+  } catch (error) {
+    return slackErrors({ extension_minutes: error instanceof Error ? error.message : String(error) });
+  }
+}
+
+async function extendSchedule(admin: ReturnType<typeof createClient>, todoId: string, minutes: number) {
+  const { data, error } = await admin.rpc("extend_todo_schedule", {
+    p_todo_id: todoId,
+    p_extension_minutes: minutes,
+  });
+
+  if (error) {
+    throw error;
+  }
+
+  return Array.isArray(data) ? data.length : 0;
+}
+
+async function openScheduleExtensionModal(
+  triggerId: string,
+  metadata: { todoId: string; channelId: string | null; userId: string | null },
+) {
+  const response = await fetch("https://slack.com/api/views.open", {
+    method: "POST",
+    headers: {
+      ...jsonHeaders,
+      authorization: `Bearer ${getSlackBotToken()}`,
+    },
+    body: JSON.stringify({
+      trigger_id: triggerId,
+      view: {
+        type: "modal",
+        callback_id: "study_schedule_extension",
+        private_metadata: JSON.stringify(metadata),
+        title: { type: "plain_text", text: "일정 연장", emoji: true },
+        submit: { type: "plain_text", text: "연장", emoji: true },
+        close: { type: "plain_text", text: "취소", emoji: true },
+        blocks: [
+          {
+            type: "input",
+            block_id: "extension_minutes",
+            label: { type: "plain_text", text: "몇 분 연장할까요?", emoji: true },
+            element: {
+              type: "plain_text_input",
+              action_id: "extension_minutes",
+              placeholder: { type: "plain_text", text: "예: 15", emoji: true },
+              max_length: 3,
+            },
+          },
+        ],
+      },
+    }),
+  });
+
+  if (!response.ok) {
+    throw new Error(`Slack views.open failed: ${response.status} ${await response.text()}`);
+  }
+
+  const result = (await response.json().catch(() => null)) as { ok?: boolean; error?: string } | null;
+  if (!result?.ok) {
+    throw new Error(`Slack views.open returned unexpected result: ${JSON.stringify(result)}`);
+  }
+}
+
+async function postEphemeralIfPossible(channelId: string | null, userId: string | null, text: string) {
+  if (!channelId || !userId) {
+    return;
+  }
+
+  const response = await fetch("https://slack.com/api/chat.postEphemeral", {
+    method: "POST",
+    headers: {
+      ...jsonHeaders,
+      authorization: `Bearer ${getSlackBotToken()}`,
+    },
+    body: JSON.stringify({ channel: channelId, user: userId, text }),
+  });
+
+  if (!response.ok) {
+    throw new Error(`Slack postEphemeral failed: ${response.status} ${await response.text()}`);
+  }
+
+  const result = (await response.json().catch(() => null)) as { ok?: boolean; error?: string } | null;
+  if (!result?.ok) {
+    throw new Error(`Slack postEphemeral returned unexpected result: ${JSON.stringify(result)}`);
+  }
+}
+
+function parseScheduleExtensionValue(value: string) {
+  const [kind, todoId, minutesText] = value.split("|");
+  if (kind !== "schedule_extension" || !isUuid(todoId)) {
+    return null;
+  }
+
+  if (minutesText === "custom") {
+    return { todoId, minutes: "custom" as const };
+  }
+
+  const minutes = Number(minutesText);
+  if (!Number.isInteger(minutes) || minutes < 1 || minutes > 120) {
+    return null;
+  }
+
+  return { todoId, minutes };
+}
+
+function parseScheduleExtensionMetadata(value: string) {
+  try {
+    const parsed = JSON.parse(value) as Partial<{ todoId: string; channelId: string | null; userId: string | null }>;
+    if (typeof parsed.todoId !== "string") {
+      return null;
+    }
+    return {
+      todoId: parsed.todoId,
+      channelId: typeof parsed.channelId === "string" ? parsed.channelId : null,
+      userId: typeof parsed.userId === "string" ? parsed.userId : null,
+    };
+  } catch {
+    return null;
+  }
+}
 async function handleRecoveryButton(admin: ReturnType<typeof createClient>, payload: SlackPayload) {
   const action = payload.actions?.find((item) => item.action_id === "open_recovery_routine");
   const requestId = action?.value ?? "";
