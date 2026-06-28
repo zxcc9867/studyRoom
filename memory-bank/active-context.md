@@ -30,7 +30,10 @@
 - Completed: Updated the End button to open a completion modal before calling `endTimer()`.
 - Completed: `npm.cmd test` passed 190 tests.
 - Completed: `npm.cmd run build` passed with the existing Vite chunk-size warning.
-- Next: Commit, push, and verify the Vercel production deployment.
+- Completed: Committed and pushed application commit `903296d` to `origin/main`.
+- Completed: Vercel production deployment `dpl_7vUrWPLW3K1oGJ1BSYmW1zL1TcVZ` is `READY` for commit `903296d95c700f9795868515d10d2b1a5588cfd8`.
+- Completed: `https://study-room-attendance.vercel.app/` returned HTTP 200 from Vercel.
+- Next: Production smoke-test the schedule-existing-todo and end-session completion flow while logged in.
 
 ## Notes
 
