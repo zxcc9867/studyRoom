@@ -111,6 +111,37 @@ test("attendance cron includes reminder date todos in server notifications", () 
   assert.match(source, /sendSlackMessage\(target\.destination!, reminder, todos\)/);
 });
 
+test("todo schedule reminder migration stores duplicate-safe start and end warnings", () => {
+  const sql = readMigrationContaining(/study_todo_schedule_deliveries/i);
+
+  assert.match(sql, /create table if not exists public\.study_todo_schedule_deliveries/i);
+  assert.match(sql, /reminder_type text not null/i);
+  assert.match(sql, /reminder_type in \('start', 'end_soon'\)/i);
+  assert.match(sql, /unique \(todo_id, target_id, reminder_type, scheduled_at\)/i);
+  assert.match(sql, /alter table public\.study_todo_schedule_deliveries enable row level security/i);
+  assert.match(sql, /Users can read their todo schedule deliveries/i);
+  assert.match(sql, /create or replace function public\.get_due_todo_schedule_reminders/i);
+  assert.match(sql, /st\.is_completed = false/i);
+  assert.match(sql, /interval '5 minutes'/i);
+  assert.match(sql, /st\.start_time <> st\.end_time/i);
+  assert.match(sql, /grant execute on function public\.get_due_todo_schedule_reminders\(timestamptz\) to service_role/i);
+});
+
+test("attendance cron sends Slack todo schedule reminders without duplicate deliveries", () => {
+  const source = readFileSync("supabase/functions/attendance-cron/index.ts", "utf8");
+
+  assert.match(source, /type DueTodoScheduleReminder = \{/);
+  assert.match(source, /admin\.rpc\(\s*"get_due_todo_schedule_reminders"/);
+  assert.match(source, /sendTodoScheduleReminderNotifications/);
+  assert.match(source, /\.from\("study_todo_schedule_deliveries"\)/);
+  assert.match(source, /reminder_type/);
+  assert.match(source, /onConflict: "todo_id,target_id,reminder_type,scheduled_at"/);
+  assert.match(source, /target\.kind !== "slack"/);
+  assert.match(source, /buildSlackTodoScheduleReminderMessage/);
+  assert.match(source, /⏳ 일정 종료 5분 전/);
+  assert.match(source, /📌 지금 시작할 일정/);
+  assert.match(source, /notification_deliveries/);
+});
 test("attendance cron distinguishes initial reminders from 15 minute nudge reminders", () => {
   const source = readFileSync("supabase/functions/attendance-cron/index.ts", "utf8");
 

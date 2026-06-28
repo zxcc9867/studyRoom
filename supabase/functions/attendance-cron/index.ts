@@ -24,6 +24,22 @@ type MissedAttendance = {
   deadline_at: string;
 };
 
+type DueTodoScheduleReminder = {
+  user_id: string;
+  target_id: string;
+  channel_id: string;
+  todo_id: string;
+  local_date: string;
+  title: string;
+  start_time: string;
+  end_time: string;
+  reminder_type: "start" | "end_soon";
+  scheduled_at: string;
+  next_todo_title: string | null;
+  next_start_time: string | null;
+  next_end_time: string | null;
+};
+
 type NotificationTarget = {
   id: string;
   user_id: string;
@@ -68,6 +84,14 @@ Deno.serve(async (request) => {
     return new Response(JSON.stringify({ error: missedError.message }), { status: 500, headers: jsonHeaders });
   }
 
+  const { data: dueTodoScheduleReminders, error: scheduleReminderError } = await admin.rpc(
+    "get_due_todo_schedule_reminders",
+    { p_now: now },
+  );
+  if (scheduleReminderError) {
+    return new Response(JSON.stringify({ error: scheduleReminderError.message }), { status: 500, headers: jsonHeaders });
+  }
+
   const reminders = (dueReminders ?? []) as DueReminder[];
   const targets = await loadTargets(admin, reminders.map((reminder) => reminder.user_id));
   const todoMap = await loadTodosByReminder(admin, reminders);
@@ -76,6 +100,8 @@ Deno.serve(async (request) => {
     admin,
     (missed ?? []) as MissedAttendance[],
   );
+  const scheduleReminders = (dueTodoScheduleReminders ?? []) as DueTodoScheduleReminder[];
+  const scheduleReminderResults = await sendTodoScheduleReminderNotifications(admin, scheduleReminders);
   // sendPendingRecoveryFollowups updates study_recovery_requests.followup_sent_at to avoid repeated nudges.
   const recoveryFollowupResults = await sendPendingRecoveryFollowups(admin, now);
 
@@ -83,7 +109,9 @@ Deno.serve(async (request) => {
     JSON.stringify({
       dueReminderCount: reminders.length,
       missedCount: missed?.length ?? 0,
+      scheduleReminderCount: scheduleReminders.length,
       deliveryResults,
+      scheduleReminderResults,
       missedRecoveryResults,
       recoveryFollowupResults,
     }),
@@ -162,6 +190,86 @@ async function sendReminderNotifications(
         error_message: outcome.ok ? null : outcome.error,
       });
     }
+  }
+
+  return results;
+}
+
+async function sendTodoScheduleReminderNotifications(
+  admin: ReturnType<typeof createClient>,
+  reminders: DueTodoScheduleReminder[],
+) {
+  const results = [];
+
+  for (const reminder of reminders) {
+    const target = {
+      id: reminder.target_id,
+      kind: "slack" as const,
+      destination: reminder.channel_id,
+    };
+
+    if (target.kind !== "slack") {
+      results.push({ todoId: reminder.todo_id, targetId: target.id, skipped: true, reason: "non_slack_target" });
+      continue;
+    }
+
+    const { data: locks, error: lockError } = await admin
+      .from("study_todo_schedule_deliveries")
+      .upsert(
+        {
+          user_id: reminder.user_id,
+          todo_id: reminder.todo_id,
+          target_id: target.id,
+          local_date: reminder.local_date,
+          reminder_type: reminder.reminder_type,
+          scheduled_at: reminder.scheduled_at,
+          status: "pending",
+        },
+        { onConflict: "todo_id,target_id,reminder_type,scheduled_at", ignoreDuplicates: true },
+      )
+      .select("id");
+
+    if (lockError) {
+      results.push({ todoId: reminder.todo_id, targetId: target.id, ok: false, error: lockError.message });
+      continue;
+    }
+
+    const lock = locks?.[0];
+    if (!lock) {
+      results.push({ todoId: reminder.todo_id, targetId: target.id, skipped: true, reason: "duplicate" });
+      continue;
+    }
+
+    const outcome = await sendTodoScheduleTarget(target.destination, reminder);
+    const { data: notificationDelivery } = await admin
+      .from("notification_deliveries")
+      .insert({
+        user_id: reminder.user_id,
+        target_id: target.id,
+        local_date: reminder.local_date,
+        channel: "slack",
+        status: outcome.ok ? "sent" : "failed",
+        error_message: outcome.ok ? null : outcome.error,
+      })
+      .select("id")
+      .single();
+
+    await admin
+      .from("study_todo_schedule_deliveries")
+      .update({
+        status: outcome.ok ? "sent" : "failed",
+        notification_delivery_id: notificationDelivery?.id ?? null,
+        error_message: outcome.ok ? null : outcome.error,
+      })
+      .eq("id", lock.id);
+
+    results.push({
+      todoId: reminder.todo_id,
+      targetId: target.id,
+      reminderType: reminder.reminder_type,
+      ok: outcome.ok,
+      error: outcome.error,
+    });
   }
 
   return results;
@@ -312,6 +420,46 @@ async function sendWebPush(subscription: Record<string, unknown>, reminder: DueR
   );
 }
 
+async function sendTodoScheduleTarget(channelId: string, reminder: DueTodoScheduleReminder) {
+  try {
+    await sendSlackTodoScheduleReminderMessage(channelId, reminder);
+    return { ok: true };
+  } catch (error) {
+    return { ok: false, error: error instanceof Error ? error.message : String(error) };
+  }
+}
+
+async function sendSlackTodoScheduleReminderMessage(channelId: string, reminder: DueTodoScheduleReminder) {
+  if (!channelId) {
+    throw new Error("Slack channel ID is missing");
+  }
+
+  const botToken = getSlackBotToken();
+  const appUrl = Deno.env.get("APP_ORIGIN") ?? Deno.env.get("SITE_URL") ?? "http://127.0.0.1:5177";
+  const response = await fetch("https://slack.com/api/chat.postMessage", {
+    method: "POST",
+    headers: {
+      ...jsonHeaders,
+      authorization: `Bearer ${botToken}`,
+    },
+    body: JSON.stringify({
+      channel: channelId,
+      text: buildSlackTodoScheduleReminderMessage(reminder, appUrl),
+      unfurl_links: false,
+      unfurl_media: false,
+    }),
+  });
+
+  if (!response.ok) {
+    throw new Error(`Slack message failed: ${response.status} ${await response.text()}`);
+  }
+
+  const result = (await response.json().catch(() => null)) as { ok?: boolean; error?: string } | null;
+  if (!result?.ok) {
+    throw new Error(`Slack message returned unexpected result: ${JSON.stringify(result)}`);
+  }
+}
+
 async function sendSlackMessage(channelId: string, reminder: DueReminder, todos: StudyTodo[]) {
   if (!channelId) {
     throw new Error("Slack channel ID is missing");
@@ -399,6 +547,46 @@ function buildSlackReminderMessage(reminder: DueReminder, todos: StudyTodo[], ap
     "🔗 앱 열기",
     appUrl,
   ].join("\n");
+}
+
+function buildSlackTodoScheduleReminderMessage(reminder: DueTodoScheduleReminder, appUrl: string) {
+  const scheduleLabel = formatTodoScheduleWindow(reminder.start_time, reminder.end_time);
+  if (reminder.reminder_type === "end_soon") {
+    const nextSchedule = reminder.next_todo_title && reminder.next_start_time && reminder.next_end_time
+      ? [
+          "",
+          "다음 일정",
+          `• ${formatTodoScheduleWindow(reminder.next_start_time, reminder.next_end_time)} ${reminder.next_todo_title}`,
+        ]
+      : [];
+
+    return [
+      "*⏳ 일정 종료 5분 전*",
+      "",
+      "지금 일정이 곧 끝납니다.",
+      `• ${scheduleLabel} ${reminder.title}`,
+      "• 5분 뒤 마무리하고 다음 계획으로 넘어가세요.",
+      ...nextSchedule,
+      "",
+      "🔗 앱 열기",
+      appUrl,
+    ].join("\n");
+  }
+
+  return [
+    "*📌 지금 시작할 일정*",
+    "",
+    `${reminder.title}를 시작할 시간입니다.`,
+    `• ${scheduleLabel}`,
+    "• 생활계획표에 맞춰 지금 이 할 일을 진행하세요.",
+    "",
+    "🔗 앱 열기",
+    appUrl,
+  ].join("\n");
+}
+
+function formatTodoScheduleWindow(startTime: string, endTime: string) {
+  return `${formatTime(startTime)}-${formatTime(endTime)}`;
 }
 
 function getDailyAttendanceGoalLabel(localDate: string) {

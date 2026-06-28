@@ -2,6 +2,43 @@
 
 ## Timeline
 
+### 2026-06-28 - Timed planner Slack reminders
+
+#### Completed Work
+
+- Added server-side Slack reminders for timed `study_todos` schedules.
+- `attendance-cron` now sends a start reminder at `start_time` and an end-soon reminder 5 minutes before `end_time`.
+- Completed todos are excluded from schedule reminders.
+- Added duplicate protection through `study_todo_schedule_deliveries` so repeated cron invocations do not send the same reminder twice.
+- Applied the migration to Supabase project `bqohkdzvxbrokkmuhysx` and deployed `attendance-cron` version 22.
+
+#### Changed Files
+
+- `packages/core/test/sql-migrations.test.mjs`
+- `supabase/migrations/20260628064614_study_todo_schedule_reminders.sql`
+- `supabase/functions/attendance-cron/index.ts`
+- `memory-bank/active-context.md`
+- `memory-bank/progress.md`
+- `memory-bank/implementation-plan.md`
+- `memory-bank/prd-slack-notifications.md`
+
+#### Verification
+
+- `node --test packages\core\test\sql-migrations.test.mjs`
+- `npm.cmd test`
+- `npm.cmd run build`
+- Supabase MCP `_apply_migration` returned success.
+- Supabase Edge Function list shows `attendance-cron` version 22, `ACTIVE`, `verify_jwt=false`.
+- Remote SQL `select count(*) from public.get_due_todo_schedule_reminders(now())` returned successfully.
+
+#### Remaining Work
+
+- Commit, push, and verify GitHub/Vercel workflow if required by deployment policy.
+- Real-world Slack receipt can be tested by creating a timed incomplete todo 1-2 minutes in the future.
+
+#### Next Priority
+
+- Add an in-app schedule notification history view if the user wants visibility into which schedule reminders were sent or skipped.
 ### 2026-06-28
 
 #### Completed Work

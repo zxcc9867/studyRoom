@@ -2,6 +2,40 @@
 
 ## Current Work
 
+- Task: Send Slack reminders for timed daily planner todos.
+- Purpose: When a `study_todos` row has `start_time` and `end_time`, Supabase Cron should send Slack at the todo start time and 5 minutes before the todo end time, even if the browser or computer is closed.
+- Related PRD:
+  - `memory-bank/prd-slack-notifications.md`
+  - `memory-bank/prd-daily-planner-dashboard.md`
+- Related files:
+  - `supabase/migrations/20260628064614_study_todo_schedule_reminders.sql`
+  - `supabase/functions/attendance-cron/index.ts`
+  - `packages/core/test/sql-migrations.test.mjs`
+
+## Recent Decisions
+
+- Decision: Extend the existing 1-minute Supabase Cron -> `attendance-cron` path instead of creating a second cron function.
+- Reason: The app already has a server-side scheduler, Slack Bot API path, and per-user `notification_targets.kind = 'slack'` target model.
+- Alternative: A separate `todo-schedule-cron` Edge Function; rejected for this MVP because it adds another scheduled job without a clear operational benefit.
+- Impact: `attendance-cron` now calls `get_due_todo_schedule_reminders()` and records duplicate-safe locks in `study_todo_schedule_deliveries` before sending Slack.
+
+## Current Status
+
+- Completed: Added `study_todo_schedule_deliveries` with RLS, unique duplicate protection, and status/error tracking.
+- Completed: Added `get_due_todo_schedule_reminders(p_now)` to select incomplete timed todos due for `start` or `end_soon` reminders.
+- Completed: Updated `attendance-cron` to send readable Slack messages for schedule start and 5-minute end warnings.
+- Completed: Applied the migration to remote Supabase project `bqohkdzvxbrokkmuhysx`.
+- Completed: Deployed `attendance-cron` version 22 with `verify_jwt=false`; function is `ACTIVE` and protected by `x-cron-secret` internally.
+- Completed: `npm.cmd test` and `npm.cmd run build` passed.
+- Next: Commit, push, and confirm deployment pipeline if required by repository policy.
+
+## Notes
+
+- Completed todos are excluded from schedule reminders.
+- End-soon reminders are skipped for schedules shorter than 5 minutes so a todo is not warned before it starts.
+- Slack delivery still requires a saved enabled Slack Channel ID for the current Supabase user and a valid Slack bot token secret.
+## Current Work
+
 - Task: Separate login session persistence from counted study time after browser or computer close.
 - Purpose: Keep Supabase auth logged in for the existing 2-hour app flow, while excluding time when an active study session was not actually running in an open browser.
 - Related PRD:

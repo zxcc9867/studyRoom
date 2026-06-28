@@ -1,5 +1,14 @@
 # PRD: Slack Bot Notifications
 
+
+## 2026-06-28 Update: Timed Planner Todo Slack Reminders
+
+- Server-side Slack reminders now cover timed daily planner todos.
+- Incomplete `study_todos` rows with both `start_time` and `end_time` send a Slack reminder at the start time and another reminder 5 minutes before the end time.
+- Completed todos do not send schedule reminders.
+- `attendance-cron` is the single scheduled dispatcher and calls `get_due_todo_schedule_reminders(p_now)` every minute.
+- `study_todo_schedule_deliveries` stores sent/failed reminder locks so repeated cron invocations do not duplicate a schedule reminder.
+- End-soon reminders are skipped for schedules shorter than 5 minutes so a todo is not warned before it starts.
 ## 2026-06-15 Update: Recovery Routine Buttons and Modal
 
 - Slack is now the active recovery workflow after missed attendance or repeated camera absence.
