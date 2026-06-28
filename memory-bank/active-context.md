@@ -23,7 +23,10 @@
 - Completed: Added a regression test proving the selected todo start time must shift with its end time.
 - Completed: Added and remotely applied `20260628102000_shift_selected_todo_schedule.sql` to Supabase project `bqohkdzvxbrokkmuhysx`.
 - Completed: Remote verification confirmed the old fixed-start branch is absent and the shifted start assignment exists.
-- Next: Run full tests/build, commit, push, and verify production deployment pipeline.
+- Completed: `npm.cmd test`, `npm.cmd run build`, and `git diff --check` passed.
+- Completed: Committed and pushed `615a3be` to `origin/main`.
+- Completed: Vercel production deployment `dpl_9xWy7RSnUGgTKMPhZWGAQ4bZbpNh` is `READY` and `https://study-room-attendance.vercel.app/` returned HTTP 200.
+- Next: Live Slack smoke test if the user wants to confirm the shifted schedule in their account.
 
 ## Notes
 

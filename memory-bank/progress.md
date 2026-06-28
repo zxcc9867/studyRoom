@@ -26,10 +26,16 @@
 - GREEN: `node --test packages\core\test\sql-migrations.test.mjs` passed after adding the migration.
 - Supabase MCP `_apply_migration` returned success.
 - Remote SQL verification returned `fixed_start_branch_position = 0` and a non-zero shifted-start assignment position.
+- `npm.cmd test` passed 187 tests.
+- `npm.cmd run build` passed with the existing Vite chunk-size warning.
+- `git diff --check` passed with Windows LF/CRLF warnings only.
+- Committed and pushed `615a3be` to `origin/main`.
+- Vercel production deployment `dpl_9xWy7RSnUGgTKMPhZWGAQ4bZbpNh` reached `READY` for commit `615a3beabe5aa63047b6482a05acc499c042051c`.
+- `https://study-room-attendance.vercel.app/` returned HTTP 200 and served `assets/index-BRKfEYEo.js`.
 
 #### Remaining Work
 
-- Run full test/build verification, commit, push, and confirm deployment pipeline.
+- None for this change.
 
 #### Next Priority
 
