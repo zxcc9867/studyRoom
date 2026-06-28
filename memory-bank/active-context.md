@@ -2,6 +2,42 @@
 
 ## Current Work
 
+- Task: Separate todo scheduling selection from todo completion.
+- Purpose: In the daily todo modal, checking an existing todo should load or apply the configured schedule time to that todo instead of marking it complete. Actual completion should happen when the user ends a study session.
+- Related PRD:
+  - `memory-bank/prd-daily-planner-dashboard.md`
+  - `memory-bank/prd-session-todo-links.md`
+- Related files:
+  - `apps/web/src/main.tsx`
+  - `apps/web/src/sessionTodoLinks.mjs`
+  - `apps/web/src/sessionTodoLinks.d.mts`
+  - `apps/web/test/sessionTodoLinks.test.mjs`
+  - `apps/web/test/slackNotifications.test.mjs`
+
+## Recent Decisions
+
+- Decision: Keep `study_todos` as the single source for scheduled and unscheduled tasks, but make the calendar/todo modal checkbox mean "schedule this existing task with the current time fields".
+- Reason: The user wants to bring existing todos into the schedule without accidentally completing them.
+- Decision: Move completion to an end-session modal.
+- Reason: The user wants completion to be recorded only after pressing the session End button and choosing which today's tasks were actually completed.
+- Impact: Daily checklist and active session task checkboxes are read-only for completion during the session; completion is batched when ending the session.
+
+## Current Status
+
+- Completed: Added tests for end-session completion candidates, schedule-modal checkbox behavior, and the End button opening a completion modal.
+- Completed: Added `getEndSessionCompletionCandidates()` so session-linked incomplete todos appear first, followed by other incomplete today todos.
+- Completed: Updated the web UI so existing todo checkboxes in the date modal apply schedule times or open edit mode, not completion.
+- Completed: Updated the End button to open a completion modal before calling `endTimer()`.
+- Completed: `npm.cmd test` passed 190 tests.
+- Completed: `npm.cmd run build` passed with the existing Vite chunk-size warning.
+- Next: Commit, push, and verify the Vercel production deployment.
+
+## Notes
+
+- No Supabase schema change is required. The change reuses `study_todos.start_time`, `study_todos.end_time`, and existing `study_session_todos.completed_during_session`.
+
+## Current Work
+
 - Task: Shift selected todo when extending a Slack schedule reminder.
 - Purpose: A Slack `5/10 minute extension` should move the selected todo's whole time window, not only its end time. Example: `18:45-19:45 + 10` becomes `18:55-19:55`.
 - Related PRD:

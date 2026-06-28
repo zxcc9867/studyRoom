@@ -58,6 +58,31 @@ export function getSessionLinkedTodos({ activeSessionId, links, todos }) {
     .sort(compareTodosByPlanOrder);
 }
 
+export function getEndSessionCompletionCandidates({ activeSessionTodos, todayTodos }) {
+  const candidates = [];
+  const seen = new Set();
+  const dateKey =
+    activeSessionTodos.find((todo) => todo?.local_date)?.local_date ??
+    todayTodos.find((todo) => todo?.local_date)?.local_date ??
+    null;
+
+  const isSameDate = (todo) => !dateKey || todo.local_date === dateKey;
+
+  for (const todo of activeSessionTodos) {
+    if (!todo?.id || todo.is_completed || seen.has(todo.id) || !isSameDate(todo)) continue;
+    candidates.push(todo);
+    seen.add(todo.id);
+  }
+
+  for (const todo of [...todayTodos].filter((item) => !item.is_completed && isSameDate(item)).sort(compareTodosByPlanOrder)) {
+    if (!todo?.id || seen.has(todo.id)) continue;
+    candidates.push(todo);
+    seen.add(todo.id);
+  }
+
+  return candidates;
+}
+
 export function summarizeSessionTodos(todos) {
   const total = todos.length;
   const completed = todos.filter((todo) => todo.is_completed).length;

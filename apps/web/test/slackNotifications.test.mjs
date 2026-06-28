@@ -52,8 +52,32 @@ test("todo edit modal scopes the visible checklist to the edited todo", () => {
 
   assert.match(appSource, /visibleTodoModalItems/);
   assert.match(appSource, /editingTodo \? \[editingTodo\] : selectedDateTodos/);
-  assert.match(appSource, /renderTodoList\(visibleTodoModalItems,/);
+  assert.match(appSource, /renderTodoScheduleList\(visibleTodoModalItems,/);
   assert.doesNotMatch(appSource, /renderTodoList\(selectedDateTodos,/);
+});
+
+test("todo schedule modal applies time without completing todos", () => {
+  const appSource = readFileSync("apps/web/src/main.tsx", "utf8");
+  const renderStart = appSource.indexOf("function renderTodoScheduleList");
+  const renderEnd = appSource.indexOf("function renderDailyPlanner", renderStart);
+  const modalListSource = appSource.slice(renderStart, renderEnd);
+
+  assert.ok(renderStart > 0, "renderTodoScheduleList should exist");
+  assert.ok(modalListSource.includes("applyTodoScheduleFromModal"));
+  assert.ok(modalListSource.includes("startTodoEditing(todo)"));
+  assert.equal(modalListSource.includes("toggleTodo(todo)"), false);
+  assert.ok(appSource.includes("renderTodoScheduleList(visibleTodoModalItems,"));
+});
+
+test("end study button opens a completion modal before ending the session", () => {
+  const appSource = readFileSync("apps/web/src/main.tsx", "utf8");
+
+  assert.ok(appSource.includes("endSessionCompletionModalOpen"));
+  assert.ok(appSource.includes("openEndSessionCompletionModal"));
+  assert.ok(appSource.includes("confirmEndSessionWithCompletions"));
+  assert.ok(appSource.includes("getEndSessionCompletionCandidates"));
+  assert.ok(appSource.includes("end-session-completion-modal"));
+  assert.ok(appSource.includes("void openEndSessionCompletionModal();"));
 });
 
 test("validates slack public and private channel IDs", () => {

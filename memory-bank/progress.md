@@ -1,5 +1,43 @@
 # Progress
 
+### 2026-06-28 - Todo scheduling selection and end-session completion
+
+#### Completed Work
+
+- Changed the date todo modal so checking an existing todo schedules it with the currently configured start/end time instead of marking it complete.
+- Existing scheduled todos now load into edit mode from the same modal so their time/repeat/goal settings can be adjusted.
+- Changed general daily and active-session todo checkboxes to read-only completion indicators during study.
+- Added an End-session completion modal so the user chooses which of today's incomplete todos were completed before the session is ended.
+- Added helper coverage so linked session todos appear first in the end-session completion list.
+
+#### Changed Files
+
+- `apps/web/src/main.tsx`
+- `apps/web/src/sessionTodoLinks.mjs`
+- `apps/web/src/sessionTodoLinks.d.mts`
+- `apps/web/test/sessionTodoLinks.test.mjs`
+- `apps/web/test/slackNotifications.test.mjs`
+- `memory-bank/active-context.md`
+- `memory-bank/progress.md`
+- `memory-bank/implementation-plan.md`
+- `memory-bank/prd-session-todo-links.md`
+- `memory-bank/prd-daily-planner-dashboard.md`
+
+#### Verification
+
+- RED: `node --test apps\web\test\sessionTodoLinks.test.mjs apps\web\test\slackNotifications.test.mjs` failed before the helper and UI wiring existed.
+- GREEN: targeted session todo and Slack source tests passed after implementation.
+- Full suite: `npm.cmd test` passed 190 tests.
+- Build: `npm.cmd run build` passed with the existing Vite chunk-size warning.
+
+#### Remaining Work
+
+- Commit, push, and verify Vercel production deployment.
+
+#### Next Priority
+
+- Production smoke-test: schedule an existing todo from the modal, start a session, press End, mark completed todos, and confirm completed history updates.
+
 ### 2026-06-28 - Slack schedule extension shifts selected todo window
 
 #### Completed Work

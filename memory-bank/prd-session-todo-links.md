@@ -13,6 +13,7 @@ The study timer can run without an explicit plan for what the user will study in
 - Require at least one incomplete todo before starting a new study session.
 - Let the user choose which of today's incomplete todos belong to the current session.
 - Show the selected session todos while the timer is active.
+- Let the user mark completed todos when ending the session, not during the middle of the session.
 - Record the session-to-todo relationship in Supabase so refreshes and future history can reconstruct what was studied in each session.
 
 ## 4. Non-goals
@@ -24,7 +25,7 @@ The study timer can run without an explicit plan for what the user will study in
 ## 5. User Stories
 
 - As a student, I want to select today's task before the timer starts, so that the study session has a concrete purpose.
-- As a student, I want to check off session tasks while studying, so that I can see progress inside the current session.
+- As a student, I want to choose completed tasks when ending the session, so that completion reflects what I actually finished.
 - As a student, I want the app to remember which tasks were linked to a session after refresh, so that session history is not lost.
 
 ## 6. User Scenarios
@@ -41,7 +42,7 @@ The study timer can run without an explicit plan for what the user will study in
 ### Edge Cases
 
 - Existing active session: start is still blocked by the existing active-session guard.
-- Todo checked during an active linked session: `study_todos.is_completed` and the link's `completed_during_session` are updated together.
+- Todo completion at session end: selected todos are marked `study_todos.is_completed = true`, and linked rows for the active session update `completed_during_session`.
 - Refresh: the dashboard reloads `study_session_todos` and shows linked todos for the active session.
 
 ### Error Cases
@@ -57,6 +58,7 @@ The study timer can run without an explicit plan for what the user will study in
 - [x] App requires selecting at least one incomplete todo before starting.
 - [x] App lets the user quick-add a today todo from the session planning modal when no plan was pre-registered.
 - [x] App shows active session linked todos separately from the full daily todo list.
+- [x] App opens a completion modal when the user ends a session.
 - [x] App records whether a linked todo was completed during the session.
 
 ## 8. Non-functional Requirements
@@ -75,7 +77,7 @@ The study timer can run without an explicit plan for what the user will study in
 ## 10. Success Metrics
 
 - Every new study session from the web app has at least one linked todo.
-- Users can see and complete session-linked todos without losing the full daily checklist.
+- Users can see session-linked todos during study and mark completed work when ending the session without losing the full daily checklist.
 
 ## 11. Rollout Plan
 

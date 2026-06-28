@@ -14,6 +14,7 @@ Personal MVP users who want to plan and visualize today's study tasks in either 
 - Show timed todos as 24-hour SVG wheel segments and untimed todos in a separate list.
 - Let the user create a timed todo by clicking an empty planner time area.
 - Let the user edit an existing timed todo by clicking a planner segment.
+- Let the user schedule an existing dated todo by applying the current time fields from the todo modal without marking it complete.
 - Persist the preferred task view on `profiles.today_task_view`.
 - Let the user reorder the Today dashboard sections and persist that order on `profiles.today_section_order`.
 
@@ -39,7 +40,7 @@ Personal MVP users who want to plan and visualize today's study tasks in either 
 2. The user switches from checklist to planner.
 3. Timed todos appear as colored segments on the 24-hour SVG wheel.
 4. The user clicks an empty time area; the existing todo modal opens with a default one-hour time block.
-5. The user saves; `study_todos` updates and the planner recalculates.
+5. The user saves or selects an existing untimed todo to apply the configured time range; `study_todos` updates and the planner recalculates.
 6. The user clicks `고정`; `profiles.today_task_view` stores the current view.
 7. The user opens the section order editor, drags or moves rows, and saves the order to `profiles.today_section_order`.
 
@@ -63,6 +64,7 @@ Personal MVP users who want to plan and visualize today's study tasks in either 
 - [x] Add helper tests for task view and section order normalization.
 - [x] Add Today task view switcher and pin button.
 - [x] Add circular SVG daily planner using existing `study_todos`.
+- [x] Let existing todos be loaded or scheduled from the todo modal without toggling completion.
 - [x] Add dashboard section order editor with drag-and-drop and up/down buttons.
 
 ## 8. Non-functional Requirements

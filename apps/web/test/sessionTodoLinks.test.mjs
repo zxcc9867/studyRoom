@@ -3,6 +3,7 @@ import { test } from "node:test";
 
 import {
   buildSessionTodoLinkRows,
+  getEndSessionCompletionCandidates,
   getIncompleteTodayTodos,
   getSessionLinkedTodos,
   normalizeSessionTodoDraft,
@@ -138,6 +139,28 @@ test("getSessionLinkedTodos returns todos linked to the active session", () => {
       todos,
     }).map((todo) => todo.id),
     ["todo-one", "todo-two"],
+  );
+});
+
+test("getEndSessionCompletionCandidates returns incomplete today todos with session tasks first", () => {
+  const todayTodos = [
+    {
+      id: "todo-other",
+      local_date: "2026-06-21",
+      title: "Other",
+      is_completed: false,
+      position: 3,
+      created_at: "2026-06-21T00:04:00.000Z",
+    },
+    ...todos,
+  ];
+
+  assert.deepEqual(
+    getEndSessionCompletionCandidates({
+      activeSessionTodos: [todos[2], todos[1]],
+      todayTodos,
+    }).map((todo) => todo.id),
+    ["todo-two", "todo-one", "todo-other"],
   );
 });
 

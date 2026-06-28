@@ -140,6 +140,7 @@ import {
 import { requestEndStudySessionOnExit, shouldEndStudySessionForPageEvent } from "./sessionExit.mjs";
 import {
   buildSessionTodoLinkRows,
+  getEndSessionCompletionCandidates,
   getIncompleteTodayTodos,
   getSessionLinkedTodos,
   normalizeSessionTodoDraft,
@@ -417,6 +418,8 @@ function DashboardApp() {
   const [selectedSessionTodoIds, setSelectedSessionTodoIds] = useState<string[]>([]);
   const [sessionTodoDraft, setSessionTodoDraft] = useState("");
   const [sessionTodoAddBusy, setSessionTodoAddBusy] = useState(false);
+  const [endSessionCompletionModalOpen, setEndSessionCompletionModalOpen] = useState(false);
+  const [selectedEndSessionCompletionTodoIds, setSelectedEndSessionCompletionTodoIds] = useState<string[]>([]);
   const [goalModalOpen, setGoalModalOpen] = useState(false);
   const [editingGoalId, setEditingGoalId] = useState<string | null>(null);
   const [goalTitle, setGoalTitle] = useState("");
@@ -686,6 +689,10 @@ function DashboardApp() {
         todos: studyTodos,
       }),
     [activeSession?.id, studySessionTodoLinks, studyTodos],
+  );
+  const endSessionCompletionCandidates = useMemo(
+    () => getEndSessionCompletionCandidates({ activeSessionTodos, todayTodos }),
+    [activeSessionTodos, todayTodos],
   );
   const selectedDateTodos = useMemo(
     () => studyTodos.filter((todo) => todo.local_date === selectedTodoDate),
@@ -1539,6 +1546,54 @@ function DashboardApp() {
     });
   }
 
+  async function applyTodoScheduleFromModal(todo: StudyTodo) {
+    if (todo.start_time && todo.end_time) {
+      startTodoEditing(todo);
+      return;
+    }
+
+    if (!todoTimeEnabled) {
+      setMessage("\uC2DC\uAC04 \uC124\uC815\uC744 \uCF04 \uB4A4 \uAE30\uC874 \uD560 \uC77C\uC5D0 \uC801\uC6A9\uD558\uC138\uC694.");
+      return;
+    }
+
+    const schedule = normalizeTodoSchedule({
+      enabled: true,
+      startTime: todoStartTime,
+      endTime: todoEndTime,
+    });
+    if (!schedule.ok) {
+      setMessage(schedule.message);
+      return;
+    }
+
+    setTodoBusy(true);
+    const { data, error } = await supabase
+      .from("study_todos")
+      .update({ start_time: schedule.startTime, end_time: schedule.endTime })
+      .eq("id", todo.id)
+      .select("*")
+      .single();
+    setTodoBusy(false);
+
+    if (error) {
+      setMessage(error.message);
+      return;
+    }
+
+    const updatedTodo = data as StudyTodo;
+    setStudyTodos((current) =>
+      sortTodos(current.map((item) => (item.id === updatedTodo.id ? updatedTodo : item))),
+    );
+    setEditingTodoId(updatedTodo.id);
+    setTodoDraft(updatedTodo.title);
+    setTodoTimeEnabled(true);
+    setTodoStartTime(updatedTodo.start_time?.slice(0, 5) ?? schedule.startTime ?? "09:00");
+    setTodoEndTime(updatedTodo.end_time?.slice(0, 5) ?? schedule.endTime ?? "10:00");
+    setTodoGoalId(updatedTodo.goal_id ?? "");
+    setMessage("\uC120\uD0DD\uD55C \uD560 \uC77C\uC744 \uC124\uC815\uD55C \uC2DC\uAC04\uC73C\uB85C \uC2A4\uCF00\uC904\uC5D0 \uB4F1\uB85D\uD588\uC2B5\uB2C8\uB2E4.");
+  }
+
   function toggleSessionTodoSelection(todoId: string) {
     setSelectedSessionTodoIds((current) =>
       current.includes(todoId)
@@ -1912,42 +1967,89 @@ function DashboardApp() {
     }
   }
 
-  async function toggleTodo(todo: StudyTodo) {
-    const nextCompleted = !todo.is_completed;
+  async function setTodosCompleted(todoIds: string[], nextCompleted: boolean) {
+    const uniqueTodoIds = [...new Set(todoIds)].filter(Boolean);
+    if (uniqueTodoIds.length === 0) return;
+
     setTodoBusy(true);
-    const { error } = await supabase
+    const { data, error } = await supabase
       .from("study_todos")
       .update({ is_completed: nextCompleted })
-      .eq("id", todo.id);
+      .in("id", uniqueTodoIds)
+      .select("*");
     setTodoBusy(false);
 
     if (error) {
-      setMessage(error.message);
-      return;
+      throw new Error(error.message);
     }
 
+    const updatedTodos = (data ?? []) as StudyTodo[];
+    const updatedTodoIds = new Set(updatedTodos.map((todo) => todo.id));
     setStudyTodos((current) =>
-      current.map((item) =>
-        item.id === todo.id ? { ...item, is_completed: nextCompleted } : item,
-      ),
+      sortTodos([
+        ...updatedTodos,
+        ...current.filter((item) => !updatedTodoIds.has(item.id)),
+      ]),
     );
 
-    if (activeSession && studySessionTodoLinks.some((link) => link.session_id === activeSession.id && link.todo_id === todo.id)) {
-      const { data: linkData, error: linkError } = await supabase
-        .from("study_session_todos")
-        .update({ completed_during_session: nextCompleted })
-        .eq("session_id", activeSession.id)
-        .eq("todo_id", todo.id)
-        .select("*");
+    if (activeSession) {
+      const linkedSelectedTodoIds = uniqueTodoIds.filter((todoId) =>
+        studySessionTodoLinks.some((link) => link.session_id === activeSession.id && link.todo_id === todoId),
+      );
 
-      if (!linkError && linkData) {
-        const updatedLinks = linkData as StudySessionTodoLink[];
-        const updatedIds = new Set(updatedLinks.map((link) => link.id));
-        setStudySessionTodoLinks((current) => [
-          ...updatedLinks,
-          ...current.filter((link) => !updatedIds.has(link.id)),
-        ]);
+      if (linkedSelectedTodoIds.length > 0) {
+        const { data: linkData, error: linkError } = await supabase
+          .from("study_session_todos")
+          .update({ completed_during_session: nextCompleted })
+          .eq("session_id", activeSession.id)
+          .in("todo_id", linkedSelectedTodoIds)
+          .select("*");
+
+        if (!linkError && linkData) {
+          const updatedLinks = linkData as StudySessionTodoLink[];
+          const updatedIds = new Set(updatedLinks.map((link) => link.id));
+          setStudySessionTodoLinks((current) => [
+            ...updatedLinks,
+            ...current.filter((link) => !updatedIds.has(link.id)),
+          ]);
+        }
       }
+    }
+  }
+
+
+  function openEndSessionCompletionModal() {
+    if (!activeSession) return;
+    setSelectedEndSessionCompletionTodoIds([]);
+    setEndSessionCompletionModalOpen(true);
+  }
+
+  function closeEndSessionCompletionModal() {
+    setEndSessionCompletionModalOpen(false);
+    setSelectedEndSessionCompletionTodoIds([]);
+  }
+
+  function toggleEndSessionCompletionTodo(todoId: string) {
+    setSelectedEndSessionCompletionTodoIds((current) =>
+      current.includes(todoId)
+        ? current.filter((item) => item !== todoId)
+        : [...current, todoId],
+    );
+  }
+
+  async function confirmEndSessionWithCompletions() {
+    if (!activeSession) return;
+
+    const todoIds = selectedEndSessionCompletionTodoIds;
+    closeEndSessionCompletionModal();
+
+    try {
+      if (todoIds.length > 0) {
+        await setTodosCompleted(todoIds, true);
+      }
+      await endTimer();
+    } catch (error) {
+      setMessage(formatNotificationError(error));
     }
   }
 
@@ -2891,12 +2993,12 @@ function DashboardApp() {
                 <input
                   type="checkbox"
                   checked={todo.is_completed}
-                  disabled={todoBusy}
-                  onChange={() => void toggleTodo(todo)}
+                  disabled
+                  readOnly
                 />
                 <span className="todo-title">{todo.title}</span>
               </label>
-              <div className="todo-meta-row" aria-label={`${todo.title} 설정`}>
+              <div className="todo-meta-row" aria-label={`${todo.title} setting`}>
                 {formatTodoScheduleLabel(todo) && (
                   <span className="todo-time-chip">{formatTodoScheduleLabel(todo)}</span>
                 )}
@@ -2910,7 +3012,7 @@ function DashboardApp() {
               <button
                 className="todo-edit"
                 type="button"
-                aria-label={`${todo.title} 편집`}
+                aria-label={`${todo.title} edit`}
                 disabled={todoBusy}
                 onClick={() => startTodoEditing(todo)}
               >
@@ -2919,7 +3021,7 @@ function DashboardApp() {
               <button
                 className="todo-delete"
                 type="button"
-                aria-label={`${todo.title} 삭제`}
+                aria-label={`${todo.title} delete`}
                 disabled={todoBusy}
                 onClick={() => void deleteTodo(todo)}
               >
@@ -2928,6 +3030,64 @@ function DashboardApp() {
             </div>
           </li>
         ))}
+      </ul>
+    );
+  }
+
+  function renderTodoScheduleList(todos: StudyTodo[], emptyText: string) {
+    if (todos.length === 0) {
+      return <p className="todo-empty">{emptyText}</p>;
+    }
+
+    return (
+      <ul className="todo-list">
+        {todos.map((todo) => {
+          const hasSchedule = Boolean(todo.start_time && todo.end_time);
+          return (
+            <li className={`todo-item ${todo.is_completed ? "todo-done" : ""}`} key={todo.id}>
+              <div className="todo-main">
+                <label className="todo-check-row">
+                  <input
+                    type="checkbox"
+                    checked={hasSchedule}
+                    disabled={todoBusy}
+                    onChange={() => void applyTodoScheduleFromModal(todo)}
+                  />
+                  <span className="todo-title">{todo.title}</span>
+                </label>
+                <div className="todo-meta-row" aria-label={`${todo.title} setting`}>
+                  {formatTodoScheduleLabel(todo) && (
+                    <span className="todo-time-chip">{formatTodoScheduleLabel(todo)}</span>
+                  )}
+                  <span className="todo-meta-chip">{formatTodoRepeatLabel(todo)}</span>
+                  {todo.goal_id && goalTitleById.has(todo.goal_id) && (
+                    <span className="todo-goal-chip">{goalTitleById.get(todo.goal_id)}</span>
+                  )}
+                </div>
+              </div>
+              <div className="todo-actions">
+                <button
+                  className="todo-edit"
+                  type="button"
+                  aria-label={`${todo.title} edit`}
+                  disabled={todoBusy}
+                  onClick={() => startTodoEditing(todo)}
+                >
+                  <Pencil size={16} />
+                </button>
+                <button
+                  className="todo-delete"
+                  type="button"
+                  aria-label={`${todo.title} delete`}
+                  disabled={todoBusy}
+                  onClick={() => void deleteTodo(todo)}
+                >
+                  <Trash2 size={16} />
+                </button>
+              </div>
+            </li>
+          );
+        })}
       </ul>
     );
   }
@@ -3036,10 +3196,6 @@ function DashboardApp() {
                   <button className="secondary compact-action" type="button" onClick={() => startTodoEditing(selectedPlannerSegment.todo)}>
                     <Pencil size={16} />
                     수정
-                  </button>
-                  <button className="secondary compact-action" type="button" onClick={() => void toggleTodo(selectedPlannerSegment.todo)}>
-                    <CheckCircle2 size={16} />
-                    완료 체크
                   </button>
                   <button className="todo-delete" type="button" onClick={() => void deleteTodo(selectedPlannerSegment.todo)}>
                     <Trash2 size={16} />
@@ -3183,8 +3339,8 @@ function DashboardApp() {
                     <input
                       type="checkbox"
                       checked={todo.is_completed}
-                      disabled={todoBusy}
-                      onChange={() => void toggleTodo(todo)}
+                      disabled
+                      readOnly
                     />
                     <span className="todo-title">{todo.title}</span>
                   </label>
@@ -3415,7 +3571,7 @@ function DashboardApp() {
                 <button
                   className="danger"
                   onClick={() => {
-                    void endTimer();
+                    void openEndSessionCompletionModal();
                   }}
                   disabled={busy || !activeSession}
                 >
@@ -3802,7 +3958,72 @@ function DashboardApp() {
                   </select>
                 </label>
               </form>
-              {renderTodoList(visibleTodoModalItems, "이 날짜에 저장된 할 일이 없습니다.")}
+              {renderTodoScheduleList(visibleTodoModalItems, "\uC774 \uB0A0\uC9DC\uC5D0 \uC800\uC7A5\uB41C \uD560 \uC77C\uC774 \uC5C6\uC2B5\uB2C8\uB2E4.")}
+            </section>
+          </div>
+        )}
+
+        {endSessionCompletionModalOpen && (
+          <div className="modal-backdrop">
+            <section
+              className="todo-modal reminder-modal end-session-completion-modal"
+              role="dialog"
+              aria-modal="true"
+              aria-label="end session completion"
+            >
+              <button className="modal-close" type="button" onClick={closeEndSessionCompletionModal} aria-label="close">
+                <X size={22} />
+              </button>
+              <p className="eyebrow">session complete</p>
+              <h3>{"\uC774\uBC88 \uC138\uC158\uC5D0\uC11C \uC644\uB8CC\uD55C \uD560 \uC77C"}</h3>
+              <p>{"\uC624\uB298 \uD560 \uC77C \uC911 \uC774\uBC88 \uC138\uC158\uC5D0\uC11C \uB05D\uB0B8 \uD56D\uBAA9\uC744 \uCCB4\uD06C\uD558\uBA74 \uC644\uB8CC\uB85C \uAE30\uB85D\uD569\uB2C8\uB2E4."}</p>
+
+              {endSessionCompletionCandidates.length === 0 ? (
+                <p className="todo-empty">{"\uC644\uB8CC\uB85C \uCCB4\uD06C\uD560 \uC624\uB298 \uD560 \uC77C\uC774 \uC5C6\uC2B5\uB2C8\uB2E4."}</p>
+              ) : (
+                <ul className="todo-list session-completion-list">
+                  {endSessionCompletionCandidates.map((todo) => (
+                    <li className="todo-item" key={todo.id}>
+                      <div className="todo-main">
+                        <label className="todo-check-row">
+                          <input
+                            type="checkbox"
+                            checked={selectedEndSessionCompletionTodoIds.includes(todo.id)}
+                            disabled={busy || todoBusy}
+                            onChange={() => toggleEndSessionCompletionTodo(todo.id)}
+                          />
+                          <span className="todo-title">{todo.title}</span>
+                        </label>
+                        <div className="todo-meta-row" aria-label={`${todo.title} setting`}>
+                          {formatTodoScheduleLabel(todo) && (
+                            <span className="todo-time-chip">{formatTodoScheduleLabel(todo)}</span>
+                          )}
+                          <span className="todo-meta-chip">{formatTodoRepeatLabel(todo)}</span>
+                        </div>
+                      </div>
+                    </li>
+                  ))}
+                </ul>
+              )}
+
+              <div className="modal-actions">
+                <button className="primary" type="button" disabled={busy || todoBusy} onClick={() => void confirmEndSessionWithCompletions()}>
+                  <CheckCircle2 size={18} />
+                  {"\uC644\uB8CC \uCCB4\uD06C\uD558\uACE0 \uC885\uB8CC"}
+                </button>
+                <button
+                  className="secondary"
+                  type="button"
+                  disabled={busy || todoBusy}
+                  onClick={() => {
+                    closeEndSessionCompletionModal();
+                    void endTimer();
+                  }}
+                >
+                  <Square size={18} />
+                  {"\uCCB4\uD06C \uC5C6\uC774 \uC885\uB8CC"}
+                </button>
+              </div>
             </section>
           </div>
         )}

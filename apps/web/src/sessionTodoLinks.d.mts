@@ -54,6 +54,11 @@ export function getSessionLinkedTodos<T extends SessionTodoLike>(input: {
   todos: T[];
 }): T[];
 
+export function getEndSessionCompletionCandidates<T extends SessionTodoLike>(input: {
+  activeSessionTodos: T[];
+  todayTodos: T[];
+}): T[];
+
 export function summarizeSessionTodos(todos: SessionTodoLike[]): {
   total: number;
   completed: number;
