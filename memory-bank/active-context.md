@@ -25,7 +25,9 @@
 - Completed: Added source-level regression coverage that verifies planner state follows `selectedTodoDate` and invokes `buildPlanCopyRows`.
 - Completed: Updated the Today Tasks card with date shortcuts, a date input, and a multi-date apply modal.
 - Completed: `npm.cmd test` passed 197 tests and `npm.cmd run build` passed with the existing Vite chunk-size warning.
-- Next: Commit, push, and verify Vercel production deployment.
+- Completed: Committed feature commit `2a28bdb0a6caea11bdb1edaa74fcbd436fc56bd4`, pushed to `origin/main`, and verified GitHub Actions production deploy run `28327080831` completed successfully.
+- Completed: Production URL `https://study-room-attendance.vercel.app/` returned HTTP 200 and served the new Vite asset `assets/index-DiCFa9HK.js`.
+- Next: Production smoke-test the selected-date planner and multi-date copy flow in the browser.
 
 ## Notes
 
