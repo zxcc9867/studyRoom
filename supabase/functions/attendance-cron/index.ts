@@ -40,6 +40,16 @@ type DueTodoScheduleReminder = {
   next_end_time: string | null;
 };
 
+type DueSessionLeaseWarning = {
+  user_id: string;
+  session_id: string;
+  target_id: string;
+  channel_id: string;
+  local_date: string;
+  started_at: string;
+  lease_expires_at: string;
+};
+
 type NotificationTarget = {
   id: string;
   user_id: string;
@@ -92,6 +102,14 @@ Deno.serve(async (request) => {
     return new Response(JSON.stringify({ error: scheduleReminderError.message }), { status: 500, headers: jsonHeaders });
   }
 
+  const { data: dueSessionLeaseWarnings, error: leaseWarningError } = await admin.rpc(
+    "get_due_session_lease_warnings",
+    { p_now: now },
+  );
+  if (leaseWarningError) {
+    return new Response(JSON.stringify({ error: leaseWarningError.message }), { status: 500, headers: jsonHeaders });
+  }
+
   const reminders = (dueReminders ?? []) as DueReminder[];
   const targets = await loadTargets(admin, reminders.map((reminder) => reminder.user_id));
   const todoMap = await loadTodosByReminder(admin, reminders);
@@ -102,6 +120,8 @@ Deno.serve(async (request) => {
   );
   const scheduleReminders = (dueTodoScheduleReminders ?? []) as DueTodoScheduleReminder[];
   const scheduleReminderResults = await sendTodoScheduleReminderNotifications(admin, scheduleReminders);
+  const sessionLeaseWarnings = (dueSessionLeaseWarnings ?? []) as DueSessionLeaseWarning[];
+  const sessionLeaseWarningResults = await sendSessionLeaseWarningNotifications(admin, sessionLeaseWarnings);
   // sendPendingRecoveryFollowups updates study_recovery_requests.followup_sent_at to avoid repeated nudges.
   const recoveryFollowupResults = await sendPendingRecoveryFollowups(admin, now);
 
@@ -110,8 +130,10 @@ Deno.serve(async (request) => {
       dueReminderCount: reminders.length,
       missedCount: missed?.length ?? 0,
       scheduleReminderCount: scheduleReminders.length,
+      sessionLeaseWarningCount: sessionLeaseWarnings.length,
       deliveryResults,
       scheduleReminderResults,
+      sessionLeaseWarningResults,
       missedRecoveryResults,
       recoveryFollowupResults,
     }),
@@ -275,6 +297,55 @@ async function sendTodoScheduleReminderNotifications(
   return results;
 }
 
+async function sendSessionLeaseWarningNotifications(
+  admin: ReturnType<typeof createClient>,
+  warnings: DueSessionLeaseWarning[],
+) {
+  const results = [];
+
+  for (const warning of warnings) {
+    const outcome = await sendSessionLeaseWarningTarget(warning.channel_id, warning);
+    const { data: notificationDelivery } = await admin
+      .from("notification_deliveries")
+      .insert({
+        user_id: warning.user_id,
+        target_id: warning.target_id,
+        local_date: warning.local_date,
+        channel: "slack",
+        status: outcome.ok ? "sent" : "failed",
+        error_message: outcome.ok ? null : outcome.error,
+      })
+      .select("id")
+      .single();
+
+    if (outcome.ok) {
+      await admin
+        .from("study_sessions")
+        .update({ lease_warning_sent_at: new Date().toISOString() })
+        .eq("id", warning.session_id)
+        .is("lease_warning_sent_at", null);
+    }
+
+    results.push({
+      sessionId: warning.session_id,
+      targetId: warning.target_id,
+      notificationDeliveryId: notificationDelivery?.id ?? null,
+      ok: outcome.ok,
+      error: outcome.error,
+    });
+  }
+
+  return results;
+}
+
+async function sendSessionLeaseWarningTarget(channelId: string, warning: DueSessionLeaseWarning) {
+  try {
+    await sendSlackSessionLeaseWarningMessage(channelId, warning);
+    return { ok: true };
+  } catch (error) {
+    return { ok: false, error: error instanceof Error ? error.message : String(error) };
+  }
+}
 async function sendMissedRecoveryRequests(
   admin: ReturnType<typeof createClient>,
   missedRows: MissedAttendance[],
@@ -429,6 +500,38 @@ async function sendTodoScheduleTarget(channelId: string, reminder: DueTodoSchedu
   }
 }
 
+async function sendSlackSessionLeaseWarningMessage(channelId: string, warning: DueSessionLeaseWarning) {
+  if (!channelId) {
+    throw new Error("Slack channel ID is missing");
+  }
+
+  const botToken = getSlackBotToken();
+  const appUrl = Deno.env.get("APP_ORIGIN") ?? Deno.env.get("SITE_URL") ?? "http://127.0.0.1:5177";
+  const response = await fetch("https://slack.com/api/chat.postMessage", {
+    method: "POST",
+    headers: {
+      ...jsonHeaders,
+      authorization: `Bearer ${botToken}`,
+    },
+    body: JSON.stringify({
+      channel: channelId,
+      text: buildSlackSessionLeaseWarningMessage(warning, appUrl),
+      blocks: buildSlackSessionLeaseWarningBlocks(warning),
+      unfurl_links: false,
+      unfurl_media: false,
+    }),
+  });
+
+  if (!response.ok) {
+    throw new Error(`Slack message failed: ${response.status} ${await response.text()}`);
+  }
+
+  const result = (await response.json().catch(() => null)) as { ok?: boolean; error?: string } | null;
+  if (!result?.ok) {
+    throw new Error(`Slack message returned unexpected result: ${JSON.stringify(result)}`);
+  }
+}
+
 async function sendSlackTodoScheduleReminderMessage(channelId: string, reminder: DueTodoScheduleReminder) {
   if (!channelId) {
     throw new Error("Slack channel ID is missing");
@@ -550,6 +653,49 @@ function buildSlackReminderMessage(reminder: DueReminder, todos: StudyTodo[], ap
   ].join("\n");
 }
 
+function buildSlackSessionLeaseWarningMessage(warning: DueSessionLeaseWarning, appUrl: string) {
+  return [
+    "*⏰ 세션 종료 5분 전*",
+    "",
+    `세션 유지 시간이 ${formatDateTime(warning.lease_expires_at)}에 만료됩니다.`,
+    "계속 공부 중이면 아래 버튼으로 1시간 연장하세요.",
+    "연장하지 않으면 앱이 열려 있을 때 세션이 자동 종료되고, 이후 시간은 공부 시간에서 제외됩니다.",
+    "",
+    "🔗 앱 열기",
+    appUrl,
+  ].join("\n");
+}
+
+function buildSlackSessionLeaseWarningBlocks(warning: DueSessionLeaseWarning) {
+  return [
+    {
+      type: "section",
+      text: {
+        type: "mrkdwn",
+        text: `*⏰ 세션 종료 5분 전*\n세션 유지 시간이 *${formatDateTime(warning.lease_expires_at)}*에 만료됩니다.`,
+      },
+    },
+    {
+      type: "section",
+      text: {
+        type: "mrkdwn",
+        text: "계속 공부 중이면 *1시간 연장*을 눌러 세션을 유지하세요.",
+      },
+    },
+    {
+      type: "actions",
+      elements: [
+        {
+          type: "button",
+          style: "primary",
+          text: { type: "plain_text", text: "1시간 연장", emoji: true },
+          action_id: "extend_session_lease_60",
+          value: `session_lease_extension|${warning.session_id}|60`,
+        },
+      ],
+    },
+  ];
+}
 function buildSlackTodoScheduleReminderMessage(reminder: DueTodoScheduleReminder, appUrl: string) {
   const scheduleLabel = formatTodoScheduleWindow(reminder.start_time, reminder.end_time);
   if (reminder.reminder_type === "end_soon") {
@@ -624,6 +770,16 @@ function buildSlackTodoScheduleReminderBlocks(reminder: DueTodoScheduleReminder)
 }
 function formatTodoScheduleWindow(startTime: string, endTime: string) {
   return `${formatTime(startTime)}-${formatTime(endTime)}`;
+}
+
+function formatDateTime(value: string) {
+  return new Date(value).toLocaleString("ko-KR", {
+    timeZone: "Asia/Tokyo",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
 }
 
 function getDailyAttendanceGoalLabel(localDate: string) {

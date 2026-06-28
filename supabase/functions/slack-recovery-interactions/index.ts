@@ -31,6 +31,7 @@ type StudyTodoRow = {
 
 const jsonHeaders = { "content-type": "application/json" };
 const supportedScheduleExtensionActionIds = new Set(["extend_schedule_5", "extend_schedule_10", "extend_schedule_custom"]);
+const supportedSessionLeaseExtensionActionIds = new Set(["extend_session_lease_60"]);
 const modalFieldLimits = {
   reason: 400,
   makeup_todo_title: 120,
@@ -57,6 +58,9 @@ Deno.serve(async (request) => {
   });
 
   if (payload.type === "block_actions") {
+    if (hasSessionLeaseExtensionAction(payload)) {
+      return await handleSessionLeaseExtensionAction(admin, payload);
+    }
     if (hasScheduleExtensionAction(payload)) {
       return await handleScheduleExtensionAction(admin, payload);
     }
@@ -73,6 +77,49 @@ Deno.serve(async (request) => {
   return json({ ok: true });
 });
 
+function hasSessionLeaseExtensionAction(payload: SlackPayload) {
+  return payload.actions?.some((item) => item.action_id && supportedSessionLeaseExtensionActionIds.has(item.action_id)) ?? false;
+}
+
+async function handleSessionLeaseExtensionAction(admin: ReturnType<typeof createClient>, payload: SlackPayload) {
+  const action = payload.actions?.find((item) => item.action_id && supportedSessionLeaseExtensionActionIds.has(item.action_id));
+  const parsed = parseSessionLeaseExtensionValue(action?.value ?? "");
+  if (!action?.action_id || !parsed) {
+    return json({ error: "Invalid session lease extension action" }, 400);
+  }
+
+  const { data, error } = await admin.rpc("extend_study_session_lease", {
+    p_session_id: parsed.sessionId,
+    p_extension_minutes: parsed.minutes,
+  });
+
+  if (error) {
+    await postEphemeralIfPossible(
+      payload.channel?.id ?? null,
+      payload.user?.id ?? null,
+      `세션 연장에 실패했습니다: ${error.message}`,
+    );
+    return json({ error: error.message }, 500);
+  }
+
+  const updatedSession = data as { lease_expires_at?: string | null } | null;
+  const deadlineText = updatedSession?.lease_expires_at ? ` 새 종료 예정: ${formatDateTime(updatedSession.lease_expires_at)}` : "";
+  await postEphemeralIfPossible(
+    payload.channel?.id ?? null,
+    payload.user?.id ?? null,
+    `세션을 1시간 연장했습니다.${deadlineText}`,
+  );
+  return json({ ok: true, sessionId: parsed.sessionId, extendedMinutes: parsed.minutes });
+}
+
+function parseSessionLeaseExtensionValue(value: string) {
+  const [kind, sessionId, minutesText] = value.split("|");
+  const minutes = Number(minutesText);
+  if (kind !== "session_lease_extension" || !isUuid(sessionId) || minutes !== 60) {
+    return null;
+  }
+  return { sessionId, minutes };
+}
 function hasScheduleExtensionAction(payload: SlackPayload) {
   return payload.actions?.some((item) => item.action_id && supportedScheduleExtensionActionIds.has(item.action_id)) ?? false;
 }
@@ -513,6 +560,15 @@ function addDaysToDateKey(dateKey: string, days: number) {
   return date.toISOString().slice(0, 10);
 }
 
+function formatDateTime(value: string) {
+  return new Date(value).toLocaleString("ko-KR", {
+    timeZone: "Asia/Tokyo",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+}
 function bytesToHex(bytes: Uint8Array) {
   return [...bytes].map((byte) => byte.toString(16).padStart(2, "0")).join("");
 }

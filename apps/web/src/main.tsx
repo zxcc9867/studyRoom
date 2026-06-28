@@ -227,6 +227,8 @@ type StudySession = {
   ended_at: string | null;
   duration_seconds: number;
   status: "active" | "completed" | "cancelled";
+  lease_expires_at: string | null;
+  lease_warning_sent_at: string | null;
 };
 
 type StudyTodo = {
@@ -750,10 +752,13 @@ function DashboardApp() {
       userId: session.user.id,
       sessionId: activeSession.id,
     });
-    const deadlineMs = getStoredSessionLeaseDeadlineMs({
-      rawValue: window.localStorage.getItem(storageKey),
-      startedAtMs: activeSessionStartedAtMs,
-    });
+    const serverDeadlineMs = activeSession.lease_expires_at ? Date.parse(activeSession.lease_expires_at) : Number.NaN;
+    const deadlineMs = Number.isFinite(serverDeadlineMs) && serverDeadlineMs >= activeSessionStartedAtMs
+      ? Math.floor(serverDeadlineMs)
+      : getStoredSessionLeaseDeadlineMs({
+          rawValue: window.localStorage.getItem(storageKey),
+          startedAtMs: activeSessionStartedAtMs,
+        });
 
     window.localStorage.setItem(storageKey, String(deadlineMs));
     setSessionLease((current) =>
@@ -762,7 +767,7 @@ function DashboardApp() {
         : { sessionId: activeSession.id, deadlineMs },
     );
     sessionLeaseAutoEndInFlightRef.current = false;
-  }, [activeSession?.id, activeSession?.started_at, activeSessionStartedAtMs, session?.user.id]);
+  }, [activeSession?.id, activeSession?.started_at, activeSession?.lease_expires_at, activeSessionStartedAtMs, session?.user.id]);
 
   useEffect(() => {
     if (
@@ -2307,11 +2312,35 @@ function DashboardApp() {
     );
   }
 
-  function extendSessionLease() {
+  async function extendSessionLease() {
     if (!activeSession) return;
 
-    persistSessionLease(activeSession.id, createSessionLeaseDeadlineMs(Date.now()));
-    setMessage("세션을 2시간 더 유지합니다.");
+    setBusy(true);
+    const { data, error } = await supabase.rpc("extend_study_session_lease", {
+      p_session_id: activeSession.id,
+      p_extension_minutes: 60,
+    });
+    setBusy(false);
+
+    if (error) {
+      setMessage(error.message);
+      return;
+    }
+
+    const updatedSession = data as StudySession | null;
+    const parsedDeadlineMs = updatedSession?.lease_expires_at ? Date.parse(updatedSession.lease_expires_at) : Number.NaN;
+    const deadlineMs = Number.isFinite(parsedDeadlineMs)
+      ? Math.floor(parsedDeadlineMs)
+      : createSessionLeaseDeadlineMs(Date.now());
+
+    persistSessionLease(activeSession.id, deadlineMs);
+    if (updatedSession) {
+      setStudySessions((current) => [
+        updatedSession,
+        ...current.filter((item) => item.id !== updatedSession.id),
+      ]);
+    }
+    setMessage("세션을 1시간 더 유지합니다.");
   }
 
   function openRecoveryRoutineModal(request: StudyRecoveryRequest, options: { auto?: boolean } = {}) {
@@ -2458,7 +2487,11 @@ function DashboardApp() {
       let startMessage = "집중 세션을 시작했습니다.";
       if (data) {
         const startedSession = data as StudySession;
-        persistSessionLease(startedSession.id, createSessionLeaseDeadlineMs(Date.now()));
+        const parsedDeadlineMs = startedSession.lease_expires_at ? Date.parse(startedSession.lease_expires_at) : Number.NaN;
+        persistSessionLease(
+          startedSession.id,
+          Number.isFinite(parsedDeadlineMs) ? Math.floor(parsedDeadlineMs) : createSessionLeaseDeadlineMs(Date.now()),
+        );
         persistStudySessionActivity(startedSession.id);
         setStudySessions((current) => [
           startedSession,
@@ -3460,7 +3493,7 @@ function DashboardApp() {
                 <div>
                   <span>세션 유지 남은 시간</span>
                   <strong>{formatTimerClock(sessionLeaseRemainingSeconds)}</strong>
-                  <small>2시간마다 유지 버튼을 눌러야 세션이 계속됩니다.</small>
+                  <small>1시간마다 유지 버튼을 눌러야 세션이 계속됩니다.</small>
                 </div>
                 <button className="secondary" type="button" onClick={extendSessionLease} disabled={busy}>
                   <Clock3 size={18} />

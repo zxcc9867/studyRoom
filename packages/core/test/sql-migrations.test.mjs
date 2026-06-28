@@ -458,6 +458,48 @@ test("slack schedule reminders expose extension actions and interaction handler"
   assert.match(interactionSource, /chat\.postEphemeral/);
 });
 
+
+test("session lease migration stores server deadline and exposes one hour extension", () => {
+  const sql = readMigrationContaining(/extend_study_session_lease/i);
+
+  assert.match(sql, /alter table public\.study_sessions\s+add column if not exists lease_expires_at timestamptz/i);
+  assert.match(sql, /add column if not exists lease_warning_sent_at timestamptz/i);
+  assert.match(sql, /started_at \+ interval '1 hour'/i);
+  assert.match(sql, /insert into public\.study_sessions\s*\([^)]*lease_expires_at[^)]*\)[\s\S]*now\(\) \+ interval '1 hour'/i);
+  assert.match(sql, /create or replace function public\.extend_study_session_lease/i);
+  assert.match(sql, /p_session_id uuid/i);
+  assert.match(sql, /p_extension_minutes integer default 60/i);
+  assert.match(sql, /p_extension_minutes <> 60/i);
+  assert.match(sql, /greatest\(coalesce\(lease_expires_at, now\(\)\), now\(\)\) \+ make_interval\(mins => p_extension_minutes\)/i);
+  assert.match(sql, /lease_warning_sent_at = null/i);
+  assert.match(sql, /create or replace function public\.get_due_session_lease_warnings/i);
+  assert.match(sql, /lease_expires_at - interval '5 minutes'/i);
+  assert.match(sql, /lease_warning_sent_at is null/i);
+  assert.match(sql, /notification_targets nt/i);
+  assert.match(sql, /nt\.kind = 'slack'/i);
+  assert.match(sql, /grant execute on function public\.extend_study_session_lease\(uuid, integer\) to authenticated/i);
+  assert.match(sql, /grant execute on function public\.extend_study_session_lease\(uuid, integer\) to service_role/i);
+});
+
+test("session lease Slack warnings expose a one hour extension action", () => {
+  const attendanceSource = readFileSync("supabase/functions/attendance-cron/index.ts", "utf8");
+  const interactionSource = readFileSync("supabase/functions/slack-recovery-interactions/index.ts", "utf8");
+
+  assert.match(attendanceSource, /get_due_session_lease_warnings/);
+  assert.match(attendanceSource, /sendSessionLeaseWarningNotifications/);
+  assert.match(attendanceSource, /buildSlackSessionLeaseWarningBlocks/);
+  assert.match(attendanceSource, /extend_session_lease_60/);
+  assert.match(attendanceSource, /session_lease_extension\|\$\{warning\.session_id\}\|60/);
+  assert.match(attendanceSource, /lease_warning_sent_at/);
+
+  assert.match(interactionSource, /extend_session_lease_60/);
+  assert.match(interactionSource, /session_lease_extension/);
+  assert.match(interactionSource, /extend_study_session_lease/);
+  assert.match(interactionSource, /p_session_id/);
+  assert.match(interactionSource, /p_extension_minutes/);
+  assert.match(interactionSource, /\uC138\uC158\uC744 1\uC2DC\uAC04 \uC5F0\uC7A5\uD588\uC2B5\uB2C8\uB2E4/);
+});
+
 test("slack recovery interactions verify signatures, open modal, and create the makeup todo", () => {
   const source = readFileSync("supabase/functions/slack-recovery-interactions/index.ts", "utf8");
 

@@ -15,9 +15,9 @@ import {
   parseSessionLeaseDeadlineMs,
 } from "../src/sessionLease.mjs";
 
-test("session lease uses a two hour duration", () => {
-  assert.equal(SESSION_LEASE_DURATION_SECONDS, 2 * 60 * 60);
-  assert.equal(SESSION_LEASE_DURATION_MS, 2 * 60 * 60 * 1000);
+test("session lease uses a one hour duration", () => {
+  assert.equal(SESSION_LEASE_DURATION_SECONDS, 60 * 60);
+  assert.equal(SESSION_LEASE_DURATION_MS, 60 * 60 * 1000);
 });
 
 test("creates and extends a session lease deadline from the current time", () => {
@@ -27,7 +27,7 @@ test("creates and extends a session lease deadline from the current time", () =>
   assert.equal(createSessionLeaseDeadlineMs(nowMs + 30 * 60 * 1000), nowMs + 30 * 60 * 1000 + SESSION_LEASE_DURATION_MS);
 });
 
-test("falls back to started_at plus two hours when no valid stored deadline exists", () => {
+test("falls back to started_at plus one hour when no valid stored deadline exists", () => {
   const startedAtMs = Date.UTC(2026, 5, 17, 20, 30, 0);
 
   assert.equal(getStoredSessionLeaseDeadlineMs({ rawValue: null, startedAtMs }), startedAtMs + SESSION_LEASE_DURATION_MS);
@@ -74,6 +74,8 @@ test("web dashboard wires session lease UI and avoids adding stale active sessio
 
   assert.match(appSource, /sessionLeaseRemainingSeconds/);
   assert.match(appSource, /extendSessionLease/);
+  assert.match(appSource, /lease_expires_at/);
+  assert.match(appSource, /extend_study_session_lease/);
   assert.match(appSource, /session-lease/);
   assert.match(appSource, /activeSession\?\.local_date === todayDateKey/);
 });

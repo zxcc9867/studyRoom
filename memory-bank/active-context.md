@@ -1350,3 +1350,41 @@
 - `start_time`과 `end_time`은 둘 다 null이거나 둘 다 값이 있어야 하며, 값이 있으면 `start_time < end_time`이어야 한다.
 - 이 구현은 반복 규칙 자체를 저장하지 않고, 선택한 날짜 범위에 해당하는 `study_todos` row를 미리 생성한다.
 - 서버 알림 함수는 배포됐지만, 프론트엔드 UI 변경은 Vercel production 배포 전까지 운영 URL에는 보이지 않을 수 있다.
+
+## 2026-06-28 - Session lease Slack extension
+
+### Current Work
+
+- Task: 세션 종료 5분 전 Slack 알림과 1시간 연장 버튼 추가
+- Purpose: 기본 공부 세션 유지 시간을 2시간에서 1시간으로 줄이고, 만료 5분 전에 Slack에서 바로 1시간 연장할 수 있게 한다.
+- Related PRD:
+  - `memory-bank/prd-session-activity-heartbeat.md`
+  - `memory-bank/prd-slack-notifications.md`
+- Related files:
+  - `apps/web/src/main.tsx`
+  - `apps/web/src/sessionLease.mjs`
+  - `supabase/migrations/20260628093258_session_lease_slack_warnings.sql`
+  - `supabase/functions/attendance-cron/index.ts`
+  - `supabase/functions/slack-recovery-interactions/index.ts`
+
+### Recent Decisions
+
+- Decision: 세션 lease 기준 시간은 서버의 `study_sessions.lease_expires_at`을 우선하고, localStorage는 과거 세션 호환 fallback으로만 유지한다.
+- Reason: 브라우저가 닫혀 있어도 Supabase Cron/Edge Function이 만료 5분 전 Slack 알림을 보낼 수 있어야 한다.
+- Alternative: 브라우저 localStorage 기반 1시간 타이머만 줄이는 방식.
+- Impact: 새 세션은 시작 시점부터 1시간 lease를 DB에 저장하고, Slack 버튼 또는 앱의 `세션 유지` 버튼은 같은 RPC로 1시간 연장한다.
+
+### Current Status
+
+- Completed: `study_sessions.lease_expires_at`, `lease_warning_sent_at` migration을 원격 Supabase 프로젝트 `bqohkdzvxbrokkmuhysx`에 적용했다.
+- Completed: `start_study_session()`이 새 active session에 `now() + interval '1 hour'`를 저장한다.
+- Completed: `extend_study_session_lease(p_session_id, 60)` RPC를 추가해 앱과 Slack 버튼이 같은 서버 경로로 1시간 연장한다.
+- Completed: `attendance-cron`이 `get_due_session_lease_warnings()`를 호출하고 만료 5분 전 Slack 메시지와 `1시간 연장` 버튼을 보낸다.
+- Completed: `slack-recovery-interactions`가 `extend_session_lease_60` 액션을 처리한다.
+- Completed: `npm.cmd test`와 `npm.cmd run build`가 통과했다.
+- Next: 변경사항 커밋/푸시 후 Vercel production 배포 상태를 확인한다.
+
+### Notes
+
+- Slack App Interactivity Request URL은 기존 `slack-recovery-interactions` Edge Function을 그대로 사용한다.
+- Edge Function secrets에는 기존 Slack bot token과 signing secret이 필요하며, 민감한 값은 문서에 기록하지 않는다.

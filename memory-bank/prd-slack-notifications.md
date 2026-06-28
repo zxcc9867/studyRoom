@@ -154,3 +154,11 @@ Slack workspace를 사용하는 개인 사용자. 정해진 시간에 독서실 
 ## 12. Open Questions
 
 - Slack DM 발송을 후속 기능으로 추가할지 여부.
+
+## 2026-06-28 Addendum: Session lease warning and extension
+
+- Slack is also used for active study session lease warnings.
+- `attendance-cron` calls `get_due_session_lease_warnings(p_now)` and sends a warning 5 minutes before an active session's `lease_expires_at`.
+- The message includes an interactive `1시간 연장` button with action id `extend_session_lease_60`.
+- `slack-recovery-interactions` handles that action through the existing Slack Interactivity Request URL and calls `extend_study_session_lease` with a 60-minute extension.
+- This path uses Slack Bot API and existing Slack signing-secret verification; Incoming Webhooks and DM delivery remain out of scope.

@@ -1,4 +1,4 @@
-export const SESSION_LEASE_DURATION_SECONDS = 2 * 60 * 60;
+export const SESSION_LEASE_DURATION_SECONDS = 60 * 60;
 export const SESSION_LEASE_DURATION_MS = SESSION_LEASE_DURATION_SECONDS * 1000;
 
 export function createSessionLeaseDeadlineMs(nowMs, durationMs = SESSION_LEASE_DURATION_MS) {

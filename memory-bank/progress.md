@@ -3168,3 +3168,49 @@
 #### Next Priority
 
 - Manually smoke-test production: start a session, close the browser for longer than 5 minutes, reopen, and confirm the session ends with closed time excluded.
+
+### 2026-06-28 - Session lease Slack warning and 1-hour extension
+
+#### Completed Work
+
+- Changed the active study session lease from 2 hours to 1 hour.
+- Added server-side lease state to `study_sessions` with `lease_expires_at` and `lease_warning_sent_at`.
+- Added `extend_study_session_lease(p_session_id, p_extension_minutes)` and limited the MVP extension to 60 minutes.
+- Added `get_due_session_lease_warnings(p_now)` so `attendance-cron` can find active sessions expiring within 5 minutes.
+- Updated `attendance-cron` to send a Slack session-expiry warning with a `1시간 연장` button.
+- Updated `slack-recovery-interactions` to process `extend_session_lease_60` and extend the selected active session by 1 hour.
+- Updated the web dashboard to read `lease_expires_at`, call the same RPC from `세션 유지`, and show 1-hour lease wording.
+- Applied the Supabase migration to project `bqohkdzvxbrokkmuhysx` and deployed `attendance-cron` v24 plus `slack-recovery-interactions` v7.
+
+#### Changed Files
+
+- `apps/web/src/main.tsx`
+- `apps/web/src/sessionLease.mjs`
+- `apps/web/test/sessionLease.test.mjs`
+- `packages/core/test/sql-migrations.test.mjs`
+- `supabase/migrations/20260628093258_session_lease_slack_warnings.sql`
+- `supabase/functions/attendance-cron/index.ts`
+- `supabase/functions/slack-recovery-interactions/index.ts`
+- `memory-bank/active-context.md`
+- `memory-bank/progress.md`
+- `memory-bank/implementation-plan.md`
+- `memory-bank/prd-session-activity-heartbeat.md`
+- `memory-bank/prd-slack-notifications.md`
+
+#### Verification
+
+- RED: `node --test apps\web\test\sessionLease.test.mjs packages\core\test\sql-migrations.test.mjs` failed on the old 2-hour lease and missing server/Slack lease wiring.
+- GREEN: the same targeted test command passed 45 tests.
+- Full suite: `npm.cmd test` passed 187 tests.
+- Build: `npm.cmd run build` passed with the existing Vite chunk-size warning.
+- Supabase: remote schema check confirmed both new columns and both new RPC functions exist.
+- Supabase Edge Functions: `attendance-cron` is ACTIVE version 24 and `slack-recovery-interactions` is ACTIVE version 7.
+
+#### Remaining Work
+
+- Commit, push, and verify Vercel production deployment.
+- Optional manual smoke test: start a session, wait until 5 minutes before lease expiry, confirm Slack warning, click `1시간 연장`, and confirm the app deadline updates after refresh.
+
+#### Next Priority
+
+- Production deployment and live URL HTTP 200 verification.

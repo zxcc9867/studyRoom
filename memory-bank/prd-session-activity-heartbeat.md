@@ -18,7 +18,7 @@ Users who study through the web app and expect authentication persistence to be 
 
 - Do not add a server-side heartbeat table in this MVP.
 - Do not end sessions merely because the tab became hidden.
-- Do not change the 2-hour study session lease.
+- Do not add a dedicated server-side heartbeat table in this MVP. The separate session lease is now a 1-hour server-backed keep-alive deadline.
 
 ## 5. User Stories
 
@@ -54,3 +54,12 @@ Users who study through the web app and expect authentication persistence to be 
 ## 10. Open Questions
 
 - A future server-side heartbeat could enforce this across browsers/devices, but it is outside this MVP.
+
+## 2026-06-28 Addendum: 1-hour server-backed session lease
+
+- Default active study session lease is now 1 hour, not 2 hours.
+- New sessions store `study_sessions.lease_expires_at = now() + interval '1 hour'`.
+- The web app prefers the server deadline and keeps browser localStorage only as a compatibility fallback.
+- Five minutes before `lease_expires_at`, `attendance-cron` sends a Slack warning with a `1시간 연장` button.
+- The Slack button and in-app `세션 유지` button both call `extend_study_session_lease(p_session_id, 60)`.
+- `lease_warning_sent_at` prevents duplicate session-expiry warnings for the same lease window and is cleared when the lease is extended.
