@@ -1,0 +1,56 @@
+# PRD: Session Activity Heartbeat
+
+## 1. Problem
+
+Active study sessions are restored from Supabase after browser or computer restart. This keeps the login session usable, but it can make study time continue while the browser or computer was off.
+
+## 2. Target Users
+
+Users who study through the web app and expect authentication persistence to be separate from counted study time.
+
+## 3. Goals
+
+- Keep the Supabase browser auth session persistent.
+- Stop counting study time when the browser or computer has been inactive for longer than a short grace period.
+- Preserve tab-switch and quick-refresh behavior so normal browser navigation does not end a study session.
+
+## 4. Non-goals
+
+- Do not add a server-side heartbeat table in this MVP.
+- Do not end sessions merely because the tab became hidden.
+- Do not change the 2-hour study session lease.
+
+## 5. User Stories
+
+- As a user, I want to stay logged in after reopening the app so I do not have to authenticate every refresh.
+- As a user, I want study time to exclude time while my browser or computer was closed.
+- As a user, I want switching to another tab to continue counting as study time.
+
+## 6. Functional Requirements
+
+- Store a per-user/per-study-session activity timestamp in browser localStorage.
+- Refresh the activity timestamp while an active session is open.
+- On restoring an active session, if the stored activity timestamp is older than the inactivity grace, call end_study_session and pass the inactive seconds as excluded time.
+- Update activity when a hidden tab becomes visible so tab switching does not look like a closed browser.
+- Clear activity storage after manual or automatic session end.
+
+## 7. Non-functional Requirements
+
+- Privacy: no additional server-side tracking or media storage.
+- Reliability: keep existing lease and camera absence exclusions additive.
+- Compatibility: work in the static Vite app without adding a backend route.
+
+## 8. Dependencies
+
+- Browser localStorage.
+- Existing Supabase RPC end_study_session(p_session_id, p_excluded_seconds).
+
+## 9. Success Metrics
+
+- Closing the browser for longer than the grace period no longer adds that closed time to saved duration.
+- Refreshing quickly or switching tabs does not end the session.
+- Full app tests and production build pass.
+
+## 10. Open Questions
+
+- A future server-side heartbeat could enforce this across browsers/devices, but it is outside this MVP.

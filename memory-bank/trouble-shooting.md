@@ -2107,3 +2107,31 @@ https://bqohkdzvxbrokkmuhysx.supabase.co/functions/v1/slack-recovery-interaction
 ### Prevention
 
 For Slack interactive components, always check both bot-token and signing-secret secrets. Bot token is enough for sending messages, but not enough for receiving signed Slack interactivity payloads.
+
+## 2026-06-28 - Active study session kept counting after browser or PC restart
+
+### Situation
+
+The user wanted login to remain available for the existing session flow, but study time should stop when the browser or computer is closed. The app restored active study_sessions rows and recalculated elapsed time from started_at, so closed-browser time could appear as study time.
+
+### Error Message
+
+No runtime exception. User-visible symptom: after reopening the browser or computer, an active study timer continues as if the closed time was studied.
+
+### Cause
+
+Supabase Auth persistence and study session persistence were coupled by the active-session restore path. The app restored status = active rows from Supabase and only capped by the 2-hour lease. Browser lifecycle events intentionally no longer ended sessions because refresh/tab switching must not lose study time.
+
+### Fix
+
+Added a separate client-side study-session activity heartbeat. Active sessions update localStorage every 15 seconds and on pagehide/beforeunload. When the app restores an active session, it checks the last activity timestamp before refreshing it. If the gap is more than 5 minutes, it calls end_study_session and passes the inactive gap through p_excluded_seconds. visibilitychange to visible refreshes activity so normal tab switching remains valid study time.
+
+### Related Files
+
+- apps/web/src/main.tsx
+- apps/web/src/sessionActivity.mjs
+- apps/web/test/sessionActivity.test.mjs
+
+### Prevention
+
+Keep Auth persistence separate from study-time persistence. Do not reintroduce lifecycle-based session ending for pagehide/beforeunload; use heartbeat cleanup or a future server-side stale-session cleanup instead.

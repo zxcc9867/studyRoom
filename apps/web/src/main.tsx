@@ -130,6 +130,13 @@ import {
   getStoredSessionLeaseDeadlineMs,
   isSessionLeaseExpired,
 } from "./sessionLease.mjs";
+import {
+  STUDY_SESSION_ACTIVITY_HEARTBEAT_MS,
+  getStudySessionActivityExcludedSeconds,
+  getStudySessionActivityStorageKey,
+  parseStudySessionActivityMs,
+  shouldEndStudySessionForInactivity,
+} from "./sessionActivity.mjs";
 import { requestEndStudySessionOnExit, shouldEndStudySessionForPageEvent } from "./sessionExit.mjs";
 import {
   buildSessionTodoLinkRows,
@@ -451,6 +458,7 @@ function DashboardApp() {
   const lastCameraRequiredWarningAtRef = useRef(0);
   const warningInFlightRef = useRef(false);
   const sessionLeaseAutoEndInFlightRef = useRef(false);
+  const sessionActivityAutoEndInFlightRef = useRef(false);
   const recoveryAutoEndInFlightRef = useRef(false);
   const recoveryModalDismissedIdsRef = useRef<Set<string>>(new Set());
 
@@ -796,6 +804,81 @@ function DashboardApp() {
     nowMs,
     session?.user.id,
   ]);
+
+  useEffect(() => {
+    if (!session?.user.id || !activeSession) {
+      sessionActivityAutoEndInFlightRef.current = false;
+      return;
+    }
+
+    if (busy) {
+      return;
+    }
+
+    const lastActivityMs = getStoredStudySessionActivityMs(activeSession.id);
+    if (!shouldEndStudySessionForInactivity({ lastActivityMs, nowMs })) {
+      return;
+    }
+
+    if (sessionActivityAutoEndInFlightRef.current) {
+      return;
+    }
+
+    sessionActivityAutoEndInFlightRef.current = true;
+    const excludedSeconds =
+      getCurrentExcludedSeconds(presenceStateRef.current) +
+      getStudySessionActivityExcludedSeconds({ lastActivityMs, nowMs });
+
+    void endTimer({
+      excludedSeconds,
+      successMessage: "\uBE0C\uB77C\uC6B0\uC800\uAC00 \uB2EB\uD600 \uC788\uB358 \uC2DC\uAC04\uC740 \uACF5\uBD80 \uC2DC\uAC04\uC5D0\uC11C \uC81C\uC678\uD558\uACE0 \uC138\uC158\uC744 \uC885\uB8CC\uD588\uC2B5\uB2C8\uB2E4.",
+    }).finally(() => {
+      sessionActivityAutoEndInFlightRef.current = false;
+    });
+  }, [activeSession?.id, busy, nowMs, session?.user.id]);
+
+  useEffect(() => {
+    if (!session?.user.id || !activeSession) {
+      sessionActivityAutoEndInFlightRef.current = false;
+      return;
+    }
+
+    if (sessionActivityAutoEndInFlightRef.current) {
+      return;
+    }
+
+    if (getStoredStudySessionActivityMs(activeSession.id) === null) {
+      persistStudySessionActivity(activeSession.id);
+    }
+
+    const persistCurrentActivity = () => {
+      const currentNowMs = Date.now();
+      const lastActivityMs = getStoredStudySessionActivityMs(activeSession.id);
+      if (shouldEndStudySessionForInactivity({ lastActivityMs, nowMs: currentNowMs })) {
+        return;
+      }
+
+      persistStudySessionActivity(activeSession.id, currentNowMs);
+    };
+
+    const persistVisibleActivity = () => {
+      if (document.visibilityState === "visible") {
+        persistStudySessionActivity(activeSession.id);
+      }
+    };
+
+    const intervalId = window.setInterval(persistCurrentActivity, STUDY_SESSION_ACTIVITY_HEARTBEAT_MS);
+    window.addEventListener("pagehide", persistCurrentActivity);
+    window.addEventListener("beforeunload", persistCurrentActivity);
+    document.addEventListener("visibilitychange", persistVisibleActivity);
+
+    return () => {
+      window.clearInterval(intervalId);
+      window.removeEventListener("pagehide", persistCurrentActivity);
+      window.removeEventListener("beforeunload", persistCurrentActivity);
+      document.removeEventListener("visibilitychange", persistVisibleActivity);
+    };
+  }, [activeSession?.id, session?.user.id]);
 
   useEffect(() => {
     if (!session?.user.id || !profile) return;
@@ -2188,6 +2271,42 @@ function DashboardApp() {
     setSessionLease((current) => (current?.sessionId === sessionId ? null : current));
   }
 
+  function getStoredStudySessionActivityMs(sessionId: string) {
+    if (!session?.user.id) return null;
+
+    return parseStudySessionActivityMs(
+      window.localStorage.getItem(
+        getStudySessionActivityStorageKey({
+          userId: session.user.id,
+          sessionId,
+        }),
+      ),
+    );
+  }
+
+  function persistStudySessionActivity(sessionId: string, activityMs = Date.now()) {
+    if (!session?.user.id) return;
+
+    window.localStorage.setItem(
+      getStudySessionActivityStorageKey({
+        userId: session.user.id,
+        sessionId,
+      }),
+      String(Math.floor(activityMs)),
+    );
+  }
+
+  function forgetStudySessionActivity(sessionId: string) {
+    if (!session?.user.id) return;
+
+    window.localStorage.removeItem(
+      getStudySessionActivityStorageKey({
+        userId: session.user.id,
+        sessionId,
+      }),
+    );
+  }
+
   function extendSessionLease() {
     if (!activeSession) return;
 
@@ -2340,6 +2459,7 @@ function DashboardApp() {
       if (data) {
         const startedSession = data as StudySession;
         persistSessionLease(startedSession.id, createSessionLeaseDeadlineMs(Date.now()));
+        persistStudySessionActivity(startedSession.id);
         setStudySessions((current) => [
           startedSession,
           ...current.filter((item) => item.id !== startedSession.id),
@@ -2402,6 +2522,7 @@ function DashboardApp() {
     } else if (session?.user.id) {
       forgetCameraMonitoringIntent();
       forgetSessionLease(activeSession.id);
+      forgetStudySessionActivity(activeSession.id);
       setMessage(options.successMessage ?? sessionTodoSummary.message);
       await loadDashboard(session.user.id);
     }

@@ -487,3 +487,13 @@ docs/images/study-room-thumbnail.png
 - 마이그레이션 파일: `supabase/migrations/0006_fix_due_reminders_ambiguity.sql`
 - 확인 방법: `net._http_response` 최신 자동 cron 응답이 200이고, content가 `{"dueReminderCount":0,"missedCount":0,"deliveryResults":[]}` 형태로 반환됨.
 - 주의 사항: `RESEND_API_KEY`와 Expo `EXPO_PUBLIC_EAS_PROJECT_ID`는 아직 별도 설정 필요.
+
+## Session Activity Heartbeat
+
+- Auth session persistence and study-session activity are separate concerns. Supabase Auth continues to use persistent browser storage, while counted study time uses a separate per-user/per-study-session heartbeat.
+- Web active sessions store localStorage key study-room-session-activity:{userId}:{sessionId}.
+- The heartbeat interval is 15 seconds. A missing heartbeat for more than 5 minutes is treated as browser/computer inactivity, not as valid study time.
+- On active-session restore, stale activity calls end_study_session with p_excluded_seconds equal to the existing camera/lease exclusion plus the inactive gap.
+- pagehide and beforeunload only update the final activity timestamp; they still do not directly end the session.
+- visibilitychange to visible refreshes the activity timestamp so ordinary tab switching is not mistaken for browser close.
+- This MVP is same-browser only. A server-side heartbeat or Supabase Cron cleanup would be needed for cross-device enforcement.

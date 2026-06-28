@@ -3054,3 +3054,42 @@
 
 - AWS credential 확인 후 배포
 - 배포된 CloudFront URL로 로그인/알림 등록 플로우 검증
+
+### 2026-06-28 - Session activity heartbeat excludes closed-browser study time
+
+#### Completed Work
+
+- Added a study-session activity heartbeat separate from Supabase Auth session persistence.
+- Active web study sessions now write a per-user/per-session localStorage activity timestamp every 15 seconds.
+- If an active session is restored after the activity timestamp is stale for more than 5 minutes, the app ends the session and sends the inactive gap as excluded seconds.
+- Tab switching is preserved by refreshing activity when the document becomes visible again.
+- Added focused tests for activity parsing, stale detection, excluded seconds, and web wiring.
+
+#### Changed Files
+
+- apps/web/src/main.tsx
+- apps/web/src/sessionActivity.mjs
+- apps/web/src/sessionActivity.d.mts
+- apps/web/test/sessionActivity.test.mjs
+- memory-bank/prd-session-activity-heartbeat.md
+- memory-bank/active-context.md
+- memory-bank/progress.md
+- memory-bank/implementation-plan.md
+- memory-bank/trouble-shooting.md
+
+#### Verification
+
+- RED: node --test apps\web\test\sessionActivity.test.mjs failed before sessionActivity.mjs existed.
+- RED: visibilitychange wiring assertion failed before the visible-tab heartbeat refresh was re-added.
+- GREEN: node --test apps\web\test\sessionActivity.test.mjs apps\web\test\sessionLease.test.mjs apps\web\test\sessionExit.test.mjs passed.
+- Full suite: npm.cmd test passed 181 tests.
+- Build: npm.cmd run build passed with the existing Vite chunk-size warning.
+- Diff hygiene: git diff --check passed with the existing LF/CRLF warning only.
+
+#### Remaining Work
+
+- Commit, push, and verify the Vercel production deployment.
+
+#### Next Priority
+
+- Manually smoke-test production: start a session, close the browser for longer than 5 minutes, reopen, and confirm the session ends with closed time excluded.

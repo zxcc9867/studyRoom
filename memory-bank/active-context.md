@@ -2,6 +2,40 @@
 
 ## Current Work
 
+- Task: Separate login session persistence from counted study time after browser or computer close.
+- Purpose: Keep Supabase auth logged in for the existing 2-hour app flow, while excluding time when an active study session was not actually running in an open browser.
+- Related PRD:
+  - memory-bank/prd-session-activity-heartbeat.md
+- Related files:
+  - apps/web/src/main.tsx
+  - apps/web/src/sessionActivity.mjs
+  - apps/web/src/sessionActivity.d.mts
+  - apps/web/test/sessionActivity.test.mjs
+
+## Recent Decisions
+
+- Decision: Add a client-side study-session activity heartbeat in localStorage instead of changing Supabase Auth persistence.
+- Reason: The user wants login persistence and study-time counting to be separate. Auth state should remain, but stale active sessions should stop adding closed-browser time.
+- Alternative: End on pagehide/beforeunload; rejected again because refresh and tab switching cannot be reliably distinguished and previous work intentionally removed that behavior.
+- Impact: Active sessions write a per-user/per-session activity timestamp every 15 seconds. If the app later restores that session and the timestamp is stale by more than 5 minutes, the app ends the session and passes the inactive gap as excluded seconds.
+
+## Current Status
+
+- Completed: Added sessionActivity helper and tests.
+- Completed: Wired active sessions to persist heartbeat, refresh it on visible tab return, and clear it on session end.
+- Completed: Reconnection with a stale heartbeat now ends the active session and excludes inactive time from saved duration.
+- Completed: npm.cmd test and npm.cmd run build passed.
+- Next: Commit, push, and verify Vercel production deployment.
+
+## Notes
+
+- This is a same-browser client heartbeat. Cross-device/server-enforced cleanup would require a future DB heartbeat or scheduled stale-session cleanup.
+
+
+# Active Context
+
+## Current Work
+
 - Task: Scope the todo edit modal checklist to the edited item.
 - Purpose: When the user opens a todo from the planner/checklist for editing, the modal should not show unrelated same-day todos such as other schedules below the edit form.
 - Related PRD:
