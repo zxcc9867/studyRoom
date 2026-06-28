@@ -1,5 +1,39 @@
 # Progress
 
+### 2026-06-28 - Slack schedule extension shifts selected todo window
+
+#### Completed Work
+
+- Fixed Slack schedule extension so the selected timed todo moves as a whole window.
+- Example: `18:45-19:45 + 10 minutes` now becomes `18:55-19:55`.
+- Kept later same-day incomplete timed todos shifting by the same extension amount.
+- Confirmed existing schedule-reminder duplicate protection includes `scheduled_at`, so shifted start/end times can produce new future Slack reminders.
+- Applied the new RPC definition to Supabase project `bqohkdzvxbrokkmuhysx`.
+
+#### Changed Files
+
+- `packages/core/test/sql-migrations.test.mjs`
+- `supabase/migrations/20260628102000_shift_selected_todo_schedule.sql`
+- `memory-bank/active-context.md`
+- `memory-bank/progress.md`
+- `memory-bank/implementation-plan.md`
+- `memory-bank/prd-slack-notifications.md`
+- `memory-bank/trouble-shooting.md`
+
+#### Verification
+
+- RED: `node --test packages\core\test\sql-migrations.test.mjs` failed before the new migration because the selected todo start time stayed fixed.
+- GREEN: `node --test packages\core\test\sql-migrations.test.mjs` passed after adding the migration.
+- Supabase MCP `_apply_migration` returned success.
+- Remote SQL verification returned `fixed_start_branch_position = 0` and a non-zero shifted-start assignment position.
+
+#### Remaining Work
+
+- Run full test/build verification, commit, push, and confirm deployment pipeline.
+
+#### Next Priority
+
+- Live Slack smoke test: create a near-future timed todo, receive the Slack reminder, click `10 minute extension`, and confirm the app shows both start and end shifted.
 ### 2026-06-28 - Slack schedule extension actions
 
 #### Completed Work

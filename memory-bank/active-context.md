@@ -2,6 +2,35 @@
 
 ## Current Work
 
+- Task: Shift selected todo when extending a Slack schedule reminder.
+- Purpose: A Slack `5/10 minute extension` should move the selected todo's whole time window, not only its end time. Example: `18:45-19:45 + 10` becomes `18:55-19:55`.
+- Related PRD:
+  - `memory-bank/prd-slack-notifications.md`
+- Related files:
+  - `supabase/migrations/20260628102000_shift_selected_todo_schedule.sql`
+  - `supabase/migrations/20260628064614_study_todo_schedule_reminders.sql`
+  - `packages/core/test/sql-migrations.test.mjs`
+
+## Recent Decisions
+
+- Decision: Keep using the existing `extend_todo_schedule` RPC and replace its implementation with a new migration.
+- Reason: Slack buttons already call this RPC through `slack-recovery-interactions`; changing the RPC fixes current Slack interactions without changing the Slack App Interactivity URL.
+- Decision: Duplicate prevention continues to key schedule reminders by `(todo_id, target_id, reminder_type, scheduled_at)`.
+- Reason: Once start/end times are shifted, the new `scheduled_at` value is different, so the next start or 5-minute-before-end reminder can be sent at the updated time.
+
+## Current Status
+
+- Completed: Added a regression test proving the selected todo start time must shift with its end time.
+- Completed: Added and remotely applied `20260628102000_shift_selected_todo_schedule.sql` to Supabase project `bqohkdzvxbrokkmuhysx`.
+- Completed: Remote verification confirmed the old fixed-start branch is absent and the shifted start assignment exists.
+- Next: Run full tests/build, commit, push, and verify production deployment pipeline.
+
+## Notes
+
+- No Edge Function redeploy is required for this fix because the already deployed Slack interactivity function calls `extend_todo_schedule` dynamically.
+- Completed todos remain excluded from extension and reminder processing.
+## Current Work
+
 - Task: Slack schedule extension from timed todo reminders.
 - Purpose: Let a user extend a timed todo from Slack by 5 minutes, 10 minutes, or a custom 1-120 minute value, then move every later incomplete timed todo on the same local date by the same amount.
 - Related PRD:

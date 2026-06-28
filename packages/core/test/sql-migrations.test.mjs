@@ -10,6 +10,15 @@ function readMigrationContaining(pattern) {
   assert.ok(migrationFile, `Expected a migration matching ${pattern}`);
   return readFileSync(`supabase/migrations/${migrationFile}`, "utf8");
 }
+function readLatestMigrationContaining(pattern) {
+  const migrationFile = readdirSync("supabase/migrations")
+    .filter((file) => file.endsWith(".sql"))
+    .filter((file) => pattern.test(readFileSync(`supabase/migrations/${file}`, "utf8")))
+    .at(-1);
+
+  assert.ok(migrationFile, `Expected a migration matching ${pattern}`);
+  return readFileSync(`supabase/migrations/${migrationFile}`, "utf8");
+}
 
 test("get_due_reminders migration qualifies due reminder columns to avoid PL/pgSQL ambiguity", () => {
   const sql = readFileSync("supabase/migrations/0006_fix_due_reminders_ambiguity.sql", "utf8");
@@ -413,8 +422,8 @@ test("camera warning creates recovery request on repeated absence warnings only"
 });
 
 
-test("schedule extension migration pushes later incomplete timed todos", () => {
-  const sql = readMigrationContaining(/extend_todo_schedule/i);
+test("schedule extension migration shifts selected and later incomplete timed todos", () => {
+  const sql = readLatestMigrationContaining(/extend_todo_schedule/i);
 
   assert.match(sql, /create or replace function public\.extend_todo_schedule/i);
   assert.match(sql, /p_todo_id uuid/i);
@@ -429,6 +438,8 @@ test("schedule extension migration pushes later incomplete timed todos", () => {
   assert.match(sql, /st\.start_time >= selected_todo\.start_time/i);
   assert.match(sql, /update public\.study_todos st/i);
   assert.match(sql, /make_interval\(mins => p_extension_minutes\)/i);
+  assert.match(sql, /start_time = \(\(\(st\.local_date::text \|\| ' ' \|\| st\.start_time::text\)::timestamp \+ make_interval\(mins => p_extension_minutes\)\)::time\)/i);
+  assert.doesNotMatch(sql, /when st\.id = selected_todo\.id then st\.start_time/i);
   assert.match(sql, /grant execute on function public\.extend_todo_schedule\(uuid, integer\) to service_role/i);
   assert.match(sql, /grant execute on function public\.extend_todo_schedule\(uuid, integer\) to authenticated/i);
 });

@@ -5,8 +5,9 @@
 - Timed todo Slack reminders must include schedule extension actions.
 - Preset buttons extend by 5 minutes or 10 minutes.
 - `직접 입력` opens a Slack modal and accepts a custom 1-120 minute extension.
-- Extending a todo keeps the selected todo start time fixed and extends its end time.
+- Extending a todo shifts the selected todo start and end time together by the extension amount.
 - Every later same-day incomplete timed todo is shifted by the same extension amount.
+- Updated shifted times must be eligible for future start and end-soon Slack reminders because duplicate locks are scoped to `scheduled_at`.
 - Completed todos are excluded from extension and are not shifted.
 - Schedule extension handling must stay inside the existing `slack-recovery-interactions` endpoint because Slack App Interactivity has one Request URL.
 

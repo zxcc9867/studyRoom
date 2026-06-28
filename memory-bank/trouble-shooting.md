@@ -1,5 +1,37 @@
 # Trouble Shooting
 
+## 2026-06-28 - Slack schedule extension kept selected todo start fixed
+
+### Situation
+
+The user clicked a Slack `10 minute extension` button for a timed todo such as `Python study 18:45-19:45`. The app changed it to approximately `18:45-19:55`; the selected todo start time stayed fixed while only the end time moved.
+
+### Error Message
+
+```txt
+User-visible symptom:
+- Selected schedule start time remains unchanged after Slack extension.
+- Only the selected schedule end time and later todos move.
+```
+
+### Cause
+
+`public.extend_todo_schedule` intentionally special-cased the selected todo with `when st.id = selected_todo.id then st.start_time`. That older policy extended the selected block duration instead of moving the selected schedule window. Later todos already shifted because they used the general `start_time + extension` calculation.
+
+### Fix
+
+Added migration `20260628102000_shift_selected_todo_schedule.sql` to replace the RPC. The selected todo now uses the same start/end shift expression as later incomplete timed todos. The existing reminder duplicate lock includes `scheduled_at`, so a shifted start time or shifted end-soon time creates a different reminder key and can be sent at the new time.
+
+### Related Files
+
+- `supabase/migrations/20260628102000_shift_selected_todo_schedule.sql`
+- `supabase/migrations/20260628080450_extend_todo_schedule.sql`
+- `supabase/migrations/20260628064614_study_todo_schedule_reminders.sql`
+- `packages/core/test/sql-migrations.test.mjs`
+
+### Prevention
+
+Schedule extension tests must assert both selected start and selected end move together. When changing reminder timing, verify duplicate protection includes the concrete scheduled timestamp instead of only todo id and reminder type.
 ## 2026-06-28 - Slack schedule extension must reuse the existing Interactivity URL
 
 ### Situation
