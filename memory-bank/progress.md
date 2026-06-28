@@ -28,10 +28,11 @@
 - `npm.cmd run build` passed.
 - Supabase MCP `_apply_migration` returned success for `extend_todo_schedule`.
 - Remote Supabase function list/source verification confirmed `attendance-cron` version 23 and `slack-recovery-interactions` version 6.
+- Vercel production deployment reached READY and `https://study-room-attendance.vercel.app/` returned HTTP 200.
 
 #### Remaining Work
 
-- Commit/push and verify Vercel production deployment.
+- None for this change.
 
 #### Next Priority
 

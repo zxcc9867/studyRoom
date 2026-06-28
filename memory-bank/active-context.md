@@ -27,7 +27,8 @@
 - Completed: Added Slack Block Kit extension buttons to timed todo schedule reminder messages.
 - Completed: Extended the existing Slack interactivity Edge Function to handle schedule extension buttons and custom modal submissions.
 - Completed: Full local verification passed, Supabase migration was applied, and `attendance-cron`/`slack-recovery-interactions` were deployed to production Supabase.
-- Next: Commit, push, and verify Vercel production deployment.
+- Completed: GitHub push and Vercel production deployment verification are complete.
+- Next: Monitor a real Slack schedule extension interaction if the user wants a live receipt test.
 
 ## Notes
 
