@@ -1,4 +1,4 @@
-# PRD: Session Activity Heartbeat
+﻿# PRD: Session Activity Heartbeat
 
 ## 1. Problem
 
@@ -64,3 +64,10 @@ Users who study through the web app and expect authentication persistence to be 
 - Five minutes before `lease_expires_at`, `attendance-cron` sends a Slack warning with a `1시간 연장` button.
 - The Slack button and in-app `세션 유지` button both call `extend_study_session_lease(p_session_id, 60)`.
 - `lease_warning_sent_at` prevents duplicate session-expiry warnings for the same lease window and is cleared when the lease is extended.
+## 2026-06-30 Addendum: Open dashboard lease synchronization
+
+- Slack session-extension buttons update the server-side active `study_sessions.lease_expires_at` value outside the browser.
+- The open web dashboard must not require a full page refresh to observe that update.
+- While an active session exists, the app refreshes the current active session row every 15 seconds and whenever the browser window regains focus or returns to visible state.
+- The refresh is intentionally narrow: it reads only the active `study_sessions` row and updates local `studySessions` state, letting the existing lease countdown effect derive the new remaining time.
+- This is a client sync path only; no Supabase schema, Cron, or Edge Function change is required.

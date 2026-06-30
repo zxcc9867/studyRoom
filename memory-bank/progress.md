@@ -1,4 +1,39 @@
-# Progress
+﻿# Progress
+
+### 2026-06-30 - Open dashboard sync for Slack session lease extensions
+
+#### Completed Work
+
+- Investigated why Slack showed a successful 1-hour session extension while the already-open web app did not immediately update its session remaining time.
+- Confirmed the root cause: the in-app `세션 유지` button updates local `studySessions`, but the Slack button updates Supabase outside the browser and the app did not refresh that active session row until full dashboard reload/refresh.
+- Added a regression test that requires the web dashboard to refresh external active-session lease changes.
+- Added a narrow active-session lease refresh loop in the web app: immediate refresh, every 15 seconds, on window focus, and on visibilitychange back to visible.
+- Recorded the PowerShell UTF-8 editing pitfall in trouble-shooting after restoring `main.tsx` and reapplying the patch with Node UTF-8 writes.
+
+#### Changed Files
+
+- `apps/web/src/main.tsx`
+- `apps/web/test/sessionLease.test.mjs`
+- `memory-bank/active-context.md`
+- `memory-bank/progress.md`
+- `memory-bank/implementation-plan.md`
+- `memory-bank/trouble-shooting.md`
+- `memory-bank/prd-session-activity-heartbeat.md`
+
+#### Verification
+
+- RED: `node --test apps\web\test\sessionLease.test.mjs` failed because `ACTIVE_SESSION_LEASE_REFRESH_MS` and `refreshActiveSessionLease` did not exist.
+- GREEN: `node --test apps\web\test\sessionLease.test.mjs` passed 9 tests after implementation.
+- Full suite: `npm.cmd test` passed 200 tests.
+- Build: `npm.cmd run build` passed with the existing Vite chunk-size warning.
+
+#### Remaining Work
+
+- Commit, push, and verify Vercel production deployment.
+
+#### Next Priority
+
+- In production, click the Slack session-extension button while the app remains open and confirm the session lease card updates within 15 seconds or immediately after focusing the app.
 
 ### 2026-06-29 - Stale active session cleanup after manual End
 
@@ -117,6 +152,41 @@
 
 - Production smoke-test completion from the planner detail panel and from the untimed todo list while no study session is active.
 # Progress
+
+### 2026-06-30 - Open dashboard sync for Slack session lease extensions
+
+#### Completed Work
+
+- Investigated why Slack showed a successful 1-hour session extension while the already-open web app did not immediately update its session remaining time.
+- Confirmed the root cause: the in-app `세션 유지` button updates local `studySessions`, but the Slack button updates Supabase outside the browser and the app did not refresh that active session row until full dashboard reload/refresh.
+- Added a regression test that requires the web dashboard to refresh external active-session lease changes.
+- Added a narrow active-session lease refresh loop in the web app: immediate refresh, every 15 seconds, on window focus, and on visibilitychange back to visible.
+- Recorded the PowerShell UTF-8 editing pitfall in trouble-shooting after restoring `main.tsx` and reapplying the patch with Node UTF-8 writes.
+
+#### Changed Files
+
+- `apps/web/src/main.tsx`
+- `apps/web/test/sessionLease.test.mjs`
+- `memory-bank/active-context.md`
+- `memory-bank/progress.md`
+- `memory-bank/implementation-plan.md`
+- `memory-bank/trouble-shooting.md`
+- `memory-bank/prd-session-activity-heartbeat.md`
+
+#### Verification
+
+- RED: `node --test apps\web\test\sessionLease.test.mjs` failed because `ACTIVE_SESSION_LEASE_REFRESH_MS` and `refreshActiveSessionLease` did not exist.
+- GREEN: `node --test apps\web\test\sessionLease.test.mjs` passed 9 tests after implementation.
+- Full suite: `npm.cmd test` passed 200 tests.
+- Build: `npm.cmd run build` passed with the existing Vite chunk-size warning.
+
+#### Remaining Work
+
+- Commit, push, and verify Vercel production deployment.
+
+#### Next Priority
+
+- In production, click the Slack session-extension button while the app remains open and confirm the session lease card updates within 15 seconds or immediately after focusing the app.
 
 ### 2026-06-28 - Todo scheduling selection and end-session completion
 

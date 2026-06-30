@@ -1,4 +1,37 @@
-# Active Context
+﻿# Active Context
+
+## Current Work
+
+- Task: Sync Slack session lease extension into the open web dashboard.
+- Purpose: When the user extends a study-session lease from a Slack button, the already-open app should update the remaining session time without requiring a browser refresh.
+- Related PRD:
+  - memory-bank/prd-session-activity-heartbeat.md
+  - memory-bank/prd-slack-notifications.md
+- Related files:
+  - apps/web/src/main.tsx
+  - apps/web/test/sessionLease.test.mjs
+
+## Recent Decisions
+
+- Decision: Poll only the current active study session row every 15 seconds and also refresh on window focus or visibilitychange to visible.
+- Reason: Slack interactivity updates Supabase outside the browser, and the static SPA has no push channel for that row. A narrow row refresh is lower risk than reloading the full dashboard repeatedly.
+- Alternative: Supabase Realtime subscription for study_sessions; deferred because polling one active row is enough for this MVP and avoids adding a realtime lifecycle path.
+- Impact: `lease_expires_at` changes made by Slack `extend_study_session_lease` are reflected in `studySessions`, which then updates the existing session lease countdown.
+
+## Current Status
+
+- Completed: Confirmed root cause from source: in-app lease extension updated local state, Slack extension updated only the server row.
+- Completed: Added RED regression coverage for externally changed active-session lease deadlines.
+- Completed: Added open-dashboard active-session lease refresh every 15 seconds plus focus/visible refresh.
+- Completed: `node --test apps\web\test\sessionLease.test.mjs` passed 9 tests.
+- Completed: `npm.cmd test` passed 200 tests.
+- Completed: `npm.cmd run build` passed with the existing Vite chunk-size warning.
+- Next: Commit, push, and verify Vercel production deployment.
+
+## Notes
+
+- No Supabase schema or Edge Function change is required. Slack already updates `study_sessions.lease_expires_at`; the missing piece was frontend state synchronization.
+- The fix does not make Slack extension instantaneous push. It updates within the next 15-second poll, or immediately when the browser window gains focus / becomes visible.
 
 ## Current Work
 

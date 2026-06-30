@@ -200,6 +200,7 @@ const resendCooldownKey = "study-room-auth-resend-available-at";
 const emailOtpLength = EMAIL_OTP_LENGTH;
 const googleAuthEnabled = import.meta.env.VITE_GOOGLE_AUTH_ENABLED === "true";
 const cameraRequiredWarningCooldownMs = 10 * 60 * 1000;
+const ACTIVE_SESSION_LEASE_REFRESH_MS = 15 * 1000;
 type TodoRepeatMode = "single" | "weekly";
 type CameraSetupPrompt = {
   mode: "start" | "resume";
@@ -473,6 +474,7 @@ function DashboardApp() {
   const lastCameraRequiredWarningAtRef = useRef(0);
   const warningInFlightRef = useRef(false);
   const sessionLeaseAutoEndInFlightRef = useRef(false);
+  const activeSessionLeaseRefreshInFlightRef = useRef(false);
   const sessionActivityAutoEndInFlightRef = useRef(false);
   const endSessionInFlightRef = useRef<string | null>(null);
   const recoveryAutoEndInFlightRef = useRef(false);
@@ -788,6 +790,63 @@ function DashboardApp() {
     );
     sessionLeaseAutoEndInFlightRef.current = false;
   }, [activeSession?.id, activeSession?.started_at, activeSession?.lease_expires_at, activeSessionStartedAtMs, session?.user.id]);
+  useEffect(() => {
+    if (!session?.user.id || !activeSession) {
+      activeSessionLeaseRefreshInFlightRef.current = false;
+      return;
+    }
+
+    async function refreshActiveSessionLease() {
+      if (!session?.user.id || !activeSession) {
+        return;
+      }
+
+      if (activeSessionLeaseRefreshInFlightRef.current) {
+        return;
+      }
+
+      activeSessionLeaseRefreshInFlightRef.current = true;
+      try {
+        const { data, error } = await supabase
+          .from("study_sessions")
+          .select("id,local_date,started_at,ended_at,duration_seconds,status,lease_expires_at,lease_warning_sent_at")
+          .eq("user_id", session.user.id)
+          .eq("id", activeSession.id)
+          .maybeSingle();
+
+        if (error || !data) {
+          return;
+        }
+
+        const updatedSession = data as StudySession;
+        setStudySessions((current) => [
+          updatedSession,
+          ...current.filter((item) => item.id !== updatedSession.id),
+        ]);
+      } finally {
+        activeSessionLeaseRefreshInFlightRef.current = false;
+      }
+    }
+
+    void refreshActiveSessionLease();
+    const intervalId = window.setInterval(() => void refreshActiveSessionLease(), ACTIVE_SESSION_LEASE_REFRESH_MS);
+    const refreshVisible = () => {
+      if (document.visibilityState === "visible") {
+        void refreshActiveSessionLease();
+      }
+    };
+    const refreshFocused = () => void refreshActiveSessionLease();
+
+    window.addEventListener("focus", refreshFocused);
+    document.addEventListener("visibilitychange", refreshVisible);
+
+    return () => {
+      window.clearInterval(intervalId);
+      window.removeEventListener("focus", refreshFocused);
+      document.removeEventListener("visibilitychange", refreshVisible);
+    };
+  }, [activeSession?.id, session?.user.id]);
+
 
   useEffect(() => {
     if (

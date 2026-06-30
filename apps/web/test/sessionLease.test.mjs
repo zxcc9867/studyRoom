@@ -80,6 +80,17 @@ test("web dashboard wires session lease UI and avoids adding stale active sessio
   assert.match(appSource, /activeSession\?\.local_date === todayDateKey/);
 });
 
+test("web dashboard refreshes active session lease changes made outside the browser", () => {
+  const appSource = readFileSync("apps/web/src/main.tsx", "utf8");
+
+  assert.match(appSource, /ACTIVE_SESSION_LEASE_REFRESH_MS/);
+  assert.match(appSource, /refreshActiveSessionLease/);
+  assert.match(appSource, /\.from\("study_sessions"\)[\s\S]{0,500}\.eq\("id", activeSession\.id\)/);
+  assert.match(appSource, /window\.setInterval\(\(\) => void refreshActiveSessionLease\(\), ACTIVE_SESSION_LEASE_REFRESH_MS\)/);
+  assert.match(appSource, /window\.addEventListener\("focus", refreshFocused\)/);
+  assert.match(appSource, /document\.addEventListener\("visibilitychange", refreshVisible\)/);
+  assert.match(appSource, /setStudySessions\(\(current\) => \[/);
+});
 test("parses only finite positive lease deadlines", () => {
   assert.equal(parseSessionLeaseDeadlineMs(null), null);
   assert.equal(parseSessionLeaseDeadlineMs(""), null);

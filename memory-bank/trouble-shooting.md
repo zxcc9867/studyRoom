@@ -1,4 +1,4 @@
-# Trouble Shooting
+﻿# Trouble Shooting
 
 ## 2026-06-29 - End button left stale active session after Active study session not found
 
@@ -2285,3 +2285,56 @@ Replaced the whole planner detail actions block by explicit string indexes, then
 ### Prevention
 
 When `apply_patch` is blocked in this repo, prefer explicit start/end index replacements for JSX blocks and use ASCII-safe string escapes for new Korean text.
+## 2026-06-30 - Slack session lease extension required page refresh
+
+### Situation
+
+The user clicked the Slack session-extension button and Slack replied that the session was extended by 1 hour, but the already-open web app did not immediately show the new remaining session time. Refreshing the page made the updated lease appear.
+
+### Error Message
+
+No runtime exception. User-visible symptom: Slack says the new end time is saved, but the app lease countdown stays on the previous deadline until refresh.
+
+### Cause
+
+Slack interactivity calls `extend_study_session_lease` through Supabase and updates `study_sessions.lease_expires_at` outside the browser. The in-app `extendSessionLease()` path updated local `studySessions` immediately, but there was no polling or subscription for lease changes made externally.
+
+### Resolution
+
+Added an open-dashboard active-session lease refresh loop. While a session is active, the app refetches only that `study_sessions` row immediately, every 15 seconds, on window focus, and on visibilitychange back to visible. The fetched row replaces the local session entry so the existing lease countdown effect recalculates from the new `lease_expires_at`.
+
+### Related Files
+
+- `apps/web/src/main.tsx`
+- `apps/web/test/sessionLease.test.mjs`
+
+### Prevention
+
+Any future action that mutates active session state outside the browser must have either a narrow refresh path, Supabase Realtime subscription, or explicit dashboard reload. Source-level tests should assert the sync path exists.
+## 2026-06-30 - PowerShell Set-Content corrupted UTF-8 during TSX edit
+
+### Situation
+
+While editing `apps/web/src/main.tsx` after `apply_patch` failed with Windows ACL errors, a PowerShell `Set-Content` fallback rewrote the full TSX file and corrupted many Korean strings in the diff.
+
+### Error Message
+
+```txt
+git diff showed thousands of unintended Korean string changes and mojibake in apps/web/src/main.tsx.
+```
+
+### Cause
+
+The fallback wrote the entire UTF-8 TSX file through PowerShell text APIs without preserving the original encoding safely.
+
+### Resolution
+
+Restored the damaged file from HEAD, then reapplied the intended minimal patch with a temporary ASCII Node script that read and wrote the target file with explicit `utf8`.
+
+### Related Files
+
+- `apps/web/src/main.tsx`
+
+### Prevention
+
+If `apply_patch` is blocked in this repo, prefer Node `fs.readFileSync(path, "utf8")` and `fs.writeFileSync(path, text, "utf8")` for targeted edits. Check `git diff --stat` and a focused diff immediately after fallback edits.
