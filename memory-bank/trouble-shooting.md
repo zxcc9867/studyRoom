@@ -1,5 +1,34 @@
 ﻿# Trouble Shooting
 
+## 2026-07-01 - Cross-midnight active session left Today study timer at zero
+
+### Situation
+
+The user pressed Start and had an active study session. The session lease countdown kept moving, but the topbar Today study timer remained at 00:00:00.
+
+### Error Message
+
+No runtime error. User-visible symptom: Today study stayed 00:00:00 while the session lease remaining time kept decreasing and the End button remained enabled.
+
+### Cause
+
+The dashboard added active elapsed study time to Today only when activeSession.local_date === todayDateKey. The live Supabase active session had local_date = 2026-06-30, while the browser's current local date was already 2026-07-01. The active session was valid, but its post-midnight elapsed segment was excluded from the Today summary.
+
+### Fix
+
+Added studyTimeSummary.mjs helpers that calculate active study seconds by interval overlap with a requested local date or selected month. The dashboard now uses those helpers for Today study and monthly accumulated time, while the session lease countdown continues to use lease_expires_at.
+
+### Related Files
+
+- apps/web/src/main.tsx
+- apps/web/src/studyTimeSummary.mjs
+- apps/web/test/studyTimeSummary.test.mjs
+- apps/web/test/sessionLease.test.mjs
+
+### Prevention
+
+Do not gate active-session display time only by the persisted session start date. For display summaries, split active elapsed time by local date/month windows and keep lease-deadline time as a separate countdown concept.
+
 ## 2026-06-29 - End button left stale active session after Active study session not found
 
 ### Situation

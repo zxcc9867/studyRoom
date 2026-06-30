@@ -72,7 +72,6 @@ import {
 import {
   canStartStudySessionWithCamera,
   createPresenceState,
-  getActiveStudySeconds,
   getCameraSupport,
   getCurrentExcludedSeconds,
   getPresenceStatusLabel,
@@ -135,6 +134,10 @@ import {
   getStoredSessionLeaseDeadlineMs,
   isSessionLeaseExpired,
 } from "./sessionLease.mjs";
+import {
+  getActiveStudySecondsForDate,
+  getActiveStudySecondsForMonth,
+} from "./studyTimeSummary.mjs";
 import {
   STUDY_SESSION_ACTIVITY_HEARTBEAT_MS,
   getStudySessionActivityExcludedSeconds,
@@ -580,13 +583,6 @@ function DashboardApp() {
     activeSessionLeaseDeadlineMs !== null
       ? getLeaseAwareActiveNowMs({ deadlineMs: activeSessionLeaseDeadlineMs, nowMs })
       : nowMs;
-  const activeElapsedSeconds = activeSession
-    ? getActiveStudySeconds({
-        startedAtMs: activeSessionStartedAtMs ?? nowMs,
-        nowMs: activeSessionClockNowMs,
-        excludedSeconds: activeExcludedSeconds,
-      })
-    : 0;
   const todayDateKey = getLocalDateKey(new Date(nowMs), timeZone);
   const blockingRecoveryRequests = pendingRecoveryRequests;
   const autoOpenRecoveryRequests = useMemo(() => blockingRecoveryRequests, [blockingRecoveryRequests]);
@@ -657,14 +653,27 @@ function DashboardApp() {
   const todayCompletedSeconds = studySessions
     .filter((item) => item.local_date === todayDateKey && item.status !== "active")
     .reduce((sum, item) => sum + item.duration_seconds, 0);
-  const activeCountsForToday = activeSession?.local_date === todayDateKey;
-  const todaySeconds = todayCompletedSeconds + (activeCountsForToday ? activeElapsedSeconds : 0);
+  const activeTodaySeconds = activeSession
+    ? getActiveStudySecondsForDate({
+        startedAtMs: activeSessionStartedAtMs,
+        nowMs: activeSessionClockNowMs,
+        dateKey: todayDateKey,
+        excludedSeconds: activeExcludedSeconds,
+      })
+    : 0;
+  const todaySeconds = todayCompletedSeconds + activeTodaySeconds;
   const monthCompletedSeconds = studySessions
     .filter((item) => item.local_date.startsWith(calendarMonth) && item.status !== "active")
     .reduce((sum, item) => sum + item.duration_seconds, 0);
-  const monthSeconds =
-    monthCompletedSeconds +
-    (activeSession?.local_date.startsWith(calendarMonth) ? activeElapsedSeconds : 0);
+  const activeMonthSeconds = activeSession
+    ? getActiveStudySecondsForMonth({
+        startedAtMs: activeSessionStartedAtMs,
+        nowMs: activeSessionClockNowMs,
+        monthKey: calendarMonth,
+        excludedSeconds: activeExcludedSeconds,
+      })
+    : 0;
+  const monthSeconds = monthCompletedSeconds + activeMonthSeconds;
   const sessionLeaseRemainingSeconds =
     activeSessionLeaseDeadlineMs !== null
       ? getSessionLeaseRemainingSeconds({ deadlineMs: activeSessionLeaseDeadlineMs, nowMs })

@@ -77,7 +77,9 @@ test("web dashboard wires session lease UI and avoids adding stale active sessio
   assert.match(appSource, /lease_expires_at/);
   assert.match(appSource, /extend_study_session_lease/);
   assert.match(appSource, /session-lease/);
-  assert.match(appSource, /activeSession\?\.local_date === todayDateKey/);
+  assert.match(appSource, /getActiveStudySecondsForDate/);
+  assert.match(appSource, /dateKey: todayDateKey/);
+  assert.match(appSource, /nowMs: activeSessionClockNowMs/);
 });
 
 test("web dashboard refreshes active session lease changes made outside the browser", () => {

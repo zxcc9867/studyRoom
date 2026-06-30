@@ -2,6 +2,39 @@
 
 ## Current Work
 
+- Task: Cross-day active session today study timer fix.
+- Purpose: Keep the study timer flowing independently from the one-hour session lease countdown when an active session crosses midnight.
+- Related PRD:
+  - memory-bank/prd-session-activity-heartbeat.md
+- Related files:
+  - apps/web/src/main.tsx
+  - apps/web/src/studyTimeSummary.mjs
+  - apps/web/test/studyTimeSummary.test.mjs
+  - apps/web/test/sessionLease.test.mjs
+
+## Recent Decisions
+
+- Decision: Active session display time is split by local date/month windows instead of checking only study_sessions.local_date.
+- Reason: A session that started before midnight can still be actively counting after midnight; today's card must show only the part that overlaps today while the lease countdown remains its own deadline timer.
+- Alternative: Reassign the active session local_date after midnight; rejected because the persisted session date should remain the start date and completed duration is still saved when the session ends.
+- Impact: Today study and selected-month totals add only the active elapsed segment overlapping their local date/month window.
+
+## Current Status
+
+- Completed: Confirmed the root cause: main.tsx used activeSession.local_date === todayDateKey, so a June 30 active session did not contribute to the July 1 today timer.
+- Completed: Added studyTimeSummary helpers and regression tests for same-day, cross-midnight, month split, and clamped windows.
+- Completed: Updated dashboard summary calculations to use date/month overlap helpers while leaving session lease countdown logic unchanged.
+- Completed: npm.cmd test passed 204 tests.
+- Completed: npm.cmd run build passed with the existing Vite chunk-size warning.
+- Next: Commit, push, and verify Vercel production deployment.
+
+## Notes
+
+- No Supabase schema or Edge Function change is required. The fix is a frontend summary-calculation bug.
+- If a live active session crosses midnight, the Today card should show the post-midnight elapsed study time while the session lease card continues to count down from lease_expires_at.
+
+## Current Work
+
 - Task: Sync Slack session lease extension into the open web dashboard.
 - Purpose: When the user extends a study-session lease from a Slack button, the already-open app should update the remaining session time without requiring a browser refresh.
 - Related PRD:

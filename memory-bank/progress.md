@@ -1,5 +1,44 @@
 ﻿# Progress
 
+### 2026-07-01 - Cross-day active session today study timer fix
+
+#### Completed Work
+
+- Investigated why the user could have an active study session and a moving session lease countdown while the topbar Today study timer stayed at 00:00:00.
+- Confirmed the active Supabase session had started on 2026-06-30 and was still active after midnight on 2026-07-01.
+- Replaced the old frontend summary rule that added active elapsed time only when activeSession.local_date matched today.
+- Added studyTimeSummary helpers to count only the active-session interval overlapping a requested local date or selected month.
+- Updated the month summary as well so a cross-month active session does not keep assigning post-midnight elapsed time to the start month.
+- Added regression tests for same-day, cross-midnight, month split, and invalid/excluded windows.
+
+#### Changed Files
+
+- apps/web/src/main.tsx
+- apps/web/src/studyTimeSummary.mjs
+- apps/web/src/studyTimeSummary.d.mts
+- apps/web/test/studyTimeSummary.test.mjs
+- apps/web/test/sessionLease.test.mjs
+- memory-bank/active-context.md
+- memory-bank/progress.md
+- memory-bank/implementation-plan.md
+- memory-bank/trouble-shooting.md
+
+#### Verification
+
+- RED: node --test apps\web\test\studyTimeSummary.test.mjs failed before studyTimeSummary.mjs existed.
+- GREEN: node --test apps\web\test\studyTimeSummary.test.mjs apps\web\test\sessionLease.test.mjs passed 13 tests.
+- Full suite: npm.cmd test passed 204 tests.
+- Build: npm.cmd run build passed with the existing Vite chunk-size warning.
+- Diff hygiene: git diff --check passed with Windows LF/CRLF warnings only.
+
+#### Remaining Work
+
+- Commit, push, and verify Vercel production deployment.
+
+#### Next Priority
+
+- Production smoke-test a session that crosses midnight or simulate the same state and confirm Today study moves independently from the session lease countdown.
+
 ### 2026-06-30 - Open dashboard sync for Slack session lease extensions
 
 #### Completed Work
