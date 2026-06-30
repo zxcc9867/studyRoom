@@ -30,14 +30,18 @@
 - Full suite: npm.cmd test passed 204 tests.
 - Build: npm.cmd run build passed with the existing Vite chunk-size warning.
 - Diff hygiene: git diff --check passed with Windows LF/CRLF warnings only.
+- Commit: d162deb2b71286ae35bb59fad9c72328288ea0a3 was pushed to origin/main.
+- GitHub Actions: deployment run 28455578261 completed successfully.
+- Vercel: deployment dpl_GVKLJAgshZMt678W4WWbTtg4PVZ1 reached READY for production.
+- Production smoke: https://study-room-attendance.vercel.app/ returned HTTP 200.
 
 #### Remaining Work
 
-- Commit, push, and verify Vercel production deployment.
+- None for this bug fix.
 
 #### Next Priority
 
-- Production smoke-test a session that crosses midnight or simulate the same state and confirm Today study moves independently from the session lease countdown.
+- If the user still has an active cross-midnight session, reload production and confirm Today study increments while the session lease countdown decreases separately.
 
 ### 2026-06-30 - Open dashboard sync for Slack session lease extensions
 
