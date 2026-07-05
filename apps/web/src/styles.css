@@ -2637,6 +2637,11 @@ button:active:not(:disabled) {
   line-height: 1.5;
 }
 
+.recovery-history {
+  display: grid;
+  gap: 12px;
+}
+
 .recovery-history-list {
   list-style: none;
   display: grid;

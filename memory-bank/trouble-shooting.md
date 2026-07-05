@@ -2396,3 +2396,34 @@ Overrode `makeup_todo_title` and `pledge_todo_title` to null for those cases and
 ### Prevention
 
 When testing keyword classifiers, clear unrelated fixture text so only the intended field drives the expected category.
+## 2026-07-05 - Recovery history pagination import missed by source tests
+
+### Situation
+
+After adding recovery history pagination, the source-level UI tests passed but the production build failed.
+
+### Error Message
+
+```txt
+src/main.tsx(765,11): error TS2304: Cannot find name 'paginateRecoveryHistory'.
+src/main.tsx(3724,47): error TS7006: Parameter 'request' implicitly has an 'any' type.
+```
+
+### Cause
+
+The app source referenced `paginateRecoveryHistory()` but the import block in `main.tsx` had not been updated. The implicit `any` error was a downstream result of the missing typed helper import.
+
+### Resolution
+
+Added `paginateRecoveryHistory` to the `recoverySummary.mjs` import block and reran the related tests plus the full build.
+
+### Related Files
+
+- `apps/web/src/main.tsx`
+- `apps/web/src/recoverySummary.mjs`
+- `apps/web/src/recoverySummary.d.mts`
+- `apps/web/test/recoveryRoutine.test.mjs`
+
+### Prevention
+
+Source-string tests are useful wiring checks, but TypeScript build remains the authoritative check for missing imports and inferred types.

@@ -68,3 +68,12 @@ test("recovery pledge is stored on the request but not created as a todo", () =>
   assert.match(slackSource, /pledge_todo_id:\s*null/);
   assert.doesNotMatch(slackSource, /const pledgeTodo = await createTodo/);
 });
+
+test("web app paginates recovery history in five item pages", () => {
+  const appSource = readFileSync("apps/web/src/main.tsx", "utf8");
+
+  assert.match(appSource, /recoveryHistoryPage/);
+  assert.match(appSource, /paginateRecoveryHistory\(sortedRecoveryRequests, recoveryHistoryPage\)/);
+  assert.match(appSource, /recoveryHistoryPageData\.items\.map/);
+  assert.match(appSource, /aria-label="회복루틴 이력 페이지 이동"/);
+});

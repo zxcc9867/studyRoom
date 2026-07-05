@@ -3606,3 +3606,38 @@
 #### Next Priority
 
 - Production deploy verification and live UI smoke test of My Page recovery history.
+### 2026-07-05 - Recovery routine history pagination
+
+#### Completed Work
+
+- Added `paginateRecoveryHistory()` with a default page size of five recovery routines.
+- Updated My Page recovery routine history to show one page at a time with previous/next controls.
+- Removed the previous recent-history slice behavior so older recovery routines remain reachable through pagination.
+- Added regression tests for the helper and UI wiring.
+
+#### Changed Files
+
+- `apps/web/src/main.tsx`
+- `apps/web/src/styles.css`
+- `apps/web/src/recoverySummary.mjs`
+- `apps/web/src/recoverySummary.d.mts`
+- `apps/web/test/recoverySummary.test.mjs`
+- `apps/web/test/recoveryRoutine.test.mjs`
+- `memory-bank/active-context.md`
+- `memory-bank/progress.md`
+- `memory-bank/trouble-shooting.md`
+
+#### Verification
+
+- RED: recovery summary test failed because `paginateRecoveryHistory` was not exported yet.
+- GREEN: `node --test apps/web/test/recoverySummary.test.mjs apps/web/test/recoveryRoutine.test.mjs` passed 9 tests.
+- Full suite: `npm.cmd test` passed 212 tests.
+- Build: `npm.cmd run build` passed with the existing Vite chunk-size warning.
+
+#### Remaining Work
+
+- Commit, push, and verify Vercel production deployment.
+
+#### Next Priority
+
+- Live UI check on My Page with more than five recovery routines.

@@ -30,6 +30,16 @@ export type RecoveryWeekRange = {
   weekEnd: string;
 };
 
+export type RecoveryHistoryPage<T extends RecoveryRequestSummaryItem = RecoveryRequestSummaryItem> = {
+  items: T[];
+  currentPage: number;
+  totalPages: number;
+  totalItems: number;
+  pageSize: number;
+  hasPrevious: boolean;
+  hasNext: boolean;
+};
+
 export type RecoveryWeeklySummary<T extends RecoveryRequestSummaryItem = RecoveryRequestSummaryItem> = {
   weekStart: string;
   weekEnd: string;
@@ -44,6 +54,7 @@ export type RecoveryWeeklySummary<T extends RecoveryRequestSummaryItem = Recover
   requests: T[];
 };
 
+export const DEFAULT_RECOVERY_HISTORY_PAGE_SIZE: number;
 export const RECOVERY_REASON_CATEGORIES: RecoveryReasonCategory[];
 export const UNKNOWN_RECOVERY_CATEGORY: RecoveryReasonCategory;
 
@@ -53,6 +64,11 @@ export function classifyRecoveryReason<T extends Partial<RecoveryRequestSummaryI
 export function getRecoveryTriggerLabel(triggerType: string): string;
 export function getRecoveryWeekRange(dateKey: string): RecoveryWeekRange;
 export function getPreviousRecoveryWeekRange(dateKey: string): RecoveryWeekRange;
+export function paginateRecoveryHistory<T extends RecoveryRequestSummaryItem>(
+  items: T[],
+  page: number,
+  pageSize?: number,
+): RecoveryHistoryPage<T>;
 export function summarizeRecoveryRequests<T extends RecoveryRequestSummaryItem>(
   requests: T[],
   dateKey: string,

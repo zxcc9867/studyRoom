@@ -2,6 +2,42 @@
 
 ## Current Work
 
+- Task: Paginate My Page recovery routine history.
+- Purpose: Avoid rendering long recovery history lists at once; show five recovery routines per page with previous/next controls.
+- Related PRD:
+  - memory-bank/prd-slack-recovery-routines.md
+- Related files:
+  - apps/web/src/main.tsx
+  - apps/web/src/recoverySummary.mjs
+  - apps/web/src/recoverySummary.d.mts
+  - apps/web/src/styles.css
+  - apps/web/test/recoverySummary.test.mjs
+  - apps/web/test/recoveryRoutine.test.mjs
+
+## Recent Decisions
+
+- Decision: Keep all recovery requests sorted newest-first, then paginate the My Page history view in five item pages.
+- Reason: The user specifically wants 13 records to be browsed as pages instead of listing every item.
+- Alternative: Keep the previous eight-item recent-history slice; rejected because older records were hidden and there was no page navigation.
+- Impact: Recovery history now uses `paginateRecoveryHistory()` and displays previous/next controls only when there are more than five records.
+
+## Current Status
+
+- Completed: Added deterministic recovery history pagination helper and type declarations.
+- Completed: Added tests for five-item pages and web UI wiring.
+- Completed: Updated My Page recovery history to render only the current page.
+- Completed: `npm.cmd test` passed 212 tests.
+- Completed: `npm.cmd run build` passed with the existing Vite chunk-size warning.
+- Next: Commit, push, and verify Vercel production deployment.
+
+## Notes
+
+- No Supabase schema or Edge Function change is required for this pagination-only UI update.
+
+---# Active Context
+
+## Current Work
+
 - Task: Rule-based recovery routine history and weekly Slack summary.
 - Purpose: Show recovery routine history and cause summaries without using paid AI APIs, and send a weekly Slack summary after each week ends.
 - Related PRD:

@@ -1,5 +1,7 @@
 const MS_PER_DAY = 24 * 60 * 60 * 1000;
 
+export const DEFAULT_RECOVERY_HISTORY_PAGE_SIZE = 5;
+
 export const RECOVERY_REASON_CATEGORIES = [
   {
     id: "sleep",
@@ -148,6 +150,24 @@ export function summarizeRecoveryRequestsInRange(requests, weekStart, weekEnd) {
   };
 }
 
+export function paginateRecoveryHistory(items, page, pageSize = DEFAULT_RECOVERY_HISTORY_PAGE_SIZE) {
+  const safePageSize = Math.max(1, Math.trunc(pageSize));
+  const totalItems = items.length;
+  const totalPages = Math.max(1, Math.ceil(totalItems / safePageSize));
+  const requestedPage = Number.isFinite(page) ? Math.trunc(page) : 1;
+  const currentPage = Math.min(Math.max(1, requestedPage), totalPages);
+  const startIndex = (currentPage - 1) * safePageSize;
+
+  return {
+    items: items.slice(startIndex, startIndex + safePageSize),
+    currentPage,
+    totalPages,
+    totalItems,
+    pageSize: safePageSize,
+    hasPrevious: currentPage > 1,
+    hasNext: currentPage < totalPages,
+  };
+}
 function parseDateKey(dateKey) {
   const [year = "1970", month = "01", day = "01"] = String(dateKey).split("-");
   return new Date(Date.UTC(Number(year), Number(month) - 1, Number(day)));

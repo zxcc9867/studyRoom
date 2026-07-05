@@ -6,6 +6,7 @@ import {
   getPreviousRecoveryWeekRange,
   getRecoveryTriggerLabel,
   getRecoveryWeekRange,
+  paginateRecoveryHistory,
   summarizeRecoveryRequests,
 } from "../src/recoverySummary.mjs";
 
@@ -78,4 +79,27 @@ test("trigger labels stay readable for history UI", () => {
   assert.equal(getRecoveryTriggerLabel("missed_attendance"), "결석/지각");
   assert.equal(getRecoveryTriggerLabel("camera_absence_repeat"), "자리 비움 반복");
   assert.equal(getRecoveryTriggerLabel("other"), "회복루틴");
+});
+
+test("recovery history pagination returns five items per page", () => {
+  const items = Array.from({ length: 13 }, (_, index) =>
+    recovery({
+      id: `recovery-${index + 1}`,
+      local_date: "2026-06-24",
+      created_at: `2026-06-24T00:${String(index).padStart(2, "0")}:00.000Z`,
+    }),
+  );
+
+  const pageOne = paginateRecoveryHistory(items, 1);
+  const pageThree = paginateRecoveryHistory(items, 3);
+  const pageTooHigh = paginateRecoveryHistory(items, 99);
+
+  assert.equal(pageOne.items.length, 5);
+  assert.equal(pageOne.currentPage, 1);
+  assert.equal(pageOne.totalPages, 3);
+  assert.equal(pageOne.hasPrevious, false);
+  assert.equal(pageOne.hasNext, true);
+  assert.equal(pageThree.items.length, 3);
+  assert.equal(pageThree.hasNext, false);
+  assert.equal(pageTooHigh.currentPage, 3);
 });

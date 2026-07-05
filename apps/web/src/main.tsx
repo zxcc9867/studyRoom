@@ -128,6 +128,7 @@ import { shouldResumeStartAfterRecoveryUnlock } from "./recoveryStartResume.mjs"
 import {
   classifyRecoveryReason,
   getRecoveryTriggerLabel,
+  paginateRecoveryHistory,
   summarizeRecoveryRequests,
 } from "./recoverySummary.mjs";
 import {
@@ -457,6 +458,7 @@ function DashboardApp() {
   );
   const [calendarMonth, setCalendarMonth] = useState(() => getMonthKey(new Date()));
   const [todoHistoryPage, setTodoHistoryPage] = useState(1);
+  const [recoveryHistoryPage, setRecoveryHistoryPage] = useState(1);
   const [cameraEnabled, setCameraEnabled] = useState(false);
   const [cameraStatus, setCameraStatus] = useState<PresenceStatus>("idle");
   const [cameraMessage, setCameraMessage] = useState("");
@@ -752,13 +754,17 @@ function DashboardApp() {
     () => summarizeRecoveryRequests(studyRecoveryRequests, todayDateKey),
     [studyRecoveryRequests, todayDateKey],
   );
-  const recentRecoveryRequests = useMemo(
+  const sortedRecoveryRequests = useMemo(
     () => [...studyRecoveryRequests].sort((left, right) => {
       const dateOrder = right.local_date.localeCompare(left.local_date);
       if (dateOrder !== 0) return dateOrder;
       return right.created_at.localeCompare(left.created_at);
-    }).slice(0, 8),
+    }),
     [studyRecoveryRequests],
+  );
+  const recoveryHistoryPageData = useMemo(
+    () => paginateRecoveryHistory(sortedRecoveryRequests, recoveryHistoryPage),
+    [sortedRecoveryRequests, recoveryHistoryPage],
   );
   const sortedGoals = useMemo(() => sortStudyGoals(studyGoals), [studyGoals]);
   const goalTitleById = useMemo(
@@ -3709,31 +3715,58 @@ function DashboardApp() {
   }
 
   function renderRecoveryHistory() {
-    if (recentRecoveryRequests.length === 0) {
+    if (recoveryHistoryPageData.totalItems === 0) {
       return <p className="todo-empty">아직 회복루틴 이력이 없습니다.</p>;
     }
 
     return (
-      <ul className="recovery-history-list">
-        {recentRecoveryRequests.map((request) => {
-          const category = classifyRecoveryReason(request);
-          return (
-            <li className="recovery-history-item" key={request.id}>
-              <div className="recovery-history-meta">
-                <span>{formatTodoDate(request.local_date)}</span>
-                <strong>{getRecoveryTriggerLabel(request.trigger_type)}</strong>
-                <em>{category.label}</em>
-                <small>{request.status === "submitted" ? "제출 완료" : "작성 필요"}</small>
-              </div>
-              <div className="recovery-history-copy">
-                <p><span>사유</span>{request.reason || "아직 작성되지 않았습니다."}</p>
-                <p><span>보충</span>{request.makeup_todo_title || "보충 과제가 없습니다."}</p>
-                <p><span>약속</span>{request.pledge_todo_title || "재도전 약속이 없습니다."}</p>
-              </div>
-            </li>
-          );
-        })}
-      </ul>
+      <div className="recovery-history">
+        <ul className="recovery-history-list">
+          {recoveryHistoryPageData.items.map((request) => {
+            const category = classifyRecoveryReason(request);
+            return (
+              <li className="recovery-history-item" key={request.id}>
+                <div className="recovery-history-meta">
+                  <span>{formatTodoDate(request.local_date)}</span>
+                  <strong>{getRecoveryTriggerLabel(request.trigger_type)}</strong>
+                  <em>{category.label}</em>
+                  <small>{request.status === "submitted" ? "제출 완료" : "작성 필요"}</small>
+                </div>
+                <div className="recovery-history-copy">
+                  <p><span>사유</span>{request.reason || "아직 작성되지 않았습니다."}</p>
+                  <p><span>보충</span>{request.makeup_todo_title || "보충 과제가 없습니다."}</p>
+                  <p><span>약속</span>{request.pledge_todo_title || "재도전 약속이 없습니다."}</p>
+                </div>
+              </li>
+            );
+          })}
+        </ul>
+        {recoveryHistoryPageData.totalItems > recoveryHistoryPageData.pageSize && (
+          <div className="pagination-controls" aria-label="회복루틴 이력 페이지 이동">
+            <button
+              className="secondary"
+              type="button"
+              disabled={!recoveryHistoryPageData.hasPrevious}
+              onClick={() => setRecoveryHistoryPage(recoveryHistoryPageData.currentPage - 1)}
+            >
+              <ChevronLeft size={18} />
+              이전
+            </button>
+            <strong>
+              {recoveryHistoryPageData.currentPage} / {recoveryHistoryPageData.totalPages}
+            </strong>
+            <button
+              className="secondary"
+              type="button"
+              disabled={!recoveryHistoryPageData.hasNext}
+              onClick={() => setRecoveryHistoryPage(recoveryHistoryPageData.currentPage + 1)}
+            >
+              다음
+              <ChevronRight size={18} />
+            </button>
+          </div>
+        )}
+      </div>
     );
   }
 
