@@ -1,5 +1,12 @@
 # PRD: Slack Bot Notifications
 
+## 2026-07-05 Update: Notification Diagnostics and Deploy Build Gate
+
+- Settings must show a concise notification diagnostics card for browser push status, saved Slack Channel ID status, the latest notification delivery result, and legacy-channel context.
+- Diagnostics are read-only and use existing browser state, notification_targets-derived Slack status, and recent notification_deliveries rows.
+- Kakao must not reappear in the active web UI; legacy channel wording should stay generic or Telegram-only in user-facing web text.
+- The production Vercel workflow must run npm run build after tests and before deploy so production deploys cannot skip TypeScript/Vite build validation.
+
 ## 2026-06-28 Update: Slack Schedule Extension Actions
 
 - Timed todo Slack reminders must include schedule extension actions.

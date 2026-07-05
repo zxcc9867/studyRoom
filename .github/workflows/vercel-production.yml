@@ -39,6 +39,9 @@ jobs:
       - name: Run tests
         run: npm test
 
+      - name: Build web app
+        run: npm run build
+
       - name: Install Vercel CLI
         run: npm install --global vercel@48.6.0
 

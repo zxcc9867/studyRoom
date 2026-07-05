@@ -2765,3 +2765,84 @@ button:active:not(:disabled) {
     grid-template-columns: 1fr;
   }
 }
+.notification-diagnostics-card {
+  display: grid;
+  gap: 16px;
+  border: 2px solid rgba(79, 145, 111, 0.72);
+  border-radius: 8px;
+  background: linear-gradient(135deg, rgba(226, 246, 205, 0.84), rgba(255, 246, 200, 0.76));
+  padding: 18px;
+  box-shadow: 0 7px 0 rgba(67, 109, 82, 0.16);
+}
+
+.diagnostic-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 10px;
+}
+
+.diagnostic-item {
+  display: grid;
+  gap: 6px;
+  min-height: 116px;
+  border: 2px solid rgba(215, 185, 94, 0.55);
+  border-radius: 8px;
+  background: rgba(255, 251, 223, 0.78);
+  padding: 12px;
+}
+
+.diagnostic-item span {
+  color: #9a6f2e;
+  font-size: 12px;
+  font-weight: 950;
+  letter-spacing: 0;
+  text-transform: uppercase;
+}
+
+.diagnostic-item strong {
+  color: #2f6b52;
+  font-size: 20px;
+  font-weight: 950;
+  line-height: 1.1;
+  overflow-wrap: anywhere;
+}
+
+.diagnostic-item p {
+  margin: 0;
+  color: #5a513d;
+  font-size: 13px;
+  font-weight: 750;
+  line-height: 1.35;
+}
+
+.diagnostic-state-ready {
+  border-color: rgba(79, 145, 111, 0.76);
+  background: rgba(226, 246, 205, 0.8);
+}
+
+.diagnostic-state-needed,
+.diagnostic-state-info,
+.diagnostic-state-checking {
+  border-color: rgba(215, 185, 94, 0.68);
+}
+
+.diagnostic-state-blocked {
+  border-color: rgba(195, 88, 67, 0.76);
+  background: rgba(255, 229, 212, 0.76);
+}
+
+.diagnostic-state-blocked strong {
+  color: #9b4035;
+}
+
+.legacy-notification-note {
+  margin: 0;
+  border: 2px dashed rgba(215, 185, 94, 0.58);
+  border-radius: 8px;
+  background: rgba(255, 251, 223, 0.62);
+  padding: 10px 12px;
+  color: #5a513d;
+  font-size: 13px;
+  font-weight: 800;
+  line-height: 1.45;
+}

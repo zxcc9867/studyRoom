@@ -2,6 +2,44 @@
 
 ## Current Work
 
+- Task: Notification diagnostics UI and CI production build gate.
+- Purpose: Make the settings screen show whether browser push, Slack target storage, and recent notification deliveries are healthy, and prevent Vercel production deploys from skipping the web production build.
+- Related PRD:
+  - memory-bank/prd-slack-notifications.md
+- Related files:
+  - .github/workflows/vercel-production.yml
+  - apps/web/src/main.tsx
+  - apps/web/src/notificationDiagnostics.mjs
+  - apps/web/src/notificationDiagnostics.d.mts
+  - apps/web/src/styles.css
+  - apps/web/test/ciWorkflow.test.mjs
+  - apps/web/test/notificationDiagnostics.test.mjs
+  - apps/web/test/slackNotifications.test.mjs
+
+## Recent Decisions
+
+- Decision: Keep notification diagnostics read-only and based on already available browser status, saved Slack target status, and the five latest notification_deliveries rows.
+- Reason: The user needs to see whether notifications are configured without adding another active notification path or changing server dispatch behavior.
+- Alternative: Add a new Edge Function diagnostics endpoint; deferred because Supabase row reads are enough for MVP visibility.
+- Impact: The settings screen now has one diagnostics card and keeps Kakao out of the active UI path.
+
+## Current Status
+
+- Completed: Added notification diagnostics helper and regression tests.
+- Completed: Settings now fetches recent notification_deliveries and renders browser, Slack, last-delivery, and legacy-channel states.
+- Completed: GitHub Actions production workflow now runs npm run build after npm test and before Vercel deploy.
+- Completed: npm.cmd test passed 218 tests.
+- Completed: npm.cmd run build passed with the existing Vite chunk-size warning.
+- Next: Commit, push, and verify Vercel production deployment.
+
+## Notes
+
+- No Supabase schema or Edge Function change is required. The feature reads existing notification_deliveries and notification_targets state.
+
+---
+
+## Current Work
+
 - Task: Todo linking and planner detail editing cleanup.
 - Purpose: Make the daily checklist modal checkbox mean schedule-link selection instead of completion, keep all selected-date todos visible while editing, and move edit/delete controls to the planner detail todo list.
 - Related PRD:

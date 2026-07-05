@@ -183,6 +183,20 @@ test("web app explains when the current account has no saved slack channel targe
   assert.match(appSource, /channelId/);
 });
 
+test("settings page shows notification diagnostics from recent delivery rows", () => {
+  const appSource = readFileSync("apps/web/src/main.tsx", "utf8");
+  const styleSource = readFileSync("apps/web/src/styles.css", "utf8");
+
+  assert.match(appSource, /NotificationDeliveryRow/);
+  assert.match(appSource, /notificationDeliveries/);
+  assert.match(appSource, /\.from\("notification_deliveries"\)/);
+  assert.match(appSource, /buildNotificationDiagnostics/);
+  assert.match(appSource, /notification-diagnostics-card/);
+  assert.match(appSource, /legacy-notification-note/);
+  assert.match(styleSource, /\.notification-diagnostics-card/);
+  assert.match(styleSource, /\.diagnostic-state-ready/);
+});
+
 test("kakao notification UI and OAuth linking are removed from the web app", () => {
   const appSource = readFileSync("apps/web/src/main.tsx", "utf8");
   const authProviderSource = readFileSync("apps/web/src/authProviders.mjs", "utf8");

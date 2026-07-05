@@ -180,6 +180,11 @@ import {
   type SlackNotificationStatus,
 } from "./slackNotifications.mjs";
 import {
+  buildNotificationDiagnostics,
+  normalizeNotificationDeliveries,
+  type NormalizedNotificationDelivery,
+} from "./notificationDiagnostics.mjs";
+import {
   DEFAULT_TODO_HISTORY_PAGE_SIZE,
   calculateTodoHistoryStats,
   getCompletedTodoHistory,
@@ -295,6 +300,13 @@ type StudyRecoveryRequest = {
   makeup_todo_title: string | null;
   pledge_todo_title: string | null;
   created_at: string;
+};
+
+type NotificationDeliveryRow = {
+  channel: string;
+  status: "sent" | "failed";
+  error_message: string | null;
+  created_at: string | null;
 };
 
 const todaySectionLabels: Record<TodaySectionId, string> = {
@@ -451,6 +463,7 @@ function DashboardApp() {
   const [todoBusy, setTodoBusy] = useState(false);
   const [webPushStatus, setWebPushStatus] = useState<WebPushStatus | null>(null);
   const [slackStatus, setSlackStatus] = useState<SlackNotificationStatus | null>(null);
+  const [notificationDeliveries, setNotificationDeliveries] = useState<NormalizedNotificationDelivery[]>([]);
   const [slackChannelId, setSlackChannelId] = useState("");
   const [reminderPopup, setReminderPopup] = useState<{ dateKey: string; reminderTime: string } | null>(null);
   const [activeSection, setActiveSection] = useState<DashboardSection>(() =>
@@ -788,6 +801,15 @@ function DashboardApp() {
     [completedTodoHistory, todoHistoryPage],
   );
   const streak = useMemo(() => calculateStreak(attendanceDays), [attendanceDays]);
+  const notificationDiagnostics = useMemo(
+    () =>
+      buildNotificationDiagnostics({
+        webPushStatus,
+        slackStatus,
+        deliveries: notificationDeliveries,
+      }),
+    [webPushStatus, slackStatus, notificationDeliveries],
+  );
 
   useEffect(() => {
     if (todoHistoryPage !== todoHistoryPageData.currentPage) {
@@ -1408,6 +1430,7 @@ function DashboardApp() {
       { data: sessionTodoLinkData },
       { data: goalData },
       { data: recoveryData },
+      { data: notificationDeliveryData },
     ] = await Promise.all([
       supabase.from("profiles").select("*").eq("user_id", userId).maybeSingle(),
       supabase
@@ -1449,6 +1472,12 @@ function DashboardApp() {
         .eq("user_id", userId)
         .order("created_at", { ascending: false })
         .limit(50),
+      supabase
+        .from("notification_deliveries")
+        .select("channel,status,error_message,created_at")
+        .eq("user_id", userId)
+        .order("created_at", { ascending: false })
+        .limit(5),
     ]);
 
     if (profileData) {
@@ -1474,6 +1503,7 @@ function DashboardApp() {
     setStudySessionTodoLinks((sessionTodoLinkData ?? []) as StudySessionTodoLink[]);
     setStudyGoals(sortStudyGoals((goalData ?? []) as StudyGoal[]));
     setStudyRecoveryRequests((recoveryData ?? []) as StudyRecoveryRequest[]);
+    setNotificationDeliveries(normalizeNotificationDeliveries((notificationDeliveryData ?? []) as NotificationDeliveryRow[]));
     setBusy(false);
   }
 
@@ -5317,6 +5347,28 @@ function DashboardApp() {
                 Slack 테스트 알림
               </button>
             </div>
+          </div>
+
+          <div className="notification-diagnostics-card">
+            <div className="channel-card-header">
+              <div>
+                <p className="eyebrow">diagnostics</p>
+                <h3>{"\uc54c\ub9bc \uc9c4\ub2e8"}</h3>
+              </div>
+              <span>{"\ucd5c\uadfc \ubc1c\uc1a1 \uae30\ub85d\uacfc \ud604\uc7ac \ub4f1\ub85d \uc0c1\ud0dc\ub97c \ud655\uc778\ud569\ub2c8\ub2e4."}</span>
+            </div>
+            <div className="diagnostic-grid">
+              {notificationDiagnostics.map((item) => (
+                <div key={item.id} className={`diagnostic-item diagnostic-state-${item.state}`}>
+                  <span>{item.label}</span>
+                  <strong>{item.summary}</strong>
+                  <p>{item.detail}</p>
+                </div>
+              ))}
+            </div>
+            <p className="legacy-notification-note">
+              {"Telegram \ub4f1 \ub808\uac70\uc2dc \ucc44\ub110\uc740 \uc774\uc804 \uae30\ub85d\uc73c\ub85c\ub9cc \ubcf4\uc874\ub429\ub2c8\ub2e4. \ud604\uc7ac \uc11c\ubc84 \uc54c\ub9bc\uc740 Slack Channel ID \uc800\uc7a5 \uc5ec\ubd80\ub97c \uae30\uc900\uc73c\ub85c \ubcf4\ub0c5\ub2c8\ub2e4."}
+            </p>
           </div>
         </section>
         )}

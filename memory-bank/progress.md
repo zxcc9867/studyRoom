@@ -1,3 +1,44 @@
+### 2026-07-05 - Notification diagnostics and CI build gate
+
+#### Completed Work
+
+- Added a notification diagnostics helper that normalizes recent notification_deliveries rows and summarizes browser push, Slack target, latest delivery, and legacy-channel status.
+- Added a settings-screen diagnostics card so the user can see whether computer notifications, Slack Channel ID storage, and recent server delivery records look healthy.
+- Kept Kakao out of the active web UI source while preserving internal legacy channel classification.
+- Added a GitHub Actions build gate so production Vercel deployment runs npm test, then npm run build, then deploy.
+- Added focused regression tests for diagnostics helpers, settings UI wiring, and the CI workflow order.
+
+#### Changed Files
+
+- .github/workflows/vercel-production.yml
+- apps/web/src/main.tsx
+- apps/web/src/notificationDiagnostics.mjs
+- apps/web/src/notificationDiagnostics.d.mts
+- apps/web/src/styles.css
+- apps/web/test/ciWorkflow.test.mjs
+- apps/web/test/notificationDiagnostics.test.mjs
+- apps/web/test/slackNotifications.test.mjs
+- memory-bank/active-context.md
+- memory-bank/progress.md
+- memory-bank/implementation-plan.md
+- memory-bank/prd-slack-notifications.md
+- memory-bank/trouble-shooting.md
+
+#### Verification
+
+- RED: targeted tests initially failed because notificationDiagnostics.mjs did not exist, the workflow lacked npm run build, and the settings UI did not read notification_deliveries.
+- GREEN: node --test apps\web\test\notificationDiagnostics.test.mjs apps\web\test\ciWorkflow.test.mjs apps\web\test\slackNotifications.test.mjs passed.
+- Full suite: npm.cmd test passed 218 tests.
+- Build: npm.cmd run build passed with the existing Vite chunk-size warning.
+- Diff hygiene: git diff --check passed with only existing LF/CRLF warnings.
+
+#### Remaining Work
+
+- Commit, push, and verify Vercel production deployment.
+
+#### Next Priority
+
+- Production smoke-test: open Settings, confirm the diagnostics card shows browser, Slack, latest delivery, and legacy status without requiring duplicate manual buttons.
 ### 2026-07-05 - Todo link selection and planner detail edit list
 
 #### Completed Work

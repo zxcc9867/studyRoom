@@ -2456,3 +2456,29 @@ Added `paginateRecoveryHistory` to the `recoverySummary.mjs` import block and re
 ### Prevention
 
 Source-string tests are useful wiring checks, but TypeScript build remains the authoritative check for missing imports and inferred types.
+## 2026-07-05 - Notification helper text must avoid Windows encoding drift
+
+### Situation
+
+While adding notification diagnostics, new Korean strings in a helper file were easier to inspect and preserve when stored as ASCII-safe Unicode escape sequences. Console output can show mojibake in this repository, so direct visual inspection of non-ASCII literals can be misleading.
+
+### Error Message
+
+No final build error. The risky symptom was malformed or mojibake-looking helper text during source inspection.
+
+### Cause
+
+Windows console encoding and the repository's existing mojibake history make newly inserted Korean literals hard to verify when apply_patch is blocked and fallback file writes are needed.
+
+### Resolution
+
+Stored user-facing helper strings as JavaScript Unicode escapes, then verified syntax with node --check and behavior with targeted tests.
+
+### Related Files
+
+- apps/web/src/notificationDiagnostics.mjs
+- apps/web/test/notificationDiagnostics.test.mjs
+
+### Prevention
+
+For new Korean strings in small JS helper modules, prefer ASCII-safe Unicode escapes when the file may be edited through Windows fallback scripts. Always run node --check plus the relevant unit tests.
