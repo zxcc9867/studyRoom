@@ -2,6 +2,40 @@
 
 ## Current Work
 
+- Task: Todo linking and planner detail editing cleanup.
+- Purpose: Make the daily checklist modal checkbox mean schedule-link selection instead of completion, keep all selected-date todos visible while editing, and move edit/delete controls to the planner detail todo list.
+- Related PRD:
+  - memory-bank/prd-daily-planner-dashboard.md
+  - memory-bank/prd-session-todo-links.md
+- Related files:
+  - apps/web/src/main.tsx
+  - apps/web/src/styles.css
+  - apps/web/test/slackNotifications.test.mjs
+
+## Recent Decisions
+
+- Decision: Keep study_todos as the single data source and allow the same title to be scheduled multiple times on the same date when the time window differs.
+- Reason: The user may study the same subject in separate blocks, such as a long Python session and another later Python block.
+- Alternative: Add a separate todo template/schedule table; deferred because the current dated-row model already supports multiple timed rows.
+- Impact: The schedule-link checkbox inserts a new timed row for the selected todo title instead of overwriting or hiding existing scheduled rows.
+
+## Current Status
+
+- Completed: Added regression coverage for all same-day todos remaining visible in the schedule-link modal.
+- Completed: Removed edit/delete actions from the modal link list and added a clear `?? ??` label.
+- Completed: Added a planner detail todo list with schedule labels plus row-level edit/delete actions.
+- Completed: `npm.cmd test` passed 213 tests.
+- Completed: `npm.cmd run build` passed with the existing Vite chunk-size warning.
+- Next: Commit, push, and verify Vercel production deployment.
+
+## Notes
+
+- No Supabase schema change is required. This is a frontend state/UI policy change on top of existing study_todos rows.
+
+# Active Context
+
+## Current Work
+
 - Task: Paginate My Page recovery routine history.
 - Purpose: Avoid rendering long recovery history lists at once; show five recovery routines per page with previous/next controls.
 - Related PRD:

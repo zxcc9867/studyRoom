@@ -1,3 +1,40 @@
+### 2026-07-05 - Todo link selection and planner detail edit list
+
+#### Completed Work
+
+- Changed the daily checklist modal so editing a todo no longer hides other same-day todos.
+- Added a `?? ??` section label explaining that modal checkboxes schedule/link an existing todo, not complete it.
+- Removed edit/delete buttons from the schedule-link list in the modal.
+- Changed schedule-link selection to insert a new timed study_todos row for the chosen todo title and current time window, while preventing exact duplicate date/title/time rows.
+- Added a planner detail todo list that shows all selected-date todos with time chips, repeat/goal metadata, completion state, and row-level edit/delete buttons.
+- Added source-level regression tests for the new modal visibility/action policy and planner detail list.
+
+#### Changed Files
+
+- apps/web/src/main.tsx
+- apps/web/src/styles.css
+- apps/web/test/slackNotifications.test.mjs
+- memory-bank/active-context.md
+- memory-bank/progress.md
+- memory-bank/implementation-plan.md
+- memory-bank/prd-daily-planner-dashboard.md
+- memory-bank/trouble-shooting.md
+
+#### Verification
+
+- RED: `node --test apps\web\test\slackNotifications.test.mjs` failed on the old filtered edit-modal behavior, missing `?? ??` label, modal edit/delete actions, and missing planner detail list.
+- GREEN: `node --test apps\web\test\slackNotifications.test.mjs` passed after implementation.
+- Full suite: `npm.cmd test` passed 213 tests.
+- Build: `npm.cmd run build` passed with the existing Vite chunk-size warning.
+
+#### Remaining Work
+
+- Commit, push, and verify Vercel production deployment.
+
+#### Next Priority
+
+- Production smoke-test: open a scheduled todo, confirm all same-day todos remain visible, add another time block for the same title, and edit/delete from the planner detail list.
+
 # Progress
 
 ### 2026-07-01 - Cross-day active session today study timer fix

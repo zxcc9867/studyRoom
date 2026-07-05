@@ -70,8 +70,9 @@ Personal MVP users who want to plan and visualize today's study tasks in either 
 - [x] Add helper tests for task view and section order normalization.
 - [x] Add Today task view switcher and pin button.
 - [x] Add circular SVG daily planner using existing `study_todos`.
-- [x] Let existing todos be loaded or scheduled from the todo modal without toggling completion.
+- [x] Let existing todos be linked into a new timed schedule row from the todo modal without toggling completion or hiding other same-day todos.
 - [x] Let planner detail and untimed todo checkboxes toggle completion only when no study session is active.
+- [x] Show the selected-date todo list in the planner detail panel with schedule labels and edit/delete row actions.
 - [x] Let the Today Tasks card follow a selected local date instead of only the real current date.
 - [x] Add previous/today/next/date input controls for planner date navigation.
 - [x] Add a multi-date apply modal that copies a selected date's plan to chosen calendar dates while skipping duplicates.

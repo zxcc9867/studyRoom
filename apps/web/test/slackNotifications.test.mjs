@@ -47,11 +47,12 @@ test("web app exposes editing controls for scheduled and recurring todos", () =>
   assert.match(styleSource, /\.todo-repeat-note/);
 });
 
-test("todo edit modal scopes the visible checklist to the edited todo", () => {
+test("todo schedule modal keeps all same-day todos selectable while editing", () => {
   const appSource = readFileSync("apps/web/src/main.tsx", "utf8");
 
   assert.match(appSource, /visibleTodoModalItems/);
-  assert.match(appSource, /editingTodo \? \[editingTodo\] : selectedDateTodos/);
+  assert.match(appSource, /selectedDateTodos/);
+  assert.doesNotMatch(appSource, /editingTodo \? \[editingTodo\] : selectedDateTodos/);
   assert.match(appSource, /renderTodoScheduleList\(visibleTodoModalItems,/);
   assert.doesNotMatch(appSource, /renderTodoList\(selectedDateTodos,/);
 });
@@ -64,9 +65,25 @@ test("todo schedule modal applies time without completing todos", () => {
 
   assert.ok(renderStart > 0, "renderTodoScheduleList should exist");
   assert.ok(modalListSource.includes("applyTodoScheduleFromModal"));
-  assert.ok(modalListSource.includes("startTodoEditing(todo)"));
+  assert.ok(appSource.includes("todo-link-heading"));
+  assert.ok(appSource.includes("\\uD560\\uC77C \\uC5F0\\uACB0"));
+  assert.equal(modalListSource.includes("startTodoEditing(todo)"), false);
+  assert.equal(modalListSource.includes("deleteTodo(todo)"), false);
   assert.equal(modalListSource.includes("toggleTodo(todo)"), false);
   assert.ok(appSource.includes("renderTodoScheduleList(visibleTodoModalItems,"));
+});
+
+test("daily planner detail shows a daily todo list with schedule labels and row edit actions", () => {
+  const appSource = readFileSync("apps/web/src/main.tsx", "utf8");
+  const plannerStart = appSource.indexOf("function renderDailyPlanner");
+  const plannerEnd = appSource.indexOf("function renderTodaySectionOrderEditor", plannerStart);
+  const plannerSource = appSource.slice(plannerStart, plannerEnd);
+
+  assert.ok(plannerSource.includes("planner-detail-list"));
+  assert.ok(plannerSource.includes("selectedPlannerTodos.map((todo)"));
+  assert.ok(plannerSource.includes("formatTodoScheduleLabel(todo)"));
+  assert.ok(plannerSource.includes("startTodoEditing(todo)"));
+  assert.ok(plannerSource.includes("deleteTodo(todo)"));
 });
 
 test("end study button opens a completion modal before ending the session", () => {

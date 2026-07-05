@@ -738,7 +738,7 @@ function DashboardApp() {
     [studyTodos, reminderPopup?.dateKey],
   );
   const selectedPlannerTodoStats = useMemo(() => calculateTodoStats(selectedPlannerTodos), [selectedPlannerTodos]);
-  const visibleTodoModalItems = useMemo(() => editingTodo ? [editingTodo] : selectedDateTodos, [editingTodo, selectedDateTodos]);
+  const visibleTodoModalItems = useMemo(() => selectedDateTodos, [selectedDateTodos]);
   const selectedTodoStats = useMemo(() => calculateTodoStats(visibleTodoModalItems), [visibleTodoModalItems]);
   const todoCountsByDate = useMemo(() => {
     const counts = new Map<string, number>();
@@ -1728,10 +1728,7 @@ function DashboardApp() {
   }
 
   async function applyTodoScheduleFromModal(todo: StudyTodo) {
-    if (todo.start_time && todo.end_time) {
-      startTodoEditing(todo);
-      return;
-    }
+    if (!session?.user.id) return;
 
     if (!todoTimeEnabled) {
       setMessage("\uC2DC\uAC04 \uC124\uC815\uC744 \uCF04 \uB4A4 \uAE30\uC874 \uD560 \uC77C\uC5D0 \uC801\uC6A9\uD558\uC138\uC694.");
@@ -1748,13 +1745,34 @@ function DashboardApp() {
       return;
     }
 
+    const targetDates = filterNewTodoDates({
+      dates: [selectedTodoDate],
+      title: todo.title,
+      existingTodos: studyTodos,
+      startTime: schedule.startTime,
+      endTime: schedule.endTime,
+    });
+
+    if (targetDates.length === 0) {
+      setMessage("\uC774\uBBF8 \uAC19\uC740 \uB0A0\uC9DC\uC640 \uC2DC\uAC04\uC5D0 \uB4F1\uB85D\uB41C \uD560 \uC77C\uC785\uB2C8\uB2E4.");
+      return;
+    }
+
+    const rows = buildTodoInsertRows({
+      targetDates,
+      title: todo.title,
+      userId: session.user.id,
+      schedule,
+      repeatGroupId: null,
+      repeatMode: "single",
+      repeatWeekdays: [],
+      repeatUntil: null,
+      repeatForever: false,
+      goalId: (todo.goal_id ?? todoGoalId) || null,
+    });
+
     setTodoBusy(true);
-    const { data, error } = await supabase
-      .from("study_todos")
-      .update({ start_time: schedule.startTime, end_time: schedule.endTime })
-      .eq("id", todo.id)
-      .select("*")
-      .single();
+    const { data, error } = await supabase.from("study_todos").insert(rows).select("*");
     setTodoBusy(false);
 
     if (error) {
@@ -1762,17 +1780,14 @@ function DashboardApp() {
       return;
     }
 
-    const updatedTodo = data as StudyTodo;
-    setStudyTodos((current) =>
-      sortTodos(current.map((item) => (item.id === updatedTodo.id ? updatedTodo : item))),
-    );
-    setEditingTodoId(updatedTodo.id);
-    setTodoDraft(updatedTodo.title);
+    if (data?.length) {
+      setStudyTodos((current) => sortTodos([...(data as StudyTodo[]), ...current]));
+    }
+
+    setEditingTodoId(null);
+    setTodoDraft(todo.title);
     setTodoTimeEnabled(true);
-    setTodoStartTime(updatedTodo.start_time?.slice(0, 5) ?? schedule.startTime ?? "09:00");
-    setTodoEndTime(updatedTodo.end_time?.slice(0, 5) ?? schedule.endTime ?? "10:00");
-    setTodoGoalId(updatedTodo.goal_id ?? "");
-    setMessage("\uC120\uD0DD\uD55C \uD560 \uC77C\uC744 \uC124\uC815\uD55C \uC2DC\uAC04\uC73C\uB85C \uC2A4\uCF00\uC904\uC5D0 \uB4F1\uB85D\uD588\uC2B5\uB2C8\uB2E4.");
+    setMessage("\uC120\uD0DD\uD55C \uD560 \uC77C\uC744 \uC0C8 \uC2DC\uAC04\uB300\uB85C \uC2A4\uCF00\uC904\uC5D0 \uB4F1\uB85D\uD588\uC2B5\uB2C8\uB2E4.");
   }
 
   function toggleSessionTodoSelection(todoId: string) {
@@ -3262,17 +3277,18 @@ function DashboardApp() {
     }
 
     return (
-      <ul className="todo-list">
+      <ul className="todo-list todo-link-list">
         {todos.map((todo) => {
-          const hasSchedule = Boolean(todo.start_time && todo.end_time);
+          const isEditingThisTodo = editingTodoId === todo.id;
           return (
-            <li className={`todo-item ${todo.is_completed ? "todo-done" : ""}`} key={todo.id}>
+            <li className={`todo-item ${todo.is_completed ? "todo-done" : ""} ${isEditingThisTodo ? "todo-link-selected" : ""}`} key={todo.id}>
               <div className="todo-main">
                 <label className="todo-check-row">
                   <input
                     type="checkbox"
-                    checked={hasSchedule}
+                    checked={isEditingThisTodo}
                     disabled={todoBusy}
+                    title="\uC774 \uD560 \uC77C\uC744 \uD604\uC7AC \uC124\uC815\uD55C \uC2DC\uAC04\uC73C\uB85C \uC2A4\uCF00\uC904\uC5D0 \uB4F1\uB85D"
                     onChange={() => void applyTodoScheduleFromModal(todo)}
                   />
                   <span className="todo-title">{todo.title}</span>
@@ -3286,26 +3302,6 @@ function DashboardApp() {
                     <span className="todo-goal-chip">{goalTitleById.get(todo.goal_id)}</span>
                   )}
                 </div>
-              </div>
-              <div className="todo-actions">
-                <button
-                  className="todo-edit"
-                  type="button"
-                  aria-label={`${todo.title} edit`}
-                  disabled={todoBusy}
-                  onClick={() => startTodoEditing(todo)}
-                >
-                  <Pencil size={16} />
-                </button>
-                <button
-                  className="todo-delete"
-                  type="button"
-                  aria-label={`${todo.title} delete`}
-                  disabled={todoBusy}
-                  onClick={() => void deleteTodo(todo)}
-                >
-                  <Trash2 size={16} />
-                </button>
               </div>
             </li>
           );
@@ -3419,18 +3415,11 @@ function DashboardApp() {
                     className="secondary compact-action"
                     type="button"
                     disabled={todoBusy || Boolean(activeSession)}
-                    title={activeSession ? "\uC138\uC158 \uC911\uC5D0\uB294 \uC885\uB8CC\uD560 \uB54C \uC644\uB8CC\uD560 \uC77C\uC744 \uC120\uD0DD\uD558\uC138\uC694." : undefined}
+                    title={activeSession ? "\uC138\uC158 \uC911\uC5D0\uB294 \uC885\uB8CC \uBC84\uD2BC\uC5D0\uC11C \uC644\uB8CC\uD560 \uC77C\uC744 \uC120\uD0DD\uD558\uC138\uC694." : undefined}
                     onClick={() => void toggleTodoCompletion(selectedPlannerSegment.todo)}
                   >
                     <CheckCircle2 size={16} />
                     {selectedPlannerSegment.todo.is_completed ? "\uBBF8\uC644\uB8CC\uB85C \uBCC0\uACBD" : "\uC644\uB8CC \uCCB4\uD06C"}
-                  </button>
-                  <button className="secondary compact-action" type="button" onClick={() => startTodoEditing(selectedPlannerSegment.todo)}>
-                    <Pencil size={16} />
-                    {"\uC218\uC815"}
-                  </button>
-                  <button className="todo-delete" type="button" onClick={() => void deleteTodo(selectedPlannerSegment.todo)}>
-                    <Trash2 size={16} />
                   </button>
                 </div>
               </>
@@ -3441,6 +3430,55 @@ function DashboardApp() {
                 <p>원형 빈 시간대를 누르면 해당 시간으로 새 할 일을 만들 수 있습니다.</p>
               </>
             )}
+            <div className="planner-detail-list" aria-label="\uC624\uB298 \uD560\uC77C \uBAA9\uB85D">
+              <p className="eyebrow">{"\uC624\uB298 \uD560\uC77C \uBAA9\uB85D"}</p>
+              {selectedPlannerTodos.length === 0 ? (
+                <p className="todo-empty">{"\uC120\uD0DD\uD55C \uB0A0\uC9DC\uC5D0 \uD560 \uC77C\uC774 \uC5C6\uC2B5\uB2C8\uB2E4."}</p>
+              ) : (
+                <ul className="todo-list planner-detail-todos">
+                  {selectedPlannerTodos.map((todo) => {
+                    const isSelected = selectedPlannerSegment?.todo.id === todo.id;
+                    return (
+                      <li className={`todo-item ${todo.is_completed ? "todo-done" : ""} ${isSelected ? "planner-detail-selected" : ""}`} key={todo.id}>
+                        <div className="todo-main">
+                          <strong className="todo-title">{todo.title}</strong>
+                          <div className="todo-meta-row" aria-label={`${todo.title} setting`}>
+                            {formatTodoScheduleLabel(todo) && (
+                              <span className="todo-time-chip">{formatTodoScheduleLabel(todo)}</span>
+                            )}
+                            <span className="todo-meta-chip">{formatTodoRepeatLabel(todo)}</span>
+                            {todo.goal_id && goalTitleById.has(todo.goal_id) && (
+                              <span className="todo-goal-chip">{goalTitleById.get(todo.goal_id)}</span>
+                            )}
+                            <span className="todo-meta-chip">{todo.is_completed ? "\uC644\uB8CC" : "\uBBF8\uC644\uB8CC"}</span>
+                          </div>
+                        </div>
+                        <div className="todo-actions">
+                          <button
+                            className="todo-edit"
+                            type="button"
+                            aria-label={`${todo.title} edit`}
+                            disabled={todoBusy}
+                            onClick={() => startTodoEditing(todo)}
+                          >
+                            <Pencil size={16} />
+                          </button>
+                          <button
+                            className="todo-delete"
+                            type="button"
+                            aria-label={`${todo.title} delete`}
+                            disabled={todoBusy}
+                            onClick={() => void deleteTodo(todo)}
+                          >
+                            <Trash2 size={16} />
+                          </button>
+                        </div>
+                      </li>
+                    );
+                  })}
+                </ul>
+              )}
+            </div>
             {hasOverlap && <p className="planner-help">점선 테두리는 서로 겹치는 일정입니다.</p>}
           </div>
         </div>
@@ -4303,7 +4341,13 @@ function DashboardApp() {
                   </select>
                 </label>
               </form>
-              {renderTodoScheduleList(visibleTodoModalItems, "\uC774 \uB0A0\uC9DC\uC5D0 \uC800\uC7A5\uB41C \uD560 \uC77C\uC774 \uC5C6\uC2B5\uB2C8\uB2E4.")}
+              <section className="todo-link-panel" aria-labelledby="todo-link-heading">
+                <div className="todo-link-head">
+                  <p className="eyebrow" id="todo-link-heading">{"\uD560\uC77C \uC5F0\uACB0"}</p>
+                  <span>{"\uCCB4\uD06C\uD558\uBA74 \uC120\uD0DD\uD55C \uD560 \uC77C\uC744 \uD604\uC7AC \uC2DC\uAC04\uB300\uC5D0 \uCD94\uAC00\uD569\uB2C8\uB2E4."}</span>
+                </div>
+                {renderTodoScheduleList(visibleTodoModalItems, "\uC774 \uB0A0\uC9DC\uC5D0 \uC800\uC7A5\uB41C \uD560 \uC77C\uC774 \uC5C6\uC2B5\uB2C8\uB2E4.")}
+              </section>
             </section>
           </div>
         )}

@@ -1603,6 +1603,26 @@ label {
   gap: 8px;
 }
 
+.planner-detail-list {
+  display: grid;
+  gap: 8px;
+  margin-top: 8px;
+  border-top: 2px dashed rgba(79, 145, 111, 0.34);
+  padding-top: 10px;
+}
+
+.planner-detail-todos {
+  max-height: 280px;
+  overflow: auto;
+  padding-right: 4px;
+}
+
+.planner-detail-selected {
+  border-color: #4f916f;
+  background: #eef8d5;
+  box-shadow: inset 5px 0 0 #4f916f;
+}
+
 .planner-unscheduled {
   display: grid;
   gap: 10px;
@@ -2103,6 +2123,38 @@ label {
   border-radius: 8px;
   background: #fff9df;
   padding: 9px 10px;
+}
+
+.todo-link-panel {
+  display: grid;
+  gap: 10px;
+  border: 2px solid rgba(79, 145, 111, 0.42);
+  border-radius: 8px;
+  background: #eef8d5;
+  padding: 12px;
+}
+
+.todo-link-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.todo-link-head span {
+  color: #5a513d;
+  font-size: 12px;
+  font-weight: 850;
+}
+
+.todo-link-list .todo-item {
+  background: #fffef5;
+}
+
+.todo-link-selected {
+  border-color: #4f916f;
+  background: #e7f5d4;
 }
 
 .todo-main {

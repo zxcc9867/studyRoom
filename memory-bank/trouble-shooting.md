@@ -1,3 +1,32 @@
+## 2026-07-05 - Node edit script evaluated JSX template placeholders
+
+### Situation
+
+While applying the todo-link UI cleanup, apply_patch failed with the known Windows ACL issue, so a UTF-8 Node edit script was used. The first script attempted to insert JSX template strings containing dollar-brace placeholders.
+
+### Error Message
+
+```txt
+ReferenceError: todo is not defined
+```
+
+### Cause
+
+The outer Node template literal evaluated JSX placeholder expressions at script execution time instead of writing them literally into main.tsx.
+
+### Resolution
+
+Escaped JSX template placeholders inside the Node edit script and reran the targeted replacement. The script wrote only after all replacement ranges were found.
+
+### Related Files
+
+- apps/web/src/main.tsx
+- apps/web/test/slackNotifications.test.mjs
+
+### Prevention
+
+When using Node scripts to patch TSX after apply_patch is blocked, escape any JSX template placeholders in inserted strings or build the replacement from plain string arrays.
+
 # Trouble Shooting
 
 ## 2026-07-01 - Cross-midnight active session left Today study timer at zero
