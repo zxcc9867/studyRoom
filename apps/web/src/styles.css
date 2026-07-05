@@ -1045,6 +1045,14 @@ label {
   box-shadow: 0 7px 0 rgba(67, 109, 82, 0.16);
 }
 
+.field-help {
+  display: block;
+  margin-top: 0.45rem;
+  color: #6b5f4b;
+  font-size: 0.85rem;
+  line-height: 1.45;
+}
+
 .alarm-summary-card {
   border-color: rgba(79, 145, 111, 0.72);
   background: linear-gradient(135deg, rgba(226, 246, 205, 0.84), rgba(255, 246, 200, 0.76));

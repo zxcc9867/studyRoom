@@ -2512,3 +2512,33 @@ Changed package.json build to npm --workspace apps/web run build and added ciWor
 ### Prevention
 
 Keep npm.cmd for manual PowerShell commands, but do not put Windows-only npm.cmd invocations in CI scripts or package scripts executed on Linux runners.
+
+## 2026-07-05 - Supabase function return type change requires drop and recreate
+
+### Situation
+
+While adding slack_user_id to get_due_session_lease_warnings(p_now), the first remote migration apply failed.
+
+### Error Message
+
+~~~txt
+ERROR: 42P13: cannot change return type of existing function
+HINT: Use DROP FUNCTION get_due_session_lease_warnings(timestamp with time zone) first.
+~~~
+
+### Cause
+
+Postgres cannot replace an existing function with a different table return type through CREATE OR REPLACE FUNCTION. The new return shape added slack_user_id.
+
+### Resolution
+
+The migration now explicitly drops public.get_due_session_lease_warnings(timestamptz) before recreating it with the new return table shape and service_role grant.
+
+### Related Files
+
+- supabase/migrations/20260705125944_slack_user_mentions.sql
+- supabase/functions/attendance-cron/index.ts
+
+### Prevention
+
+When changing a Postgres function's return table columns, use DROP FUNCTION IF EXISTS with the exact signature before CREATE FUNCTION, then reapply grants.

@@ -1825,3 +1825,39 @@
 
 - Slack App Interactivity Request URL은 기존 `slack-recovery-interactions` Edge Function을 그대로 사용한다.
 - Edge Function secrets에는 기존 Slack bot token과 signing secret이 필요하며, 민감한 값은 문서에 기록하지 않는다.
+---
+
+## Current Work
+
+- Task: Slack user mention for session lease warnings.
+- Purpose: Include an optional <@SlackUserId> mention in the Slack message sent 5 minutes before a study session lease expires.
+- Related PRD:
+  - memory-bank/prd-slack-notifications.md
+  - memory-bank/prd-session-activity-heartbeat.md
+- Related files:
+  - apps/web/src/main.tsx
+  - apps/web/src/slackNotifications.mjs
+  - apps/web/src/slackUserId.mjs
+  - supabase/migrations/20260705125944_slack_user_mentions.sql
+  - supabase/functions/attendance-cron/index.ts
+
+## Recent Decisions
+
+- Decision: Store an optional Slack user ID on notification_targets.slack_user_id and mention it only in session lease warning messages when valid.
+- Reason: Channel messages alone may not trigger a desktop push notification, while a user mention increases Slack's notification priority without changing the channel-based delivery model.
+- Alternative: Switch to Slack DM delivery; deferred because the current product scope uses channel IDs and does not maintain Slack OAuth user mapping.
+- Impact: Settings now lets the user save a Slack User ID, get_due_session_lease_warnings returns it, and attendance-cron prepends <@U...> to the 5-minute lease warning text/blocks.
+
+## Current Status
+
+- Completed: Added Slack User ID normalization, validation, and mention formatting helpers.
+- Completed: Added optional Slack User ID storage to the web settings Slack target flow.
+- Completed: Added notification_targets.slack_user_id and updated get_due_session_lease_warnings return shape.
+- Completed: Applied the Supabase migration to project bqohkdzvxbrokkmuhysx and deployed attendance-cron version 26.
+- Completed: Targeted Slack notification tests, full npm.cmd test, and npm.cmd run build passed locally.
+- Next: Commit, push, and verify the GitHub Actions / Vercel production deployment.
+
+## Notes
+
+- Slack User ID is optional. If it is blank, the session lease warning remains a normal channel message.
+- The value should be a Slack member ID such as U123ABC456 or W123ABC456, not a display name or email.

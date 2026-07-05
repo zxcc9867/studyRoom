@@ -526,3 +526,12 @@ docs/images/study-room-thumbnail.png
 ## 2026-07-05 CI Build Script Note
 
 - Root build script: package.json build uses npm --workspace apps/web run build so GitHub Actions ubuntu-latest can run npm run build. Local Windows operators should continue invoking it as npm.cmd run build from PowerShell.
+
+## Slack Session Lease User Mentions
+
+- notification_targets can store an optional slack_user_id for Slack targets.
+- The value is a Slack member ID beginning with U or W, such as U123ABC456. It is not a Slack display name or email.
+- Web settings normalize and validate the value before saving it. Blank values are allowed and keep the existing channel-only behavior.
+- get_due_session_lease_warnings(p_now) returns slack_user_id together with channel_id so attendance-cron can render a mention in the same message.
+- attendance-cron prepends <@SlackUserId> only to the active session lease warning that is sent 5 minutes before lease_expires_at.
+- Scheduled study alarms, todo reminders, camera warnings, and recovery routines continue to use channel delivery without forced user mentions unless a future PRD expands that scope.

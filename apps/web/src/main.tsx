@@ -174,7 +174,9 @@ import { isSupabaseConfigured, supabase, supabaseAnonKey, supabaseUrl } from "./
 import {
   getSlackNotificationStatus,
   isValidSlackChannelId,
+  isValidSlackUserId,
   normalizeSlackChannelId,
+  normalizeSlackUserId,
   saveSlackNotificationTarget,
   sendSlackTestAlarm,
   type SlackNotificationStatus,
@@ -465,6 +467,7 @@ function DashboardApp() {
   const [slackStatus, setSlackStatus] = useState<SlackNotificationStatus | null>(null);
   const [notificationDeliveries, setNotificationDeliveries] = useState<NormalizedNotificationDelivery[]>([]);
   const [slackChannelId, setSlackChannelId] = useState("");
+  const [slackUserId, setSlackUserId] = useState("");
   const [reminderPopup, setReminderPopup] = useState<{ dateKey: string; reminderTime: string } | null>(null);
   const [activeSection, setActiveSection] = useState<DashboardSection>(() =>
     getDashboardSectionFromHash(window.location.hash),
@@ -2455,8 +2458,13 @@ function DashboardApp() {
     if (!session?.user.id) return;
 
     const nextSlackChannelId = normalizeSlackChannelId(slackChannelId);
+    const nextSlackUserId = normalizeSlackUserId(slackUserId);
     if (nextSlackChannelId && !isValidSlackChannelId(nextSlackChannelId)) {
       setMessage("Slack Channel ID 형식을 확인하세요. C 또는 G로 시작하는 채널 ID여야 합니다.");
+      return;
+    }
+    if (nextSlackUserId && !isValidSlackUserId(nextSlackUserId)) {
+      setMessage("Slack User ID \uD615\uC2DD\uC744 \uD655\uC778\uD558\uC138\uC694. U \uB610\uB294 W\uB85C \uC2DC\uC791\uD558\uB294 \uBA64\uBC84 ID\uC5EC\uC57C \uD569\uB2C8\uB2E4.");
       return;
     }
 
@@ -2477,7 +2485,7 @@ function DashboardApp() {
 
     try {
       if (nextSlackChannelId) {
-        setSlackStatus(await saveSlackNotificationTarget(session.user.id, nextSlackChannelId));
+        setSlackStatus(await saveSlackNotificationTarget(session.user.id, nextSlackChannelId, nextSlackUserId));
       }
       const nextStatus = await registerWebPushTarget(session.user.id);
       setWebPushStatus(nextStatus);
@@ -2544,6 +2552,7 @@ function DashboardApp() {
     if (!session?.user.id) return;
 
     const nextSlackChannelId = normalizeSlackChannelId(slackChannelId);
+    const nextSlackUserId = normalizeSlackUserId(slackUserId);
     if (!nextSlackChannelId) {
       setMessage("Slack Channel ID를 입력하세요.");
       return;
@@ -2552,13 +2561,18 @@ function DashboardApp() {
       setMessage("Slack Channel ID 형식을 확인하세요. C 또는 G로 시작하는 채널 ID여야 합니다.");
       return;
     }
+    if (nextSlackUserId && !isValidSlackUserId(nextSlackUserId)) {
+      setMessage("Slack User ID \uD615\uC2DD\uC744 \uD655\uC778\uD558\uC138\uC694. U \uB610\uB294 W\uB85C \uC2DC\uC791\uD558\uB294 \uBA64\uBC84 ID\uC5EC\uC57C \uD569\uB2C8\uB2E4.");
+      return;
+    }
 
     setBusy(true);
     try {
-      const nextStatus = await saveSlackNotificationTarget(session.user.id, nextSlackChannelId);
+      const nextStatus = await saveSlackNotificationTarget(session.user.id, nextSlackChannelId, nextSlackUserId);
       setSlackStatus(nextStatus);
       setSlackChannelId(nextStatus.channelId);
-      setMessage("Slack Channel ID를 저장했습니다. 이제 Slack 테스트 알림을 보낼 수 있습니다.");
+      setSlackUserId(nextStatus.slackUserId);
+      setMessage("Slack Channel ID\uC640 User ID\uB97C \uC800\uC7A5\uD588\uC2B5\uB2C8\uB2E4. User ID\uAC00 \uC788\uC73C\uBA74 \uC138\uC158 \uC885\uB8CC 5\uBD84 \uC804 \uC54C\uB9BC\uC5D0 \uBA58\uC158\uD569\uB2C8\uB2E4.");
     } catch (error) {
       setMessage(formatNotificationError(error));
     } finally {
@@ -5328,6 +5342,16 @@ function DashboardApp() {
                 placeholder="예: C123ABC456"
                 inputMode="text"
               />
+            </label>
+            <label>
+              Slack User ID
+              <input
+                value={slackUserId}
+                onChange={(event) => setSlackUserId(event.target.value)}
+                placeholder={"\uC608: U123ABC456"}
+                inputMode="text"
+              />
+              <span className="field-help">{"\uC138\uC158 \uC885\uB8CC 5\uBD84 \uC804 \uC54C\uB9BC\uC5D0 <@UserID> \uBA58\uC158\uC744 \uBD99\uC5EC Slack \uD478\uC2DC \uAC00\uB2A5\uC131\uC744 \uB192\uC785\uB2C8\uB2E4."}</span>
             </label>
             <div className="channel-actions">
               <button className="secondary wide-action" onClick={saveSlackChannelSettings} disabled={busy}>

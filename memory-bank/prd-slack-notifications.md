@@ -170,3 +170,12 @@ Slack workspace를 사용하는 개인 사용자. 정해진 시간에 독서실 
 - The message includes an interactive `1시간 연장` button with action id `extend_session_lease_60`.
 - `slack-recovery-interactions` handles that action through the existing Slack Interactivity Request URL and calls `extend_study_session_lease` with a 60-minute extension.
 - This path uses Slack Bot API and existing Slack signing-secret verification; Incoming Webhooks and DM delivery remain out of scope.
+
+## 2026-07-05 Addendum: Session lease user mention
+
+- The settings screen supports an optional Slack User ID in addition to Slack Channel ID.
+- The Slack User ID is stored on notification_targets.slack_user_id and must match a Slack member ID format such as U123ABC456 or W123ABC456.
+- The 5-minute-before-session-expiry Slack warning includes <@SlackUserId> when the saved user ID is valid.
+- The goal is to improve desktop push likelihood for lease warnings while preserving the channel-based Slack Bot API delivery model.
+- Blank Slack User ID values are allowed and keep existing behavior.
+- Slack DM delivery and Slack OAuth user mapping remain non-goals.

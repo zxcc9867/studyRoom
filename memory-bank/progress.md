@@ -3753,3 +3753,48 @@
 #### Next Priority
 
 - Live UI check on My Page with more than five recovery routines.
+### 2026-07-05 - Slack user mention for session lease warnings
+
+#### Completed Work
+
+- Added Slack User ID normalization and validation helpers.
+- Added optional Slack User ID input to the web Slack notification settings.
+- Stored the optional Slack user ID on notification_targets.slack_user_id for enabled Slack targets.
+- Updated get_due_session_lease_warnings(p_now) to return slack_user_id.
+- Updated attendance-cron so the 5-minute session lease warning prepends <@SlackUserId> when the saved user ID is valid.
+- Applied the Supabase migration to project bqohkdzvxbrokkmuhysx.
+- Deployed attendance-cron Edge Function version 26 with verify_jwt=false because the cron function uses its existing custom cron-secret authentication.
+
+#### Changed Files
+
+- apps/web/src/main.tsx
+- apps/web/src/styles.css
+- apps/web/src/slackNotifications.mjs
+- apps/web/src/slackNotifications.d.mts
+- apps/web/src/slackUserId.mjs
+- apps/web/src/slackUserId.d.mts
+- apps/web/test/slackNotifications.test.mjs
+- supabase/functions/attendance-cron/index.ts
+- supabase/migrations/20260705125944_slack_user_mentions.sql
+- memory-bank/active-context.md
+- memory-bank/progress.md
+- memory-bank/implementation-plan.md
+- memory-bank/prd-slack-notifications.md
+- memory-bank/trouble-shooting.md
+
+#### Verification
+
+- RED: node --test apps\web\test\slackNotifications.test.mjs initially failed before slackUserId.mjs existed.
+- GREEN: node --test apps\web\test\slackNotifications.test.mjs passed after implementation.
+- Supabase migration applied successfully after dropping and recreating get_due_session_lease_warnings because the function return type changed.
+- Remote SQL check confirmed notification_targets.slack_user_id exists and get_due_session_lease_warnings returns slack_user_id.
+- Supabase Edge Function list shows attendance-cron ACTIVE version 26.
+- Full suite and build passed locally before deployment.
+
+#### Remaining Work
+
+- Commit, push, and verify Vercel production deployment.
+
+#### Next Priority
+
+- In production settings, save Slack Channel ID plus Slack User ID, start a session, and confirm the 5-minute lease warning includes the user mention.

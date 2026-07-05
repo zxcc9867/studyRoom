@@ -3,6 +3,7 @@ import { readFileSync } from "node:fs";
 import { test } from "node:test";
 
 import { isValidSlackChannelId, normalizeSlackChannelId } from "../src/slackChannelId.mjs";
+import { buildSlackUserMention, isValidSlackUserId, normalizeSlackUserId } from "../src/slackUserId.mjs";
 
 test("normalizes slack channel IDs", () => {
   assert.equal(normalizeSlackChannelId(" c123abc456 "), "C123ABC456");
@@ -140,6 +141,36 @@ test("validates slack public and private channel IDs", () => {
   assert.equal(isValidSlackChannelId("D123ABC456"), false);
   assert.equal(isValidSlackChannelId("@study_room_alerts"), false);
   assert.equal(isValidSlackChannelId("abc"), false);
+});
+
+test("normalizes and validates slack user IDs for mentions", () => {
+  assert.equal(normalizeSlackUserId(" u123abc456 "), "U123ABC456");
+  assert.equal(normalizeSlackUserId("<@u123abc456>"), "U123ABC456");
+  assert.equal(normalizeSlackUserId(null), "");
+  assert.equal(isValidSlackUserId("U123ABC456"), true);
+  assert.equal(isValidSlackUserId("W123ABC456"), true);
+  assert.equal(isValidSlackUserId("C123ABC456"), false);
+  assert.equal(isValidSlackUserId("@wonjin"), false);
+  assert.equal(buildSlackUserMention("U123ABC456"), "<@U123ABC456>");
+  assert.equal(buildSlackUserMention(""), "");
+});
+
+test("session lease Slack warning can mention the saved Slack user ID", () => {
+  const appSource = readFileSync("apps/web/src/main.tsx", "utf8");
+  const slackSource = readFileSync("apps/web/src/slackNotifications.mjs", "utf8");
+  const attendanceSource = readFileSync("supabase/functions/attendance-cron/index.ts", "utf8");
+  const migrationSource = readFileSync("supabase/migrations/20260705125944_slack_user_mentions.sql", "utf8");
+
+  assert.match(migrationSource, /add column if not exists slack_user_id text/i);
+  assert.match(migrationSource, /slack_user_id text/i);
+  assert.match(migrationSource, /nt\.slack_user_id/i);
+  assert.match(migrationSource, /drop function if exists public\.get_due_session_lease_warnings/i);
+  assert.match(slackSource, /select\("destination,enabled,updated_at,slack_user_id"\)/);
+  assert.match(slackSource, /slack_user_id: nextSlackUserId \|\| null/);
+  assert.match(appSource, /Slack User ID/);
+  assert.match(appSource, /setSlackUserId/);
+  assert.match(attendanceSource, /slack_user_id: string \| null/);
+  assert.match(attendanceSource, /buildSlackUserMention\(warning\.slack_user_id\)/);
 });
 
 test("web app exposes an authenticated slack test alarm action", () => {

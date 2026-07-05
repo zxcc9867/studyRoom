@@ -46,6 +46,7 @@ type DueSessionLeaseWarning = {
   session_id: string;
   target_id: string;
   channel_id: string;
+  slack_user_id: string | null;
   local_date: string;
   started_at: string;
   lease_expires_at: string;
@@ -657,7 +658,9 @@ function buildSlackReminderMessage(reminder: DueReminder, todos: StudyTodo[], ap
 }
 
 function buildSlackSessionLeaseWarningMessage(warning: DueSessionLeaseWarning, appUrl: string) {
+  const mention = buildSlackUserMention(warning.slack_user_id);
   return [
+    ...(mention ? [mention, ""] : []),
     "*⏰ 세션 종료 5분 전*",
     "",
     `세션 유지 시간이 ${formatDateTime(warning.lease_expires_at)}에 만료됩니다.`,
@@ -670,12 +673,14 @@ function buildSlackSessionLeaseWarningMessage(warning: DueSessionLeaseWarning, a
 }
 
 function buildSlackSessionLeaseWarningBlocks(warning: DueSessionLeaseWarning) {
+  const mention = buildSlackUserMention(warning.slack_user_id);
+  const mentionPrefix = mention ? `${mention}\n` : "";
   return [
     {
       type: "section",
       text: {
         type: "mrkdwn",
-        text: `*⏰ 세션 종료 5분 전*\n세션 유지 시간이 *${formatDateTime(warning.lease_expires_at)}*에 만료됩니다.`,
+        text: `${mentionPrefix}*⏰ 세션 종료 5분 전*\n세션 유지 시간이 *${formatDateTime(warning.lease_expires_at)}*에 만료됩니다.`,
       },
     },
     {
@@ -872,6 +877,10 @@ function requiredEnv(name: string) {
   return value;
 }
 
+function buildSlackUserMention(value: string | null | undefined) {
+  const normalized = String(value ?? "").trim().toUpperCase();
+  return /^[UW][A-Z0-9]{8,}$/.test(normalized) ? `<@${normalized}>` : "";
+}
 function getSlackBotToken() {
   const value = Deno.env.get("SLACK_BOT_TOKEN") ?? Deno.env.get("STUDY_ALERT_SLACK_BOT_TOKEN");
   if (!value) {
