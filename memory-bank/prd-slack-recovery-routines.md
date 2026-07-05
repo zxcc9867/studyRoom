@@ -117,3 +117,11 @@ Students using the Slack notification channel who want stronger accountability a
 ## 12. Open Questions
 
 - Whether repeated recovery failures should create stronger penalties later.
+
+## 2026-07-05 Update: No-AI Weekly Recovery Summary
+
+- My Page shows a recovery routine summary and recent recovery history from `study_recovery_requests`.
+- The summary uses deterministic keyword categories instead of AI APIs to avoid additional API cost.
+- `attendance-cron` sends a Monday 08:00 local-time Slack summary for submitted recovery routines from the previous Monday-Sunday week.
+- `study_recovery_weekly_reports` stores the sent summary and prevents duplicate weekly Slack sends per user/week.
+- If no submitted recovery routines exist for the previous week, no Slack weekly summary is sent.

@@ -126,6 +126,11 @@ import {
 import { shouldShowStudyReminderPopup } from "./reminderPopup.mjs";
 import { shouldResumeStartAfterRecoveryUnlock } from "./recoveryStartResume.mjs";
 import {
+  classifyRecoveryReason,
+  getRecoveryTriggerLabel,
+  summarizeRecoveryRequests,
+} from "./recoverySummary.mjs";
+import {
   createSessionLeaseDeadlineMs,
   getLeaseAwareActiveNowMs,
   getSessionLeaseExcludedSeconds,
@@ -742,6 +747,18 @@ function DashboardApp() {
   const todoHistoryStats = useMemo(
     () => calculateTodoHistoryStats(studyTodos, calendarMonth),
     [studyTodos, calendarMonth],
+  );
+  const recoveryWeeklySummary = useMemo(
+    () => summarizeRecoveryRequests(studyRecoveryRequests, todayDateKey),
+    [studyRecoveryRequests, todayDateKey],
+  );
+  const recentRecoveryRequests = useMemo(
+    () => [...studyRecoveryRequests].sort((left, right) => {
+      const dateOrder = right.local_date.localeCompare(left.local_date);
+      if (dateOrder !== 0) return dateOrder;
+      return right.created_at.localeCompare(left.created_at);
+    }).slice(0, 8),
+    [studyRecoveryRequests],
   );
   const sortedGoals = useMemo(() => sortStudyGoals(studyGoals), [studyGoals]);
   const goalTitleById = useMemo(
@@ -3650,6 +3667,75 @@ function DashboardApp() {
       </div>
     );
   }
+  function renderRecoverySummaryPanel() {
+    const topCategory = recoveryWeeklySummary.topCategory;
+    const summaryLabel = recoveryWeeklySummary.totalCount === 0
+      ? "이번 주 회복루틴 없음"
+      : `이번 주 ${recoveryWeeklySummary.totalCount}건`;
+
+    return (
+      <div className="recovery-summary-panel" aria-label="회복루틴 주간 요약">
+        <div className="todo-header recovery-history-header">
+          <div>
+            <p className="eyebrow">recovery summary</p>
+            <h3>회복루틴 요약</h3>
+          </div>
+          <strong>{summaryLabel}</strong>
+        </div>
+        <div className="recovery-summary-grid">
+          <div>
+            <span>결석/지각</span>
+            <strong>{recoveryWeeklySummary.missedCount}건</strong>
+          </div>
+          <div>
+            <span>자리 비움</span>
+            <strong>{recoveryWeeklySummary.cameraCount}건</strong>
+          </div>
+          <div>
+            <span>주요 원인</span>
+            <strong>{topCategory?.label ?? "기록 없음"}</strong>
+          </div>
+        </div>
+        {recoveryWeeklySummary.totalCount === 0 ? (
+          <p className="todo-empty">이번 주에는 제출된 회복루틴이 없습니다. 결석이나 반복 이탈이 생기면 여기에 원인이 정리됩니다.</p>
+        ) : (
+          <div className="recovery-next-action">
+            <span>공부 시작 전 체크</span>
+            <strong>{recoveryWeeklySummary.nextAction}</strong>
+          </div>
+        )}
+      </div>
+    );
+  }
+
+  function renderRecoveryHistory() {
+    if (recentRecoveryRequests.length === 0) {
+      return <p className="todo-empty">아직 회복루틴 이력이 없습니다.</p>;
+    }
+
+    return (
+      <ul className="recovery-history-list">
+        {recentRecoveryRequests.map((request) => {
+          const category = classifyRecoveryReason(request);
+          return (
+            <li className="recovery-history-item" key={request.id}>
+              <div className="recovery-history-meta">
+                <span>{formatTodoDate(request.local_date)}</span>
+                <strong>{getRecoveryTriggerLabel(request.trigger_type)}</strong>
+                <em>{category.label}</em>
+                <small>{request.status === "submitted" ? "제출 완료" : "작성 필요"}</small>
+              </div>
+              <div className="recovery-history-copy">
+                <p><span>사유</span>{request.reason || "아직 작성되지 않았습니다."}</p>
+                <p><span>보충</span>{request.makeup_todo_title || "보충 과제가 없습니다."}</p>
+                <p><span>약속</span>{request.pledge_todo_title || "재도전 약속이 없습니다."}</p>
+              </div>
+            </li>
+          );
+        })}
+      </ul>
+    );
+  }
 
   if (!sessionInitialized) {
     return (
@@ -3901,6 +3987,23 @@ function DashboardApp() {
           </section>
         )}
 
+        {activeSection === "today" && blockingRecoveryRequests.length === 0 && recoveryWeeklySummary.totalCount > 0 && (
+          <section
+            className="recovery-precheck today-ordered-section"
+            style={{ order: getTodaySectionSortOrder("topbar") + 1 }}
+            role="status"
+            aria-live="polite"
+          >
+            <div>
+              <p className="eyebrow">study precheck</p>
+              <h3>공부 시작 전 체크</h3>
+              <p>
+                이번 주 회복루틴 {recoveryWeeklySummary.totalCount}건 중 주요 원인은 {recoveryWeeklySummary.topCategory?.label ?? "기타"}입니다.
+              </p>
+            </div>
+            <strong>{recoveryWeeklySummary.nextAction}</strong>
+          </section>
+        )}
         {message && (
           <p
             className="message"
@@ -4983,6 +5086,17 @@ function DashboardApp() {
               <strong>{todoHistoryStats.monthCompletedTodos}개</strong>
             </div>
           </div>
+
+          {renderRecoverySummaryPanel()}
+
+          <div className="todo-header recovery-history-header">
+            <div>
+              <p className="eyebrow">recovery history</p>
+              <h3>회복루틴 이력</h3>
+            </div>
+            <strong>{studyRecoveryRequests.length}건</strong>
+          </div>
+          {renderRecoveryHistory()}
 
           <div className="todo-header todo-history-header">
             <div>

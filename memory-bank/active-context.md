@@ -1,5 +1,45 @@
-﻿# Active Context
+# Active Context
 
+## Current Work
+
+- Task: Rule-based recovery routine history and weekly Slack summary.
+- Purpose: Show recovery routine history and cause summaries without using paid AI APIs, and send a weekly Slack summary after each week ends.
+- Related PRD:
+  - memory-bank/prd-slack-recovery-routines.md
+  - memory-bank/prd-slack-notifications.md
+- Related files:
+  - apps/web/src/main.tsx
+  - apps/web/src/recoverySummary.mjs
+  - apps/web/test/recoverySummary.test.mjs
+  - supabase/functions/attendance-cron/index.ts
+  - supabase/functions/_shared/recovery_summary.ts
+  - supabase/migrations/20260705090000_recovery_weekly_reports.sql
+
+## Recent Decisions
+
+- Decision: Use deterministic keyword categories instead of AI summarization.
+- Reason: The user wants no AI API cost. Keyword categories are predictable, testable, and good enough for the MVP accountability loop.
+- Alternative: OpenAI/LLM weekly natural-language summaries; deferred because it adds API cost and secret management.
+- Impact: My Page and Slack weekly summary show counts, top cause, and next-action text based on fixed rules such as 수면/피로, 업무/일정, 알림/습관, and 환경/자리 비움.
+
+## Current Status
+
+- Completed: Added recovery summary helper and tests.
+- Completed: Added My Page recovery summary/history UI and Today pre-start recovery check card.
+- Completed: Added `study_recovery_weekly_reports` with RLS and duplicate-safe one-report-per-user-week storage.
+- Completed: Updated `attendance-cron` to send Monday 08:00 local-time weekly Slack recovery summaries for submitted recovery routines.
+- Completed: Applied Supabase migration to project `bqohkdzvxbrokkmuhysx`.
+- Completed: Deployed `attendance-cron` Edge Function version 25 and verified ACTIVE status.
+- Completed: `npm.cmd test` passed 210 tests.
+- Completed: `npm.cmd run build` passed with the existing Vite chunk-size warning.
+- Next: Commit, push, and verify Vercel production deployment.
+
+## Notes
+
+- Weekly summaries are sent only when submitted recovery routines exist for the previous Monday-Sunday week.
+- The weekly Slack summary does not call OpenAI, Anthropic, Gemini, or any other AI API.
+
+---
 ## Current Work
 
 - Task: Cross-day active session today study timer fix.

@@ -546,3 +546,33 @@ test("slack recovery interactions verify signatures, open modal, and create the 
   assert.match(source, /\.from\("study_todos"\)/);
   assert.match(source, /slack_submitter_id/);
 });
+
+test("recovery weekly report migration stores one Slack summary per user week", () => {
+  const sql = readLatestMigrationContaining(/study_recovery_weekly_reports/i);
+
+  assert.match(sql, /create table if not exists public\.study_recovery_weekly_reports/i);
+  assert.match(sql, /week_start_date date not null/i);
+  assert.match(sql, /week_end_date date not null/i);
+  assert.match(sql, /summary jsonb not null default '\{\}'::jsonb/i);
+  assert.match(sql, /slack_target_id uuid references public\.notification_targets\(id\)/i);
+  assert.match(sql, /unique \(user_id, week_start_date\)/i);
+  assert.match(sql, /alter table public\.study_recovery_weekly_reports enable row level security/i);
+  assert.match(sql, /Users can read their recovery weekly reports/i);
+  assert.match(sql, /grant select on public\.study_recovery_weekly_reports to authenticated/i);
+  assert.match(sql, /grant all on public\.study_recovery_weekly_reports to service_role/i);
+});
+
+test("attendance cron sends weekly recovery summaries through Slack without AI APIs", () => {
+  const attendanceSource = readFileSync("supabase/functions/attendance-cron/index.ts", "utf8");
+  const summarySource = readFileSync("supabase/functions/_shared/recovery_summary.ts", "utf8");
+
+  assert.match(attendanceSource, /sendWeeklyRecoverySummaries/);
+  assert.match(attendanceSource, /recoveryWeeklySummaryResults/);
+  assert.match(summarySource, /study_recovery_requests/);
+  assert.match(summarySource, /study_recovery_weekly_reports/);
+  assert.match(summarySource, /https:\/\/slack\.com\/api\/chat\.postMessage/);
+  assert.match(summarySource, /shouldSendWeeklySummary/);
+  assert.match(summarySource, /weekday === 1 && localNow\.hour === 8 && localNow\.minute === 0/);
+  assert.match(summarySource, /수면\/피로/);
+  assert.doesNotMatch(summarySource, /openai|chat\.completions|responses\.create|anthropic|gemini/i);
+});

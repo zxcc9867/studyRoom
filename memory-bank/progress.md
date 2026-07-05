@@ -1,4 +1,4 @@
-﻿# Progress
+# Progress
 
 ### 2026-07-01 - Cross-day active session today study timer fix
 
@@ -3561,3 +3561,48 @@
 #### Next Priority
 
 - Live smoke test: create a timed todo, move it before the old end-soon reminder time, and confirm Slack sends only at the new 5-minute-before-end time.
+
+### 2026-07-05 - Rule-based recovery history and weekly Slack summary
+
+#### Completed Work
+
+- Added a no-AI recovery summary helper that classifies recovery routine reasons with deterministic keyword categories.
+- Added My Page recovery routine summary and recent recovery history UI.
+- Added a Today pre-start check card that warns about this week's top recovery cause when there is recovery history and no pending blocker.
+- Added `study_recovery_weekly_reports` to store one weekly Slack summary per user/week with RLS and explicit grants.
+- Updated `attendance-cron` to send a Monday 08:00 local-time Slack summary for the previous week's submitted recovery routines.
+- Applied the Supabase migration to project `bqohkdzvxbrokkmuhysx` and deployed `attendance-cron` version 25.
+
+#### Changed Files
+
+- `apps/web/src/main.tsx`
+- `apps/web/src/styles.css`
+- `apps/web/src/recoverySummary.mjs`
+- `apps/web/src/recoverySummary.d.mts`
+- `apps/web/test/recoverySummary.test.mjs`
+- `packages/core/test/sql-migrations.test.mjs`
+- `supabase/functions/attendance-cron/index.ts`
+- `supabase/functions/_shared/recovery_summary.ts`
+- `supabase/migrations/20260705090000_recovery_weekly_reports.sql`
+- `memory-bank/active-context.md`
+- `memory-bank/progress.md`
+- `memory-bank/implementation-plan.md`
+- `memory-bank/prd-slack-recovery-routines.md`
+- `memory-bank/trouble-shooting.md`
+
+#### Verification
+
+- `npm.cmd test` passed 210 tests.
+- `npm.cmd run build` passed with the existing Vite chunk-size warning.
+- Supabase migration apply returned success.
+- Supabase Edge Functions list shows `attendance-cron` ACTIVE version 25.
+- Remote SQL check confirmed `public.study_recovery_weekly_reports` exists.
+
+#### Remaining Work
+
+- Commit, push, and verify Vercel production deployment.
+- Optional live check on next Monday 08:00 local time or by invoking cron with a controlled timestamp in a future test harness.
+
+#### Next Priority
+
+- Production deploy verification and live UI smoke test of My Page recovery history.

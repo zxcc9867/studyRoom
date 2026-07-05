@@ -7,6 +7,7 @@ import {
   sendPendingRecoveryFollowups,
   sendRecoveryRequestSlackMessage,
 } from "../_shared/recovery.ts";
+import { sendWeeklyRecoverySummaries } from "../_shared/recovery_summary.ts";
 
 type DueReminder = {
   user_id: string;
@@ -124,6 +125,7 @@ Deno.serve(async (request) => {
   const sessionLeaseWarningResults = await sendSessionLeaseWarningNotifications(admin, sessionLeaseWarnings);
   // sendPendingRecoveryFollowups updates study_recovery_requests.followup_sent_at to avoid repeated nudges.
   const recoveryFollowupResults = await sendPendingRecoveryFollowups(admin, now);
+  const recoveryWeeklySummaryResults = await sendWeeklyRecoverySummaries(admin, now);
 
   return new Response(
     JSON.stringify({
@@ -136,6 +138,7 @@ Deno.serve(async (request) => {
       sessionLeaseWarningResults,
       missedRecoveryResults,
       recoveryFollowupResults,
+      recoveryWeeklySummaryResults,
     }),
     { status: 200, headers: jsonHeaders },
   );

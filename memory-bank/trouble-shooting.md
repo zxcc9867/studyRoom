@@ -1,4 +1,4 @@
-﻿# Trouble Shooting
+# Trouble Shooting
 
 ## 2026-07-01 - Cross-midnight active session left Today study timer at zero
 
@@ -2367,3 +2367,32 @@ Restored the damaged file from HEAD, then reapplied the intended minimal patch w
 ### Prevention
 
 If `apply_patch` is blocked in this repo, prefer Node `fs.readFileSync(path, "utf8")` and `fs.writeFileSync(path, text, "utf8")` for targeted edits. Check `git diff --stat` and a focused diff immediately after fallback edits.
+## 2026-07-05 - Recovery summary keyword tests matched default fixture text
+
+### Situation
+
+While adding deterministic recovery reason classification tests, the camera and 기타 test cases unexpectedly matched unrelated categories.
+
+### Error Message
+
+```txt
+AssertionError: '수면/피로' !== '환경/자리 비움'
+AssertionError: '알림/습관' !== '기타'
+```
+
+### Cause
+
+The shared test fixture included default text such as `늦잠` and `알림 전에 입장`, so tests that intended to check camera or 기타 classification were still matching the default fixture fields.
+
+### Resolution
+
+Overrode `makeup_todo_title` and `pledge_todo_title` to null for those cases and used a camera-specific reason string.
+
+### Related Files
+
+- `apps/web/test/recoverySummary.test.mjs`
+- `apps/web/src/recoverySummary.mjs`
+
+### Prevention
+
+When testing keyword classifiers, clear unrelated fixture text so only the intended field drives the expected category.
