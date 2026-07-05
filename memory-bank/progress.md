@@ -3790,10 +3790,14 @@
 - Remote SQL check confirmed notification_targets.slack_user_id exists and get_due_session_lease_warnings returns slack_user_id.
 - Supabase Edge Function list shows attendance-cron ACTIVE version 26.
 - Full suite and build passed locally before deployment.
+- Commit 2c56d17c1d79b69dd4bc4a773e7909f0c9fb739e was pushed to origin/main.
+- GitHub Actions run 28742189342 completed successfully.
+- Vercel deployment dpl_DZpjDxqvaTLyQsDBJ5LtodPn2YvE reached READY for production.
+- Production URL https://study-room-attendance.vercel.app/ returned HTTP 200.
 
 #### Remaining Work
 
-- Commit, push, and verify Vercel production deployment.
+- None for implementation and deployment.
 
 #### Next Priority
 

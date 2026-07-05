@@ -1855,7 +1855,10 @@
 - Completed: Added notification_targets.slack_user_id and updated get_due_session_lease_warnings return shape.
 - Completed: Applied the Supabase migration to project bqohkdzvxbrokkmuhysx and deployed attendance-cron version 26.
 - Completed: Targeted Slack notification tests, full npm.cmd test, and npm.cmd run build passed locally.
-- Next: Commit, push, and verify the GitHub Actions / Vercel production deployment.
+- Completed: Commit 2c56d17c1d79b69dd4bc4a773e7909f0c9fb739e was pushed to origin/main.
+- Completed: GitHub Actions run 28742189342 completed successfully.
+- Completed: Vercel deployment dpl_DZpjDxqvaTLyQsDBJ5LtodPn2YvE reached READY and production URL returned HTTP 200.
+- Next: Save a Slack User ID in production settings and verify the next lease warning includes the mention.
 
 ## Notes
 
