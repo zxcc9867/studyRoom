@@ -522,3 +522,7 @@ docs/images/study-room-thumbnail.png
 - Migration 20260628174500_clear_future_todo_schedule_deliveries.sql adds clear_future_todo_schedule_deliveries(p_todo_ids, p_changed_at) and an AFTER UPDATE trigger on study_todos(start_time, end_time, is_completed).
 - When a schedule changes, future reminder locks for that todo are deleted so the next cron evaluation can send according to the current start/end time.
 - Past sent reminders are retained as delivery history and cannot be unsent.
+
+## 2026-07-05 CI Build Script Note
+
+- Root build script: package.json build uses npm --workspace apps/web run build so GitHub Actions ubuntu-latest can run npm run build. Local Windows operators should continue invoking it as npm.cmd run build from PowerShell.

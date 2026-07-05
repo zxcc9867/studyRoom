@@ -2,6 +2,32 @@
 
 ## Current Work
 
+- Task: Fix CI build gate Linux runner failure.
+- Purpose: Make the newly added GitHub Actions build gate actually run on Ubuntu by removing Windows-only npm.cmd from the root build script.
+- Related files:
+  - package.json
+  - apps/web/test/ciWorkflow.test.mjs
+  - memory-bank/trouble-shooting.md
+
+## Recent Decisions
+
+- Decision: Root package build script uses npm --workspace apps/web run build.
+- Reason: GitHub Actions runs on ubuntu-latest, where npm.cmd does not exist. Manual local commands can still use npm.cmd run build from PowerShell.
+- Impact: npm.cmd run build works locally because it invokes the cross-platform root script, and GitHub Actions can run npm run build on Linux.
+
+## Current Status
+
+- Completed: Reproduced that local build passes and identified CI exit 127 as npm.cmd missing on Linux.
+- Completed: Updated package.json and added ciWorkflow test coverage for the cross-platform build script.
+- Completed: npm.cmd test passed 219 tests.
+- Completed: npm.cmd run build passed with the existing Vite chunk-size warning.
+- Next: Commit, push, and verify the replacement GitHub Actions/Vercel production deployment.
+
+---
+
+
+## Current Work
+
 - Task: Notification diagnostics UI and CI production build gate.
 - Purpose: Make the settings screen show whether browser push, Slack target storage, and recent notification deliveries are healthy, and prevent Vercel production deploys from skipping the web production build.
 - Related PRD:

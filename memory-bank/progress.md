@@ -1,3 +1,37 @@
+### 2026-07-05 - CI build gate Linux runner fix
+
+#### Completed Work
+
+- Investigated GitHub Actions run 28736926292 failing after the new build gate was added.
+- Confirmed tests passed in CI and the new Build web app step failed with exit code 127.
+- Identified root cause: package.json build used Windows-only npm.cmd, but the workflow runner is ubuntu-latest.
+- Changed the root build script to npm --workspace apps/web run build.
+- Added ciWorkflow test coverage to prevent npm.cmd from returning to the root build script.
+
+#### Changed Files
+
+- package.json
+- apps/web/test/ciWorkflow.test.mjs
+- memory-bank/active-context.md
+- memory-bank/progress.md
+- memory-bank/implementation-plan.md
+- memory-bank/trouble-shooting.md
+
+#### Verification
+
+- CI failure observed: GitHub Actions run 28736926292, job Test and deploy production, Build web app step failed with exit code 127.
+- Targeted: node --test apps\web\test\ciWorkflow.test.mjs passed 2 tests.
+- Full suite: npm.cmd test passed 219 tests.
+- Build: npm.cmd run build passed with the existing Vite chunk-size warning.
+
+#### Remaining Work
+
+- Commit, push, and verify the new GitHub Actions production deployment.
+
+#### Next Priority
+
+- Confirm the new workflow reaches the Vercel deploy step and production URL returns HTTP 200 for the replacement commit.
+
 ### 2026-07-05 - Notification diagnostics and CI build gate
 
 #### Completed Work

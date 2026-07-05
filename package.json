@@ -9,7 +9,7 @@
   ],
   "scripts": {
     "test": "node --test packages/core/test/*.test.mjs apps/web/test/*.test.mjs",
-    "build": "npm.cmd --workspace apps/web run build",
+    "build": "npm --workspace apps/web run build",
     "dev:web": "npm.cmd --workspace apps/web run dev",
     "dev:mobile": "npm.cmd --workspace apps/mobile run start",
     "infra:build": "npm.cmd --prefix infra/aws-cdk run build",

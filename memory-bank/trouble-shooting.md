@@ -2482,3 +2482,33 @@ Stored user-facing helper strings as JavaScript Unicode escapes, then verified s
 ### Prevention
 
 For new Korean strings in small JS helper modules, prefer ASCII-safe Unicode escapes when the file may be edited through Windows fallback scripts. Always run node --check plus the relevant unit tests.
+
+## 2026-07-05 - GitHub Actions build gate failed on npm.cmd
+
+### Situation
+
+After adding npm run build before Vercel deploy, GitHub Actions run 28736926292 failed in the Build web app step even though local npm.cmd run build passed.
+
+### Error Message
+
+```txt
+Process completed with exit code 127.
+```
+
+### Cause
+
+The root package.json build script called npm.cmd --workspace apps/web run build. GitHub Actions uses ubuntu-latest, where npm.cmd does not exist. Tests passed because they did not invoke the root build script before the new workflow gate.
+
+### Resolution
+
+Changed package.json build to npm --workspace apps/web run build and added ciWorkflow test coverage that asserts the root build script is cross-platform and does not contain npm.cmd.
+
+### Related Files
+
+- package.json
+- .github/workflows/vercel-production.yml
+- apps/web/test/ciWorkflow.test.mjs
+
+### Prevention
+
+Keep npm.cmd for manual PowerShell commands, but do not put Windows-only npm.cmd invocations in CI scripts or package scripts executed on Linux runners.
