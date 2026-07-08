@@ -1,3 +1,43 @@
+### 2026-07-09 - Study Forest smile and free movement refinement
+
+#### Completed Work
+
+- Changed the Study Forest avatar from coarse grid coordinates to percent-based meadow coordinates.
+- Added click/touch-to-walk on the forest scene.
+- Changed idle auto-walk from row pacing to deterministic scenic waypoint movement.
+- Added y-position based avatar scale and z-index so the character feels farther back or closer to the camera.
+- Reworked the avatar face CSS with cheek highlights and a smile arc instead of the previous frown-like mouth.
+- Added regression tests for movement helpers, click conversion, depth styling, JSX wiring, and smile CSS.
+
+#### Changed Files
+
+- apps/web/src/main.tsx
+- apps/web/src/studyForest.mjs
+- apps/web/src/studyForest.d.mts
+- apps/web/src/styles.css
+- apps/web/test/studyForest.test.mjs
+- apps/web/test/studyForestUi.test.mjs
+- memory-bank/active-context.md
+- memory-bank/progress.md
+- memory-bank/implementation-plan.md
+- memory-bank/prd-study-forest.md
+- memory-bank/trouble-shooting.md
+
+#### Verification
+
+- RED: targeted Study Forest tests failed before the new helper exports, click handler, and smiling CSS existed.
+- GREEN: targeted Study Forest tests passed after implementation.
+- Full suite: npm.cmd test passed 233 tests.
+- Build: npm.cmd run build passed with the existing Vite chunk-size warning.
+
+#### Remaining Work
+
+- Commit, push, and verify Vercel production deployment.
+
+#### Next Priority
+
+- Visually inspect production #forest after deployment and tune avatar proportions if needed.
+
 ### 2026-07-09 - Study Forest polish and planner relative date navigation
 
 #### Completed Work

@@ -33,10 +33,33 @@ export type StudyForestState = {
   statusMessage: string;
 };
 
+export type StudyForestAvatarFacing = "left" | "right" | "up" | "down";
+
 export type StudyForestAvatarPosition = {
   x: number;
   y: number;
-  facing?: "left" | "right" | "up" | "down";
+  facing?: StudyForestAvatarFacing;
+};
+
+export type StudyForestAvatarBounds = {
+  minX?: number;
+  maxX?: number;
+  minY?: number;
+  maxY?: number;
+  step?: number;
+};
+
+export type StudyForestScenePointInput = {
+  clientX: number;
+  clientY: number;
+  rect: Pick<DOMRect, "left" | "top" | "width" | "height">;
+};
+
+export type StudyForestAvatarSceneStyle = {
+  left: string;
+  top: string;
+  "--forest-avatar-scale": string;
+  zIndex: string;
 };
 
 export const treeStageLabels: Record<StudyForestTreeStage, string>;
@@ -53,11 +76,26 @@ export function buildPlacedTrees(count: number): StudyForestPlacedTree[];
 export function getAvatarStep(
   position: StudyForestAvatarPosition,
   key: string,
-  bounds?: { width?: number; height?: number },
-): StudyForestAvatarPosition & { facing: "left" | "right" | "up" | "down" };
+  bounds?: StudyForestAvatarBounds,
+): StudyForestAvatarPosition & { facing: StudyForestAvatarFacing };
 
 export function getNextAutoAvatarStep(
   position: StudyForestAvatarPosition,
   tick: number,
-  bounds?: { width?: number; height?: number },
-): StudyForestAvatarPosition & { facing: "left" | "right" | "up" | "down" };
+  bounds?: StudyForestAvatarBounds,
+): StudyForestAvatarPosition & { facing: StudyForestAvatarFacing };
+
+export function getAvatarPositionFromScenePoint(
+  input: StudyForestScenePointInput,
+  bounds?: StudyForestAvatarBounds,
+): Pick<StudyForestAvatarPosition, "x" | "y">;
+
+export function getAvatarFacing(
+  fromPosition: StudyForestAvatarPosition,
+  toPosition: Pick<StudyForestAvatarPosition, "x" | "y">,
+): StudyForestAvatarFacing;
+
+export function getAvatarSceneStyle(
+  position: StudyForestAvatarPosition,
+  bounds?: StudyForestAvatarBounds,
+): StudyForestAvatarSceneStyle;

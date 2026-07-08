@@ -1,3 +1,33 @@
+## 2026-07-09 - Study Forest avatar looked tense and movement felt boxed
+
+### Situation
+
+The user reported that the Study Forest avatar did not look like it was smiling and that movement felt like a character moving inside a rectangle rather than walking through a 2.5D forest space.
+
+### Error Message
+
+No runtime exception. User-visible symptoms: frown-like face and stiff boxed movement.
+
+### Cause
+
+The avatar face used a compact radial-gradient mouth that visually read as a tense expression. Movement used coarse grid coordinates converted into fixed left/top offsets, and idle movement paced through a small key pattern rather than moving toward scenic points.
+
+### Resolution
+
+Changed avatar state to percent-based meadow coordinates, added scene pointer click-to-walk, added deterministic auto-walk waypoints, and derived avatar scale/z-index from y-position for depth. Reworked the face CSS to use eye/cheek gradients plus a smile arc pseudo-element.
+
+### Related Files
+
+- apps/web/src/studyForest.mjs
+- apps/web/src/main.tsx
+- apps/web/src/styles.css
+- apps/web/test/studyForest.test.mjs
+- apps/web/test/studyForestUi.test.mjs
+
+### Prevention
+
+Study Forest UI tests should keep checking avatar expression CSS, scene pointer handling, waypoint movement, and y-depth style contracts whenever the forest page is changed.
+
 ## 2026-07-09 - Planner previous and next buttons were anchored to today
 
 ### Situation

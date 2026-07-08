@@ -8,6 +8,7 @@ import {
   type FormEvent,
   type KeyboardEvent,
   type MouseEvent,
+  type PointerEvent,
 } from "react";
 import { createRoot } from "react-dom/client";
 import {
@@ -177,6 +178,9 @@ import {
 } from "./studyGoals.mjs";
 import {
   buildStudyForestState,
+  getAvatarFacing,
+  getAvatarPositionFromScenePoint,
+  getAvatarSceneStyle,
   getAvatarStep,
   getNextAutoAvatarStep,
 } from "./studyForest.mjs";
@@ -227,7 +231,7 @@ const emailOtpLength = EMAIL_OTP_LENGTH;
 const googleAuthEnabled = import.meta.env.VITE_GOOGLE_AUTH_ENABLED === "true";
 const cameraRequiredWarningCooldownMs = 10 * 60 * 1000;
 const ACTIVE_SESSION_LEASE_REFRESH_MS = 15 * 1000;
-const FOREST_MEADOW_BOUNDS = { width: 12, height: 8 };
+const FOREST_MEADOW_BOUNDS = { minX: 8, maxX: 92, minY: 42, maxY: 84, step: 4 };
 const FOREST_MANUAL_CONTROL_MS = 8 * 1000;
 type TodoRepeatMode = "single" | "weekly";
 type CameraSetupPrompt = {
@@ -485,8 +489,8 @@ function DashboardApp() {
     getDashboardSectionFromHash(window.location.hash),
   );
   const [forestAvatar, setForestAvatar] = useState<{ x: number; y: number; facing: "left" | "right" | "up" | "down" }>({
-    x: 5,
-    y: 4,
+    x: 52,
+    y: 64,
     facing: "down",
   });
   const [forestManualUntilMs, setForestManualUntilMs] = useState(0);
@@ -1723,6 +1727,20 @@ function DashboardApp() {
   function moveForestAvatar(key: string) {
     setForestManualUntilMs(Date.now() + FOREST_MANUAL_CONTROL_MS);
     setForestAvatar((current) => getAvatarStep(current, key, FOREST_MEADOW_BOUNDS));
+  }
+
+  function handleForestScenePointerDown(event: PointerEvent<HTMLDivElement>) {
+    if (event.pointerType === "mouse" && event.button !== 0) return;
+    const targetPosition = getAvatarPositionFromScenePoint({
+      clientX: event.clientX,
+      clientY: event.clientY,
+      rect: event.currentTarget.getBoundingClientRect(),
+    }, FOREST_MEADOW_BOUNDS);
+    setForestManualUntilMs(Date.now() + FOREST_MANUAL_CONTROL_MS);
+    setForestAvatar((current) => ({
+      ...targetPosition,
+      facing: getAvatarFacing(current, targetPosition),
+    }));
   }
 
   function handleForestKeyDown(event: KeyboardEvent<HTMLElement>) {
@@ -5274,7 +5292,11 @@ function DashboardApp() {
 
             <div className="study-forest-grid">
               <div className="study-forest-scene-card">
-                <div className="study-forest-scene" aria-label={"2.5D \uACF5\uBD80 \uC232 \uC7A5\uBA74"}>
+                <div
+                  className="study-forest-scene"
+                  aria-label={"2.5D \uACF5\uBD80 \uC232 \uC7A5\uBA74"}
+                  onPointerDown={handleForestScenePointerDown}
+                >
                   <div className="forest-sky" />
                   <span className="forest-cloud forest-cloud-one" aria-hidden="true" />
                   <span className="forest-cloud forest-cloud-two" aria-hidden="true" />
@@ -5316,10 +5338,7 @@ function DashboardApp() {
                   </div>
                   <div
                     className={"forest-avatar forest-avatar-" + forestAvatar.facing}
-                    style={{
-                      left: String(8 + forestAvatar.x * 7) + "%",
-                      top: String(34 + forestAvatar.y * 5.5) + "%",
-                    }}
+                    style={getAvatarSceneStyle(forestAvatar)}
                     aria-label={"\uACF5\uBD80 \uC232 \uCE90\uB9AD\uD130"}
                   >
                     <span className="forest-avatar-shadow" />

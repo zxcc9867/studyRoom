@@ -3,7 +3,10 @@ import { test } from "node:test";
 
 import {
   buildStudyForestState,
+  getAvatarPositionFromScenePoint,
+  getAvatarSceneStyle,
   getAvatarStep,
+  getNextAutoAvatarStep,
   getTreeStageForProgress,
 } from "../src/studyForest.mjs";
 
@@ -76,9 +79,39 @@ test("maps progress days to visible tree stages", () => {
 });
 
 test("moves avatar by keyboard step while clamping to the meadow", () => {
-  assert.deepEqual(getAvatarStep({ x: 5, y: 4 }, "ArrowLeft"), { x: 4, y: 4, facing: "left" });
-  assert.deepEqual(getAvatarStep({ x: 0, y: 0 }, "ArrowUp"), { x: 0, y: 0, facing: "up" });
-  assert.deepEqual(getAvatarStep({ x: 11, y: 7 }, "ArrowRight"), { x: 11, y: 7, facing: "right" });
+  assert.deepEqual(getAvatarStep({ x: 52, y: 62 }, "ArrowLeft"), { x: 48, y: 62, facing: "left" });
+  assert.deepEqual(getAvatarStep({ x: 8, y: 42 }, "ArrowUp"), { x: 8, y: 42, facing: "up" });
+  assert.deepEqual(getAvatarStep({ x: 92, y: 84 }, "ArrowRight"), { x: 92, y: 84, facing: "right" });
+});
+
+test("moves avatar to clicked scene points instead of a fixed grid", () => {
+  const next = getAvatarPositionFromScenePoint({
+    clientX: 330,
+    clientY: 260,
+    rect: { left: 30, top: 20, width: 600, height: 400 },
+  });
+
+  assert.deepEqual(next, { x: 50, y: 60 });
+});
+
+test("uses avatar y position to create 2.5D depth", () => {
+  const back = getAvatarSceneStyle({ x: 52, y: 42, facing: "up" });
+  const front = getAvatarSceneStyle({ x: 52, y: 84, facing: "down" });
+
+  assert.equal(back.left, "52%");
+  assert.equal(back.top, "42%");
+  assert.equal(front.left, "52%");
+  assert.equal(front.top, "84%");
+  assert.ok(Number(front["--forest-avatar-scale"]) > Number(back["--forest-avatar-scale"]));
+  assert.ok(Number(front.zIndex) > Number(back.zIndex));
+});
+
+test("auto walk heads toward scenic waypoints instead of pacing one row", () => {
+  const next = getNextAutoAvatarStep({ x: 52, y: 62, facing: "down" }, 0);
+
+  assert.ok(next.x > 52);
+  assert.ok(next.y < 62);
+  assert.equal(next.facing, "right");
 });
 
 

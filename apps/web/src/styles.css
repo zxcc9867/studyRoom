@@ -2935,6 +2935,8 @@ button:active:not(:disabled) {
   box-shadow: inset 0 -10px 0 rgba(47, 107, 82, 0.18), 0 8px 0 rgba(47, 107, 82, 0.18);
   outline: none;
   perspective: 900px;
+  cursor: pointer;
+  touch-action: manipulation;
   transform-style: preserve-3d;
   isolation: isolate;
 }
@@ -3356,6 +3358,13 @@ button:active:not(:disabled) {
   z-index: 28;
   filter: drop-shadow(0 16px 0 rgba(47, 42, 31, 0.22));
   pointer-events: none;
+  transform: translate(-50%, -100%) scale(var(--forest-avatar-scale, 1));
+  transform-origin: 50% 100%;
+  transition:
+    left 620ms cubic-bezier(0.2, 0.82, 0.2, 1),
+    top 620ms cubic-bezier(0.2, 0.82, 0.2, 1),
+    transform 620ms ease,
+    filter 620ms ease;
 }
 
 .forest-avatar-shadow {
@@ -3387,12 +3396,25 @@ button:active:not(:disabled) {
   left: 23px;
   top: 26px;
   width: 26px;
-  height: 12px;
+  height: 14px;
   z-index: 4;
+  border-radius: 999px;
   background:
-    radial-gradient(circle at 4px 3px, #2f2a1f 0 2px, transparent 3px),
-    radial-gradient(circle at 21px 3px, #2f2a1f 0 2px, transparent 3px),
-    radial-gradient(ellipse at 50% 100%, transparent 0 5px, #bf5c42 6px 7px, transparent 8px);
+    radial-gradient(circle at 4px 4px, #2f2a1f 0 2px, transparent 3px),
+    radial-gradient(circle at 21px 4px, #2f2a1f 0 2px, transparent 3px),
+    radial-gradient(circle at 3px 8px, rgba(242, 126, 111, 0.42) 0 4px, transparent 5px),
+    radial-gradient(circle at 23px 8px, rgba(242, 126, 111, 0.42) 0 4px, transparent 5px);
+}
+
+.forest-avatar-face::after {
+  content: "";
+  position: absolute;
+  left: 8px;
+  top: 5px;
+  width: 11px;
+  height: 7px;
+  border-bottom: 3px solid #bf5c42;
+  border-radius: 0 0 999px 999px;
 }
 
 .forest-avatar-hair {
@@ -3473,7 +3495,13 @@ button:active:not(:disabled) {
 }
 
 .forest-avatar-left {
-  transform: translate(-50%, -100%) rotateY(180deg);
+  transform: translate(-50%, -100%) scale(var(--forest-avatar-scale, 1)) rotateY(180deg);
+}
+
+.forest-avatar-right,
+.forest-avatar-down,
+.forest-avatar-up {
+  transform: translate(-50%, -100%) scale(var(--forest-avatar-scale, 1));
 }
 
 .forest-avatar-up .forest-avatar-head,

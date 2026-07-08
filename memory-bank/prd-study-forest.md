@@ -17,6 +17,9 @@ Personal MVP users who want a softer Animal Crossing-style reward for sustained 
 - Let the user move a small character with keyboard or touch controls.
 - Make the personal space feel like a cozy 2.5D forest village through original, non-infringing props and character details.
 - Let the character walk automatically after a short period without user control.
+- Let the user click or touch the meadow to move the character to that point.
+- Make the avatar expression friendly and smiling, not tense or frowning.
+- Use y-position scale and layering so movement feels like a 2.5D space rather than a flat box.
 
 ## 4. Non-goals
 
@@ -57,6 +60,8 @@ Personal MVP users who want a softer Animal Crossing-style reward for sustained 
 - [x] Render a 2.5D CSS scene with land, path, pond, styled trees, village props, flowers/stones, and a clearly visible detailed avatar.
 - [x] Support keyboard movement and touch button movement.
 - [x] Resume automatic avatar walking when manual control is idle.
+- [x] Support click/touch-to-walk inside the meadow.
+- [x] Render a friendly smiling avatar face and y-depth scaling/layering.
 
 ## 8. Non-functional Requirements
 

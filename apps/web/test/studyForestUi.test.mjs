@@ -16,6 +16,8 @@ test("study forest avatar JSX uses the styled character part classes", () => {
   assert.match(mainSource, /className="forest-avatar-arm forest-avatar-arm-left"/);
   assert.match(mainSource, /className="forest-avatar-arm forest-avatar-arm-right"/);
   assert.match(mainSource, /className="forest-avatar-backpack"/);
+  assert.match(mainSource, /onPointerDown=\{handleForestScenePointerDown\}/);
+  assert.match(mainSource, /getAvatarSceneStyle\(forestAvatar\)/);
   assert.doesNotMatch(mainSource, /className="avatar-head"/);
   assert.doesNotMatch(mainSource, /className="avatar-body"/);
   assert.doesNotMatch(mainSource, /className="avatar-shadow"/);
@@ -46,7 +48,11 @@ test("study forest scene has 2.5D depth and keeps the avatar above terrain", () 
   assert.match(cssSource, /\.study-forest-scene\s*\{[\s\S]*radial-gradient\(circle at 18% 18%/);
   assert.match(cssSource, /\.forest-cottage\s*\{[\s\S]*z-index:\s*4/);
   assert.match(cssSource, /\.forest-flower-patch\s*\{[\s\S]*box-shadow:/);
+  assert.match(cssSource, /\.forest-avatar-face::after\s*\{[\s\S]*border-bottom:/);
+  assert.match(cssSource, /\.forest-avatar-face\s*\{[\s\S]*radial-gradient\(circle at 3px 8px/);
   assert.match(cssSource, /@keyframes forest-avatar-bob/);
+  assert.match(cssSource, /\.forest-avatar\s*\{[\s\S]*transition:/);
+  assert.match(cssSource, /scale\(var\(--forest-avatar-scale/);
   assert.match(actorBlock, /position:\s*absolute/);
   assert.match(actorBlock, /transform:\s*translate\(-50%, -100%\)/);
   assert.match(avatarBlock, /z-index:\s*(?:1[2-9]|[2-9]\d)/);

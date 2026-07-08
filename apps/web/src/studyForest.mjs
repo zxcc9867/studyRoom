@@ -1,5 +1,18 @@
-const DEFAULT_MEADOW_WIDTH = 12;
-const DEFAULT_MEADOW_HEIGHT = 8;
+const DEFAULT_MEADOW_BOUNDS = {
+  minX: 8,
+  maxX: 92,
+  minY: 42,
+  maxY: 84,
+  step: 4,
+};
+
+const AUTO_WALK_WAYPOINTS = [
+  { x: 72, y: 56 },
+  { x: 82, y: 74 },
+  { x: 53, y: 81 },
+  { x: 27, y: 64 },
+  { x: 45, y: 50 },
+];
 
 export const treeStageLabels = {
   seed: "씨앗",
@@ -87,32 +100,64 @@ export function buildPlacedTrees(count) {
 }
 
 export function getAvatarStep(position, key, bounds = {}) {
-  const width = bounds.width ?? DEFAULT_MEADOW_WIDTH;
-  const height = bounds.height ?? DEFAULT_MEADOW_HEIGHT;
-  const current = {
-    x: clampInteger(position?.x ?? 0, 0, width - 1),
-    y: clampInteger(position?.y ?? 0, 0, height - 1),
-  };
+  const meadow = getAvatarBounds(bounds);
+  const current = normalizeAvatarPosition(position, meadow);
+  const step = meadow.step;
 
   if (key === "ArrowLeft" || key === "a" || key === "A") {
-    return { x: clampInteger(current.x - 1, 0, width - 1), y: current.y, facing: "left" };
+    return { x: clampNumber(current.x - step, meadow.minX, meadow.maxX), y: current.y, facing: "left" };
   }
   if (key === "ArrowRight" || key === "d" || key === "D") {
-    return { x: clampInteger(current.x + 1, 0, width - 1), y: current.y, facing: "right" };
+    return { x: clampNumber(current.x + step, meadow.minX, meadow.maxX), y: current.y, facing: "right" };
   }
   if (key === "ArrowUp" || key === "w" || key === "W") {
-    return { x: current.x, y: clampInteger(current.y - 1, 0, height - 1), facing: "up" };
+    return { x: current.x, y: clampNumber(current.y - step, meadow.minY, meadow.maxY), facing: "up" };
   }
   if (key === "ArrowDown" || key === "s" || key === "S") {
-    return { x: current.x, y: clampInteger(current.y + 1, 0, height - 1), facing: "down" };
+    return { x: current.x, y: clampNumber(current.y + step, meadow.minY, meadow.maxY), facing: "down" };
   }
   return { ...current, facing: position?.facing ?? "down" };
 }
 
 export function getNextAutoAvatarStep(position, tick, bounds = {}) {
-  const pattern = ["ArrowRight", "ArrowRight", "ArrowDown", "ArrowLeft", "ArrowLeft", "ArrowUp"];
-  const key = pattern[Math.abs(Number(tick) || 0) % pattern.length];
-  return getAvatarStep(position, key, bounds);
+  const meadow = getAvatarBounds(bounds);
+  const current = normalizeAvatarPosition(position, meadow);
+  const target = AUTO_WALK_WAYPOINTS[Math.abs(Math.trunc(Number(tick) || 0)) % AUTO_WALK_WAYPOINTS.length];
+  return moveAvatarTowardTarget(current, target, meadow);
+}
+
+export function getAvatarPositionFromScenePoint({ clientX, clientY, rect }, bounds = {}) {
+  const meadow = getAvatarBounds(bounds);
+  const width = Number(rect?.width) || 1;
+  const height = Number(rect?.height) || 1;
+  const rawX = ((Number(clientX) - Number(rect?.left ?? 0)) / width) * 100;
+  const rawY = ((Number(clientY) - Number(rect?.top ?? 0)) / height) * 100;
+
+  return {
+    x: clampNumber(Math.round(rawX), meadow.minX, meadow.maxX),
+    y: clampNumber(Math.round(rawY), meadow.minY, meadow.maxY),
+  };
+}
+
+export function getAvatarFacing(fromPosition, toPosition) {
+  const dx = Number(toPosition?.x) - Number(fromPosition?.x);
+  const dy = Number(toPosition?.y) - Number(fromPosition?.y);
+  if (Math.abs(dx) >= Math.abs(dy)) return dx < 0 ? "left" : "right";
+  return dy < 0 ? "up" : "down";
+}
+
+export function getAvatarSceneStyle(position, bounds = {}) {
+  const meadow = getAvatarBounds(bounds);
+  const current = normalizeAvatarPosition(position, meadow);
+  const depth = (current.y - meadow.minY) / Math.max(1, meadow.maxY - meadow.minY);
+  const scale = 0.84 + depth * 0.24;
+
+  return {
+    left: String(current.x) + "%",
+    top: String(current.y) + "%",
+    "--forest-avatar-scale": scale.toFixed(3),
+    zIndex: String(Math.round(32 + depth * 58)),
+  };
 }
 
 function getForestStatusMessage({ isLatestMissed, currentStreak, completedTrees }) {
@@ -123,6 +168,35 @@ function getForestStatusMessage({ isLatestMissed, currentStreak, completedTrees 
   return "첫 출석을 하면 씨앗이 심어집니다.";
 }
 
-function clampInteger(value, min, max) {
-  return Math.max(min, Math.min(max, Math.trunc(Number(value) || 0)));
+function getAvatarBounds(bounds) {
+  return {
+    minX: Number.isFinite(Number(bounds?.minX)) ? Number(bounds.minX) : DEFAULT_MEADOW_BOUNDS.minX,
+    maxX: Number.isFinite(Number(bounds?.maxX)) ? Number(bounds.maxX) : DEFAULT_MEADOW_BOUNDS.maxX,
+    minY: Number.isFinite(Number(bounds?.minY)) ? Number(bounds.minY) : DEFAULT_MEADOW_BOUNDS.minY,
+    maxY: Number.isFinite(Number(bounds?.maxY)) ? Number(bounds.maxY) : DEFAULT_MEADOW_BOUNDS.maxY,
+    step: Number.isFinite(Number(bounds?.step)) ? Number(bounds.step) : DEFAULT_MEADOW_BOUNDS.step,
+  };
+}
+
+function normalizeAvatarPosition(position, bounds) {
+  return {
+    x: clampNumber(Number(position?.x ?? 52), bounds.minX, bounds.maxX),
+    y: clampNumber(Number(position?.y ?? 64), bounds.minY, bounds.maxY),
+  };
+}
+
+function moveAvatarTowardTarget(position, target, bounds) {
+  const dx = target.x - position.x;
+  const dy = target.y - position.y;
+  const x = Math.abs(dx) <= bounds.step ? target.x : position.x + Math.sign(dx) * bounds.step;
+  const y = Math.abs(dy) <= bounds.step ? target.y : position.y + Math.sign(dy) * bounds.step;
+  return {
+    x: clampNumber(x, bounds.minX, bounds.maxX),
+    y: clampNumber(y, bounds.minY, bounds.maxY),
+    facing: getAvatarFacing(position, { x, y }),
+  };
+}
+
+function clampNumber(value, min, max) {
+  return Math.max(min, Math.min(max, Math.round((Number(value) || 0) * 10) / 10));
 }

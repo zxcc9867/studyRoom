@@ -2,6 +2,42 @@
 
 ## Current Work
 
+- Task: Improve Study Forest avatar expression and movement freedom.
+- Purpose: Replace the stiff boxed avatar movement with scene click-to-walk, waypoint auto-walking, and y-depth scaling while making the avatar face read as friendly instead of frowning.
+- Related PRD:
+  - memory-bank/prd-study-forest.md
+- Related files:
+  - apps/web/src/main.tsx
+  - apps/web/src/styles.css
+  - apps/web/src/studyForest.mjs
+  - apps/web/src/studyForest.d.mts
+  - apps/web/test/studyForest.test.mjs
+  - apps/web/test/studyForestUi.test.mjs
+
+## Recent Decisions
+
+- Decision: Keep the Study Forest page CSS/React 2.5D and improve movement by using percent meadow coordinates, scene pointer clicks, deterministic scenic waypoints, and y-position scale/z-index depth.
+- Reason: This directly addresses the user-visible stiffness without adding a 3D engine or backend state.
+- Alternative: Three.js free roaming; still deferred until the reward page needs object interaction or camera movement.
+- Impact: The avatar can now be moved by keyboard/buttons or by clicking the meadow, and idle walking moves toward multiple points rather than pacing a row.
+
+## Current Status
+
+- Completed: Added RED/GREEN tests for click-to-walk, percent movement, y-depth scaling, waypoint auto-walk, and smiling face CSS.
+- Completed: Updated Study Forest avatar helpers, React pointer handling, and CSS expression/motion.
+- Completed: npm.cmd test and npm.cmd run build pass locally.
+- Next: Commit, push, and verify Vercel production deployment.
+
+## Notes
+
+- No Supabase schema or Edge Function change is required.
+- The scene remains static-host friendly.
+
+---
+# Active Context
+
+## Current Work
+
 - Task: Polish Study Forest visuals and fix planner date navigation.
 - Purpose: Make the reward space feel like a cozy 2.5D forest village with a visible character and props, and make the planner previous/next buttons move relative to the currently selected date.
 - Related PRD:
