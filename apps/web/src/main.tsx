@@ -6,6 +6,7 @@ import {
   useState,
   type ClipboardEvent,
   type FormEvent,
+  type KeyboardEvent,
   type MouseEvent,
 } from "react";
 import { createRoot } from "react-dom/client";
@@ -37,6 +38,9 @@ import {
   X,
   Send,
   Target,
+  TreePine,
+  Map as MapIcon,
+  Sprout,
   UserRound,
 } from "lucide-react";
 import type { Session } from "@supabase/supabase-js";
@@ -170,6 +174,11 @@ import {
   getGoalLinkedTodos,
   sortStudyGoals,
 } from "./studyGoals.mjs";
+import {
+  buildStudyForestState,
+  getAvatarStep,
+  getNextAutoAvatarStep,
+} from "./studyForest.mjs";
 import { isSupabaseConfigured, supabase, supabaseAnonKey, supabaseUrl } from "./supabase";
 import {
   getSlackNotificationStatus,
@@ -217,6 +226,8 @@ const emailOtpLength = EMAIL_OTP_LENGTH;
 const googleAuthEnabled = import.meta.env.VITE_GOOGLE_AUTH_ENABLED === "true";
 const cameraRequiredWarningCooldownMs = 10 * 60 * 1000;
 const ACTIVE_SESSION_LEASE_REFRESH_MS = 15 * 1000;
+const FOREST_MEADOW_BOUNDS = { width: 12, height: 8 };
+const FOREST_MANUAL_CONTROL_MS = 8 * 1000;
 type TodoRepeatMode = "single" | "weekly";
 type CameraSetupPrompt = {
   mode: "start" | "resume";
@@ -472,6 +483,12 @@ function DashboardApp() {
   const [activeSection, setActiveSection] = useState<DashboardSection>(() =>
     getDashboardSectionFromHash(window.location.hash),
   );
+  const [forestAvatar, setForestAvatar] = useState<{ x: number; y: number; facing: "left" | "right" | "up" | "down" }>({
+    x: 5,
+    y: 4,
+    facing: "down",
+  });
+  const [forestManualUntilMs, setForestManualUntilMs] = useState(0);
   const [calendarMonth, setCalendarMonth] = useState(() => getMonthKey(new Date()));
   const [todoHistoryPage, setTodoHistoryPage] = useState(1);
   const [recoveryHistoryPage, setRecoveryHistoryPage] = useState(1);
@@ -804,6 +821,11 @@ function DashboardApp() {
     [completedTodoHistory, todoHistoryPage],
   );
   const streak = useMemo(() => calculateStreak(attendanceDays), [attendanceDays]);
+  const studyForestState = useMemo(
+    () => buildStudyForestState({ todayDateKey, attendanceDays }),
+    [attendanceDays, todayDateKey],
+  );
+  const forestProgressPercent = Math.round((studyForestState.currentTree.progressDays / 7) * 100);
   const notificationDiagnostics = useMemo(
     () =>
       buildNotificationDiagnostics({
@@ -813,6 +835,20 @@ function DashboardApp() {
       }),
     [webPushStatus, slackStatus, notificationDeliveries],
   );
+
+  useEffect(() => {
+    if (activeSection !== "forest") return;
+
+    const forestAutoWalkTimer = window.setInterval(() => {
+      const currentMs = Date.now();
+      if (currentMs < forestManualUntilMs) return;
+      setForestAvatar((current) =>
+        getNextAutoAvatarStep(current, Math.floor(currentMs / 2400), FOREST_MEADOW_BOUNDS),
+      );
+    }, 2200);
+
+    return () => window.clearInterval(forestAutoWalkTimer);
+  }, [activeSection, forestManualUntilMs]);
 
   useEffect(() => {
     if (todoHistoryPage !== todoHistoryPageData.currentPage) {
@@ -1681,6 +1717,18 @@ function DashboardApp() {
       today_section_order: current?.today_section_order ?? todaySectionOrder,
     }));
     setMessage("오늘 할 일 보기를 고정했습니다.");
+  }
+
+  function moveForestAvatar(key: string) {
+    setForestManualUntilMs(Date.now() + FOREST_MANUAL_CONTROL_MS);
+    setForestAvatar((current) => getAvatarStep(current, key, FOREST_MEADOW_BOUNDS));
+  }
+
+  function handleForestKeyDown(event: KeyboardEvent<HTMLElement>) {
+    const movementKeys = ["ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight", "w", "a", "s", "d", "W", "A", "S", "D"];
+    if (!movementKeys.includes(event.key)) return;
+    event.preventDefault();
+    moveForestAvatar(event.key);
   }
 
   async function saveTodaySectionOrderPreference() {
@@ -3943,6 +3991,10 @@ function DashboardApp() {
             <Target size={17} />
             목표
           </a>
+          <a className={activeSection === "forest" ? "active" : ""} href="#forest">
+            <TreePine size={17} />
+            {"\uACF5\uBD80 \uC232"}
+          </a>
           <a className={activeSection === "me" ? "active" : ""} href="#me">
             <UserRound size={17} />
             내 페이지
@@ -5169,6 +5221,105 @@ function DashboardApp() {
             </div>
           )}
         </section>
+        )}
+
+
+        {activeSection === "forest" && (
+          <section
+            className="history-panel study-forest-panel"
+            tabIndex={0}
+            onKeyDown={handleForestKeyDown}
+            aria-label={"\uB098\uB9CC\uC758 \uACF5\uBD80 \uC232"}
+          >
+            <div className="section-heading">
+              <div>
+                <p className="eyebrow">study forest</p>
+                <h2>{"\uB098\uB9CC\uC758 \uACF5\uBD80 \uC232"}</h2>
+                <p className="section-description">
+                  {"7\uC77C \uC5F0\uC18D \uCD9C\uC11D\uD558\uBA74 \uB098\uBB34 1\uADF8\uB8E8\uAC00 \uC790\uB77C\uACE0, \uACB0\uC11D\uD558\uBA74 \uD604\uC7AC \uB098\uBB34\uAC00 \uC2DC\uB4ED\uB2C8\uB2E4."}
+                </p>
+              </div>
+              <div className="forest-badges">
+                <span className="pill"><TreePine size={16} /> {"\uC644\uC131 \uB098\uBB34 "}{studyForestState.placedTrees.length}{"\uADF8\uB8E8"}</span>
+                <span className="pill"><Sprout size={16} /> {forestProgressPercent}%</span>
+              </div>
+            </div>
+
+            {studyForestState.placedTrees.length > 0 ? (
+              <div className="success-message forest-celebration">
+                <strong>{"7\uC77C \uC5F0\uC18D \uCD9C\uC11D! \uC791\uC740 \uACF5\uBD80 \uC232\uC774 \uC790\uB790\uC5B4\uC694."}</strong>
+                <span>{"\uC644\uC131\uB41C \uB098\uBB34\uB294 \uAC1C\uC778 \uACF5\uAC04\uC5D0 \uB0A8\uC544 \uC788\uC2B5\uB2C8\uB2E4."}</span>
+              </div>
+            ) : (
+              <div className="message forest-celebration">
+                <strong>{"\uCCAB \uB098\uBB34\uB97C \uD0A4\uC6B0\uB294 \uC911\uC785\uB2C8\uB2E4."}</strong>
+                <span>{"\uC624\uB298\uB3C4 \uCD9C\uC11D\uD558\uBA74 \uB354 \uD48D\uC131\uD55C \uC232\uC5D0 \uAC00\uAE4C\uC6CC\uC9D1\uB2C8\uB2E4."}</span>
+              </div>
+            )}
+
+            <div className="study-forest-grid">
+              <div className="study-forest-scene-card">
+                <div className="study-forest-scene" aria-label={"2.5D \uACF5\uBD80 \uC232 \uC7A5\uBA74"}>
+                  <div className="forest-sky" />
+                  <div className="forest-ground" />
+                  <div className="forest-path" />
+                  <div className="forest-pond" />
+                  {studyForestState.placedTrees.map((tree) => (
+                    <div
+                      key={tree.id}
+                      className="forest-tree forest-tree-complete"
+                      style={{ left: tree.x + "%", top: tree.y + "%" }}
+                      aria-label={"\uC644\uC131\uB41C \uCD9C\uC11D \uB098\uBB34"}
+                    >
+                      <span className="forest-tree-crown" />
+                      <span className="forest-tree-trunk" />
+                    </div>
+                  ))}
+                  <div
+                    className={"forest-current-tree forest-current-tree-" + studyForestState.currentTree.stage}
+                    aria-label={studyForestState.currentTree.label}
+                  >
+                    <span className="forest-tree-crown" />
+                    <span className="forest-tree-trunk" />
+                    <span className="forest-tree-shadow" />
+                  </div>
+                  <div
+                    className={"forest-avatar forest-avatar-" + forestAvatar.facing}
+                    style={{
+                      left: String(8 + forestAvatar.x * 7) + "%",
+                      top: String(34 + forestAvatar.y * 5.5) + "%",
+                    }}
+                    aria-label={"\uACF5\uBD80 \uC232 \uCE90\uB9AD\uD130"}
+                  >
+                    <span className="avatar-head" />
+                    <span className="avatar-body" />
+                    <span className="avatar-shadow" />
+                  </div>
+                </div>
+                <div className="forest-controls" aria-label={"\uCE90\uB9AD\uD130 \uC774\uB3D9"}>
+                  <button type="button" onClick={() => moveForestAvatar("ArrowUp")} aria-label={"\uC704\uB85C \uC774\uB3D9"}>{"\u2191"}</button>
+                  <div>
+                    <button type="button" onClick={() => moveForestAvatar("ArrowLeft")} aria-label={"\uC67C\uCABD \uC774\uB3D9"}>{"\u2190"}</button>
+                    <button type="button" onClick={() => moveForestAvatar("ArrowDown")} aria-label={"\uC544\uB798\uB85C \uC774\uB3D9"}>{"\u2193"}</button>
+                    <button type="button" onClick={() => moveForestAvatar("ArrowRight")} aria-label={"\uC624\uB978\uCABD \uC774\uB3D9"}>{"\u2192"}</button>
+                  </div>
+                  <p>{"\uD0A4\uBCF4\uB4DC \uD654\uC0B4\uD45C/WASD \uB610\uB294 \uD130\uCE58 \uBC84\uD2BC\uC73C\uB85C \uC774\uB3D9\uD560 \uC218 \uC788\uACE0, \uC870\uC791\uD558\uC9C0 \uC54A\uC73C\uBA74 \uC790\uB3D9\uC73C\uB85C \uC0B0\uCC45\uD569\uB2C8\uB2E4."}</p>
+                </div>
+              </div>
+
+              <div className="forest-status-card">
+                <p className="eyebrow">tree status</p>
+                <h3>{studyForestState.currentTree.label}</h3>
+                <div className="forest-progress-track"><span style={{ width: forestProgressPercent + "%" }} /></div>
+                <p>{"\uD604\uC7AC \uC5F0\uC18D \uCD9C\uC11D "}{studyForestState.currentStreak}{"\uC77C \u00B7 \uB098\uBB34 \uC131\uC7A5 "}{studyForestState.currentTree.progressDays}{"/7\uC77C"}</p>
+                <div className="forest-status-list">
+                  <div><MapIcon size={18} /><span>{"\uC644\uC131\uB41C \uB098\uBB34\uB294 \uCD9C\uC11D \uC2E4\uD328\uD574\uB3C4 \uAC1C\uC778 \uACF5\uAC04\uC5D0 \uB0A8\uC2B5\uB2C8\uB2E4."}</span></div>
+                  <div><Sprout size={18} /><span>{"\uACB0\uC11D\uD558\uBA74 \uD604\uC7AC \uD0A4\uC6B0\uB294 \uB098\uBB34\uB9CC \uC2DC\uB4E4\uACE0, \uB2E4\uC74C \uCD9C\uC11D\uBD80\uD130 \uB2E4\uC2DC \uC790\uB78D\uB2C8\uB2E4."}</span></div>
+                  <div><TreePine size={18} /><span>{"7\uC77C\uB9C8\uB2E4 \uB098\uBB34 1\uADF8\uB8E8\uAC00 \uC644\uC131\uB418\uACE0 \uC232\uC5D0 \uBC30\uCE58\uB429\uB2C8\uB2E4."}</span></div>
+                </div>
+              </div>
+            </div>
+          </section>
         )}
 
         {activeSection === "me" && (

@@ -2542,3 +2542,33 @@ The migration now explicitly drops public.get_due_session_lease_warnings(timesta
 ### Prevention
 
 When changing a Postgres function's return table columns, use DROP FUNCTION IF EXISTS with the exact signature before CREATE FUNCTION, then reapply grants.
+
+## 2026-07-08 - Windows fallback edit corrupted Korean text in main.tsx
+
+### Situation
+
+While adding the Study Forest page, apply_patch was blocked by the Windows sandbox helper, so a fallback PowerShell/Node file edit path was used. A prior fallback write temporarily caused existing Korean UI strings in apps/web/src/main.tsx to appear as mojibake in the diff.
+
+### Error Message
+
+~~~txt
+src/main.tsx diff showed Korean strings replaced with mojibake-like text such as Supabase ?... and garbled login/camera messages.
+~~~
+
+### Cause
+
+The fallback editing path rewrote the large UTF-8 React file through a Windows shell path that did not preserve the existing Korean text safely.
+
+### Resolution
+
+Restored apps/web/src/main.tsx from HEAD, then reapplied only the Study Forest changes using a UTF-8 Node write. New Korean strings in the inserted forest block are stored as JavaScript Unicode escapes to avoid console/codepage damage.
+
+### Related Files
+
+- apps/web/src/main.tsx
+- apps/web/src/studyForest.mjs
+- apps/web/test/studyForest.test.mjs
+
+### Prevention
+
+For large UTF-8 TSX files on Windows, avoid whole-file PowerShell string rewrites. If apply_patch is blocked, restore from version control and use a UTF-8 Node script with ASCII-safe inserted literals, then inspect git diff before running tests/build.

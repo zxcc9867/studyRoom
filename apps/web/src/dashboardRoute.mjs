@@ -1,4 +1,4 @@
-export const dashboardSections = ["today", "goals", "me", "settings"];
+export const dashboardSections = ["today", "goals", "forest", "me", "settings"];
 
 export function getDashboardSectionFromHash(hash) {
   const value = String(hash ?? "");

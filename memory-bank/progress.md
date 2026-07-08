@@ -1,3 +1,45 @@
+### 2026-07-08 - 2.5D Study Forest reward page
+
+#### Completed Work
+
+- Added a Study Forest dashboard route (#forest) and sidebar entry.
+- Added studyForest.mjs helper logic for seven-day tree completion, current tree growth stages, miss-induced wilting, deterministic tree placement, and avatar movement.
+- Added a 2.5D Animal Crossing-style forest scene with land, path, pond, completed trees, a current tree, and a small avatar.
+- Added keyboard/WASD movement, touch arrow controls, and idle automatic character walking.
+- Added regression tests for forest state, avatar movement, and route mapping.
+- Fixed a Windows fallback editing issue that temporarily corrupted existing Korean strings in main.tsx by restoring the file from HEAD and reapplying only intended forest changes.
+
+#### Changed Files
+
+- apps/web/src/main.tsx
+- apps/web/src/styles.css
+- apps/web/src/studyForest.mjs
+- apps/web/src/studyForest.d.mts
+- apps/web/src/dashboardRoute.mjs
+- apps/web/src/dashboardRoute.d.mts
+- apps/web/test/studyForest.test.mjs
+- apps/web/test/dashboardRoute.test.mjs
+- memory-bank/prd-study-forest.md
+- memory-bank/design-document.md
+- memory-bank/implementation-plan.md
+- memory-bank/active-context.md
+- memory-bank/progress.md
+- memory-bank/trouble-shooting.md
+
+#### Verification
+
+- Targeted: node --test apps\web\test\studyForest.test.mjs apps\web\test\dashboardRoute.test.mjs passed 7 tests.
+- Full suite: npm.cmd test passed 226 tests.
+- Build: npm.cmd run build passed with the existing Vite chunk-size warning.
+- Local server: http://127.0.0.1:5177/ returned HTTP 200.
+
+#### Remaining Work
+
+- Commit, push, and verify Vercel production deployment.
+
+#### Next Priority
+
+- Validate the production #forest page visually and decide whether persistent decorations or character position should be added later.
 ### 2026-07-05 - CI build gate Linux runner fix
 
 #### Completed Work

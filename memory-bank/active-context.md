@@ -2,6 +2,42 @@
 
 ## Current Work
 
+- Task: Add 2.5D Study Forest reward page.
+- Purpose: Reward seven-day attendance streaks with growing trees and a personal Animal Crossing-style space, with keyboard/touch avatar movement and idle auto-walking.
+- Related PRD:
+  - memory-bank/prd-study-forest.md
+- Related files:
+  - apps/web/src/main.tsx
+  - apps/web/src/styles.css
+  - apps/web/src/studyForest.mjs
+  - apps/web/src/studyForest.d.mts
+  - apps/web/src/dashboardRoute.mjs
+  - apps/web/src/dashboardRoute.d.mts
+  - apps/web/test/studyForest.test.mjs
+  - apps/web/test/dashboardRoute.test.mjs
+
+## Recent Decisions
+
+- Decision: Implement the first version as a 2.5D CSS/React scene, not Three.js.
+- Reason: The requested reward loop can be delivered with no extra runtime, no new backend state, and lower rendering risk on mobile.
+- Alternative: Full 3D scene with Three.js; deferred until the reward system itself is validated.
+- Impact: Forest state is derived from attendance_days; only future customization/inventory would need a new table.
+
+## Current Status
+
+- Completed: Added #forest route and sidebar entry.
+- Completed: Added tested study forest streak/tree/avatar helper logic.
+- Completed: Added 2.5D scene, completed trees, current tree state, keyboard controls, touch controls, and idle auto-walk.
+- Completed: Recovered a temporary Windows encoding regression in main.tsx by restoring HEAD content and reapplying only the forest changes with UTF-8-safe writes.
+- Next: Commit, push, and verify Vercel production deployment.
+
+## Notes
+
+- No Supabase schema or Edge Function change is required for the MVP Study Forest page.
+
+---
+## Current Work
+
 - Task: Fix CI build gate Linux runner failure.
 - Purpose: Make the newly added GitHub Actions build gate actually run on Ubuntu by removing Windows-only npm.cmd from the root build script.
 - Related files:
