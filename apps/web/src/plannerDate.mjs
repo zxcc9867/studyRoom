@@ -1,5 +1,15 @@
 const DATE_KEY_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
 
+export function getAdjacentPlannerDate(dateKey, offsetDays) {
+  const date = parseDateKey(dateKey);
+  const offset = Number(offsetDays);
+  if (!date || !Number.isFinite(offset)) return dateKey;
+
+  const nextDate = new Date(date.getFullYear(), date.getMonth(), date.getDate());
+  nextDate.setDate(nextDate.getDate() + Math.trunc(offset));
+  return formatDateKey(nextDate);
+}
+
 export function getPlannerDateLabel(dateKey, todayDateKey) {
   const offset = getDateOffsetDays(todayDateKey, dateKey);
   if (offset === -1) return "어제 할 일";
@@ -109,4 +119,12 @@ function parseDateKey(dateKey) {
     return null;
   }
   return date;
+}
+
+function formatDateKey(date) {
+  return [
+    String(date.getFullYear()).padStart(4, "0"),
+    String(date.getMonth() + 1).padStart(2, "0"),
+    String(date.getDate()).padStart(2, "0"),
+  ].join("-");
 }

@@ -3,6 +3,7 @@ import { test } from "node:test";
 
 import {
   buildPlanCopyRows,
+  getAdjacentPlannerDate,
   getPlannerDateLabel,
   normalizePlanCopyTargetDates,
 } from "../src/plannerDate.mjs";
@@ -31,6 +32,15 @@ test("labels planner dates relative to today", () => {
   assert.equal(getPlannerDateLabel("2026-06-30", "2026-06-29"), "내일 할 일");
   assert.equal(getPlannerDateLabel("2026-07-03", "2026-06-29"), "7월 3일 할 일");
 });
+
+test("moves planner dates relative to the currently selected date", () => {
+  const firstPrevious = getAdjacentPlannerDate("2026-06-29", -1);
+  assert.equal(firstPrevious, "2026-06-28");
+  assert.equal(getAdjacentPlannerDate(firstPrevious, -1), "2026-06-27");
+  assert.equal(getAdjacentPlannerDate("2026-06-29", 1), "2026-06-30");
+  assert.equal(getAdjacentPlannerDate("2026-12-31", 1), "2027-01-01");
+});
+
 
 test("normalizes plan copy targets without the source date", () => {
   assert.deepEqual(

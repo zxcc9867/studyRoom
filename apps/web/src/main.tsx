@@ -115,6 +115,7 @@ import {
 } from "./dailyPlanner.mjs";
 import {
   buildPlanCopyRows,
+  getAdjacentPlannerDate,
   getPlannerDateLabel,
   normalizePlanCopyTargetDates,
 } from "./plannerDate.mjs";
@@ -5075,9 +5076,23 @@ function DashboardApp() {
           </div>
           <div className="planner-date-controls" aria-label="planner date selector">
             <div className="date-shortcut-group">
-              <button type="button" onClick={() => showPlannerDate(addDaysToDateKey(todayDateKey, -1))}>{"\uC5B4\uC81C"}</button>
+              <button
+                type="button"
+                aria-label={"\uC774\uC804 \uB0A0\uC9DC\uB85C \uC774\uB3D9"}
+                onClick={() => showPlannerDate(getAdjacentPlannerDate(selectedTodoDate, -1))}
+              >
+                <ChevronLeft size={16} />
+                {"\uC774\uC804"}
+              </button>
               <button type="button" onClick={() => showPlannerDate(todayDateKey)}>{"\uC624\uB298"}</button>
-              <button type="button" onClick={() => showPlannerDate(addDaysToDateKey(todayDateKey, 1))}>{"\uB0B4\uC77C"}</button>
+              <button
+                type="button"
+                aria-label={"\uB2E4\uC74C \uB0A0\uC9DC\uB85C \uC774\uB3D9"}
+                onClick={() => showPlannerDate(getAdjacentPlannerDate(selectedTodoDate, 1))}
+              >
+                {"\uB2E4\uC74C"}
+                <ChevronRight size={16} />
+              </button>
             </div>
             <input
               type="date"
@@ -5261,9 +5276,21 @@ function DashboardApp() {
               <div className="study-forest-scene-card">
                 <div className="study-forest-scene" aria-label={"2.5D \uACF5\uBD80 \uC232 \uC7A5\uBA74"}>
                   <div className="forest-sky" />
+                  <span className="forest-cloud forest-cloud-one" aria-hidden="true" />
+                  <span className="forest-cloud forest-cloud-two" aria-hidden="true" />
+                  <span className="forest-fence forest-fence-back" aria-hidden="true" />
+                  <span className="forest-cottage" aria-hidden="true">
+                    <span className="forest-cottage-roof" />
+                    <span className="forest-cottage-door" />
+                  </span>
                   <div className="forest-ground" />
                   <div className="forest-path" />
                   <div className="forest-pond" />
+                  <span className="forest-sign" aria-hidden="true">study</span>
+                  <span className="forest-flower-patch forest-flower-patch-one" aria-hidden="true" />
+                  <span className="forest-flower-patch forest-flower-patch-two" aria-hidden="true" />
+                  <span className="forest-stone forest-stone-one" aria-hidden="true" />
+                  <span className="forest-stone forest-stone-two" aria-hidden="true" />
                   {studyForestState.placedTrees.map((tree) => (
                     <div
                       key={tree.id}
@@ -5284,6 +5311,8 @@ function DashboardApp() {
                     <span className="forest-current-soil" />
                     <span className="forest-current-crown" />
                     <span className="forest-current-trunk" />
+                    <span className="forest-current-sparkle forest-current-sparkle-a" />
+                    <span className="forest-current-sparkle forest-current-sparkle-b" />
                   </div>
                   <div
                     className={"forest-avatar forest-avatar-" + forestAvatar.facing}
@@ -5294,9 +5323,13 @@ function DashboardApp() {
                     aria-label={"\uACF5\uBD80 \uC232 \uCE90\uB9AD\uD130"}
                   >
                     <span className="forest-avatar-shadow" />
+                    <span className="forest-avatar-backpack" />
                     <span className="forest-avatar-hair" />
                     <span className="forest-avatar-head" />
+                    <span className="forest-avatar-face" />
                     <span className="forest-avatar-body" />
+                    <span className="forest-avatar-arm forest-avatar-arm-left" />
+                    <span className="forest-avatar-arm forest-avatar-arm-right" />
                     <span className="forest-avatar-leg forest-avatar-leg-left" />
                     <span className="forest-avatar-leg forest-avatar-leg-right" />
                   </div>

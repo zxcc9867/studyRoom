@@ -15,6 +15,7 @@ Personal MVP users who want a softer Animal Crossing-style reward for sustained 
 - Keep completed trees in the personal space even after a future miss.
 - Wilt only the current in-progress tree when the latest tracked day is missed.
 - Let the user move a small character with keyboard or touch controls.
+- Make the personal space feel like a cozy 2.5D forest village through original, non-infringing props and character details.
 - Let the character walk automatically after a short period without user control.
 
 ## 4. Non-goals
@@ -53,7 +54,7 @@ Personal MVP users who want a softer Animal Crossing-style reward for sustained 
 
 - [x] Add a #forest dashboard route.
 - [x] Add deterministic study forest helper logic with unit tests.
-- [x] Render a 2.5D CSS scene with land, path, pond, styled trees, and a clearly visible avatar.
+- [x] Render a 2.5D CSS scene with land, path, pond, styled trees, village props, flowers/stones, and a clearly visible detailed avatar.
 - [x] Support keyboard movement and touch button movement.
 - [x] Resume automatic avatar walking when manual control is idle.
 
@@ -74,7 +75,7 @@ Personal MVP users who want a softer Animal Crossing-style reward for sustained 
 
 ## 10. Success Metrics
 
-- User can open #forest and see a forest state derived from attendance history, with the avatar and trees visibly rendered above the terrain.
+- User can open #forest and see a forest state derived from attendance history, with the avatar, trees, and decorative props visibly rendered above the terrain.
 - Unit tests cover tree completion, wilting, growth stages, and avatar movement bounds.
 - npm.cmd test and npm.cmd run build pass.
 

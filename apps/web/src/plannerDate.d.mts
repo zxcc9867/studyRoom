@@ -32,6 +32,8 @@ export type PlanCopyRow = {
   position: number;
 };
 
+export function getAdjacentPlannerDate(dateKey: string, offsetDays: number): string;
+
 export function getPlannerDateLabel(dateKey: string, todayDateKey: string): string;
 
 export function normalizePlanCopyTargetDates(input: {

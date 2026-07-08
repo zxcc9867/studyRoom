@@ -74,7 +74,7 @@ Personal MVP users who want to plan and visualize today's study tasks in either 
 - [x] Let planner detail and untimed todo checkboxes toggle completion only when no study session is active.
 - [x] Show the selected-date todo list in the planner detail panel with schedule labels and edit/delete row actions.
 - [x] Let the Today Tasks card follow a selected local date instead of only the real current date.
-- [x] Add previous/today/next/date input controls for planner date navigation.
+- [x] Add previous/today/next/date input controls for planner date navigation; previous and next move relative to the currently selected planner date.
 - [x] Add a multi-date apply modal that copies a selected date's plan to chosen calendar dates while skipping duplicates.
 - [x] Add dashboard section order editor with drag-and-drop and up/down buttons.
 

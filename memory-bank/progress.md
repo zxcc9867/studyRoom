@@ -1,3 +1,44 @@
+### 2026-07-09 - Study Forest polish and planner relative date navigation
+
+#### Completed Work
+
+- Added a planner-date helper so previous/next date navigation is relative to the currently selected planner date.
+- Changed the Today Tasks date controls from fixed yesterday/today/tomorrow behavior to previous/today/next behavior.
+- Added cozy 2.5D Study Forest props: clouds, fence, cottage, sign, flowers, stones, tree sparkles, and a more detailed character with face, arms, backpack, and bobbing motion.
+- Added source regression tests for the new planner navigation and forest visual class contracts.
+- Added an implementation plan under docs/superpowers/plans.
+
+#### Changed Files
+
+- apps/web/src/main.tsx
+- apps/web/src/plannerDate.mjs
+- apps/web/src/styles.css
+- apps/web/test/plannerDate.test.mjs
+- apps/web/test/studyForestUi.test.mjs
+- docs/superpowers/plans/2026-07-09-study-forest-polish-and-planner-date-navigation.md
+- memory-bank/active-context.md
+- memory-bank/progress.md
+- memory-bank/implementation-plan.md
+- memory-bank/prd-study-forest.md
+- memory-bank/prd-daily-planner-dashboard.md
+- memory-bank/trouble-shooting.md
+
+#### Verification
+
+- RED: plannerDate test failed before getAdjacentPlannerDate existed.
+- RED: studyForestUi test failed before the new avatar/scene classes existed.
+- GREEN: targeted planner/forest tests passed after implementation.
+- Full verification and deployment are still pending in this work turn.
+
+#### Remaining Work
+
+- Run npm.cmd test and npm.cmd run build.
+- Commit, push, and verify Vercel production deployment.
+
+#### Next Priority
+
+- Visually inspect production #forest and planner date controls after deployment.
+
 ### 2026-07-09 - Study Forest avatar visibility and 2.5D depth fix
 
 #### Completed Work

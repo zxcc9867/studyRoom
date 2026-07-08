@@ -2,6 +2,40 @@
 
 ## Current Work
 
+- Task: Polish Study Forest visuals and fix planner date navigation.
+- Purpose: Make the reward space feel like a cozy 2.5D forest village with a visible character and props, and make the planner previous/next buttons move relative to the currently selected date.
+- Related PRD:
+  - memory-bank/prd-study-forest.md
+  - memory-bank/prd-daily-planner-dashboard.md
+- Related files:
+  - apps/web/src/main.tsx
+  - apps/web/src/styles.css
+  - apps/web/src/plannerDate.mjs
+  - apps/web/test/studyForestUi.test.mjs
+  - apps/web/test/plannerDate.test.mjs
+
+## Recent Decisions
+
+- Decision: Keep the Study Forest page as CSS/React 2.5D, but add toy-like village props, character face/arms/backpack, flowers, fence, cottage, and subtle animations instead of moving to a 3D engine.
+- Reason: This delivers the requested cozy forest feeling without adding rendering dependencies or backend state.
+- Alternative: Use Three.js; still deferred until the reward loop needs real camera movement or object interaction.
+- Impact: Study Forest remains static-host friendly and client-only, but now has a clearer visual identity.
+
+## Current Status
+
+- Completed: Added RED/GREEN source tests for planner relative date navigation and Study Forest visual class contracts.
+- Completed: Added getAdjacentPlannerDate() and changed planner previous/next buttons to use selectedTodoDate.
+- Completed: Added Study Forest decorative scene elements and richer avatar/tree CSS.
+- Next: Run full test/build, commit, push, and verify Vercel production deployment.
+
+## Notes
+
+- No Supabase schema or Edge Function change is required.
+- Previous/today/next planner controls now mean previous selected date, real today, and next selected date.
+
+---
+## Current Work
+
 - Task: Fix Study Forest 2.5D depth and invisible avatar.
 - Purpose: Make the Study Forest page actually render a visible player character and styled trees, instead of a flat meadow where JSX parts are unstyled.
 - Related PRD:

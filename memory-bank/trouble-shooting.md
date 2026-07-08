@@ -1,3 +1,31 @@
+## 2026-07-09 - Planner previous and next buttons were anchored to today
+
+### Situation
+
+The Today Tasks planner had yesterday, today, and tomorrow buttons. Pressing the back button repeatedly could not keep moving back from the selected date because the buttons always recalculated from the real today date.
+
+### Error Message
+
+No runtime exception. User-visible symptom: the planner could only jump to real yesterday or real tomorrow, not walk backward or forward from the selected planner date.
+
+### Cause
+
+The date buttons called addDaysToDateKey(todayDateKey, -1) and addDaysToDateKey(todayDateKey, 1), so the calculation ignored selectedTodoDate.
+
+### Resolution
+
+Added getAdjacentPlannerDate(dateKey, offsetDays) to plannerDate.mjs and changed the previous/next buttons to call it with selectedTodoDate. The today button still jumps to todayDateKey.
+
+### Related Files
+
+- apps/web/src/plannerDate.mjs
+- apps/web/src/main.tsx
+- apps/web/test/plannerDate.test.mjs
+
+### Prevention
+
+For selected-date UI controls, tests should assert repeated previous/next movement from the selected date, not just one-off yesterday/tomorrow labels relative to today.
+
 ## 2026-07-09 - Study Forest avatar and trees were invisible or unstyled
 
 ### Situation
