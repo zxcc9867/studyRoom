@@ -1,3 +1,41 @@
+### 2026-07-09 - Study Forest avatar visibility and 2.5D depth fix
+
+#### Completed Work
+
+- Investigated why the Study Forest page looked flat and did not show the user character.
+- Confirmed the root cause: the rendered JSX used unstyled class names such as avatar-head and forest-tree-crown, while CSS targeted forest-avatar-head and forest-tree-top/current-tree classes.
+- Updated completed trees, current tree, and avatar JSX to use the styled classes.
+- Added CSS perspective, an isometric rotated ground plane, rotated pond/path, stronger shadows, and high avatar z-index so the page reads as a 2.5D personal forest.
+- Added regression tests that verify Study Forest JSX/CSS class alignment, 2.5D depth styles, and avatar layer priority.
+
+#### Changed Files
+
+- apps/web/src/main.tsx
+- apps/web/src/styles.css
+- apps/web/test/studyForestUi.test.mjs
+- memory-bank/active-context.md
+- memory-bank/progress.md
+- memory-bank/implementation-plan.md
+- memory-bank/prd-study-forest.md
+- memory-bank/trouble-shooting.md
+
+#### Verification
+
+- RED: node --test apps\web\test\studyForestUi.test.mjs failed before the JSX/CSS wiring and 2.5D depth fix.
+- GREEN: node --test apps\web\test\studyForest.test.mjs apps\web\test\dashboardRoute.test.mjs apps\web\test\studyForestUi.test.mjs passed 10 tests.
+- Full suite: npm.cmd test passed 229 tests.
+- Build: npm.cmd run build passed with the existing Vite chunk-size warning.
+- Local server: http://127.0.0.1:5177/ returned HTTP 200.
+- Browser visual automation: blocked by sandbox/browser-profile lock; source, test, and build verification completed.
+
+#### Remaining Work
+
+- Commit, push, and verify Vercel production deployment.
+
+#### Next Priority
+
+- After deployment, open https://study-room-attendance.vercel.app/#forest and visually confirm the character is visible and the scene reads as 2.5D.
+
 ### 2026-07-08 - 2.5D Study Forest reward page
 
 #### Completed Work

@@ -2,6 +2,39 @@
 
 ## Current Work
 
+- Task: Fix Study Forest 2.5D depth and invisible avatar.
+- Purpose: Make the Study Forest page actually render a visible player character and styled trees, instead of a flat meadow where JSX parts are unstyled.
+- Related PRD:
+  - memory-bank/prd-study-forest.md
+- Related files:
+  - apps/web/src/main.tsx
+  - apps/web/src/styles.css
+  - apps/web/test/studyForestUi.test.mjs
+
+## Recent Decisions
+
+- Decision: Keep the MVP as CSS/React 2.5D, but require JSX class names to match the existing styled tree/avatar classes and require perspective/rotated terrain in CSS.
+- Reason: The bug was caused by mismatched JSX/CSS class names such as avatar-head versus forest-avatar-head and forest-tree-crown versus forest-tree-top, plus a flat scene background without perspective.
+- Alternative: Move immediately to Three.js; deferred because the current issue can be fixed with the intended lightweight CSS scene.
+- Impact: The avatar now uses visible hair/head/body/leg parts, completed/current trees use their styled parts, and the scene uses perspective, a rotated ground plane, and stronger z-index layering.
+
+## Current Status
+
+- Completed: Added source regression tests for Study Forest JSX/CSS wiring and 2.5D scene depth.
+- Completed: Fixed tree, current-tree, and avatar class mismatches.
+- Completed: Added perspective, isometric ground, rotated pond/path, stronger shadows, and high avatar z-index.
+- Completed: Targeted tests, full npm.cmd test, and npm.cmd run build pass locally.
+- Blocked: Automated browser screenshot could not run because the in-app browser runtime hit a sandbox ACL error and the fallback Playwright browser profile was already locked.
+- Next: Commit, push, and verify Vercel production deployment.
+
+## Notes
+
+- No Supabase schema or Edge Function change is required.
+- When editing main.tsx/styles.css on Windows, prefer apply_patch; if it fails, use UTF-8 Node scripts and inspect focused diffs.
+
+---
+## Current Work
+
 - Task: Add 2.5D Study Forest reward page.
 - Purpose: Reward seven-day attendance streaks with growing trees and a personal Animal Crossing-style space, with keyboard/touch avatar movement and idle auto-walking.
 - Related PRD:

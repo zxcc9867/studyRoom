@@ -1,3 +1,31 @@
+## 2026-07-09 - Study Forest avatar and trees were invisible or unstyled
+
+### Situation
+
+The Study Forest page rendered a flat-looking meadow, and the user character was not visible. The page did not read as a 2.5D Animal Crossing-style space.
+
+### Error Message
+
+No runtime exception. User-visible symptom: the forest scene showed sky, grass, path, pond, and a small unstyled brown element, but no visible user character.
+
+### Cause
+
+The JSX used class names that did not match the CSS selectors. Examples included avatar-head/avatar-body/avatar-shadow in JSX while CSS styled forest-avatar-head/forest-avatar-body/forest-avatar-shadow. Completed and current tree JSX also used forest-tree-crown/forest-tree-trunk classes while CSS styled forest-tree-top and forest-current-* parts. Separately, the scene background was a flat sky/grass split without perspective or rotated terrain layers.
+
+### Resolution
+
+Updated Study Forest JSX to use the styled tree/current-tree/avatar part classes and added a source regression test for those class contracts. Updated CSS with perspective, a rotated isometric ground plane, rotated pond/path, stronger shadows, and a high avatar z-index.
+
+### Related Files
+
+- apps/web/src/main.tsx
+- apps/web/src/styles.css
+- apps/web/test/studyForestUi.test.mjs
+
+### Prevention
+
+When adding visual CSS scenes, add source tests that verify JSX class names match styled selectors and that layering-critical elements such as the avatar have explicit z-index and shadow/depth rules.
+
 ## 2026-07-05 - Node edit script evaluated JSX template placeholders
 
 ### Situation

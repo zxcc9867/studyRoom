@@ -5267,21 +5267,23 @@ function DashboardApp() {
                   {studyForestState.placedTrees.map((tree) => (
                     <div
                       key={tree.id}
-                      className="forest-tree forest-tree-complete"
+                      className={"forest-tree-2d forest-tree-" + tree.variant}
                       style={{ left: tree.x + "%", top: tree.y + "%" }}
                       aria-label={"\uC644\uC131\uB41C \uCD9C\uC11D \uB098\uBB34"}
                     >
-                      <span className="forest-tree-crown" />
+                      <span className="forest-tree-top" />
                       <span className="forest-tree-trunk" />
+                      <span className="forest-tree-fruit forest-tree-fruit-a" />
+                      <span className="forest-tree-fruit forest-tree-fruit-b" />
                     </div>
                   ))}
                   <div
-                    className={"forest-current-tree forest-current-tree-" + studyForestState.currentTree.stage}
+                    className={"forest-current-tree forest-stage-" + studyForestState.currentTree.stage}
                     aria-label={studyForestState.currentTree.label}
                   >
-                    <span className="forest-tree-crown" />
-                    <span className="forest-tree-trunk" />
-                    <span className="forest-tree-shadow" />
+                    <span className="forest-current-soil" />
+                    <span className="forest-current-crown" />
+                    <span className="forest-current-trunk" />
                   </div>
                   <div
                     className={"forest-avatar forest-avatar-" + forestAvatar.facing}
@@ -5291,9 +5293,12 @@ function DashboardApp() {
                     }}
                     aria-label={"\uACF5\uBD80 \uC232 \uCE90\uB9AD\uD130"}
                   >
-                    <span className="avatar-head" />
-                    <span className="avatar-body" />
-                    <span className="avatar-shadow" />
+                    <span className="forest-avatar-shadow" />
+                    <span className="forest-avatar-hair" />
+                    <span className="forest-avatar-head" />
+                    <span className="forest-avatar-body" />
+                    <span className="forest-avatar-leg forest-avatar-leg-left" />
+                    <span className="forest-avatar-leg forest-avatar-leg-right" />
                   </div>
                 </div>
                 <div className="forest-controls" aria-label={"\uCE90\uB9AD\uD130 \uC774\uB3D9"}>
