@@ -58,3 +58,21 @@ test("study forest scene has 2.5D depth and keeps the avatar above terrain", () 
   assert.match(avatarBlock, /z-index:\s*(?:1[2-9]|[2-9]\d)/);
   assert.match(avatarBlock, /filter:\s*drop-shadow/);
 });
+
+test("study forest scene renders richer island layers and ambient details", () => {
+  assert.match(mainSource, /className="forest-distant-hill forest-distant-hill-left"/);
+  assert.match(mainSource, /className="forest-distant-hill forest-distant-hill-right"/);
+  assert.match(mainSource, /className="forest-river"/);
+  assert.match(mainSource, /className="forest-bridge"/);
+  assert.match(mainSource, /className="forest-garden-bed"/);
+  assert.match(mainSource, /className="forest-lantern forest-lantern-left"/);
+  assert.match(mainSource, /className="forest-firefly forest-firefly-one"/);
+  assert.match(mainSource, /className="forest-foreground-grass"/);
+  assert.match(cssSource, /\.forest-river\s*\{[\s\S]*linear-gradient/);
+  assert.match(cssSource, /\.forest-bridge\s*\{[\s\S]*rotateX/);
+  assert.match(cssSource, /\.forest-garden-bed\s*\{[\s\S]*repeating-linear-gradient/);
+  assert.match(cssSource, /@keyframes forest-cloud-drift/);
+  assert.match(cssSource, /@keyframes forest-water-shimmer/);
+  assert.match(cssSource, /@keyframes forest-firefly-float/);
+  assert.match(cssSource, /@keyframes forest-leaf-sway/);
+});

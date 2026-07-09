@@ -5298,6 +5298,8 @@ function DashboardApp() {
                   onPointerDown={handleForestScenePointerDown}
                 >
                   <div className="forest-sky" />
+                  <span className="forest-distant-hill forest-distant-hill-left" aria-hidden="true" />
+                  <span className="forest-distant-hill forest-distant-hill-right" aria-hidden="true" />
                   <span className="forest-cloud forest-cloud-one" aria-hidden="true" />
                   <span className="forest-cloud forest-cloud-two" aria-hidden="true" />
                   <span className="forest-fence forest-fence-back" aria-hidden="true" />
@@ -5306,8 +5308,19 @@ function DashboardApp() {
                     <span className="forest-cottage-door" />
                   </span>
                   <div className="forest-ground" />
+                  <div className="forest-river" />
+                  <span className="forest-bridge" aria-hidden="true">
+                    <span className="forest-bridge-plank" />
+                  </span>
                   <div className="forest-path" />
                   <div className="forest-pond" />
+                  <span className="forest-garden-bed" aria-hidden="true" />
+                  <span className="forest-lantern forest-lantern-left" aria-hidden="true" />
+                  <span className="forest-lantern forest-lantern-right" aria-hidden="true" />
+                  <span className="forest-firefly forest-firefly-one" aria-hidden="true" />
+                  <span className="forest-firefly forest-firefly-two" aria-hidden="true" />
+                  <span className="forest-firefly forest-firefly-three" aria-hidden="true" />
+                  <span className="forest-foreground-grass" aria-hidden="true" />
                   <span className="forest-sign" aria-hidden="true">study</span>
                   <span className="forest-flower-patch forest-flower-patch-one" aria-hidden="true" />
                   <span className="forest-flower-patch forest-flower-patch-two" aria-hidden="true" />

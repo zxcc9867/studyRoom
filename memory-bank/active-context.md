@@ -2,6 +2,39 @@
 
 ## Current Work
 
+- Task: Study Forest visual refresh.
+- Purpose: Make the Study Forest reward page feel like a richer cozy 2.5D study island while preserving the existing client-only reward logic.
+- Related PRD:
+  - memory-bank/prd-study-forest.md
+- Related files:
+  - apps/web/src/main.tsx
+  - apps/web/src/styles.css
+  - apps/web/test/studyForestUi.test.mjs
+  - docs/superpowers/plans/2026-07-09-study-forest-visual-refresh.md
+
+## Recent Decisions
+
+- Decision: Add decorative CSS-only island layers, river, bridge, garden bed, lanterns, fireflies, foreground grass, and ambient keyframe motion without adding Supabase state or external assets.
+- Reason: The user wanted the forest to look prettier, and the existing PRD keeps the page as a static-host-friendly 2.5D MVP.
+- Alternative: Move to Three.js or a persistent game-state table; still deferred until object interaction or inventory customization becomes necessary.
+- Impact: The #forest scene has stronger atmosphere and depth while avatar movement, streak-derived trees, and completed-tree persistence stay unchanged.
+
+## Current Status
+
+- Completed: Added RED/GREEN source tests for richer island layers and ambient animation contracts.
+- Completed: Added the richer Study Forest JSX/CSS scene layers.
+- Completed: npm.cmd test and npm.cmd run build passed locally.
+- Next: Commit, push, and verify Vercel production deployment.
+
+## Notes
+
+- No Supabase schema, Edge Function, or environment variable change is required.
+- The scene remains CSS/React-only and static-host friendly.
+
+---
+
+## Current Work
+
 - Task: Improve Study Forest avatar expression and movement freedom.
 - Purpose: Replace the stiff boxed avatar movement with scene click-to-walk, waypoint auto-walking, and y-depth scaling while making the avatar face read as friendly instead of frowning.
 - Related PRD:

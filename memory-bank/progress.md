@@ -1,3 +1,41 @@
+### 2026-07-09 - Study Forest visual refresh
+
+#### Completed Work
+
+- Added richer 2.5D island layers to the Study Forest reward page.
+- Added distant hills, a river, bridge, garden bed, lanterns, fireflies, and foreground grass as CSS-only decorative elements.
+- Added cloud drift, water shimmer, firefly float, and leaf sway keyframes.
+- Preserved existing avatar movement, click-to-walk, idle walking, streak tree growth, and completed-tree behavior.
+- Added source regression tests for the new visual layer contracts.
+- Added an implementation plan under docs/superpowers/plans.
+
+#### Changed Files
+
+- apps/web/src/main.tsx
+- apps/web/src/styles.css
+- apps/web/test/studyForestUi.test.mjs
+- docs/superpowers/plans/2026-07-09-study-forest-visual-refresh.md
+- memory-bank/active-context.md
+- memory-bank/progress.md
+- memory-bank/implementation-plan.md
+- memory-bank/prd-study-forest.md
+
+#### Verification
+
+- RED: node --test apps\web\test\studyForestUi.test.mjs failed before the new island classes and keyframes existed.
+- GREEN: node --test apps\web\test\studyForestUi.test.mjs apps\web\test\studyForest.test.mjs passed 12 tests.
+- Full suite: npm.cmd test passed 234 tests.
+- Build: npm.cmd run build passed with the existing Vite chunk-size warning.
+- Diff hygiene: git diff --check reported only existing LF to CRLF warnings.
+
+#### Remaining Work
+
+- Commit, push, and verify Vercel production deployment.
+
+#### Next Priority
+
+- Production smoke-test the #forest page and tune object density if the live viewport feels crowded on mobile.
+
 ### 2026-07-09 - Study Forest smile and free movement refinement
 
 #### Completed Work

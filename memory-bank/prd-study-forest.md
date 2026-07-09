@@ -16,6 +16,7 @@ Personal MVP users who want a softer Animal Crossing-style reward for sustained 
 - Wilt only the current in-progress tree when the latest tracked day is missed.
 - Let the user move a small character with keyboard or touch controls.
 - Make the personal space feel like a cozy 2.5D forest village through original, non-infringing props and character details.
+- Make the reward space visually richer with CSS-only island layers, river, bridge, garden, warm lights, fireflies, and ambient motion.
 - Let the character walk automatically after a short period without user control.
 - Let the user click or touch the meadow to move the character to that point.
 - Make the avatar expression friendly and smiling, not tense or frowning.
@@ -58,6 +59,7 @@ Personal MVP users who want a softer Animal Crossing-style reward for sustained 
 - [x] Add a #forest dashboard route.
 - [x] Add deterministic study forest helper logic with unit tests.
 - [x] Render a 2.5D CSS scene with land, path, pond, styled trees, village props, flowers/stones, and a clearly visible detailed avatar.
+- [x] Render richer island details including distant hills, river, bridge, garden bed, lanterns, fireflies, foreground grass, and ambient keyframe motion.
 - [x] Support keyboard movement and touch button movement.
 - [x] Resume automatic avatar walking when manual control is idle.
 - [x] Support click/touch-to-walk inside the meadow.
