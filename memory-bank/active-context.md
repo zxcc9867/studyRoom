@@ -2124,3 +2124,15 @@
 - 집 안 가구 충돌 좌표와 Three.js 가구 배치는 함께 변경해야 한다.
 - 완성 나무가 하나 이상이면 기존에 얻은 실내 보상이 다음 성장 주기에도 유지된다.
 - 현재 변경은 로컬 작업 트리에만 있으며 아직 커밋, 푸시, 배포하지 않았다.
+
+
+## 2026-07-12 - Study Forest production deployment
+
+### Current Status
+
+- Completed: Commit `a2fde1557d8a6d893c908705128899b530e423dd` was pushed to `origin/main`.
+- Completed: GitHub Actions run `29193721600` passed tests, build, and Vercel production deployment in 1m11s.
+- Completed: Vercel deployment URL `https://study-room-attendance-2vgnv0080-astars-projects-c2f42587.vercel.app` was created.
+- Completed: Production alias `https://study-room-attendance.vercel.app/` returned HTTP 200.
+- Completed: Production bundle `assets/StudyForest3D-DcIhYwMj.js` contains the interior movement, time-phase, and attendance trophy markers.
+- Next: Push this deployment record and verify the documentation-only production workflow.

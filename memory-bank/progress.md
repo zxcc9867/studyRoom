@@ -4214,3 +4214,26 @@
 #### 다음 우선순위
 
 - 모바일 실기기 피드백에 따라 실내 장애물 영역과 시간대별 조명 강도를 미세 조정한다.
+
+
+### 2026-07-12 - Study Forest production deployment
+
+#### Completed Work
+
+- Committed the cottage movement, doorway exit, facing-direction fix, interior milestone rewards, and local-time environment as `a2fde15`.
+- Pushed `main` to `origin`.
+- GitHub Actions run `29193721600` completed successfully.
+- Vercel production deployment completed and the production alias returned HTTP 200.
+- Confirmed the deployed Three.js chunk contains `interior-interaction-plane`, `forest-celestial-details`, and `cottage-attendance-trophy`.
+
+#### Verification
+
+- Workflow: `https://github.com/zxcc9867/studyRoom/actions/runs/29193721600`
+- Production: `https://study-room-attendance.vercel.app/`
+- Deployment: `https://study-room-attendance-2vgnv0080-astars-projects-c2f42587.vercel.app`
+- Main bundle: `assets/index-CENvbhjM.js`
+- Forest bundle: `assets/StudyForest3D-DcIhYwMj.js`
+
+#### Remaining Work
+
+- Commit and push this deployment record.
