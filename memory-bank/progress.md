@@ -40,12 +40,22 @@
 
 #### Remaining Work
 
-- Commit, push, and deploy only after explicit user authorization.
+- None for the web implementation and production deployment.
+- Optional: verify the Expo palette on a physical Android/iOS device.
 - Address existing Expo 53 dependency advisories in a separate planned upgrade; audit --force would jump to Expo 57 and is not safe in this feature change.
+
+#### Deployment
+
+- Commit: 42764f6e9a50186d7291bb13b6d80044a18cf71e
+- GitHub Actions: run 29191086087 completed successfully in 1m20s.
+- Vercel deployment URL: https://study-room-attendance-c0om19vnu-astars-projects-c2f42587.vercel.app
+- Production alias: https://study-room-attendance.vercel.app
+- Live verification: page, main JavaScript, CSS, and StudyForest3D-CFGwysgM.js all returned HTTP 200.
+- Bundle verification: planner-overlap-list, low-poly-study-island, and avatar-interaction-plane markers were present in production assets.
 
 #### Next Priority
 
-- User review of the local screenshots, then an explicitly requested release.
+- Optional physical-device Expo visual QA and a separately planned Expo framework security upgrade.
 
 ### 2026-07-12 - Planner overlap details and Expo palette alignment
 

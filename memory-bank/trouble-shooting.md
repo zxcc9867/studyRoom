@@ -1,3 +1,31 @@
+## 2026-07-12 - GitHub Actions Node runtime deprecation warning
+
+### Situation
+
+The production deployment succeeded, but GitHub Actions emitted a runtime deprecation annotation after the Vercel deployment step.
+
+### Error Message
+
+~~~txt
+Node.js 20 is deprecated. The following actions target Node.js 20 but are being forced to run on Node.js 24: actions/checkout@v4, actions/setup-node@v4.
+~~~
+
+### Cause
+
+The workflow explicitly sets Node.js 24 for project commands, while the pinned actions/checkout@v4 and actions/setup-node@v4 action runtimes still declare Node.js 20.
+
+### Resolution
+
+No release change was required because GitHub forced those actions onto Node.js 24 and run 29191086087 completed successfully. Treat the annotation as a maintenance warning, not a failed deployment.
+
+### Related Files
+
+- .github/workflows/vercel-production.yml
+
+### Prevention
+
+Upgrade the GitHub Actions majors in a separate CI maintenance change after confirming their Node.js 24-compatible releases and rerunning the full production workflow.
+
 ## 2026-07-12 - Three.js types, grid overflow, and root audit findings
 
 ### Situation

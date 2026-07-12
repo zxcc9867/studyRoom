@@ -34,12 +34,15 @@
 - Completed: Keyboard/touch controls, idle walking, and Raycaster click/tap movement all share the existing avatar state.
 - Completed: Desktop 1280x900 and mobile 390x844 browser verification passed with WebGL ready, no page errors, no horizontal overflow, and click coordinates changing from 52.0,66.0 to 49.7,62.0.
 - Completed: 238 tests, Expo typecheck, web production build, and web workspace runtime audit pass.
-- Next: Commit/push/deploy only when the user explicitly requests it.
+- Completed: Feature commit 42764f6e9a50186d7291bb13b6d80044a18cf71e was pushed to origin/main after explicit user authorization.
+- Completed: GitHub Actions run 29191086087 passed and deployed the web app to Vercel production.
+- Completed: https://study-room-attendance.vercel.app and the new main, CSS, and StudyForest3D lazy chunks returned HTTP 200; production bundle markers confirmed the planner overlap UI and low-poly 3D scene.
+- Next: Perform optional real-device Expo visual QA and plan the Expo 53 dependency upgrade separately.
 
 ## Notes
 
 - No Supabase schema, policy, Edge Function, environment variable, copied asset, or external model changed.
-- Current changes are local only and are not committed, pushed, or deployed.
+- The planner, mobile palette, and Three.js Study Forest changes are committed, pushed, and deployed to production.
 - Root npm audit still reports existing Expo 53 dependency advisories; the new web workspace reports zero runtime vulnerabilities.
 
 ---
