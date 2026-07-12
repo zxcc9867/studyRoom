@@ -1,6 +1,11 @@
 import { useEffect, useRef, useState } from "react";
 import * as THREE from "three";
 
+import {
+  getForestBlockedReason,
+  getForestNavigationPath,
+  isForestAvatarPositionWalkable,
+} from "./studyForest.mjs";
 import type {
   StudyForestAvatarFacing,
   StudyForestAvatarPosition,
@@ -9,12 +14,16 @@ import type {
 
 type AvatarTarget = Pick<StudyForestAvatarPosition, "x" | "y">;
 
+export type StudyForestSceneMode = "island" | "interior";
+
 type StudyForest3DProps = {
   completedTreeCount: number;
   currentTreeStage: StudyForestTreeStage;
   currentTreeProgressDays: number;
   avatar: StudyForestAvatarPosition & { facing: StudyForestAvatarFacing };
+  sceneMode: StudyForestSceneMode;
   onMoveTarget: (target: AvatarTarget) => void;
+  onSceneModeChange: (mode: StudyForestSceneMode) => void;
 };
 
 type WebglStatus = "loading" | "ready" | "fallback";
@@ -221,11 +230,11 @@ function createBridge(scene: THREE.Scene) {
   }
 
   const railMaterial = standardMaterial(palette.wood);
-  for (const z of [-1.08, 1.08]) {
-    const rail = new THREE.Mesh(new THREE.BoxGeometry(3.6, 0.1, 0.1), railMaterial);
-    rail.position.set(0, 0.68, z);
+  for (const x of [-1.78, 1.78]) {
+    const rail = new THREE.Mesh(new THREE.BoxGeometry(0.1, 0.1, 2.15), railMaterial);
+    rail.position.set(x, 0.68, 0);
     bridge.add(rail);
-    for (const x of [-1.55, -0.75, 0, 0.75, 1.55]) {
+    for (const z of [-0.92, -0.46, 0, 0.46, 0.92]) {
       const post = new THREE.Mesh(new THREE.CylinderGeometry(0.07, 0.09, 0.75, 6), railMaterial);
       post.position.set(x, 0.35, z);
       bridge.add(post);
@@ -262,6 +271,7 @@ function createCottage(scene: THREE.Scene) {
     new THREE.BoxGeometry(0.62, 1.08, 0.1),
     standardMaterial(palette.wood),
   );
+  door.name = "cottage-entry-door";
   door.position.set(0.35, 0.55, 1.07);
   cottage.add(door);
 
@@ -283,7 +293,154 @@ function createCottage(scene: THREE.Scene) {
 
   enableShadows(cottage);
   scene.add(cottage);
-  return cottage;
+  return { cottage, door };
+}
+
+function createCottageInterior(scene: THREE.Scene) {
+  const room = new THREE.Group();
+  room.name = "cozy-study-cottage-interior";
+
+  const floor = new THREE.Mesh(
+    new THREE.BoxGeometry(9.4, 0.3, 7.2),
+    standardMaterial(0xc9905a),
+  );
+  floor.position.y = -0.08;
+  floor.receiveShadow = true;
+  room.add(floor);
+
+  const backWall = new THREE.Mesh(
+    new THREE.BoxGeometry(9.4, 3.6, 0.26),
+    standardMaterial(0xffedc7),
+  );
+  backWall.position.set(0, 1.72, -3.45);
+  room.add(backWall);
+
+  const sideWall = new THREE.Mesh(
+    new THREE.BoxGeometry(0.26, 3.6, 7.2),
+    standardMaterial(0xf7dcae),
+  );
+  sideWall.position.set(-4.55, 1.72, 0);
+  room.add(sideWall);
+
+  const rug = new THREE.Mesh(
+    new THREE.CircleGeometry(1.72, 16),
+    standardMaterial(palette.coral),
+  );
+  rug.name = "cottage-reading-rug";
+  rug.rotation.x = -Math.PI / 2;
+  rug.scale.z = 0.72;
+  rug.position.set(0.2, 0.09, 0.45);
+  room.add(rug);
+
+  const windowGlow = new THREE.Mesh(
+    new THREE.BoxGeometry(2.2, 1.45, 0.08),
+    standardMaterial(palette.window, {
+      emissive: new THREE.Color(0x6dc7d2),
+      emissiveIntensity: 0.48,
+    }),
+  );
+  windowGlow.position.set(-1.35, 2.15, -3.28);
+  room.add(windowGlow);
+  for (const offset of [-0.52, 0.52]) {
+    const frame = new THREE.Mesh(
+      new THREE.BoxGeometry(offset === -0.52 ? 0.08 : 2.25, offset === -0.52 ? 1.5 : 0.08, 0.09),
+      standardMaterial(palette.wood),
+    );
+    frame.position.set(-1.35, 2.15 + (offset === -0.52 ? 0 : offset), -3.22);
+    room.add(frame);
+  }
+
+  const desk = new THREE.Group();
+  desk.name = "cottage-study-desk";
+  desk.position.set(-2.25, 0.15, -1.65);
+  const deskTop = new THREE.Mesh(new THREE.BoxGeometry(2.55, 0.18, 1.15), standardMaterial(palette.woodLight));
+  deskTop.position.y = 1.12;
+  desk.add(deskTop);
+  for (const x of [-1.05, 1.05]) {
+    for (const z of [-0.4, 0.4]) {
+      const leg = new THREE.Mesh(new THREE.BoxGeometry(0.14, 1.08, 0.14), standardMaterial(palette.wood));
+      leg.position.set(x, 0.55, z);
+      desk.add(leg);
+    }
+  }
+  const notebook = new THREE.Mesh(new THREE.BoxGeometry(0.9, 0.06, 0.68), standardMaterial(0xfff8df));
+  notebook.position.set(0.2, 1.24, 0);
+  notebook.rotation.y = -0.12;
+  desk.add(notebook);
+  const mug = new THREE.Mesh(new THREE.CylinderGeometry(0.14, 0.13, 0.28, 8), standardMaterial(palette.coral));
+  mug.position.set(-0.72, 1.37, -0.2);
+  desk.add(mug);
+  room.add(desk);
+
+  const chair = new THREE.Group();
+  chair.name = "cottage-study-chair";
+  chair.position.set(-2.05, 0.15, 0.05);
+  const seat = new THREE.Mesh(new THREE.BoxGeometry(1.05, 0.16, 1.0), standardMaterial(palette.shirt));
+  seat.position.y = 0.72;
+  chair.add(seat);
+  const chairBack = new THREE.Mesh(new THREE.BoxGeometry(1.05, 1.2, 0.14), standardMaterial(palette.shirt));
+  chairBack.position.set(0, 1.25, 0.44);
+  chair.add(chairBack);
+  room.add(chair);
+
+  const shelf = new THREE.Group();
+  shelf.name = "cottage-bookshelf";
+  shelf.position.set(3.15, 0.1, -2.68);
+  for (const x of [-1.05, 1.05]) {
+    const side = new THREE.Mesh(new THREE.BoxGeometry(0.16, 2.75, 0.65), standardMaterial(palette.wood));
+    side.position.set(x, 1.38, 0);
+    shelf.add(side);
+  }
+  for (const y of [0.15, 0.98, 1.8, 2.65]) {
+    const board = new THREE.Mesh(new THREE.BoxGeometry(2.25, 0.14, 0.7), standardMaterial(palette.woodLight));
+    board.position.y = y;
+    shelf.add(board);
+  }
+  const bookColors = [palette.coral, palette.gold, palette.shirt, 0x7ca7c8];
+  for (let index = 0; index < 12; index += 1) {
+    const book = new THREE.Mesh(
+      new THREE.BoxGeometry(0.14 + (index % 2) * 0.04, 0.5 + (index % 3) * 0.07, 0.48),
+      standardMaterial(bookColors[index % bookColors.length]),
+    );
+    book.position.set(-0.84 + (index % 6) * 0.33, index < 6 ? 0.47 : 1.3, 0);
+    shelf.add(book);
+  }
+  room.add(shelf);
+
+  const readingLamp = new THREE.Group();
+  readingLamp.name = "cottage-reading-lamp";
+  readingLamp.position.set(1.65, 0.15, 1.65);
+  const lampPost = new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.09, 1.65, 7), standardMaterial(palette.wood));
+  lampPost.position.y = 0.82;
+  readingLamp.add(lampPost);
+  const lampShade = new THREE.Mesh(
+    new THREE.ConeGeometry(0.46, 0.58, 8, 1, true),
+    standardMaterial(palette.gold, { side: THREE.DoubleSide }),
+  );
+  lampShade.position.y = 1.72;
+  readingLamp.add(lampShade);
+  const lampLight = new THREE.PointLight(0xffd37d, 4.5, 7, 2);
+  lampLight.position.y = 1.52;
+  readingLamp.add(lampLight);
+  room.add(readingLamp);
+
+  const plant = new THREE.Group();
+  plant.name = "cottage-houseplant";
+  plant.position.set(3.55, 0.12, 1.85);
+  const pot = new THREE.Mesh(new THREE.CylinderGeometry(0.42, 0.3, 0.62, 8), standardMaterial(palette.coral));
+  pot.position.y = 0.3;
+  plant.add(pot);
+  for (const rotation of [-0.7, 0, 0.7]) {
+    const leaf = new THREE.Mesh(new THREE.ConeGeometry(0.22, 0.9, 6), standardMaterial(palette.leaf));
+    leaf.position.set(Math.sin(rotation) * 0.28, 0.95, Math.cos(rotation) * 0.16);
+    leaf.rotation.z = rotation * 0.35;
+    plant.add(leaf);
+  }
+  room.add(plant);
+
+  enableShadows(room);
+  scene.add(room);
+  return room;
 }
 
 function createLowPolyTree(
@@ -527,22 +684,33 @@ export function StudyForest3D({
   currentTreeStage,
   currentTreeProgressDays,
   avatar,
+  sceneMode,
   onMoveTarget,
+  onSceneModeChange,
 }: StudyForest3DProps) {
   const mountRef = useRef<HTMLDivElement | null>(null);
   const avatarTargetRef = useRef(avatarTargetToWorldPoint(avatar));
+  const avatarWorldRef = useRef(avatarTargetToWorldPoint(avatar));
+  const avatarPathRef = useRef<THREE.Vector3[]>([]);
   const avatarFacingRef = useRef<StudyForestAvatarFacing>(avatar.facing);
   const onMoveTargetRef = useRef(onMoveTarget);
+  const onSceneModeChangeRef = useRef(onSceneModeChange);
   const [webglStatus, setWebglStatus] = useState<WebglStatus>("loading");
+  const [interactionMessage, setInteractionMessage] = useState("");
 
   useEffect(() => {
     avatarTargetRef.current = avatarTargetToWorldPoint(avatar);
+    avatarPathRef.current = getForestNavigationPath(
+      worldPointToAvatarTarget(avatarWorldRef.current),
+      avatar,
+    ).map(avatarTargetToWorldPoint);
     avatarFacingRef.current = avatar.facing;
   }, [avatar]);
 
   useEffect(() => {
     onMoveTargetRef.current = onMoveTarget;
-  }, [onMoveTarget]);
+    onSceneModeChangeRef.current = onSceneModeChange;
+  }, [onMoveTarget, onSceneModeChange]);
 
   useEffect(() => {
     const container = mountRef.current;
@@ -563,7 +731,7 @@ export function StudyForest3D({
     setWebglStatus("ready");
     renderer.domElement.className = "study-forest-3d-canvas";
     renderer.domElement.setAttribute("aria-hidden", "true");
-    renderer.setClearColor(palette.sky, 1);
+    renderer.setClearColor(sceneMode === "interior" ? 0xffe8bd : palette.sky, 1);
     renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 1.5));
     renderer.outputColorSpace = THREE.SRGBColorSpace;
     renderer.toneMapping = THREE.ACESFilmicToneMapping;
@@ -573,17 +741,29 @@ export function StudyForest3D({
     container.appendChild(renderer.domElement);
 
     const scene = new THREE.Scene();
-    scene.background = new THREE.Color(palette.sky);
-    scene.fog = new THREE.Fog(palette.fog, 14, 28);
+    scene.background = new THREE.Color(sceneMode === "interior" ? 0xffe8bd : palette.sky);
+    scene.fog = sceneMode === "interior" ? null : new THREE.Fog(palette.fog, 14, 28);
 
     const camera = new THREE.OrthographicCamera(-8, 8, 5.5, -5.5, 0.1, 60);
-    camera.position.set(11.5, 11.2, 13.8);
-    camera.lookAt(0, 0.6, 0);
+    if (sceneMode === "interior") {
+      camera.position.set(9.4, 8.2, 10.8);
+      camera.lookAt(0, 0.85, -0.45);
+    } else {
+      camera.position.set(11.5, 11.2, 13.8);
+      camera.lookAt(0, 0.6, 0);
+    }
 
-    const hemisphere = new THREE.HemisphereLight(0xe7fbff, 0x5d7656, 2.25);
+    const hemisphere = new THREE.HemisphereLight(
+      sceneMode === "interior" ? 0xfff7df : 0xe7fbff,
+      sceneMode === "interior" ? 0x8d6947 : 0x5d7656,
+      sceneMode === "interior" ? 2.7 : 2.25,
+    );
     scene.add(hemisphere);
 
-    const sunlight = new THREE.DirectionalLight(0xfff3cf, 3.2);
+    const sunlight = new THREE.DirectionalLight(
+      sceneMode === "interior" ? 0xffdca0 : 0xfff3cf,
+      sceneMode === "interior" ? 2.4 : 3.2,
+    );
     sunlight.position.set(-7, 13, 8);
     sunlight.castShadow = true;
     sunlight.shadow.mapSize.width = 1024;
@@ -597,66 +777,100 @@ export function StudyForest3D({
     sunlight.shadow.bias = -0.0008;
     scene.add(sunlight);
 
-    createIsland(scene);
-    const river = createRiver(scene);
-    createBridge(scene);
-    createCottage(scene);
-    createGarden(scene);
-    createLantern(scene, -1.8, -1.25);
-    createLantern(scene, 2.25, 2.15);
-    const fireflies = createFireflies(scene);
-
-    const visibleCompletedTrees = Math.min(completedTreeCount, 28);
-    for (let index = 0; index < visibleCompletedTrees; index += 1) {
-      const base = COMPLETED_TREE_POSITIONS[index % COMPLETED_TREE_POSITIONS.length];
-      const ring = Math.floor(index / COMPLETED_TREE_POSITIONS.length);
-      const tree = createLowPolyTree(index, Math.max(0.58, 0.92 - ring * 0.12));
-      tree.position.set(base[0] * (1 - ring * 0.11), 0.48, base[1] * (1 - ring * 0.1));
-      tree.rotation.y = (index * 1.7) % (Math.PI * 2);
-      scene.add(tree);
-    }
-
-    const currentTree = createLowPolyTree(
-      currentTreeProgressDays,
-      1.08,
-      currentTreeStage,
-    );
-    currentTree.position.set(3.15, 0.48, -1.2);
-    scene.add(currentTree);
-
+    let river: THREE.Group | null = null;
+    let currentTree: THREE.Group | null = null;
+    let cottageDoor: THREE.Mesh | null = null;
+    let interactionPlane: THREE.Mesh | null = null;
+    let fireflies: THREE.Group | null = null;
     const avatarGroup = createAvatar();
-    avatarGroup.position.copy(avatarTargetRef.current);
-    avatarGroup.rotation.y = facingRotation(avatarFacingRef.current);
-    scene.add(avatarGroup);
 
-    const interactionPlane = new THREE.Mesh(
-      new THREE.PlaneGeometry(12.2, 8.4),
-      new THREE.MeshBasicMaterial({
-        color: 0xffffff,
-        transparent: true,
-        opacity: 0,
-        depthWrite: false,
-        side: THREE.DoubleSide,
-      }),
-    );
-    interactionPlane.name = "avatar-interaction-plane";
-    interactionPlane.rotation.x = -Math.PI / 2;
-    interactionPlane.position.y = 0.56;
-    scene.add(interactionPlane);
+    if (sceneMode === "island") {
+      createIsland(scene);
+      river = createRiver(scene);
+      createBridge(scene);
+      const cottage = createCottage(scene);
+      cottageDoor = cottage.door;
+      createGarden(scene);
+      createLantern(scene, -1.8, -1.25);
+      createLantern(scene, 2.25, 2.15);
+      fireflies = createFireflies(scene);
+
+      const visibleCompletedTrees = Math.min(completedTreeCount, 28);
+      for (let index = 0; index < visibleCompletedTrees; index += 1) {
+        const base = COMPLETED_TREE_POSITIONS[index % COMPLETED_TREE_POSITIONS.length];
+        const ring = Math.floor(index / COMPLETED_TREE_POSITIONS.length);
+        const tree = createLowPolyTree(index, Math.max(0.58, 0.92 - ring * 0.12));
+        tree.position.set(base[0] * (1 - ring * 0.11), 0.48, base[1] * (1 - ring * 0.1));
+        tree.rotation.y = (index * 1.7) % (Math.PI * 2);
+        scene.add(tree);
+      }
+
+      currentTree = createLowPolyTree(
+        currentTreeProgressDays,
+        1.08,
+        currentTreeStage,
+      );
+      currentTree.position.set(3.15, 0.48, -1.2);
+      scene.add(currentTree);
+
+      avatarGroup.position.copy(avatarWorldRef.current);
+      avatarGroup.rotation.y = facingRotation(avatarFacingRef.current);
+
+      interactionPlane = new THREE.Mesh(
+        new THREE.PlaneGeometry(12.2, 8.4),
+        new THREE.MeshBasicMaterial({
+          color: 0xffffff,
+          transparent: true,
+          opacity: 0,
+          depthWrite: false,
+          side: THREE.DoubleSide,
+        }),
+      );
+      interactionPlane.name = "avatar-interaction-plane";
+      interactionPlane.rotation.x = -Math.PI / 2;
+      interactionPlane.position.y = 0.56;
+      scene.add(interactionPlane);
+    } else {
+      createCottageInterior(scene);
+      avatarGroup.scale.setScalar(0.84);
+      avatarGroup.position.set(-0.15, 0.18, 1.65);
+      avatarGroup.rotation.y = Math.PI;
+    }
+    scene.add(avatarGroup);
 
     const raycaster = new THREE.Raycaster();
     const pointer = new THREE.Vector2();
     const handlePointerDown = (event: PointerEvent) => {
       if (event.pointerType === "mouse" && event.button !== 0) return;
+      if (sceneMode !== "island" || !interactionPlane) return;
       const rect = renderer.domElement.getBoundingClientRect();
       pointer.set(
         ((event.clientX - rect.left) / rect.width) * 2 - 1,
         -((event.clientY - rect.top) / rect.height) * 2 + 1,
       );
       raycaster.setFromCamera(pointer, camera);
+
+      if (cottageDoor && raycaster.intersectObject(cottageDoor, false)[0]) {
+        setInteractionMessage("");
+        onSceneModeChangeRef.current("interior");
+        return;
+      }
+
       const intersection = raycaster.intersectObject(interactionPlane)[0];
       if (!intersection) return;
-      onMoveTargetRef.current(worldPointToAvatarTarget(intersection.point));
+      const target = worldPointToAvatarTarget(intersection.point);
+      if (!isForestAvatarPositionWalkable(target)) {
+        const reason = getForestBlockedReason(target);
+        setInteractionMessage(
+          reason === "water"
+            ? "\uBB3C\uC5D0\uB294 \uB4E4\uC5B4\uAC08 \uC218 \uC5C6\uC5B4\uC694. \uB2E4\uB9AC\uB97C \uC774\uC6A9\uD574 \uC8FC\uC138\uC694."
+            : "\uC774 \uACF3\uC740 \uC9C0\uB098\uAC08 \uC218 \uC5C6\uC5B4\uC694. \uC8FC\uBCC0 \uAE38\uB85C \uC774\uB3D9\uD574 \uC8FC\uC138\uC694.",
+        );
+        return;
+      }
+
+      setInteractionMessage("");
+      onMoveTargetRef.current(target);
     };
     renderer.domElement.addEventListener("pointerdown", handlePointerDown);
 
@@ -680,21 +894,38 @@ export function StudyForest3D({
     const clock = new THREE.Clock();
     renderer.setAnimationLoop(() => {
       const elapsed = clock.getElapsedTime();
-      avatarGroup.position.x = THREE.MathUtils.lerp(avatarGroup.position.x, avatarTargetRef.current.x, 0.075);
-      avatarGroup.position.z = THREE.MathUtils.lerp(avatarGroup.position.z, avatarTargetRef.current.z, 0.075);
-      avatarGroup.position.y = avatarTargetRef.current.y + (prefersReducedMotion ? 0 : Math.sin(elapsed * 4.2) * 0.045);
-      avatarGroup.rotation.y = THREE.MathUtils.lerp(
-        avatarGroup.rotation.y,
-        facingRotation(avatarFacingRef.current),
-        0.16,
-      );
+
+      if (sceneMode === "island") {
+        const pathTarget = avatarPathRef.current[0] ?? avatarTargetRef.current;
+        avatarGroup.position.x = THREE.MathUtils.lerp(avatarGroup.position.x, pathTarget.x, 0.075);
+        avatarGroup.position.z = THREE.MathUtils.lerp(avatarGroup.position.z, pathTarget.z, 0.075);
+        avatarGroup.position.y = pathTarget.y + (prefersReducedMotion ? 0 : Math.sin(elapsed * 4.2) * 0.045);
+        avatarWorldRef.current.set(avatarGroup.position.x, 0.38, avatarGroup.position.z);
+
+        const dx = pathTarget.x - avatarGroup.position.x;
+        const dz = pathTarget.z - avatarGroup.position.z;
+        const movingRotation = Math.abs(dx) > Math.abs(dz)
+          ? (dx < 0 ? Math.PI / 2 : -Math.PI / 2)
+          : (dz < 0 ? Math.PI : 0);
+        avatarGroup.rotation.y = THREE.MathUtils.lerp(
+          avatarGroup.rotation.y,
+          Math.hypot(dx, dz) > 0.08 ? movingRotation : facingRotation(avatarFacingRef.current),
+          0.16,
+        );
+
+        if (Math.hypot(dx, dz) < 0.075 && avatarPathRef.current.length > 0) {
+          avatarPathRef.current.shift();
+        }
+      } else {
+        avatarGroup.position.y = 0.18 + (prefersReducedMotion ? 0 : Math.sin(elapsed * 2.8) * 0.025);
+      }
 
       if (!prefersReducedMotion) {
-        fireflies.children.forEach((child, index) => {
+        fireflies?.children.forEach((child, index) => {
           child.position.y += Math.sin(elapsed * 1.8 + index) * 0.0018;
         });
-        river.position.y = Math.sin(elapsed * 1.2) * 0.012;
-        currentTree.rotation.z = Math.sin(elapsed * 0.8) * 0.012;
+        if (river) river.position.y = Math.sin(elapsed * 1.2) * 0.012;
+        if (currentTree) currentTree.rotation.z = Math.sin(elapsed * 0.8) * 0.012;
       }
 
       renderer.render(scene, camera);
@@ -716,14 +947,19 @@ export function StudyForest3D({
       renderer.dispose();
       renderer.domElement.remove();
     };
-  }, [completedTreeCount, currentTreeProgressDays, currentTreeStage]);
+  }, [completedTreeCount, currentTreeProgressDays, currentTreeStage, sceneMode]);
 
   return (
     <div
       className="study-forest-3d-shell"
       data-webgl-status={webglStatus}
-      aria-label={"\uC800\uD3F4\uB9AC 3D \uACF5\uBD80 \uC232 \uC7A5\uBA74"}
-      role="img"
+      data-scene-mode={sceneMode}
+      aria-label={
+        sceneMode === "interior"
+          ? "\uC800\uD3F4\uB9AC \uACF5\uBD80 \uC9D1 \uB0B4\uBD80"
+          : "\uC800\uD3F4\uB9AC 3D \uACF5\uBD80 \uC232 \uC7A5\uBA74"
+      }
+      role="group"
     >
       <div className="study-forest-3d-mount" ref={mountRef} />
       {webglStatus === "loading" && (
@@ -743,11 +979,28 @@ export function StudyForest3D({
       {webglStatus === "ready" && (
         <>
           <div className="study-forest-3d-badge" aria-hidden="true">
-            <span>LIVE</span>
-            LOW-POLY 3D
+            <span>{sceneMode === "interior" ? "ROOM" : "LIVE"}</span>
+            {sceneMode === "interior" ? "COZY STUDY COTTAGE" : "LOW-POLY 3D"}
           </div>
+          <button
+            type="button"
+            className="study-forest-scene-action"
+            onClick={() => {
+              setInteractionMessage("");
+              onSceneModeChange(sceneMode === "island" ? "interior" : "island");
+            }}
+          >
+            {sceneMode === "island"
+              ? "\uC9D1 \uC548 \uBCF4\uAE30"
+              : "\uC12C\uC73C\uB85C \uB098\uAC00\uAE30"}
+          </button>
+          {interactionMessage && (
+            <div className="study-forest-3d-notice" role="status">{interactionMessage}</div>
+          )}
           <div className="study-forest-3d-hint">
-            {"\uC12C\uC744 \uB204\uB974\uBA74 \uCE90\uB9AD\uD130\uAC00 \uADF8\uACF3\uC73C\uB85C \uC0B0\uCC45\uD574\uC694"}
+            {sceneMode === "island"
+              ? "\uC12C\uC744 \uB20C\uB7EC \uC0B0\uCC45\uD558\uACE0, \uC9D1 \uBB38\uC744 \uB20C\uB7EC \uC2E4\uB0B4\uB85C \uB4E4\uC5B4\uAC00\uC138\uC694"
+              : "\uCC45\uC0C1\uACFC \uCC45\uC7A5\uC744 \uB458\uB7EC\uBCF4\uACE0 \uC12C\uC73C\uB85C \uB3CC\uC544\uAC08 \uC218 \uC788\uC5B4\uC694"}
           </div>
         </>
       )}

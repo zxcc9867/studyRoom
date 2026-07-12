@@ -3,11 +3,14 @@ import { test } from "node:test";
 
 import {
   buildStudyForestState,
+  getForestNavigationPath,
+  getNextForestLevelUpdate,
   getAvatarPositionFromScenePoint,
   getAvatarSceneStyle,
   getAvatarStep,
   getNextAutoAvatarStep,
   getTreeStageForProgress,
+  isForestAvatarPositionWalkable,
 } from "../src/studyForest.mjs";
 
 test("builds one completed tree for a seven day attendance streak", () => {
@@ -115,3 +118,38 @@ test("auto walk heads toward scenic waypoints instead of pacing one row", () => 
 });
 
 
+
+test("blocks water and solid scenery while keeping the bridge walkable", () => {
+  assert.equal(isForestAvatarPositionWalkable({ x: 24, y: 66 }), false);
+  assert.equal(isForestAvatarPositionWalkable({ x: 55, y: 66 }), true);
+  assert.equal(isForestAvatarPositionWalkable({ x: 24, y: 50 }), false);
+  assert.equal(isForestAvatarPositionWalkable({ x: 80, y: 50 }), false);
+  assert.equal(isForestAvatarPositionWalkable({ x: 74, y: 78 }), true);
+  assert.deepEqual(getAvatarStep({ x: 24, y: 60, facing: "down" }, "ArrowDown"), {
+    x: 24,
+    y: 60,
+    facing: "down",
+  });
+});
+
+test("routes cross-river destinations through bridge entry and exit waypoints", () => {
+  const path = getForestNavigationPath({ x: 24, y: 56 }, { x: 78, y: 78 });
+
+  assert.deepEqual(path.slice(0, 2), [
+    { x: 55, y: 60.8 },
+    { x: 55, y: 73.2 },
+  ]);
+  assert.deepEqual(path.at(-1), { x: 78, y: 78 });
+  assert.equal(path.every((point) => isForestAvatarPositionWalkable(point)), true);
+});
+
+test("describes the next visible streak upgrade", () => {
+  assert.deepEqual(getNextForestLevelUpdate(0), {
+    targetDays: 1,
+    remainingDays: 1,
+    title: "\uC0C8\uC2F9\uC774 \uAE68\uC5B4\uB098\uC694",
+    description: "\uC528\uC557 \uC704\uB85C \uCCAB \uC0C8\uC2F9\uACFC \uC791\uC740 \uC78E\uC774 \uC62C\uB77C\uC635\uB2C8\uB2E4.",
+  });
+  assert.equal(getNextForestLevelUpdate(4).targetDays, 5);
+  assert.equal(getNextForestLevelUpdate(7).targetDays, 8);
+});

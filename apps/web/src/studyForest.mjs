@@ -7,12 +7,43 @@ const DEFAULT_MEADOW_BOUNDS = {
 };
 
 const AUTO_WALK_WAYPOINTS = [
-  { x: 72, y: 56 },
+  { x: 64, y: 56 },
   { x: 82, y: 74 },
   { x: 53, y: 81 },
   { x: 27, y: 64 },
   { x: 45, y: 50 },
 ];
+
+const FOREST_RIVER_BAND = { minY: 61.8, maxY: 73.2 };
+const FOREST_BRIDGE_CORRIDOR = { minX: 42, maxX: 68, northY: 60.8, southY: 73.2, centerX: 55 };
+const FOREST_SOLID_AREAS = [
+  { reason: "cottage", minX: 12, maxX: 35, minY: 42, maxY: 57 },
+  { reason: "garden", minX: 69, maxX: 92, minY: 45, maxY: 56 },
+];
+
+export const forestLevelMilestones = [
+  {
+    days: 1,
+    label: "\uC0C8\uC2F9",
+    update: "\uC528\uC557 \uC704\uB85C \uCCAB \uC0C8\uC2F9\uACFC \uC791\uC740 \uC78E\uC774 \uC62C\uB77C\uC635\uB2C8\uB2E4.",
+  },
+  {
+    days: 3,
+    label: "\uC5B4\uB9B0 \uB098\uBB34",
+    update: "\uC904\uAE30\uAC00 \uB192\uC544\uC9C0\uACE0 \uC0C8 \uC78E\uC774 \uD3BC\uCCD0\uC9D1\uB2C8\uB2E4.",
+  },
+  {
+    days: 5,
+    label: "\uD48D\uC131\uD55C \uB098\uBB34",
+    update: "\uC218\uAD00\uC774 \uD48D\uC131\uD574\uC9C0\uACE0 \uC791\uC740 \uC5F4\uB9E4\uAC00 \uB9FA\uD78D\uB2C8\uB2E4.",
+  },
+  {
+    days: 7,
+    label: "\uC644\uC131 \uB098\uBB34",
+    update: "\uC644\uC131\uB41C \uB098\uBB34\uAC00 \uC232\uC5D0 \uC601\uAD6C \uBC30\uCE58\uB418\uACE0 \uB2E4\uC74C \uC528\uC557\uC774 \uC5F4\uB9BD\uB2C8\uB2E4.",
+  },
+];
+
 
 export const treeStageLabels = {
   seed: "씨앗",
@@ -103,27 +134,32 @@ export function getAvatarStep(position, key, bounds = {}) {
   const meadow = getAvatarBounds(bounds);
   const current = normalizeAvatarPosition(position, meadow);
   const step = meadow.step;
+  let target = { ...current };
+  let facing = position?.facing ?? "down";
 
   if (key === "ArrowLeft" || key === "a" || key === "A") {
-    return { x: clampNumber(current.x - step, meadow.minX, meadow.maxX), y: current.y, facing: "left" };
+    target.x = clampNumber(current.x - step, meadow.minX, meadow.maxX);
+    facing = "left";
+  } else if (key === "ArrowRight" || key === "d" || key === "D") {
+    target.x = clampNumber(current.x + step, meadow.minX, meadow.maxX);
+    facing = "right";
+  } else if (key === "ArrowUp" || key === "w" || key === "W") {
+    target.y = clampNumber(current.y - step, meadow.minY, meadow.maxY);
+    facing = "up";
+  } else if (key === "ArrowDown" || key === "s" || key === "S") {
+    target.y = clampNumber(current.y + step, meadow.minY, meadow.maxY);
+    facing = "down";
   }
-  if (key === "ArrowRight" || key === "d" || key === "D") {
-    return { x: clampNumber(current.x + step, meadow.minX, meadow.maxX), y: current.y, facing: "right" };
-  }
-  if (key === "ArrowUp" || key === "w" || key === "W") {
-    return { x: current.x, y: clampNumber(current.y - step, meadow.minY, meadow.maxY), facing: "up" };
-  }
-  if (key === "ArrowDown" || key === "s" || key === "S") {
-    return { x: current.x, y: clampNumber(current.y + step, meadow.minY, meadow.maxY), facing: "down" };
-  }
-  return { ...current, facing: position?.facing ?? "down" };
+
+  return { ...resolveForestAvatarTarget(current, target, meadow), facing };
 }
 
 export function getNextAutoAvatarStep(position, tick, bounds = {}) {
   const meadow = getAvatarBounds(bounds);
   const current = normalizeAvatarPosition(position, meadow);
   const target = AUTO_WALK_WAYPOINTS[Math.abs(Math.trunc(Number(tick) || 0)) % AUTO_WALK_WAYPOINTS.length];
-  return moveAvatarTowardTarget(current, target, meadow);
+  const waypoint = getForestNavigationPath(current, target, meadow)[0] ?? current;
+  return moveAvatarTowardTarget(current, waypoint, meadow);
 }
 
 export function getAvatarPositionFromScenePoint({ clientX, clientY, rect }, bounds = {}) {
@@ -144,6 +180,105 @@ export function getAvatarFacing(fromPosition, toPosition) {
   const dy = Number(toPosition?.y) - Number(fromPosition?.y);
   if (Math.abs(dx) >= Math.abs(dy)) return dx < 0 ? "left" : "right";
   return dy < 0 ? "up" : "down";
+}
+
+
+export function getForestBlockedReason(position, bounds = {}) {
+  const meadow = getAvatarBounds(bounds);
+  const current = normalizeAvatarPosition(position, meadow);
+  if (
+    Number(position?.x) < meadow.minX
+    || Number(position?.x) > meadow.maxX
+    || Number(position?.y) < meadow.minY
+    || Number(position?.y) > meadow.maxY
+  ) {
+    return "edge";
+  }
+
+  const insideRiver = current.y >= FOREST_RIVER_BAND.minY && current.y <= FOREST_RIVER_BAND.maxY;
+  const insideBridge = current.x >= FOREST_BRIDGE_CORRIDOR.minX && current.x <= FOREST_BRIDGE_CORRIDOR.maxX;
+  if (insideRiver && !insideBridge) return "water";
+
+  const solidArea = FOREST_SOLID_AREAS.find(
+    (area) =>
+      current.x >= area.minX
+      && current.x <= area.maxX
+      && current.y >= area.minY
+      && current.y <= area.maxY,
+  );
+  if (solidArea) return solidArea.reason;
+
+  const currentTreeDistance = Math.hypot((current.x - 75) / 5.5, (current.y - 55) / 4.5);
+  if (currentTreeDistance <= 1) return "tree";
+  return null;
+}
+
+export function isForestAvatarPositionWalkable(position, bounds = {}) {
+  return getForestBlockedReason(position, bounds) === null;
+}
+
+export function resolveForestAvatarTarget(currentPosition, targetPosition, bounds = {}) {
+  const meadow = getAvatarBounds(bounds);
+  const current = normalizeAvatarPosition(currentPosition, meadow);
+  const target = normalizeAvatarPosition(targetPosition, meadow);
+  return isForestAvatarPositionWalkable(target, meadow) ? target : current;
+}
+
+export function getForestNavigationPath(fromPosition, targetPosition, bounds = {}) {
+  const meadow = getAvatarBounds(bounds);
+  const from = normalizeAvatarPosition(fromPosition, meadow);
+  const target = normalizeAvatarPosition(targetPosition, meadow);
+  if (!isForestAvatarPositionWalkable(target, meadow)) return [];
+
+  const fromSide = getForestRiverSide(from.y);
+  const targetSide = getForestRiverSide(target.y);
+  const path = [];
+
+  if (fromSide === 0 && targetSide !== 0) {
+    path.push({
+      x: FOREST_BRIDGE_CORRIDOR.centerX,
+      y: targetSide < 0 ? FOREST_BRIDGE_CORRIDOR.northY : FOREST_BRIDGE_CORRIDOR.southY,
+    });
+  } else if (fromSide !== 0 && targetSide !== 0 && fromSide !== targetSide) {
+    path.push({
+      x: FOREST_BRIDGE_CORRIDOR.centerX,
+      y: fromSide < 0 ? FOREST_BRIDGE_CORRIDOR.northY : FOREST_BRIDGE_CORRIDOR.southY,
+    });
+    path.push({
+      x: FOREST_BRIDGE_CORRIDOR.centerX,
+      y: targetSide < 0 ? FOREST_BRIDGE_CORRIDOR.northY : FOREST_BRIDGE_CORRIDOR.southY,
+    });
+  }
+
+  path.push(target);
+  return path;
+}
+
+export function getNextForestLevelUpdate(progressDays) {
+  const progress = Math.max(0, Math.min(7, Math.trunc(Number(progressDays) || 0)));
+  const nextMilestone = forestLevelMilestones.find((milestone) => milestone.days > progress);
+  if (nextMilestone) {
+    return {
+      targetDays: nextMilestone.days,
+      remainingDays: nextMilestone.days - progress,
+      title: nextMilestone.days === 1
+        ? "\uC0C8\uC2F9\uC774 \uAE68\uC5B4\uB098\uC694"
+        : nextMilestone.label,
+      description: nextMilestone.update,
+    };
+  }
+  return {
+    targetDays: 8,
+    remainingDays: 1,
+    title: "\uB2E4\uC74C \uB098\uBB34\uB97C \uC2DC\uC791\uD574\uC694",
+    description: "\uC644\uC131 \uB098\uBB34\uB294 \uC232\uC5D0 \uB0A8\uACE0, \uB2E4\uC74C \uCD9C\uC11D\uBD80\uD130 \uC0C8 \uC528\uC557\uC774 \uC790\uB77C\uAE30 \uC2DC\uC791\uD569\uB2C8\uB2E4.",
+  };
+}
+
+function getForestRiverSide(y) {
+  if (y < FOREST_RIVER_BAND.minY) return -1;
+  if (y > FOREST_RIVER_BAND.maxY) return 1;
+  return 0;
 }
 
 export function getAvatarSceneStyle(position, bounds = {}) {
@@ -190,10 +325,13 @@ function moveAvatarTowardTarget(position, target, bounds) {
   const dy = target.y - position.y;
   const x = Math.abs(dx) <= bounds.step ? target.x : position.x + Math.sign(dx) * bounds.step;
   const y = Math.abs(dy) <= bounds.step ? target.y : position.y + Math.sign(dy) * bounds.step;
-  return {
+  const candidate = {
     x: clampNumber(x, bounds.minX, bounds.maxX),
     y: clampNumber(y, bounds.minY, bounds.maxY),
-    facing: getAvatarFacing(position, { x, y }),
+  };
+  return {
+    ...resolveForestAvatarTarget(position, candidate, bounds),
+    facing: getAvatarFacing(position, candidate),
   };
 }
 

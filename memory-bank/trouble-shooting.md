@@ -1,3 +1,37 @@
+## 2026-07-12 - Study Forest navigation integration edit errors and browser ACL
+
+### Situation
+
+While wiring bridge navigation and cottage scene switching, two UTF-8 fallback replacements introduced local compile errors. After the build passed, the required in-app browser runtime could not start for visual verification.
+
+### Error Message
+
+~~~txt
+SyntaxError: Identifier 'target' has already been declared
+src/StudyForest3D.tsx(990,1): error TS1005: ')' expected.
+node_repl kernel exited unexpectedly
+windows sandbox failed: helper_unknown_error: apply deny-read ACLs
+~~~
+
+### Cause
+
+The navigation helper reused the function parameter name target for a local candidate. A region-based replacement matched the effect cleanup return instead of the component JSX return and temporarily removed the cleanup/dependency closure. The browser runtime then hit the same Windows deny-read ACL failure previously seen by apply_patch before browser discovery completed.
+
+### Resolution
+
+Renamed the local movement value to candidate, restored the renderer/observer/listener/GPU cleanup block, and reran targeted tests plus the full TypeScript/Vite build. Retried the in-app browser connection once using the required plugin path; when the same ACL failure repeated, stopped rather than switching to an unsupported browser surface. Verified navigation math, TSX source contracts, all 242 tests, build output, and local Vite server readiness instead.
+
+### Related Files
+
+- apps/web/src/studyForest.mjs
+- apps/web/src/StudyForest3D.tsx
+- apps/web/test/studyForest.test.mjs
+- apps/web/test/studyForestUi.test.mjs
+
+### Prevention
+
+When fallback editing a component with nested return statements, use a unique component-level anchor or restore the effect cleanup in the same edit. Avoid parameter/local name reuse in navigation helpers. Treat deny-read ACL browser failures as an environment limitation and report the missing visual automation explicitly.
+
 ## 2026-07-12 - GitHub Actions Node runtime deprecation warning
 
 ### Situation

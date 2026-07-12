@@ -43,6 +43,7 @@ import {
   TreePine,
   Map as MapIcon,
   Sprout,
+  Sparkles,
   UserRound,
 } from "lucide-react";
 import type { Session } from "@supabase/supabase-js";
@@ -179,9 +180,12 @@ import {
 } from "./studyGoals.mjs";
 import {
   buildStudyForestState,
+  forestLevelMilestones,
   getAvatarFacing,
   getAvatarStep,
   getNextAutoAvatarStep,
+  getNextForestLevelUpdate,
+  resolveForestAvatarTarget,
 } from "./studyForest.mjs";
 import { isSupabaseConfigured, supabase, supabaseAnonKey, supabaseUrl } from "./supabase";
 import {
@@ -496,6 +500,7 @@ function DashboardApp() {
     facing: "down",
   });
   const [forestManualUntilMs, setForestManualUntilMs] = useState(0);
+  const [forestSceneMode, setForestSceneMode] = useState<"island" | "interior">("island");
   const [calendarMonth, setCalendarMonth] = useState(() => getMonthKey(new Date()));
   const [todoHistoryPage, setTodoHistoryPage] = useState(1);
   const [recoveryHistoryPage, setRecoveryHistoryPage] = useState(1);
@@ -833,6 +838,7 @@ function DashboardApp() {
     [attendanceDays, todayDateKey],
   );
   const forestProgressPercent = Math.round((studyForestState.currentTree.progressDays / 7) * 100);
+  const forestNextLevel = getNextForestLevelUpdate(studyForestState.currentTree.progressDays);
   const notificationDiagnostics = useMemo(
     () =>
       buildNotificationDiagnostics({
@@ -844,7 +850,7 @@ function DashboardApp() {
   );
 
   useEffect(() => {
-    if (activeSection !== "forest") return;
+    if (activeSection !== "forest" || forestSceneMode !== "island") return;
 
     const forestAutoWalkTimer = window.setInterval(() => {
       const currentMs = Date.now();
@@ -855,7 +861,7 @@ function DashboardApp() {
     }, 2200);
 
     return () => window.clearInterval(forestAutoWalkTimer);
-  }, [activeSection, forestManualUntilMs]);
+  }, [activeSection, forestManualUntilMs, forestSceneMode]);
 
   useEffect(() => {
     if (todoHistoryPage !== todoHistoryPageData.currentPage) {
@@ -1727,16 +1733,21 @@ function DashboardApp() {
   }
 
   function moveForestAvatar(key: string) {
+    if (forestSceneMode !== "island") return;
     setForestManualUntilMs(Date.now() + FOREST_MANUAL_CONTROL_MS);
     setForestAvatar((current) => getAvatarStep(current, key, FOREST_MEADOW_BOUNDS));
   }
 
   function moveForestAvatarTo(targetPosition: { x: number; y: number }) {
+    if (forestSceneMode !== "island") return;
     setForestManualUntilMs(Date.now() + FOREST_MANUAL_CONTROL_MS);
-    setForestAvatar((current) => ({
-      ...targetPosition,
-      facing: getAvatarFacing(current, targetPosition),
-    }));
+    setForestAvatar((current) => {
+      const resolvedTarget = resolveForestAvatarTarget(current, targetPosition, FOREST_MEADOW_BOUNDS);
+      return {
+        ...resolvedTarget,
+        facing: getAvatarFacing(current, resolvedTarget),
+      };
+    });
   }
 
   function handleForestKeyDown(event: KeyboardEvent<HTMLElement>) {
@@ -5326,15 +5337,17 @@ function DashboardApp() {
                     currentTreeStage={studyForestState.currentTree.stage}
                     currentTreeProgressDays={studyForestState.currentTree.progressDays}
                     avatar={forestAvatar}
+                    sceneMode={forestSceneMode}
                     onMoveTarget={moveForestAvatarTo}
+                    onSceneModeChange={setForestSceneMode}
                   />
                 </Suspense>
                 <div className="forest-controls" aria-label={"\uCE90\uB9AD\uD130 \uC774\uB3D9"}>
-                  <button type="button" onClick={() => moveForestAvatar("ArrowUp")} aria-label={"\uC704\uB85C \uC774\uB3D9"}>{"\u2191"}</button>
+                  <button type="button" onClick={() => moveForestAvatar("ArrowUp")} disabled={forestSceneMode === "interior"} aria-label={"\uC704\uB85C \uC774\uB3D9"}>{"\u2191"}</button>
                   <div>
-                    <button type="button" onClick={() => moveForestAvatar("ArrowLeft")} aria-label={"\uC67C\uCABD \uC774\uB3D9"}>{"\u2190"}</button>
-                    <button type="button" onClick={() => moveForestAvatar("ArrowDown")} aria-label={"\uC544\uB798\uB85C \uC774\uB3D9"}>{"\u2193"}</button>
-                    <button type="button" onClick={() => moveForestAvatar("ArrowRight")} aria-label={"\uC624\uB978\uCABD \uC774\uB3D9"}>{"\u2192"}</button>
+                    <button type="button" onClick={() => moveForestAvatar("ArrowLeft")} disabled={forestSceneMode === "interior"} aria-label={"\uC67C\uCABD \uC774\uB3D9"}>{"\u2190"}</button>
+                    <button type="button" onClick={() => moveForestAvatar("ArrowDown")} disabled={forestSceneMode === "interior"} aria-label={"\uC544\uB798\uB85C \uC774\uB3D9"}>{"\u2193"}</button>
+                    <button type="button" onClick={() => moveForestAvatar("ArrowRight")} disabled={forestSceneMode === "interior"} aria-label={"\uC624\uB978\uCABD \uC774\uB3D9"}>{"\u2192"}</button>
                   </div>
                   <p>{"\uD0A4\uBCF4\uB4DC \uD654\uC0B4\uD45C/WASD \uB610\uB294 \uD130\uCE58 \uBC84\uD2BC\uC73C\uB85C \uC774\uB3D9\uD560 \uC218 \uC788\uACE0, \uC870\uC791\uD558\uC9C0 \uC54A\uC73C\uBA74 \uC790\uB3D9\uC73C\uB85C \uC0B0\uCC45\uD569\uB2C8\uB2E4."}</p>
                 </div>
@@ -5345,6 +5358,40 @@ function DashboardApp() {
                 <h3>{studyForestState.currentTree.label}</h3>
                 <div className="forest-progress-track"><span style={{ width: forestProgressPercent + "%" }} /></div>
                 <p>{"\uD604\uC7AC \uC5F0\uC18D \uCD9C\uC11D "}{studyForestState.currentStreak}{"\uC77C \u00B7 \uB098\uBB34 \uC131\uC7A5 "}{studyForestState.currentTree.progressDays}{"/7\uC77C"}</p>
+
+                <div className="forest-next-level-card">
+                  <div>
+                    <Sparkles size={19} />
+                    <span>
+                      {"\uB2E4\uC74C \uC131\uC7A5 \u00B7 "}
+                      {forestNextLevel.remainingDays}
+                      {"\uC77C \uD6C4"}
+                    </span>
+                  </div>
+                  <strong>{forestNextLevel.title}</strong>
+                  <p>{forestNextLevel.description}</p>
+                </div>
+
+                <ol className="forest-level-roadmap" aria-label={"\uB098\uBB34 \uC131\uC7A5 \uB2E8\uACC4"}>
+                  {forestLevelMilestones.map((milestone) => {
+                    const progressDays = studyForestState.currentTree.progressDays;
+                    const milestoneState = progressDays >= milestone.days
+                      ? "complete"
+                      : forestNextLevel.targetDays === milestone.days
+                        ? "next"
+                        : "locked";
+                    return (
+                      <li key={milestone.days} data-state={milestoneState}>
+                        <span>{milestone.days}{"\uC77C"}</span>
+                        <div>
+                          <strong>{milestone.label}</strong>
+                          <small>{milestone.update}</small>
+                        </div>
+                      </li>
+                    );
+                  })}
+                </ol>
+
                 <div className="forest-status-list">
                   <div><MapIcon size={18} /><span>{"\uC644\uC131\uB41C \uB098\uBB34\uB294 \uCD9C\uC11D \uC2E4\uD328\uD574\uB3C4 \uAC1C\uC778 \uACF5\uAC04\uC5D0 \uB0A8\uC2B5\uB2C8\uB2E4."}</span></div>
                   <div><Sprout size={18} /><span>{"\uACB0\uC11D\uD558\uBA74 \uD604\uC7AC \uD0A4\uC6B0\uB294 \uB098\uBB34\uB9CC \uC2DC\uB4E4\uACE0, \uB2E4\uC74C \uCD9C\uC11D\uBD80\uD130 \uB2E4\uC2DC \uC790\uB78D\uB2C8\uB2E4."}</span></div>

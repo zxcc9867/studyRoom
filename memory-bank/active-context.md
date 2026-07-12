@@ -2,48 +2,47 @@
 
 ## Current Work
 
-- Task: Complete planner overlap details, mobile palette alignment, and the Three.js Study Forest upgrade.
-- Purpose: Make schedule conflicts actionable, keep mobile visuals consistent with web, and turn the reward space into a real cozy low-poly 3D island.
+- Task: Add believable Study Forest navigation, a cottage interior, and next-level streak previews.
+- Purpose: Keep the avatar out of water and solid props, make cross-river movement use the bridge, make the cottage explorable, and explain what the next attendance streak milestone changes.
 - Related PRD:
-  - memory-bank/prd-daily-planner-dashboard.md
   - memory-bank/prd-study-forest.md
 - Related files:
-  - apps/web/src/dailyPlanner.mjs
-  - apps/web/src/main.tsx
+  - apps/web/src/studyForest.mjs
+  - apps/web/src/studyForest.d.mts
   - apps/web/src/StudyForest3D.tsx
+  - apps/web/src/main.tsx
   - apps/web/src/styles.css
-  - apps/mobile/App.tsx
-  - apps/mobile/app.json
-  - apps/web/test/dailyPlanner.test.mjs
-  - apps/web/test/plannerOverlapUi.test.mjs
-  - apps/web/test/mobileNativeTheme.test.mjs
+  - apps/web/test/studyForest.test.mjs
   - apps/web/test/studyForestUi.test.mjs
+  - docs/superpowers/plans/2026-07-12-study-forest-collision-interior-levels.md
 
 ## Recent Decisions
 
-- Decision: The user explicitly approved replacing the former CSS/React 2.5D constraint with raw Three.js low-poly WebGL.
-- Reason: The requested end state is a real 3D Study Forest, not another CSS perspective refinement.
-- Decision: Keep the scene original and procedural, with no copied characters, models, textures, or external art dependencies.
-- Decision: Lazy-load Three.js on #forest and cap DPR/shadows/visible tree density for mobile.
+- Decision: Use deterministic normalized collision zones instead of adding a physics engine.
+- Reason: The island needs reliable water/prop blocking while keeping the client-only, low-overhead Three.js architecture.
+- Decision: Route north/south cross-river targets through bridge entry and exit waypoints before the final destination.
+- Decision: Correct the bridge rails so they run along the walking direction rather than blocking the bridge ends.
+- Decision: Keep island/interior mode in React state so auto-walk and controls pause while the user is inside the cottage.
+- Decision: Build the cottage interior from original Three.js primitives and expose both a clickable door and a keyboard-accessible scene action.
+- Decision: Show deterministic 1/3/5/7-day milestones plus the next visible upgrade instead of only a percentage.
 
 ## Current Status
 
-- Completed: Planner overlap alert identifies both todos, both schedules, and the exact intersection, including overnight conflicts.
-- Completed: Expo mobile app now uses the same fixed light green/cream/gold palette as the web dashboard.
-- Completed: Three.js WebGL Study Forest with low-poly island, river, bridge, cottage, garden, lanterns, fireflies, trees, avatar, lighting, shadows, and ambient motion.
-- Completed: Keyboard/touch controls, idle walking, and Raycaster click/tap movement all share the existing avatar state.
-- Completed: Desktop 1280x900 and mobile 390x844 browser verification passed with WebGL ready, no page errors, no horizontal overflow, and click coordinates changing from 52.0,66.0 to 49.7,62.0.
-- Completed: 238 tests, Expo typecheck, web production build, and web workspace runtime audit pass.
-- Completed: Feature commit 42764f6e9a50186d7291bb13b6d80044a18cf71e was pushed to origin/main after explicit user authorization.
-- Completed: GitHub Actions run 29191086087 passed and deployed the web app to Vercel production.
-- Completed: https://study-room-attendance.vercel.app and the new main, CSS, and StudyForest3D lazy chunks returned HTTP 200; production bundle markers confirmed the planner overlap UI and low-poly 3D scene.
-- Next: Perform optional real-device Expo visual QA and plan the Expo 53 dependency upgrade separately.
+- Completed: Water, cottage, garden, and current-tree collision checks for keyboard, touch, click, and idle targets.
+- Completed: Bridge waypoint routing prevents straight-line interpolation across the river.
+- Completed: Cottage door interaction and accessible enter/exit actions switch between the island and a cozy low-poly study room.
+- Completed: The interior includes a floor, walls, window, desk, notebook, mug, chair, bookshelf, books, reading lamp, rug, plant, and avatar.
+- Completed: Next-level card and 1/3/5/7-day roadmap explain the next streak-driven visual update.
+- Completed: 242 tests and the Vite production build passed.
+- Partial: In-app browser visual automation was blocked by the Windows sandbox deny-read ACL error before browser discovery.
+- Next: User visual review in the local app; commit, push, and deploy only after explicit user authorization.
 
 ## Notes
 
-- No Supabase schema, policy, Edge Function, environment variable, copied asset, or external model changed.
-- The planner, mobile palette, and Three.js Study Forest changes are committed, pushed, and deployed to production.
-- Root npm audit still reports existing Expo 53 dependency advisories; the new web workspace reports zero runtime vulnerabilities.
+- No Supabase schema, policy, Edge Function, API, environment variable, external model, or copied asset changed.
+- These collision/interior/level-preview changes are local only and are not committed, pushed, or deployed.
+- The existing Vite chunk-size warning remains; StudyForest3D is still lazy-loaded.
+- The frontend-design review kept the original toy-like green/cream/coral direction and the React review removed an unnecessary derived-value useMemo.
 
 ---
 

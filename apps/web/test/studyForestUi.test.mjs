@@ -58,6 +58,9 @@ test("Three.js scene maps click and touch input to the existing avatar coordinat
   assert.match(componentSource, /onMoveTargetRef\.current/);
   assert.match(componentSource, /worldPointToAvatarTarget/);
   assert.match(componentSource, /avatarTargetToWorldPoint/);
+  assert.match(componentSource, /getForestNavigationPath/);
+  assert.match(componentSource, /isForestAvatarPositionWalkable/);
+  assert.match(componentSource, /new THREE\.BoxGeometry\(0\.1, 0\.1, 2\.15\)/);
 });
 
 test("Three.js scene provides fallback, reduced motion, and GPU cleanup", () => {
@@ -69,4 +72,16 @@ test("Three.js scene provides fallback, reduced motion, and GPU cleanup", () => 
   assert.match(componentSource, /material\.dispose\(\)/);
   assert.match(componentSource, /resizeObserver\.disconnect\(\)/);
   assert.match(cssSource, /\.study-forest-3d-fallback/);
+});
+
+test("Study Forest blocks scenery, opens the cottage interior, and previews the next level", () => {
+  assert.match(componentSource, /function createCottageInterior/);
+  assert.match(componentSource, /cottage-entry-door/);
+  assert.match(componentSource, /sceneMode === "interior"/);
+  assert.match(componentSource, /onSceneModeChange/);
+  assert.match(mainSource, /getNextForestLevelUpdate/);
+  assert.match(mainSource, /forest-next-level-card/);
+  assert.match(mainSource, /forest-level-roadmap/);
+  assert.match(cssSource, /\.study-forest-scene-action/);
+  assert.match(cssSource, /\.forest-next-level-card/);
 });

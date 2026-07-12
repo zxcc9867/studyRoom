@@ -1,3 +1,52 @@
+### 2026-07-12 - Study Forest collision, cottage interior, and level preview
+
+#### Completed Work
+
+- Added normalized walkability rules for the river, bridge corridor, cottage, garden, and current growth tree.
+- Added bridge entry/exit waypoint routing so long north/south moves do not interpolate through water.
+- Applied collision resolution to keyboard, touch, click/tap, and idle walking.
+- Rotated the bridge rails from closed end barriers to side rails aligned with the walking direction.
+- Added an interactive cottage door plus accessible enter/exit actions.
+- Added a low-poly cottage study room with original primitive-built furniture and warm lighting.
+- Added deterministic 1/3/5/7-day milestones and a next-level update card.
+- Added responsive mobile styles for scene actions, collision notices, and the level roadmap.
+- Updated the Study Forest PRD and added a scoped implementation plan.
+
+#### Changed Files
+
+- apps/web/src/studyForest.mjs
+- apps/web/src/studyForest.d.mts
+- apps/web/src/StudyForest3D.tsx
+- apps/web/src/main.tsx
+- apps/web/src/styles.css
+- apps/web/test/studyForest.test.mjs
+- apps/web/test/studyForestUi.test.mjs
+- memory-bank/prd-study-forest.md
+- memory-bank/active-context.md
+- memory-bank/implementation-plan.md
+- memory-bank/progress.md
+- memory-bank/trouble-shooting.md
+- docs/superpowers/plans/2026-07-12-study-forest-collision-interior-levels.md
+
+#### Verification
+
+- RED: new tests initially failed because navigation and level exports and interior scene wiring did not exist.
+- GREEN: targeted Study Forest tests passed 17 tests.
+- Full suite: npm.cmd test passed 242 tests.
+- Build: npm.cmd run build passed.
+- Diff hygiene: git diff --check reported only the existing LF-to-CRLF warnings.
+- Encoding: changed source/docs files contain no unexpected control characters.
+- Browser automation: blocked before discovery by the Windows sandbox deny-read ACL error; no automated canvas screenshot was produced.
+
+#### Remaining Work
+
+- Visual user review of water clicks, bridge routing, cottage entry/exit, and mobile level-card layout.
+- Commit, push, and deploy only after explicit user authorization.
+
+#### Next Priority
+
+- If the visual review finds a geometry mismatch, tune only the normalized collision constants or camera/object placement without adding a physics dependency.
+
 ### 2026-07-12 - Three.js low-poly Study Forest upgrade
 
 #### Completed Work

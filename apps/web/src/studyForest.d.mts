@@ -95,6 +95,48 @@ export function getAvatarFacing(
   toPosition: Pick<StudyForestAvatarPosition, "x" | "y">,
 ): StudyForestAvatarFacing;
 
+
+export type StudyForestBlockedReason = "edge" | "water" | "cottage" | "garden" | "tree";
+
+export type StudyForestLevelMilestone = {
+  days: number;
+  label: string;
+  update: string;
+};
+
+export type StudyForestLevelUpdate = {
+  targetDays: number;
+  remainingDays: number;
+  title: string;
+  description: string;
+};
+
+export const forestLevelMilestones: StudyForestLevelMilestone[];
+
+export function getForestBlockedReason(
+  position: Pick<StudyForestAvatarPosition, "x" | "y">,
+  bounds?: StudyForestAvatarBounds,
+): StudyForestBlockedReason | null;
+
+export function isForestAvatarPositionWalkable(
+  position: Pick<StudyForestAvatarPosition, "x" | "y">,
+  bounds?: StudyForestAvatarBounds,
+): boolean;
+
+export function resolveForestAvatarTarget(
+  currentPosition: Pick<StudyForestAvatarPosition, "x" | "y">,
+  targetPosition: Pick<StudyForestAvatarPosition, "x" | "y">,
+  bounds?: StudyForestAvatarBounds,
+): Pick<StudyForestAvatarPosition, "x" | "y">;
+
+export function getForestNavigationPath(
+  fromPosition: Pick<StudyForestAvatarPosition, "x" | "y">,
+  targetPosition: Pick<StudyForestAvatarPosition, "x" | "y">,
+  bounds?: StudyForestAvatarBounds,
+): Array<Pick<StudyForestAvatarPosition, "x" | "y">>;
+
+export function getNextForestLevelUpdate(progressDays: number): StudyForestLevelUpdate;
+
 export function getAvatarSceneStyle(
   position: StudyForestAvatarPosition,
   bounds?: StudyForestAvatarBounds,

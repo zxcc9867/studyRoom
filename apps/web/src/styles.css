@@ -3132,6 +3132,205 @@ button:active:not(:disabled) {
   backdrop-filter: blur(8px);
 }
 
+
+.study-forest-3d-shell[data-scene-mode="interior"] {
+  background:
+    radial-gradient(circle at 70% 20%, rgba(255, 245, 202, 0.95), transparent 28%),
+    linear-gradient(160deg, #ffd99a, #efb975);
+}
+
+.study-forest-scene-action {
+  position: absolute;
+  top: 16px;
+  right: 16px;
+  z-index: 5;
+  min-height: 38px;
+  border: 2px solid rgba(47, 107, 82, 0.55);
+  border-radius: 999px;
+  background: rgba(255, 249, 223, 0.94);
+  color: #2f6b52;
+  padding: 7px 13px;
+  font-size: 12px;
+  font-weight: 950;
+  box-shadow: 0 4px 0 rgba(47, 107, 82, 0.2);
+  backdrop-filter: blur(8px);
+}
+
+.study-forest-scene-action:hover {
+  transform: translateY(-1px);
+  background: #fff4c8;
+}
+
+.study-forest-3d-notice {
+  position: absolute;
+  left: 50%;
+  bottom: 62px;
+  z-index: 5;
+  width: max-content;
+  max-width: calc(100% - 32px);
+  transform: translateX(-50%);
+  border: 2px solid #bf5c42;
+  border-radius: 14px;
+  background: rgba(255, 244, 200, 0.96);
+  color: #7b3e31;
+  padding: 9px 13px;
+  text-align: center;
+  font-size: 13px;
+  font-weight: 950;
+  line-height: 1.4;
+  box-shadow: 0 5px 0 rgba(123, 62, 49, 0.2);
+  animation: forest-notice-pop 180ms ease-out;
+}
+
+.forest-controls button:disabled {
+  cursor: not-allowed;
+  opacity: 0.42;
+  transform: none;
+  box-shadow: 0 2px 0 rgba(47, 107, 82, 0.2);
+}
+
+.forest-next-level-card {
+  position: relative;
+  overflow: hidden;
+  margin: 16px 0;
+  border: 2px solid #d59b45;
+  border-radius: 16px;
+  background:
+    radial-gradient(circle at 92% 12%, rgba(255, 255, 255, 0.72), transparent 30%),
+    linear-gradient(145deg, #fff5bf, #ffe09a);
+  padding: 16px;
+  color: #654a24;
+  box-shadow: 0 5px 0 rgba(176, 117, 43, 0.22);
+}
+
+.forest-next-level-card::after {
+  position: absolute;
+  right: -16px;
+  bottom: -32px;
+  width: 94px;
+  height: 94px;
+  border: 18px solid rgba(255, 255, 255, 0.34);
+  border-radius: 50%;
+  content: "";
+}
+
+.forest-next-level-card > div {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: #9a5f20;
+}
+
+.forest-next-level-card > div span {
+  color: inherit;
+  font-size: 12px;
+  font-weight: 950;
+  letter-spacing: 0.04em;
+}
+
+.forest-next-level-card strong {
+  position: relative;
+  z-index: 1;
+  display: block;
+  margin-top: 8px;
+  color: #5d431f;
+  font-size: 22px;
+}
+
+.forest-next-level-card p {
+  position: relative;
+  z-index: 1;
+  margin: 5px 0 0;
+  color: #72572e;
+  font-size: 13px;
+}
+
+.forest-level-roadmap {
+  display: grid;
+  gap: 8px;
+  margin: 0 0 16px;
+  padding: 0;
+  list-style: none;
+}
+
+.forest-level-roadmap li {
+  display: grid;
+  grid-template-columns: 46px minmax(0, 1fr);
+  align-items: center;
+  gap: 10px;
+  border: 2px solid #b7d6bd;
+  border-radius: 13px;
+  background: rgba(255, 255, 255, 0.56);
+  padding: 9px 10px;
+  opacity: 0.68;
+}
+
+.forest-level-roadmap li > span {
+  display: grid;
+  width: 42px;
+  height: 42px;
+  place-items: center;
+  border-radius: 50%;
+  background: #dce9d7;
+  color: #56705e;
+  font-size: 12px;
+  font-weight: 950;
+}
+
+.forest-level-roadmap li div {
+  min-width: 0;
+}
+
+.forest-level-roadmap li strong,
+.forest-level-roadmap li small {
+  display: block;
+}
+
+.forest-level-roadmap li strong {
+  color: #416d53;
+  font-size: 14px;
+}
+
+.forest-level-roadmap li small {
+  margin-top: 2px;
+  color: #6d786e;
+  font-size: 11px;
+  font-weight: 800;
+  line-height: 1.35;
+}
+
+.forest-level-roadmap li[data-state="complete"] {
+  border-color: #67b68a;
+  background: #dff5cf;
+  opacity: 1;
+}
+
+.forest-level-roadmap li[data-state="complete"] > span {
+  background: #4f916f;
+  color: #fff9df;
+}
+
+.forest-level-roadmap li[data-state="next"] {
+  border-color: #d59b45;
+  background: #fff2b8;
+  opacity: 1;
+  box-shadow: 0 3px 0 rgba(176, 117, 43, 0.18);
+}
+
+.forest-level-roadmap li[data-state="next"] > span {
+  background: #e9b952;
+  color: #5a411e;
+}
+
+@keyframes forest-notice-pop {
+  from {
+    transform: translate(-50%, 8px) scale(0.96);
+    opacity: 0;
+  }
+}
+
 .study-forest-3d-module-loading,
 .study-forest-3d-loading,
 .study-forest-3d-fallback {
@@ -3202,6 +3401,20 @@ button:active:not(:disabled) {
   .study-forest-3d-badge {
     top: 10px;
     left: 10px;
+  }
+
+  .study-forest-scene-action {
+    top: 56px;
+    right: 10px;
+  }
+
+  .study-forest-3d-notice {
+    bottom: 76px;
+    font-size: 12px;
+  }
+
+  .forest-level-roadmap li {
+    grid-template-columns: 42px minmax(0, 1fr);
   }
 
   .study-forest-3d-hint {
