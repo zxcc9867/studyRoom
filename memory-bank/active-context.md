@@ -35,12 +35,15 @@
 - Completed: Next-level card and 1/3/5/7-day roadmap explain the next streak-driven visual update.
 - Completed: 242 tests and the Vite production build passed.
 - Partial: In-app browser visual automation was blocked by the Windows sandbox deny-read ACL error before browser discovery.
-- Next: User visual review in the local app; commit, push, and deploy only after explicit user authorization.
+- Completed: Feature commit 1a0af00a045b7ef31b2794ca769a0f87673337d8 was pushed to origin/main after explicit user authorization.
+- Completed: GitHub Actions run 29192507936 passed in 1m7s and deployed the web app to Vercel production.
+- Completed: The production page, main bundle, CSS, and StudyForest3D lazy chunk returned HTTP 200; cottage interior, door, scene-action, and level-card markers were present.
+- Next: User visual review of the production island interactions.
 
 ## Notes
 
 - No Supabase schema, policy, Edge Function, API, environment variable, external model, or copied asset changed.
-- These collision/interior/level-preview changes are local only and are not committed, pushed, or deployed.
+- The collision/interior/level-preview changes are committed, pushed, and deployed to Vercel production.
 - The existing Vite chunk-size warning remains; StudyForest3D is still lazy-loaded.
 - The frontend-design review kept the original toy-like green/cream/coral direction and the React review removed an unnecessary derived-value useMemo.
 

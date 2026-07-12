@@ -38,10 +38,18 @@
 - Encoding: changed source/docs files contain no unexpected control characters.
 - Browser automation: blocked before discovery by the Windows sandbox deny-read ACL error; no automated canvas screenshot was produced.
 
+#### Deployment
+
+- Commit: 1a0af00a045b7ef31b2794ca769a0f87673337d8
+- GitHub Actions: run 29192507936 completed successfully in 1m7s.
+- Vercel deployment URL: https://study-room-attendance-279k8vk1u-astars-projects-c2f42587.vercel.app
+- Production alias: https://study-room-attendance.vercel.app
+- Live assets: index-CvKqH2FA.js, index-CVhcD-t8.css, and StudyForest3D-BLXvPJDR.js returned HTTP 200.
+- Bundle markers: cozy-study-cottage-interior, cottage-entry-door, study-forest-scene-action, and forest-next-level-card were present.
+
 #### Remaining Work
 
 - Visual user review of water clicks, bridge routing, cottage entry/exit, and mobile level-card layout.
-- Commit, push, and deploy only after explicit user authorization.
 
 #### Next Priority
 
