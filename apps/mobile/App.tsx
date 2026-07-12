@@ -6,6 +6,7 @@ import {
   SafeAreaView,
   ScrollView,
   StyleSheet,
+  StatusBar,
   Text,
   TextInput,
   View,
@@ -16,6 +17,21 @@ import { registerExpoPushTarget } from "./src/notifications";
 import { supabase } from "./src/supabase";
 
 const retryCooldownMs = 15 * 60 * 1000;
+
+const mobilePalette = {
+  canvas: "#d9f0e3",
+  surface: "#fff9df",
+  surfaceWarm: "#fff6c7",
+  primary: "#2f6b52",
+  primarySoft: "#dff4cd",
+  border: "#4f916f",
+  gold: "#f0c85c",
+  goldDark: "#bf9736",
+  coral: "#bf5c42",
+  text: "#2f2a1f",
+  muted: "#5a513d",
+  softBorder: "#d2b56f",
+} as const;
 
 type Profile = {
   user_id: string;
@@ -230,7 +246,8 @@ export default function App() {
   if (loading) {
     return (
       <SafeAreaView style={styles.center}>
-        <ActivityIndicator color="#1f5c4d" />
+        <StatusBar barStyle="dark-content" backgroundColor={mobilePalette.canvas} />
+        <ActivityIndicator color={mobilePalette.primary} />
       </SafeAreaView>
     );
   }
@@ -238,6 +255,8 @@ export default function App() {
   if (!session) {
     return (
       <SafeAreaView style={styles.screen}>
+      <StatusBar barStyle="dark-content" backgroundColor={mobilePalette.canvas} />
+        <StatusBar barStyle="dark-content" backgroundColor={mobilePalette.canvas} />
         <View style={styles.loginPanel}>
           <Text style={styles.kicker}>forced attendance</Text>
           <Text style={styles.title}>오늘도 독서실에 들어갈 시간</Text>
@@ -250,7 +269,7 @@ export default function App() {
             autoCapitalize="none"
             keyboardType="email-address"
             placeholder="email@example.com"
-            placeholderTextColor="#8c8172"
+            placeholderTextColor={mobilePalette.muted}
             style={styles.input}
           />
           {codeSent && (
@@ -260,7 +279,7 @@ export default function App() {
               keyboardType="number-pad"
               textContentType="oneTimeCode"
               placeholder="123456"
-              placeholderTextColor="#8c8172"
+              placeholderTextColor={mobilePalette.muted}
               style={styles.input}
             />
           )}
@@ -371,61 +390,85 @@ function isRateLimitError(message: string) {
 const styles = StyleSheet.create({
   screen: {
     flex: 1,
-    backgroundColor: "#f8f4ea",
+    backgroundColor: mobilePalette.canvas,
   },
   center: {
     flex: 1,
     alignItems: "center",
     justifyContent: "center",
-    backgroundColor: "#f8f4ea",
+    backgroundColor: mobilePalette.canvas,
   },
   content: {
-    padding: 22,
-    gap: 18,
+    padding: 18,
+    paddingBottom: 36,
+    gap: 16,
   },
   loginPanel: {
     flex: 1,
     justifyContent: "center",
+    margin: 18,
+    borderWidth: 3,
+    borderColor: mobilePalette.border,
+    borderRadius: 16,
+    backgroundColor: mobilePalette.surface,
     padding: 24,
     gap: 18,
+    shadowColor: mobilePalette.primary,
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.24,
+    shadowRadius: 0,
+    elevation: 5,
   },
   header: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
     gap: 16,
+    borderWidth: 3,
+    borderColor: mobilePalette.border,
+    borderRadius: 14,
+    backgroundColor: mobilePalette.surface,
+    padding: 18,
+    shadowColor: mobilePalette.primary,
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.2,
+    shadowRadius: 0,
+    elevation: 4,
   },
   kicker: {
-    color: "#9c3f2e",
+    color: mobilePalette.coral,
     fontSize: 12,
     fontWeight: "800",
     letterSpacing: 0,
     textTransform: "uppercase",
   },
   title: {
-    color: "#1d1a16",
+    color: mobilePalette.primary,
     fontSize: 32,
     fontWeight: "900",
     letterSpacing: 0,
   },
   copy: {
-    color: "#62594e",
+    color: mobilePalette.muted,
     fontSize: 15,
     lineHeight: 22,
+    fontWeight: "600",
   },
   statusPanel: {
-    backgroundColor: "#1d1a16",
-    padding: 22,
-    borderRadius: 8,
-    gap: 10,
+    borderWidth: 3,
+    borderColor: mobilePalette.border,
+    borderRadius: 14,
+    backgroundColor: mobilePalette.surfaceWarm,
+    padding: 20,
+    gap: 9,
   },
   statusLabel: {
-    color: "#dbcdb7",
+    color: mobilePalette.coral,
     fontSize: 13,
-    fontWeight: "800",
+    fontWeight: "900",
   },
   statusValue: {
-    color: "#f8f4ea",
+    color: mobilePalette.primary,
     fontSize: 42,
     fontWeight: "900",
   },
@@ -435,77 +478,96 @@ const styles = StyleSheet.create({
   },
   metric: {
     flex: 1,
-    backgroundColor: "#ffffff",
-    borderColor: "#ded4c4",
-    borderWidth: 1,
-    borderRadius: 8,
-    padding: 18,
+    minHeight: 108,
+    justifyContent: "center",
+    borderWidth: 2,
+    borderColor: mobilePalette.softBorder,
+    borderRadius: 12,
+    backgroundColor: mobilePalette.surface,
+    padding: 16,
   },
   metricValue: {
-    color: "#1f5c4d",
+    color: mobilePalette.primary,
     fontSize: 24,
     fontWeight: "900",
   },
   metricLabel: {
-    color: "#62594e",
+    color: mobilePalette.muted,
     marginTop: 6,
+    fontWeight: "700",
   },
   controls: {
     gap: 12,
   },
   settings: {
-    backgroundColor: "#efe6d4",
-    borderRadius: 8,
+    borderWidth: 2,
+    borderColor: mobilePalette.border,
+    borderRadius: 14,
+    backgroundColor: mobilePalette.surface,
     padding: 18,
     gap: 12,
   },
   sectionTitle: {
-    color: "#1d1a16",
-    fontSize: 18,
+    color: mobilePalette.primary,
+    fontSize: 20,
     fontWeight: "900",
   },
   input: {
     minHeight: 52,
-    borderRadius: 8,
-    borderColor: "#c9bba7",
-    borderWidth: 1,
-    backgroundColor: "#fffaf1",
-    color: "#1d1a16",
+    borderRadius: 10,
+    borderColor: mobilePalette.softBorder,
+    borderWidth: 2,
+    backgroundColor: mobilePalette.surface,
+    color: mobilePalette.text,
     paddingHorizontal: 14,
     fontSize: 16,
   },
   primaryButton: {
     minHeight: 54,
-    borderRadius: 8,
+    borderRadius: 10,
     alignItems: "center",
     justifyContent: "center",
-    backgroundColor: "#1f5c4d",
+    backgroundColor: mobilePalette.primary,
     paddingHorizontal: 16,
+    shadowColor: mobilePalette.text,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.22,
+    shadowRadius: 0,
+    elevation: 3,
   },
   primaryButtonText: {
-    color: "#fffaf1",
+    color: mobilePalette.surface,
     fontWeight: "900",
     fontSize: 16,
   },
   secondaryButton: {
     minHeight: 52,
-    borderRadius: 8,
+    borderRadius: 10,
     alignItems: "center",
     justifyContent: "center",
-    backgroundColor: "#d8b45d",
+    backgroundColor: mobilePalette.gold,
     paddingHorizontal: 16,
+    shadowColor: mobilePalette.goldDark,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 1,
+    shadowRadius: 0,
+    elevation: 3,
   },
   secondaryButtonText: {
-    color: "#1d1a16",
+    color: mobilePalette.text,
     fontWeight: "900",
     fontSize: 15,
   },
   ghostButton: {
+    borderWidth: 2,
+    borderColor: mobilePalette.border,
+    borderRadius: 999,
+    backgroundColor: mobilePalette.primarySoft,
     paddingHorizontal: 12,
     paddingVertical: 10,
   },
   ghostButtonText: {
-    color: "#1f5c4d",
+    color: mobilePalette.primary,
     fontWeight: "900",
   },
   disabledButton: {

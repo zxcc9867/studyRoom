@@ -1,3 +1,71 @@
+## 2026-07-12 - Three.js types, grid overflow, and root audit findings
+
+### Situation
+
+The first Three.js build lacked module declarations, the first desktop render overflowed into the status column, and the final root dependency audit exited non-zero.
+
+### Error Message
+
+~~~txt
+TS7016: Could not find a declaration file for module 'three'.
+Study Forest shell width 832 exceeded its 769.5 parent column.
+npm audit: 14 vulnerabilities in the existing Expo dependency tree.
+~~~
+
+### Cause
+
+The three runtime package needed a matching community type package in this workspace. The CSS shell combined a fixed minimum height with a 16:10 aspect ratio, creating an intrinsic width larger than its grid track. The audit advisories come from Expo 53 transitive packages; the all-fixes path requires a breaking Expo 57 upgrade.
+
+### Resolution
+
+Installed @types/three 0.185.1, changed the shell to explicit responsive width/height without intrinsic aspect expansion, and reverified DOM boxes and screenshots. Audited the web workspace separately: the new Three.js runtime has zero production vulnerabilities. Did not run audit --force because it would introduce an unrelated breaking mobile framework upgrade.
+
+### Related Files
+
+- apps/web/package.json
+- package-lock.json
+- apps/web/src/StudyForest3D.tsx
+- apps/web/src/styles.css
+
+### Prevention
+
+Keep three and @types/three versions aligned, verify responsive canvas boxes rather than relying only on screenshots, lazy-load the renderer, and handle Expo framework security upgrades as their own migration with device testing.
+
+## 2026-07-12 - Windows ACL blocked apply_patch and mobile config fallback stopped partially
+
+### Situation
+
+While adding planner overlap tests and the Expo palette update, the normal patch tool could not read repository files. A fallback script later updated App.tsx but stopped before app.json.
+
+### Error Message
+
+```txt
+windows sandbox failed: helper_unknown_error: apply deny-read ACLs
+error: corrupt patch at line 74
+ReferenceError: mobilePalette is not defined
+```
+
+### Cause
+
+The Windows sandbox helper failed while apply_patch tried to read both absolute and workspace-relative paths. The first git-apply fallback had an incorrect unified-diff hunk count. In the mobile fallback, mobilePalette was source text inserted into App.tsx, not a runtime variable in the editing script.
+
+### Resolution
+
+Used UTF-8 Node exact-anchor replacements with fail-fast checks and inspected git diff after each write. Corrected the overnight test to select segments by id after planner sorting. Updated app.json in a separate script with the literal canvas color, then reran the mobile theme test and Expo typecheck.
+
+### Related Files
+
+- apps/web/test/dailyPlanner.test.mjs
+- apps/web/test/plannerOverlapUi.test.mjs
+- apps/web/src/dailyPlanner.mjs
+- apps/web/src/main.tsx
+- apps/mobile/App.tsx
+- apps/mobile/app.json
+
+### Prevention
+
+When apply_patch reports this exact ACL error, avoid repeated patch attempts. Use one UTF-8-safe exact-anchor replacement per logical chunk, verify every anchor before writing, keep editor-script constants separate from generated source constants, and run git diff --check plus targeted tests immediately.
+
 ## 2026-07-09 - Study Forest avatar looked tense and movement felt boxed
 
 ### Situation

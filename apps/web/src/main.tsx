@@ -1,5 +1,7 @@
 import {
   StrictMode,
+  Suspense,
+  lazy,
   useEffect,
   useMemo,
   useRef,
@@ -8,7 +10,6 @@ import {
   type FormEvent,
   type KeyboardEvent,
   type MouseEvent,
-  type PointerEvent,
 } from "react";
 import { createRoot } from "react-dom/client";
 import {
@@ -179,8 +180,6 @@ import {
 import {
   buildStudyForestState,
   getAvatarFacing,
-  getAvatarPositionFromScenePoint,
-  getAvatarSceneStyle,
   getAvatarStep,
   getNextAutoAvatarStep,
 } from "./studyForest.mjs";
@@ -233,6 +232,9 @@ const cameraRequiredWarningCooldownMs = 10 * 60 * 1000;
 const ACTIVE_SESSION_LEASE_REFRESH_MS = 15 * 1000;
 const FOREST_MEADOW_BOUNDS = { minX: 8, maxX: 92, minY: 42, maxY: 84, step: 4 };
 const FOREST_MANUAL_CONTROL_MS = 8 * 1000;
+const StudyForest3D = lazy(() =>
+  import("./StudyForest3D").then((module) => ({ default: module.StudyForest3D })),
+);
 type TodoRepeatMode = "single" | "weekly";
 type CameraSetupPrompt = {
   mode: "start" | "resume";
@@ -1729,13 +1731,7 @@ function DashboardApp() {
     setForestAvatar((current) => getAvatarStep(current, key, FOREST_MEADOW_BOUNDS));
   }
 
-  function handleForestScenePointerDown(event: PointerEvent<HTMLDivElement>) {
-    if (event.pointerType === "mouse" && event.button !== 0) return;
-    const targetPosition = getAvatarPositionFromScenePoint({
-      clientX: event.clientX,
-      clientY: event.clientY,
-      rect: event.currentTarget.getBoundingClientRect(),
-    }, FOREST_MEADOW_BOUNDS);
+  function moveForestAvatarTo(targetPosition: { x: number; y: number }) {
     setForestManualUntilMs(Date.now() + FOREST_MANUAL_CONTROL_MS);
     setForestAvatar((current) => ({
       ...targetPosition,
@@ -3518,8 +3514,34 @@ function DashboardApp() {
                   {selectedPlannerSegment.startTime} - {selectedPlannerSegment.endTime}
                   {selectedPlannerSegment.todo.is_completed ? " · 완료" : " · 미완료"}
                 </p>
-                {selectedPlannerSegment.overlaps && (
-                  <strong className="planner-overlap-note">시간 겹침이 있습니다.</strong>
+                {selectedPlannerSegment.overlapDetails.length > 0 && (
+                  <div className="planner-overlap-note" role="alert">
+                    <strong>
+                      {"\uC2DC\uAC04 \uACB9\uCE68 "}
+                      {selectedPlannerSegment.overlapDetails.length}
+                      {"\uAC74\uC744 \uD655\uC778\uD588\uC5B4\uC694."}
+                    </strong>
+                    <ul className="planner-overlap-list">
+                      {selectedPlannerSegment.overlapDetails.map((overlap) => (
+                        <li key={overlap.todoId + overlap.overlapStartTime}>
+                          <p className="planner-overlap-schedules">
+                            <b>{selectedPlannerSegment.title}</b>
+                            {" "}{selectedPlannerSegment.startTime} - {selectedPlannerSegment.endTime}
+                            <span aria-hidden="true">{" \u2194 "}</span>
+                            <b>{overlap.title}</b>
+                            {" "}{overlap.startTime} - {overlap.endTime}
+                          </p>
+                          <span className="planner-overlap-time">
+                            {"\uACB9\uCE58\uB294 \uC2DC\uAC04 "}
+                            {overlap.overlapStartTime}
+                            {" - "}
+                            {overlap.overlapWrapsMidnight ? "\uB2E4\uC74C \uB0A0 " : ""}
+                            {overlap.overlapEndTime}
+                          </span>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
                 )}
                 <div className="planner-detail-actions">
                   <button
@@ -5292,80 +5314,21 @@ function DashboardApp() {
 
             <div className="study-forest-grid">
               <div className="study-forest-scene-card">
-                <div
-                  className="study-forest-scene"
-                  aria-label={"2.5D \uACF5\uBD80 \uC232 \uC7A5\uBA74"}
-                  onPointerDown={handleForestScenePointerDown}
-                >
-                  <div className="forest-sky" />
-                  <span className="forest-distant-hill forest-distant-hill-left" aria-hidden="true" />
-                  <span className="forest-distant-hill forest-distant-hill-right" aria-hidden="true" />
-                  <span className="forest-cloud forest-cloud-one" aria-hidden="true" />
-                  <span className="forest-cloud forest-cloud-two" aria-hidden="true" />
-                  <span className="forest-fence forest-fence-back" aria-hidden="true" />
-                  <span className="forest-cottage" aria-hidden="true">
-                    <span className="forest-cottage-roof" />
-                    <span className="forest-cottage-door" />
-                  </span>
-                  <div className="forest-ground" />
-                  <div className="forest-river" />
-                  <span className="forest-bridge" aria-hidden="true">
-                    <span className="forest-bridge-plank" />
-                  </span>
-                  <div className="forest-path" />
-                  <div className="forest-pond" />
-                  <span className="forest-garden-bed" aria-hidden="true" />
-                  <span className="forest-lantern forest-lantern-left" aria-hidden="true" />
-                  <span className="forest-lantern forest-lantern-right" aria-hidden="true" />
-                  <span className="forest-firefly forest-firefly-one" aria-hidden="true" />
-                  <span className="forest-firefly forest-firefly-two" aria-hidden="true" />
-                  <span className="forest-firefly forest-firefly-three" aria-hidden="true" />
-                  <span className="forest-foreground-grass" aria-hidden="true" />
-                  <span className="forest-sign" aria-hidden="true">study</span>
-                  <span className="forest-flower-patch forest-flower-patch-one" aria-hidden="true" />
-                  <span className="forest-flower-patch forest-flower-patch-two" aria-hidden="true" />
-                  <span className="forest-stone forest-stone-one" aria-hidden="true" />
-                  <span className="forest-stone forest-stone-two" aria-hidden="true" />
-                  {studyForestState.placedTrees.map((tree) => (
-                    <div
-                      key={tree.id}
-                      className={"forest-tree-2d forest-tree-" + tree.variant}
-                      style={{ left: tree.x + "%", top: tree.y + "%" }}
-                      aria-label={"\uC644\uC131\uB41C \uCD9C\uC11D \uB098\uBB34"}
-                    >
-                      <span className="forest-tree-top" />
-                      <span className="forest-tree-trunk" />
-                      <span className="forest-tree-fruit forest-tree-fruit-a" />
-                      <span className="forest-tree-fruit forest-tree-fruit-b" />
+                <Suspense
+                  fallback={
+                    <div className="study-forest-3d-shell study-forest-3d-module-loading" role="status">
+                      {"3D \uACF5\uBD80 \uC232 \uBAA8\uB4C8\uC744 \uBD88\uB7EC\uC624\uB294 \uC911\uC774\uC5D0\uC694..."}
                     </div>
-                  ))}
-                  <div
-                    className={"forest-current-tree forest-stage-" + studyForestState.currentTree.stage}
-                    aria-label={studyForestState.currentTree.label}
-                  >
-                    <span className="forest-current-soil" />
-                    <span className="forest-current-crown" />
-                    <span className="forest-current-trunk" />
-                    <span className="forest-current-sparkle forest-current-sparkle-a" />
-                    <span className="forest-current-sparkle forest-current-sparkle-b" />
-                  </div>
-                  <div
-                    className={"forest-avatar forest-avatar-" + forestAvatar.facing}
-                    style={getAvatarSceneStyle(forestAvatar)}
-                    aria-label={"\uACF5\uBD80 \uC232 \uCE90\uB9AD\uD130"}
-                  >
-                    <span className="forest-avatar-shadow" />
-                    <span className="forest-avatar-backpack" />
-                    <span className="forest-avatar-hair" />
-                    <span className="forest-avatar-head" />
-                    <span className="forest-avatar-face" />
-                    <span className="forest-avatar-body" />
-                    <span className="forest-avatar-arm forest-avatar-arm-left" />
-                    <span className="forest-avatar-arm forest-avatar-arm-right" />
-                    <span className="forest-avatar-leg forest-avatar-leg-left" />
-                    <span className="forest-avatar-leg forest-avatar-leg-right" />
-                  </div>
-                </div>
+                  }
+                >
+                  <StudyForest3D
+                    completedTreeCount={studyForestState.placedTrees.length}
+                    currentTreeStage={studyForestState.currentTree.stage}
+                    currentTreeProgressDays={studyForestState.currentTree.progressDays}
+                    avatar={forestAvatar}
+                    onMoveTarget={moveForestAvatarTo}
+                  />
+                </Suspense>
                 <div className="forest-controls" aria-label={"\uCE90\uB9AD\uD130 \uC774\uB3D9"}>
                   <button type="button" onClick={() => moveForestAvatar("ArrowUp")} aria-label={"\uC704\uB85C \uC774\uB3D9"}>{"\u2191"}</button>
                   <div>

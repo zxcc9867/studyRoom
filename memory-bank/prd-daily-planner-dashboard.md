@@ -14,6 +14,7 @@ Personal MVP users who want to plan and visualize today's study tasks in either 
 - Let the user inspect and edit yesterday, today, tomorrow, or any selected calendar date from the same Today Tasks card.
 - Let the user apply one selected date's plan to multiple calendar dates at once.
 - Show timed todos as 24-hour SVG wheel segments and untimed todos in a separate list.
+- Explain every time conflict with both todo titles, both schedule ranges, and the exact overlapping time range.
 - Let the user create a timed todo by clicking an empty planner time area.
 - Let the user edit an existing timed todo by clicking a planner segment.
 - Mark planner or untimed todos complete directly when no study session is active.
@@ -54,7 +55,8 @@ Personal MVP users who want to plan and visualize today's study tasks in either 
 
 - Todos without `start_time` or `end_time` stay in the untimed list.
 - Overnight todos such as `23:00-01:00` wrap across midnight on the wheel.
-- Overlapping timed todos show a dashed warning border.
+- Overlapping timed todos show a dashed warning border and readable conflict details.
+- Overnight conflicts merge the two midnight-edge fragments into one range such as 23:00 - next day 01:00.
 - Unknown stored section IDs are ignored and missing default sections are appended by app normalization.
 
 ### Error Cases
@@ -70,6 +72,7 @@ Personal MVP users who want to plan and visualize today's study tasks in either 
 - [x] Add helper tests for task view and section order normalization.
 - [x] Add Today task view switcher and pin button.
 - [x] Add circular SVG daily planner using existing `study_todos`.
+- [x] Show the conflicting todo, both schedule ranges, and the exact overlap interval in the selected planner detail.
 - [x] Let existing todos be linked into a new timed schedule row from the todo modal without toggling completion or hiding other same-day todos.
 - [x] Let planner detail and untimed todo checkboxes toggle completion only when no study session is active.
 - [x] Show the selected-date todo list in the planner detail panel with schedule labels and edit/delete row actions.
@@ -99,6 +102,7 @@ Personal MVP users who want to plan and visualize today's study tasks in either 
 - A user can select another calendar date and create/edit todos for that date from the planner.
 - A user can copy one date's plan to multiple selected dates without creating duplicate title/date/time rows.
 - Section order changes are reflected immediately and persist after saving.
+- Selecting an overlapping segment identifies which todo conflicts and exactly when the conflict occurs, including overnight ranges.
 
 ## 11. Rollout Plan
 

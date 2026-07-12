@@ -1597,11 +1597,48 @@ label {
 }
 
 .planner-overlap-note {
-  border: 2px dashed #bf5c42;
-  border-radius: 8px;
+  display: grid;
+  gap: 9px;
+  border: 2px solid #bf5c42;
+  border-radius: 12px;
   background: #ffe0d3;
-  color: #8d3e2e;
-  padding: 8px 10px;
+  color: #713325;
+  padding: 11px 12px;
+  box-shadow: 0 4px 0 rgba(141, 62, 46, 0.12);
+}
+
+.planner-overlap-list {
+  display: grid;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.planner-overlap-list li {
+  display: grid;
+  gap: 7px;
+  border-left: 4px solid #bf5c42;
+  border-radius: 8px;
+  background: #fff9df;
+  padding: 9px 10px;
+}
+
+.planner-overlap-schedules {
+  margin: 0;
+  color: #5a342a !important;
+  font-size: 0.9rem;
+  line-height: 1.55;
+}
+
+.planner-overlap-time {
+  width: fit-content;
+  border-radius: 999px;
+  background: #8d3e2e;
+  color: #fff9df;
+  padding: 5px 9px;
+  font-size: 0.84rem;
+  font-weight: 950;
 }
 
 .planner-detail-actions {
@@ -2922,838 +2959,6 @@ button:active:not(:disabled) {
   min-width: 0;
 }
 
-.study-forest-scene {
-  position: relative;
-  overflow: hidden;
-  min-height: 560px;
-  border: 3px solid #2f6b52;
-  border-radius: 14px;
-  background:
-    radial-gradient(circle at 18% 18%, rgba(255, 249, 223, 0.88) 0 16px, transparent 17px),
-    radial-gradient(circle at 78% 14%, rgba(255, 255, 255, 0.72) 0 28px, transparent 29px),
-    linear-gradient(180deg, #9fd3ff 0 30%, #beeeb8 30% 58%, #9fd37c 58% 100%);
-  box-shadow: inset 0 -10px 0 rgba(47, 107, 82, 0.18), 0 8px 0 rgba(47, 107, 82, 0.18);
-  outline: none;
-  perspective: 900px;
-  cursor: pointer;
-  touch-action: manipulation;
-  transform-style: preserve-3d;
-  isolation: isolate;
-}
-
-.study-forest-scene::before {
-  content: "";
-  position: absolute;
-  left: -6%;
-  right: -6%;
-  top: 25%;
-  height: 20%;
-  background:
-    radial-gradient(ellipse at 18% 100%, rgba(115, 187, 101, 0.5) 0 34%, transparent 35%),
-    radial-gradient(ellipse at 52% 100%, rgba(132, 201, 114, 0.48) 0 38%, transparent 39%),
-    radial-gradient(ellipse at 84% 100%, rgba(105, 174, 102, 0.46) 0 32%, transparent 33%);
-  z-index: 0;
-  pointer-events: none;
-}
-
-.study-forest-scene::after {
-  content: "";
-  position: absolute;
-  left: -8%;
-  right: -8%;
-  bottom: -12%;
-  height: 30%;
-  background: linear-gradient(180deg, transparent, rgba(47, 107, 82, 0.12));
-  z-index: 2;
-  pointer-events: none;
-}
-
-.forest-sky {
-  position: absolute;
-  inset: 0;
-  background:
-    radial-gradient(circle at 14% 18%, rgba(255, 244, 173, 0.58) 0 34px, transparent 35px),
-    radial-gradient(circle at 12% 25%, rgba(255, 246, 199, 0.72) 0 8px, transparent 9px),
-    radial-gradient(circle at 84% 21%, rgba(255, 255, 255, 0.6) 0 22px, transparent 23px),
-    linear-gradient(180deg, rgba(108, 188, 240, 0.16), transparent 42%);
-  z-index: 0;
-}
-
-.forest-distant-hill {
-  position: absolute;
-  display: block;
-  top: 27%;
-  width: 46%;
-  height: 22%;
-  border-radius: 55% 55% 0 0;
-  background:
-    radial-gradient(ellipse at 34% 88%, rgba(255, 249, 223, 0.24) 0 18%, transparent 19%),
-    linear-gradient(180deg, rgba(143, 210, 132, 0.72), rgba(91, 154, 105, 0.58));
-  filter: blur(0.2px);
-  opacity: 0.86;
-  z-index: 0;
-  pointer-events: none;
-}
-
-.forest-distant-hill-left {
-  left: -5%;
-  transform: skewX(-8deg);
-}
-
-.forest-distant-hill-right {
-  right: -7%;
-  top: 24%;
-  height: 25%;
-  transform: skewX(8deg) scaleX(1.08);
-}
-
-.forest-ground {
-  position: absolute;
-  left: -16%;
-  right: -16%;
-  top: 32%;
-  bottom: -18%;
-  border: 3px solid rgba(47, 107, 82, 0.26);
-  border-radius: 50% 50% 18% 18%;
-  background:
-    linear-gradient(90deg, rgba(255, 249, 223, 0.16) 1px, transparent 1px),
-    linear-gradient(0deg, rgba(255, 249, 223, 0.14) 1px, transparent 1px),
-    radial-gradient(circle at 18% 28%, rgba(255, 246, 199, 0.72) 0 8px, transparent 9px),
-    radial-gradient(circle at 78% 72%, rgba(255, 246, 199, 0.58) 0 7px, transparent 8px),
-    linear-gradient(160deg, rgba(255, 246, 199, 0.32), transparent 40%),
-    #a9d987;
-  background-size: 76px 54px, 76px 54px, auto, auto, auto, auto;
-  box-shadow: inset 0 14px 0 rgba(255, 255, 255, 0.16), 0 24px 0 rgba(47, 107, 82, 0.14);
-  transform-origin: 50% 100%;
-  transform: rotateX(58deg) rotateZ(-4deg) translateY(18px);
-  z-index: 1;
-}
-
-.forest-river {
-  position: absolute;
-  right: 0;
-  bottom: 3%;
-  width: 46%;
-  height: 38%;
-  border: 4px solid rgba(47, 107, 82, 0.45);
-  border-radius: 62% 38% 56% 44%;
-  background:
-    radial-gradient(ellipse at 28% 35%, rgba(255, 255, 255, 0.5), transparent 20%),
-    linear-gradient(135deg, rgba(163, 224, 228, 0.92), rgba(98, 184, 207, 0.92) 48%, rgba(113, 205, 214, 0.84));
-  box-shadow: inset 0 12px 0 rgba(255, 255, 255, 0.22), 0 11px 0 rgba(47, 107, 82, 0.16);
-  transform-origin: 55% 75%;
-  transform: rotateX(61deg) rotateZ(-17deg);
-  animation: forest-water-shimmer 5.5s ease-in-out infinite;
-  z-index: 2;
-  pointer-events: none;
-}
-
-.forest-bridge {
-  position: absolute;
-  right: 29%;
-  bottom: 29%;
-  width: 112px;
-  height: 44px;
-  border: 3px solid rgba(109, 67, 35, 0.76);
-  border-radius: 18px;
-  background: repeating-linear-gradient(90deg, #d89b51 0 16px, #b8793f 16px 20px);
-  box-shadow: inset 0 7px 0 rgba(255, 244, 200, 0.32), 0 9px 0 rgba(82, 56, 26, 0.2);
-  transform-origin: 50% 70%;
-  transform: rotateX(58deg) rotateZ(-15deg);
-  z-index: 5;
-  pointer-events: none;
-}
-
-.forest-bridge-plank {
-  position: absolute;
-  inset: 12px 10px auto;
-  height: 4px;
-  border-radius: 999px;
-  background: rgba(100, 61, 28, 0.42);
-  box-shadow: 0 12px 0 rgba(100, 61, 28, 0.34);
-}
-
-.forest-path {
-  position: absolute;
-  left: 24%;
-  bottom: -20%;
-  width: 34%;
-  height: 80%;
-  border-radius: 50% 50% 0 0;
-  background: linear-gradient(90deg, rgba(222, 187, 111, 0.82), rgba(230, 199, 126, 0.58));
-  transform-origin: 50% 100%;
-  transform: rotateX(64deg) rotateZ(12deg) skewX(-8deg);
-  box-shadow: inset 0 0 0 3px rgba(153, 114, 51, 0.16), 0 8px 0 rgba(111, 79, 33, 0.16);
-  z-index: 2;
-}
-
-.forest-pond {
-  position: absolute;
-  right: 7%;
-  bottom: 13%;
-  width: 22%;
-  height: 18%;
-  border-radius: 52% 48% 55% 45%;
-  background: radial-gradient(ellipse at 36% 28%, rgba(255, 255, 255, 0.55), transparent 24%), #7bc7da;
-  border: 4px solid rgba(47, 107, 82, 0.54);
-  box-shadow: inset 0 10px 0 rgba(255, 255, 255, 0.25), 0 9px 0 rgba(47, 107, 82, 0.18);
-  transform-origin: 50% 70%;
-  transform: rotateX(58deg) rotateZ(-5deg);
-  z-index: 3;
-}
-
-.forest-garden-bed {
-  position: absolute;
-  left: 8%;
-  bottom: 28%;
-  width: 126px;
-  height: 58px;
-  border: 3px solid rgba(111, 79, 33, 0.5);
-  border-radius: 26px 22px 24px 20px;
-  background:
-    radial-gradient(circle at 18% 35%, #ffd55c 0 5px, transparent 6px),
-    radial-gradient(circle at 40% 56%, #ff8f7a 0 5px, transparent 6px),
-    radial-gradient(circle at 68% 38%, #fff4c8 0 5px, transparent 6px),
-    repeating-linear-gradient(90deg, rgba(118, 87, 42, 0.2) 0 7px, transparent 7px 18px),
-    #b6824a;
-  box-shadow: inset 0 7px 0 rgba(255, 249, 223, 0.2), 0 8px 0 rgba(47, 107, 82, 0.12);
-  transform: rotateX(57deg) rotateZ(9deg);
-  z-index: 5;
-  pointer-events: none;
-}
-
-.forest-lantern {
-  position: absolute;
-  display: block;
-  width: 18px;
-  height: 46px;
-  border-radius: 999px 999px 8px 8px;
-  background:
-    radial-gradient(circle at 50% 38%, rgba(255, 231, 132, 0.95) 0 7px, rgba(255, 188, 78, 0.5) 8px 13px, transparent 14px),
-    linear-gradient(90deg, transparent 0 7px, #754f2d 7px 11px, transparent 11px);
-  filter: drop-shadow(0 0 8px rgba(255, 211, 96, 0.72));
-  z-index: 11;
-  pointer-events: none;
-}
-
-.forest-lantern::after {
-  content: "";
-  position: absolute;
-  left: 50%;
-  bottom: -9px;
-  width: 27px;
-  height: 9px;
-  border-radius: 50%;
-  background: rgba(47, 42, 31, 0.16);
-  transform: translateX(-50%);
-}
-
-.forest-lantern-left {
-  left: 31%;
-  bottom: 24%;
-}
-
-.forest-lantern-right {
-  right: 12%;
-  bottom: 42%;
-  transform: scale(0.82);
-}
-
-.forest-firefly {
-  position: absolute;
-  display: block;
-  width: 7px;
-  height: 7px;
-  border-radius: 50%;
-  background: #fff4a3;
-  box-shadow: 0 0 0 4px rgba(255, 231, 132, 0.2), 0 0 16px rgba(255, 231, 132, 0.82);
-  animation: forest-firefly-float 4.4s ease-in-out infinite;
-  z-index: 13;
-  pointer-events: none;
-}
-
-.forest-firefly-one {
-  left: 36%;
-  top: 49%;
-}
-
-.forest-firefly-two {
-  right: 25%;
-  top: 44%;
-  animation-delay: 1.1s;
-}
-
-.forest-firefly-three {
-  left: 63%;
-  bottom: 26%;
-  animation-delay: 2.3s;
-}
-
-.forest-foreground-grass {
-  position: absolute;
-  left: -2%;
-  right: -2%;
-  bottom: -1px;
-  height: 44px;
-  background:
-    radial-gradient(ellipse at 8% 100%, rgba(61, 132, 78, 0.55) 0 18px, transparent 19px),
-    radial-gradient(ellipse at 27% 100%, rgba(75, 154, 84, 0.5) 0 22px, transparent 23px),
-    radial-gradient(ellipse at 52% 100%, rgba(48, 121, 79, 0.42) 0 20px, transparent 21px),
-    radial-gradient(ellipse at 82% 100%, rgba(88, 165, 87, 0.48) 0 24px, transparent 25px);
-  z-index: 18;
-  pointer-events: none;
-}
-
-.forest-sign {
-  position: absolute;
-  left: 6%;
-  bottom: 10%;
-  border: 3px solid #9a6c33;
-  border-radius: 10px;
-  background: #fff4c8;
-  padding: 9px 12px;
-  color: #61451f;
-  font-size: 12px;
-  font-weight: 950;
-  text-transform: uppercase;
-  transform: rotate(-5deg);
-  box-shadow: 0 7px 0 rgba(111, 79, 33, 0.25);
-  z-index: 8;
-}
-
-.forest-fence {
-  position: absolute;
-  display: block;
-  height: 44px;
-  background:
-    repeating-linear-gradient(90deg, #fff2b7 0 12px, transparent 12px 28px),
-    linear-gradient(#c78f4a, #c78f4a) 0 20px / 100% 7px no-repeat;
-  filter: drop-shadow(0 5px 0 rgba(111, 79, 33, 0.16));
-  pointer-events: none;
-}
-
-.forest-fence-back {
-  left: 34%;
-  top: 43%;
-  width: 46%;
-  z-index: 2;
-  transform: rotateX(58deg) rotateZ(-4deg);
-}
-
-.forest-cottage {
-  position: absolute;
-  right: 11%;
-  top: 36%;
-  width: 96px;
-  height: 82px;
-  border: 4px solid #7a5930;
-  border-radius: 18px 18px 12px 12px;
-  background: linear-gradient(180deg, #ffe8a8, #f7c970);
-  box-shadow: inset 0 8px 0 rgba(255, 255, 255, 0.28), 0 13px 0 rgba(47, 107, 82, 0.16);
-  z-index: 4;
-  pointer-events: none;
-}
-
-.forest-cottage-roof {
-  position: absolute;
-  left: 50%;
-  top: -30px;
-  width: 112px;
-  height: 46px;
-  border: 4px solid #7a5930;
-  border-radius: 50% 50% 14px 14px;
-  background: repeating-linear-gradient(90deg, #c75b42 0 16px, #dd7c55 16px 28px);
-  transform: translateX(-50%);
-}
-
-.forest-cottage-door {
-  position: absolute;
-  left: 38px;
-  bottom: 0;
-  width: 24px;
-  height: 38px;
-  border: 3px solid #6d4323;
-  border-bottom: 0;
-  border-radius: 12px 12px 0 0;
-  background: #8f5d35;
-}
-
-.forest-flower-patch,
-.forest-stone {
-  position: absolute;
-  display: block;
-  pointer-events: none;
-}
-
-.forest-flower-patch {
-  width: 11px;
-  height: 11px;
-  border-radius: 50%;
-  background: #ffd55c;
-  box-shadow:
-    15px 4px 0 #ff8f7a,
-    29px -2px 0 #fff4c8,
-    41px 7px 0 #ffcfef,
-    9px 18px 0 #ff8f7a,
-    34px 19px 0 #ffd55c;
-  z-index: 9;
-}
-
-.forest-flower-patch-one {
-  left: 12%;
-  bottom: 22%;
-}
-
-.forest-flower-patch-two {
-  right: 28%;
-  bottom: 12%;
-  transform: scale(0.86);
-}
-
-.forest-stone {
-  width: 24px;
-  height: 15px;
-  border-radius: 50%;
-  background: #c9cab8;
-  box-shadow: inset -4px -2px 0 rgba(47, 42, 31, 0.12), 0 4px 0 rgba(47, 42, 31, 0.12);
-  z-index: 8;
-}
-
-.forest-stone-one {
-  left: 19%;
-  bottom: 16%;
-}
-
-.forest-stone-two {
-  right: 17%;
-  bottom: 30%;
-  transform: scale(0.72);
-}
-
-.forest-cloud {
-  position: absolute;
-  display: block;
-  width: 110px;
-  height: 28px;
-  border-radius: 999px;
-  background: rgba(255, 255, 255, 0.92);
-  box-shadow: 26px -8px 0 7px rgba(255, 255, 255, 0.92), 58px 0 0 2px rgba(255, 255, 255, 0.92);
-  z-index: 1;
-  animation: forest-cloud-drift 14s ease-in-out infinite;
-}
-
-.forest-cloud-one {
-  left: 8%;
-  top: 11%;
-}
-
-.forest-cloud-two {
-  right: 16%;
-  top: 18%;
-  transform: scale(0.85);
-}
-
-.forest-tree-2d,
-.forest-current-tree,
-.forest-avatar {
-  position: absolute;
-  transform: translate(-50%, -100%);
-  transition: left 420ms ease, top 420ms ease, filter 240ms ease;
-}
-
-.forest-tree-2d {
-  width: 88px;
-  height: 132px;
-  z-index: 6;
-  filter: drop-shadow(0 12px 0 rgba(47, 107, 82, 0.16));
-}
-
-.forest-tree-trunk,
-.forest-current-trunk {
-  position: absolute;
-  left: 50%;
-  bottom: 0;
-  width: 22px;
-  height: 62px;
-  border: 3px solid #6d4323;
-  border-radius: 14px;
-  background: linear-gradient(90deg, #b87c43, #8d572d);
-  transform: translateX(-50%);
-}
-
-.forest-tree-top {
-  position: absolute;
-  inset: 0 0 auto;
-  height: 76px;
-  border: 4px solid #2f6b52;
-  border-radius: 46% 54% 50% 42%;
-  background:
-    radial-gradient(circle at 24% 28%, rgba(255, 249, 223, 0.24) 0 8px, transparent 9px),
-    #73bb65;
-  box-shadow: 16px 18px 0 #82c879, -12px 16px 0 #91d184, 0 28px 0 -4px #66aa62;
-  transform-origin: 50% 100%;
-  animation: forest-leaf-sway 5.8s ease-in-out infinite;
-}
-
-.forest-tree-pear .forest-tree-top {
-  background: #8dcc67;
-}
-
-.forest-tree-orange .forest-tree-top {
-  background: #75c27e;
-}
-
-.forest-tree-cedar .forest-tree-top {
-  background: #5fa96c;
-  border-radius: 46% 46% 56% 56%;
-}
-
-.forest-tree-fruit {
-  position: absolute;
-  z-index: 2;
-  width: 13px;
-  height: 13px;
-  border-radius: 50%;
-  background: #e65a3f;
-  border: 2px solid #9b3b2e;
-}
-
-.forest-tree-fruit-a {
-  left: 21px;
-  top: 26px;
-}
-
-.forest-tree-fruit-b {
-  right: 23px;
-  top: 38px;
-}
-
-.forest-current-tree {
-  left: 74%;
-  top: 72%;
-  width: 104px;
-  height: 138px;
-  z-index: 10;
-  filter: drop-shadow(0 12px 0 rgba(47, 107, 82, 0.18));
-}
-
-.forest-current-sparkle {
-  position: absolute;
-  width: 12px;
-  height: 12px;
-  border-radius: 50%;
-  background: #fff9df;
-  box-shadow: 0 0 0 4px rgba(255, 213, 92, 0.42);
-  animation: forest-sparkle 2.4s ease-in-out infinite;
-  z-index: 5;
-}
-
-.forest-current-sparkle-a {
-  left: 4px;
-  top: 26px;
-}
-
-.forest-current-sparkle-b {
-  right: 6px;
-  top: 52px;
-  animation-delay: 0.9s;
-}
-
-.forest-current-soil {
-  position: absolute;
-  left: 50%;
-  bottom: -6px;
-  width: 96px;
-  height: 24px;
-  border-radius: 50%;
-  background: rgba(113, 78, 40, 0.3);
-  transform: translateX(-50%);
-}
-
-.forest-current-crown {
-  position: absolute;
-  left: 50%;
-  top: 8px;
-  width: 88px;
-  height: 72px;
-  border: 4px solid #2f6b52;
-  border-radius: 48% 52% 43% 55%;
-  background: #79c46b;
-  box-shadow: 13px 14px 0 #8ad47a, -11px 15px 0 #9ade87;
-  transform: translateX(-50%);
-}
-
-.forest-stage-seed .forest-current-trunk,
-.forest-stage-seed .forest-current-crown {
-  opacity: 0;
-}
-
-.forest-stage-seed::after {
-  content: "";
-  position: absolute;
-  left: 50%;
-  bottom: 17px;
-  width: 19px;
-  height: 15px;
-  border-radius: 50% 50% 44% 44%;
-  background: #7d5330;
-  transform: translateX(-50%);
-}
-
-.forest-stage-sprout .forest-current-trunk {
-  height: 24px;
-}
-
-.forest-stage-sprout .forest-current-crown {
-  top: 54px;
-  width: 54px;
-  height: 36px;
-  box-shadow: none;
-}
-
-.forest-stage-young .forest-current-trunk {
-  height: 44px;
-}
-
-.forest-stage-young .forest-current-crown {
-  top: 34px;
-  width: 70px;
-  height: 52px;
-  box-shadow: 8px 10px 0 #8ad47a;
-}
-
-.forest-stage-wilted .forest-current-crown {
-  background: #8d9568;
-  border-color: #68734b;
-  box-shadow: 10px 12px 0 #a1a871, -10px 12px 0 #788156;
-  transform: translateX(-50%) rotate(6deg);
-}
-
-.forest-stage-wilted .forest-current-trunk {
-  filter: saturate(0.7);
-}
-
-.forest-avatar {
-  width: 76px;
-  height: 122px;
-  z-index: 28;
-  filter: drop-shadow(0 16px 0 rgba(47, 42, 31, 0.22));
-  pointer-events: none;
-  transform: translate(-50%, -100%) scale(var(--forest-avatar-scale, 1));
-  transform-origin: 50% 100%;
-  transition:
-    left 620ms cubic-bezier(0.2, 0.82, 0.2, 1),
-    top 620ms cubic-bezier(0.2, 0.82, 0.2, 1),
-    transform 620ms ease,
-    filter 620ms ease;
-}
-
-.forest-avatar-shadow {
-  position: absolute;
-  left: 50%;
-  bottom: -4px;
-  width: 54px;
-  height: 17px;
-  border-radius: 50%;
-  background: rgba(47, 42, 31, 0.22);
-  transform: translateX(-50%);
-}
-
-.forest-avatar-head {
-  position: absolute;
-  left: 13px;
-  top: 9px;
-  width: 46px;
-  height: 42px;
-  border: 3px solid #805634;
-  border-radius: 46% 46% 50% 50%;
-  background: #f2c28b;
-  box-shadow: inset 6px 4px 0 rgba(255, 249, 223, 0.22);
-  z-index: 3;
-}
-
-.forest-avatar-face {
-  position: absolute;
-  left: 23px;
-  top: 26px;
-  width: 26px;
-  height: 14px;
-  z-index: 4;
-  border-radius: 999px;
-  background:
-    radial-gradient(circle at 4px 4px, #2f2a1f 0 2px, transparent 3px),
-    radial-gradient(circle at 21px 4px, #2f2a1f 0 2px, transparent 3px),
-    radial-gradient(circle at 3px 8px, rgba(242, 126, 111, 0.42) 0 4px, transparent 5px),
-    radial-gradient(circle at 23px 8px, rgba(242, 126, 111, 0.42) 0 4px, transparent 5px);
-}
-
-.forest-avatar-face::after {
-  content: "";
-  position: absolute;
-  left: 8px;
-  top: 5px;
-  width: 11px;
-  height: 7px;
-  border-bottom: 3px solid #bf5c42;
-  border-radius: 0 0 999px 999px;
-}
-
-.forest-avatar-hair {
-  position: absolute;
-  left: 10px;
-  top: 0;
-  width: 53px;
-  height: 29px;
-  border-radius: 27px 27px 13px 13px;
-  background: radial-gradient(circle at 24% 24%, #ffe68f 0 11px, transparent 12px), #f4c64e;
-  box-shadow: inset -5px -3px 0 rgba(178, 112, 35, 0.18);
-  z-index: 5;
-}
-
-.forest-avatar-body {
-  position: absolute;
-  left: 19px;
-  top: 51px;
-  width: 36px;
-  height: 42px;
-  border: 3px solid #2f6b52;
-  border-radius: 15px 15px 10px 10px;
-  background: repeating-linear-gradient(90deg, #83c9dd 0 8px, #fff9df 8px 12px);
-  box-shadow: inset 0 7px 0 rgba(255, 249, 223, 0.36);
-  animation: forest-avatar-bob 1.8s ease-in-out infinite;
-  z-index: 2;
-}
-
-.forest-avatar-backpack {
-  position: absolute;
-  left: 12px;
-  top: 54px;
-  width: 22px;
-  height: 33px;
-  border: 3px solid #6d4323;
-  border-radius: 12px;
-  background: #d89b51;
-  z-index: 1;
-}
-
-.forest-avatar-arm {
-  position: absolute;
-  top: 57px;
-  width: 10px;
-  height: 29px;
-  border-radius: 999px;
-  background: #f2c28b;
-  border: 2px solid #805634;
-  z-index: 1;
-}
-
-.forest-avatar-arm-left {
-  left: 10px;
-  transform: rotate(12deg);
-}
-
-.forest-avatar-arm-right {
-  right: 8px;
-  transform: rotate(-14deg);
-}
-
-.forest-avatar-leg {
-  position: absolute;
-  top: 91px;
-  width: 11px;
-  height: 22px;
-  border-radius: 5px;
-  background: #315f87;
-  box-shadow: 0 6px 0 #61451f;
-}
-
-.forest-avatar-leg-left {
-  left: 23px;
-}
-
-.forest-avatar-leg-right {
-  right: 23px;
-}
-
-.forest-avatar-left {
-  transform: translate(-50%, -100%) scale(var(--forest-avatar-scale, 1)) rotateY(180deg);
-}
-
-.forest-avatar-right,
-.forest-avatar-down,
-.forest-avatar-up {
-  transform: translate(-50%, -100%) scale(var(--forest-avatar-scale, 1));
-}
-
-.forest-avatar-up .forest-avatar-head,
-.forest-avatar-up .forest-avatar-face {
-  transform: scaleY(0.94);
-}
-
-@keyframes forest-avatar-bob {
-  0%, 100% {
-    transform: translateY(0);
-  }
-
-  50% {
-    transform: translateY(-3px);
-  }
-}
-
-@keyframes forest-cloud-drift {
-  0%, 100% {
-    transform: translateX(0);
-  }
-
-  50% {
-    transform: translateX(18px);
-  }
-}
-
-@keyframes forest-water-shimmer {
-  0%, 100% {
-    filter: saturate(1) brightness(1);
-  }
-
-  50% {
-    filter: saturate(1.14) brightness(1.08);
-  }
-}
-
-@keyframes forest-firefly-float {
-  0%, 100% {
-    opacity: 0.48;
-    transform: translate(0, 0) scale(0.86);
-  }
-
-  50% {
-    opacity: 1;
-    transform: translate(10px, -13px) scale(1.08);
-  }
-}
-
-@keyframes forest-leaf-sway {
-  0%, 100% {
-    transform: rotate(-1deg);
-  }
-
-  50% {
-    transform: rotate(2deg);
-  }
-}
-
-@keyframes forest-sparkle {
-  0%, 100% {
-    opacity: 0.35;
-    transform: scale(0.78);
-  }
-
-  50% {
-    opacity: 1;
-    transform: scale(1.08);
-  }
-}
-
 .forest-controls {
   display: grid;
   justify-items: center;
@@ -3830,10 +3035,150 @@ button:active:not(:disabled) {
   font-size: 20px;
 }
 
-.study-forest-panel:focus-visible,
-.study-forest-scene:focus-visible {
+.study-forest-panel:focus-visible {
   outline: 4px solid #f0c85c;
   outline-offset: 4px;
+}
+
+.study-forest-3d-shell {
+  position: relative;
+  width: 100%;
+  max-width: 100%;
+  height: clamp(430px, 48vw, 560px);
+  min-height: 0;
+  aspect-ratio: auto;
+  overflow: hidden;
+  isolation: isolate;
+  border: 3px solid #2f6b52;
+  border-radius: 20px;
+  background:
+    radial-gradient(circle at 22% 18%, rgba(255, 255, 255, 0.72), transparent 24%),
+    linear-gradient(180deg, #bfe9f2 0 58%, #8bcf74 58% 100%);
+  box-shadow:
+    inset 0 0 0 5px rgba(255, 249, 223, 0.42),
+    0 10px 0 rgba(47, 107, 82, 0.22);
+  touch-action: manipulation;
+}
+
+.study-forest-3d-shell::after {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  pointer-events: none;
+  content: "";
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.2), transparent 28%),
+    radial-gradient(circle at center, transparent 58%, rgba(35, 91, 67, 0.16) 100%);
+}
+
+.study-forest-3d-mount {
+  position: absolute;
+  inset: 0;
+  min-width: 0;
+  min-height: 0;
+}
+
+.study-forest-3d-canvas {
+  width: 100%;
+  height: 100%;
+  display: block;
+  cursor: crosshair;
+  touch-action: none;
+}
+
+.study-forest-3d-badge {
+  position: absolute;
+  top: 16px;
+  left: 16px;
+  z-index: 3;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  border: 2px solid rgba(47, 107, 82, 0.45);
+  border-radius: 999px;
+  background: rgba(255, 249, 223, 0.9);
+  color: #2f6b52;
+  padding: 7px 11px;
+  font-size: 12px;
+  font-weight: 950;
+  letter-spacing: 0.08em;
+  backdrop-filter: blur(8px);
+  box-shadow: 0 4px 0 rgba(47, 107, 82, 0.16);
+}
+
+.study-forest-3d-badge span {
+  border-radius: 999px;
+  background: #bf5c42;
+  color: #fff9df;
+  padding: 3px 6px;
+  font-size: 9px;
+  letter-spacing: 0.12em;
+}
+
+.study-forest-3d-hint {
+  position: absolute;
+  right: 16px;
+  bottom: 15px;
+  z-index: 3;
+  max-width: min(290px, calc(100% - 32px));
+  border: 2px solid rgba(47, 107, 82, 0.35);
+  border-radius: 999px;
+  background: rgba(255, 249, 223, 0.92);
+  color: #2f6b52;
+  padding: 8px 12px;
+  text-align: center;
+  font-size: 12px;
+  font-weight: 900;
+  backdrop-filter: blur(8px);
+}
+
+.study-forest-3d-module-loading,
+.study-forest-3d-loading,
+.study-forest-3d-fallback {
+  position: absolute;
+  inset: 0;
+  z-index: 4;
+  display: grid;
+  place-content: center;
+  justify-items: center;
+  gap: 12px;
+  padding: 28px;
+  background:
+    radial-gradient(circle at 50% 38%, rgba(255, 249, 223, 0.92), rgba(217, 240, 227, 0.96));
+  color: #2f6b52;
+  text-align: center;
+  font-weight: 900;
+}
+
+.study-forest-3d-loading span {
+  width: 42px;
+  height: 42px;
+  border: 6px solid rgba(79, 145, 111, 0.22);
+  border-top-color: #2f6b52;
+  border-radius: 50%;
+  animation: forest-3d-spin 900ms linear infinite;
+}
+
+.study-forest-3d-fallback strong {
+  font-size: clamp(20px, 4vw, 30px);
+}
+
+.study-forest-3d-fallback span {
+  max-width: 48ch;
+  color: #5a513d;
+  line-height: 1.65;
+}
+
+@keyframes forest-3d-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .study-forest-3d-loading span {
+    animation: none;
+  }
 }
 
 @media (max-width: 900px) {
@@ -3841,16 +3186,28 @@ button:active:not(:disabled) {
     grid-template-columns: 1fr;
   }
 
-  .study-forest-scene {
+  .study-forest-3d-shell {
     min-height: 430px;
   }
+}
 
-  .forest-tree-2d {
-    width: 68px;
-    height: 104px;
+@media (max-width: 560px) {
+  .study-forest-3d-shell {
+    height: 420px;
+    min-height: 0;
+    aspect-ratio: auto;
+    border-radius: 16px;
   }
 
-  .forest-current-tree {
-    transform: translate(-40%, -92%) scale(0.82);
+  .study-forest-3d-badge {
+    top: 10px;
+    left: 10px;
+  }
+
+  .study-forest-3d-hint {
+    right: 10px;
+    bottom: 10px;
+    max-width: calc(100% - 20px);
+    border-radius: 12px;
   }
 }

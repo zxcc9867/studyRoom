@@ -7,6 +7,16 @@ export type DailyPlannerTodo = {
   is_completed?: boolean;
 };
 
+export type DailyPlannerOverlapDetail = {
+  todoId: string;
+  title: string;
+  startTime: string;
+  endTime: string;
+  overlapStartTime: string;
+  overlapEndTime: string;
+  overlapWrapsMidnight: boolean;
+};
+
 export type DailyPlannerSegment<TTodo extends DailyPlannerTodo = DailyPlannerTodo> = {
   id: string;
   todo: TTodo;
@@ -20,6 +30,7 @@ export type DailyPlannerSegment<TTodo extends DailyPlannerTodo = DailyPlannerTod
   endAngle: number;
   wrapsMidnight: boolean;
   overlaps: boolean;
+  overlapDetails: DailyPlannerOverlapDetail[];
   color: string;
 };
 

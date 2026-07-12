@@ -1,78 +1,72 @@
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import { test } from "node:test";
 
 const mainSource = readFileSync(new URL("../src/main.tsx", import.meta.url), "utf8");
 const cssSource = readFileSync(new URL("../src/styles.css", import.meta.url), "utf8");
+const componentUrl = new URL("../src/StudyForest3D.tsx", import.meta.url);
+const componentSource = existsSync(componentUrl) ? readFileSync(componentUrl, "utf8") : "";
 
-test("study forest avatar JSX uses the styled character part classes", () => {
-  assert.match(mainSource, /className="forest-avatar-shadow"/);
-  assert.match(mainSource, /className="forest-avatar-hair"/);
-  assert.match(mainSource, /className="forest-avatar-head"/);
-  assert.match(mainSource, /className="forest-avatar-body"/);
-  assert.match(mainSource, /className="forest-avatar-leg forest-avatar-leg-left"/);
-  assert.match(mainSource, /className="forest-avatar-leg forest-avatar-leg-right"/);
-  assert.match(mainSource, /className="forest-avatar-face"/);
-  assert.match(mainSource, /className="forest-avatar-arm forest-avatar-arm-left"/);
-  assert.match(mainSource, /className="forest-avatar-arm forest-avatar-arm-right"/);
-  assert.match(mainSource, /className="forest-avatar-backpack"/);
-  assert.match(mainSource, /onPointerDown=\{handleForestScenePointerDown\}/);
-  assert.match(mainSource, /getAvatarSceneStyle\(forestAvatar\)/);
-  assert.doesNotMatch(mainSource, /className="avatar-head"/);
-  assert.doesNotMatch(mainSource, /className="avatar-body"/);
-  assert.doesNotMatch(mainSource, /className="avatar-shadow"/);
+test("study forest page mounts the Three.js renderer while keeping accessible movement controls", () => {
+  assert.match(mainSource, /lazy\(\(\) =>[\s\S]*import\("\.\/StudyForest3D"\)/);
+  assert.match(mainSource, /<Suspense/);
+  assert.match(mainSource, /<StudyForest3D/);
+  assert.match(mainSource, /completedTreeCount=\{studyForestState\.placedTrees\.length\}/);
+  assert.match(mainSource, /currentTreeStage=\{studyForestState\.currentTree\.stage\}/);
+  assert.match(mainSource, /avatar=\{forestAvatar\}/);
+  assert.match(mainSource, /onMoveTarget=\{moveForestAvatarTo\}/);
+  assert.match(mainSource, /aria-label=\{.*3D/);
+  assert.match(mainSource, /moveForestAvatar\("ArrowUp"\)/);
+  assert.doesNotMatch(mainSource, /className="study-forest-scene"/);
 });
 
-test("study forest trees use the styled completed and current tree classes", () => {
-  assert.match(mainSource, /forest-tree-2d forest-tree-/);
-  assert.match(mainSource, /forest-stage-/);
-  assert.match(mainSource, /className="forest-tree-top"/);
-  assert.match(mainSource, /className="forest-current-soil"/);
-  assert.match(mainSource, /className="forest-current-crown"/);
-  assert.match(mainSource, /className="forest-current-trunk"/);
-  assert.match(mainSource, /className="forest-current-sparkle forest-current-sparkle-a"/);
-  assert.match(mainSource, /className="forest-current-sparkle forest-current-sparkle-b"/);
+test("Three.js scene uses a responsive WebGL renderer with an isometric camera and mobile limits", () => {
+  assert.match(componentSource, /import \* as THREE from "three"/);
+  assert.match(componentSource, /new THREE\.WebGLRenderer/);
+  assert.match(componentSource, /new THREE\.OrthographicCamera/);
+  assert.match(componentSource, /renderer\.setAnimationLoop/);
+  assert.match(componentSource, /Math\.min\(window\.devicePixelRatio \|\| 1, 1\.5\)/);
+  assert.match(componentSource, /shadow\.mapSize\.(?:set|width)/);
+  assert.match(componentSource, /new ResizeObserver/);
+  assert.match(cssSource, /\.study-forest-3d-canvas/);
+  assert.match(cssSource, /aspect-ratio:/);
 });
 
-test("study forest scene has 2.5D depth and keeps the avatar above terrain", () => {
-  const actorBlock = cssSource.match(/\.forest-tree-2d,\n\.forest-current-tree,\n\.forest-avatar\s*\{[^}]*\}/)?.[0] ?? "";
-  const avatarBlock = cssSource.match(/\.forest-stage-wilted \.forest-current-trunk\s*\{[^}]*\}\n\n(?<block>\.forest-avatar\s*\{[^}]*\})/)?.groups?.block ?? "";
-
-  assert.match(cssSource, /\.study-forest-scene\s*\{[\s\S]*perspective:/);
-  assert.match(cssSource, /\.forest-ground\s*\{[\s\S]*rotateX/);
-  assert.match(cssSource, /\.forest-pond\s*\{[\s\S]*rotateX/);
-  assert.match(mainSource, /className="forest-cloud forest-cloud-one"/);
-  assert.match(mainSource, /className="forest-flower-patch forest-flower-patch-one"/);
-  assert.match(mainSource, /className="forest-cottage"/);
-  assert.match(mainSource, /className="forest-fence forest-fence-back"/);
-  assert.match(cssSource, /\.study-forest-scene\s*\{[\s\S]*radial-gradient\(circle at 18% 18%/);
-  assert.match(cssSource, /\.forest-cottage\s*\{[\s\S]*z-index:\s*4/);
-  assert.match(cssSource, /\.forest-flower-patch\s*\{[\s\S]*box-shadow:/);
-  assert.match(cssSource, /\.forest-avatar-face::after\s*\{[\s\S]*border-bottom:/);
-  assert.match(cssSource, /\.forest-avatar-face\s*\{[\s\S]*radial-gradient\(circle at 3px 8px/);
-  assert.match(cssSource, /@keyframes forest-avatar-bob/);
-  assert.match(cssSource, /\.forest-avatar\s*\{[\s\S]*transition:/);
-  assert.match(cssSource, /scale\(var\(--forest-avatar-scale/);
-  assert.match(actorBlock, /position:\s*absolute/);
-  assert.match(actorBlock, /transform:\s*translate\(-50%, -100%\)/);
-  assert.match(avatarBlock, /z-index:\s*(?:1[2-9]|[2-9]\d)/);
-  assert.match(avatarBlock, /filter:\s*drop-shadow/);
+test("Three.js scene builds original low-poly island props and an attendance forest", () => {
+  for (const builder of [
+    "createIsland",
+    "createRiver",
+    "createBridge",
+    "createCottage",
+    "createLowPolyTree",
+    "createGarden",
+    "createLantern",
+    "createAvatar",
+  ]) {
+    assert.match(componentSource, new RegExp("function " + builder));
+  }
+  assert.match(componentSource, /flatShading:\s*true/);
+  assert.match(componentSource, /completedTreeCount/);
+  assert.match(componentSource, /currentTreeStage/);
+  assert.doesNotMatch(componentSource, /GLTFLoader|TextureLoader|https?:\/\//);
 });
 
-test("study forest scene renders richer island layers and ambient details", () => {
-  assert.match(mainSource, /className="forest-distant-hill forest-distant-hill-left"/);
-  assert.match(mainSource, /className="forest-distant-hill forest-distant-hill-right"/);
-  assert.match(mainSource, /className="forest-river"/);
-  assert.match(mainSource, /className="forest-bridge"/);
-  assert.match(mainSource, /className="forest-garden-bed"/);
-  assert.match(mainSource, /className="forest-lantern forest-lantern-left"/);
-  assert.match(mainSource, /className="forest-firefly forest-firefly-one"/);
-  assert.match(mainSource, /className="forest-foreground-grass"/);
-  assert.match(cssSource, /\.forest-river\s*\{[\s\S]*linear-gradient/);
-  assert.match(cssSource, /\.forest-bridge\s*\{[\s\S]*rotateX/);
-  assert.match(cssSource, /\.forest-garden-bed\s*\{[\s\S]*repeating-linear-gradient/);
-  assert.match(cssSource, /@keyframes forest-cloud-drift/);
-  assert.match(cssSource, /@keyframes forest-water-shimmer/);
-  assert.match(cssSource, /@keyframes forest-firefly-float/);
-  assert.match(cssSource, /@keyframes forest-leaf-sway/);
+test("Three.js scene maps click and touch input to the existing avatar coordinate model", () => {
+  assert.match(componentSource, /new THREE\.Raycaster/);
+  assert.match(componentSource, /raycaster\.setFromCamera/);
+  assert.match(componentSource, /intersectObject\(interactionPlane/);
+  assert.match(componentSource, /onMoveTargetRef\.current/);
+  assert.match(componentSource, /worldPointToAvatarTarget/);
+  assert.match(componentSource, /avatarTargetToWorldPoint/);
+});
+
+test("Three.js scene provides fallback, reduced motion, and GPU cleanup", () => {
+  assert.match(componentSource, /webglStatus/);
+  assert.match(componentSource, /matchMedia\("\(prefers-reduced-motion: reduce\)"\)/);
+  assert.match(componentSource, /renderer\.setAnimationLoop\(null\)/);
+  assert.match(componentSource, /renderer\.dispose\(\)/);
+  assert.match(componentSource, /geometry\.dispose\(\)/);
+  assert.match(componentSource, /material\.dispose\(\)/);
+  assert.match(componentSource, /resizeObserver\.disconnect\(\)/);
+  assert.match(cssSource, /\.study-forest-3d-fallback/);
 });

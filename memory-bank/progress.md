@@ -1,3 +1,99 @@
+### 2026-07-12 - Three.js low-poly Study Forest upgrade
+
+#### Completed Work
+
+- Updated prd-study-forest.md from CSS 2.5D to a real Three.js WebGL scene after explicit user approval.
+- Added Three.js 0.185.1 and matching @types/three.
+- Added a lazy-loaded StudyForest3D component with an orthographic camera, warm lights, fog, shadows, procedural island geometry, river, bridge, cottage, garden, lanterns, fireflies, attendance trees, current growth tree, and a smiling avatar.
+- Reused the existing keyboard/touch/idle avatar state and added Raycaster click/tap movement.
+- Added mobile DPR/shadow/geometry limits, reduced-motion behavior, WebGL fallback, ResizeObserver sizing, and full GPU cleanup.
+- Removed obsolete CSS 2.5D scene rules; built CSS dropped from about 58.06 kB to 43.14 kB.
+- Kept Three.js in a route-level lazy chunk so the initial app bundle stays near its previous size.
+
+#### Changed Files
+
+- apps/web/package.json
+- package-lock.json
+- apps/web/src/StudyForest3D.tsx
+- apps/web/src/main.tsx
+- apps/web/src/styles.css
+- apps/web/test/studyForestUi.test.mjs
+- memory-bank/design-document.md
+- memory-bank/prd-study-forest.md
+- memory-bank/implementation-plan.md
+- memory-bank/active-context.md
+- memory-bank/progress.md
+- memory-bank/trouble-shooting.md
+- docs/superpowers/plans/2026-07-12-threejs-study-forest.md
+
+#### Verification
+
+- RED: five new Three.js UI/source tests failed before the renderer component existed.
+- GREEN: Three.js UI/source tests and existing Study Forest helper tests passed 13 targeted tests.
+- Full suite: npm.cmd test passed 238 tests.
+- Expo: npm.cmd --workspace apps/mobile run typecheck passed.
+- Build: npm.cmd run build passed; Three.js is emitted as a separate approximately 531 kB lazy chunk.
+- Desktop browser: 1280x900, WebGL ready, canvas and status grid no longer overlap, no page errors.
+- Mobile browser: 390x844, single-column layout, no horizontal overflow, WebGL ready, bright palette preserved.
+- Interaction: canvas click changed preview avatar target from 52.0,66.0 to 49.7,62.0.
+- Security: npm.cmd audit --omit=dev --workspace apps/web found 0 vulnerabilities.
+
+#### Remaining Work
+
+- Commit, push, and deploy only after explicit user authorization.
+- Address existing Expo 53 dependency advisories in a separate planned upgrade; audit --force would jump to Expo 57 and is not safe in this feature change.
+
+#### Next Priority
+
+- User review of the local screenshots, then an explicitly requested release.
+
+### 2026-07-12 - Planner overlap details and Expo palette alignment
+
+#### Completed Work
+
+- Replaced the selected planner's generic overlap warning with a conflict list that names both todos, shows both schedules, and highlights the exact overlapping interval.
+- Added midnight-aware overlap normalization so a cross-midnight conflict is shown as one readable range.
+- Replaced the Expo app's separate beige/black palette with the web dashboard's green, cream, yellow, coral, and dark text colors.
+- Forced the Expo app to light UI mode and aligned the status bar and Android adaptive-icon background.
+- Added helper, source-contract, and mobile theme regression tests.
+
+#### Changed Files
+
+- apps/web/src/dailyPlanner.mjs
+- apps/web/src/dailyPlanner.d.mts
+- apps/web/src/main.tsx
+- apps/web/src/styles.css
+- apps/web/test/dailyPlanner.test.mjs
+- apps/web/test/plannerOverlapUi.test.mjs
+- apps/web/test/mobileNativeTheme.test.mjs
+- apps/mobile/App.tsx
+- apps/mobile/app.json
+- memory-bank/prd-daily-planner-dashboard.md
+- memory-bank/implementation-plan.md
+- memory-bank/active-context.md
+- memory-bank/progress.md
+- memory-bank/trouble-shooting.md
+
+#### Verification
+
+- RED: targeted overlap tests failed while segments only exposed the old boolean.
+- GREEN: targeted overlap/UI tests passed 7 tests.
+- RED/GREEN: Expo palette regression failed before the palette and light config existed, then passed.
+- Expo: npm.cmd --workspace apps/mobile run typecheck passed.
+- Full suite: npm.cmd test passed 237 tests.
+- Build: npm.cmd run build passed with the existing Vite chunk-size warning.
+- Diff hygiene: git diff --check reported only LF-to-CRLF warnings.
+
+#### Remaining Work
+
+- Decide whether to update the Study Forest PRD for a real WebGL 3D runtime or keep the current CSS/React 2.5D constraint.
+- Perform actual-device visual verification after the full feature set is implemented.
+- Commit, push, deploy, and verify production only after the 3D direction is resolved.
+
+#### Next Priority
+
+- Obtain authorization to update prd-study-forest.md, then implement and verify the selected 3D forest approach.
+
 ### 2026-07-09 - Study Forest visual refresh
 
 #### Completed Work

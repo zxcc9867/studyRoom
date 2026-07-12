@@ -25,7 +25,7 @@ Personal MVP users who want a lightweight study room dashboard with attendance p
 - Calendar todos, weekday recurring todo creation, and completion rate
 - Today task checklist plus a pinned circular life-planner view for timed todos
 - User-customizable Today dashboard section order
-- Study Forest reward page where seven-day attendance streaks grow trees in a personal 2.5D space
+- Study Forest reward page where seven-day attendance streaks grow trees in a personal low-poly 3D space
 - My Page hash page with account summary and completed todo history
 - Web/Expo/email notification targets
 - Scheduled reminder dispatch through Supabase Edge Function

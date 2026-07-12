@@ -15,18 +15,18 @@ Personal MVP users who want a softer Animal Crossing-style reward for sustained 
 - Keep completed trees in the personal space even after a future miss.
 - Wilt only the current in-progress tree when the latest tracked day is missed.
 - Let the user move a small character with keyboard or touch controls.
-- Make the personal space feel like a cozy 2.5D forest village through original, non-infringing props and character details.
-- Make the reward space visually richer with CSS-only island layers, river, bridge, garden, warm lights, fireflies, and ambient motion.
+- Make the personal space feel like a cozy low-poly 3D forest village through original, non-infringing props and character details.
+- Render a real WebGL scene with a toy-like island, river, bridge, cottage, garden, warm lights, fireflies, and ambient motion.
 - Let the character walk automatically after a short period without user control.
 - Let the user click or touch the meadow to move the character to that point.
 - Make the avatar expression friendly and smiling, not tense or frowning.
-- Use y-position scale and layering so movement feels like a 2.5D space rather than a flat box.
+- Use an isometric camera, real geometry, lighting, shadows, and depth so the space reads as 3D on desktop and mobile.
 
 ## 4. Non-goals
 
-- No 3D engine, server-rendered game scene, or persistent character inventory in this version.
+- No server-rendered game scene, physics engine, multiplayer, or persistent character inventory in this version.
 - No new Supabase schema in this version.
-- No asset upload or external image dependency.
+- No copied game assets, external 3D models, or external image dependency.
 
 ## 5. User Stories
 
@@ -58,37 +58,39 @@ Personal MVP users who want a softer Animal Crossing-style reward for sustained 
 
 - [x] Add a #forest dashboard route.
 - [x] Add deterministic study forest helper logic with unit tests.
-- [x] Render a 2.5D CSS scene with land, path, pond, styled trees, village props, flowers/stones, and a clearly visible detailed avatar.
-- [x] Render richer island details including distant hills, river, bridge, garden bed, lanterns, fireflies, foreground grass, and ambient keyframe motion.
+- [x] Render a Three.js WebGL scene with low-poly land, path, river, bridge, cottage, trees, flowers/stones, and a clearly visible detailed avatar.
+- [x] Render richer 3D island details including garden beds, lanterns, fireflies, layered terrain, shadows, and ambient motion.
 - [x] Support keyboard movement and touch button movement.
 - [x] Resume automatic avatar walking when manual control is idle.
 - [x] Support click/touch-to-walk inside the meadow.
-- [x] Render a friendly smiling avatar face and y-depth scaling/layering.
+- [x] Render a friendly smiling low-poly avatar with real scene depth and smooth target movement.
+- [x] Provide a readable fallback when WebGL 2 is unavailable or context creation fails.
 
 ## 8. Non-functional Requirements
 
-- Performance: CSS/React only, no heavy 3D runtime for MVP.
+- Performance: use raw Three.js without post-processing; cap device pixel ratio, shadow resolution, geometry counts, and animation work for mobile.
 - Security: no new secrets or backend write path.
-- Accessibility: route content is keyboard focusable and movement controls have labels.
+- Accessibility: route content is keyboard focusable, movement controls have labels, reduced-motion is respected, and a text fallback explains WebGL failure.
 - Maintainability: streak/tree math stays in studyForest.mjs rather than inside React JSX.
 
 ## 9. Dependencies
 
 - Internal: attendance_days rows already loaded by the dashboard.
-- External: none.
+- External: three runtime only; no model loader or external asset CDN.
 - Supabase: no schema change.
 - API: no new API.
 - Environment variables: none.
 
 ## 10. Success Metrics
 
-- User can open #forest and see a forest state derived from attendance history, with the avatar, trees, and decorative props visibly rendered above the terrain.
+- User can open #forest and see a real WebGL 3D forest state derived from attendance history, with the avatar, trees, cottage, river, bridge, and decorative props visibly rendered with depth.
+- Desktop and mobile users can move the avatar by keyboard, touch controls, or clicking/tapping the island without excessive GPU resolution.
 - Unit tests cover tree completion, wilting, growth stages, and avatar movement bounds.
 - npm.cmd test and npm.cmd run build pass.
 
 ## 11. Rollout Plan
 
-- Development: ship as a client-only page behind the existing authenticated dashboard.
+- Development: ship a client-only Three.js page behind the existing authenticated dashboard while preserving streak/tree helper logic.
 - Testing: unit tests plus production build.
 - Deployment: Vercel production through existing GitHub/Vercel workflow.
 - Monitoring: user feedback and visual inspection of the new page.
@@ -96,4 +98,4 @@ Personal MVP users who want a softer Animal Crossing-style reward for sustained 
 ## 12. Open Questions
 
 - Whether future versions should persist custom decorations or character position in Supabase.
-- Whether to evolve the scene to Three.js after the 2.5D MVP is validated.
+- Whether future versions should add decoration placement or camera controls after mobile performance is validated.

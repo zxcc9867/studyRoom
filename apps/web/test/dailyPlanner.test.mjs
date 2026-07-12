@@ -116,4 +116,72 @@ test("marks overlapping planner segments", () => {
 
   assert.equal(result.segments.length, 2);
   assert.equal(result.segments.every((segment) => segment.overlaps), true);
+  assert.deepEqual(result.segments[0].overlapDetails, [
+    {
+      todoId: "second",
+      title: "React study",
+      startTime: "09:30",
+      endTime: "11:00",
+      overlapStartTime: "09:30",
+      overlapEndTime: "10:00",
+      overlapWrapsMidnight: false,
+    },
+  ]);
+  assert.deepEqual(result.segments[1].overlapDetails, [
+    {
+      todoId: "first",
+      title: "AWS study",
+      startTime: "09:00",
+      endTime: "10:00",
+      overlapStartTime: "09:30",
+      overlapEndTime: "10:00",
+      overlapWrapsMidnight: false,
+    },
+  ]);
+});
+
+test("describes an overlap that continues across midnight as one readable range", () => {
+  const result = buildDailyPlannerSegments(
+    [
+      {
+        ...baseTodo,
+        id: "night-reading",
+        title: "Night reading",
+        start_time: "23:00",
+        end_time: "02:00",
+      },
+      {
+        ...baseTodo,
+        id: "late-review",
+        title: "Late review",
+        start_time: "22:30",
+        end_time: "01:00",
+      },
+    ],
+    "2026-06-23",
+  );
+
+  const lateReview = result.segments.find((segment) => segment.id === "late-review");
+  const nightReading = result.segments.find((segment) => segment.id === "night-reading");
+
+  assert.deepEqual(lateReview.overlapDetails, [
+    {
+      todoId: "night-reading",
+      title: "Night reading",
+      startTime: "23:00",
+      endTime: "02:00",
+      overlapStartTime: "23:00",
+      overlapEndTime: "01:00",
+      overlapWrapsMidnight: true,
+    },
+  ]);
+  assert.deepEqual(nightReading.overlapDetails[0], {
+    todoId: "late-review",
+    title: "Late review",
+    startTime: "22:30",
+    endTime: "01:00",
+    overlapStartTime: "23:00",
+    overlapEndTime: "01:00",
+    overlapWrapsMidnight: true,
+  });
 });

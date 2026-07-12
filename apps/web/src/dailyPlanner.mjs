@@ -56,7 +56,7 @@ export function buildDailyPlannerSegments(todos, dateKey) {
     });
   }
 
-  const overlapIds = findOverlappingTodoIds(scheduledTodos);
+  const overlapDetailsById = buildOverlapDetails(scheduledTodos);
   const segments = scheduledTodos
     .sort((left, right) => left.startMinute - right.startMinute || left.todo.title.localeCompare(right.todo.title))
     .map((item, index) => ({
@@ -71,7 +71,8 @@ export function buildDailyPlannerSegments(todos, dateKey) {
       startAngle: minuteToAngle(item.startMinute),
       endAngle: minuteToAngle((item.startMinute + item.durationMinutes) % MINUTES_PER_DAY),
       wrapsMidnight: item.wrapsMidnight,
-      overlaps: overlapIds.has(item.todo.id),
+      overlaps: (overlapDetailsById.get(item.todo.id) ?? []).length > 0,
+      overlapDetails: overlapDetailsById.get(item.todo.id) ?? [],
       color: DAILY_PLANNER_COLORS[index % DAILY_PLANNER_COLORS.length],
     }));
 
@@ -105,22 +106,76 @@ function expandPlannerRanges(startMinute, endMinute) {
   ];
 }
 
-function findOverlappingTodoIds(items) {
-  const overlapIds = new Set();
+function buildOverlapDetails(items) {
+  const detailsById = new Map(items.map((item) => [item.todo.id, []]));
+
   for (let index = 0; index < items.length; index += 1) {
     for (let compareIndex = index + 1; compareIndex < items.length; compareIndex += 1) {
-      if (rangesOverlap(items[index].ranges, items[compareIndex].ranges)) {
-        overlapIds.add(items[index].todo.id);
-        overlapIds.add(items[compareIndex].todo.id);
+      const left = items[index];
+      const right = items[compareIndex];
+      const overlapRanges = normalizeOverlapRanges(
+        getOverlapRanges(left.ranges, right.ranges),
+      );
+
+      for (const overlapRange of overlapRanges) {
+        detailsById.get(left.todo.id).push(
+          createOverlapDetail(right, overlapRange),
+        );
+        detailsById.get(right.todo.id).push(
+          createOverlapDetail(left, overlapRange),
+        );
       }
     }
   }
 
-  return overlapIds;
+  return detailsById;
 }
 
-function rangesOverlap(leftRanges, rightRanges) {
-  return leftRanges.some((left) =>
-    rightRanges.some((right) => left.start < right.end && right.start < left.end),
-  );
+function createOverlapDetail(otherItem, overlapRange) {
+  return {
+    todoId: otherItem.todo.id,
+    title: otherItem.todo.title,
+    startTime: formatMinutesAsTime(otherItem.startMinute),
+    endTime: formatMinutesAsTime(otherItem.endMinute),
+    overlapStartTime: formatMinutesAsTime(overlapRange.start),
+    overlapEndTime: formatMinutesAsTime(overlapRange.end),
+    overlapWrapsMidnight: overlapRange.wrapsMidnight,
+  };
+}
+
+function getOverlapRanges(leftRanges, rightRanges) {
+  const overlapRanges = [];
+
+  for (const left of leftRanges) {
+    for (const right of rightRanges) {
+      const start = Math.max(left.start, right.start);
+      const end = Math.min(left.end, right.end);
+      if (start < end) {
+        overlapRanges.push({ start, end, wrapsMidnight: end === MINUTES_PER_DAY });
+      }
+    }
+  }
+
+  return overlapRanges.sort((left, right) => left.start - right.start);
+}
+
+function normalizeOverlapRanges(ranges) {
+  if (ranges.length < 2) {
+    return ranges;
+  }
+
+  const first = ranges[0];
+  const last = ranges[ranges.length - 1];
+  if (first.start !== 0 || last.end !== MINUTES_PER_DAY) {
+    return ranges;
+  }
+
+  return [
+    ...ranges.slice(1, -1),
+    {
+      start: last.start,
+      end: first.end,
+      wrapsMidnight: true,
+    },
+  ];
 }

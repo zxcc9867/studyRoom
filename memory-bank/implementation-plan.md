@@ -49,6 +49,7 @@
 - Today task views: the Today task card supports `checklist` and `planner`. The planner is a browser-rendered SVG life planner built from already loaded `study_todos`.
 - Selected-date planner scope: the Today task card can render any selected local date by filtering `study_todos.local_date` with `selectedTodoDate`; real attendance/session gates still use the actual `todayDateKey`. The planner previous/next buttons move relative to `selectedTodoDate`, while the today button jumps back to the real current local date.
 - Planner data source: timed todos use `study_todos.start_time` and `study_todos.end_time`; untimed todos remain in a separate list below the wheel. Overnight todos wrap across midnight and overlapping todos show a warning state.
+- Planner overlap details: `dailyPlanner.mjs` computes per-segment `overlapDetails` containing the counterpart todo title/schedule plus the exact intersection range. Midnight-edge intersections are merged into one readable overnight conflict before React renders the alert list.
 - Planner interactions: clicking an empty wheel area opens the existing todo modal with a default one-hour time block; clicking a segment opens the same modal for editing that todo.
 - Multi-date plan copy: the planner copy modal creates explicit single-date `study_todos` rows for selected target dates, skips duplicate title/date/time rows, resets copied rows to incomplete, and clears repeat metadata so the copies do not unexpectedly edit the original recurrence group.
 - Existing todo scheduling: inside the todo modal, checking an existing todo means "link this todo into the current time window" and inserts a new timed row when the selected date/title/time is not an exact duplicate. Already scheduled todos remain visible and can be scheduled again for another time block. These checkboxes do not mark todos complete and no longer expose edit/delete actions inside the link list.
@@ -60,6 +61,15 @@
 - DB shape: migration `20260623131001_dashboard_planner_preferences.sql` adds the two `profiles` columns and constraints.
 - Tests: use `apps/web/test/dailyPlanner.test.mjs`, `apps/web/test/dashboardLayout.test.mjs`, and SQL migration coverage in `packages/core/test/sql-migrations.test.mjs`.
 
+## Study Forest 3D Notes
+
+- Runtime: the authenticated #forest route lazy-loads StudyForest3D.tsx and the Three.js chunk only when the user opens the reward page.
+- Scene: raw Three.js primitives build an original low-poly island, layered terrain, river, bridge, cottage, garden, lanterns, fireflies, completed trees, current growth tree, and smiling avatar. No external model, texture, or copied game asset is used.
+- State boundary: attendance streak/tree calculations and keyboard/touch/idle avatar state remain in studyForest.mjs and main.tsx. The renderer receives derived counts/stage/position through props.
+- Interaction: a Three.js Raycaster intersects an invisible ground plane and converts the world point back to the existing percent-based avatar coordinate model.
+- Performance: Three.js is a lazy chunk, device pixel ratio is capped at 1.5, shadow maps are 1024 square, completed tree geometry is capped for display density, post-processing is disabled, and obsolete CSS 2.5D scene rules were removed.
+- Resilience: WebGL constructor failure renders an accessible text fallback; reduced-motion disables bobbing and ambient motion; ResizeObserver keeps the orthographic camera and drawing buffer aligned with the container.
+- Cleanup: animation loop, pointer listener, ResizeObserver, geometries, materials, renderer, and canvas are disposed when the component unmounts or the derived forest scene is rebuilt.
 ## Tech Stack
 
 - Vite React
@@ -152,7 +162,8 @@ docs/images/study-room-thumbnail.png
 - Keep Lambda logic dependency-free unless a real integration requires an SDK.
 - Prefer deploy-time parameters for MVP secrets to avoid fixed Secrets Manager cost.
 - Never put Supabase service-role keys in frontend code or committed docs.
-- The web app intentionally uses a light Animal Crossing-style theme. Keep `color-scheme` fixed to light in HTML/CSS so mobile browsers do not auto-darken the UI.
+- The web app intentionally uses a light cozy-forest theme. Keep `color-scheme` fixed to light in HTML/CSS so mobile browsers do not auto-darken the UI.
+- The Expo app uses the same green/cream/gold palette through `mobilePalette` in `apps/mobile/App.tsx`. Keep Expo `userInterfaceStyle` set to `light`, use a dark-content status bar, and keep the Android adaptive-icon background aligned with the web canvas color.
 - Keep todo history filtering, stats, and pagination in `todoHistory.mjs` instead of expanding the large React component with data logic.
 
 ## Design Patterns

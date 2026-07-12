@@ -2,6 +2,50 @@
 
 ## Current Work
 
+- Task: Complete planner overlap details, mobile palette alignment, and the Three.js Study Forest upgrade.
+- Purpose: Make schedule conflicts actionable, keep mobile visuals consistent with web, and turn the reward space into a real cozy low-poly 3D island.
+- Related PRD:
+  - memory-bank/prd-daily-planner-dashboard.md
+  - memory-bank/prd-study-forest.md
+- Related files:
+  - apps/web/src/dailyPlanner.mjs
+  - apps/web/src/main.tsx
+  - apps/web/src/StudyForest3D.tsx
+  - apps/web/src/styles.css
+  - apps/mobile/App.tsx
+  - apps/mobile/app.json
+  - apps/web/test/dailyPlanner.test.mjs
+  - apps/web/test/plannerOverlapUi.test.mjs
+  - apps/web/test/mobileNativeTheme.test.mjs
+  - apps/web/test/studyForestUi.test.mjs
+
+## Recent Decisions
+
+- Decision: The user explicitly approved replacing the former CSS/React 2.5D constraint with raw Three.js low-poly WebGL.
+- Reason: The requested end state is a real 3D Study Forest, not another CSS perspective refinement.
+- Decision: Keep the scene original and procedural, with no copied characters, models, textures, or external art dependencies.
+- Decision: Lazy-load Three.js on #forest and cap DPR/shadows/visible tree density for mobile.
+
+## Current Status
+
+- Completed: Planner overlap alert identifies both todos, both schedules, and the exact intersection, including overnight conflicts.
+- Completed: Expo mobile app now uses the same fixed light green/cream/gold palette as the web dashboard.
+- Completed: Three.js WebGL Study Forest with low-poly island, river, bridge, cottage, garden, lanterns, fireflies, trees, avatar, lighting, shadows, and ambient motion.
+- Completed: Keyboard/touch controls, idle walking, and Raycaster click/tap movement all share the existing avatar state.
+- Completed: Desktop 1280x900 and mobile 390x844 browser verification passed with WebGL ready, no page errors, no horizontal overflow, and click coordinates changing from 52.0,66.0 to 49.7,62.0.
+- Completed: 238 tests, Expo typecheck, web production build, and web workspace runtime audit pass.
+- Next: Commit/push/deploy only when the user explicitly requests it.
+
+## Notes
+
+- No Supabase schema, policy, Edge Function, environment variable, copied asset, or external model changed.
+- Current changes are local only and are not committed, pushed, or deployed.
+- Root npm audit still reports existing Expo 53 dependency advisories; the new web workspace reports zero runtime vulnerabilities.
+
+---
+
+## Current Work
+
 - Task: Study Forest visual refresh.
 - Purpose: Make the Study Forest reward page feel like a richer cozy 2.5D study island while preserving the existing client-only reward logic.
 - Related PRD:
