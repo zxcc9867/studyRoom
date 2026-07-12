@@ -2853,3 +2853,35 @@ npm error Missing script: "lint"
 ### 재발 방지
 
 lint가 필수 검증 단계가 되어야 한다면 후속 작업에서 ESLint 설정과 `lint` 스크립트를 명시적으로 추가한다. 그 전까지는 lint 실행 불가를 숨기지 않고 테스트 및 빌드 결과와 함께 보고한다.
+
+
+## 2026-07-12 - Locked cottage rewards blocked empty floor
+
+### Situation
+
+The cottage displayed only the permanent desk and chair, but clicking an empty area near the right side showed the furniture collision notice and prevented movement.
+
+### Error Message
+
+~~~txt
+가구가 있는 곳은 지나갈 수 없어요.
+~~~
+
+### Cause
+
+Bookshelf, reading-lamp, and plant collision rectangles were always active in `COTTAGE_SOLID_AREAS`, while the matching Three.js props were conditionally rendered only after 1/3/5-day attendance rewards. Locked furniture therefore created invisible obstacles.
+
+### Resolution
+
+Added reward keys to conditional furniture obstacles and passed the current `getForestInteriorRewards()` result through keyboard, touch-button, and click movement collision checks. Permanent desk and chair obstacles remain unconditional.
+
+### Related Files
+
+- `apps/web/src/studyForest.mjs`
+- `apps/web/src/main.tsx`
+- `apps/web/src/StudyForest3D.tsx`
+- `apps/web/test/studyForest.test.mjs`
+
+### Prevention
+
+Every conditionally rendered furniture prop must use the same reward key for both rendering and collision. Regression tests must assert that the location is walkable while locked and blocked after unlock.

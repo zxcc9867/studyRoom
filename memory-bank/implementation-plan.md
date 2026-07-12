@@ -578,3 +578,11 @@ docs/images/study-room-thumbnail.png
 
 - 이번 변경은 클라이언트 전용이며 Supabase 스키마/API 변경이 없다.
 - 사용자의 명시적 요청 전에는 커밋, 푸시, Vercel 배포를 수행하지 않는다.
+
+
+## Reward-aware Cottage Collision (2026-07-12)
+
+- Permanent furniture collision areas are always active.
+- Attendance reward furniture collision areas must carry the same reward key used by `getForestInteriorRewards()`.
+- Keyboard, touch-button, and click-to-walk movement must pass the current reward map into the same pure collision helpers.
+- A hidden or locked reward prop must never reserve invisible floor space.

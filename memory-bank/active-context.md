@@ -2136,3 +2136,30 @@
 - Completed: Production alias `https://study-room-attendance.vercel.app/` returned HTTP 200.
 - Completed: Production bundle `assets/StudyForest3D-DcIhYwMj.js` contains the interior movement, time-phase, and attendance trophy markers.
 - Completed: The deployment record was pushed in `fa2cff0`; the documentation-only production workflow `29193814376` also completed successfully.
+
+
+## 2026-07-12 - Study Forest invisible furniture collision fix
+
+### Current Work
+
+- Task: Remove collision from empty cottage floor where locked reward furniture is not rendered.
+- Related PRD: `memory-bank/prd-study-forest.md`
+- Related files: `apps/web/src/studyForest.mjs`, `apps/web/src/main.tsx`, `apps/web/src/StudyForest3D.tsx`
+
+### Recent Decision
+
+- Decision: Permanent desk and chair obstacles stay active, while bookshelf, reading lamp, and plant obstacles activate only when the matching attendance reward is visible.
+- Reason: Collision geometry must describe what the user can actually see in the room.
+- Impact: Keyboard, touch-button, and click-to-walk paths now share the same reward-aware collision state.
+
+### Current Status
+
+- Completed: Added a regression test for locked and unlocked furniture positions.
+- Completed: Targeted Study Forest tests passed 22 tests.
+- Completed: Full suite passed 247 tests and production build passed.
+- Blocked: In-app visual automation remains unavailable because of the existing Windows sandbox ACL error.
+- Publication: The user requested push; final workflow and live-bundle evidence will be reported in the task result.
+
+### Notes
+
+- This fix is being published through the existing main-branch production workflow.

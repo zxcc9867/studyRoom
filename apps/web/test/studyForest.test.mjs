@@ -174,6 +174,20 @@ test("moves inside the cottage, blocks furniture, and recognizes the doorway exi
   assert.equal(isCottageEntrancePosition({ x: 27, y: 59 }), true);
 });
 
+test("only blocks cottage rewards that are currently visible", () => {
+  const lockedRewards = getForestInteriorRewards(0, 0);
+  const plantRewards = getForestInteriorRewards(1, 0);
+  const bookshelfRewards = getForestInteriorRewards(3, 0);
+  const readingRewards = getForestInteriorRewards(5, 0);
+
+  assert.equal(isCottagePositionWalkable({ x: 84, y: 78 }, {}, lockedRewards), true);
+  assert.equal(isCottagePositionWalkable({ x: 84, y: 78 }, {}, plantRewards), false);
+  assert.equal(isCottagePositionWalkable({ x: 78, y: 25 }, {}, lockedRewards), true);
+  assert.equal(isCottagePositionWalkable({ x: 78, y: 25 }, {}, bookshelfRewards), false);
+  assert.equal(isCottagePositionWalkable({ x: 68, y: 76 }, {}, lockedRewards), true);
+  assert.equal(isCottagePositionWalkable({ x: 68, y: 76 }, {}, readingRewards), false);
+});
+
 test("maps local hours to morning, afternoon, sunset, and night", () => {
   assert.equal(getForestTimePhase(5), "night");
   assert.equal(getForestTimePhase(6), "morning");

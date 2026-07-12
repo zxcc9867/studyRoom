@@ -4237,3 +4237,37 @@
 #### Remaining Work
 
 - None for implementation, documentation, push, or production deployment.
+
+
+### 2026-07-12 - Invisible cottage furniture collision fix
+
+#### Completed Work
+
+- Reproduced the empty-floor collision with a failing regression test.
+- Tagged reward furniture collision areas with `bookshelf`, `readingLamp`, and `plant` reward keys.
+- Passed the current reward state through keyboard, touch-button, and Three.js click movement.
+- Kept desk and chair collision active because those props are always rendered.
+- Confirmed locked reward locations are walkable and become blocked after the matching prop appears.
+
+#### Changed Files
+
+- `apps/web/src/studyForest.mjs`
+- `apps/web/src/studyForest.d.mts`
+- `apps/web/src/main.tsx`
+- `apps/web/src/StudyForest3D.tsx`
+- `apps/web/test/studyForest.test.mjs`
+- `memory-bank/active-context.md`
+- `memory-bank/progress.md`
+- `memory-bank/implementation-plan.md`
+- `memory-bank/trouble-shooting.md`
+
+#### Verification
+
+- RED: locked plant position returned non-walkable before the fix.
+- GREEN: targeted Study Forest tests passed 22 tests.
+- Full regression: `npm test` passed 247 tests.
+- Build: `npm run build` passed with the existing Vite chunk-size warning.
+
+#### Remaining Work
+
+- None in code; publication verification will be reported in the task result.

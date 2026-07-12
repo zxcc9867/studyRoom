@@ -32,9 +32,9 @@ const DEFAULT_COTTAGE_BOUNDS = {
 const COTTAGE_SOLID_AREAS = [
   { minX: 12, maxX: 42, minY: 18, maxY: 40 },
   { minX: 14, maxX: 40, minY: 42, maxY: 64 },
-  { minX: 68, maxX: 90, minY: 15, maxY: 34 },
-  { minX: 60, maxX: 77, minY: 67, maxY: 86 },
-  { minX: 80, maxX: 92, minY: 70, maxY: 90 },
+  { reward: "bookshelf", minX: 68, maxX: 90, minY: 15, maxY: 34 },
+  { reward: "readingLamp", minX: 60, maxX: 77, minY: 67, maxY: 86 },
+  { reward: "plant", minX: 80, maxX: 92, minY: 70, maxY: 90 },
 ];
 
 export const forestLevelMilestones = [
@@ -203,7 +203,7 @@ export function getAvatarFacing(fromPosition, toPosition) {
 }
 
 
-export function getCottageAvatarStep(position, key, bounds = {}) {
+export function getCottageAvatarStep(position, key, bounds = {}, rewards = {}) {
   const cottage = getCottageBounds(bounds);
   const current = normalizeAvatarPosition(position, cottage);
   let target = { ...current };
@@ -223,10 +223,10 @@ export function getCottageAvatarStep(position, key, bounds = {}) {
     facing = "down";
   }
 
-  return { ...resolveCottageAvatarTarget(current, target, cottage), facing };
+  return { ...resolveCottageAvatarTarget(current, target, cottage, rewards), facing };
 }
 
-export function isCottagePositionWalkable(position, bounds = {}) {
+export function isCottagePositionWalkable(position, bounds = {}, rewards = {}) {
   const cottage = getCottageBounds(bounds);
   const current = normalizeAvatarPosition(position, cottage);
   if (
@@ -239,18 +239,19 @@ export function isCottagePositionWalkable(position, bounds = {}) {
   }
   return !COTTAGE_SOLID_AREAS.some(
     (area) =>
-      current.x >= area.minX
+      (!area.reward || Boolean(rewards?.[area.reward]))
+      && current.x >= area.minX
       && current.x <= area.maxX
       && current.y >= area.minY
       && current.y <= area.maxY,
   );
 }
 
-export function resolveCottageAvatarTarget(currentPosition, targetPosition, bounds = {}) {
+export function resolveCottageAvatarTarget(currentPosition, targetPosition, bounds = {}, rewards = {}) {
   const cottage = getCottageBounds(bounds);
   const current = normalizeAvatarPosition(currentPosition, cottage);
   const target = normalizeAvatarPosition(targetPosition, cottage);
-  return isCottagePositionWalkable(target, cottage) ? target : current;
+  return isCottagePositionWalkable(target, cottage, rewards) ? target : current;
 }
 
 export function isCottageExitPosition(position) {

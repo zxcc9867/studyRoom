@@ -184,6 +184,7 @@ import {
   getAvatarFacing,
   getAvatarStep,
   getCottageAvatarStep,
+  getForestInteriorRewards,
   getNextAutoAvatarStep,
   getNextForestLevelUpdate,
   isCottageEntrancePosition,
@@ -852,6 +853,10 @@ function DashboardApp() {
   );
   const forestProgressPercent = Math.round((studyForestState.currentTree.progressDays / 7) * 100);
   const forestNextLevel = getNextForestLevelUpdate(studyForestState.currentTree.progressDays);
+  const forestInteriorRewards = getForestInteriorRewards(
+    studyForestState.currentTree.progressDays,
+    studyForestState.placedTrees.length,
+  );
   const notificationDiagnostics = useMemo(
     () =>
       buildNotificationDiagnostics({
@@ -1759,7 +1764,7 @@ function DashboardApp() {
   function moveForestAvatar(key: string) {
     setForestManualUntilMs(Date.now() + FOREST_MANUAL_CONTROL_MS);
     if (forestSceneMode === "interior") {
-      const next = getCottageAvatarStep(forestInteriorAvatar, key);
+      const next = getCottageAvatarStep(forestInteriorAvatar, key, {}, forestInteriorRewards);
       setForestInteriorAvatar(next);
       if (isCottageExitPosition(next)) leaveForestCottage();
       return;
@@ -1788,7 +1793,12 @@ function DashboardApp() {
   function moveForestInteriorAvatarTo(targetPosition: { x: number; y: number }) {
     if (forestSceneMode !== "interior") return;
     setForestManualUntilMs(Date.now() + FOREST_MANUAL_CONTROL_MS);
-    const resolvedTarget = resolveCottageAvatarTarget(forestInteriorAvatar, targetPosition);
+    const resolvedTarget = resolveCottageAvatarTarget(
+      forestInteriorAvatar,
+      targetPosition,
+      {},
+      forestInteriorRewards,
+    );
     setForestInteriorAvatar({
       ...resolvedTarget,
       facing: getAvatarFacing(forestInteriorAvatar, resolvedTarget),

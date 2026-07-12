@@ -1104,7 +1104,7 @@ export function StudyForest3D({
 
       if (sceneMode === "interior") {
         const interiorTarget = worldPointToInteriorTarget(intersection.point);
-        if (!isCottagePositionWalkable(interiorTarget)) {
+        if (!isCottagePositionWalkable(interiorTarget, {}, interiorRewards)) {
           setInteractionMessage("\uAC00\uAD6C\uAC00 \uC788\uB294 \uACF3\uC740 \uC9C0\uB098\uAC08 \uC218 \uC5C6\uC5B4\uC694.");
           return;
         }

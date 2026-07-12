@@ -129,17 +129,20 @@ export function getCottageAvatarStep(
   position: StudyForestAvatarPosition,
   key: string,
   bounds?: StudyForestAvatarBounds,
+  rewards?: Partial<StudyForestInteriorRewards>,
 ): StudyForestAvatarPosition & { facing: StudyForestAvatarFacing };
 
 export function isCottagePositionWalkable(
   position: Pick<StudyForestAvatarPosition, "x" | "y">,
   bounds?: StudyForestAvatarBounds,
+  rewards?: Partial<StudyForestInteriorRewards>,
 ): boolean;
 
 export function resolveCottageAvatarTarget(
   currentPosition: Pick<StudyForestAvatarPosition, "x" | "y">,
   targetPosition: Pick<StudyForestAvatarPosition, "x" | "y">,
   bounds?: StudyForestAvatarBounds,
+  rewards?: Partial<StudyForestInteriorRewards>,
 ): Pick<StudyForestAvatarPosition, "x" | "y">;
 
 export function isCottageExitPosition(
