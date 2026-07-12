@@ -3,12 +3,17 @@ import * as THREE from "three";
 
 import {
   getForestBlockedReason,
+  getForestInteriorRewards,
   getForestNavigationPath,
+  getForestTimePhase,
+  isCottagePositionWalkable,
   isForestAvatarPositionWalkable,
 } from "./studyForest.mjs";
 import type {
   StudyForestAvatarFacing,
   StudyForestAvatarPosition,
+  StudyForestInteriorRewards,
+  StudyForestTimePhase,
   StudyForestTreeStage,
 } from "./studyForest.mjs";
 
@@ -21,8 +26,10 @@ type StudyForest3DProps = {
   currentTreeStage: StudyForestTreeStage;
   currentTreeProgressDays: number;
   avatar: StudyForestAvatarPosition & { facing: StudyForestAvatarFacing };
+  interiorAvatar: StudyForestAvatarPosition & { facing: StudyForestAvatarFacing };
   sceneMode: StudyForestSceneMode;
   onMoveTarget: (target: AvatarTarget) => void;
+  onInteriorMoveTarget: (target: AvatarTarget) => void;
   onSceneModeChange: (mode: StudyForestSceneMode) => void;
 };
 
@@ -30,6 +37,8 @@ type WebglStatus = "loading" | "ready" | "fallback";
 
 const AVATAR_BOUNDS = { minX: 8, maxX: 92, minY: 42, maxY: 84 };
 const WORLD_BOUNDS = { minX: -5.35, maxX: 5.35, minZ: -3.5, maxZ: 3.75 };
+const INTERIOR_AVATAR_BOUNDS = { minX: 10, maxX: 90, minY: 15, maxY: 90 };
+const INTERIOR_WORLD_BOUNDS = { minX: -4, maxX: 4, minZ: -3, maxZ: 3 };
 const COMPLETED_TREE_POSITIONS = [
   [-4.7, -2.7],
   [-3.2, -3.55],
@@ -74,6 +83,60 @@ const palette = {
   gold: 0xf3cf63,
 } as const;
 
+const TIME_ENVIRONMENTS: Record<StudyForestTimePhase, {
+  sky: number;
+  fog: number;
+  hemisphereSky: number;
+  hemisphereGround: number;
+  sunlight: number;
+  sunlightIntensity: number;
+  exposure: number;
+}> = {
+  morning: {
+    sky: 0xcdeef2,
+    fog: 0xe8f6df,
+    hemisphereSky: 0xfff2cf,
+    hemisphereGround: 0x66896a,
+    sunlight: 0xffd99a,
+    sunlightIntensity: 2.7,
+    exposure: 1.05,
+  },
+  afternoon: {
+    sky: palette.sky,
+    fog: palette.fog,
+    hemisphereSky: 0xe7fbff,
+    hemisphereGround: 0x5d7656,
+    sunlight: 0xfff3cf,
+    sunlightIntensity: 3.2,
+    exposure: 1.04,
+  },
+  sunset: {
+    sky: 0xf3b49e,
+    fog: 0xf5d2ae,
+    hemisphereSky: 0xffcfad,
+    hemisphereGround: 0x70566f,
+    sunlight: 0xff9b62,
+    sunlightIntensity: 2.25,
+    exposure: 0.98,
+  },
+  night: {
+    sky: 0x263b66,
+    fog: 0x405375,
+    hemisphereSky: 0x718dc4,
+    hemisphereGround: 0x253b38,
+    sunlight: 0xa8bbff,
+    sunlightIntensity: 1.25,
+    exposure: 0.83,
+  },
+};
+
+const TIME_PHASE_LABELS: Record<StudyForestTimePhase, string> = {
+  morning: "\uC544\uCE68",
+  afternoon: "\uB0AE",
+  sunset: "\uD574\uC9C8\uB158",
+  night: "\uBC24",
+};
+
 export function avatarTargetToWorldPoint(target: AvatarTarget) {
   const xRatio = (target.x - AVATAR_BOUNDS.minX) / (AVATAR_BOUNDS.maxX - AVATAR_BOUNDS.minX);
   const yRatio = (target.y - AVATAR_BOUNDS.minY) / (AVATAR_BOUNDS.maxY - AVATAR_BOUNDS.minY);
@@ -93,6 +156,49 @@ export function worldPointToAvatarTarget(point: THREE.Vector3): AvatarTarget {
     ) / 10,
     y: Math.round(
       THREE.MathUtils.lerp(AVATAR_BOUNDS.minY, AVATAR_BOUNDS.maxY, THREE.MathUtils.clamp(zRatio, 0, 1)) * 10,
+    ) / 10,
+  };
+}
+
+export function interiorTargetToWorldPoint(target: AvatarTarget) {
+  const xRatio = (target.x - INTERIOR_AVATAR_BOUNDS.minX)
+    / (INTERIOR_AVATAR_BOUNDS.maxX - INTERIOR_AVATAR_BOUNDS.minX);
+  const yRatio = (target.y - INTERIOR_AVATAR_BOUNDS.minY)
+    / (INTERIOR_AVATAR_BOUNDS.maxY - INTERIOR_AVATAR_BOUNDS.minY);
+  return new THREE.Vector3(
+    THREE.MathUtils.lerp(
+      INTERIOR_WORLD_BOUNDS.minX,
+      INTERIOR_WORLD_BOUNDS.maxX,
+      THREE.MathUtils.clamp(xRatio, 0, 1),
+    ),
+    0.18,
+    THREE.MathUtils.lerp(
+      INTERIOR_WORLD_BOUNDS.minZ,
+      INTERIOR_WORLD_BOUNDS.maxZ,
+      THREE.MathUtils.clamp(yRatio, 0, 1),
+    ),
+  );
+}
+
+export function worldPointToInteriorTarget(point: THREE.Vector3): AvatarTarget {
+  const xRatio = (point.x - INTERIOR_WORLD_BOUNDS.minX)
+    / (INTERIOR_WORLD_BOUNDS.maxX - INTERIOR_WORLD_BOUNDS.minX);
+  const zRatio = (point.z - INTERIOR_WORLD_BOUNDS.minZ)
+    / (INTERIOR_WORLD_BOUNDS.maxZ - INTERIOR_WORLD_BOUNDS.minZ);
+  return {
+    x: Math.round(
+      THREE.MathUtils.lerp(
+        INTERIOR_AVATAR_BOUNDS.minX,
+        INTERIOR_AVATAR_BOUNDS.maxX,
+        THREE.MathUtils.clamp(xRatio, 0, 1),
+      ) * 10,
+    ) / 10,
+    y: Math.round(
+      THREE.MathUtils.lerp(
+        INTERIOR_AVATAR_BOUNDS.minY,
+        INTERIOR_AVATAR_BOUNDS.maxY,
+        THREE.MathUtils.clamp(zRatio, 0, 1),
+      ) * 10,
     ) / 10,
   };
 }
@@ -296,7 +402,11 @@ function createCottage(scene: THREE.Scene) {
   return { cottage, door };
 }
 
-function createCottageInterior(scene: THREE.Scene) {
+function createCottageInterior(
+  scene: THREE.Scene,
+  rewards: StudyForestInteriorRewards,
+  timePhase: StudyForestTimePhase,
+) {
   const room = new THREE.Group();
   room.name = "cozy-study-cottage-interior";
 
@@ -322,6 +432,7 @@ function createCottageInterior(scene: THREE.Scene) {
   sideWall.position.set(-4.55, 1.72, 0);
   room.add(sideWall);
 
+  if (rewards.rug) {
   const rug = new THREE.Mesh(
     new THREE.CircleGeometry(1.72, 16),
     standardMaterial(palette.coral),
@@ -331,12 +442,13 @@ function createCottageInterior(scene: THREE.Scene) {
   rug.scale.z = 0.72;
   rug.position.set(0.2, 0.09, 0.45);
   room.add(rug);
+  }
 
   const windowGlow = new THREE.Mesh(
     new THREE.BoxGeometry(2.2, 1.45, 0.08),
     standardMaterial(palette.window, {
-      emissive: new THREE.Color(0x6dc7d2),
-      emissiveIntensity: 0.48,
+      emissive: new THREE.Color(timePhase === "night" ? 0x8fb8e8 : 0x6dc7d2),
+      emissiveIntensity: timePhase === "night" ? 0.28 : 0.48,
     }),
   );
   windowGlow.position.set(-1.35, 2.15, -3.28);
@@ -383,6 +495,7 @@ function createCottageInterior(scene: THREE.Scene) {
   chair.add(chairBack);
   room.add(chair);
 
+  if (rewards.bookshelf) {
   const shelf = new THREE.Group();
   shelf.name = "cottage-bookshelf";
   shelf.position.set(3.15, 0.1, -2.68);
@@ -406,7 +519,9 @@ function createCottageInterior(scene: THREE.Scene) {
     shelf.add(book);
   }
   room.add(shelf);
+  }
 
+  if (rewards.readingLamp) {
   const readingLamp = new THREE.Group();
   readingLamp.name = "cottage-reading-lamp";
   readingLamp.position.set(1.65, 0.15, 1.65);
@@ -423,7 +538,9 @@ function createCottageInterior(scene: THREE.Scene) {
   lampLight.position.y = 1.52;
   readingLamp.add(lampLight);
   room.add(readingLamp);
+  }
 
+  if (rewards.plant) {
   const plant = new THREE.Group();
   plant.name = "cottage-houseplant";
   plant.position.set(3.55, 0.12, 1.85);
@@ -437,6 +554,48 @@ function createCottageInterior(scene: THREE.Scene) {
     plant.add(leaf);
   }
   room.add(plant);
+  }
+
+  if (rewards.wallClock) {
+    const wallClock = new THREE.Group();
+    wallClock.name = "cottage-wall-clock";
+    wallClock.position.set(1.1, 2.25, -3.25);
+    const clockFace = new THREE.Mesh(
+      new THREE.CylinderGeometry(0.42, 0.42, 0.1, 12),
+      standardMaterial(0xfff4d4),
+    );
+    clockFace.rotation.x = Math.PI / 2;
+    wallClock.add(clockFace);
+    for (const [length, rotation] of [[0.23, -0.35], [0.17, 0.95]] as const) {
+      const hand = new THREE.Mesh(
+        new THREE.BoxGeometry(0.035, length, 0.025),
+        standardMaterial(palette.dark),
+      );
+      hand.position.set(Math.sin(rotation) * length * 0.45, Math.cos(rotation) * length * 0.45, 0.08);
+      hand.rotation.z = -rotation;
+      wallClock.add(hand);
+    }
+    room.add(wallClock);
+  }
+
+  if (rewards.trophy) {
+    const trophy = new THREE.Group();
+    trophy.name = "cottage-attendance-trophy";
+    trophy.position.set(2.65, 0.14, -1.55);
+    const base = new THREE.Mesh(new THREE.BoxGeometry(0.62, 0.18, 0.48), standardMaterial(palette.wood));
+    base.position.y = 0.09;
+    trophy.add(base);
+    const cup = new THREE.Mesh(
+      new THREE.CylinderGeometry(0.28, 0.16, 0.48, 8),
+      standardMaterial(palette.gold, { metalness: 0.3, roughness: 0.48 }),
+    );
+    cup.position.y = 0.42;
+    trophy.add(cup);
+    const trophyLight = new THREE.PointLight(0xffd675, timePhase === "night" ? 1.8 : 0.6, 3);
+    trophyLight.position.y = 0.75;
+    trophy.add(trophyLight);
+    room.add(trophy);
+  }
 
   enableShadows(room);
   scene.add(room);
@@ -672,10 +831,47 @@ function createFireflies(scene: THREE.Scene) {
   return fireflies;
 }
 
+function createCelestialDetails(scene: THREE.Scene, timePhase: StudyForestTimePhase) {
+  const celestial = new THREE.Group();
+  celestial.name = "forest-celestial-details";
+  const isNight = timePhase === "night";
+  const orb = new THREE.Mesh(
+    new THREE.SphereGeometry(isNight ? 0.46 : 0.58, 12, 8),
+    new THREE.MeshBasicMaterial({ color: isNight ? 0xe8efff : 0xffdc79 }),
+  );
+  orb.name = isNight ? "forest-moon" : "forest-sun";
+  orb.position.set(
+    timePhase === "morning" ? -5.7 : timePhase === "sunset" ? 5.5 : 3.8,
+    timePhase === "afternoon" ? 7.6 : 5.8,
+    -7.5,
+  );
+  celestial.add(orb);
+
+  if (isNight) {
+    const starMaterial = new THREE.MeshBasicMaterial({ color: 0xfff5c9 });
+    const starPositions = [
+      [-5.8, 6.9, -8.2],
+      [-3.9, 7.7, -8.5],
+      [-1.2, 6.5, -8.1],
+      [1.4, 7.4, -8.6],
+      [4.9, 6.8, -8.2],
+      [6.1, 8.1, -8.8],
+    ];
+    for (const [x, y, z] of starPositions) {
+      const star = new THREE.Mesh(new THREE.OctahedronGeometry(0.08, 0), starMaterial);
+      star.position.set(x, y, z);
+      celestial.add(star);
+    }
+  }
+
+  scene.add(celestial);
+  return celestial;
+}
+
 function facingRotation(facing: StudyForestAvatarFacing) {
   if (facing === "up") return Math.PI;
-  if (facing === "left") return Math.PI / 2;
-  if (facing === "right") return -Math.PI / 2;
+  if (facing === "left") return -Math.PI / 2;
+  if (facing === "right") return Math.PI / 2;
   return 0;
 }
 
@@ -684,8 +880,10 @@ export function StudyForest3D({
   currentTreeStage,
   currentTreeProgressDays,
   avatar,
+  interiorAvatar,
   sceneMode,
   onMoveTarget,
+  onInteriorMoveTarget,
   onSceneModeChange,
 }: StudyForest3DProps) {
   const mountRef = useRef<HTMLDivElement | null>(null);
@@ -693,10 +891,17 @@ export function StudyForest3D({
   const avatarWorldRef = useRef(avatarTargetToWorldPoint(avatar));
   const avatarPathRef = useRef<THREE.Vector3[]>([]);
   const avatarFacingRef = useRef<StudyForestAvatarFacing>(avatar.facing);
+  const interiorAvatarTargetRef = useRef(interiorTargetToWorldPoint(interiorAvatar));
+  const interiorAvatarWorldRef = useRef(interiorTargetToWorldPoint(interiorAvatar));
+  const interiorAvatarFacingRef = useRef<StudyForestAvatarFacing>(interiorAvatar.facing);
   const onMoveTargetRef = useRef(onMoveTarget);
+  const onInteriorMoveTargetRef = useRef(onInteriorMoveTarget);
   const onSceneModeChangeRef = useRef(onSceneModeChange);
   const [webglStatus, setWebglStatus] = useState<WebglStatus>("loading");
   const [interactionMessage, setInteractionMessage] = useState("");
+  const [timePhase, setTimePhase] = useState<StudyForestTimePhase>(() =>
+    getForestTimePhase(new Date().getHours()),
+  );
 
   useEffect(() => {
     avatarTargetRef.current = avatarTargetToWorldPoint(avatar);
@@ -708,13 +913,31 @@ export function StudyForest3D({
   }, [avatar]);
 
   useEffect(() => {
+    interiorAvatarTargetRef.current = interiorTargetToWorldPoint(interiorAvatar);
+    interiorAvatarFacingRef.current = interiorAvatar.facing;
+  }, [interiorAvatar]);
+
+  useEffect(() => {
     onMoveTargetRef.current = onMoveTarget;
+    onInteriorMoveTargetRef.current = onInteriorMoveTarget;
     onSceneModeChangeRef.current = onSceneModeChange;
-  }, [onMoveTarget, onSceneModeChange]);
+  }, [onInteriorMoveTarget, onMoveTarget, onSceneModeChange]);
+
+  useEffect(() => {
+    const updateTimePhase = () => setTimePhase(getForestTimePhase(new Date().getHours()));
+    const timer = window.setInterval(updateTimePhase, 60_000);
+    return () => window.clearInterval(timer);
+  }, []);
 
   useEffect(() => {
     const container = mountRef.current;
     if (!container) return;
+
+    const environment = TIME_ENVIRONMENTS[timePhase];
+    const interiorRewards = getForestInteriorRewards(currentTreeProgressDays, completedTreeCount);
+    const sceneBackground = sceneMode === "interior"
+      ? (timePhase === "night" ? 0x5d5268 : timePhase === "sunset" ? 0xe9b58f : 0xffe8bd)
+      : environment.sky;
 
     let renderer: THREE.WebGLRenderer;
     try {
@@ -731,18 +954,20 @@ export function StudyForest3D({
     setWebglStatus("ready");
     renderer.domElement.className = "study-forest-3d-canvas";
     renderer.domElement.setAttribute("aria-hidden", "true");
-    renderer.setClearColor(sceneMode === "interior" ? 0xffe8bd : palette.sky, 1);
+    renderer.setClearColor(sceneBackground, 1);
     renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 1.5));
     renderer.outputColorSpace = THREE.SRGBColorSpace;
     renderer.toneMapping = THREE.ACESFilmicToneMapping;
-    renderer.toneMappingExposure = 1.04;
+    renderer.toneMappingExposure = sceneMode === "interior"
+      ? (timePhase === "night" ? 0.86 : 1.04)
+      : environment.exposure;
     renderer.shadowMap.enabled = true;
     renderer.shadowMap.type = THREE.PCFSoftShadowMap;
     container.appendChild(renderer.domElement);
 
     const scene = new THREE.Scene();
-    scene.background = new THREE.Color(sceneMode === "interior" ? 0xffe8bd : palette.sky);
-    scene.fog = sceneMode === "interior" ? null : new THREE.Fog(palette.fog, 14, 28);
+    scene.background = new THREE.Color(sceneBackground);
+    scene.fog = sceneMode === "interior" ? null : new THREE.Fog(environment.fog, 14, 28);
 
     const camera = new THREE.OrthographicCamera(-8, 8, 5.5, -5.5, 0.1, 60);
     if (sceneMode === "interior") {
@@ -754,15 +979,15 @@ export function StudyForest3D({
     }
 
     const hemisphere = new THREE.HemisphereLight(
-      sceneMode === "interior" ? 0xfff7df : 0xe7fbff,
-      sceneMode === "interior" ? 0x8d6947 : 0x5d7656,
-      sceneMode === "interior" ? 2.7 : 2.25,
+      sceneMode === "interior" ? (timePhase === "night" ? 0x8395bd : 0xfff7df) : environment.hemisphereSky,
+      sceneMode === "interior" ? 0x6d5544 : environment.hemisphereGround,
+      sceneMode === "interior" ? (timePhase === "night" ? 1.45 : 2.7) : 2.25,
     );
     scene.add(hemisphere);
 
     const sunlight = new THREE.DirectionalLight(
-      sceneMode === "interior" ? 0xffdca0 : 0xfff3cf,
-      sceneMode === "interior" ? 2.4 : 3.2,
+      sceneMode === "interior" ? (timePhase === "night" ? 0xaec3ff : 0xffdca0) : environment.sunlight,
+      sceneMode === "interior" ? (timePhase === "night" ? 1.2 : 2.4) : environment.sunlightIntensity,
     );
     sunlight.position.set(-7, 13, 8);
     sunlight.castShadow = true;
@@ -785,6 +1010,7 @@ export function StudyForest3D({
     const avatarGroup = createAvatar();
 
     if (sceneMode === "island") {
+      createCelestialDetails(scene, timePhase);
       createIsland(scene);
       river = createRiver(scene);
       createBridge(scene);
@@ -793,7 +1019,9 @@ export function StudyForest3D({
       createGarden(scene);
       createLantern(scene, -1.8, -1.25);
       createLantern(scene, 2.25, 2.15);
-      fireflies = createFireflies(scene);
+      if (timePhase === "sunset" || timePhase === "night") {
+        fireflies = createFireflies(scene);
+      }
 
       const visibleCompletedTrees = Math.min(completedTreeCount, 28);
       for (let index = 0; index < visibleCompletedTrees; index += 1) {
@@ -831,10 +1059,25 @@ export function StudyForest3D({
       interactionPlane.position.y = 0.56;
       scene.add(interactionPlane);
     } else {
-      createCottageInterior(scene);
+      createCottageInterior(scene, interiorRewards, timePhase);
       avatarGroup.scale.setScalar(0.84);
-      avatarGroup.position.set(-0.15, 0.18, 1.65);
-      avatarGroup.rotation.y = Math.PI;
+      avatarGroup.position.copy(interiorAvatarWorldRef.current);
+      avatarGroup.rotation.y = facingRotation(interiorAvatarFacingRef.current);
+
+      interactionPlane = new THREE.Mesh(
+        new THREE.PlaneGeometry(8.2, 6.2),
+        new THREE.MeshBasicMaterial({
+          color: 0xffffff,
+          transparent: true,
+          opacity: 0,
+          depthWrite: false,
+          side: THREE.DoubleSide,
+        }),
+      );
+      interactionPlane.name = "interior-interaction-plane";
+      interactionPlane.rotation.x = -Math.PI / 2;
+      interactionPlane.position.y = 0.2;
+      scene.add(interactionPlane);
     }
     scene.add(avatarGroup);
 
@@ -842,7 +1085,7 @@ export function StudyForest3D({
     const pointer = new THREE.Vector2();
     const handlePointerDown = (event: PointerEvent) => {
       if (event.pointerType === "mouse" && event.button !== 0) return;
-      if (sceneMode !== "island" || !interactionPlane) return;
+      if (!interactionPlane) return;
       const rect = renderer.domElement.getBoundingClientRect();
       pointer.set(
         ((event.clientX - rect.left) / rect.width) * 2 - 1,
@@ -850,7 +1093,7 @@ export function StudyForest3D({
       );
       raycaster.setFromCamera(pointer, camera);
 
-      if (cottageDoor && raycaster.intersectObject(cottageDoor, false)[0]) {
+      if (sceneMode === "island" && cottageDoor && raycaster.intersectObject(cottageDoor, false)[0]) {
         setInteractionMessage("");
         onSceneModeChangeRef.current("interior");
         return;
@@ -858,6 +1101,18 @@ export function StudyForest3D({
 
       const intersection = raycaster.intersectObject(interactionPlane)[0];
       if (!intersection) return;
+
+      if (sceneMode === "interior") {
+        const interiorTarget = worldPointToInteriorTarget(intersection.point);
+        if (!isCottagePositionWalkable(interiorTarget)) {
+          setInteractionMessage("\uAC00\uAD6C\uAC00 \uC788\uB294 \uACF3\uC740 \uC9C0\uB098\uAC08 \uC218 \uC5C6\uC5B4\uC694.");
+          return;
+        }
+        setInteractionMessage("");
+        onInteriorMoveTargetRef.current(interiorTarget);
+        return;
+      }
+
       const target = worldPointToAvatarTarget(intersection.point);
       if (!isForestAvatarPositionWalkable(target)) {
         const reason = getForestBlockedReason(target);
@@ -905,7 +1160,7 @@ export function StudyForest3D({
         const dx = pathTarget.x - avatarGroup.position.x;
         const dz = pathTarget.z - avatarGroup.position.z;
         const movingRotation = Math.abs(dx) > Math.abs(dz)
-          ? (dx < 0 ? Math.PI / 2 : -Math.PI / 2)
+          ? (dx < 0 ? -Math.PI / 2 : Math.PI / 2)
           : (dz < 0 ? Math.PI : 0);
         avatarGroup.rotation.y = THREE.MathUtils.lerp(
           avatarGroup.rotation.y,
@@ -917,7 +1172,25 @@ export function StudyForest3D({
           avatarPathRef.current.shift();
         }
       } else {
-        avatarGroup.position.y = 0.18 + (prefersReducedMotion ? 0 : Math.sin(elapsed * 2.8) * 0.025);
+        const interiorTarget = interiorAvatarTargetRef.current;
+        avatarGroup.position.x = THREE.MathUtils.lerp(avatarGroup.position.x, interiorTarget.x, 0.11);
+        avatarGroup.position.z = THREE.MathUtils.lerp(avatarGroup.position.z, interiorTarget.z, 0.11);
+        avatarGroup.position.y = interiorTarget.y
+          + (prefersReducedMotion ? 0 : Math.sin(elapsed * 4.2) * 0.035);
+        interiorAvatarWorldRef.current.set(avatarGroup.position.x, 0.18, avatarGroup.position.z);
+
+        const dx = interiorTarget.x - avatarGroup.position.x;
+        const dz = interiorTarget.z - avatarGroup.position.z;
+        const movingRotation = Math.abs(dx) > Math.abs(dz)
+          ? (dx < 0 ? -Math.PI / 2 : Math.PI / 2)
+          : (dz < 0 ? Math.PI : 0);
+        avatarGroup.rotation.y = THREE.MathUtils.lerp(
+          avatarGroup.rotation.y,
+          Math.hypot(dx, dz) > 0.06
+            ? movingRotation
+            : facingRotation(interiorAvatarFacingRef.current),
+          0.2,
+        );
       }
 
       if (!prefersReducedMotion) {
@@ -947,13 +1220,14 @@ export function StudyForest3D({
       renderer.dispose();
       renderer.domElement.remove();
     };
-  }, [completedTreeCount, currentTreeProgressDays, currentTreeStage, sceneMode]);
+  }, [completedTreeCount, currentTreeProgressDays, currentTreeStage, sceneMode, timePhase]);
 
   return (
     <div
       className="study-forest-3d-shell"
       data-webgl-status={webglStatus}
       data-scene-mode={sceneMode}
+      data-time-phase={timePhase}
       aria-label={
         sceneMode === "interior"
           ? "\uC800\uD3F4\uB9AC \uACF5\uBD80 \uC9D1 \uB0B4\uBD80"
@@ -982,25 +1256,19 @@ export function StudyForest3D({
             <span>{sceneMode === "interior" ? "ROOM" : "LIVE"}</span>
             {sceneMode === "interior" ? "COZY STUDY COTTAGE" : "LOW-POLY 3D"}
           </div>
-          <button
-            type="button"
-            className="study-forest-scene-action"
-            onClick={() => {
-              setInteractionMessage("");
-              onSceneModeChange(sceneMode === "island" ? "interior" : "island");
-            }}
-          >
-            {sceneMode === "island"
-              ? "\uC9D1 \uC548 \uBCF4\uAE30"
-              : "\uC12C\uC73C\uB85C \uB098\uAC00\uAE30"}
-          </button>
+          <div className="study-forest-time-badge" aria-label={"\uD604\uC7AC \uC2DC\uAC04\uB300"}>
+            <span aria-hidden="true">
+              {timePhase === "night" ? "\u263E" : timePhase === "sunset" ? "\u25D0" : "\u2600"}
+            </span>
+            {TIME_PHASE_LABELS[timePhase]}
+          </div>
           {interactionMessage && (
             <div className="study-forest-3d-notice" role="status">{interactionMessage}</div>
           )}
           <div className="study-forest-3d-hint">
             {sceneMode === "island"
               ? "\uC12C\uC744 \uB20C\uB7EC \uC0B0\uCC45\uD558\uACE0, \uC9D1 \uBB38\uC744 \uB20C\uB7EC \uC2E4\uB0B4\uB85C \uB4E4\uC5B4\uAC00\uC138\uC694"
-              : "\uCC45\uC0C1\uACFC \uCC45\uC7A5\uC744 \uB458\uB7EC\uBCF4\uACE0 \uC12C\uC73C\uB85C \uB3CC\uC544\uAC08 \uC218 \uC788\uC5B4\uC694"}
+              : "\uC9D1 \uC548\uC744 \uC0B0\uCC45\uD558\uACE0, \uC544\uB798\uCABD \uBB38\uC73C\uB85C \uAC78\uC5B4 \uB098\uAC00\uBA74 \uC12C\uC73C\uB85C \uB3CC\uC544\uAC00\uC694"}
           </div>
         </>
       )}

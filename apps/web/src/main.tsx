@@ -183,8 +183,12 @@ import {
   forestLevelMilestones,
   getAvatarFacing,
   getAvatarStep,
+  getCottageAvatarStep,
   getNextAutoAvatarStep,
   getNextForestLevelUpdate,
+  isCottageEntrancePosition,
+  isCottageExitPosition,
+  resolveCottageAvatarTarget,
   resolveForestAvatarTarget,
 } from "./studyForest.mjs";
 import { isSupabaseConfigured, supabase, supabaseAnonKey, supabaseUrl } from "./supabase";
@@ -498,6 +502,15 @@ function DashboardApp() {
     x: 52,
     y: 64,
     facing: "down",
+  });
+  const [forestInteriorAvatar, setForestInteriorAvatar] = useState<{
+    x: number;
+    y: number;
+    facing: "left" | "right" | "up" | "down";
+  }>({
+    x: 50,
+    y: 80,
+    facing: "up",
   });
   const [forestManualUntilMs, setForestManualUntilMs] = useState(0);
   const [forestSceneMode, setForestSceneMode] = useState<"island" | "interior">("island");
@@ -1732,10 +1745,32 @@ function DashboardApp() {
     setMessage("오늘 할 일 보기를 고정했습니다.");
   }
 
-  function moveForestAvatar(key: string) {
-    if (forestSceneMode !== "island") return;
+  function enterForestCottage() {
+    setForestInteriorAvatar({ x: 50, y: 80, facing: "up" });
+    setForestSceneMode("interior");
+  }
+
+  function leaveForestCottage() {
+    setForestAvatar({ x: 27, y: 59, facing: "down" });
+    setForestSceneMode("island");
     setForestManualUntilMs(Date.now() + FOREST_MANUAL_CONTROL_MS);
-    setForestAvatar((current) => getAvatarStep(current, key, FOREST_MEADOW_BOUNDS));
+  }
+
+  function moveForestAvatar(key: string) {
+    setForestManualUntilMs(Date.now() + FOREST_MANUAL_CONTROL_MS);
+    if (forestSceneMode === "interior") {
+      const next = getCottageAvatarStep(forestInteriorAvatar, key);
+      setForestInteriorAvatar(next);
+      if (isCottageExitPosition(next)) leaveForestCottage();
+      return;
+    }
+
+    const movingTowardDoor = key === "ArrowUp" || key === "w" || key === "W";
+    if (movingTowardDoor && isCottageEntrancePosition(forestAvatar)) {
+      enterForestCottage();
+      return;
+    }
+    setForestAvatar(getAvatarStep(forestAvatar, key, FOREST_MEADOW_BOUNDS));
   }
 
   function moveForestAvatarTo(targetPosition: { x: number; y: number }) {
@@ -1748,6 +1783,17 @@ function DashboardApp() {
         facing: getAvatarFacing(current, resolvedTarget),
       };
     });
+  }
+
+  function moveForestInteriorAvatarTo(targetPosition: { x: number; y: number }) {
+    if (forestSceneMode !== "interior") return;
+    setForestManualUntilMs(Date.now() + FOREST_MANUAL_CONTROL_MS);
+    const resolvedTarget = resolveCottageAvatarTarget(forestInteriorAvatar, targetPosition);
+    setForestInteriorAvatar({
+      ...resolvedTarget,
+      facing: getAvatarFacing(forestInteriorAvatar, resolvedTarget),
+    });
+    if (isCottageExitPosition(resolvedTarget)) leaveForestCottage();
   }
 
   function handleForestKeyDown(event: KeyboardEvent<HTMLElement>) {
@@ -5337,17 +5383,21 @@ function DashboardApp() {
                     currentTreeStage={studyForestState.currentTree.stage}
                     currentTreeProgressDays={studyForestState.currentTree.progressDays}
                     avatar={forestAvatar}
+                    interiorAvatar={forestInteriorAvatar}
                     sceneMode={forestSceneMode}
                     onMoveTarget={moveForestAvatarTo}
-                    onSceneModeChange={setForestSceneMode}
+                    onInteriorMoveTarget={moveForestInteriorAvatarTo}
+                    onSceneModeChange={(mode) => {
+                      if (mode === "interior") enterForestCottage();
+                    }}
                   />
                 </Suspense>
                 <div className="forest-controls" aria-label={"\uCE90\uB9AD\uD130 \uC774\uB3D9"}>
-                  <button type="button" onClick={() => moveForestAvatar("ArrowUp")} disabled={forestSceneMode === "interior"} aria-label={"\uC704\uB85C \uC774\uB3D9"}>{"\u2191"}</button>
+                  <button type="button" onClick={() => moveForestAvatar("ArrowUp")} aria-label={"\uC704\uB85C \uC774\uB3D9"}>{"\u2191"}</button>
                   <div>
-                    <button type="button" onClick={() => moveForestAvatar("ArrowLeft")} disabled={forestSceneMode === "interior"} aria-label={"\uC67C\uCABD \uC774\uB3D9"}>{"\u2190"}</button>
-                    <button type="button" onClick={() => moveForestAvatar("ArrowDown")} disabled={forestSceneMode === "interior"} aria-label={"\uC544\uB798\uB85C \uC774\uB3D9"}>{"\u2193"}</button>
-                    <button type="button" onClick={() => moveForestAvatar("ArrowRight")} disabled={forestSceneMode === "interior"} aria-label={"\uC624\uB978\uCABD \uC774\uB3D9"}>{"\u2192"}</button>
+                    <button type="button" onClick={() => moveForestAvatar("ArrowLeft")} aria-label={"\uC67C\uCABD \uC774\uB3D9"}>{"\u2190"}</button>
+                    <button type="button" onClick={() => moveForestAvatar("ArrowDown")} aria-label={"\uC544\uB798\uB85C \uC774\uB3D9"}>{"\u2193"}</button>
+                    <button type="button" onClick={() => moveForestAvatar("ArrowRight")} aria-label={"\uC624\uB978\uCABD \uC774\uB3D9"}>{"\u2192"}</button>
                   </div>
                   <p>{"\uD0A4\uBCF4\uB4DC \uD654\uC0B4\uD45C/WASD \uB610\uB294 \uD130\uCE58 \uBC84\uD2BC\uC73C\uB85C \uC774\uB3D9\uD560 \uC218 \uC788\uACE0, \uC870\uC791\uD558\uC9C0 \uC54A\uC73C\uBA74 \uC790\uB3D9\uC73C\uB85C \uC0B0\uCC45\uD569\uB2C8\uB2E4."}</p>
                 </div>
@@ -5370,6 +5420,10 @@ function DashboardApp() {
                   </div>
                   <strong>{forestNextLevel.title}</strong>
                   <p>{forestNextLevel.description}</p>
+                  <small className="forest-interior-unlock">
+                    {"\uC778\uD14C\uB9AC\uC5B4 \uD574\uAE08 \u00B7 "}
+                    {forestNextLevel.interiorUnlock}
+                  </small>
                 </div>
 
                 <ol className="forest-level-roadmap" aria-label={"\uB098\uBB34 \uC131\uC7A5 \uB2E8\uACC4"}>
@@ -5386,6 +5440,7 @@ function DashboardApp() {
                         <div>
                           <strong>{milestone.label}</strong>
                           <small>{milestone.update}</small>
+                          <small className="forest-interior-unlock">{milestone.interiorUnlock}</small>
                         </div>
                       </li>
                     );

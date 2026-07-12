@@ -21,26 +21,46 @@ const FOREST_SOLID_AREAS = [
   { reason: "garden", minX: 69, maxX: 92, minY: 45, maxY: 56 },
 ];
 
+const DEFAULT_COTTAGE_BOUNDS = {
+  minX: 10,
+  maxX: 90,
+  minY: 15,
+  maxY: 90,
+  step: 4,
+};
+
+const COTTAGE_SOLID_AREAS = [
+  { minX: 12, maxX: 42, minY: 18, maxY: 40 },
+  { minX: 14, maxX: 40, minY: 42, maxY: 64 },
+  { minX: 68, maxX: 90, minY: 15, maxY: 34 },
+  { minX: 60, maxX: 77, minY: 67, maxY: 86 },
+  { minX: 80, maxX: 92, minY: 70, maxY: 90 },
+];
+
 export const forestLevelMilestones = [
   {
     days: 1,
     label: "\uC0C8\uC2F9",
     update: "\uC528\uC557 \uC704\uB85C \uCCAB \uC0C8\uC2F9\uACFC \uC791\uC740 \uC78E\uC774 \uC62C\uB77C\uC635\uB2C8\uB2E4.",
+    interiorUnlock: "\uD654\uBD84\uACFC \uC791\uC740 \uAD00\uC5FD\uC2DD\uBB3C",
   },
   {
     days: 3,
     label: "\uC5B4\uB9B0 \uB098\uBB34",
     update: "\uC904\uAE30\uAC00 \uB192\uC544\uC9C0\uACE0 \uC0C8 \uC78E\uC774 \uD3BC\uCCD0\uC9D1\uB2C8\uB2E4.",
+    interiorUnlock: "\uCC45\uC7A5\uACFC \uCEEC\uB7EC \uCC45 \uC138\uD2B8",
   },
   {
     days: 5,
     label: "\uD48D\uC131\uD55C \uB098\uBB34",
     update: "\uC218\uAD00\uC774 \uD48D\uC131\uD574\uC9C0\uACE0 \uC791\uC740 \uC5F4\uB9E4\uAC00 \uB9FA\uD78D\uB2C8\uB2E4.",
+    interiorUnlock: "\uB7EC\uADF8\uC640 \uB530\uB73B\uD55C \uB3C5\uC11C\uB4F1",
   },
   {
     days: 7,
     label: "\uC644\uC131 \uB098\uBB34",
     update: "\uC644\uC131\uB41C \uB098\uBB34\uAC00 \uC232\uC5D0 \uC601\uAD6C \uBC30\uCE58\uB418\uACE0 \uB2E4\uC74C \uC528\uC557\uC774 \uC5F4\uB9BD\uB2C8\uB2E4.",
+    interiorUnlock: "\uBCBD\uC2DC\uACC4\uC640 \uCD9C\uC11D \uD2B8\uB85C\uD53C",
   },
 ];
 
@@ -183,6 +203,89 @@ export function getAvatarFacing(fromPosition, toPosition) {
 }
 
 
+export function getCottageAvatarStep(position, key, bounds = {}) {
+  const cottage = getCottageBounds(bounds);
+  const current = normalizeAvatarPosition(position, cottage);
+  let target = { ...current };
+  let facing = position?.facing ?? "up";
+
+  if (key === "ArrowLeft" || key === "a" || key === "A") {
+    target.x = clampNumber(current.x - cottage.step, cottage.minX, cottage.maxX);
+    facing = "left";
+  } else if (key === "ArrowRight" || key === "d" || key === "D") {
+    target.x = clampNumber(current.x + cottage.step, cottage.minX, cottage.maxX);
+    facing = "right";
+  } else if (key === "ArrowUp" || key === "w" || key === "W") {
+    target.y = clampNumber(current.y - cottage.step, cottage.minY, cottage.maxY);
+    facing = "up";
+  } else if (key === "ArrowDown" || key === "s" || key === "S") {
+    target.y = clampNumber(current.y + cottage.step, cottage.minY, cottage.maxY);
+    facing = "down";
+  }
+
+  return { ...resolveCottageAvatarTarget(current, target, cottage), facing };
+}
+
+export function isCottagePositionWalkable(position, bounds = {}) {
+  const cottage = getCottageBounds(bounds);
+  const current = normalizeAvatarPosition(position, cottage);
+  if (
+    Number(position?.x) < cottage.minX
+    || Number(position?.x) > cottage.maxX
+    || Number(position?.y) < cottage.minY
+    || Number(position?.y) > cottage.maxY
+  ) {
+    return false;
+  }
+  return !COTTAGE_SOLID_AREAS.some(
+    (area) =>
+      current.x >= area.minX
+      && current.x <= area.maxX
+      && current.y >= area.minY
+      && current.y <= area.maxY,
+  );
+}
+
+export function resolveCottageAvatarTarget(currentPosition, targetPosition, bounds = {}) {
+  const cottage = getCottageBounds(bounds);
+  const current = normalizeAvatarPosition(currentPosition, cottage);
+  const target = normalizeAvatarPosition(targetPosition, cottage);
+  return isCottagePositionWalkable(target, cottage) ? target : current;
+}
+
+export function isCottageExitPosition(position) {
+  const x = Number(position?.x);
+  const y = Number(position?.y);
+  return x >= 42 && x <= 58 && y >= 86;
+}
+
+export function isCottageEntrancePosition(position) {
+  const x = Number(position?.x);
+  const y = Number(position?.y);
+  return x >= 22 && x <= 32 && y >= 57 && y <= 61;
+}
+
+export function getForestTimePhase(hour = new Date().getHours()) {
+  const currentHour = Math.max(0, Math.min(23, Math.trunc(Number(hour) || 0)));
+  if (currentHour >= 6 && currentHour < 12) return "morning";
+  if (currentHour >= 12 && currentHour < 17) return "afternoon";
+  if (currentHour >= 17 && currentHour < 20) return "sunset";
+  return "night";
+}
+
+export function getForestInteriorRewards(progressDays, completedTrees = 0) {
+  const progress = Math.max(0, Math.min(7, Math.trunc(Number(progressDays) || 0)));
+  const effectiveProgress = Number(completedTrees) > 0 ? 7 : progress;
+  return {
+    plant: effectiveProgress >= 1,
+    bookshelf: effectiveProgress >= 3,
+    rug: effectiveProgress >= 5,
+    readingLamp: effectiveProgress >= 5,
+    wallClock: effectiveProgress >= 7,
+    trophy: effectiveProgress >= 7,
+  };
+}
+
 export function getForestBlockedReason(position, bounds = {}) {
   const meadow = getAvatarBounds(bounds);
   const current = normalizeAvatarPosition(position, meadow);
@@ -265,6 +368,7 @@ export function getNextForestLevelUpdate(progressDays) {
         ? "\uC0C8\uC2F9\uC774 \uAE68\uC5B4\uB098\uC694"
         : nextMilestone.label,
       description: nextMilestone.update,
+      interiorUnlock: nextMilestone.interiorUnlock,
     };
   }
   return {
@@ -272,6 +376,7 @@ export function getNextForestLevelUpdate(progressDays) {
     remainingDays: 1,
     title: "\uB2E4\uC74C \uB098\uBB34\uB97C \uC2DC\uC791\uD574\uC694",
     description: "\uC644\uC131 \uB098\uBB34\uB294 \uC232\uC5D0 \uB0A8\uACE0, \uB2E4\uC74C \uCD9C\uC11D\uBD80\uD130 \uC0C8 \uC528\uC557\uC774 \uC790\uB77C\uAE30 \uC2DC\uC791\uD569\uB2C8\uB2E4.",
+    interiorUnlock: "\uC0C8 \uC8FC\uAC04 \uC2DC\uC98C \uC7A5\uC2DD",
   };
 }
 
@@ -310,6 +415,16 @@ function getAvatarBounds(bounds) {
     minY: Number.isFinite(Number(bounds?.minY)) ? Number(bounds.minY) : DEFAULT_MEADOW_BOUNDS.minY,
     maxY: Number.isFinite(Number(bounds?.maxY)) ? Number(bounds.maxY) : DEFAULT_MEADOW_BOUNDS.maxY,
     step: Number.isFinite(Number(bounds?.step)) ? Number(bounds.step) : DEFAULT_MEADOW_BOUNDS.step,
+  };
+}
+
+function getCottageBounds(bounds) {
+  return {
+    minX: Number.isFinite(Number(bounds?.minX)) ? Number(bounds.minX) : DEFAULT_COTTAGE_BOUNDS.minX,
+    maxX: Number.isFinite(Number(bounds?.maxX)) ? Number(bounds.maxX) : DEFAULT_COTTAGE_BOUNDS.maxX,
+    minY: Number.isFinite(Number(bounds?.minY)) ? Number(bounds.minY) : DEFAULT_COTTAGE_BOUNDS.minY,
+    maxY: Number.isFinite(Number(bounds?.maxY)) ? Number(bounds.maxY) : DEFAULT_COTTAGE_BOUNDS.maxY,
+    step: Number.isFinite(Number(bounds?.step)) ? Number(bounds.step) : DEFAULT_COTTAGE_BOUNDS.step,
   };
 }
 

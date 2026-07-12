@@ -3,8 +3,14 @@ import { test } from "node:test";
 
 import {
   buildStudyForestState,
+  getForestInteriorRewards,
   getForestNavigationPath,
+  getForestTimePhase,
   getNextForestLevelUpdate,
+  getCottageAvatarStep,
+  isCottageEntrancePosition,
+  isCottageExitPosition,
+  isCottagePositionWalkable,
   getAvatarPositionFromScenePoint,
   getAvatarSceneStyle,
   getAvatarStep,
@@ -149,7 +155,48 @@ test("describes the next visible streak upgrade", () => {
     remainingDays: 1,
     title: "\uC0C8\uC2F9\uC774 \uAE68\uC5B4\uB098\uC694",
     description: "\uC528\uC557 \uC704\uB85C \uCCAB \uC0C8\uC2F9\uACFC \uC791\uC740 \uC78E\uC774 \uC62C\uB77C\uC635\uB2C8\uB2E4.",
+    interiorUnlock: "\uD654\uBD84\uACFC \uC791\uC740 \uAD00\uC5FD\uC2DD\uBB3C",
   });
   assert.equal(getNextForestLevelUpdate(4).targetDays, 5);
   assert.equal(getNextForestLevelUpdate(7).targetDays, 8);
+});
+
+test("moves inside the cottage, blocks furniture, and recognizes the doorway exit", () => {
+  assert.deepEqual(getCottageAvatarStep({ x: 50, y: 80, facing: "up" }, "ArrowLeft"), {
+    x: 46,
+    y: 80,
+    facing: "left",
+  });
+  assert.equal(isCottagePositionWalkable({ x: 24, y: 28 }), false);
+  assert.equal(isCottagePositionWalkable({ x: 50, y: 72 }), true);
+  assert.equal(isCottageExitPosition({ x: 50, y: 88 }), true);
+  assert.equal(isCottageExitPosition({ x: 64, y: 88 }), false);
+  assert.equal(isCottageEntrancePosition({ x: 27, y: 59 }), true);
+});
+
+test("maps local hours to morning, afternoon, sunset, and night", () => {
+  assert.equal(getForestTimePhase(5), "night");
+  assert.equal(getForestTimePhase(6), "morning");
+  assert.equal(getForestTimePhase(11), "morning");
+  assert.equal(getForestTimePhase(12), "afternoon");
+  assert.equal(getForestTimePhase(16), "afternoon");
+  assert.equal(getForestTimePhase(17), "sunset");
+  assert.equal(getForestTimePhase(19), "sunset");
+  assert.equal(getForestTimePhase(20), "night");
+});
+
+test("unlocks cottage decorations with streak milestones and preserves them after a completed tree", () => {
+  assert.deepEqual(getForestInteriorRewards(0, 0), {
+    plant: false,
+    bookshelf: false,
+    rug: false,
+    readingLamp: false,
+    wallClock: false,
+    trophy: false,
+  });
+  assert.equal(getForestInteriorRewards(1, 0).plant, true);
+  assert.equal(getForestInteriorRewards(3, 0).bookshelf, true);
+  assert.equal(getForestInteriorRewards(5, 0).readingLamp, true);
+  assert.equal(getForestInteriorRewards(7, 0).trophy, true);
+  assert.equal(getForestInteriorRewards(0, 1).wallClock, true);
 });

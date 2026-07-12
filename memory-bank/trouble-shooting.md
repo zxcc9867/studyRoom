@@ -2788,3 +2788,68 @@ Restored apps/web/src/main.tsx from HEAD, then reapplied only the Study Forest c
 ### Prevention
 
 For large UTF-8 TSX files on Windows, avoid whole-file PowerShell string rewrites. If apply_patch is blocked, restore from version control and use a UTF-8 Node script with ASCII-safe inserted literals, then inspect git diff before running tests/build.
+
+
+## 2026-07-12 - Windows sandbox ACL로 패치와 인앱 브라우저 검증 실패
+
+### 상황
+
+공부의 숲 실내 이동 코드를 수정하고 로컬 3D 화면을 인앱 브라우저로 확인하는 과정에서 Windows sandbox 보조 프로세스가 파일 ACL 적용 단계에서 종료됐다.
+
+### 에러 메시지
+
+~~~txt
+windows sandbox failed: helper_unknown_error: apply deny-read ACLs
+node_repl kernel exited unexpectedly
+~~~
+
+### 원인
+
+현재 Windows 실행 환경의 sandbox helper가 일부 파일 편집 및 브라우저 런타임 시작 시 deny-read ACL을 적용하지 못했다. 애플리케이션 코드나 Three.js 런타임 오류는 아니며, 같은 작업 트리에서 읽기 명령과 npm 빌드는 정상 동작했다.
+
+### 해결 방법
+
+- `apply_patch` 대신 UTF-8 Node 정확 앵커 치환을 사용하고 매 단계마다 `git diff`, 대상 테스트, 빌드로 변경 범위를 확인했다.
+- 인앱 브라우저 대신 Vite 개발 서버를 실행하고 `http://127.0.0.1:5173` HTTP 200을 확인했다.
+- 실제 시각 자동화는 수행하지 않았으며 모바일 실기기 확인을 후속 작업으로 남겼다.
+
+### 관련 파일
+
+- `apps/web/src/StudyForest3D.tsx`
+- `apps/web/src/main.tsx`
+- `apps/web/src/styles.css`
+
+### 재발 방지
+
+Windows sandbox에서 동일한 ACL 오류가 발생하면 반복해서 `apply_patch`나 브라우저 런타임을 재시작하지 않는다. UTF-8 정확 앵커 치환 후 diff/test/build를 수행하고, 시각 검증 불가를 명시한다.
+
+## 2026-07-12 - 루트 lint 스크립트 없음
+
+### 상황
+
+React TSX 변경 후 품질 검증을 위해 `npm run lint`를 실행했다.
+
+### 에러 메시지
+
+~~~txt
+npm error Missing script: "lint"
+~~~
+
+### 원인
+
+루트 `package.json`과 `apps/web/package.json`에 lint 스크립트 및 lint 도구가 정의되어 있지 않다.
+
+### 해결 방법
+
+프로젝트에 정의된 검증 명령인 `npm test`와 `npm run build`를 실행해 전체 테스트 246개와 TypeScript/Vite 프로덕션 빌드를 통과시켰다. React 변경은 별도 체크리스트로 setter 부수효과, effect cleanup, 접근성을 점검했다.
+
+### 관련 파일
+
+- `package.json`
+- `apps/web/package.json`
+- `apps/web/src/main.tsx`
+- `apps/web/src/StudyForest3D.tsx`
+
+### 재발 방지
+
+lint가 필수 검증 단계가 되어야 한다면 후속 작업에서 ESLint 설정과 `lint` 스크립트를 명시적으로 추가한다. 그 전까지는 lint 실행 불가를 숨기지 않고 테스트 및 빌드 결과와 함께 보고한다.

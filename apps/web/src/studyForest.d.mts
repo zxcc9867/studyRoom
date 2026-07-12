@@ -34,6 +34,7 @@ export type StudyForestState = {
 };
 
 export type StudyForestAvatarFacing = "left" | "right" | "up" | "down";
+export type StudyForestTimePhase = "morning" | "afternoon" | "sunset" | "night";
 
 export type StudyForestAvatarPosition = {
   x: number;
@@ -102,6 +103,7 @@ export type StudyForestLevelMilestone = {
   days: number;
   label: string;
   update: string;
+  interiorUnlock: string;
 };
 
 export type StudyForestLevelUpdate = {
@@ -109,9 +111,51 @@ export type StudyForestLevelUpdate = {
   remainingDays: number;
   title: string;
   description: string;
+  interiorUnlock: string;
+};
+
+export type StudyForestInteriorRewards = {
+  plant: boolean;
+  bookshelf: boolean;
+  rug: boolean;
+  readingLamp: boolean;
+  wallClock: boolean;
+  trophy: boolean;
 };
 
 export const forestLevelMilestones: StudyForestLevelMilestone[];
+
+export function getCottageAvatarStep(
+  position: StudyForestAvatarPosition,
+  key: string,
+  bounds?: StudyForestAvatarBounds,
+): StudyForestAvatarPosition & { facing: StudyForestAvatarFacing };
+
+export function isCottagePositionWalkable(
+  position: Pick<StudyForestAvatarPosition, "x" | "y">,
+  bounds?: StudyForestAvatarBounds,
+): boolean;
+
+export function resolveCottageAvatarTarget(
+  currentPosition: Pick<StudyForestAvatarPosition, "x" | "y">,
+  targetPosition: Pick<StudyForestAvatarPosition, "x" | "y">,
+  bounds?: StudyForestAvatarBounds,
+): Pick<StudyForestAvatarPosition, "x" | "y">;
+
+export function isCottageExitPosition(
+  position: Pick<StudyForestAvatarPosition, "x" | "y">,
+): boolean;
+
+export function isCottageEntrancePosition(
+  position: Pick<StudyForestAvatarPosition, "x" | "y">,
+): boolean;
+
+export function getForestTimePhase(hour?: number): StudyForestTimePhase;
+
+export function getForestInteriorRewards(
+  progressDays: number,
+  completedTrees?: number,
+): StudyForestInteriorRewards;
 
 export function getForestBlockedReason(
   position: Pick<StudyForestAvatarPosition, "x" | "y">,

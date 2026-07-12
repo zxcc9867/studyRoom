@@ -550,3 +550,31 @@ docs/images/study-room-thumbnail.png
 - get_due_session_lease_warnings(p_now) returns slack_user_id together with channel_id so attendance-cron can render a mention in the same message.
 - attendance-cron prepends <@SlackUserId> only to the active session lease warning that is sent 5 minutes before lease_expires_at.
 - Scheduled study alarms, todo reminders, camera warnings, and recovery routines continue to use channel delivery without forced user mentions unless a future PRD expands that scope.
+
+
+## Study Forest Interior Navigation and Time Environment (2026-07-12)
+
+### Architecture
+
+- 야외와 실내는 `forestSceneMode`로 전환하되 캐릭터 상태는 `forestAvatar`와 `forestInteriorAvatar`로 분리한다.
+- 실내 입력은 `studyForest.mjs`의 순수 helper가 정규화 좌표, 가구 충돌, 출구 영역을 판정하고 Three.js는 좌표를 월드 공간으로 변환해 보간한다.
+- 집 진입은 야외 문 클릭 또는 입구에서 위쪽 이동으로, 집 퇴장은 실내 아래쪽 문 영역 통과로만 수행한다. 별도 퇴장 버튼은 두지 않는다.
+- 시간대는 브라우저 로컬 시각을 1분마다 확인해 아침, 낮, 해질녘, 밤 중 하나로 파생하며 서버 상태나 환경 변수에 저장하지 않는다.
+- 출석 인테리어 보상은 현재 성장 일수와 완성 나무 수에서 순수하게 파생한다. 완성 나무가 있으면 이전 주기의 해금 아이템은 유지한다.
+
+### Design Patterns
+
+- 이동 가능 여부와 보상 해금 계산은 React/Three.js에서 분리된 결정적 helper로 유지한다.
+- Three.js animation loop는 React 상태를 직접 갱신하지 않고 ref에 저장된 목표 위치와 방향을 보간한다.
+- 실내 가구 배치와 충돌 상수는 같은 공간 모델을 공유하므로 가구 위치 변경 시 helper 테스트를 함께 갱신한다.
+
+### Testing Strategy
+
+- helper 테스트로 실내 한 칸 이동, 가구 충돌, 입구/출구 판정, 시간 경계, 단계별 보상 보존을 검증한다.
+- UI 소스 계약 테스트로 실내 props 연결, 퇴장 버튼 제거, 방향 회전 부호, 시간대 배지, 보상 오브젝트 이름을 고정한다.
+- 전체 `npm test`, `npm run build`, 로컬 HTTP 200을 배포 전 게이트로 사용한다.
+
+### Deployment Strategy
+
+- 이번 변경은 클라이언트 전용이며 Supabase 스키마/API 변경이 없다.
+- 사용자의 명시적 요청 전에는 커밋, 푸시, Vercel 배포를 수행하지 않는다.

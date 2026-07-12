@@ -3139,26 +3139,52 @@ button:active:not(:disabled) {
     linear-gradient(160deg, #ffd99a, #efb975);
 }
 
-.study-forest-scene-action {
+.study-forest-time-badge {
   position: absolute;
   top: 16px;
   right: 16px;
   z-index: 5;
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
   min-height: 38px;
-  border: 2px solid rgba(47, 107, 82, 0.55);
+  border: 2px solid rgba(47, 107, 82, 0.45);
   border-radius: 999px;
-  background: rgba(255, 249, 223, 0.94);
+  background: rgba(255, 249, 223, 0.92);
   color: #2f6b52;
-  padding: 7px 13px;
+  padding: 7px 12px;
   font-size: 12px;
   font-weight: 950;
-  box-shadow: 0 4px 0 rgba(47, 107, 82, 0.2);
+  box-shadow: 0 4px 0 rgba(47, 107, 82, 0.18);
   backdrop-filter: blur(8px);
 }
 
-.study-forest-scene-action:hover {
-  transform: translateY(-1px);
-  background: #fff4c8;
+.study-forest-time-badge span {
+  color: #bf5c42;
+  font-size: 17px;
+  line-height: 1;
+}
+
+.study-forest-3d-shell[data-time-phase="sunset"] {
+  border-color: #9f685e;
+  box-shadow:
+    inset 0 0 0 5px rgba(255, 231, 205, 0.35),
+    0 10px 0 rgba(112, 70, 71, 0.2);
+}
+
+.study-forest-3d-shell[data-time-phase="night"] {
+  border-color: #44557d;
+  box-shadow:
+    inset 0 0 0 5px rgba(195, 212, 255, 0.22),
+    0 10px 0 rgba(35, 46, 79, 0.3);
+}
+
+.study-forest-3d-shell[data-time-phase="night"] .study-forest-3d-badge,
+.study-forest-3d-shell[data-time-phase="night"] .study-forest-time-badge,
+.study-forest-3d-shell[data-time-phase="night"] .study-forest-3d-hint {
+  border-color: rgba(168, 187, 255, 0.55);
+  background: rgba(245, 241, 222, 0.9);
+  color: #30456b;
 }
 
 .study-forest-3d-notice {
@@ -3245,6 +3271,31 @@ button:active:not(:disabled) {
   margin: 5px 0 0;
   color: #72572e;
   font-size: 13px;
+}
+
+.forest-interior-unlock {
+  position: relative;
+  z-index: 1;
+  display: inline-flex;
+  width: fit-content;
+  margin-top: 9px;
+  border: 1px solid rgba(154, 95, 32, 0.3);
+  border-radius: 999px;
+  background: rgba(255, 249, 223, 0.72);
+  color: #7c4f24;
+  padding: 5px 8px;
+  font-size: 11px;
+  font-weight: 950;
+  line-height: 1.25;
+}
+
+.forest-level-roadmap .forest-interior-unlock {
+  margin-top: 4px;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  color: #9a6a43;
+  padding: 0;
 }
 
 .forest-level-roadmap {
@@ -3403,7 +3454,7 @@ button:active:not(:disabled) {
     left: 10px;
   }
 
-  .study-forest-scene-action {
+  .study-forest-time-badge {
     top: 56px;
     right: 10px;
   }

@@ -24,6 +24,10 @@ Personal MVP users who want a softer Animal Crossing-style reward for sustained 
 - Keep the avatar on walkable land, route cross-river movement over the bridge, and prevent movement through water or solid scenery.
 - Let the user enter the cottage and inspect a cozy low-poly study interior.
 - Explain the next streak milestone and the visible forest update it will unlock.
+- Let the avatar walk inside the cottage and leave by walking through the physical doorway rather than pressing an exit button.
+- Keep the avatar facing the actual movement direction for keyboard, touch, click, and routed movement.
+- Unlock visible cottage furniture and decorations alongside tree growth.
+- Change the island and cottage atmosphere for morning, afternoon, sunset, and night based on local time.
 
 ## 4. Non-goals
 
@@ -39,6 +43,10 @@ Personal MVP users who want a softer Animal Crossing-style reward for sustained 
 - As a learner, I want the character to respect water and scenery, so that the island feels like a believable place.
 - As a learner, I want to enter the cottage, so that my reward space feels explorable.
 - As a learner, I want to preview the next streak upgrade, so that I know what continued attendance will change.
+- As a learner, I want to walk around the cottage and leave through its door, so that it feels like part of the same world.
+- As a learner, I want my character to look where it walks, so that movement feels natural.
+- As a learner, I want attendance to unlock furniture and decorations, so that rewards are not limited to trees.
+- As a learner, I want the forest lighting to follow the time of day, so that the space feels alive.
 
 ## 6. User Scenarios
 
@@ -50,8 +58,11 @@ Personal MVP users who want a softer Animal Crossing-style reward for sustained 
 4. User moves the character with arrow keys, WASD, or touch buttons.
 5. If the user stops controlling the character, it resumes automatic walking.
 6. Cross-river movement follows the bridge and clicks on water or solid props show a short blocked-movement hint.
-7. Clicking the cottage door or the accessible cottage action opens a low-poly study room; the exit action returns to the island.
-8. The status panel shows the current milestone, the next milestone, remaining attendance days, and the visual upgrade.
+7. Clicking the cottage door or walking into the entrance opens a low-poly study room.
+8. The same movement controls work indoors; walking through the interior doorway returns to the island.
+9. The avatar keeps its head and body aligned with the current movement direction.
+10. The status panel shows tree growth and the furniture or decoration unlocked at each milestone.
+11. Scene colors and lights update for morning, afternoon, sunset, and night.
 
 ### Edge Cases
 
@@ -77,8 +88,13 @@ Personal MVP users who want a softer Animal Crossing-style reward for sustained 
 - [x] Block water, cottage walls, garden beds, and major tree props while allowing cross-river movement only through the bridge corridor.
 - [x] Route long movement targets through bridge waypoints rather than interpolating across water.
 - [x] Add an interactive cottage door and an accessible island/interior scene switch.
-- [x] Render an original low-poly cottage interior with study furniture and a visible exit action.
+- [x] Render an original low-poly cottage interior with study furniture.
 - [x] Show 1/3/5/7-day level milestones and describe the next visible forest update.
+- [x] Support keyboard, touch, and click movement inside the cottage with furniture collision.
+- [x] Enter and leave the cottage through doorway portals without an exit button.
+- [x] Keep the avatar facing the actual movement direction.
+- [x] Unlock non-tree interior props at the 1/3/5/7-day milestones and preserve them after a completed cycle.
+- [x] Render morning, afternoon, sunset, and night environment variants from local time.
 
 ## 8. Non-functional Requirements
 
@@ -100,8 +116,10 @@ Personal MVP users who want a softer Animal Crossing-style reward for sustained 
 - User can open #forest and see a real WebGL 3D forest state derived from attendance history, with the avatar, trees, cottage, river, bridge, and decorative props visibly rendered with depth.
 - Desktop and mobile users can move the avatar by keyboard, touch controls, or clicking/tapping the island without excessive GPU resolution.
 - The avatar cannot finish or visually travel through water/solid scenery, and cross-river routes visibly use the bridge.
-- The cottage interior can be opened and closed with pointer and keyboard-accessible controls.
-- The next streak milestone and its reward are understandable without inferring them from the progress percentage.
+- The cottage can be entered and exited through its door, and the interior supports the same keyboard, touch, and click movement controls.
+- The avatar faces left, right, up, or down consistently with its active movement segment.
+- The next streak milestone explains both tree growth and the interior item it unlocks.
+- Time-phase boundaries deterministically select morning, afternoon, sunset, or night and visibly change the 3D environment.
 - Unit tests cover tree completion, wilting, growth stages, and avatar movement bounds.
 - npm.cmd test and npm.cmd run build pass.
 

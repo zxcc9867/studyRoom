@@ -4164,3 +4164,53 @@
 #### Next Priority
 
 - In production settings, save Slack Channel ID plus Slack User ID, start a session, and confirm the 5-minute lease warning includes the user mention.
+
+
+### 2026-07-12 - 공부의 숲 실내 이동과 시간대 보상 확장
+
+#### 완료한 작업
+
+- 집 안 캐릭터 상태와 좌표 변환을 추가해 키보드/WASD, 모바일 버튼, 클릭/터치 이동을 지원했다.
+- 책상, 의자, 책장, 독서등, 화분 영역을 실내 장애물로 처리했다.
+- 집 안 아래쪽 문으로 걸어 나가면 섬의 집 앞 위치로 복귀하도록 연결하고 `섬으로 나가기` 버튼을 제거했다.
+- 캐릭터의 좌우 회전 부호를 수정해 이동 방향과 바라보는 방향을 일치시켰다.
+- 1/3/5/7일 출석 단계에 화분, 책장/책, 러그/독서등, 벽시계/트로피 보상을 추가했다.
+- 다음 성장 카드와 단계 로드맵에 인테리어 해금 항목을 표시했다.
+- 로컬 시간 기준 아침, 낮, 해질녘, 밤의 하늘/안개/조명/노출/해·달·별/반딧불이 변화를 추가했다.
+- 실내 이동, 충돌, 출입, 시간대, 인테리어 보상에 대한 helper 및 UI 계약 테스트를 추가했다.
+
+#### 변경된 파일
+
+- `apps/web/src/StudyForest3D.tsx`
+- `apps/web/src/main.tsx`
+- `apps/web/src/studyForest.mjs`
+- `apps/web/src/studyForest.d.mts`
+- `apps/web/src/styles.css`
+- `apps/web/test/studyForest.test.mjs`
+- `apps/web/test/studyForestUi.test.mjs`
+- `memory-bank/prd-study-forest.md`
+- `memory-bank/active-context.md`
+- `memory-bank/implementation-plan.md`
+- `memory-bank/progress.md`
+- `memory-bank/trouble-shooting.md`
+- `docs/superpowers/plans/2026-07-12-study-forest-interior-movement-time-rewards.md`
+
+#### 검증 방법
+
+- RED: 신규 helper import와 UI 연결 조건이 구현 전 테스트에서 실패하는 것을 확인했다.
+- GREEN: `node --test apps/web/test/studyForest.test.mjs` 14개 통과.
+- GREEN: `node --test apps/web/test/studyForestUi.test.mjs` 7개 통과.
+- 전체 회귀: `npm test` 246개 통과.
+- 타입 및 프로덕션 빌드: `npm run build` 통과. 기존 Vite 500 kB 초과 청크 경고만 남았다.
+- 로컬 실행: `http://127.0.0.1:5173` HTTP 200 확인.
+- `npm run lint`는 프로젝트에 lint 스크립트가 없어 실행 불가했다.
+- 인앱 브라우저 시각 자동화는 Windows sandbox ACL 오류로 실행 불가했다.
+
+#### 남은 작업
+
+- 사용자가 요청할 경우 커밋, 푸시, Vercel 프로덕션 배포.
+- 실제 모바일 기기에서 집 안 문 출입 판정과 낮/밤 대비를 수동 확인.
+
+#### 다음 우선순위
+
+- 모바일 실기기 피드백에 따라 실내 장애물 영역과 시간대별 조명 강도를 미세 조정한다.

@@ -82,6 +82,25 @@ test("Study Forest blocks scenery, opens the cottage interior, and previews the 
   assert.match(mainSource, /getNextForestLevelUpdate/);
   assert.match(mainSource, /forest-next-level-card/);
   assert.match(mainSource, /forest-level-roadmap/);
-  assert.match(cssSource, /\.study-forest-scene-action/);
   assert.match(cssSource, /\.forest-next-level-card/);
+});
+
+test("cottage movement uses the doorway, movement-facing rotation, reward props, and time phases", () => {
+  assert.match(mainSource, /interiorAvatar=\{forestInteriorAvatar\}/);
+  assert.match(mainSource, /onInteriorMoveTarget=\{moveForestInteriorAvatarTo\}/);
+  assert.match(mainSource, /isCottageExitPosition/);
+  assert.match(componentSource, /interiorTargetToWorldPoint/);
+  assert.match(componentSource, /interior-interaction-plane/);
+  assert.match(componentSource, /onInteriorMoveTargetRef\.current/);
+  assert.doesNotMatch(componentSource, /study-forest-scene-action/);
+  assert.match(componentSource, /if \(facing === "left"\) return -Math\.PI \/ 2/);
+  assert.match(componentSource, /if \(facing === "right"\) return Math\.PI \/ 2/);
+  assert.match(componentSource, /function createCelestialDetails/);
+  assert.match(componentSource, /data-time-phase=\{timePhase\}/);
+  assert.match(componentSource, /getForestInteriorRewards/);
+  assert.match(componentSource, /cottage-wall-clock/);
+  assert.match(componentSource, /cottage-attendance-trophy/);
+  assert.match(mainSource, /milestone\.interiorUnlock/);
+  assert.match(cssSource, /\.forest-interior-unlock/);
+  assert.match(cssSource, /\.study-forest-time-badge/);
 });
