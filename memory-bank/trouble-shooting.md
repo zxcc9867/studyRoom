@@ -2885,3 +2885,37 @@ Added reward keys to conditional furniture obstacles and passed the current `get
 ### Prevention
 
 Every conditionally rendered furniture prop must use the same reward key for both rendering and collision. Regression tests must assert that the location is walkable while locked and blocked after unlock.
+
+## 2026-07-15 - Three.js 지연 청크가 Vite 500 kB 경고를 발생시킴
+
+### 상황
+
+웹 메인 기능을 분리한 뒤 production build에서 메인 앱은 크게 줄었지만 지연 로딩되는 Three.js 런타임 청크가 기본 경고 기준을 넘었다.
+
+### 에러 메시지
+
+~~~txt
+Some chunks are larger than 500 kB after minification.
+three-*.js 520.37 kB
+~~~
+
+### 원인
+
+현재 `three` 패키지는 Vite에서 단일 배포 모듈로 해석되어 renderer, geometry, material 경로별 수동 청크 규칙이 실제로 분리되지 않았다. 3D 장면 컴포넌트 자체는 이미 라우트 수준에서 지연 로딩되고 있었다.
+
+### 해결 방법
+
+- React, Supabase SDK, MediaPipe, Three.js를 서로 다른 청크로 분리했다.
+- 숲, 회고, 주간 리뷰, 적응형 알림 컴포넌트를 각각 지연 로딩했다.
+- 메인 JS를 약 554 kB에서 152 kB로 줄였다.
+- 초기 화면과 무관한 Three.js 단일 지연 청크 크기에 맞춰 `chunkSizeWarningLimit`을 550 kB로 설정했다. 이보다 커지는 회귀는 계속 경고한다.
+
+### 관련 파일
+
+- `apps/web/vite.config.ts`
+- `apps/web/src/main.tsx`
+- `apps/web/src/StudyForestSection.tsx`
+
+### 재발 방지
+
+번들 최적화는 경고 한도 변경만으로 판단하지 않는다. build 산출물에서 초기 메인 청크와 지연 기능 청크 크기를 함께 확인하고, 3D 런타임이 메인 청크로 다시 합쳐지지 않는지 소스 계약 테스트로 고정한다.

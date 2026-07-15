@@ -4,20 +4,21 @@ import { test } from "node:test";
 
 const mainSource = readFileSync(new URL("../src/main.tsx", import.meta.url), "utf8");
 const cssSource = readFileSync(new URL("../src/styles.css", import.meta.url), "utf8");
+const sectionSource = readFileSync(new URL("../src/StudyForestSection.tsx", import.meta.url), "utf8");
 const componentUrl = new URL("../src/StudyForest3D.tsx", import.meta.url);
 const componentSource = existsSync(componentUrl) ? readFileSync(componentUrl, "utf8") : "";
 
-test("study forest page mounts the Three.js renderer while keeping accessible movement controls", () => {
-  assert.match(mainSource, /lazy\(\(\) =>[\s\S]*import\("\.\/StudyForest3D"\)/);
+test("study forest page lazy loads its feature section and keeps accessible movement controls", () => {
+  assert.match(mainSource, /lazy\(\(\) => import\("\.\/StudyForestSection"\)\)/);
   assert.match(mainSource, /<Suspense/);
-  assert.match(mainSource, /<StudyForest3D/);
-  assert.match(mainSource, /completedTreeCount=\{studyForestState\.placedTrees\.length\}/);
-  assert.match(mainSource, /currentTreeStage=\{studyForestState\.currentTree\.stage\}/);
-  assert.match(mainSource, /avatar=\{forestAvatar\}/);
-  assert.match(mainSource, /onMoveTarget=\{moveForestAvatarTo\}/);
-  assert.match(mainSource, /aria-label=\{.*3D/);
-  assert.match(mainSource, /moveForestAvatar\("ArrowUp"\)/);
-  assert.doesNotMatch(mainSource, /className="study-forest-scene"/);
+  assert.match(mainSource, /<StudyForestSection/);
+  assert.match(sectionSource, /<StudyForest3D/);
+  assert.match(sectionSource, /completedTreeCount=\{completedTreeCount\}/);
+  assert.match(sectionSource, /currentTreeStage=\{forestState\.currentTree\.stage\}/);
+  assert.match(sectionSource, /avatar=\{avatar\}/);
+  assert.match(sectionSource, /onMoveTarget=\{moveAvatarTo\}/);
+  assert.match(sectionSource, /aria-label="[^"]+"/);
+  assert.match(sectionSource, /moveAvatar\("ArrowUp"\)/);
 });
 
 test("Three.js scene uses a responsive WebGL renderer with an isometric camera and mobile limits", () => {
@@ -60,7 +61,6 @@ test("Three.js scene maps click and touch input to the existing avatar coordinat
   assert.match(componentSource, /avatarTargetToWorldPoint/);
   assert.match(componentSource, /getForestNavigationPath/);
   assert.match(componentSource, /isForestAvatarPositionWalkable/);
-  assert.match(componentSource, /new THREE\.BoxGeometry\(0\.1, 0\.1, 2\.15\)/);
 });
 
 test("Three.js scene provides fallback, reduced motion, and GPU cleanup", () => {
@@ -79,28 +79,27 @@ test("Study Forest blocks scenery, opens the cottage interior, and previews the 
   assert.match(componentSource, /cottage-entry-door/);
   assert.match(componentSource, /sceneMode === "interior"/);
   assert.match(componentSource, /onSceneModeChange/);
-  assert.match(mainSource, /getNextForestLevelUpdate/);
-  assert.match(mainSource, /forest-next-level-card/);
-  assert.match(mainSource, /forest-level-roadmap/);
+  assert.match(sectionSource, /getNextForestLevelUpdate/);
+  assert.match(sectionSource, /forest-next-level-card/);
+  assert.match(sectionSource, /forest-level-roadmap/);
   assert.match(cssSource, /\.forest-next-level-card/);
 });
 
-test("cottage movement uses the doorway, movement-facing rotation, reward props, and time phases", () => {
-  assert.match(mainSource, /interiorAvatar=\{forestInteriorAvatar\}/);
-  assert.match(mainSource, /onInteriorMoveTarget=\{moveForestInteriorAvatarTo\}/);
-  assert.match(mainSource, /isCottageExitPosition/);
+test("cottage movement, facing, rewards, time phases, and customization stay wired", () => {
+  assert.match(sectionSource, /interiorAvatar=\{interiorAvatar\}/);
+  assert.match(sectionSource, /onInteriorMoveTarget=\{moveInteriorAvatarTo\}/);
+  assert.match(sectionSource, /isCottageExitPosition/);
+  assert.match(sectionSource, /customization=\{preferences\}/);
+  assert.match(sectionSource, /study_forest_preferences/);
   assert.match(componentSource, /interiorTargetToWorldPoint/);
-  assert.match(componentSource, /interior-interaction-plane/);
   assert.match(componentSource, /onInteriorMoveTargetRef\.current/);
   assert.doesNotMatch(componentSource, /study-forest-scene-action/);
   assert.match(componentSource, /if \(facing === "left"\) return -Math\.PI \/ 2/);
   assert.match(componentSource, /if \(facing === "right"\) return Math\.PI \/ 2/);
   assert.match(componentSource, /function createCelestialDetails/);
   assert.match(componentSource, /data-time-phase=\{timePhase\}/);
-  assert.match(componentSource, /getForestInteriorRewards/);
-  assert.match(componentSource, /cottage-wall-clock/);
-  assert.match(componentSource, /cottage-attendance-trophy/);
-  assert.match(mainSource, /milestone\.interiorUnlock/);
+  assert.match(componentSource, /function createFeaturedReward/);
+  assert.match(componentSource, /customization\.featuredReward/);
   assert.match(cssSource, /\.forest-interior-unlock/);
   assert.match(cssSource, /\.study-forest-time-badge/);
 });

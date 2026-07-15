@@ -8,7 +8,6 @@ import {
   useState,
   type ClipboardEvent,
   type FormEvent,
-  type KeyboardEvent,
   type MouseEvent,
 } from "react";
 import { createRoot } from "react-dom/client";
@@ -41,9 +40,6 @@ import {
   Send,
   Target,
   TreePine,
-  Map as MapIcon,
-  Sprout,
-  Sparkles,
   UserRound,
 } from "lucide-react";
 import type { Session } from "@supabase/supabase-js";
@@ -162,7 +158,6 @@ import {
 import { isStaleActiveSessionEndError } from "./sessionEnd.mjs";
 import { requestEndStudySessionOnExit, shouldEndStudySessionForPageEvent } from "./sessionExit.mjs";
 import {
-  buildSessionTodoLinkRows,
   getEndSessionCompletionCandidates,
   getIncompleteTodayTodos,
   getSessionLinkedTodos,
@@ -178,20 +173,7 @@ import {
   getGoalLinkedTodos,
   sortStudyGoals,
 } from "./studyGoals.mjs";
-import {
-  buildStudyForestState,
-  forestLevelMilestones,
-  getAvatarFacing,
-  getAvatarStep,
-  getCottageAvatarStep,
-  getForestInteriorRewards,
-  getNextAutoAvatarStep,
-  getNextForestLevelUpdate,
-  isCottageEntrancePosition,
-  isCottageExitPosition,
-  resolveCottageAvatarTarget,
-  resolveForestAvatarTarget,
-} from "./studyForest.mjs";
+import type { SessionReflectionDraft } from "./SessionReflectionModal";
 import { isSupabaseConfigured, supabase, supabaseAnonKey, supabaseUrl } from "./supabase";
 import {
   getSlackNotificationStatus,
@@ -239,11 +221,10 @@ const emailOtpLength = EMAIL_OTP_LENGTH;
 const googleAuthEnabled = import.meta.env.VITE_GOOGLE_AUTH_ENABLED === "true";
 const cameraRequiredWarningCooldownMs = 10 * 60 * 1000;
 const ACTIVE_SESSION_LEASE_REFRESH_MS = 15 * 1000;
-const FOREST_MEADOW_BOUNDS = { minX: 8, maxX: 92, minY: 42, maxY: 84, step: 4 };
-const FOREST_MANUAL_CONTROL_MS = 8 * 1000;
-const StudyForest3D = lazy(() =>
-  import("./StudyForest3D").then((module) => ({ default: module.StudyForest3D })),
-);
+const StudyForestSection = lazy(() => import("./StudyForestSection"));
+const SessionReflectionModal = lazy(() => import("./SessionReflectionModal"));
+const WeeklyReviewSection = lazy(() => import("./WeeklyReviewSection"));
+const AdaptiveReminderCard = lazy(() => import("./AdaptiveReminderCard"));
 type TodoRepeatMode = "single" | "weekly";
 type CameraSetupPrompt = {
   mode: "start" | "resume";
@@ -260,6 +241,8 @@ type Profile = {
   time_zone: string;
   reminder_time: string;
   email_reminders_enabled: boolean;
+  adaptive_reminders_enabled?: boolean;
+  adaptive_reminder_last_adjusted_at?: string | null;
   today_task_view?: string | null;
   today_section_order?: unknown;
 };
@@ -328,6 +311,17 @@ type StudyRecoveryRequest = {
   reason: string | null;
   makeup_todo_title: string | null;
   pledge_todo_title: string | null;
+  created_at: string;
+};
+
+type StudySessionReflection = {
+  id: string;
+  session_id: string;
+  focus_score: number;
+  energy_score: number;
+  interruption_reason: SessionReflectionDraft["interruptionReason"] | null;
+  note: string | null;
+  next_action: string | null;
   created_at: string;
 };
 
@@ -433,6 +427,7 @@ function DashboardApp() {
   const [studySessionTodoLinks, setStudySessionTodoLinks] = useState<StudySessionTodoLink[]>([]);
   const [studyGoals, setStudyGoals] = useState<StudyGoal[]>([]);
   const [studyRecoveryRequests, setStudyRecoveryRequests] = useState<StudyRecoveryRequest[]>([]);
+  const [studySessionReflections, setStudySessionReflections] = useState<StudySessionReflection[]>([]);
   const [recoveryModalRequest, setRecoveryModalRequest] = useState<StudyRecoveryRequest | null>(null);
   const [recoveryReason, setRecoveryReason] = useState("");
   const [makeupTodoTitle, setMakeupTodoTitle] = useState("");
@@ -442,6 +437,7 @@ function DashboardApp() {
   const [recoveryUnlockRefreshing, setRecoveryUnlockRefreshing] = useState(false);
   const [reminderTime, setReminderTime] = useState(DEFAULT_WEEKDAY_REMINDER_TIME);
   const [emailRemindersEnabled, setEmailRemindersEnabled] = useState(true);
+  const [adaptiveRemindersEnabled, setAdaptiveRemindersEnabled] = useState(false);
   const [alarmEditing, setAlarmEditing] = useState(false);
   const [selectedTodoDate, setSelectedTodoDate] = useState(() => getPlainDateKey(new Date()));
   const [todoDraft, setTodoDraft] = useState("");
@@ -481,6 +477,13 @@ function DashboardApp() {
   const [sessionTodoAddBusy, setSessionTodoAddBusy] = useState(false);
   const [endSessionCompletionModalOpen, setEndSessionCompletionModalOpen] = useState(false);
   const [selectedEndSessionCompletionTodoIds, setSelectedEndSessionCompletionTodoIds] = useState<string[]>([]);
+  const [sessionReflectionDraft, setSessionReflectionDraft] = useState<SessionReflectionDraft>({
+    focusScore: 3,
+    energyScore: 3,
+    interruptionReason: "none",
+    note: "",
+    nextAction: "",
+  });
   const [goalModalOpen, setGoalModalOpen] = useState(false);
   const [editingGoalId, setEditingGoalId] = useState<string | null>(null);
   const [goalTitle, setGoalTitle] = useState("");
@@ -499,22 +502,6 @@ function DashboardApp() {
   const [activeSection, setActiveSection] = useState<DashboardSection>(() =>
     getDashboardSectionFromHash(window.location.hash),
   );
-  const [forestAvatar, setForestAvatar] = useState<{ x: number; y: number; facing: "left" | "right" | "up" | "down" }>({
-    x: 52,
-    y: 64,
-    facing: "down",
-  });
-  const [forestInteriorAvatar, setForestInteriorAvatar] = useState<{
-    x: number;
-    y: number;
-    facing: "left" | "right" | "up" | "down";
-  }>({
-    x: 50,
-    y: 80,
-    facing: "up",
-  });
-  const [forestManualUntilMs, setForestManualUntilMs] = useState(0);
-  const [forestSceneMode, setForestSceneMode] = useState<"island" | "interior">("island");
   const [calendarMonth, setCalendarMonth] = useState(() => getMonthKey(new Date()));
   const [todoHistoryPage, setTodoHistoryPage] = useState(1);
   const [recoveryHistoryPage, setRecoveryHistoryPage] = useState(1);
@@ -847,16 +834,6 @@ function DashboardApp() {
     [completedTodoHistory, todoHistoryPage],
   );
   const streak = useMemo(() => calculateStreak(attendanceDays), [attendanceDays]);
-  const studyForestState = useMemo(
-    () => buildStudyForestState({ todayDateKey, attendanceDays }),
-    [attendanceDays, todayDateKey],
-  );
-  const forestProgressPercent = Math.round((studyForestState.currentTree.progressDays / 7) * 100);
-  const forestNextLevel = getNextForestLevelUpdate(studyForestState.currentTree.progressDays);
-  const forestInteriorRewards = getForestInteriorRewards(
-    studyForestState.currentTree.progressDays,
-    studyForestState.placedTrees.length,
-  );
   const notificationDiagnostics = useMemo(
     () =>
       buildNotificationDiagnostics({
@@ -867,19 +844,6 @@ function DashboardApp() {
     [webPushStatus, slackStatus, notificationDeliveries],
   );
 
-  useEffect(() => {
-    if (activeSection !== "forest" || forestSceneMode !== "island") return;
-
-    const forestAutoWalkTimer = window.setInterval(() => {
-      const currentMs = Date.now();
-      if (currentMs < forestManualUntilMs) return;
-      setForestAvatar((current) =>
-        getNextAutoAvatarStep(current, Math.floor(currentMs / 2400), FOREST_MEADOW_BOUNDS),
-      );
-    }, 2200);
-
-    return () => window.clearInterval(forestAutoWalkTimer);
-  }, [activeSection, forestManualUntilMs, forestSceneMode]);
 
   useEffect(() => {
     if (todoHistoryPage !== todoHistoryPageData.currentPage) {
@@ -1500,6 +1464,7 @@ function DashboardApp() {
       { data: sessionTodoLinkData },
       { data: goalData },
       { data: recoveryData },
+      { data: reflectionData },
       { data: notificationDeliveryData },
     ] = await Promise.all([
       supabase.from("profiles").select("*").eq("user_id", userId).maybeSingle(),
@@ -1543,6 +1508,12 @@ function DashboardApp() {
         .order("created_at", { ascending: false })
         .limit(50),
       supabase
+        .from("study_session_reflections")
+        .select("id,session_id,focus_score,energy_score,interruption_reason,note,next_action,created_at")
+        .eq("user_id", userId)
+        .order("created_at", { ascending: false })
+        .limit(200),
+      supabase
         .from("notification_deliveries")
         .select("channel,status,error_message,created_at")
         .eq("user_id", userId)
@@ -1557,11 +1528,13 @@ function DashboardApp() {
       setProfile(typedProfile);
       setReminderTime(profileData.reminder_time.slice(0, 5));
       setEmailRemindersEnabled(profileData.email_reminders_enabled ?? true);
+      setAdaptiveRemindersEnabled(typedProfile.adaptive_reminders_enabled ?? false);
       setTodayTaskView(normalizedTaskView);
       setSavedTodayTaskView(normalizedTaskView);
       setTodaySectionOrder(normalizedSectionOrder);
       setDraftTodaySectionOrder(normalizedSectionOrder);
     } else {
+      setAdaptiveRemindersEnabled(false);
       setTodayTaskView(DEFAULT_TODAY_TASK_VIEW);
       setSavedTodayTaskView(DEFAULT_TODAY_TASK_VIEW);
       setTodaySectionOrder([...DEFAULT_TODAY_SECTION_ORDER]);
@@ -1573,6 +1546,7 @@ function DashboardApp() {
     setStudySessionTodoLinks((sessionTodoLinkData ?? []) as StudySessionTodoLink[]);
     setStudyGoals(sortStudyGoals((goalData ?? []) as StudyGoal[]));
     setStudyRecoveryRequests((recoveryData ?? []) as StudyRecoveryRequest[]);
+    setStudySessionReflections((reflectionData ?? []) as StudySessionReflection[]);
     setNotificationDeliveries(normalizeNotificationDeliveries((notificationDeliveryData ?? []) as NotificationDeliveryRow[]));
     setBusy(false);
   }
@@ -1750,68 +1724,6 @@ function DashboardApp() {
     setMessage("오늘 할 일 보기를 고정했습니다.");
   }
 
-  function enterForestCottage() {
-    setForestInteriorAvatar({ x: 50, y: 80, facing: "up" });
-    setForestSceneMode("interior");
-  }
-
-  function leaveForestCottage() {
-    setForestAvatar({ x: 27, y: 59, facing: "down" });
-    setForestSceneMode("island");
-    setForestManualUntilMs(Date.now() + FOREST_MANUAL_CONTROL_MS);
-  }
-
-  function moveForestAvatar(key: string) {
-    setForestManualUntilMs(Date.now() + FOREST_MANUAL_CONTROL_MS);
-    if (forestSceneMode === "interior") {
-      const next = getCottageAvatarStep(forestInteriorAvatar, key, {}, forestInteriorRewards);
-      setForestInteriorAvatar(next);
-      if (isCottageExitPosition(next)) leaveForestCottage();
-      return;
-    }
-
-    const movingTowardDoor = key === "ArrowUp" || key === "w" || key === "W";
-    if (movingTowardDoor && isCottageEntrancePosition(forestAvatar)) {
-      enterForestCottage();
-      return;
-    }
-    setForestAvatar(getAvatarStep(forestAvatar, key, FOREST_MEADOW_BOUNDS));
-  }
-
-  function moveForestAvatarTo(targetPosition: { x: number; y: number }) {
-    if (forestSceneMode !== "island") return;
-    setForestManualUntilMs(Date.now() + FOREST_MANUAL_CONTROL_MS);
-    setForestAvatar((current) => {
-      const resolvedTarget = resolveForestAvatarTarget(current, targetPosition, FOREST_MEADOW_BOUNDS);
-      return {
-        ...resolvedTarget,
-        facing: getAvatarFacing(current, resolvedTarget),
-      };
-    });
-  }
-
-  function moveForestInteriorAvatarTo(targetPosition: { x: number; y: number }) {
-    if (forestSceneMode !== "interior") return;
-    setForestManualUntilMs(Date.now() + FOREST_MANUAL_CONTROL_MS);
-    const resolvedTarget = resolveCottageAvatarTarget(
-      forestInteriorAvatar,
-      targetPosition,
-      {},
-      forestInteriorRewards,
-    );
-    setForestInteriorAvatar({
-      ...resolvedTarget,
-      facing: getAvatarFacing(forestInteriorAvatar, resolvedTarget),
-    });
-    if (isCottageExitPosition(resolvedTarget)) leaveForestCottage();
-  }
-
-  function handleForestKeyDown(event: KeyboardEvent<HTMLElement>) {
-    const movementKeys = ["ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight", "w", "a", "s", "d", "W", "A", "S", "D"];
-    if (!movementKeys.includes(event.key)) return;
-    event.preventDefault();
-    moveForestAvatar(event.key);
-  }
 
   async function saveTodaySectionOrderPreference() {
     if (!session?.user.id) return;
@@ -2392,6 +2304,13 @@ function DashboardApp() {
   function openEndSessionCompletionModal() {
     if (!activeSession) return;
     setSelectedEndSessionCompletionTodoIds([]);
+    setSessionReflectionDraft({
+      focusScore: 3,
+      energyScore: 3,
+      interruptionReason: "none",
+      note: "",
+      nextAction: "",
+    });
     setEndSessionCompletionModalOpen(true);
   }
 
@@ -2411,17 +2330,11 @@ function DashboardApp() {
   async function confirmEndSessionWithCompletions() {
     if (!activeSession) return;
 
-    const todoIds = selectedEndSessionCompletionTodoIds;
-    closeEndSessionCompletionModal();
-
-    try {
-      if (todoIds.length > 0) {
-        await setTodosCompleted(todoIds, true);
-      }
-      await endTimer();
-    } catch (error) {
-      setMessage(formatNotificationError(error));
-    }
+    await endTimer({
+      completedTodoIds: selectedEndSessionCompletionTodoIds,
+      reflection: sessionReflectionDraft,
+      successMessage: "회고와 세션을 함께 저장했어요.",
+    });
   }
 
   async function deleteTodo(todo: StudyTodo) {
@@ -2656,6 +2569,7 @@ function DashboardApp() {
       reminder_time: nextReminderTime,
       time_zone: nextTimeZone,
       email_reminders_enabled: emailRemindersEnabled,
+      adaptive_reminders_enabled: false,
     });
     setBusy(false);
 
@@ -2670,12 +2584,45 @@ function DashboardApp() {
       time_zone: nextTimeZone,
       reminder_time: nextReminderTime,
       email_reminders_enabled: emailRemindersEnabled,
+      adaptive_reminders_enabled: false,
       today_task_view: current?.today_task_view ?? savedTodayTaskView,
       today_section_order: current?.today_section_order ?? todaySectionOrder,
     }));
     setReminderTime(nextReminderTime);
+    setAdaptiveRemindersEnabled(false);
     setAlarmEditing(false);
     setMessage("알람 설정을 저장했습니다.");
+  }
+
+  async function saveAdaptiveReminderSettings(enabled: boolean, recommendedTime: string) {
+    if (!session?.user.id) return;
+    const nextTime = enabled ? recommendedTime.slice(0, 5) : (profile?.reminder_time ?? reminderTime).slice(0, 5);
+    const adjustedAt = enabled ? new Date().toISOString() : profile?.adaptive_reminder_last_adjusted_at ?? null;
+    setBusy(true);
+    try {
+      const { error } = await supabase
+        .from("profiles")
+        .update({
+          adaptive_reminders_enabled: enabled,
+          reminder_time: nextTime,
+          adaptive_reminder_last_adjusted_at: adjustedAt,
+        })
+        .eq("user_id", session.user.id);
+      if (error) throw error;
+      setAdaptiveRemindersEnabled(enabled);
+      setReminderTime(nextTime);
+      setProfile((current) => current ? {
+        ...current,
+        reminder_time: nextTime,
+        adaptive_reminders_enabled: enabled,
+        adaptive_reminder_last_adjusted_at: adjustedAt,
+      } : current);
+      setMessage(enabled ? `적응형 알림이 추천 시간 ${nextTime}에 맞춰졌어요.` : "적응형 알림 자동 조정을 껐어요.");
+    } catch (error) {
+      setMessage(formatNotificationError(error));
+    } finally {
+      setBusy(false);
+    }
   }
 
   async function saveSlackChannelSettings() {
@@ -2952,7 +2899,7 @@ function DashboardApp() {
     }
 
     setBusy(true);
-    const { data, error } = await supabase.rpc("start_study_session");
+    const { data, error } = await supabase.rpc("start_study_session", { p_todo_ids: selectedTodoIds ?? [] });
     setBusy(false);
     if (error) {
       if (error.message.includes("Recovery routine required")) {
@@ -2968,7 +2915,7 @@ function DashboardApp() {
       }
       cameraSessionStartingRef.current = false;
     } else if (session?.user.id) {
-      let startMessage = "집중 세션을 시작했습니다.";
+      const startMessage = `집중 세션을 시작했습니다. 이번 세션 할 일 ${(selectedTodoIds ?? []).length}개를 연결했습니다.`;
       if (data) {
         const startedSession = data as StudySession;
         const parsedDeadlineMs = startedSession.lease_expires_at ? Date.parse(startedSession.lease_expires_at) : Number.NaN;
@@ -2981,26 +2928,6 @@ function DashboardApp() {
           startedSession,
           ...current.filter((item) => item.id !== startedSession.id),
         ]);
-        const linkRows = buildSessionTodoLinkRows({
-          userId: session.user.id,
-          sessionId: startedSession.id,
-          todoIds: selectedTodoIds ?? [],
-        });
-        if (linkRows.length > 0) {
-          const { data: linkData, error: linkError } = await supabase
-            .from("study_session_todos")
-            .insert(linkRows)
-            .select("*");
-          if (linkError) {
-            startMessage = `세션은 시작됐지만 할 일 연결에 실패했습니다: ${linkError.message}`;
-          } else if (linkData) {
-            setStudySessionTodoLinks((current) => [
-              ...((linkData ?? []) as StudySessionTodoLink[]),
-              ...current.filter((link) => link.session_id !== startedSession.id),
-            ]);
-            startMessage = `집중 세션을 시작했습니다. 이번 세션 할 일 ${linkRows.length}개를 연결했습니다.`;
-          }
-        }
         setNowMs(Date.now());
         if (cameraEnabled || cameraReadyOverride) {
           cameraSessionIdRef.current = startedSession.id;
@@ -3020,7 +2947,12 @@ function DashboardApp() {
     }
   }
 
-  async function endTimer(options: { excludedSeconds?: number; successMessage?: string } = {}) {
+  async function endTimer(options: {
+    excludedSeconds?: number;
+    successMessage?: string;
+    completedTodoIds?: string[];
+    reflection?: SessionReflectionDraft;
+  } = {}) {
     if (!activeSession) return;
 
     const endingSession = activeSession;
@@ -3037,10 +2969,21 @@ function DashboardApp() {
     endSessionInFlightRef.current = endingSession.id;
     setBusy(true);
     try {
-      const { error } = await supabase.rpc("end_study_session", {
-        p_session_id: endingSession.id,
-        p_excluded_seconds: excludedSeconds,
-      });
+      const { error } = options.reflection
+        ? await supabase.rpc("complete_study_session", {
+            p_session_id: endingSession.id,
+            p_excluded_seconds: excludedSeconds,
+            p_completed_todo_ids: options.completedTodoIds ?? [],
+            p_focus_score: options.reflection.focusScore,
+            p_energy_score: options.reflection.energyScore,
+            p_interruption_reason: options.reflection.interruptionReason,
+            p_note: options.reflection.note,
+            p_next_action: options.reflection.nextAction,
+          })
+        : await supabase.rpc("end_study_session", {
+            p_session_id: endingSession.id,
+            p_excluded_seconds: excludedSeconds,
+          });
 
       if (error) {
         if (isStaleActiveSessionEndError(error)) {
@@ -3065,6 +3008,13 @@ function DashboardApp() {
         forgetSessionLease(endingSession.id);
         forgetStudySessionActivity(endingSession.id);
         setMessage(options.successMessage ?? sessionTodoSummary.message);
+        if (options.reflection) {
+          setEndSessionCompletionModalOpen(false);
+          setSelectedEndSessionCompletionTodoIds([]);
+          setSessionReflectionDraft({
+            focusScore: 3, energyScore: 3, interruptionReason: "none", note: "", nextAction: "",
+          });
+        }
         await loadDashboard(session.user.id);
       }
     } finally {
@@ -4645,69 +4595,20 @@ function DashboardApp() {
         )}
 
         {endSessionCompletionModalOpen && (
-          <div className="modal-backdrop">
-            <section
-              className="todo-modal reminder-modal end-session-completion-modal"
-              role="dialog"
-              aria-modal="true"
-              aria-label="end session completion"
-            >
-              <button className="modal-close" type="button" onClick={closeEndSessionCompletionModal} aria-label="close">
-                <X size={22} />
-              </button>
-              <p className="eyebrow">session complete</p>
-              <h3>{"\uC774\uBC88 \uC138\uC158\uC5D0\uC11C \uC644\uB8CC\uD55C \uD560 \uC77C"}</h3>
-              <p>{"\uC624\uB298 \uD560 \uC77C \uC911 \uC774\uBC88 \uC138\uC158\uC5D0\uC11C \uB05D\uB0B8 \uD56D\uBAA9\uC744 \uCCB4\uD06C\uD558\uBA74 \uC644\uB8CC\uB85C \uAE30\uB85D\uD569\uB2C8\uB2E4."}</p>
-
-              {endSessionCompletionCandidates.length === 0 ? (
-                <p className="todo-empty">{"\uC644\uB8CC\uB85C \uCCB4\uD06C\uD560 \uC624\uB298 \uD560 \uC77C\uC774 \uC5C6\uC2B5\uB2C8\uB2E4."}</p>
-              ) : (
-                <ul className="todo-list session-completion-list">
-                  {endSessionCompletionCandidates.map((todo) => (
-                    <li className="todo-item" key={todo.id}>
-                      <div className="todo-main">
-                        <label className="todo-check-row">
-                          <input
-                            type="checkbox"
-                            checked={selectedEndSessionCompletionTodoIds.includes(todo.id)}
-                            disabled={busy || todoBusy}
-                            onChange={() => toggleEndSessionCompletionTodo(todo.id)}
-                          />
-                          <span className="todo-title">{todo.title}</span>
-                        </label>
-                        <div className="todo-meta-row" aria-label={`${todo.title} setting`}>
-                          {formatTodoScheduleLabel(todo) && (
-                            <span className="todo-time-chip">{formatTodoScheduleLabel(todo)}</span>
-                          )}
-                          <span className="todo-meta-chip">{formatTodoRepeatLabel(todo)}</span>
-                        </div>
-                      </div>
-                    </li>
-                  ))}
-                </ul>
-              )}
-
-              <div className="modal-actions">
-                <button className="primary" type="button" disabled={busy || todoBusy} onClick={() => void confirmEndSessionWithCompletions()}>
-                  <CheckCircle2 size={18} />
-                  {"\uC644\uB8CC \uCCB4\uD06C\uD558\uACE0 \uC885\uB8CC"}
-                </button>
-                <button
-                  className="secondary"
-                  type="button"
-                  disabled={busy || todoBusy}
-                  onClick={() => {
-                    closeEndSessionCompletionModal();
-                    void endTimer();
-                  }}
-                >
-                  <Square size={18} />
-                  {"\uCCB4\uD06C \uC5C6\uC774 \uC885\uB8CC"}
-                </button>
-              </div>
-            </section>
-          </div>
+          <Suspense fallback={<div className="modal-backdrop"><div className="todo-modal" role="status">회고 화면을 불러오는 중...</div></div>}>
+            <SessionReflectionModal
+              candidates={endSessionCompletionCandidates}
+              selectedTodoIds={selectedEndSessionCompletionTodoIds}
+              draft={sessionReflectionDraft}
+              busy={busy || todoBusy}
+              onToggleTodo={toggleEndSessionCompletionTodo}
+              onDraftChange={setSessionReflectionDraft}
+              onClose={closeEndSessionCompletionModal}
+              onSubmit={() => void confirmEndSessionWithCompletions()}
+            />
+          </Suspense>
         )}
+
 
         {sessionTodoModalOpen && (
           <div
@@ -5347,125 +5248,15 @@ function DashboardApp() {
 
 
         {activeSection === "forest" && (
-          <section
-            className="history-panel study-forest-panel"
-            tabIndex={0}
-            onKeyDown={handleForestKeyDown}
-            aria-label={"\uB098\uB9CC\uC758 \uACF5\uBD80 \uC232"}
-          >
-            <div className="section-heading">
-              <div>
-                <p className="eyebrow">study forest</p>
-                <h2>{"\uB098\uB9CC\uC758 \uACF5\uBD80 \uC232"}</h2>
-                <p className="section-description">
-                  {"7\uC77C \uC5F0\uC18D \uCD9C\uC11D\uD558\uBA74 \uB098\uBB34 1\uADF8\uB8E8\uAC00 \uC790\uB77C\uACE0, \uACB0\uC11D\uD558\uBA74 \uD604\uC7AC \uB098\uBB34\uAC00 \uC2DC\uB4ED\uB2C8\uB2E4."}
-                </p>
-              </div>
-              <div className="forest-badges">
-                <span className="pill"><TreePine size={16} /> {"\uC644\uC131 \uB098\uBB34 "}{studyForestState.placedTrees.length}{"\uADF8\uB8E8"}</span>
-                <span className="pill"><Sprout size={16} /> {forestProgressPercent}%</span>
-              </div>
-            </div>
-
-            {studyForestState.placedTrees.length > 0 ? (
-              <div className="success-message forest-celebration">
-                <strong>{"7\uC77C \uC5F0\uC18D \uCD9C\uC11D! \uC791\uC740 \uACF5\uBD80 \uC232\uC774 \uC790\uB790\uC5B4\uC694."}</strong>
-                <span>{"\uC644\uC131\uB41C \uB098\uBB34\uB294 \uAC1C\uC778 \uACF5\uAC04\uC5D0 \uB0A8\uC544 \uC788\uC2B5\uB2C8\uB2E4."}</span>
-              </div>
-            ) : (
-              <div className="message forest-celebration">
-                <strong>{"\uCCAB \uB098\uBB34\uB97C \uD0A4\uC6B0\uB294 \uC911\uC785\uB2C8\uB2E4."}</strong>
-                <span>{"\uC624\uB298\uB3C4 \uCD9C\uC11D\uD558\uBA74 \uB354 \uD48D\uC131\uD55C \uC232\uC5D0 \uAC00\uAE4C\uC6CC\uC9D1\uB2C8\uB2E4."}</span>
-              </div>
-            )}
-
-            <div className="study-forest-grid">
-              <div className="study-forest-scene-card">
-                <Suspense
-                  fallback={
-                    <div className="study-forest-3d-shell study-forest-3d-module-loading" role="status">
-                      {"3D \uACF5\uBD80 \uC232 \uBAA8\uB4C8\uC744 \uBD88\uB7EC\uC624\uB294 \uC911\uC774\uC5D0\uC694..."}
-                    </div>
-                  }
-                >
-                  <StudyForest3D
-                    completedTreeCount={studyForestState.placedTrees.length}
-                    currentTreeStage={studyForestState.currentTree.stage}
-                    currentTreeProgressDays={studyForestState.currentTree.progressDays}
-                    avatar={forestAvatar}
-                    interiorAvatar={forestInteriorAvatar}
-                    sceneMode={forestSceneMode}
-                    onMoveTarget={moveForestAvatarTo}
-                    onInteriorMoveTarget={moveForestInteriorAvatarTo}
-                    onSceneModeChange={(mode) => {
-                      if (mode === "interior") enterForestCottage();
-                    }}
-                  />
-                </Suspense>
-                <div className="forest-controls" aria-label={"\uCE90\uB9AD\uD130 \uC774\uB3D9"}>
-                  <button type="button" onClick={() => moveForestAvatar("ArrowUp")} aria-label={"\uC704\uB85C \uC774\uB3D9"}>{"\u2191"}</button>
-                  <div>
-                    <button type="button" onClick={() => moveForestAvatar("ArrowLeft")} aria-label={"\uC67C\uCABD \uC774\uB3D9"}>{"\u2190"}</button>
-                    <button type="button" onClick={() => moveForestAvatar("ArrowDown")} aria-label={"\uC544\uB798\uB85C \uC774\uB3D9"}>{"\u2193"}</button>
-                    <button type="button" onClick={() => moveForestAvatar("ArrowRight")} aria-label={"\uC624\uB978\uCABD \uC774\uB3D9"}>{"\u2192"}</button>
-                  </div>
-                  <p>{"\uD0A4\uBCF4\uB4DC \uD654\uC0B4\uD45C/WASD \uB610\uB294 \uD130\uCE58 \uBC84\uD2BC\uC73C\uB85C \uC774\uB3D9\uD560 \uC218 \uC788\uACE0, \uC870\uC791\uD558\uC9C0 \uC54A\uC73C\uBA74 \uC790\uB3D9\uC73C\uB85C \uC0B0\uCC45\uD569\uB2C8\uB2E4."}</p>
-                </div>
-              </div>
-
-              <div className="forest-status-card">
-                <p className="eyebrow">tree status</p>
-                <h3>{studyForestState.currentTree.label}</h3>
-                <div className="forest-progress-track"><span style={{ width: forestProgressPercent + "%" }} /></div>
-                <p>{"\uD604\uC7AC \uC5F0\uC18D \uCD9C\uC11D "}{studyForestState.currentStreak}{"\uC77C \u00B7 \uB098\uBB34 \uC131\uC7A5 "}{studyForestState.currentTree.progressDays}{"/7\uC77C"}</p>
-
-                <div className="forest-next-level-card">
-                  <div>
-                    <Sparkles size={19} />
-                    <span>
-                      {"\uB2E4\uC74C \uC131\uC7A5 \u00B7 "}
-                      {forestNextLevel.remainingDays}
-                      {"\uC77C \uD6C4"}
-                    </span>
-                  </div>
-                  <strong>{forestNextLevel.title}</strong>
-                  <p>{forestNextLevel.description}</p>
-                  <small className="forest-interior-unlock">
-                    {"\uC778\uD14C\uB9AC\uC5B4 \uD574\uAE08 \u00B7 "}
-                    {forestNextLevel.interiorUnlock}
-                  </small>
-                </div>
-
-                <ol className="forest-level-roadmap" aria-label={"\uB098\uBB34 \uC131\uC7A5 \uB2E8\uACC4"}>
-                  {forestLevelMilestones.map((milestone) => {
-                    const progressDays = studyForestState.currentTree.progressDays;
-                    const milestoneState = progressDays >= milestone.days
-                      ? "complete"
-                      : forestNextLevel.targetDays === milestone.days
-                        ? "next"
-                        : "locked";
-                    return (
-                      <li key={milestone.days} data-state={milestoneState}>
-                        <span>{milestone.days}{"\uC77C"}</span>
-                        <div>
-                          <strong>{milestone.label}</strong>
-                          <small>{milestone.update}</small>
-                          <small className="forest-interior-unlock">{milestone.interiorUnlock}</small>
-                        </div>
-                      </li>
-                    );
-                  })}
-                </ol>
-
-                <div className="forest-status-list">
-                  <div><MapIcon size={18} /><span>{"\uC644\uC131\uB41C \uB098\uBB34\uB294 \uCD9C\uC11D \uC2E4\uD328\uD574\uB3C4 \uAC1C\uC778 \uACF5\uAC04\uC5D0 \uB0A8\uC2B5\uB2C8\uB2E4."}</span></div>
-                  <div><Sprout size={18} /><span>{"\uACB0\uC11D\uD558\uBA74 \uD604\uC7AC \uD0A4\uC6B0\uB294 \uB098\uBB34\uB9CC \uC2DC\uB4E4\uACE0, \uB2E4\uC74C \uCD9C\uC11D\uBD80\uD130 \uB2E4\uC2DC \uC790\uB78D\uB2C8\uB2E4."}</span></div>
-                  <div><TreePine size={18} /><span>{"7\uC77C\uB9C8\uB2E4 \uB098\uBB34 1\uADF8\uB8E8\uAC00 \uC644\uC131\uB418\uACE0 \uC232\uC5D0 \uBC30\uCE58\uB429\uB2C8\uB2E4."}</span></div>
-                </div>
-              </div>
-            </div>
-          </section>
+          <Suspense fallback={<div className="study-forest-3d-shell" role="status">3D 공부의 숲을 불러오는 중...</div>}>
+            <StudyForestSection
+              userId={session.user.id}
+              todayDateKey={todayDateKey}
+              attendanceDays={attendanceDays}
+            />
+          </Suspense>
         )}
+
 
         {activeSection === "me" && (
         <section id="me" className="history-panel my-page-panel">
@@ -5503,6 +5294,16 @@ function DashboardApp() {
               <strong>{todoHistoryStats.monthCompletedTodos}개</strong>
             </div>
           </div>
+
+          <Suspense fallback={<div className="weekly-review-card" role="status">주간 리뷰를 불러오는 중...</div>}>
+            <WeeklyReviewSection
+              todayDateKey={todayDateKey}
+              sessions={studySessions}
+              todos={studyTodos}
+              attendanceDays={attendanceDays}
+              reflections={studySessionReflections}
+            />
+          </Suspense>
 
           {renderRecoverySummaryPanel()}
 
@@ -5621,6 +5422,18 @@ function DashboardApp() {
               </>
             )}
           </div>
+
+          <Suspense fallback={<div className="adaptive-reminder-card" role="status">적응형 알림을 계산하는 중...</div>}>
+            <AdaptiveReminderCard
+              sessions={studySessions}
+              todayDateKey={todayDateKey}
+              timeZone={timeZone}
+              currentReminderTime={profile?.reminder_time ?? reminderTime}
+              enabled={adaptiveRemindersEnabled}
+              busy={busy}
+              onApply={(enabled, recommendedTime) => void saveAdaptiveReminderSettings(enabled, recommendedTime)}
+            />
+          </Suspense>
 
           <div className="notification-channel-card">
             <div className="channel-card-header">

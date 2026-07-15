@@ -586,3 +586,31 @@ docs/images/study-room-thumbnail.png
 - Attendance reward furniture collision areas must carry the same reward key used by `getForestInteriorRewards()`.
 - Keyboard, touch-button, and click-to-walk movement must pass the current reward map into the same pure collision helpers.
 - A hidden or locked reward prop must never reserve invisible floor space.
+
+## Sustainable Study Loop and Feature Bundles (2026-07-15)
+
+### Architecture
+
+- 전역 인증, 공통 조회, 라우팅 조정은 `main.tsx`에 두고 숲, 세션 회고, 주간 리뷰, 적응형 알림 UI는 각각 지연 로딩되는 독립 컴포넌트로 분리한다.
+- 주간 리뷰와 적응형 알림 계산은 React 밖의 결정적 helper에서 수행한다.
+- `start_study_session(uuid[])`는 인증 사용자의 미완료 당일 할 일을 검증하고 세션과 링크를 한 트랜잭션으로 만든다.
+- `complete_study_session(...)`는 선택한 할 일 완료, 세션 종료, 링크 완료 표시, 회고 저장을 한 트랜잭션으로 처리한다.
+- `study_session_reflections`와 `study_forest_preferences`는 사용자 소유 RLS와 최소 테이블 권한을 사용한다.
+- 적응형 알림 트리거는 최근 28일의 날짜별 첫 완료 세션 시작 시각 중앙값을 15분 단위로 보정하며 최소 3일 표본을 요구한다.
+
+### Mobile Policy
+
+- Expo 앱도 웹과 동일하게 하나 이상의 사용자 소유 미완료 당일 할 일을 선택해야 세션을 시작할 수 있다.
+- 비동기 인증, 조회, 저장, 세션 RPC는 사용자에게 오류를 표시하고 `finally`에서 busy/loading 상태를 해제한다.
+- 모든 화면 상태는 밝은 캔버스와 `dark-content` StatusBar를 사용한다.
+
+### Bundle Strategy
+
+- Three.js, Supabase SDK, MediaPipe, React 런타임을 수동 청크로 분리한다.
+- 숲, 회고, 주간 리뷰, 적응형 알림 컴포넌트는 `React.lazy`로 필요할 때만 로드한다.
+- Three.js는 패키지 배포 단위 자체가 약 520 kB인 지연 청크이므로 경고 한도를 550 kB로 두고, 메인 앱 청크는 약 152 kB로 유지한다.
+
+### Testing and Deployment
+
+- helper 단위 테스트, UI 소스 계약 테스트, SQL 마이그레이션 계약 테스트, 모바일 typecheck, 전체 테스트, Vite production build를 배포 게이트로 사용한다.
+- 스키마 변경은 Supabase MCP로 적용하고 RLS, 정책 수, 역할 권한, 함수 실행 권한, advisors를 확인한다.

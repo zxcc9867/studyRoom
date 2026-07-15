@@ -4271,3 +4271,52 @@
 #### Remaining Work
 
 - None in code; publication verification will be reported in the task result.
+
+### 2026-07-15
+
+#### 완료한 작업
+
+- 공부의 숲 완성 나무 수 기반 섬 테마, 집 포인트 색상, 야외 대표 보상 선택과 저장을 추가했다.
+- 정확히 7일인 경우 완성 나무 하나와 새 씨앗만 표시하고, 출석 날짜 공백이 있으면 현재 연속일이 끊기도록 수정했다.
+- 세션 종료 회고, 이번 주/지난 주 비교, 최근 시작 패턴 기반 적응형 알림을 추가했다.
+- 웹과 모바일 모두 미완료 당일 할 일을 선택해야 서버에서 세션을 시작하도록 통일했다.
+- 모바일 인증/조회/저장/RPC 오류를 표시하고 모든 비동기 상태를 안전하게 해제하도록 수정했다.
+- 웹 기능 컴포넌트를 지연 로딩하고 React, Supabase, MediaPipe, Three.js 청크를 분리했다.
+- Supabase MCP로 `20260712142233_sustainable_study_loop.sql`을 원격 적용했다.
+- 신규 테이블 RLS, 정책 3개씩, 익명 테이블 권한 0개, 인증 RPC 실행 권한과 내부 트리거 권한을 확인했다.
+
+#### 변경된 파일
+
+- `apps/mobile/App.tsx`
+- `apps/web/src/main.tsx`
+- `apps/web/src/StudyForest3D.tsx`
+- `apps/web/src/StudyForestSection.tsx`
+- `apps/web/src/SessionReflectionModal.tsx`
+- `apps/web/src/WeeklyReviewSection.tsx`
+- `apps/web/src/AdaptiveReminderCard.tsx`
+- `apps/web/src/studyForest.mjs`
+- `apps/web/src/forestCustomization.mjs`
+- `apps/web/src/weeklyReview.mjs`
+- `apps/web/src/adaptiveReminder.mjs`
+- `apps/web/src/styles.css`
+- `apps/web/vite.config.ts`
+- `apps/web/test/sustainableStudyLoop.test.mjs`
+- `supabase/migrations/20260712142233_sustainable_study_loop.sql`
+
+#### 검증 방법
+
+- 지속 학습/숲 대상 테스트 28개 통과.
+- Expo 모바일 `tsc --noEmit` 통과.
+- Vite production build 통과; 메인 JS 약 152 kB, Three.js는 별도 지연 청크 약 520 kB.
+- 로컬 preview `http://127.0.0.1:4173` HTTP 200 확인.
+- Supabase 원격 마이그레이션 `20260715122401_sustainable_study_loop` 적용 확인.
+- Supabase advisors 실행; 이번 신규 객체의 RLS 누락 또는 익명 실행 권한 문제는 발견되지 않았다.
+
+#### 남은 작업
+
+- 전체 `npm.cmd test`와 최종 `npm.cmd run build`.
+- 커밋, `origin/main` 푸시, GitHub Actions/Vercel 프로덕션 확인.
+
+#### 다음 우선순위
+
+- 배포 후 실제 로그인 계정으로 회고 저장, 숲 설정 유지, 모바일 실기기 UI를 수동 확인한다.

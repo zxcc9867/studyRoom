@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import * as THREE from "three";
+import type { ForestPreferences } from "./forestCustomization.mjs";
 
 import {
   getForestBlockedReason,
@@ -28,6 +29,7 @@ type StudyForest3DProps = {
   avatar: StudyForestAvatarPosition & { facing: StudyForestAvatarFacing };
   interiorAvatar: StudyForestAvatarPosition & { facing: StudyForestAvatarFacing };
   sceneMode: StudyForestSceneMode;
+  customization: ForestPreferences;
   onMoveTarget: (target: AvatarTarget) => void;
   onInteriorMoveTarget: (target: AvatarTarget) => void;
   onSceneModeChange: (mode: StudyForestSceneMode) => void;
@@ -82,6 +84,23 @@ const palette = {
   shirt: 0x69a783,
   gold: 0xf3cf63,
 } as const;
+
+const FOREST_THEME_STYLES = {
+  spring: {
+    sky: 0xbfe9f2, fog: 0xdff4e8, grass: 0x8bcf74, grassDark: 0x4f916f,
+    soil: 0x986b48, sand: 0xe9c978, water: 0x73c9dc, waterLight: 0xb8edf2, path: 0xf0d58a,
+  },
+  harvest: {
+    sky: 0xf2d6a2, fog: 0xf5e5bf, grass: 0xc0b45c, grassDark: 0x7f8c4c,
+    soil: 0x9f6941, sand: 0xf0d48b, water: 0x79bfd0, waterLight: 0xc2e9e8, path: 0xe9c27a,
+  },
+  moonlight: {
+    sky: 0x667ea6, fog: 0x8295a9, grass: 0x6f9b79, grassDark: 0x405f5d,
+    soil: 0x665a58, sand: 0xb8ae83, water: 0x5e8eaa, waterLight: 0x9cc4cf, path: 0xb9ad80,
+  },
+} as const;
+
+const COTTAGE_ACCENT_COLORS = { mint: 0x69a783, coral: 0xd86f51, honey: 0xd9a441 } as const;
 
 const TIME_ENVIRONMENTS: Record<StudyForestTimePhase, {
   sky: number;
@@ -225,13 +244,13 @@ function enableShadows(object: THREE.Object3D) {
   });
 }
 
-function createIsland(scene: THREE.Scene) {
+function createIsland(scene: THREE.Scene, theme: (typeof FOREST_THEME_STYLES)[keyof typeof FOREST_THEME_STYLES]) {
   const island = new THREE.Group();
   island.name = "low-poly-study-island";
 
   const earth = new THREE.Mesh(
     new THREE.CylinderGeometry(7.15, 6.1, 1.5, 14),
-    standardMaterial(palette.soil),
+    standardMaterial(theme.soil),
   );
   earth.position.y = -0.7;
   earth.receiveShadow = true;
@@ -239,7 +258,7 @@ function createIsland(scene: THREE.Scene) {
 
   const sand = new THREE.Mesh(
     new THREE.CylinderGeometry(7.25, 7.08, 0.34, 14),
-    standardMaterial(palette.sand),
+    standardMaterial(theme.sand),
   );
   sand.position.y = -0.06;
   sand.receiveShadow = true;
@@ -247,7 +266,7 @@ function createIsland(scene: THREE.Scene) {
 
   const meadow = new THREE.Mesh(
     new THREE.CylinderGeometry(6.78, 6.95, 0.48, 14),
-    standardMaterial(palette.grass),
+    standardMaterial(theme.grass),
   );
   meadow.position.y = 0.2;
   meadow.receiveShadow = true;
@@ -255,13 +274,13 @@ function createIsland(scene: THREE.Scene) {
 
   const rim = new THREE.Mesh(
     new THREE.TorusGeometry(6.82, 0.1, 5, 14),
-    standardMaterial(palette.grassDark),
+    standardMaterial(theme.grassDark),
   );
   rim.rotation.x = Math.PI / 2;
   rim.position.y = 0.47;
   island.add(rim);
 
-  const pathMaterial = standardMaterial(palette.path);
+  const pathMaterial = standardMaterial(theme.path);
   const pathPoints = [
     [-2.8, 2.9],
     [-2.1, 2.2],
@@ -283,11 +302,11 @@ function createIsland(scene: THREE.Scene) {
   return island;
 }
 
-function createRiver(scene: THREE.Scene) {
+function createRiver(scene: THREE.Scene, theme: (typeof FOREST_THEME_STYLES)[keyof typeof FOREST_THEME_STYLES]) {
   const river = new THREE.Group();
   river.name = "river";
 
-  const waterMaterial = standardMaterial(palette.water, {
+  const waterMaterial = standardMaterial(theme.water, {
     roughness: 0.26,
     emissive: new THREE.Color(0x2f91a4),
     emissiveIntensity: 0.12,
@@ -311,7 +330,7 @@ function createRiver(scene: THREE.Scene) {
 
   const sparkle = new THREE.Mesh(
     new THREE.BoxGeometry(9.8, 0.015, 0.08),
-    new THREE.MeshBasicMaterial({ color: palette.waterLight, transparent: true, opacity: 0.72 }),
+    new THREE.MeshBasicMaterial({ color: theme.waterLight, transparent: true, opacity: 0.72 }),
   );
   sparkle.position.set(-0.2, 0.57, 0.65);
   sparkle.rotation.y = 0.02;
@@ -352,7 +371,7 @@ function createBridge(scene: THREE.Scene) {
   return bridge;
 }
 
-function createCottage(scene: THREE.Scene) {
+function createCottage(scene: THREE.Scene, accentColor: number) {
   const cottage = new THREE.Group();
   cottage.name = "study-cottage";
   cottage.position.set(-3.55, 0.54, -2.25);
@@ -367,7 +386,7 @@ function createCottage(scene: THREE.Scene) {
 
   const roof = new THREE.Mesh(
     new THREE.ConeGeometry(1.9, 1.35, 4),
-    standardMaterial(palette.roof),
+    standardMaterial(accentColor),
   );
   roof.position.y = 2.05;
   roof.rotation.y = Math.PI / 4;
@@ -406,6 +425,7 @@ function createCottageInterior(
   scene: THREE.Scene,
   rewards: StudyForestInteriorRewards,
   timePhase: StudyForestTimePhase,
+  accentColor: number,
 ) {
   const room = new THREE.Group();
   room.name = "cozy-study-cottage-interior";
@@ -435,7 +455,7 @@ function createCottageInterior(
   if (rewards.rug) {
   const rug = new THREE.Mesh(
     new THREE.CircleGeometry(1.72, 16),
-    standardMaterial(palette.coral),
+    standardMaterial(accentColor),
   );
   rug.name = "cottage-reading-rug";
   rug.rotation.x = -Math.PI / 2;
@@ -479,7 +499,7 @@ function createCottageInterior(
   notebook.position.set(0.2, 1.24, 0);
   notebook.rotation.y = -0.12;
   desk.add(notebook);
-  const mug = new THREE.Mesh(new THREE.CylinderGeometry(0.14, 0.13, 0.28, 8), standardMaterial(palette.coral));
+  const mug = new THREE.Mesh(new THREE.CylinderGeometry(0.14, 0.13, 0.28, 8), standardMaterial(accentColor));
   mug.position.set(-0.72, 1.37, -0.2);
   desk.add(mug);
   room.add(desk);
@@ -544,7 +564,7 @@ function createCottageInterior(
   const plant = new THREE.Group();
   plant.name = "cottage-houseplant";
   plant.position.set(3.55, 0.12, 1.85);
-  const pot = new THREE.Mesh(new THREE.CylinderGeometry(0.42, 0.3, 0.62, 8), standardMaterial(palette.coral));
+  const pot = new THREE.Mesh(new THREE.CylinderGeometry(0.42, 0.3, 0.62, 8), standardMaterial(accentColor));
   pot.position.y = 0.3;
   plant.add(pot);
   for (const rotation of [-0.7, 0, 0.7]) {
@@ -701,6 +721,69 @@ function createGarden(scene: THREE.Scene) {
   enableShadows(garden);
   scene.add(garden);
   return garden;
+}
+
+function createFeaturedReward(scene: THREE.Scene, reward: ForestPreferences["featuredReward"], accentColor: number) {
+  if (reward === "none") return null;
+  const group = new THREE.Group();
+  group.name = `forest-featured-reward-${reward}`;
+  group.position.set(4.7, 0.55, -2.75);
+
+  if (reward === "birdhouse") {
+    const post = new THREE.Mesh(new THREE.CylinderGeometry(0.07, 0.1, 1.75, 7), standardMaterial(palette.wood));
+    post.position.y = 0.82;
+    group.add(post);
+    const house = new THREE.Mesh(new THREE.BoxGeometry(0.8, 0.65, 0.7), standardMaterial(accentColor));
+    house.position.y = 1.78;
+    group.add(house);
+    const roof = new THREE.Mesh(new THREE.ConeGeometry(0.62, 0.48, 4), standardMaterial(palette.cream));
+    roof.position.y = 2.22;
+    roof.rotation.y = Math.PI / 4;
+    group.add(roof);
+    const opening = new THREE.Mesh(new THREE.CylinderGeometry(0.12, 0.12, 0.05, 10), standardMaterial(palette.dark));
+    opening.rotation.x = Math.PI / 2;
+    opening.position.set(0, 1.82, 0.37);
+    group.add(opening);
+  }
+
+  if (reward === "picnic") {
+    const blanket = new THREE.Mesh(new THREE.BoxGeometry(2.0, 0.05, 1.45), standardMaterial(accentColor));
+    blanket.position.y = 0.05;
+    group.add(blanket);
+    const basket = new THREE.Mesh(new THREE.BoxGeometry(0.72, 0.52, 0.56), standardMaterial(palette.woodLight));
+    basket.position.set(0.48, 0.3, 0.14);
+    group.add(basket);
+    for (const offset of [-0.45, 0]) {
+      const book = new THREE.Mesh(new THREE.BoxGeometry(0.45, 0.08, 0.62), standardMaterial(offset < 0 ? palette.cream : palette.gold));
+      book.position.set(offset, 0.15, -0.2);
+      book.rotation.y = offset * 0.3;
+      group.add(book);
+    }
+  }
+
+  if (reward === "campfire") {
+    for (const rotation of [-0.7, 0.7]) {
+      const log = new THREE.Mesh(new THREE.CylinderGeometry(0.11, 0.13, 1.35, 7), standardMaterial(palette.wood));
+      log.rotation.z = Math.PI / 2;
+      log.rotation.y = rotation;
+      log.position.y = 0.18;
+      group.add(log);
+    }
+    const flame = new THREE.Mesh(
+      new THREE.ConeGeometry(0.45, 1.0, 7),
+      standardMaterial(palette.gold, { emissive: new THREE.Color(0xff7b3c), emissiveIntensity: 0.85 }),
+    );
+    flame.name = "forest-campfire-flame";
+    flame.position.y = 0.78;
+    group.add(flame);
+    const glow = new THREE.PointLight(0xff914d, 4.2, 6, 2);
+    glow.position.y = 1.15;
+    group.add(glow);
+  }
+
+  enableShadows(group);
+  scene.add(group);
+  return group;
 }
 
 function createLantern(scene: THREE.Scene, x: number, z: number) {
@@ -882,6 +965,7 @@ export function StudyForest3D({
   avatar,
   interiorAvatar,
   sceneMode,
+  customization,
   onMoveTarget,
   onInteriorMoveTarget,
   onSceneModeChange,
@@ -935,9 +1019,13 @@ export function StudyForest3D({
 
     const environment = TIME_ENVIRONMENTS[timePhase];
     const interiorRewards = getForestInteriorRewards(currentTreeProgressDays, completedTreeCount);
+    const themeStyle = FOREST_THEME_STYLES[customization.islandTheme];
+    const accentColor = COTTAGE_ACCENT_COLORS[customization.cottageAccent];
+    const themedSky = new THREE.Color(environment.sky).lerp(new THREE.Color(themeStyle.sky), 0.36).getHex();
+    const themedFog = new THREE.Color(environment.fog).lerp(new THREE.Color(themeStyle.fog), 0.3).getHex();
     const sceneBackground = sceneMode === "interior"
       ? (timePhase === "night" ? 0x5d5268 : timePhase === "sunset" ? 0xe9b58f : 0xffe8bd)
-      : environment.sky;
+      : themedSky;
 
     let renderer: THREE.WebGLRenderer;
     try {
@@ -967,7 +1055,7 @@ export function StudyForest3D({
 
     const scene = new THREE.Scene();
     scene.background = new THREE.Color(sceneBackground);
-    scene.fog = sceneMode === "interior" ? null : new THREE.Fog(environment.fog, 14, 28);
+    scene.fog = sceneMode === "interior" ? null : new THREE.Fog(themedFog, 14, 28);
 
     const camera = new THREE.OrthographicCamera(-8, 8, 5.5, -5.5, 0.1, 60);
     if (sceneMode === "interior") {
@@ -1011,12 +1099,13 @@ export function StudyForest3D({
 
     if (sceneMode === "island") {
       createCelestialDetails(scene, timePhase);
-      createIsland(scene);
-      river = createRiver(scene);
+      createIsland(scene, themeStyle);
+      river = createRiver(scene, themeStyle);
       createBridge(scene);
-      const cottage = createCottage(scene);
+      const cottage = createCottage(scene, accentColor);
       cottageDoor = cottage.door;
       createGarden(scene);
+      createFeaturedReward(scene, customization.featuredReward, accentColor);
       createLantern(scene, -1.8, -1.25);
       createLantern(scene, 2.25, 2.15);
       if (timePhase === "sunset" || timePhase === "night") {
@@ -1059,7 +1148,7 @@ export function StudyForest3D({
       interactionPlane.position.y = 0.56;
       scene.add(interactionPlane);
     } else {
-      createCottageInterior(scene, interiorRewards, timePhase);
+      createCottageInterior(scene, interiorRewards, timePhase, accentColor);
       avatarGroup.scale.setScalar(0.84);
       avatarGroup.position.copy(interiorAvatarWorldRef.current);
       avatarGroup.rotation.y = facingRotation(interiorAvatarFacingRef.current);
@@ -1220,7 +1309,16 @@ export function StudyForest3D({
       renderer.dispose();
       renderer.domElement.remove();
     };
-  }, [completedTreeCount, currentTreeProgressDays, currentTreeStage, sceneMode, timePhase]);
+  }, [
+    completedTreeCount,
+    currentTreeProgressDays,
+    currentTreeStage,
+    customization.cottageAccent,
+    customization.featuredReward,
+    customization.islandTheme,
+    sceneMode,
+    timePhase,
+  ]);
 
   return (
     <div

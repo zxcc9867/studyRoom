@@ -55,6 +55,15 @@ type StudySession = {
   status: "active" | "completed" | "cancelled";
 };
 
+type StudyTodo = {
+  id: string;
+  user_id: string;
+  local_date: string;
+  title: string;
+  is_completed: boolean;
+  position: number;
+};
+
 export default function App() {
   const [session, setSession] = useState<Session | null>(null);
   const [email, setEmail] = useState("");
@@ -65,21 +74,37 @@ export default function App() {
   const [profile, setProfile] = useState<Profile | null>(null);
   const [attendance, setAttendance] = useState<AttendanceDay | null>(null);
   const [sessions, setSessions] = useState<StudySession[]>([]);
+  const [studyTodos, setStudyTodos] = useState<StudyTodo[]>([]);
+  const [selectedSessionTodoIds, setSelectedSessionTodoIds] = useState<string[]>([]);
+  const [quickTodoTitle, setQuickTodoTitle] = useState("");
   const [reminderTime, setReminderTime] = useState("20:30");
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
 
   useEffect(() => {
-    supabase.auth.getSession().then(({ data }) => {
-      setSession(data.session);
-      setLoading(false);
-    });
+    let cancelled = false;
 
+    async function restoreSession() {
+      try {
+        const { data, error } = await supabase.auth.getSession();
+        if (error) throw error;
+        if (!cancelled) setSession(data.session);
+      } catch (error) {
+        if (!cancelled) Alert.alert("세션 확인 실패", formatError(error));
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    }
+
+    void restoreSession();
     const { data } = supabase.auth.onAuthStateChange((_event, nextSession) => {
       setSession(nextSession);
     });
 
-    return () => data.subscription.unsubscribe();
+    return () => {
+      cancelled = true;
+      data.subscription.unsubscribe();
+    };
   }, []);
 
   useEffect(() => {
@@ -97,6 +122,14 @@ export default function App() {
     () => sessions.find((item) => item.status === "active") ?? null,
     [sessions],
   );
+  const todayDateKey = useMemo(
+    () => getLocalDateKey(new Date(), profile?.time_zone ?? Intl.DateTimeFormat().resolvedOptions().timeZone),
+    [profile?.time_zone],
+  );
+  const todayTodos = useMemo(
+    () => studyTodos.filter((todo) => todo.local_date === todayDateKey && !todo.is_completed),
+    [studyTodos, todayDateKey],
+  );
   const totalSeconds = sessions.reduce((sum, item) => sum + item.duration_seconds, 0);
   const resendSeconds = Math.max(0, Math.ceil((resendAvailableAt - nowMs) / 1000));
 
@@ -112,21 +145,21 @@ export default function App() {
     }
 
     setBusy(true);
-    const { error } = await supabase.auth.signInWithOtp({
-      email: nextEmail,
-      options: { shouldCreateUser: true },
-    });
-    setBusy(false);
-
-    if (error) {
-      if (isRateLimitError(error.message)) {
-        setResendAvailableAt(Date.now() + retryCooldownMs);
-      }
-      Alert.alert("코드 전송 실패", formatAuthError(error.message));
-    } else {
+    try {
+      const { error } = await supabase.auth.signInWithOtp({
+        email: nextEmail,
+        options: { shouldCreateUser: true },
+      });
+      if (error) throw error;
       setCodeSent(true);
       setResendAvailableAt(Date.now() + 60_000);
       Alert.alert("코드를 보냈습니다", "이메일로 받은 6자리 코드를 입력하세요.");
+    } catch (error) {
+      const message = formatError(error);
+      if (isRateLimitError(message)) setResendAvailableAt(Date.now() + retryCooldownMs);
+      Alert.alert("코드 전송 실패", formatAuthError(message));
+    } finally {
+      setBusy(false);
     }
   }
 
@@ -139,64 +172,129 @@ export default function App() {
     }
 
     setBusy(true);
-    const { error } = await supabase.auth.verifyOtp({
-      email: nextEmail,
-      token,
-      type: "email",
-    });
-    setBusy(false);
-
-    if (error) {
-      Alert.alert("로그인 실패", formatAuthError(error.message));
+    try {
+      const { error } = await supabase.auth.verifyOtp({ email: nextEmail, token, type: "email" });
+      if (error) throw error;
+    } catch (error) {
+      Alert.alert("로그인 실패", formatAuthError(formatError(error)));
+    } finally {
+      setBusy(false);
     }
   }
 
   async function refreshData(userId: string) {
     setBusy(true);
-
-    const [{ data: profileData }, { data: attendanceData }, { data: sessionsData }] = await Promise.all([
-      supabase.from("profiles").select("*").eq("user_id", userId).maybeSingle(),
-      supabase
-        .from("attendance_days")
+    try {
+      const { data: profileData, error: profileError } = await supabase
+        .from("profiles")
         .select("*")
         .eq("user_id", userId)
-        .order("local_date", { ascending: false })
-        .limit(1)
-        .maybeSingle(),
-      supabase
-        .from("study_sessions")
-        .select("*")
-        .eq("user_id", userId)
-        .order("started_at", { ascending: false })
-        .limit(20),
-    ]);
+        .maybeSingle();
+      if (profileError) throw profileError;
 
-    if (profileData) {
-      setProfile(profileData);
-      setReminderTime(profileData.reminder_time.slice(0, 5));
+      const resolvedTimeZone = profileData?.time_zone ?? Intl.DateTimeFormat().resolvedOptions().timeZone;
+      const localDate = getLocalDateKey(new Date(), resolvedTimeZone);
+      const [attendanceResult, sessionsResult, todosResult] = await Promise.all([
+        supabase
+          .from("attendance_days")
+          .select("*")
+          .eq("user_id", userId)
+          .order("local_date", { ascending: false })
+          .limit(1)
+          .maybeSingle(),
+        supabase
+          .from("study_sessions")
+          .select("*")
+          .eq("user_id", userId)
+          .order("started_at", { ascending: false })
+          .limit(20),
+        supabase
+          .from("study_todos")
+          .select("id,user_id,local_date,title,is_completed,position")
+          .eq("user_id", userId)
+          .eq("local_date", localDate)
+          .eq("is_completed", false)
+          .order("position", { ascending: true }),
+      ]);
+      const queryError = attendanceResult.error ?? sessionsResult.error ?? todosResult.error;
+      if (queryError) throw queryError;
+
+      if (profileData) {
+        setProfile(profileData as Profile);
+        setReminderTime(profileData.reminder_time.slice(0, 5));
+      }
+      setAttendance((attendanceResult.data ?? null) as AttendanceDay | null);
+      setSessions((sessionsResult.data ?? []) as StudySession[]);
+      const nextTodos = (todosResult.data ?? []) as StudyTodo[];
+      setStudyTodos(nextTodos);
+      setSelectedSessionTodoIds((current) => {
+        const validIds = new Set(nextTodos.map((todo) => todo.id));
+        const retained = current.filter((id) => validIds.has(id));
+        return retained.length > 0 ? retained : nextTodos.map((todo) => todo.id);
+      });
+    } catch (error) {
+      Alert.alert("데이터 불러오기 실패", formatError(error));
+    } finally {
+      setBusy(false);
     }
-    setAttendance(attendanceData ?? null);
-    setSessions(sessionsData ?? []);
-    setBusy(false);
   }
 
   async function saveReminder() {
-    if (!session?.user.id) {
+    if (!session?.user.id) return;
+
+    setBusy(true);
+    try {
+      const { error } = await supabase
+        .from("profiles")
+        .update({ reminder_time: reminderTime, time_zone: Intl.DateTimeFormat().resolvedOptions().timeZone })
+        .eq("user_id", session.user.id);
+      if (error) throw error;
+      await refreshData(session.user.id);
+    } catch (error) {
+      Alert.alert("저장 실패", formatError(error));
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function addQuickTodo() {
+    if (!session?.user.id) return;
+    const title = quickTodoTitle.trim();
+    if (!title) {
+      Alert.alert("할 일 입력", "세션에서 공부할 할 일을 입력하세요.");
       return;
     }
 
     setBusy(true);
-    const { error } = await supabase
-      .from("profiles")
-      .update({ reminder_time: reminderTime, time_zone: Intl.DateTimeFormat().resolvedOptions().timeZone })
-      .eq("user_id", session.user.id);
-    setBusy(false);
-
-    if (error) {
-      Alert.alert("저장 실패", error.message);
-    } else {
-      await refreshData(session.user.id);
+    try {
+      const position = studyTodos.reduce((max, todo) => Math.max(max, todo.position + 1), 0);
+      const { data, error } = await supabase
+        .from("study_todos")
+        .insert({
+          user_id: session.user.id,
+          local_date: todayDateKey,
+          title,
+          is_completed: false,
+          position,
+        })
+        .select("id,user_id,local_date,title,is_completed,position")
+        .single();
+      if (error) throw error;
+      const created = data as StudyTodo;
+      setStudyTodos((current) => [...current, created]);
+      setSelectedSessionTodoIds((current) => [...new Set([...current, created.id])]);
+      setQuickTodoTitle("");
+    } catch (error) {
+      Alert.alert("할 일 추가 실패", formatError(error));
+    } finally {
+      setBusy(false);
     }
+  }
+
+  function toggleSessionTodo(todoId: string) {
+    setSelectedSessionTodoIds((current) =>
+      current.includes(todoId) ? current.filter((id) => id !== todoId) : [...current, todoId],
+    );
   }
 
   async function enablePush() {
@@ -216,30 +314,38 @@ export default function App() {
   }
 
   async function startTimer() {
-    setBusy(true);
-    const { error } = await supabase.rpc("start_study_session");
-    setBusy(false);
-
-    if (error) {
-      Alert.alert("시작 실패", error.message);
-    } else if (session?.user.id) {
-      await refreshData(session.user.id);
-    }
-  }
-
-  async function endTimer() {
-    if (!activeSession) {
+    if (!session?.user.id) return;
+    if (selectedSessionTodoIds.length === 0) {
+      Alert.alert("세션 할 일 필요", "오늘의 미완료 할 일을 하나 이상 선택하세요.");
       return;
     }
 
     setBusy(true);
-    const { error } = await supabase.rpc("end_study_session", { p_session_id: activeSession.id });
-    setBusy(false);
-
-    if (error) {
-      Alert.alert("종료 실패", error.message);
-    } else if (session?.user.id) {
+    try {
+      const { error } = await supabase.rpc("start_study_session", {
+        p_todo_ids: selectedSessionTodoIds,
+      });
+      if (error) throw error;
       await refreshData(session.user.id);
+    } catch (error) {
+      Alert.alert("시작 실패", formatError(error));
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function endTimer() {
+    if (!activeSession || !session?.user.id) return;
+
+    setBusy(true);
+    try {
+      const { error } = await supabase.rpc("end_study_session", { p_session_id: activeSession.id });
+      if (error) throw error;
+      await refreshData(session.user.id);
+    } catch (error) {
+      Alert.alert("종료 실패", formatError(error));
+    } finally {
+      setBusy(false);
     }
   }
 
@@ -255,7 +361,6 @@ export default function App() {
   if (!session) {
     return (
       <SafeAreaView style={styles.screen}>
-      <StatusBar barStyle="dark-content" backgroundColor={mobilePalette.canvas} />
         <StatusBar barStyle="dark-content" backgroundColor={mobilePalette.canvas} />
         <View style={styles.loginPanel}>
           <Text style={styles.kicker}>forced attendance</Text>
@@ -300,6 +405,7 @@ export default function App() {
 
   return (
     <SafeAreaView style={styles.screen}>
+      <StatusBar barStyle="dark-content" backgroundColor={mobilePalette.canvas} />
       <ScrollView contentContainerStyle={styles.content}>
         <View style={styles.header}>
           <View>
@@ -331,9 +437,63 @@ export default function App() {
           </View>
         </View>
 
+        <View style={styles.todoPanel}>
+          <View style={styles.todoPanelHeader}>
+            <View style={styles.todoPanelHeading}>
+              <Text style={styles.sectionTitle}>오늘 세션 할 일</Text>
+              <Text style={styles.copy}>웹과 같은 정책으로 하나 이상 선택해야 타이머를 시작할 수 있어요.</Text>
+            </View>
+            <Text style={styles.todoCount}>{selectedSessionTodoIds.length}개 선택</Text>
+          </View>
+
+          {todayTodos.length === 0 ? (
+            <Text style={styles.emptyTodo}>오늘의 미완료 할 일이 없습니다. 아래에서 바로 추가하세요.</Text>
+          ) : (
+            <View style={styles.todoChoices}>
+              {todayTodos.map((todo) => {
+                const selected = selectedSessionTodoIds.includes(todo.id);
+                return (
+                  <Pressable
+                    key={todo.id}
+                    accessibilityRole="checkbox"
+                    accessibilityState={{ checked: selected, disabled: busy || Boolean(activeSession) }}
+                    style={[styles.todoChoice, selected ? styles.todoChoiceSelected : null]}
+                    disabled={busy || Boolean(activeSession)}
+                    onPress={() => toggleSessionTodo(todo.id)}
+                  >
+                    <View style={[styles.todoCheck, selected ? styles.todoCheckSelected : null]}>
+                      <Text style={styles.todoCheckText}>{selected ? "✓" : ""}</Text>
+                    </View>
+                    <Text style={styles.todoChoiceText}>{todo.title}</Text>
+                  </Pressable>
+                );
+              })}
+            </View>
+          )}
+
+          <View style={styles.quickTodoRow}>
+            <TextInput
+              value={quickTodoTitle}
+              onChangeText={setQuickTodoTitle}
+              placeholder="지금 공부할 할 일"
+              placeholderTextColor={mobilePalette.muted}
+              style={[styles.input, styles.quickTodoInput]}
+              editable={!busy && !activeSession}
+              returnKeyType="done"
+              onSubmitEditing={() => void addQuickTodo()}
+            />
+            <Pressable
+              style={[styles.quickTodoButton, activeSession ? styles.disabledButton : null]}
+              onPress={addQuickTodo}
+              disabled={busy || Boolean(activeSession)}
+            >
+              <Text style={styles.quickTodoButtonText}>추가</Text>
+            </Pressable>
+          </View>
+        </View>
         <View style={styles.controls}>
           <Pressable
-            style={[styles.primaryButton, activeSession ? styles.disabledButton : null]}
+            style={[styles.primaryButton, activeSession || selectedSessionTodoIds.length === 0 ? styles.disabledButton : null]}
             onPress={startTimer}
             disabled={busy || Boolean(activeSession)}
           >
@@ -363,6 +523,23 @@ export default function App() {
   );
 }
 
+function getLocalDateKey(date: Date, timeZone: string) {
+  const parts = new Intl.DateTimeFormat("en-CA", {
+    timeZone,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).formatToParts(date);
+  const year = parts.find((part) => part.type === "year")?.value;
+  const month = parts.find((part) => part.type === "month")?.value;
+  const day = parts.find((part) => part.type === "day")?.value;
+  if (!year || !month || !day) return date.toISOString().slice(0, 10);
+  return `${year}-${month}-${day}`;
+}
+
+function formatError(error: unknown) {
+  return error instanceof Error ? error.message : String(error);
+}
 function attendanceLabel(status?: AttendanceDay["status"]) {
   if (status === "present") return "출석";
   if (status === "missed") return "결석";
@@ -495,6 +672,100 @@ const styles = StyleSheet.create({
     color: mobilePalette.muted,
     marginTop: 6,
     fontWeight: "700",
+  },
+  todoPanel: {
+    borderWidth: 2,
+    borderColor: mobilePalette.border,
+    borderRadius: 14,
+    backgroundColor: mobilePalette.surface,
+    padding: 16,
+    gap: 14,
+  },
+  todoPanelHeader: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    justifyContent: "space-between",
+    gap: 12,
+  },
+  todoPanelHeading: {
+    flex: 1,
+    gap: 4,
+  },
+  todoCount: {
+    borderRadius: 999,
+    backgroundColor: mobilePalette.primarySoft,
+    color: mobilePalette.primary,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    fontSize: 12,
+    fontWeight: "900",
+  },
+  todoChoices: {
+    gap: 8,
+  },
+  todoChoice: {
+    minHeight: 50,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 11,
+    borderWidth: 2,
+    borderColor: mobilePalette.softBorder,
+    borderRadius: 11,
+    backgroundColor: mobilePalette.surfaceWarm,
+    paddingHorizontal: 12,
+    paddingVertical: 9,
+  },
+  todoChoiceSelected: {
+    borderColor: mobilePalette.primary,
+    backgroundColor: mobilePalette.primarySoft,
+  },
+  todoCheck: {
+    width: 24,
+    height: 24,
+    alignItems: "center",
+    justifyContent: "center",
+    borderWidth: 2,
+    borderColor: mobilePalette.border,
+    borderRadius: 7,
+    backgroundColor: mobilePalette.surface,
+  },
+  todoCheckSelected: {
+    backgroundColor: mobilePalette.primary,
+  },
+  todoCheckText: {
+    color: mobilePalette.surface,
+    fontWeight: "900",
+  },
+  todoChoiceText: {
+    flex: 1,
+    color: mobilePalette.text,
+    fontSize: 15,
+    fontWeight: "800",
+  },
+  emptyTodo: {
+    color: mobilePalette.muted,
+    lineHeight: 21,
+    fontWeight: "700",
+  },
+  quickTodoRow: {
+    flexDirection: "row",
+    alignItems: "stretch",
+    gap: 8,
+  },
+  quickTodoInput: {
+    flex: 1,
+  },
+  quickTodoButton: {
+    minWidth: 72,
+    alignItems: "center",
+    justifyContent: "center",
+    borderRadius: 10,
+    backgroundColor: mobilePalette.coral,
+    paddingHorizontal: 14,
+  },
+  quickTodoButtonText: {
+    color: mobilePalette.surface,
+    fontWeight: "900",
   },
   controls: {
     gap: 12,

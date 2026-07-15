@@ -92,8 +92,14 @@ export function buildStudyForestState({ todayDateKey, attendanceDays }) {
   let completedTrees = 0;
   let lastTrackedStatus = "none";
   let lastTrackedDate = todayDateKey ?? null;
+  let previousTrackedDate = null;
 
   for (const day of sortedDays) {
+    if (previousTrackedDate && !isNextCalendarDate(previousTrackedDate, day.local_date)) {
+      completedTrees += Math.floor(segmentStreak / 7);
+      segmentStreak = 0;
+    }
+
     if (day.status === "present") {
       segmentStreak += 1;
       lastTrackedStatus = "present";
@@ -103,6 +109,7 @@ export function buildStudyForestState({ todayDateKey, attendanceDays }) {
       lastTrackedStatus = "missed";
     }
     lastTrackedDate = day.local_date;
+    previousTrackedDate = day.local_date;
   }
 
   completedTrees += Math.floor(segmentStreak / 7);
@@ -111,9 +118,7 @@ export function buildStudyForestState({ todayDateKey, attendanceDays }) {
   const currentStreak = isLatestMissed ? 0 : segmentStreak;
   const currentCycleProgress = isLatestMissed
     ? 0
-    : currentStreak > 0 && currentStreak % 7 === 0
-      ? 7
-      : currentStreak % 7;
+    : currentStreak % 7;
   const currentStage = isLatestMissed ? "wilted" : getTreeStageForProgress(currentCycleProgress);
 
   return {
@@ -131,6 +136,14 @@ export function buildStudyForestState({ todayDateKey, attendanceDays }) {
     placedTrees: buildPlacedTrees(completedTrees),
     statusMessage: getForestStatusMessage({ isLatestMissed, currentStreak, completedTrees }),
   };
+}
+
+function isNextCalendarDate(previousDateKey, nextDateKey) {
+  const previous = new Date(`${previousDateKey}T00:00:00Z`);
+  const next = new Date(`${nextDateKey}T00:00:00Z`);
+  if (!Number.isFinite(previous.getTime()) || !Number.isFinite(next.getTime())) return false;
+
+  return next.getTime() - previous.getTime() === 24 * 60 * 60 * 1000;
 }
 
 export function buildPlacedTrees(count) {

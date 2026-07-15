@@ -28,11 +28,13 @@ Personal MVP users who want a softer Animal Crossing-style reward for sustained 
 - Keep the avatar facing the actual movement direction for keyboard, touch, click, and routed movement.
 - Unlock visible cottage furniture and decorations alongside tree growth.
 - Change the island and cottage atmosphere for morning, afternoon, sunset, and night based on local time.
+- Let the user persist a selected island theme, cottage accent, and one featured outdoor reward.
+- Expand long-term rewards beyond indoor furniture with birdhouse, picnic, and campfire unlocks tied to completed seven-day trees.
+- Treat missing calendar dates as a streak break and start the next seed immediately after an exact seven-day completion.
 
 ## 4. Non-goals
 
-- No server-rendered game scene, physics engine, multiplayer, or persistent character inventory in this version.
-- No new Supabase schema in this version.
+- No server-rendered game scene, physics engine, multiplayer, or full item inventory economy in this version.
 - No copied game assets, external 3D models, or external image dependency.
 
 ## 5. User Stories
@@ -96,10 +98,15 @@ Personal MVP users who want a softer Animal Crossing-style reward for sustained 
 - [x] Unlock non-tree interior props at the 1/3/5/7-day milestones and preserve them after a completed cycle.
 - [x] Render morning, afternoon, sunset, and night environment variants from local time.
 
+- [x] Persist user-scoped forest customization with RLS.
+- [x] Add locked/unlocked theme, accent, and outdoor reward selectors.
+- [x] Render the selected theme, cottage accent, and featured outdoor reward in Three.js.
+- [x] Reset current-tree progress to a seed after an exact completed seven-day cycle without duplicating the completed tree.
+- [x] Break the active streak when tracked present dates are not consecutive.
 ## 8. Non-functional Requirements
 
 - Performance: use raw Three.js without post-processing; cap device pixel ratio, shadow resolution, geometry counts, and animation work for mobile.
-- Security: no new secrets or backend write path.
+- Security: user customization is stored behind ownership RLS and explicit least-privilege grants; no frontend secret is added.
 - Accessibility: route content is keyboard focusable, movement controls have labels, reduced-motion is respected, and a text fallback explains WebGL failure.
 - Maintainability: streak/tree math stays in studyForest.mjs rather than inside React JSX.
 
@@ -107,7 +114,7 @@ Personal MVP users who want a softer Animal Crossing-style reward for sustained 
 
 - Internal: attendance_days rows already loaded by the dashboard.
 - External: three runtime only; no model loader or external asset CDN.
-- Supabase: no schema change.
+- Supabase: `study_forest_preferences` stores customization only; attendance remains the reward source of truth.
 - API: no new API.
 - Environment variables: none.
 

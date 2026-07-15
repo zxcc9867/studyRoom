@@ -3475,3 +3475,408 @@ button:active:not(:disabled) {
     border-radius: 12px;
   }
 }
+
+
+/* Sustainable study loop and island atelier */
+.forest-customizer,
+.weekly-review-card,
+.adaptive-reminder-card {
+  position: relative;
+  overflow: hidden;
+  border: 3px solid #4f916f;
+  border-radius: 18px;
+  background:
+    radial-gradient(circle at 90% 8%, rgba(240, 200, 92, 0.28) 0 72px, transparent 73px),
+    #fff9df;
+  box-shadow: 0 7px 0 rgba(47, 107, 82, 0.2);
+}
+
+.forest-customizer {
+  margin-top: 22px;
+  padding: clamp(18px, 3vw, 28px);
+}
+
+.forest-customizer-heading,
+.weekly-review-heading {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.forest-customizer-heading svg {
+  flex: 0 0 auto;
+  border: 2px solid #d2b56f;
+  border-radius: 50%;
+  background: #fff2b8;
+  color: #bf5c42;
+  padding: 8px;
+  width: 46px;
+  height: 46px;
+}
+
+.forest-customizer-heading h3,
+.weekly-review-heading h3,
+.adaptive-reminder-copy h3 {
+  margin: 2px 0 0;
+  color: #2f6b52;
+  font-size: clamp(21px, 3vw, 29px);
+}
+
+.forest-customizer-group {
+  display: grid;
+  gap: 9px;
+  margin-top: 18px;
+}
+
+.forest-customizer-group > strong {
+  color: #5d431f;
+  font-size: 13px;
+  letter-spacing: 0.06em;
+}
+
+.forest-customizer-options {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.forest-customizer-options button {
+  justify-content: flex-start;
+  min-height: 78px;
+  border: 2px solid #b7d6bd;
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.62);
+  color: #4f916f;
+  padding: 12px;
+  text-align: left;
+  transition: transform 160ms ease, border-color 160ms ease, box-shadow 160ms ease;
+}
+
+.forest-customizer-options button:not(:disabled):hover {
+  transform: translateY(-2px);
+  border-color: #d59b45;
+  box-shadow: 0 4px 0 rgba(191, 151, 54, 0.22);
+}
+
+.forest-customizer-options button.selected {
+  border-color: #2f6b52;
+  background: #dff4cd;
+  box-shadow: inset 0 0 0 2px rgba(255, 249, 223, 0.72);
+}
+
+.forest-customizer-options button > span {
+  display: grid;
+  gap: 3px;
+  min-width: 0;
+}
+
+.forest-customizer-options b {
+  color: #2f2a1f;
+}
+
+.forest-customizer-options small {
+  color: #6d786e;
+  font-size: 11px;
+  font-weight: 800;
+  line-height: 1.35;
+}
+
+.forest-customizer-message {
+  margin: 16px 0 0;
+  border-radius: 10px;
+  background: #eaf6df;
+  color: #2f6b52;
+  padding: 10px 12px;
+  font-weight: 900;
+}
+
+.session-reflection-modal {
+  width: min(680px, calc(100vw - 28px));
+  max-height: calc(100vh - 36px);
+  overflow-y: auto;
+  border-color: #4f916f;
+  background:
+    radial-gradient(circle at 96% 4%, rgba(240, 200, 92, 0.3), transparent 150px),
+    #fff9df;
+}
+
+.session-reflection-modal > p {
+  max-width: 58ch;
+}
+
+.reflection-score-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+  margin: 18px 0;
+}
+
+.reflection-score-field {
+  min-width: 0;
+  margin: 0;
+  border: 2px solid #b7d6bd;
+  border-radius: 14px;
+  background: #f4f9df;
+  padding: 12px;
+}
+
+.reflection-score-field legend {
+  color: #2f6b52;
+  padding: 0 6px;
+  font-weight: 950;
+}
+
+.reflection-score-field > div {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 6px;
+}
+
+.reflection-score-field button {
+  min-width: 0;
+  border: 2px solid #c9dbbf;
+  background: #fff9df;
+  color: #6d786e;
+  padding: 5px;
+}
+
+.reflection-score-field button.selected {
+  border-color: #2f6b52;
+  background: #dff4cd;
+  color: #2f6b52;
+  transform: translateY(-1px);
+}
+
+.reflection-field {
+  margin-top: 14px;
+}
+
+.reflection-field select,
+.reflection-field textarea {
+  width: 100%;
+  border: 2px solid #b9a476;
+  border-radius: 10px;
+  background: #fffef1;
+  color: #2f2a1f;
+  padding: 12px 14px;
+}
+
+.reflection-field textarea {
+  resize: vertical;
+}
+
+.reflection-todo-block {
+  margin-top: 18px;
+  border: 2px dashed #d2b56f;
+  border-radius: 14px;
+  background: #fff6c7;
+  padding: 14px;
+}
+
+.reflection-todo-block > strong {
+  color: #5d431f;
+}
+
+.weekly-review-card {
+  margin: 22px 0;
+  padding: clamp(18px, 3vw, 26px);
+}
+
+.weekly-review-heading > span {
+  border-radius: 999px;
+  background: #dff4cd;
+  color: #2f6b52;
+  padding: 7px 10px;
+  font-size: 12px;
+  font-weight: 950;
+}
+
+.weekly-review-score {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  margin: 18px 0 14px;
+  border-radius: 16px;
+  background: #2f6b52;
+  color: #fff9df;
+  padding: 16px 18px;
+}
+
+.weekly-review-score > div {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.weekly-review-score strong {
+  font-size: 34px;
+}
+
+.weekly-review-score > span {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  border-radius: 999px;
+  background: rgba(255, 249, 223, 0.13);
+  padding: 7px 10px;
+  font-size: 12px;
+  font-weight: 900;
+}
+
+.weekly-review-metrics {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.weekly-review-metric {
+  display: grid;
+  min-width: 0;
+  min-height: 126px;
+  align-content: start;
+  gap: 5px;
+  border: 2px solid #d2b56f;
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.62);
+  color: #bf5c42;
+  padding: 13px;
+}
+
+.weekly-review-metric span {
+  color: #72572e;
+  font-size: 12px;
+  font-weight: 900;
+}
+
+.weekly-review-metric strong {
+  color: #2f6b52;
+  font-size: 20px;
+}
+
+.weekly-review-metric small {
+  color: #6d786e;
+  font-weight: 800;
+}
+
+.weekly-next-actions {
+  margin-top: 14px;
+  border-left: 6px solid #f0c85c;
+  border-radius: 0 12px 12px 0;
+  background: #fff6c7;
+  color: #5a513d;
+  padding: 13px 15px;
+}
+
+.weekly-next-actions ul {
+  margin: 8px 0 0;
+  padding-left: 20px;
+}
+
+.weekly-next-actions p {
+  margin: 6px 0 0;
+}
+
+.adaptive-reminder-card {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 18px;
+  margin: 22px 0;
+  padding: 20px;
+}
+
+.adaptive-reminder-icon {
+  display: grid;
+  width: 58px;
+  height: 58px;
+  place-items: center;
+  border-radius: 18px 18px 18px 6px;
+  background: #f0c85c;
+  color: #5d431f;
+  box-shadow: 0 4px 0 #bf9736;
+}
+
+.adaptive-reminder-copy p {
+  margin: 5px 0;
+  color: #5a513d;
+}
+
+.adaptive-reminder-time {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 6px;
+  border-radius: 999px;
+  background: #dff4cd;
+  color: #2f6b52;
+  padding: 7px 11px;
+}
+
+.adaptive-reminder-time strong {
+  font-size: 18px;
+}
+
+.adaptive-reminder-copy small {
+  display: block;
+  margin-top: 7px;
+  color: #6d786e;
+  font-weight: 800;
+}
+
+.adaptive-enabled {
+  border: 2px solid #4f916f;
+  color: #2f6b52;
+}
+
+@media (max-width: 900px) {
+  .weekly-review-metrics {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .adaptive-reminder-card {
+    grid-template-columns: auto 1fr;
+  }
+
+  .adaptive-reminder-card > button {
+    grid-column: 1 / -1;
+    width: 100%;
+  }
+}
+
+@media (max-width: 620px) {
+  .forest-customizer-options,
+  .weekly-review-metrics,
+  .reflection-score-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .forest-customizer-options button {
+    min-height: 66px;
+  }
+
+  .weekly-review-score {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .weekly-review-metric {
+    min-height: 104px;
+  }
+
+  .adaptive-reminder-card {
+    grid-template-columns: 1fr;
+  }
+
+  .adaptive-reminder-icon {
+    width: 50px;
+    height: 50px;
+  }
+
+  .reflection-score-field > div {
+    grid-template-columns: repeat(5, minmax(44px, 1fr));
+    overflow-x: auto;
+    padding-bottom: 3px;
+  }
+}

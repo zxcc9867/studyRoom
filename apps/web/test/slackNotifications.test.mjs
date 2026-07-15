@@ -94,7 +94,7 @@ test("end study button opens a completion modal before ending the session", () =
   assert.ok(appSource.includes("openEndSessionCompletionModal"));
   assert.ok(appSource.includes("confirmEndSessionWithCompletions"));
   assert.ok(appSource.includes("getEndSessionCompletionCandidates"));
-  assert.ok(appSource.includes("end-session-completion-modal"));
+  assert.ok(appSource.includes("<SessionReflectionModal"));
   assert.ok(appSource.includes("void openEndSessionCompletionModal();"));
 });
 

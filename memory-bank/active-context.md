@@ -2163,3 +2163,45 @@
 ### Notes
 
 - This fix is being published through the existing main-branch production workflow.
+
+---
+
+## 현재 작업
+
+- 작업명: 지속 학습 루프, 숲 꾸미기 보상, 웹 번들 및 모바일 정책 통합
+- 작업 목적: 세션 종료를 회고와 다음 행동으로 연결하고, 주간 리뷰와 적응형 알림을 제공하며, 공부의 숲 보상과 웹/모바일 세션 정책을 일관되게 만든다.
+- 관련 PRD:
+  - `memory-bank/prd-sustainable-study-loop.md`
+  - `memory-bank/prd-study-forest.md`
+- 관련 파일:
+  - `apps/web/src/main.tsx`
+  - `apps/web/src/StudyForestSection.tsx`
+  - `apps/web/src/SessionReflectionModal.tsx`
+  - `apps/web/src/WeeklyReviewSection.tsx`
+  - `apps/web/src/AdaptiveReminderCard.tsx`
+  - `apps/mobile/App.tsx`
+  - `supabase/migrations/20260712142233_sustainable_study_loop.sql`
+
+## 최근 결정 사항
+
+- 결정: 세션 시작과 종료 정책을 서버 RPC로 원자화하고 웹과 모바일 모두 당일 할 일 선택을 필수로 한다.
+- 이유: 링크 누락, 부분 완료, 웹/모바일 정책 차이를 제거하기 위해서다.
+- 대안: 클라이언트에서 여러 insert/update를 순서대로 호출하는 방식은 부분 실패 위험 때문에 사용하지 않는다.
+- 영향 범위: 웹/모바일 세션 시작과 수동 종료, 회고, 주간 리뷰, 알림 시간, 숲 사용자 설정, Vite 번들이다.
+
+## 현재 상태
+
+- 완료: 7일차 완성 나무 중복과 날짜 공백 연속일 계산을 수정했다.
+- 완료: 섬 테마, 집 색상, 새집/피크닉/모닥불 보상을 완성 나무 수에 따라 해금하고 Supabase에 저장한다.
+- 완료: 세션 회고, 주간 리뷰, 적응형 알림 추천과 서버 자동 보정을 구현했다.
+- 완료: 모바일 당일 할 일 선택/빠른 추가, 오류 표시, busy 해제, 밝은 StatusBar를 적용했다.
+- 완료: 기능 컴포넌트 지연 로딩과 vendor 청크 분리로 메인 JS를 약 554 kB에서 152 kB로 줄였다.
+- 완료: Supabase 원격 프로젝트에 `sustainable_study_loop` 마이그레이션을 적용하고 RLS/권한/RPC/트리거를 확인했다.
+- 진행 중: 전체 회귀 테스트와 Git 커밋/푸시/프로덕션 배포 확인.
+- 막힌 부분: 인앱 브라우저 시각 자동화는 기존 Windows sandbox ACL 오류로 실행하지 못했다.
+- 다음 작업: 전체 테스트와 빌드 통과 후 `main`을 푸시하고 GitHub Actions 및 프로덕션 HTTP를 확인한다.
+
+## 주의할 점
+
+- 인증 사용자가 직접 호출하는 `start_study_session`, `complete_study_session`만 execute 권한이 있고, 내부 적응형 트리거 함수는 클라이언트 역할에 execute 권한이 없다.
+- Supabase advisors의 기존 프로젝트 경고는 이번 신규 테이블/RPC와 별개이며 별도 보안 정리 범위다.

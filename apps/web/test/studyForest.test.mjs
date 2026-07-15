@@ -19,7 +19,7 @@ import {
   isForestAvatarPositionWalkable,
 } from "../src/studyForest.mjs";
 
-test("builds one completed tree for a seven day attendance streak", () => {
+test("completes one tree and starts a fresh seed at exactly seven days", () => {
   const state = buildStudyForestState({
     todayDateKey: "2026-07-07",
     attendanceDays: [
@@ -35,8 +35,9 @@ test("builds one completed tree for a seven day attendance streak", () => {
 
   assert.equal(state.currentStreak, 7);
   assert.equal(state.completedTrees, 1);
-  assert.equal(state.currentTree.stage, "complete");
-  assert.equal(state.currentTree.progressDays, 7);
+  assert.equal(state.currentTree.stage, "seed");
+  assert.equal(state.currentTree.progressDays, 0);
+  assert.equal(state.currentTree.remainingDays, 7);
   assert.equal(state.placedTrees.length, 1);
 });
 
@@ -79,6 +80,22 @@ test("uses a new growing tree after completed seven day cycles", () => {
   assert.equal(state.currentTree.stage, "young");
 });
 
+test("breaks the active streak when present dates have a calendar gap", () => {
+  const state = buildStudyForestState({
+    todayDateKey: "2026-07-05",
+    attendanceDays: [
+      { local_date: "2026-07-01", status: "present" },
+      { local_date: "2026-07-02", status: "present" },
+      { local_date: "2026-07-04", status: "present" },
+      { local_date: "2026-07-05", status: "present" },
+    ],
+  });
+
+  assert.equal(state.completedTrees, 0);
+  assert.equal(state.currentStreak, 2);
+  assert.equal(state.currentTree.progressDays, 2);
+  assert.equal(state.currentTree.stage, "sprout");
+});
 test("maps progress days to visible tree stages", () => {
   assert.equal(getTreeStageForProgress(0), "seed");
   assert.equal(getTreeStageForProgress(2), "sprout");
