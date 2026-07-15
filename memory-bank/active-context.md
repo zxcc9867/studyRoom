@@ -2205,3 +2205,36 @@
 
 - 인증 사용자가 직접 호출하는 `start_study_session`, `complete_study_session`만 execute 권한이 있고, 내부 적응형 트리거 함수는 클라이언트 역할에 execute 권한이 없다.
 - Supabase advisors의 기존 프로젝트 경고는 이번 신규 테이블/RPC와 별개이며 별도 보안 정리 범위다.
+
+---
+
+## 2026-07-15 배포 완료
+
+## 현재 작업
+
+- 작업명: 지속 학습 루프와 공부의 숲 보상 프로덕션 배포
+- 작업 목적: 검증된 웹, 모바일, Supabase 변경을 원격 저장소와 프로덕션에 반영한다.
+- 관련 PRD:
+  - `memory-bank/prd-sustainable-study-loop.md`
+  - `memory-bank/prd-study-forest.md`
+
+## 최근 결정 사항
+
+- 결정: 기능 커밋은 기존 `main` production workflow로 배포하고, 배포 증거 문서 커밋은 `[skip ci]`로 푸시한다.
+- 이유: 이미 검증된 동일 웹 산출물을 문서 변경 때문에 중복 배포하지 않기 위해서다.
+- 영향 범위: Git 기록과 memory-bank에만 추가 영향을 준다.
+
+## 현재 상태
+
+- 완료: 기능 커밋 `5256387`을 `origin/main`에 푸시했다.
+- 완료: GitHub Actions `29415497795`가 테스트, 웹 build, Vercel production 배포를 1분 8초에 성공했다.
+- 완료: `https://study-room-attendance.vercel.app/`과 배포 JS/CSS가 HTTP 200을 반환했다.
+- 완료: 네 개 지연 기능 청크와 `start_study_session`, `complete_study_session` 마커가 운영 번들에서 확인됐다.
+- 진행 중: 없음.
+- 막힌 부분: 자동 브라우저 시각 검증만 Windows sandbox ACL 오류로 불가했다.
+- 다음 작업: 실제 사용자 계정과 모바일 실기기에서 회고 저장, 숲 설정 유지, 알림 권장 시각을 수동 확인한다.
+
+## 주의할 점
+
+- GitHub Actions annotation에 `actions/checkout@v4`, `actions/setup-node@v4`의 Node.js 20 deprecation 안내가 있으나 runner가 Node.js 24로 강제 실행해 이번 workflow는 성공했다.
+- 프로덕션 스키마와 웹 코드는 적용 완료 상태다.

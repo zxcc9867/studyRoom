@@ -4320,3 +4320,29 @@
 #### 다음 우선순위
 
 - 배포 후 실제 로그인 계정으로 회고 저장, 숲 설정 유지, 모바일 실기기 UI를 수동 확인한다.
+
+### 2026-07-15 - 지속 학습 루프 프로덕션 배포
+
+#### 완료한 작업
+
+- 기능 커밋 `5256387`을 `origin/main`으로 푸시했다.
+- GitHub Actions workflow `29415497795`에서 전체 테스트, 웹 production build, Vercel production deploy가 성공했다.
+- 운영 별칭, 메인 JS, CSS, 숲/회고/주간 리뷰/적응형 알림 지연 청크가 모두 HTTP 200을 반환했다.
+- 운영 메인 번들에서 원자적 세션 시작/완료 RPC와 네 지연 컴포넌트 참조를 확인했다.
+
+#### 검증 방법
+
+- Workflow: `https://github.com/zxcc9867/studyRoom/actions/runs/29415497795`
+- Production: `https://study-room-attendance.vercel.app/`
+- Main JS: `assets/index-BVUH7zaq.js`
+- CSS: `assets/index-DevDAbMV.css`
+- Lazy chunks: `StudyForestSection-CDTi63MJ.js`, `SessionReflectionModal-C7zH5_Kd.js`, `WeeklyReviewSection-DdzThI32.js`, `AdaptiveReminderCard-C2hZ6NF2.js`
+
+#### 남은 작업
+
+- 구현, Supabase 적용, 커밋, 푸시, 프로덕션 배포 기준으로 남은 필수 작업은 없다.
+- 실제 계정/모바일 실기기 수동 체감 검증은 후속 운영 확인 항목이다.
+
+#### 다음 우선순위
+
+- GitHub Actions의 Node.js 20 deprecation annotation을 별도 유지보수 작업에서 해소한다.
