@@ -4584,3 +4584,35 @@
 #### 다음 우선순위
 
 - 과거의 비정상적으로 긴 세션을 별도 데이터 정리 정책으로 다룰지 사용자와 결정한다.
+
+### 2026-07-17 - 다리 난간·주간 리뷰 프로덕션 배포
+
+#### 완료한 작업
+
+- `e5923fc fix: align bridge physics and weekly review timing`을 `origin/main`에 푸시했다.
+- GitHub Actions production workflow `29514753510`이 263개 테스트, 웹 build, Vercel deploy를 성공했다.
+- Vercel production deployment `dpl_5ja8CVUEZC1JMNZzMqWXftCS4WqV`와 운영 별칭이 `READY`/HTTP 200임을 확인했다.
+- 운영 지연 청크에서 주간 리뷰 시간·완료 세션·현재 기준 및 다리 난간·충돌 마커를 확인했다.
+- Vercel 최근 1시간 runtime error 0건을 확인했다.
+
+#### 변경된 파일
+
+- 기능·테스트·README·memory-bank 18개 파일은 커밋 `e5923fc`에 포함됐다.
+- 배포 증거는 `memory-bank/active-context.md`, `memory-bank/progress.md`, `memory-bank/trouble-shooting.md`에 추가했다.
+
+#### 검증 방법
+
+- Workflow: `https://github.com/zxcc9867/studyRoom/actions/runs/29514753510`
+- Production: `https://study-room-attendance.vercel.app/` HTTP 200
+- Deployment: `study-room-attendance-86no4ifn2-astars-projects-c2f42587.vercel.app`, `READY`
+- Assets: `WeeklyReviewSection-Djj0nV3b.js`, `StudyForestSection-CStuJ4Qq.js`, `index-DKIHKoWY.css` HTTP 200 및 신규 마커 확인
+- Vercel runtime errors: 최근 1시간 0건
+
+#### 남은 작업
+
+- 구현, GitHub main, Vercel production 기준의 필수 작업은 없다.
+- 인증된 운영 계정에서 다리 횡단과 주간 리뷰 문구를 체감 확인할 수 있다.
+
+#### 다음 우선순위
+
+- 과거 장시간 세션 정리 정책이 필요하면 별도 승인 후 진행한다.

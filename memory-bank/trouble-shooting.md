@@ -3103,3 +3103,36 @@ Codex Windows sandbox helper가 해당 세션의 파일 ACL 적용 단계에서 
 ### 재발 방지
 
 큰 시간 차이는 분 단위 정수로만 노출하지 않는다. 진행 중인 주간 범위에는 반드시 기준 날짜와 포함되는 레코드 상태를 함께 표시하고, 데이터 이상 여부와 표시 문제를 원격 집계로 분리해 확인한다.
+
+## 2026-07-17 - Vercel build-log MCP 조회가 401을 반환함
+
+### 상황
+
+성공한 production deployment의 오류 전용 build log를 Vercel MCP로 추가 확인하는 단계에서 권한 오류가 발생했다.
+
+### 에러 메시지
+
+~~~txt
+401 unauthorized: You are not allowed to access this endpoint.
+~~~
+
+### 원인
+
+현재 연결된 Vercel 계정은 deployment 상태와 runtime error 조회에는 접근할 수 있지만 build-log 전용 endpoint 권한은 허용되지 않았다.
+
+### 해결 방법
+
+- GitHub Actions job의 모든 단계와 Vercel CLI production 출력이 성공했음을 확인했다.
+- Vercel deployment API에서 상태 `READY`, production target, commit `e5923fc`을 확인했다.
+- 운영 HTML/JS/CSS를 직접 요청해 HTTP 200과 신규 기능 마커를 확인했다.
+- 접근 가능한 runtime error 집계에서 최근 1시간 오류 0건을 확인했다.
+
+### 관련 파일
+
+- `.github/workflows/vercel-production.yml`
+- `memory-bank/active-context.md`
+- `memory-bank/progress.md`
+
+### 재발 방지
+
+build-log MCP가 401이면 반복 호출하지 않고 GitHub Actions 단계 로그, deployment `READY`, 운영 자산 응답, runtime error 집계를 결합해 배포를 검증한다.

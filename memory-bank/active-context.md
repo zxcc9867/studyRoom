@@ -2459,3 +2459,37 @@
 - 07.10의 74,571초 장시간 세션을 포함해 지난주 합계가 32시간 28분으로 커졌지만, 이번 작업에서는 과거 데이터를 수정하지 않았다.
 - Supabase 스키마와 데이터 변경은 없다.
 - 이전 다리 난간 변경과 이번 주간 리뷰 변경은 모두 아직 로컬 상태이다.
+
+---
+
+## 2026-07-17 다리 난간·주간 리뷰 프로덕션 배포 완료
+
+## 현재 작업
+
+- 작업명: 다리 물리 통로와 주간 리뷰 시간 표시 프로덕션 배포
+- 작업 목적: 검증된 두 기능과 README·memory-bank 변경을 GitHub main과 Vercel production에 반영한다.
+- 관련 PRD: `memory-bank/prd-study-forest.md`, `memory-bank/prd-sustainable-study-loop.md`
+- 관련 파일: Study Forest 및 Weekly Review 구현·테스트·문서 18개 파일
+
+## 최근 결정 사항
+
+- 결정: 기존 main push production workflow를 사용하고 배포 증거는 `[skip ci]` 문서 커밋으로 게시한다.
+- 이유: 프로젝트의 검증·배포 절차를 유지하면서 문서 기록으로 동일 산출물이 다시 배포되는 것을 막기 위해서다.
+- 대안: draft PR/preview는 사용자의 운영 배포 요청과 main 전용 production workflow에 맞지 않아 사용하지 않았다.
+- 영향 범위: GitHub main, Actions, Vercel production, 배포 이력 문서이다.
+
+## 현재 상태
+
+- 완료: 기능 커밋 `e5923fc`을 `origin/main`에 푸시했다.
+- 완료: GitHub Actions `29514753510`의 테스트, build, Vercel production 단계가 모두 성공했다.
+- 완료: Vercel deployment `dpl_5ja8CVUEZC1JMNZzMqWXftCS4WqV`가 `READY`이며 운영 별칭이 HTTP 200을 반환한다.
+- 완료: 운영 weekly/forest/CSS 청크에서 시간 비교, 완료 세션, 현재 기준, 난간, 충돌 마커를 확인했다.
+- 완료: Vercel 최근 1시간 runtime error가 0건임을 확인했다.
+- 진행 중: 없음.
+- 막힌 부분: 없음. build-log 전용 Vercel MCP endpoint의 401은 GitHub Actions 단계 로그와 deployment 상태로 대체 검증했다.
+- 다음 작업: 인증된 운영 계정에서 다리 횡단과 주간 리뷰 문구를 체감 확인한다.
+
+## 주의할 점
+
+- Supabase 변경은 없다.
+- 인증이 필요한 공부의 숲과 내 페이지 내부는 운영 계정에서 최종 체감 확인할 수 있다.
