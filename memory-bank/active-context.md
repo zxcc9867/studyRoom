@@ -2357,3 +2357,37 @@
 
 - Supabase 스키마/RLS/RPC/Edge Function 변경은 없다.
 - 운영 계정에서 실내 출구 통과, 다리 오르내림, 잠금 카드, 세션 종료 직후 카메라 재시도를 한 번 수동 확인하는 것이 좋다.
+
+---
+
+## 2026-07-17 공부의 숲·카메라 개선 프로덕션 배포 완료
+
+## 현재 작업
+
+- 작업명: 공부의 숲 공간 이동·아이템 UI와 카메라 시작 복구 프로덕션 배포
+- 작업 목적: 검증된 웹·문서 변경을 GitHub main과 Vercel production에 반영한다.
+- 관련 PRD:
+  - `memory-bank/prd-study-forest.md`
+  - `memory-bank/prd-camera-presence.md`
+
+## 최근 결정 사항
+
+- 결정: 기존 `main` production workflow를 사용하고, 배포 증거 문서는 `[skip ci]` 커밋으로 게시한다.
+- 이유: 테스트와 build를 통과한 동일 산출물을 문서 기록 때문에 다시 배포하지 않기 위해서다.
+- 영향 범위: GitHub 커밋/Actions, Vercel production, memory-bank 배포 이력이다.
+
+## 현재 상태
+
+- 완료: 기능 커밋 `482c7d9`을 `origin/main`에 푸시했다.
+- 완료: GitHub Actions `29512590969`가 테스트, 웹 build, Vercel production 배포를 1분 6초에 성공했다.
+- 완료: 운영 HTML, `assets/index-CE6AijbO.js`, `assets/index-D7A7iZhn.css`, `assets/StudyForestSection-BqVaxZjC.js`가 HTTP 200을 반환했다.
+- 완료: 운영 번들에서 카메라 timeout, 실내 출구 문, 아이템 그리드, 아이템 orb CSS 마커를 확인했다.
+- 완료: 운영 Playwright 검사에서 콘솔 오류 0건, error overlay 없음, 390px 모바일 가로 overflow 없음, `light only`를 확인했다.
+- 진행 중: 없음.
+- 막힌 부분: 인증된 사용자 계정이 필요한 숲 3D 내부와 실제 카메라 권한 flow의 자동 운영 검증은 수행하지 못했다.
+- 다음 작업: 실제 계정에서 실내 출구, 다리 높이, 잠금 카드, 세션 종료 직후 카메라 재시도를 수동 확인한다.
+
+## 주의할 점
+
+- Supabase 변경은 없으며 웹 정적 산출물만 배포됐다.
+- Actions annotation에는 checkout/setup-node v4의 Node.js 20 deprecation 안내가 있으나 runner는 Node.js 24로 실행되어 workflow는 성공했다.

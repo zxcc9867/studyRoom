@@ -4472,3 +4472,34 @@
 #### 다음 우선순위
 
 - 사용자가 요청하면 커밋·푸시 후 GitHub Actions와 Vercel 운영 반영을 확인한다.
+
+### 2026-07-17 - 공부의 숲·카메라 개선 프로덕션 배포
+
+#### 완료한 작업
+
+- `482c7d9 feat: refine study forest navigation and camera recovery`를 `origin/main`에 푸시했다.
+- GitHub Actions workflow `29512590969`에서 전체 테스트, production build, Vercel production deploy가 성공했다.
+- 운영 별칭과 신규 main JS, CSS, Study Forest 지연 청크가 모두 HTTP 200을 반환했다.
+- 운영 번들에서 `CameraStartTimeoutError`, `cottage-exit-door`, `forest-item-card`, `.forest-item-orb` 마커를 확인했다.
+- 운영 페이지를 Playwright로 데스크톱과 390px 모바일에서 확인했다.
+
+#### 변경된 파일
+
+- 기능/테스트/README/memory-bank 22개 파일은 커밋 `482c7d9`에 포함됐다.
+- 배포 증거는 `memory-bank/active-context.md`, `memory-bank/progress.md`에 추가했다.
+
+#### 검증 방법
+
+- Workflow: `https://github.com/zxcc9867/studyRoom/actions/runs/29512590969`
+- Production: `https://study-room-attendance.vercel.app/` HTTP 200
+- Assets: `index-CE6AijbO.js`, `index-D7A7iZhn.css`, `StudyForestSection-BqVaxZjC.js` HTTP 200
+- Playwright: 콘솔 오류 0건, error overlay 없음, content 있음, 모바일 overflow 없음, `color-scheme: light only`
+
+#### 남은 작업
+
+- 구현, GitHub main, Vercel production 기준의 필수 작업은 없다.
+- 실제 인증 계정의 숲 내부 이동과 브라우저 카메라 권한 flow는 운영 수동 확인 항목이다.
+
+#### 다음 우선순위
+
+- 운영 계정에서 실내 출구 통과와 카메라 재시도 체감을 확인한다.
