@@ -4391,3 +4391,29 @@
 #### 다음 우선순위
 
 - 실제 활성 세션에서 잔여 1시간 30분 상태의 유지 버튼을 눌러 UI가 2시간으로 표시되는지 수동 확인한다.
+
+### 2026-07-16 - 세션 lease 상한과 README 프로덕션 배포
+
+#### 완료한 작업
+
+- `a11b1e3 fix: cap session lease remaining time`을 `origin/main`으로 푸시했다.
+- GitHub Actions workflow `29502975004`에서 256개 테스트, 웹 production build, Vercel production deploy가 성공했다.
+- 운영 메인 번들에서 최대 2시간 안내 문구를 확인했다.
+- GitHub raw README에서 최대 2시간 정책, 공부의 숲, 적응형 알림 문구를 확인했다.
+
+#### 검증 방법
+
+- Workflow: `https://github.com/zxcc9867/studyRoom/actions/runs/29502975004`
+- Production: `https://study-room-attendance.vercel.app/` HTTP 200
+- Main JS: `assets/index-Bv7kkH-H.js` HTTP 200, 최대 2시간 문구 확인
+- GitHub README: `https://raw.githubusercontent.com/zxcc9867/studyRoom/main/README.md` HTTP 200
+- Supabase: migration `20260716132549`, anon execute=false, Edge Functions v27/v8 ACTIVE
+
+#### 남은 작업
+
+- 구현, 원격 Supabase, GitHub README, 웹 배포 기준으로 남은 필수 작업은 없다.
+- 실제 사용자 계정의 활성 세션 버튼 체감 확인만 운영 후속 항목이다.
+
+#### 다음 우선순위
+
+- GitHub Actions Node.js 20 deprecation annotation을 별도 유지보수 작업에서 정리한다.

@@ -2279,3 +2279,37 @@
 
 - Supabase 서버 상한과 Edge Function은 이미 원격 적용됐다.
 - README와 웹 안내 문구는 아직 로컬 변경이며 커밋·푸시 전에는 GitHub/프로덕션에 보이지 않는다.
+
+---
+
+## 2026-07-16 세션 lease 상한 배포 완료
+
+## 현재 작업
+
+- 작업명: 세션 유지 잔여 2시간 상한과 README 프로덕션 반영
+- 작업 목적: 검증된 세션 정책·권한·README 변경을 GitHub와 Vercel에 게시한다.
+- 관련 PRD:
+  - `memory-bank/prd-session-activity-heartbeat.md`
+  - `memory-bank/prd-slack-notifications.md`
+
+## 최근 결정 사항
+
+- 결정: 기능/README 커밋은 production workflow로 배포하고, 최종 배포 증거 문서는 `[skip ci]`로 게시한다.
+- 이유: 동일 웹 산출물을 문서 기록만으로 중복 배포하지 않기 위해서다.
+- 영향 범위: Git 기록과 memory-bank 배포 이력만 추가된다.
+
+## 현재 상태
+
+- 완료: 기능 커밋 `a11b1e3`을 `origin/main`에 푸시했다.
+- 완료: GitHub Actions `29502975004`가 테스트, 웹 build, Vercel production 배포를 1분 9초에 성공했다.
+- 완료: 운영 URL과 `assets/index-Bv7kkH-H.js`가 HTTP 200이며 `남은 시간은 최대 2시간` 문구를 포함한다.
+- 완료: GitHub `main` README가 HTTP 200이며 2시간 정책, 공부의 숲, 적응형 알림 내용을 포함한다.
+- 완료: Supabase migration `20260716132549_cap_session_lease_remaining_time`, `attendance-cron` v27, `slack-recovery-interactions` v8이 원격 적용 상태다.
+- 진행 중: 없음.
+- 막힌 부분: 없음.
+- 다음 작업: 실제 활성 세션에서 유지 버튼의 90분 → 120분 표시를 사용자 계정으로 체감 확인한다.
+
+## 주의할 점
+
+- GitHub Actions에는 checkout/setup-node v4의 Node.js 20 deprecation annotation이 있지만 runner는 Node.js 24로 실행되어 workflow는 성공했다.
+- 서버·웹·GitHub README·문서가 모두 게시 완료 상태다.
