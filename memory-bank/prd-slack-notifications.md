@@ -179,3 +179,11 @@ Slack workspace를 사용하는 개인 사용자. 정해진 시간에 독서실 
 - The goal is to improve desktop push likelihood for lease warnings while preserving the channel-based Slack Bot API delivery model.
 - Blank Slack User ID values are allowed and keep existing behavior.
 - Slack DM delivery and Slack OAuth user mapping remain non-goals.
+
+## 2026-07-16 Addendum: Session lease remaining-time ceiling
+
+- The Slack action still sends `p_extension_minutes = 60`.
+- `extend_study_session_lease` caps the updated deadline at the current server time plus 2 hours.
+- The Slack button and response text explain that the remaining session time is at most 2 hours.
+- `attendance-cron` v27 and `slack-recovery-interactions` v8 preserve `verify_jwt=false`; Cron secret and Slack signature verification remain their authentication boundaries.
+- Anonymous PostgREST execution of the lease extension RPC is explicitly revoked.

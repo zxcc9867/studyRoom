@@ -4346,3 +4346,48 @@
 #### 다음 우선순위
 
 - GitHub Actions의 Node.js 20 deprecation annotation을 별도 유지보수 작업에서 해소한다.
+
+### 2026-07-16
+
+#### 완료한 작업
+
+- 세션 유지 60분 연장은 유지하면서 잔여 시간을 현재 시각 기준 최대 2시간으로 제한했다.
+- 30분 잔여 → 90분, 90분 잔여 → 120분, 3시간 잔여 상태 → 120분으로 정규화하는 helper 테스트를 추가했다.
+- 웹 카드와 Slack 경고/응답에 잔여 최대 2시간 정책을 표시했다.
+- 익명 역할의 `extend_study_session_lease` 실행 권한을 회수했다.
+- README를 현재 주요 기능, 세션 정책, Three.js 공부의 숲, 지속 학습, 모바일, 데이터, CI/배포, 보안, 상세 PRD 링크 기준으로 갱신했다.
+- `.env.example`에서 중복/비활성 Kakao·Telegram 항목을 제거하고 현재 Slack 변수와 signing secret을 반영했다.
+- Supabase migration과 변경된 두 Edge Function을 원격 적용했다.
+
+#### 변경된 파일
+
+- `README.md`
+- `.env.example`
+- `apps/web/src/sessionLease.mjs`
+- `apps/web/src/sessionLease.d.mts`
+- `apps/web/src/main.tsx`
+- `apps/web/test/sessionLease.test.mjs`
+- `apps/web/test/readme.test.mjs`
+- `packages/core/test/sql-migrations.test.mjs`
+- `supabase/migrations/20260716132227_cap_session_lease_remaining_time.sql`
+- `supabase/functions/attendance-cron/index.ts`
+- `supabase/functions/slack-recovery-interactions/index.ts`
+
+#### 검증 방법
+
+- RED: helper export, 상한 migration marker, README 최신 기능 테스트가 구현 전 실패했다.
+- GREEN: 대상 테스트 52개 통과.
+- 전체 회귀: `npm.cmd test` 256개 통과.
+- 웹: `npm.cmd run build` 통과.
+- 모바일: `npm.cmd --workspace apps/mobile run typecheck` 통과.
+- 원격: 90분 잔여 연장 결과 7,200초, 30분 잔여 연장 결과 5,400초, anon execute=false 확인.
+- Edge Functions: `attendance-cron` v27, `slack-recovery-interactions` v8 ACTIVE 및 최대 2시간 문구 확인.
+
+#### 남은 작업
+
+- 로컬 변경은 아직 커밋/푸시되지 않았다.
+- GitHub README와 Vercel 웹 UI 반영은 사용자의 명시적 푸시 요청 후 진행한다.
+
+#### 다음 우선순위
+
+- 실제 활성 세션에서 잔여 1시간 30분 상태의 유지 버튼을 눌러 UI가 2시간으로 표시되는지 수동 확인한다.

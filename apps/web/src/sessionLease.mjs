@@ -1,8 +1,27 @@
 export const SESSION_LEASE_DURATION_SECONDS = 60 * 60;
 export const SESSION_LEASE_DURATION_MS = SESSION_LEASE_DURATION_SECONDS * 1000;
+export const SESSION_LEASE_MAX_REMAINING_SECONDS = 2 * 60 * 60;
+export const SESSION_LEASE_MAX_REMAINING_MS = SESSION_LEASE_MAX_REMAINING_SECONDS * 1000;
 
 export function createSessionLeaseDeadlineMs(nowMs, durationMs = SESSION_LEASE_DURATION_MS) {
   return Math.floor(Number(nowMs)) + durationMs;
+}
+
+export function getExtendedSessionLeaseDeadlineMs({
+  currentDeadlineMs,
+  nowMs,
+  extensionMs = SESSION_LEASE_DURATION_MS,
+  maxRemainingMs = SESSION_LEASE_MAX_REMAINING_MS,
+}) {
+  const safeNowMs = Math.floor(Number(nowMs));
+  const parsedCurrentDeadlineMs = Number(currentDeadlineMs);
+  const activeDeadlineMs = Number.isFinite(parsedCurrentDeadlineMs) && parsedCurrentDeadlineMs > safeNowMs
+    ? Math.floor(parsedCurrentDeadlineMs)
+    : safeNowMs;
+  const safeExtensionMs = Math.max(0, Math.floor(Number(extensionMs) || 0));
+  const safeMaxRemainingMs = Math.max(0, Math.floor(Number(maxRemainingMs) || 0));
+
+  return Math.min(activeDeadlineMs + safeExtensionMs, safeNowMs + safeMaxRemainingMs);
 }
 
 export function parseSessionLeaseDeadlineMs(rawValue) {

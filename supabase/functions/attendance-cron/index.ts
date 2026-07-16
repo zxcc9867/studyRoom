@@ -664,7 +664,7 @@ function buildSlackSessionLeaseWarningMessage(warning: DueSessionLeaseWarning, a
     "*⏰ 세션 종료 5분 전*",
     "",
     `세션 유지 시간이 ${formatDateTime(warning.lease_expires_at)}에 만료됩니다.`,
-    "계속 공부 중이면 아래 버튼으로 1시간 연장하세요.",
+    "계속 공부 중이면 아래 버튼으로 연장하세요. 연장 후 남은 시간은 최대 2시간입니다.",
     "연장하지 않으면 앱이 열려 있을 때 세션이 자동 종료되고, 이후 시간은 공부 시간에서 제외됩니다.",
     "",
     "🔗 앱 열기",
@@ -687,7 +687,7 @@ function buildSlackSessionLeaseWarningBlocks(warning: DueSessionLeaseWarning) {
       type: "section",
       text: {
         type: "mrkdwn",
-        text: "계속 공부 중이면 *1시간 연장*을 눌러 세션을 유지하세요.",
+        text: "계속 공부 중이면 *세션 유지*를 눌러 연장하세요. 남은 시간은 최대 2시간입니다.",
       },
     },
     {
@@ -696,7 +696,7 @@ function buildSlackSessionLeaseWarningBlocks(warning: DueSessionLeaseWarning) {
         {
           type: "button",
           style: "primary",
-          text: { type: "plain_text", text: "1시간 연장", emoji: true },
+          text: { type: "plain_text", text: "세션 유지 (최대 2시간)", emoji: true },
           action_id: "extend_session_lease_60",
           value: `session_lease_extension|${warning.session_id}|60`,
         },

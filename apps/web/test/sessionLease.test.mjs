@@ -5,7 +5,10 @@ import test from "node:test";
 import {
   SESSION_LEASE_DURATION_MS,
   SESSION_LEASE_DURATION_SECONDS,
+  SESSION_LEASE_MAX_REMAINING_MS,
+  SESSION_LEASE_MAX_REMAINING_SECONDS,
   createSessionLeaseDeadlineMs,
+  getExtendedSessionLeaseDeadlineMs,
   getLeaseAwareActiveNowMs,
   getSessionLeaseExcludedSeconds,
   getSessionLeaseRemainingSeconds,
@@ -18,6 +21,34 @@ import {
 test("session lease uses a one hour duration", () => {
   assert.equal(SESSION_LEASE_DURATION_SECONDS, 60 * 60);
   assert.equal(SESSION_LEASE_DURATION_MS, 60 * 60 * 1000);
+  assert.equal(SESSION_LEASE_MAX_REMAINING_SECONDS, 2 * 60 * 60);
+  assert.equal(SESSION_LEASE_MAX_REMAINING_MS, 2 * 60 * 60 * 1000);
+});
+
+test("extends by one hour without allowing more than two hours remaining", () => {
+  const nowMs = Date.UTC(2026, 6, 16, 10, 0, 0);
+
+  assert.equal(
+    getExtendedSessionLeaseDeadlineMs({
+      nowMs,
+      currentDeadlineMs: nowMs + 30 * 60 * 1000,
+    }),
+    nowMs + 90 * 60 * 1000,
+  );
+  assert.equal(
+    getExtendedSessionLeaseDeadlineMs({
+      nowMs,
+      currentDeadlineMs: nowMs + 90 * 60 * 1000,
+    }),
+    nowMs + SESSION_LEASE_MAX_REMAINING_MS,
+  );
+  assert.equal(
+    getExtendedSessionLeaseDeadlineMs({
+      nowMs,
+      currentDeadlineMs: nowMs + 3 * 60 * 60 * 1000,
+    }),
+    nowMs + SESSION_LEASE_MAX_REMAINING_MS,
+  );
 });
 
 test("creates and extends a session lease deadline from the current time", () => {
@@ -76,6 +107,8 @@ test("web dashboard wires session lease UI and avoids adding stale active sessio
   assert.match(appSource, /extendSessionLease/);
   assert.match(appSource, /lease_expires_at/);
   assert.match(appSource, /extend_study_session_lease/);
+  assert.match(appSource, /getExtendedSessionLeaseDeadlineMs/);
+  assert.match(appSource, /남은 시간은 최대 2시간/);
   assert.match(appSource, /session-lease/);
   assert.match(appSource, /getActiveStudySecondsForDate/);
   assert.match(appSource, /dateKey: todayDateKey/);

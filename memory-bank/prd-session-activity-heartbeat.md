@@ -1,4 +1,4 @@
-﻿# PRD: Session Activity Heartbeat
+# PRD: Session Activity Heartbeat
 
 ## 1. Problem
 
@@ -71,3 +71,13 @@ Users who study through the web app and expect authentication persistence to be 
 - While an active session exists, the app refreshes the current active session row every 15 seconds and whenever the browser window regains focus or returns to visible state.
 - The refresh is intentionally narrow: it reads only the active `study_sessions` row and updates local `studySessions` state, letting the existing lease countdown effect derive the new remaining time.
 - This is a client sync path only; no Supabase schema, Cron, or Edge Function change is required.
+
+## 2026-07-16 Addendum: Two-hour maximum remaining lease
+
+- A keep-alive action still requests a 60-minute extension.
+- The resulting `lease_expires_at` must never exceed the current server time plus 2 hours.
+- Example: 30 minutes remaining becomes 90 minutes; 90 minutes remaining becomes 120 minutes, not 150 minutes.
+- The cap is enforced inside `extend_study_session_lease`, so web and Slack use the same rule.
+- The web fallback helper mirrors the server calculation but is not the authority.
+- `public` and `anon` cannot execute the `SECURITY DEFINER` extension RPC; `authenticated` and `service_role` remain allowed.
+- The UI and Slack copy must state that the extension is up to a maximum of 2 hours remaining.

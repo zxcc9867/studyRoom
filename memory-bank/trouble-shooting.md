@@ -2919,3 +2919,42 @@ three-*.js 520.37 kB
 ### 재발 방지
 
 번들 최적화는 경고 한도 변경만으로 판단하지 않는다. build 산출물에서 초기 메인 청크와 지연 기능 청크 크기를 함께 확인하고, 3D 런타임이 메인 청크로 다시 합쳐지지 않는지 소스 계약 테스트로 고정한다.
+
+## 2026-07-16 - 세션 lease 연장 RPC가 잔여 상한 없이 누적되고 익명 실행 가능
+
+### 상황
+
+세션 유지 버튼이 기존 마감 시각에 60분을 계속 더해, 1시간 30분이 남은 상태에서 누르면 잔여 시간이 2시간 30분이 됐다. 원격 권한 확인 중 같은 SECURITY DEFINER 함수가 익명 역할에서도 실행 가능함을 발견했다.
+
+### 에러 메시지
+
+~~~txt
+Expected: 90 minutes remaining + extension => 120 minutes remaining
+Previous behavior: 90 minutes remaining + extension => 150 minutes remaining
+anon_can_execute: true
+~~~
+
+### 원인
+
+- 기존 SQL은 `greatest(lease_expires_at, now()) + 60분`만 계산하고 최대 잔여 시간을 제한하지 않았다.
+- 과거 migration이 `PUBLIC` 실행 권한만 회수했지만 Supabase의 명시적 `anon` 함수 권한이 남아 있었다.
+- `auth.uid() is null` 경로는 Slack service role을 위해 허용되어 있어, 익명 실행 권한이 남으면 세션 UUID를 아는 호출자가 임의 연장을 시도할 수 있었다.
+
+### 해결 방법
+
+- RPC 계산을 `least(기존 마감 + 60분, now() + 2시간)`으로 변경했다.
+- `revoke all ... from public, anon` 후 `authenticated, service_role`에만 실행 권한을 다시 부여했다.
+- 웹 fallback helper와 Slack/웹 안내 문구를 같은 정책으로 맞췄다.
+- 원격 함수 정의, 역할별 권한, 고정 시각 예시 계산과 Edge Function 배포 버전을 확인했다.
+
+### 관련 파일
+
+- `supabase/migrations/20260716132227_cap_session_lease_remaining_time.sql`
+- `apps/web/src/sessionLease.mjs`
+- `apps/web/src/main.tsx`
+- `supabase/functions/attendance-cron/index.ts`
+- `supabase/functions/slack-recovery-interactions/index.ts`
+
+### 재발 방지
+
+SECURITY DEFINER RPC 변경 시 `PUBLIC`만 회수하지 말고 `anon`의 실제 `has_function_privilege` 결과를 확인한다. 시간 연장 기능은 증가량뿐 아니라 최대 마감 시각 예시를 단위 테스트와 SQL 계약 테스트로 함께 고정한다.

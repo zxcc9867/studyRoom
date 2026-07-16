@@ -2238,3 +2238,44 @@
 
 - GitHub Actions annotation에 `actions/checkout@v4`, `actions/setup-node@v4`의 Node.js 20 deprecation 안내가 있으나 runner가 Node.js 24로 강제 실행해 이번 workflow는 성공했다.
 - 프로덕션 스키마와 웹 코드는 적용 완료 상태다.
+
+---
+
+## 현재 작업
+
+- 작업명: 세션 유지 잔여 시간 2시간 상한과 README 최신화
+- 작업 목적: 유지 버튼을 반복해도 현재 시각 기준 잔여 시간이 2시간을 넘지 않게 하고, GitHub README가 현재 주요 기능과 운영 구조를 설명하도록 한다.
+- 관련 PRD:
+  - `memory-bank/prd-session-activity-heartbeat.md`
+  - `memory-bank/prd-slack-notifications.md`
+- 관련 파일:
+  - `apps/web/src/sessionLease.mjs`
+  - `apps/web/src/main.tsx`
+  - `supabase/migrations/20260716132227_cap_session_lease_remaining_time.sql`
+  - `supabase/functions/attendance-cron/index.ts`
+  - `supabase/functions/slack-recovery-interactions/index.ts`
+  - `README.md`
+
+## 최근 결정 사항
+
+- 결정: 60분 연장 요청은 유지하되 서버 마감을 `now() + 2시간`으로 제한한다.
+- 이유: 1시간 30분 남은 상태에서 2시간 30분으로 늘어나는 것을 방지하면서, 남은 시간이 짧을 때는 정상적으로 1시간을 더하기 위해서다.
+- 대안: 클라이언트에서만 버튼을 막는 방식은 Slack 또는 직접 RPC 호출로 우회할 수 있어 사용하지 않는다.
+- 영향 범위: 웹/Slack 세션 유지, Supabase 함수 권한, README와 환경 변수 예제다.
+
+## 현재 상태
+
+- 완료: 서버 RPC와 웹 fallback helper에 동일한 2시간 잔여 상한을 적용했다.
+- 완료: 익명 `extend_study_session_lease` 실행 권한을 차단했다.
+- 완료: 원격 migration `20260716132549_cap_session_lease_remaining_time`을 적용했다.
+- 완료: `attendance-cron` v27, `slack-recovery-interactions` v8을 배포하고 ACTIVE/문구를 확인했다.
+- 완료: README에 지속 학습, 공부의 숲, 모바일, lease, 데이터, 보안, 배포와 상세 PRD 링크를 반영했다.
+- 완료: 전체 테스트 256개, 웹 production build, 모바일 typecheck가 통과했다.
+- 진행 중: 없음.
+- 막힌 부분: 없음.
+- 다음 작업: 사용자가 요청하면 로컬 변경을 커밋·푸시해 GitHub README와 Vercel 웹 UI에 반영한다.
+
+## 주의할 점
+
+- Supabase 서버 상한과 Edge Function은 이미 원격 적용됐다.
+- README와 웹 안내 문구는 아직 로컬 변경이며 커밋·푸시 전에는 GitHub/프로덕션에 보이지 않는다.

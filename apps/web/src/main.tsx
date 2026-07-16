@@ -137,6 +137,7 @@ import {
 } from "./recoverySummary.mjs";
 import {
   createSessionLeaseDeadlineMs,
+  getExtendedSessionLeaseDeadlineMs,
   getLeaseAwareActiveNowMs,
   getSessionLeaseExcludedSeconds,
   getSessionLeaseRemainingSeconds,
@@ -2746,6 +2747,17 @@ function DashboardApp() {
   async function extendSessionLease() {
     if (!activeSession) return;
 
+    const requestNowMs = Date.now();
+    const parsedCurrentDeadlineMs = activeSession.lease_expires_at
+      ? Date.parse(activeSession.lease_expires_at)
+      : Number.NaN;
+    const fallbackDeadlineMs = getExtendedSessionLeaseDeadlineMs({
+      currentDeadlineMs: Number.isFinite(parsedCurrentDeadlineMs)
+        ? parsedCurrentDeadlineMs
+        : activeSessionLeaseDeadlineMs,
+      nowMs: requestNowMs,
+    });
+
     setBusy(true);
     const { data, error } = await supabase.rpc("extend_study_session_lease", {
       p_session_id: activeSession.id,
@@ -2762,7 +2774,7 @@ function DashboardApp() {
     const parsedDeadlineMs = updatedSession?.lease_expires_at ? Date.parse(updatedSession.lease_expires_at) : Number.NaN;
     const deadlineMs = Number.isFinite(parsedDeadlineMs)
       ? Math.floor(parsedDeadlineMs)
-      : createSessionLeaseDeadlineMs(Date.now());
+      : fallbackDeadlineMs;
 
     persistSessionLease(activeSession.id, deadlineMs);
     if (updatedSession) {
@@ -2771,7 +2783,7 @@ function DashboardApp() {
         ...current.filter((item) => item.id !== updatedSession.id),
       ]);
     }
-    setMessage("세션을 1시간 더 유지합니다.");
+    setMessage("세션 유지 시간을 연장했습니다. 남은 시간은 최대 2시간입니다.");
   }
 
   function openRecoveryRoutineModal(request: StudyRecoveryRequest, options: { auto?: boolean } = {}) {
@@ -4169,7 +4181,7 @@ function DashboardApp() {
                 <div>
                   <span>세션 유지 남은 시간</span>
                   <strong>{formatTimerClock(sessionLeaseRemainingSeconds)}</strong>
-                  <small>1시간마다 유지 버튼을 눌러야 세션이 계속됩니다.</small>
+                  <small>버튼을 누르면 1시간 연장되며, 남은 시간은 최대 2시간입니다.</small>
                 </div>
                 <button className="secondary" type="button" onClick={extendSessionLease} disabled={busy}>
                   <Clock3 size={18} />

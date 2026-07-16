@@ -107,7 +107,7 @@ async function handleSessionLeaseExtensionAction(admin: ReturnType<typeof create
   await postEphemeralIfPossible(
     payload.channel?.id ?? null,
     payload.user?.id ?? null,
-    `세션을 1시간 연장했습니다.${deadlineText}`,
+    `세션 유지 시간을 연장했습니다. 남은 시간은 최대 2시간입니다.${deadlineText}`,
   );
   return json({ ok: true, sessionId: parsed.sessionId, extendedMinutes: parsed.minutes });
 }

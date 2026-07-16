@@ -510,6 +510,15 @@ test("session lease migration stores server deadline and exposes one hour extens
   assert.match(sql, /grant execute on function public\.extend_study_session_lease\(uuid, integer\) to service_role/i);
 });
 
+test("session lease remaining time is capped at two hours and anonymous execution is revoked", () => {
+  const sql = readLatestMigrationContaining(/session_lease_max_remaining/i);
+
+  assert.match(sql, /least\([\s\S]*now\(\) \+ interval '2 hours'[\s\S]*\)/i);
+  assert.match(sql, /greatest\(coalesce\(lease_expires_at, now\(\)\), now\(\)\)/i);
+  assert.match(sql, /revoke all on function public\.extend_study_session_lease\(uuid, integer\) from public, anon/i);
+  assert.match(sql, /grant execute on function public\.extend_study_session_lease\(uuid, integer\) to authenticated, service_role/i);
+});
+
 test("session lease Slack warnings expose a one hour extension action", () => {
   const attendanceSource = readFileSync("supabase/functions/attendance-cron/index.ts", "utf8");
   const interactionSource = readFileSync("supabase/functions/slack-recovery-interactions/index.ts", "utf8");
@@ -526,7 +535,7 @@ test("session lease Slack warnings expose a one hour extension action", () => {
   assert.match(interactionSource, /extend_study_session_lease/);
   assert.match(interactionSource, /p_session_id/);
   assert.match(interactionSource, /p_extension_minutes/);
-  assert.match(interactionSource, /\uC138\uC158\uC744 1\uC2DC\uAC04 \uC5F0\uC7A5\uD588\uC2B5\uB2C8\uB2E4/);
+  assert.match(interactionSource, /\uB0A8\uC740 \uC2DC\uAC04\uC740 \uCD5C\uB300 2\uC2DC\uAC04/);
 });
 
 test("slack recovery interactions verify signatures, open modal, and create the makeup todo", () => {
