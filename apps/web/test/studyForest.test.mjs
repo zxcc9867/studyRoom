@@ -5,6 +5,7 @@ import {
   buildStudyForestState,
   getForestInteriorRewards,
   getForestNavigationPath,
+  getForestTerrainHeight,
   getForestTimePhase,
   getNextForestLevelUpdate,
   getCottageAvatarStep,
@@ -164,6 +165,17 @@ test("routes cross-river destinations through bridge entry and exit waypoints", 
   ]);
   assert.deepEqual(path.at(-1), { x: 78, y: 78 });
   assert.equal(path.every((point) => isForestAvatarPositionWalkable(point)), true);
+});
+
+test("raises the avatar onto the bridge deck and lowers it back onto the meadow", () => {
+  const meadowHeight = getForestTerrainHeight({ x: 55, y: 56 });
+  const bridgeEdgeHeight = getForestTerrainHeight({ x: 55, y: 61.8 });
+  const bridgeCenterHeight = getForestTerrainHeight({ x: 55, y: 67.5 });
+
+  assert.equal(meadowHeight, 0.38);
+  assert.ok(bridgeEdgeHeight > meadowHeight);
+  assert.ok(bridgeCenterHeight > bridgeEdgeHeight);
+  assert.equal(getForestTerrainHeight({ x: 40, y: 67.5 }), meadowHeight);
 });
 
 test("describes the next visible streak upgrade", () => {

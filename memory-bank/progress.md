@@ -4417,3 +4417,58 @@
 #### 다음 우선순위
 
 - GitHub Actions Node.js 20 deprecation annotation을 별도 유지보수 작업에서 정리한다.
+
+### 2026-07-17 - 공부의 숲 공간 이동·아이템 UI와 카메라 시작 복구
+
+#### 완료한 작업
+
+- 실내 출구를 열린 문, 문틀, 문턱, 바닥 표식과 조명으로 명확하게 표시했다.
+- 강과 같은 방향이던 다리를 90도 회전하고 실제 데크 폭만 물 위에서 통과하도록 충돌 corridor를 조정했다.
+- 지형 높이 helper를 추가해 캐릭터가 다리 가장자리와 중앙 아치를 따라 부드럽게 오르내리게 했다.
+- 숲 꾸미기를 테마, 집 포인트, 야외 보상의 카테고리별 캡슐형 그리드로 바꾸고 잠금 항목을 `?`로 표시했다.
+- 카메라 시작 요청에 15초 timeout과 attempt 취소를 추가하고 세션 종료 이후 stale stream/detector를 정리했다.
+- 세션이 없을 때 카메라 버튼을 disabled로 숨기지 않고 사용 조건 안내가 나오게 했다.
+- README와 관련 PRD, 구현 계획, 문제 해결 기록을 최신화했다.
+
+#### 변경된 파일
+
+- `README.md`
+- `apps/web/src/StudyForest3D.tsx`
+- `apps/web/src/StudyForestSection.tsx`
+- `apps/web/src/studyForest.mjs`
+- `apps/web/src/studyForest.d.mts`
+- `apps/web/src/forestCustomization.mjs`
+- `apps/web/src/forestCustomization.d.mts`
+- `apps/web/src/cameraStart.mjs`
+- `apps/web/src/cameraStart.d.mts`
+- `apps/web/src/main.tsx`
+- `apps/web/src/styles.css`
+- `apps/web/test/cameraStart.test.mjs`
+- `apps/web/test/studyForest.test.mjs`
+- `apps/web/test/studyForestUi.test.mjs`
+- `apps/web/test/sustainableStudyLoop.test.mjs`
+- `apps/web/test/readme.test.mjs`
+- `memory-bank/prd-study-forest.md`
+- `memory-bank/prd-camera-presence.md`
+- `memory-bank/active-context.md`
+- `memory-bank/implementation-plan.md`
+- `memory-bank/progress.md`
+- `memory-bank/trouble-shooting.md`
+
+#### 검증 방법
+
+- RED: `getForestTerrainHeight` export가 없을 때 새 지형 높이 테스트가 실패함을 확인했다.
+- GREEN: 숲 helper/UI/커스터마이징 대상 테스트 30개 통과.
+- 카메라 대상 테스트 32개 통과.
+- 전체 `npm test`: 261개 통과.
+- `npm run build`: TypeScript와 Vite production build 통과.
+- Playwright: 데스크톱/390px 모바일에서 content 있음, Vite error overlay 없음, 모바일 가로 overflow 없음, `color-scheme: light only` 확인.
+
+#### 남은 작업
+
+- 로컬 변경은 아직 커밋·푸시되지 않았다.
+- 인증된 실제 사용자 화면의 공부의 숲 3D 장면과 실제 카메라 권한 flow는 수동 운영 확인 항목이다.
+
+#### 다음 우선순위
+
+- 사용자가 요청하면 커밋·푸시 후 GitHub Actions와 Vercel 운영 반영을 확인한다.

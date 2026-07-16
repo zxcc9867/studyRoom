@@ -2313,3 +2313,47 @@
 
 - GitHub Actions에는 checkout/setup-node v4의 Node.js 20 deprecation annotation이 있지만 runner는 Node.js 24로 실행되어 workflow는 성공했다.
 - 서버·웹·GitHub README·문서가 모두 게시 완료 상태다.
+
+---
+
+## 2026-07-17 공부의 숲 공간감·꾸미기와 카메라 시작 복구
+
+## 현재 작업
+
+- 작업명: 실내 출구 가시성, 다리/지형 높이, 아이템 그리드, 카메라 시작 무응답 개선
+- 작업 목적: 캐릭터가 실제 공간 구조에 맞게 이동하고, 숲 보상을 쉽게 탐색하며, 세션 전환 뒤 카메라가 재시도 가능한 상태를 유지하게 한다.
+- 관련 PRD:
+  - `memory-bank/prd-study-forest.md`
+  - `memory-bank/prd-camera-presence.md`
+- 관련 파일:
+  - `apps/web/src/StudyForest3D.tsx`
+  - `apps/web/src/StudyForestSection.tsx`
+  - `apps/web/src/studyForest.mjs`
+  - `apps/web/src/forestCustomization.mjs`
+  - `apps/web/src/cameraStart.mjs`
+  - `apps/web/src/main.tsx`
+  - `apps/web/src/styles.css`
+
+## 최근 결정 사항
+
+- 결정: 다리는 강과 직교하도록 회전하고 충돌 corridor와 높이 helper를 같은 정규화 좌표 모델에서 관리한다.
+- 이유: 보이는 3D 형상, 통과 가능 영역, 캐릭터 Y 좌표가 서로 다른 규칙을 쓰면 물 통과나 데크 관통이 다시 발생하기 때문이다.
+- 대안: Three.js raycast로 매 프레임 바닥 높이를 구하는 방식은 현재 저폴리 고정 장면에 불필요한 복잡도와 모바일 비용을 추가해 사용하지 않았다.
+- 영향 범위: 야외 이동, 다리 경로, 실내 출구 표현, 숲 꾸미기 UI, 카메라 start lifecycle, README/PRD/테스트다.
+
+## 현재 상태
+
+- 완료: 실내 출구 문·문틀·문턱·바닥 표식·시간대 조명을 추가했다.
+- 완료: 다리를 90도 회전하고 실제 데크 폭에 맞춰 물 통과 corridor를 조정했다.
+- 완료: 다리 아치에 맞춘 캐릭터 높이 계산과 부드러운 Y 보간을 적용했다.
+- 완료: 세 카테고리의 캡슐형 아이템 그리드와 잠금 `?` 표시를 구현했다.
+- 완료: 카메라 시작 15초 timeout, stale attempt 무효화, 늦은 stream/detector 정리, 비활성 세션 안내를 구현했다.
+- 완료: 전체 테스트 261개와 production build, 로컬 Playwright 데스크톱/모바일 기본 화면 검증이 통과했다.
+- 진행 중: 없음.
+- 막힌 부분: 인증 없는 테스트 브라우저에서는 로그인 뒤 공부의 숲 3D 장면을 직접 시각 확인할 수 없었다. 첨부 이미지 도구도 Windows ACL 오류로 열리지 않았다.
+- 다음 작업: 사용자가 요청하면 변경을 커밋·푸시하고 GitHub Actions/Vercel 배포를 확인한다.
+
+## 주의할 점
+
+- Supabase 스키마/RLS/RPC/Edge Function 변경은 없다.
+- 운영 계정에서 실내 출구 통과, 다리 오르내림, 잠금 카드, 세션 종료 직후 카메라 재시도를 한 번 수동 확인하는 것이 좋다.

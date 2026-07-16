@@ -17,6 +17,19 @@ export const featuredRewardOptions = [
   { id: "campfire", label: "모닥불", description: "세 번째 완성 나무가 저녁 모닥불을 밝혀요.", requiredTrees: 3 },
 ];
 
+const forestCustomizationSymbols = {
+  spring: "\u273f",
+  harvest: "\u25c6",
+  moonlight: "\u263e",
+  mint: "\u25cf",
+  coral: "\u25cf",
+  honey: "\u25cf",
+  none: "\u25cb",
+  birdhouse: "\u2302",
+  picnic: "\u25a6",
+  campfire: "\u2668",
+};
+
 export const defaultForestPreferences = {
   islandTheme: "spring",
   cottageAccent: "mint",
@@ -27,6 +40,7 @@ export function getForestCustomizationCatalog(completedTrees) {
   const safeTreeCount = Math.max(0, Math.floor(Number(completedTrees) || 0));
   const withUnlock = (option) => ({
     ...option,
+    symbol: forestCustomizationSymbols[option.id] ?? "?",
     unlocked: safeTreeCount >= option.requiredTrees,
     remainingTrees: Math.max(0, option.requiredTrees - safeTreeCount),
   });

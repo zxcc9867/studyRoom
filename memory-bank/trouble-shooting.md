@@ -2958,3 +2958,72 @@ anon_can_execute: true
 ### 재발 방지
 
 SECURITY DEFINER RPC 변경 시 `PUBLIC`만 회수하지 말고 `anon`의 실제 `has_function_privilege` 결과를 확인한다. 시간 연장 기능은 증가량뿐 아니라 최대 마감 시각 예시를 단위 테스트와 SQL 계약 테스트로 함께 고정한다.
+
+## 2026-07-17 - 세션 종료 뒤 카메라 시작 상태가 풀리지 않을 수 있음
+
+### 상황
+
+세션을 종료한 직후 또는 카메라 권한 응답이 지연된 상태에서 다음 카메라 켜기 동작이 `starting`에 머물거나 버튼이 아무 반응 없는 것처럼 보일 수 있었다.
+
+### 에러 메시지
+
+~~~txt
+cameraStatus: starting
+getUserMedia(): pending without a bounded completion time
+inactive session button: disabled
+~~~
+
+### 원인
+
+- `getUserMedia()`에 시간 제한이 없었다.
+- 세션 종료가 진행 중인 start promise를 무효화하는 세대 번호를 갖지 않았다.
+- 활성 세션이 없으면 버튼을 disabled 처리해 클릭 시 사용 조건 안내조차 표시되지 않았다.
+
+### 해결 방법
+
+- 카메라 stream 요청에 15초 제한을 추가했다.
+- 시작 attempt ref를 추가하고 세션 종료/중지 시 증가시켜 stale 결과를 무효화했다.
+- timeout 또는 취소 뒤 늦게 도착한 stream track과 detector를 정리했다.
+- 세션이 없는 버튼은 활성화하되 시작 요청 대신 안내 문구를 표시하도록 했다.
+
+### 관련 파일
+
+- `apps/web/src/cameraStart.mjs`
+- `apps/web/src/main.tsx`
+- `apps/web/test/cameraStart.test.mjs`
+
+### 재발 방지
+
+카메라처럼 사용자 권한과 장치 응답에 의존하는 비동기 시작 작업은 timeout, 취소 세대, 늦은 자원 정리, 사용자 피드백을 한 세트로 테스트한다.
+
+## 2026-07-17 - Windows sandbox ACL로 이미지/패치 도구가 파일을 열지 못함
+
+### 상황
+
+첨부 이미지와 로컬 복사본을 시각 도구로 열고 `apply_patch`로 수정하려 했으나 같은 Windows ACL 오류가 반복됐다.
+
+### 에러 메시지
+
+~~~txt
+windows sandbox failed: helper_unknown_error: apply deny-read ACLs
+~~~
+
+### 원인
+
+Codex Windows sandbox helper가 해당 세션의 파일 ACL 적용 단계에서 실패했다. 프로젝트 코드나 이미지 포맷 문제는 아니었다.
+
+### 해결 방법
+
+- 사용자가 설명한 시각적 불변 조건을 기준으로 좌표/오브젝트 요구사항을 명시했다.
+- UTF-8과 기존 CRLF를 보존하도록 `git apply` 최소 패치를 사용했다.
+- 단위 테스트, UI 소스 계약 테스트, production build, Playwright 로컬 로드/모바일 overflow 검증으로 대체 증거를 확보했다.
+
+### 관련 파일
+
+- `apps/web/src/StudyForest3D.tsx`
+- `apps/web/src/StudyForestSection.tsx`
+- `apps/web/test/studyForestUi.test.mjs`
+
+### 재발 방지
+
+같은 ACL 오류가 발생하면 파일을 반복 복사하지 말고 읽기 가능한 shell 경로와 결정적 helper 테스트를 우선 사용한다. 시각 검증 불가 범위는 최종 보고에서 명확히 분리한다.

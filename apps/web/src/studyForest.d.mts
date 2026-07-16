@@ -160,6 +160,11 @@ export function getForestInteriorRewards(
   completedTrees?: number,
 ): StudyForestInteriorRewards;
 
+export function getForestTerrainHeight(
+  position: Pick<StudyForestAvatarPosition, "x" | "y">,
+  bounds?: StudyForestAvatarBounds,
+): number;
+
 export function getForestBlockedReason(
   position: Pick<StudyForestAvatarPosition, "x" | "y">,
   bounds?: StudyForestAvatarBounds,

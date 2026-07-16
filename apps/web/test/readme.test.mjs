@@ -11,6 +11,9 @@ test("README documents the current study loop, forest, mobile policy, and lease 
   assert.match(readme, /Three\.js/);
   assert.match(readme, /공부의 숲/);
   assert.match(readme, /최대 2시간/);
+  assert.match(readme, /강을 직교해 건너는 다리/);
+  assert.match(readme, /잠금 항목은 이름 대신 `\?`/);
+  assert.match(readme, /카메라 시작 응답을 15초/);
   assert.match(readme, /Expo 모바일/);
   assert.match(readme, /memory-bank\/prd-/);
 });

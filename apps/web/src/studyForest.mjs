@@ -14,8 +14,11 @@ const AUTO_WALK_WAYPOINTS = [
   { x: 45, y: 50 },
 ];
 
+const FOREST_GROUND_HEIGHT = 0.38;
+const FOREST_BRIDGE_EDGE_HEIGHT = 0.6;
+const FOREST_BRIDGE_ARCH_HEIGHT = 0.28;
 const FOREST_RIVER_BAND = { minY: 61.8, maxY: 73.2 };
-const FOREST_BRIDGE_CORRIDOR = { minX: 42, maxX: 68, northY: 60.8, southY: 73.2, centerX: 55 };
+const FOREST_BRIDGE_CORRIDOR = { minX: 47, maxX: 64, northY: 60.8, southY: 73.2, centerX: 55 };
 const FOREST_SOLID_AREAS = [
   { reason: "cottage", minX: 12, maxX: 35, minY: 42, maxY: 57 },
   { reason: "garden", minX: 69, maxX: 92, minY: 45, maxY: 56 },
@@ -300,6 +303,26 @@ export function getForestInteriorRewards(progressDays, completedTrees = 0) {
   };
 }
 
+function isInsideForestBridge(position) {
+  return position.x >= FOREST_BRIDGE_CORRIDOR.minX
+    && position.x <= FOREST_BRIDGE_CORRIDOR.maxX
+    && position.y >= FOREST_RIVER_BAND.minY
+    && position.y <= FOREST_RIVER_BAND.maxY;
+}
+
+export function getForestTerrainHeight(position, bounds = {}) {
+  const meadow = getAvatarBounds(bounds);
+  const current = normalizeAvatarPosition(position, meadow);
+  if (!isInsideForestBridge(current)) return FOREST_GROUND_HEIGHT;
+
+  const halfSpan = (FOREST_RIVER_BAND.maxY - FOREST_RIVER_BAND.minY) / 2;
+  const centerY = FOREST_RIVER_BAND.minY + halfSpan;
+  const centerWeight = 1 - Math.min(1, Math.abs(current.y - centerY) / halfSpan);
+  const height = FOREST_BRIDGE_EDGE_HEIGHT
+    + Math.sin(centerWeight * Math.PI / 2) * FOREST_BRIDGE_ARCH_HEIGHT;
+  return Math.round(height * 1000) / 1000;
+}
+
 export function getForestBlockedReason(position, bounds = {}) {
   const meadow = getAvatarBounds(bounds);
   const current = normalizeAvatarPosition(position, meadow);
@@ -313,8 +336,7 @@ export function getForestBlockedReason(position, bounds = {}) {
   }
 
   const insideRiver = current.y >= FOREST_RIVER_BAND.minY && current.y <= FOREST_RIVER_BAND.maxY;
-  const insideBridge = current.x >= FOREST_BRIDGE_CORRIDOR.minX && current.x <= FOREST_BRIDGE_CORRIDOR.maxX;
-  if (insideRiver && !insideBridge) return "water";
+  if (insideRiver && !isInsideForestBridge(current)) return "water";
 
   const solidArea = FOREST_SOLID_AREAS.find(
     (area) =>

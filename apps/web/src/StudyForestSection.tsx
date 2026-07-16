@@ -298,20 +298,43 @@ function CustomizationGroup<T extends string>({ title, options, selected, busy, 
 }) {
   return (
     <div className="forest-customizer-group">
-      <strong>{title}</strong>
+      <div className="forest-customizer-category-heading">
+        <strong>{title}</strong>
+        <small>컬렉션에서 아이템을 선택하세요</small>
+      </div>
       <div className="forest-customizer-options">
-        {options.map((option) => (
-          <button
-            type="button"
-            key={option.id}
-            className={selected === option.id ? "selected" : ""}
-            disabled={busy || !option.unlocked}
-            onClick={() => onSelect(option.id)}
-          >
-            {option.unlocked ? (selected === option.id ? <CheckCircle2 size={17} /> : <Sparkles size={17} />) : <LockKeyhole size={17} />}
-            <span><b>{option.label}</b><small>{option.unlocked ? option.description : `완성 나무 ${option.remainingTrees}그루 후 해금`}</small></span>
-          </button>
-        ))}
+        {options.map((option) => {
+          const isSelected = selected === option.id;
+          const cardLabel = option.unlocked ? option.label : "잠긴 비밀 아이템";
+          return (
+            <button
+              type="button"
+              key={option.id}
+              className={`forest-item-card ${isSelected ? "selected" : ""}`}
+              disabled={busy || !option.unlocked}
+              aria-label={option.unlocked ? option.label : `${cardLabel}, 완성 나무 ${option.remainingTrees}그루 후 공개`}
+              aria-pressed={option.unlocked ? isSelected : undefined}
+              onClick={() => onSelect(option.id)}
+            >
+              <span className="forest-item-state" aria-hidden="true">
+                {isSelected ? <CheckCircle2 size={17} /> : option.unlocked ? <Sparkles size={17} /> : <LockKeyhole size={17} />}
+              </span>
+              <span
+                className="forest-item-orb"
+                data-locked={!option.unlocked}
+                style={option.color ? { color: option.color } : undefined}
+              >
+                <span aria-hidden="true">{option.unlocked ? option.symbol : "?"}</span>
+              </span>
+              <span className="forest-item-copy">
+                <b>{option.unlocked ? option.label : "비밀 아이템"}</b>
+                <small>
+                  {option.unlocked ? option.description ?? "선택해서 바로 적용해요." : `완성 나무 ${option.remainingTrees}그루 후 공개`}
+                </small>
+              </span>
+            </button>
+          );
+        })}
       </div>
     </div>
   );

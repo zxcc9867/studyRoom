@@ -13,6 +13,7 @@ export type ForestCustomizationOption<T extends string> = {
   label: string;
   description?: string;
   color?: string;
+  symbol?: string;
   requiredTrees: number;
   unlocked?: boolean;
   remainingTrees?: number;

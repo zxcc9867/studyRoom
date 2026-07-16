@@ -103,3 +103,18 @@ test("cottage movement, facing, rewards, time phases, and customization stay wir
   assert.match(cssSource, /\.forest-interior-unlock/);
   assert.match(cssSource, /\.study-forest-time-badge/);
 });
+test("cottage exit, perpendicular bridge, terrain height, and item-grid customization stay visible", () => {
+  assert.match(componentSource, /cottage-exit-door/);
+  assert.match(componentSource, /cottage-exit-threshold/);
+  assert.match(componentSource, /cottage-exit-marker/);
+  assert.match(componentSource, /bridge\.rotation\.y = Math\.PI \/ 2/);
+  assert.match(componentSource, /getForestTerrainHeight\(target\)/);
+  assert.match(componentSource, /avatarGroup\.position\.y = THREE\.MathUtils\.lerp/);
+
+  assert.match(sectionSource, /forest-item-card/);
+  assert.match(sectionSource, /forest-item-orb/);
+  assert.match(sectionSource, /option\.unlocked \? option\.symbol : "\?"/);
+  assert.match(sectionSource, /forest-customizer-category-heading/);
+  assert.match(cssSource, /grid-template-columns: repeat\(auto-fit, minmax\(132px, 1fr\)\)/);
+  assert.match(cssSource, /\.forest-item-orb\[data-locked="true"\]/);
+});

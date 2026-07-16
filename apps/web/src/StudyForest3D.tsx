@@ -6,6 +6,7 @@ import {
   getForestBlockedReason,
   getForestInteriorRewards,
   getForestNavigationPath,
+  getForestTerrainHeight,
   getForestTimePhase,
   isCottagePositionWalkable,
   isForestAvatarPositionWalkable,
@@ -161,7 +162,7 @@ export function avatarTargetToWorldPoint(target: AvatarTarget) {
   const yRatio = (target.y - AVATAR_BOUNDS.minY) / (AVATAR_BOUNDS.maxY - AVATAR_BOUNDS.minY);
   return new THREE.Vector3(
     THREE.MathUtils.lerp(WORLD_BOUNDS.minX, WORLD_BOUNDS.maxX, THREE.MathUtils.clamp(xRatio, 0, 1)),
-    0.38,
+    getForestTerrainHeight(target),
     THREE.MathUtils.lerp(WORLD_BOUNDS.minZ, WORLD_BOUNDS.maxZ, THREE.MathUtils.clamp(yRatio, 0, 1)),
   );
 }
@@ -344,6 +345,7 @@ function createBridge(scene: THREE.Scene) {
   const bridge = new THREE.Group();
   bridge.name = "wooden-bridge";
   bridge.position.set(0.65, 0.68, 0.72);
+  bridge.rotation.y = Math.PI / 2;
 
   const plankMaterial = standardMaterial(palette.woodLight);
   for (let index = -4; index <= 4; index += 1) {
@@ -421,6 +423,72 @@ function createCottage(scene: THREE.Scene, accentColor: number) {
   return { cottage, door };
 }
 
+function createCottageExitDoor(
+  room: THREE.Group,
+  accentColor: number,
+  timePhase: StudyForestTimePhase,
+) {
+  const exitDoor = new THREE.Group();
+  exitDoor.name = "cottage-exit-door";
+  exitDoor.position.set(0, 0.08, 3.02);
+
+  const frameMaterial = standardMaterial(palette.woodLight);
+  for (const x of [-0.86, 0.86]) {
+    const post = new THREE.Mesh(
+      new THREE.BoxGeometry(0.18, 2.55, 0.2),
+      frameMaterial,
+    );
+    post.position.set(x, 1.28, 0);
+    exitDoor.add(post);
+  }
+  const lintel = new THREE.Mesh(
+    new THREE.BoxGeometry(1.9, 0.22, 0.22),
+    frameMaterial,
+  );
+  lintel.position.set(0, 2.5, 0);
+  exitDoor.add(lintel);
+
+  const doorPivot = new THREE.Group();
+  doorPivot.name = "cottage-exit-door-leaf";
+  doorPivot.position.set(-0.76, 0, -0.02);
+  doorPivot.rotation.y = -0.84;
+  const doorPanel = new THREE.Mesh(
+    new THREE.BoxGeometry(1.52, 2.35, 0.14),
+    standardMaterial(accentColor),
+  );
+  doorPanel.position.set(0.76, 1.2, 0);
+  doorPivot.add(doorPanel);
+  const knob = new THREE.Mesh(
+    new THREE.SphereGeometry(0.09, 8, 6),
+    standardMaterial(palette.gold),
+  );
+  knob.position.set(1.32, 1.18, 0.11);
+  doorPivot.add(knob);
+  exitDoor.add(doorPivot);
+
+  const threshold = new THREE.Mesh(
+    new THREE.BoxGeometry(2.1, 0.12, 0.72),
+    standardMaterial(0xf2cd78),
+  );
+  threshold.name = "cottage-exit-threshold";
+  threshold.position.set(0, 0.04, -0.08);
+  exitDoor.add(threshold);
+
+  const marker = new THREE.Mesh(
+    new THREE.CircleGeometry(0.52, 12),
+    new THREE.MeshBasicMaterial({ color: 0xffe48a, transparent: true, opacity: 0.72 }),
+  );
+  marker.name = "cottage-exit-marker";
+  marker.rotation.x = -Math.PI / 2;
+  marker.position.set(0, 0.12, -0.62);
+  exitDoor.add(marker);
+
+  const glow = new THREE.PointLight(0xffd778, timePhase === "night" ? 4.2 : 2.4, 5, 2);
+  glow.position.set(0, 1.65, -0.25);
+  exitDoor.add(glow);
+  room.add(exitDoor);
+}
+
 function createCottageInterior(
   scene: THREE.Scene,
   rewards: StudyForestInteriorRewards,
@@ -451,6 +519,8 @@ function createCottageInterior(
   );
   sideWall.position.set(-4.55, 1.72, 0);
   room.add(sideWall);
+
+  createCottageExitDoor(room, accentColor, timePhase);
 
   if (rewards.rug) {
   const rug = new THREE.Mesh(
@@ -1243,8 +1313,11 @@ export function StudyForest3D({
         const pathTarget = avatarPathRef.current[0] ?? avatarTargetRef.current;
         avatarGroup.position.x = THREE.MathUtils.lerp(avatarGroup.position.x, pathTarget.x, 0.075);
         avatarGroup.position.z = THREE.MathUtils.lerp(avatarGroup.position.z, pathTarget.z, 0.075);
-        avatarGroup.position.y = pathTarget.y + (prefersReducedMotion ? 0 : Math.sin(elapsed * 4.2) * 0.045);
-        avatarWorldRef.current.set(avatarGroup.position.x, 0.38, avatarGroup.position.z);
+        const walkingBob = prefersReducedMotion ? 0 : Math.sin(elapsed * 4.2) * 0.045;
+        avatarGroup.position.y = THREE.MathUtils.lerp(avatarGroup.position.y, pathTarget.y + walkingBob, 0.14);
+        avatarWorldRef.current.set(
+          avatarGroup.position.x, avatarGroup.position.y - walkingBob, avatarGroup.position.z,
+        );
 
         const dx = pathTarget.x - avatarGroup.position.x;
         const dz = pathTarget.z - avatarGroup.position.z;

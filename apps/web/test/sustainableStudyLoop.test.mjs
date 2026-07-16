@@ -14,6 +14,7 @@ test("forest customization unlocks rewards by completed tree count and rejects l
   const advanced = getForestCustomizationCatalog(2);
 
   assert.equal(initial.themes.find((option) => option.id === "harvest").unlocked, false);
+  assert.equal(initial.themes.find((option) => option.id === "harvest").symbol, "\u25c6");
   assert.equal(initial.rewards.find((option) => option.id === "birdhouse").remainingTrees, 1);
   assert.equal(advanced.themes.find((option) => option.id === "moonlight").unlocked, true);
   assert.equal(advanced.rewards.find((option) => option.id === "picnic").unlocked, true);

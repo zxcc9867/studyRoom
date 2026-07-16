@@ -90,6 +90,10 @@ import {
 } from "./cameraFrameRecovery.mjs";
 import { getCameraDiagnostic, type CameraDiagnostic } from "./cameraDiagnostics.mjs";
 import {
+  isCameraStartTimeoutError,
+  requestCameraStreamWithTimeout,
+} from "./cameraStart.mjs";
+import {
   cameraMonitoringIntentKey,
   createCameraMonitoringIntent,
   parseCameraMonitoringIntent,
@@ -525,6 +529,7 @@ function DashboardApp() {
   const presenceStateRef = useRef<PresenceState>(createPresenceState(Date.now()));
   const cameraSessionIdRef = useRef<string | null>(null);
   const cameraSessionStartingRef = useRef(false);
+  const cameraStartAttemptRef = useRef(0);
   const cameraAutoRestoreAttemptedRef = useRef(false);
   const cameraRecoveryInFlightRef = useRef(false);
   const cameraFrameRecoveryStateRef = useRef<CameraFrameRecoveryState>(createCameraFrameRecoveryState());
@@ -1131,13 +1136,17 @@ function DashboardApp() {
   }, [activeSession?.id, session?.access_token, session?.user.id]);
 
   useEffect(() => {
-    if (!activeSession && cameraEnabled && !cameraSessionStartingRef.current) {
+    if (
+      !activeSession
+      && (cameraEnabled || cameraStatus === "starting")
+      && !cameraSessionStartingRef.current
+    ) {
       stopCameraMonitoring({ recordEvent: true });
     }
     if (!activeSession) {
       cameraAutoRestoreAttemptedRef.current = false;
     }
-  }, [activeSession?.id, cameraEnabled]);
+  }, [activeSession?.id, cameraEnabled, cameraStatus]);
 
   useEffect(() => {
     if (!activeSession || !session?.user.id || cameraEnabled || cameraStatus === "starting") {
@@ -3128,6 +3137,8 @@ function DashboardApp() {
 
   function stopCameraMonitoring({ recordEvent = false }: { recordEvent?: boolean } = {}) {
     const stoppedSessionId = cameraSessionIdRef.current;
+    cameraStartAttemptRef.current += 1;
+    cameraSessionStartingRef.current = false;
     cleanupCameraResources();
     cameraSessionIdRef.current = null;
     warningInFlightRef.current = false;
@@ -3174,6 +3185,8 @@ function DashboardApp() {
       return false;
     }
 
+    const startAttempt = cameraStartAttemptRef.current + 1;
+    cameraStartAttemptRef.current = startAttempt;
     setCameraStatus("starting");
     setCameraMessage("카메라 준비 중");
     setCameraDiagnosticReason(null);
@@ -3182,22 +3195,36 @@ function DashboardApp() {
       if (restart) {
         cleanupCameraResources();
       }
-      const stream = await navigator.mediaDevices.getUserMedia({
-        video: {
-          facingMode: "user",
-          width: { ideal: 640 },
-          height: { ideal: 480 },
-        },
-        audio: false,
-      });
+      const stream = await requestCameraStreamWithTimeout(() =>
+        navigator.mediaDevices.getUserMedia({
+          video: {
+            facingMode: "user",
+            width: { ideal: 640 },
+            height: { ideal: 480 },
+          },
+          audio: false,
+        }),
+      );
+
+      if (cameraStartAttemptRef.current !== startAttempt) {
+        stream.getTracks().forEach((track) => track.stop());
+        return false;
+      }
 
       cameraStreamRef.current = stream;
       if (videoRef.current) {
         videoRef.current.srcObject = stream;
-        await videoRef.current.play().catch(() => undefined);
+        void videoRef.current.play().catch(() => undefined);
       }
 
-      presenceDetectorRef.current = await createUpperBodyPresenceDetector();
+      const detector = await createUpperBodyPresenceDetector();
+      if (cameraStartAttemptRef.current !== startAttempt) {
+        detector.close();
+        if (videoRef.current?.srcObject === stream) videoRef.current.srcObject = null;
+        return false;
+      }
+
+      presenceDetectorRef.current = detector;
       cameraSessionIdRef.current = activeSession?.id ?? null;
       if (activeSession?.id) {
         rememberCameraMonitoringIntent(activeSession.id);
@@ -3215,6 +3242,11 @@ function DashboardApp() {
       }
       return true;
     } catch (error) {
+      if (cameraStartAttemptRef.current !== startAttempt) {
+        return false;
+      }
+
+      const timedOut = isCameraStartTimeoutError(error);
       cleanupCameraResources();
       setCameraEnabled(false);
       setCameraStatus("error");
@@ -3223,7 +3255,11 @@ function DashboardApp() {
           ? "permission-denied"
           : "unknown-error",
       );
-      setCameraMessage(formatCameraError(error));
+      setCameraMessage(
+        timedOut
+          ? "카메라 연결 응답이 없어 취소했습니다. 브라우저 권한을 확인한 뒤 다시 눌러주세요."
+          : formatCameraError(error),
+      );
 
       const denied = error instanceof DOMException && ["NotAllowedError", "PermissionDeniedError"].includes(error.name);
       if (denied && activeSession) {
@@ -5058,7 +5094,7 @@ function DashboardApp() {
                   onClick={() => {
                     void toggleCameraMonitoring();
                   }}
-                  disabled={!activeSession || (!cameraEnabled && cameraStatus === "starting")}
+                  disabled={!cameraEnabled && cameraStatus === "starting"}
                 >
                   {cameraEnabled ? <CameraOff size={18} /> : <Camera size={18} />}
                   {cameraEnabled ? "카메라 감시 끄기" : "카메라 감시 켜기"}

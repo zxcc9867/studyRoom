@@ -142,3 +142,25 @@ Personal MVP users who want a softer Animal Crossing-style reward for sustained 
 - Whether future versions should persist custom decorations or character position in Supabase.
 - Whether future versions should add decoration placement or camera controls after mobile performance is validated.
 - Whether future versions should persist the last island/interior location or unlock furniture customization.
+
+## 13. 2026-07-17 Update: Surface Height, Exit Door, and Item Grid
+
+### Decision
+
+- 강은 가로축으로 흐르고 다리는 강을 직교해 건너도록 90도 회전한다. 이동 가능 corridor도 실제 회전된 데크 폭과 같은 범위만 허용한다.
+- 야외 캐릭터의 월드 Y 좌표는 고정값이 아니라 `getForestTerrainHeight()`에서 결정한다. 다리 입구에서 중앙 아치까지 높아졌다가 반대편에서 다시 낮아지며 animation loop가 이 값을 보간한다.
+- 실내 퇴장 포털은 기존 좌표 판정을 유지하되 열린 문짝, 문틀, 문턱, 바닥 표식, 시간대 조명으로 시각적으로 명확하게 표시한다.
+- 숲 꾸미기는 테마·집 포인트·야외 보상 카테고리별 캡슐형 아이템 그리드를 사용한다.
+- 잠긴 아이템은 실제 이름이나 심볼을 노출하지 않고 큰 `?`와 해금까지 필요한 완성 나무 수만 표시한다.
+- 특정 상용 게임의 에셋이나 UI를 복제하지 않고, 기존 숲 팔레트와 원본 기하/심볼만 사용한다.
+
+### Added Functional Requirements
+
+- [x] 다리 3D 형상은 강 흐름과 직교한다.
+- [x] 물 충돌 corridor는 실제 다리 폭만 통과시킨다.
+- [x] 캐릭터는 다리 데크의 아치 높이를 따라 부드럽게 오르내린다.
+- [x] 실내 출구는 문·문턱·바닥 표식으로 즉시 식별 가능하다.
+- [x] 출구 버튼 없이 실내 아래쪽 문 영역을 걸어서 통과하면 섬으로 돌아간다.
+- [x] 숲 꾸미기는 세 카테고리의 반응형 아이템 그리드로 표시한다.
+- [x] 잠긴 아이템 카드는 `?`와 남은 완성 나무 수를 표시한다.
+- [x] 지형 높이, 다리 방향, 출구 오브젝트, 아이템 그리드와 잠금 표시를 회귀 테스트로 고정한다.

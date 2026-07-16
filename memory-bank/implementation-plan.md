@@ -626,3 +626,33 @@ docs/images/study-room-thumbnail.png
 - 마이그레이션 파일: `supabase/migrations/20260716132227_cap_session_lease_remaining_time.sql`
 - 확인 방법: 원격 migration `20260716132549_cap_session_lease_remaining_time`, 함수 정의의 2시간 `least` 상한, anon=false/authenticated=true/service_role=true, 90분 잔여 예시=7,200초를 확인했다. `attendance-cron` v27과 `slack-recovery-interactions` v8은 ACTIVE다.
 - 주의 사항: authenticated SECURITY DEFINER advisor 경고는 앱 사용자가 자신의 세션을 연장해야 하므로 의도된 공개 범위다. 함수 내부 소유권 검사와 입력 60분 제한을 유지해야 한다.
+
+## Study Forest Surface Model and Camera Start Lifecycle (2026-07-17)
+
+### Architecture
+
+- `studyForest.mjs`는 정규화 좌표 기준의 물/다리 충돌, 다리 경유 경로, 지형 높이를 함께 소유한다.
+- `StudyForest3D.tsx`는 같은 helper 결과를 월드 좌표의 Y 값으로 사용하고 animation loop에서 X/Z와 별도로 높이를 보간한다.
+- 다리 mesh는 강 흐름에 직교하도록 Y축 90도 회전을 사용하며, 충돌 corridor는 회전된 데크의 실제 폭에 맞춘다.
+- 실내 출구는 `isCottageExitPosition()` 포털과 `cottage-exit-door`, `cottage-exit-threshold`, `cottage-exit-marker` 오브젝트를 같은 아래쪽 출구 영역에 둔다.
+- 커스터마이징 데이터는 기존 Supabase preference enum을 유지하고 presentation 전용 `symbol`만 클라이언트 catalog에서 파생한다.
+- `cameraStart.mjs`는 `getUserMedia` 시작 제한과 늦은 MediaStream 정리를 담당한다. React는 증가하는 attempt ref로 세션 종료/중지 이후의 stale 비동기 결과를 거절한다.
+
+### Design Patterns
+
+- 지형 높이와 충돌은 Three.js mesh를 역으로 검사하지 않고 같은 결정적 좌표 모델에서 계산한다.
+- 잠긴 꾸미기 항목의 실제 심볼과 이름은 렌더링하지 않고 `?`와 해금 조건만 표시한다.
+- 카메라 중지는 stream/detector 자원 정리와 함께 attempt를 무효화해야 한다.
+- 활성 세션이 없는 카메라 클릭은 disabled 무반응 대신 조건 안내로 처리한다.
+
+### Testing Strategy
+
+- helper 테스트로 다리 가장자리/중앙/잔디의 높이 차이와 실제 다리 corridor의 통과 여부를 검증한다.
+- UI 소스 계약 테스트로 출구 오브젝트 이름, 다리 90도 회전, Y 보간, 아이템 그리드와 잠금 `?`를 고정한다.
+- 카메라 helper 테스트는 성공 시 timer 해제, timeout rejection, timeout 후 늦은 stream track 정지를 검증한다.
+- 전체 `npm test`, TypeScript를 포함한 `npm run build`, 로컬 Playwright의 content/overlay/mobile overflow 검증을 배포 전 게이트로 사용한다.
+
+### Deployment Strategy
+
+- 이번 변경은 클라이언트와 문서/테스트 전용이며 Supabase 스키마, RLS, RPC, Edge Function 변경이 없다.
+- 사용자의 명시적 요청 전에는 커밋, 푸시, Vercel 배포를 수행하지 않는다.
