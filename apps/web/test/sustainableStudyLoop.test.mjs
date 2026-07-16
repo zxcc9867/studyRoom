@@ -7,7 +7,12 @@ import {
   normalizeForestPreferences,
 } from "../src/forestCustomization.mjs";
 import { getAdaptiveReminderRecommendation } from "../src/adaptiveReminder.mjs";
-import { buildWeeklyStudyReview, getStudyWeekRange } from "../src/weeklyReview.mjs";
+import {
+  buildWeeklyStudyReview,
+  formatStudyDuration,
+  formatStudyDurationChange,
+  getStudyWeekRange,
+} from "../src/weeklyReview.mjs";
 
 test("forest customization unlocks rewards by completed tree count and rejects locked choices", () => {
   const initial = getForestCustomizationCatalog(0);
@@ -68,6 +73,18 @@ test("weekly review compares Monday-to-Sunday study, completion, attendance, and
   assert.deepEqual(review.current.nextActions, ["Review chapter notes"]);
   assert.equal(review.studySecondsChange, 4200);
   assert.equal(review.completionRateChange, -50);
+});
+
+test("weekly review formats study totals and comparisons as readable hours", () => {
+  assert.equal(formatStudyDuration(7235), "2시간 1분");
+  assert.equal(formatStudyDurationChange(-109646), "지난주보다 -30시간 27분");
+  assert.equal(formatStudyDurationChange(4200), "지난주보다 +1시간 10분");
+  assert.equal(formatStudyDurationChange(0), "지난주와 같아요");
+
+  const section = readFileSync(new URL("../src/WeeklyReviewSection.tsx", import.meta.url), "utf8");
+  assert.match(section, /완료 세션 공부 시간/);
+  assert.match(section, /현재/);
+  assert.match(section, /current\.sessionCount/);
 });
 
 test("adaptive reminders use a 28-day first-session median rounded to 15 minutes", () => {

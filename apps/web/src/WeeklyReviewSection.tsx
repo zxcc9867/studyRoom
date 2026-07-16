@@ -1,6 +1,6 @@
 import type { ReactNode } from "react";
 import { BatteryMedium, CheckCircle2, Clock3, Compass, Flame, TrendingDown, TrendingUp } from "lucide-react";
-import { buildWeeklyStudyReview } from "./weeklyReview.mjs";
+import { buildWeeklyStudyReview, formatStudyDuration, formatStudyDurationChange } from "./weeklyReview.mjs";
 
 type Props = {
   todayDateKey: string;
@@ -17,14 +17,23 @@ export default function WeeklyReviewSection(props: Props) {
     <section className="weekly-review-card" aria-labelledby="weekly-review-title">
       <div className="weekly-review-heading">
         <div><p className="eyebrow">weekly review</p><h3 id="weekly-review-title">이번 주 학습 리뷰</h3></div>
-        <span>{current.startDate.slice(5).replace("-", ".")} ~ {current.endDate.slice(5).replace("-", ".")}</span>
+        <span className="weekly-review-period">
+          <strong>{formatShortDate(current.startDate)} ~ {formatShortDate(current.endDate)}</strong>
+          <small>{formatShortDate(props.todayDateKey)} 현재</small>
+        </span>
       </div>
       <div className="weekly-review-score">
         <div><Compass size={30} /><span>꾸준함 점수</span><strong>{current.consistencyScore}</strong></div>
         <Trend value={review.consistencyChange} suffix="점" />
       </div>
       <div className="weekly-review-metrics">
-        <Metric icon={<Clock3 size={20} />} label="공부 시간" value={formatDuration(current.studySeconds)} trend={formatSignedDuration(review.studySecondsChange)} />
+        <Metric
+          icon={<Clock3 size={20} />}
+          label="완료 세션 공부 시간"
+          value={formatStudyDuration(current.studySeconds)}
+          detail={`${current.sessionCount}회 완료 합계`}
+          trend={formatStudyDurationChange(review.studySecondsChange)}
+        />
         <Metric icon={<CheckCircle2 size={20} />} label="할 일 완료" value={`${current.completionRate}%`} trend={`${signed(review.completionRateChange)}%p`} />
         <Metric icon={<Flame size={20} />} label="출석" value={`${current.presentDays}일`} trend={`${current.sessionCount}회 집중`} />
         <Metric icon={<BatteryMedium size={20} />} label="집중·에너지" value={`${current.averageFocus ?? "-"} / ${current.averageEnergy ?? "-"}`} trend={`${current.reflectionCount}회 회고`} />
@@ -37,8 +46,8 @@ export default function WeeklyReviewSection(props: Props) {
   );
 }
 
-function Metric({ icon, label, value, trend }: { icon: ReactNode; label: string; value: string; trend: string }) {
-  return <div className="weekly-review-metric">{icon}<span>{label}</span><strong>{value}</strong><small>{trend}</small></div>;
+function Metric({ icon, label, value, detail, trend }: { icon: ReactNode; label: string; value: string; detail?: string; trend: string }) {
+  return <div className="weekly-review-metric">{icon}<span>{label}</span><strong>{value}</strong>{detail ? <small className="weekly-review-metric-detail">{detail}</small> : null}<small>{trend}</small></div>;
 }
 
 function Trend({ value, suffix }: { value: number; suffix: string }) {
@@ -47,5 +56,4 @@ function Trend({ value, suffix }: { value: number; suffix: string }) {
 }
 
 function signed(value: number) { return value > 0 ? `+${value}` : String(value); }
-function formatDuration(seconds: number) { return `${Math.floor(seconds / 3600)}시간 ${Math.floor((seconds % 3600) / 60)}분`; }
-function formatSignedDuration(seconds: number) { const minutes = Math.round(seconds / 60); return `지난주보다 ${signed(minutes)}분`; }
+function formatShortDate(dateKey: string) { return dateKey.slice(5).replace("-", "."); }

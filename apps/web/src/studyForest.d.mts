@@ -97,7 +97,40 @@ export function getAvatarFacing(
 ): StudyForestAvatarFacing;
 
 
-export type StudyForestBlockedReason = "edge" | "water" | "cottage" | "garden" | "tree";
+export const forestBridgePhysics: Readonly<{
+  avatar: Readonly<{
+    riverMinY: number;
+    riverMaxY: number;
+    deckMinX: number;
+    deckMaxX: number;
+    walkwayMinX: number;
+    walkwayMaxX: number;
+    northY: number;
+    southY: number;
+    centerX: number;
+  }>;
+  world: Readonly<{
+    centerX: number;
+    baseY: number;
+    centerZ: number;
+    rotationY: number;
+    plankCount: number;
+    plankWidth: number;
+    plankHeight: number;
+    plankSpacing: number;
+    deckWidth: number;
+    deckLength: number;
+    railThickness: number;
+    railOffset: number;
+    railHeight: number;
+    railPostHeight: number;
+    railPostRadius: number;
+    railPostPositions: readonly number[];
+    avatarRadius: number;
+  }>;
+}>;
+
+export type StudyForestBlockedReason = "edge" | "water" | "bridge-rail" | "cottage" | "garden" | "tree";
 
 export type StudyForestLevelMilestone = {
   days: number;

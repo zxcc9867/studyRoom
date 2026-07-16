@@ -4503,3 +4503,84 @@
 #### 다음 우선순위
 
 - 운영 계정에서 실내 출구 통과와 카메라 재시도 체감을 확인한다.
+
+### 2026-07-17 - 다리 측면 난간과 물리 통로 수정
+
+#### 완료한 작업
+
+- 다리 난간 beam과 기둥을 진행 방향 양옆으로 옮겨 입구와 출구를 열었다.
+- 데크, 난간, 기둥, 캐릭터 반경을 `forestBridgePhysics`로 통합했다.
+- 캐릭터 중심 안전 통로 X 52~58과 `bridge-rail` 충돌 사유를 추가했다.
+- 다리 중앙 경로, 경계 충돌, 난간 축과 배치를 테스트로 고정했다.
+- README와 Study Forest PRD를 최신 동작에 맞게 갱신했다.
+
+#### 변경된 파일
+
+- `README.md`
+- `apps/web/src/studyForest.mjs`
+- `apps/web/src/studyForest.d.mts`
+- `apps/web/src/StudyForest3D.tsx`
+- `apps/web/test/studyForest.test.mjs`
+- `apps/web/test/studyForestUi.test.mjs`
+- `apps/web/test/readme.test.mjs`
+- `memory-bank/prd-study-forest.md`
+- `memory-bank/active-context.md`
+- `memory-bank/implementation-plan.md`
+- `memory-bank/progress.md`
+- `memory-bank/trouble-shooting.md`
+
+#### 검증 방법
+
+- 관련 helper/UI/README 테스트 27개 통과.
+- `npm run build`: TypeScript 및 Vite production build 통과.
+- 전체 `npm test`: 262개 통과. `git diff --check`: 공백 오류 없음.
+
+#### 남은 작업
+
+- 로컬 구현 기준의 필수 작업은 없다.
+- 커밋, 푸시, 배포는 사용자가 요청할 때 수행한다.
+
+#### 다음 우선순위
+
+- 실제 인증 계정에서 다리 중앙 횡단과 양쪽 난간 충돌을 수동 확인한다.
+
+### 2026-07-17 - 주간 리뷰 시간 표시와 집계 기준 개선
+
+#### 완료한 작업
+
+- 주간 공부 시간과 지난주 차이를 시간·분 단위로 표시하도록 변경했다.
+- 전체 주간 범위 옆에 오늘 기준 날짜를 표시했다.
+- 공부 시간 카드가 완료 세션 합계이며 몇 회를 합산했는지 표시했다.
+- 원격 `study_sessions`를 읽기 전용으로 확인해 07.13~07.19 현재 완료 세션 3회, 7,235초임을 검증했다.
+- README와 관련 PRD, 구현 문서를 갱신했다.
+
+#### 변경된 파일
+
+- `README.md`
+- `apps/web/src/weeklyReview.mjs`
+- `apps/web/src/weeklyReview.d.mts`
+- `apps/web/src/WeeklyReviewSection.tsx`
+- `apps/web/src/styles.css`
+- `apps/web/test/sustainableStudyLoop.test.mjs`
+- `apps/web/test/readme.test.mjs`
+- `memory-bank/prd-sustainable-study-loop.md`
+- `memory-bank/active-context.md`
+- `memory-bank/implementation-plan.md`
+- `memory-bank/progress.md`
+- `memory-bank/trouble-shooting.md`
+
+#### 검증 방법
+
+- 관련 주간 리뷰 테스트 6개 통과.
+- `npm run build`: TypeScript 및 Vite production build 통과.
+- Supabase 읽기 전용 집계: 이번 주 7,235초, 지난주 116,881초 확인.
+- 전체 `npm test`: 263개 통과. `git diff --check`: 공백 오류 없음.
+
+#### 남은 작업
+
+- 로컬 구현 기준의 필수 작업은 없다.
+- 커밋, 푸시, 배포는 사용자가 요청할 때 수행한다.
+
+#### 다음 우선순위
+
+- 과거의 비정상적으로 긴 세션을 별도 데이터 정리 정책으로 다룰지 사용자와 결정한다.

@@ -3,6 +3,8 @@ import { test } from "node:test";
 
 import {
   buildStudyForestState,
+  forestBridgePhysics,
+  getForestBlockedReason,
   getForestInteriorRewards,
   getForestNavigationPath,
   getForestTerrainHeight,
@@ -106,7 +108,7 @@ test("maps progress days to visible tree stages", () => {
 });
 
 test("moves avatar by keyboard step while clamping to the meadow", () => {
-  assert.deepEqual(getAvatarStep({ x: 52, y: 62 }, "ArrowLeft"), { x: 48, y: 62, facing: "left" });
+  assert.deepEqual(getAvatarStep({ x: 52, y: 58 }, "ArrowLeft"), { x: 48, y: 58, facing: "left" });
   assert.deepEqual(getAvatarStep({ x: 8, y: 42 }, "ArrowUp"), { x: 8, y: 42, facing: "up" });
   assert.deepEqual(getAvatarStep({ x: 92, y: 84 }, "ArrowRight"), { x: 92, y: 84, facing: "right" });
 });
@@ -146,6 +148,15 @@ test("auto walk heads toward scenic waypoints instead of pacing one row", () => 
 test("blocks water and solid scenery while keeping the bridge walkable", () => {
   assert.equal(isForestAvatarPositionWalkable({ x: 24, y: 66 }), false);
   assert.equal(isForestAvatarPositionWalkable({ x: 55, y: 66 }), true);
+  assert.equal(isForestAvatarPositionWalkable({ x: 52, y: 66 }), true);
+  assert.equal(isForestAvatarPositionWalkable({ x: 58, y: 66 }), true);
+  assert.equal(getForestBlockedReason({ x: 51, y: 66 }), "bridge-rail");
+  assert.equal(getForestBlockedReason({ x: 59, y: 66 }), "bridge-rail");
+  assert.equal(getForestBlockedReason({ x: 48, y: 66 }), "bridge-rail");
+  assert.equal(getForestBlockedReason({ x: 62, y: 66 }), "bridge-rail");
+  assert.equal(forestBridgePhysics.avatar.walkwayMinX, 52);
+  assert.equal(forestBridgePhysics.avatar.walkwayMaxX, 58);
+  assert.ok(forestBridgePhysics.world.railOffset > forestBridgePhysics.world.railPostRadius + forestBridgePhysics.world.avatarRadius);
   assert.equal(isForestAvatarPositionWalkable({ x: 24, y: 50 }), false);
   assert.equal(isForestAvatarPositionWalkable({ x: 80, y: 50 }), false);
   assert.equal(isForestAvatarPositionWalkable({ x: 74, y: 78 }), true);

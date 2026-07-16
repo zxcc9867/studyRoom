@@ -24,6 +24,19 @@ export function buildWeeklyStudyReview({ todayDateKey, sessions = [], todos = []
   };
 }
 
+export function formatStudyDuration(seconds) {
+  const totalMinutes = Math.max(0, Math.round((Number(seconds) || 0) / 60));
+  return formatStudyMinutes(totalMinutes);
+}
+
+export function formatStudyDurationChange(seconds) {
+  const numericSeconds = Number(seconds) || 0;
+  if (numericSeconds === 0) return "지난주와 같아요";
+
+  const totalMinutes = Math.round(Math.abs(numericSeconds) / 60);
+  return `지난주보다 ${numericSeconds > 0 ? "+" : "-"}${formatStudyMinutes(totalMinutes)}`;
+}
+
 function buildRangeMetrics(range, sessions, todos, attendanceDays, reflections) {
   const inRange = (dateKey) => dateKey >= range.startDate && dateKey <= range.endDate;
   const rangeSessions = sessions.filter((session) => session.status === "completed" && inRange(session.local_date));
@@ -66,6 +79,13 @@ function buildRangeMetrics(range, sessions, todos, attendanceDays, reflections) 
 function average(values) {
   if (values.length === 0) return null;
   return Math.round((values.reduce((sum, value) => sum + Number(value || 0), 0) / values.length) * 10) / 10;
+}
+
+function formatStudyMinutes(totalMinutes) {
+  const hours = Math.floor(totalMinutes / 60);
+  const minutes = totalMinutes % 60;
+  if (hours === 0) return `${minutes}분`;
+  return `${hours}시간 ${minutes}분`;
 }
 
 function parseDateKey(dateKey) {

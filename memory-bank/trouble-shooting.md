@@ -657,6 +657,42 @@ The user submitted a recovery routine but the app continued to show the recovery
 
 ### Error Message
 
+## 2026-07-17 - 회전된 다리 난간이 입구와 출구를 가로막음
+
+### 상황
+
+강을 직교해 건너도록 다리 전체를 Y축 90도로 회전한 뒤, 난간 beam이 이동 방향을 가로질러 입구와 출구를 물리적으로 막았다.
+
+### 에러 메시지
+
+~~~txt
+bridge rails: local X = +/-1.78, beam axis = local Z
+result after Y rotation: rails cross both bridge ends
+~~~
+
+### 원인
+
+다리 그룹의 회전만 변경하고 난간의 로컬 좌표축과 beam 길이축은 이전 배치를 유지했다. 렌더링 형상과 충돌 corridor가 하나의 물리 치수 모델을 공유하지 않아 방향 불일치가 생겼다.
+
+### 해결 방법
+
+- 난간을 데크의 로컬 Z 양쪽으로 옮기고 beam 및 post 열을 로컬 X 이동축과 평행하게 배치했다.
+- `forestBridgePhysics`에 데크, 난간, 기둥, 캐릭터 반경을 모아 렌더링과 충돌 계산이 공유하도록 했다.
+- 난간 안쪽 면과 캐릭터 반경으로 안전 통로를 계산하고, 바깥 영역은 `bridge-rail` 충돌로 구분했다.
+- 중앙 경로와 양 경계 테스트, UI 형상 계약 테스트를 추가했다.
+
+### 관련 파일
+
+- `apps/web/src/studyForest.mjs`
+- `apps/web/src/studyForest.d.mts`
+- `apps/web/src/StudyForest3D.tsx`
+- `apps/web/test/studyForest.test.mjs`
+- `apps/web/test/studyForestUi.test.mjs`
+
+### 재발 방지
+
+회전되는 구조물은 월드 좌표 하드코딩 대신 로컬 진행축과 폭축을 먼저 정의하고, 렌더러와 collider가 같은 치수 객체를 사용해야 한다. 캐릭터의 실제 반경을 통로 여유 폭 계산에 포함한다.
+
 ```txt
 User-visible symptom:
 - The recovery routine modal still appeared after submitting a routine.
@@ -3027,3 +3063,43 @@ Codex Windows sandbox helper가 해당 세션의 파일 ACL 적용 단계에서 
 ### 재발 방지
 
 같은 ACL 오류가 발생하면 파일을 반복 복사하지 말고 읽기 가능한 shell 경로와 결정적 helper 테스트를 우선 사용한다. 시각 검증 불가 범위는 최종 보고에서 명확히 분리한다.
+
+## 2026-07-17 - 주간 리뷰가 -1827분으로 보이고 2시간 집계 근거가 불명확함
+
+### 상황
+
+07.13~07.19 주간 리뷰에서 공부 시간이 `2시간 0분`, 비교가 `지난주보다 -1827분`으로 표시되어 현재 합계와 차이의 의미를 이해하기 어려웠다.
+
+### 에러 메시지
+
+~~~txt
+현재 주 완료 세션: 3회, 7,235초
+지난주 완료 세션: 8회, 116,881초
+기존 표시: 2시간 0분 / 지난주보다 -1827분
+~~~
+
+### 원인
+
+- 현재 주에는 07.15의 3,593초와 07.16의 합계 3,642초만 완료 세션으로 저장되어 실제 합계가 7,235초였다.
+- 지난주에는 07.10의 74,571초 세션을 포함해 합계가 116,881초였으므로 차이는 -109,646초였다.
+- UI가 총 시간을 내림 처리하고 차이는 분 단위 정수로만 표시했다.
+- 기간 배지가 전체 월요일~일요일만 보여 주고 오늘 현재까지의 완료 세션 합계라는 설명이 없었다.
+
+### 해결 방법
+
+- 합산 초를 가장 가까운 분으로 반올림해 `2시간 1분`으로 표시했다.
+- 차이는 `지난주보다 -30시간 27분`으로 표시했다.
+- 카드에 `완료 세션 공부 시간`, `3회 완료 합계`, `07.17 현재`를 추가했다.
+- 원격 데이터는 읽기 전용으로 검증했으며 과거 세션을 임의 수정하지 않았다.
+
+### 관련 파일
+
+- `apps/web/src/weeklyReview.mjs`
+- `apps/web/src/weeklyReview.d.mts`
+- `apps/web/src/WeeklyReviewSection.tsx`
+- `apps/web/src/styles.css`
+- `apps/web/test/sustainableStudyLoop.test.mjs`
+
+### 재발 방지
+
+큰 시간 차이는 분 단위 정수로만 노출하지 않는다. 진행 중인 주간 범위에는 반드시 기준 날짜와 포함되는 레코드 상태를 함께 표시하고, 데이터 이상 여부와 표시 문제를 원격 집계로 분리해 확인한다.

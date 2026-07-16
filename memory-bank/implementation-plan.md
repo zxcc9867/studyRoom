@@ -579,6 +579,26 @@ docs/images/study-room-thumbnail.png
 - 이번 변경은 클라이언트 전용이며 Supabase 스키마/API 변경이 없다.
 - 사용자의 명시적 요청 전에는 커밋, 푸시, Vercel 배포를 수행하지 않는다.
 
+## Physics-aware Bridge Layout (2026-07-17)
+
+### Architecture
+
+- `studyForest.mjs`의 `forestBridgePhysics`가 다리 위치, 회전, 데크 크기, 난간 간격, 난간 기둥, 캐릭터 반경을 단일 기준으로 제공한다.
+- `StudyForest3D.tsx`는 같은 값을 사용해 mesh를 만들고, 순수 충돌 helper는 이를 기본 월드 좌표로 변환해 통과 가능 영역을 계산한다.
+- 고정된 저폴리 구조물에는 별도 rigid-body 라이브러리를 추가하지 않고 결정적 static collider를 사용해 모바일 번들 및 프레임 비용을 억제한다.
+
+### Collision Model
+
+- 다리 로컬 X축은 이동 방향, 로컬 Z축은 폭 방향이다. 난간은 로컬 Z 양쪽에 배치하고 beam과 post 열은 로컬 X축을 따른다.
+- 캐릭터 중심의 안전 통로는 난간 안쪽 면에서 실제 캐릭터 반경을 뺀 값으로 계산한다.
+- 데크 위이지만 안전 통로 밖이면 `bridge-rail`, 데크 밖의 강이면 `water`를 반환한다.
+
+### Testing and Deployment
+
+- helper 테스트는 안전 통로 경계, 난간 충돌, 강물 충돌, 중앙 경로를 검증한다.
+- UI 소스 계약 테스트는 난간 축, 양쪽 배치, 기둥 열, 열린 입구와 출구를 고정한다.
+- 이 변경은 클라이언트 전용이며 Supabase 변경이 없다. 커밋, 푸시, 배포는 사용자 요청이 있을 때만 수행한다.
+
 
 ## Reward-aware Cottage Collision (2026-07-12)
 
@@ -656,3 +676,19 @@ docs/images/study-room-thumbnail.png
 
 - 이번 변경은 클라이언트와 문서/테스트 전용이며 Supabase 스키마, RLS, RPC, Edge Function 변경이 없다.
 - 사용자의 명시적 요청 전에는 커밋, 푸시, Vercel 배포를 수행하지 않는다.
+
+## Weekly Review Time Presentation (2026-07-17)
+
+### Architecture
+
+- `weeklyReview.mjs` owns both weekly calculations and pure study-duration presentation helpers so React only composes labels.
+- `formatStudyDuration()` rounds the completed-session aggregate to the nearest minute and renders hours plus minutes.
+- `formatStudyDurationChange()` preserves the comparison sign but renders large differences as hours plus minutes; a zero difference uses an explicit equality message.
+- `WeeklyReviewSection.tsx` labels the value as a completed-session total, includes the completed-session count, and shows the current as-of date alongside the full Monday-to-Sunday range.
+
+### Data and Deployment
+
+- The weekly aggregate continues to use completed `study_sessions.duration_seconds` rows in the selected `local_date` range.
+- Historical rows are not capped, rewritten, or deleted by the presentation layer.
+- Verification uses a read-only Supabase aggregate query. There is no schema, RLS, RPC, or Edge Function change.
+- Commit, push, and deployment require an explicit user request.

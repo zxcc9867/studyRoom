@@ -107,7 +107,8 @@ test("cottage exit, perpendicular bridge, terrain height, and item-grid customiz
   assert.match(componentSource, /cottage-exit-door/);
   assert.match(componentSource, /cottage-exit-threshold/);
   assert.match(componentSource, /cottage-exit-marker/);
-  assert.match(componentSource, /bridge\.rotation\.y = Math\.PI \/ 2/);
+  assert.match(componentSource, /bridge\.rotation\.y = rotationY/);
+  assert.match(componentSource, /forestBridgePhysics\.world/);
   assert.match(componentSource, /getForestTerrainHeight\(target\)/);
   assert.match(componentSource, /avatarGroup\.position\.y = THREE\.MathUtils\.lerp/);
 
@@ -117,4 +118,12 @@ test("cottage exit, perpendicular bridge, terrain height, and item-grid customiz
   assert.match(sectionSource, /forest-customizer-category-heading/);
   assert.match(cssSource, /grid-template-columns: repeat\(auto-fit, minmax\(132px, 1fr\)\)/);
   assert.match(cssSource, /\.forest-item-orb\[data-locked="true"\]/);
+});
+
+test("bridge handrails run beside the travel direction and keep both ends open", () => {
+  assert.match(componentSource, /for \(const z of \[-railOffset, railOffset\]\)/);
+  assert.match(componentSource, /new THREE\.BoxGeometry\(deckLength, railThickness, railThickness\)/);
+  assert.match(componentSource, /post\.position\.set\(x, railPostHeight \/ 2, z\)/);
+  assert.doesNotMatch(componentSource, /for \(const x of \[-1\.78, 1\.78\]\)/);
+  assert.match(componentSource, /reason === "bridge-rail"/);
 });

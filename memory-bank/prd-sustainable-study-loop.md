@@ -91,3 +91,19 @@ Personal learners who need a repeatable plan-focus-reflect-adjust loop rather th
 
 - Whether Expo should later add the same camera presence requirement as web.
 - Whether weekly review history should become a persisted snapshot instead of a live calculation.
+
+## 13. 2026-07-17 Update: Weekly Study Time Clarity
+
+### Data Contract
+
+- Current-week study time is the sum of `duration_seconds` for completed sessions whose `local_date` is inside the Monday-to-Sunday range.
+- Active and cancelled sessions are not included in this review total.
+- The range remains the complete calendar week, while the UI must also show the current as-of date so future dates are not mistaken for recorded time.
+- Aggregated seconds are rounded to the nearest minute for presentation; stored session data is not changed.
+
+### Functional Requirements
+
+- [x] Show the study-time comparison in hours and minutes instead of an unbounded minute count.
+- [x] Label the metric as a completed-session total and show the completed session count.
+- [x] Show the current date next to the Monday-to-Sunday range.
+- [x] Keep current and previous weekly calculations deterministic and covered by helper tests.

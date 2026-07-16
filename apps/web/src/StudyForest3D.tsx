@@ -3,6 +3,7 @@ import * as THREE from "three";
 import type { ForestPreferences } from "./forestCustomization.mjs";
 
 import {
+  forestBridgePhysics,
   getForestBlockedReason,
   getForestInteriorRewards,
   getForestNavigationPath,
@@ -342,28 +343,57 @@ function createRiver(scene: THREE.Scene, theme: (typeof FOREST_THEME_STYLES)[key
 }
 
 function createBridge(scene: THREE.Scene) {
+  const {
+    centerX,
+    baseY,
+    centerZ,
+    rotationY,
+    plankCount,
+    plankWidth,
+    plankHeight,
+    plankSpacing,
+    deckWidth,
+    deckLength,
+    railThickness,
+    railOffset,
+    railHeight,
+    railPostHeight,
+    railPostPositions,
+  } = forestBridgePhysics.world;
+  const halfPlankCount = Math.floor(plankCount / 2);
   const bridge = new THREE.Group();
   bridge.name = "wooden-bridge";
-  bridge.position.set(0.65, 0.68, 0.72);
-  bridge.rotation.y = Math.PI / 2;
+  bridge.position.set(centerX, baseY, centerZ);
+  bridge.rotation.y = rotationY;
 
   const plankMaterial = standardMaterial(palette.woodLight);
-  for (let index = -4; index <= 4; index += 1) {
-    const plank = new THREE.Mesh(new THREE.BoxGeometry(0.42, 0.13, 2.15), plankMaterial);
-    plank.position.x = index * 0.38;
-    plank.position.y = Math.cos((index / 4) * Math.PI) * 0.14;
-    plank.rotation.z = -Math.sin((index / 4) * Math.PI) * 0.04;
+  for (let index = -halfPlankCount; index <= halfPlankCount; index += 1) {
+    const plank = new THREE.Mesh(
+      new THREE.BoxGeometry(plankWidth, plankHeight, deckWidth),
+      plankMaterial,
+    );
+    plank.position.x = index * plankSpacing;
+    plank.position.y = Math.cos((index / halfPlankCount) * Math.PI) * 0.14;
+    plank.rotation.z = -Math.sin((index / halfPlankCount) * Math.PI) * 0.04;
     bridge.add(plank);
   }
 
   const railMaterial = standardMaterial(palette.wood);
-  for (const x of [-1.78, 1.78]) {
-    const rail = new THREE.Mesh(new THREE.BoxGeometry(0.1, 0.1, 2.15), railMaterial);
-    rail.position.set(x, 0.68, 0);
+  for (const z of [-railOffset, railOffset]) {
+    const rail = new THREE.Mesh(
+      new THREE.BoxGeometry(deckLength, railThickness, railThickness),
+      railMaterial,
+    );
+    rail.name = "bridge-side-rail";
+    rail.position.set(0, railHeight, z);
     bridge.add(rail);
-    for (const z of [-0.92, -0.46, 0, 0.46, 0.92]) {
-      const post = new THREE.Mesh(new THREE.CylinderGeometry(0.07, 0.09, 0.75, 6), railMaterial);
-      post.position.set(x, 0.35, z);
+    for (const x of railPostPositions) {
+      const post = new THREE.Mesh(
+        new THREE.CylinderGeometry(0.07, 0.09, railPostHeight, 6),
+        railMaterial,
+      );
+      post.name = "bridge-rail-post";
+      post.position.set(x, railPostHeight / 2, z);
       bridge.add(post);
     }
   }
@@ -1278,6 +1308,8 @@ export function StudyForest3D({
         setInteractionMessage(
           reason === "water"
             ? "\uBB3C\uC5D0\uB294 \uB4E4\uC5B4\uAC08 \uC218 \uC5C6\uC5B4\uC694. \uB2E4\uB9AC\uB97C \uC774\uC6A9\uD574 \uC8FC\uC138\uC694."
+            : reason === "bridge-rail"
+              ? "\uB09C\uAC04\uC774 \uB9C9\uACE0 \uC788\uC5B4\uC694. \uB2E4\uB9AC \uC911\uC559 \uD1B5\uB85C\uB85C \uC774\uB3D9\uD574 \uC8FC\uC138\uC694."
             : "\uC774 \uACF3\uC740 \uC9C0\uB098\uAC08 \uC218 \uC5C6\uC5B4\uC694. \uC8FC\uBCC0 \uAE38\uB85C \uC774\uB3D9\uD574 \uC8FC\uC138\uC694.",
         );
         return;

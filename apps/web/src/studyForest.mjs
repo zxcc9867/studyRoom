@@ -17,8 +17,72 @@ const AUTO_WALK_WAYPOINTS = [
 const FOREST_GROUND_HEIGHT = 0.38;
 const FOREST_BRIDGE_EDGE_HEIGHT = 0.6;
 const FOREST_BRIDGE_ARCH_HEIGHT = 0.28;
-const FOREST_RIVER_BAND = { minY: 61.8, maxY: 73.2 };
-const FOREST_BRIDGE_CORRIDOR = { minX: 47, maxX: 64, northY: 60.8, southY: 73.2, centerX: 55 };
+const FOREST_WORLD_X_BOUNDS = { minX: -5.35, maxX: 5.35 };
+const FOREST_BRIDGE_WORLD = Object.freeze({
+  centerX: 0.65,
+  baseY: 0.68,
+  centerZ: 0.72,
+  rotationY: Math.PI / 2,
+  plankCount: 9,
+  plankWidth: 0.42,
+  plankHeight: 0.13,
+  plankSpacing: 0.38,
+  deckWidth: 2.15,
+  deckLength: 3.46,
+  railThickness: 0.1,
+  railOffset: 1.025,
+  railHeight: 0.68,
+  railPostHeight: 0.75,
+  railPostRadius: 0.09,
+  railPostPositions: Object.freeze([-1.45, -0.72, 0, 0.72, 1.45]),
+  avatarRadius: 0.48,
+});
+
+function worldXToDefaultAvatarX(worldX) {
+  const worldRatio = (worldX - FOREST_WORLD_X_BOUNDS.minX)
+    / (FOREST_WORLD_X_BOUNDS.maxX - FOREST_WORLD_X_BOUNDS.minX);
+  return DEFAULT_MEADOW_BOUNDS.minX
+    + worldRatio * (DEFAULT_MEADOW_BOUNDS.maxX - DEFAULT_MEADOW_BOUNDS.minX);
+}
+
+const leftWalkwayWorldX = FOREST_BRIDGE_WORLD.centerX
+  - FOREST_BRIDGE_WORLD.railOffset
+  + FOREST_BRIDGE_WORLD.railPostRadius
+  + FOREST_BRIDGE_WORLD.avatarRadius;
+const rightWalkwayWorldX = FOREST_BRIDGE_WORLD.centerX
+  + FOREST_BRIDGE_WORLD.railOffset
+  - FOREST_BRIDGE_WORLD.railPostRadius
+  - FOREST_BRIDGE_WORLD.avatarRadius;
+const FOREST_BRIDGE_AVATAR = Object.freeze({
+  riverMinY: 61.8,
+  riverMaxY: 73.2,
+  deckMinX: Math.round(worldXToDefaultAvatarX(FOREST_BRIDGE_WORLD.centerX - FOREST_BRIDGE_WORLD.deckWidth / 2)),
+  deckMaxX: Math.round(worldXToDefaultAvatarX(FOREST_BRIDGE_WORLD.centerX + FOREST_BRIDGE_WORLD.deckWidth / 2)),
+  walkwayMinX: Math.ceil(worldXToDefaultAvatarX(leftWalkwayWorldX)),
+  walkwayMaxX: Math.floor(worldXToDefaultAvatarX(rightWalkwayWorldX)),
+  northY: 60.8,
+  southY: 73.2,
+  centerX: Math.round(worldXToDefaultAvatarX(FOREST_BRIDGE_WORLD.centerX)),
+});
+export const forestBridgePhysics = Object.freeze({
+  avatar: FOREST_BRIDGE_AVATAR,
+  world: FOREST_BRIDGE_WORLD,
+});
+const FOREST_RIVER_BAND = {
+  minY: forestBridgePhysics.avatar.riverMinY,
+  maxY: forestBridgePhysics.avatar.riverMaxY,
+};
+const FOREST_BRIDGE_DECK = {
+  minX: forestBridgePhysics.avatar.deckMinX,
+  maxX: forestBridgePhysics.avatar.deckMaxX,
+};
+const FOREST_BRIDGE_CORRIDOR = {
+  minX: forestBridgePhysics.avatar.walkwayMinX,
+  maxX: forestBridgePhysics.avatar.walkwayMaxX,
+  northY: forestBridgePhysics.avatar.northY,
+  southY: forestBridgePhysics.avatar.southY,
+  centerX: forestBridgePhysics.avatar.centerX,
+};
 const FOREST_SOLID_AREAS = [
   { reason: "cottage", minX: 12, maxX: 35, minY: 42, maxY: 57 },
   { reason: "garden", minX: 69, maxX: 92, minY: 45, maxY: 56 },
@@ -310,6 +374,13 @@ function isInsideForestBridge(position) {
     && position.y <= FOREST_RIVER_BAND.maxY;
 }
 
+function isInsideForestBridgeDeck(position) {
+  return position.x >= FOREST_BRIDGE_DECK.minX
+    && position.x <= FOREST_BRIDGE_DECK.maxX
+    && position.y >= FOREST_RIVER_BAND.minY
+    && position.y <= FOREST_RIVER_BAND.maxY;
+}
+
 export function getForestTerrainHeight(position, bounds = {}) {
   const meadow = getAvatarBounds(bounds);
   const current = normalizeAvatarPosition(position, meadow);
@@ -336,7 +407,10 @@ export function getForestBlockedReason(position, bounds = {}) {
   }
 
   const insideRiver = current.y >= FOREST_RIVER_BAND.minY && current.y <= FOREST_RIVER_BAND.maxY;
-  if (insideRiver && !isInsideForestBridge(current)) return "water";
+  if (insideRiver && !isInsideForestBridge(current)) {
+    if (isInsideForestBridgeDeck(current)) return "bridge-rail";
+    return "water";
+  }
 
   const solidArea = FOREST_SOLID_AREAS.find(
     (area) =>

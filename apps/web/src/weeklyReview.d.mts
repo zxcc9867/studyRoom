@@ -15,6 +15,8 @@ export type WeeklyReviewMetrics = {
 };
 
 export function getStudyWeekRange(dateKey: string, weekOffset?: number): { startDate: string; endDate: string };
+export function formatStudyDuration(seconds: number): string;
+export function formatStudyDurationChange(seconds: number): string;
 export function buildWeeklyStudyReview(input: {
   todayDateKey: string;
   sessions?: Array<{ id: string; local_date: string; status: string; duration_seconds: number }>;

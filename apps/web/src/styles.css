@@ -3792,6 +3792,21 @@ button:active:not(:disabled) {
   font-weight: 950;
 }
 
+.weekly-review-heading > .weekly-review-period {
+  display: grid;
+  gap: 1px;
+  text-align: center;
+}
+
+.weekly-review-period strong {
+  font-size: 12px;
+}
+
+.weekly-review-period small {
+  color: #557565;
+  font-size: 10px;
+}
+
 .weekly-review-score {
   display: flex;
   align-items: center;
@@ -3858,6 +3873,11 @@ button:active:not(:disabled) {
 .weekly-review-metric small {
   color: #6d786e;
   font-weight: 800;
+}
+
+.weekly-review-metric .weekly-review-metric-detail {
+  color: #72572e;
+  font-size: 11px;
 }
 
 .weekly-next-actions {
