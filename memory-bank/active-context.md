@@ -19,9 +19,10 @@
 - 완료: 시작·종료 입력의 클릭, 더블클릭, Enter, Space 연결.
 - 완료: disabled, 미지원, 호출 차단 fallback helper 및 테스트 추가.
 - 완료: 대상 테스트 10개, 전체 테스트 274개, Vite production build 통과.
+- 완료: 기능 커밋 `0efe399 fix: open todo time picker from full field`를 `origin/main`에 푸시.
 - 진행 중: 없음.
 - 막힌 부분: 없음.
-- 다음 작업: 사용자가 요청하면 커밋·푸시·Vercel 배포를 수행한다.
+- 다음 작업: `0efe399`로 시작된 GitHub Actions/Vercel production 배포 상태를 확인한다.
 
 ## 주의할 점
 

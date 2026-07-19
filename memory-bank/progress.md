@@ -4743,8 +4743,9 @@
 
 #### 남은 작업
 
-- 로컬 구현 기준 필수 작업은 없다.
-- 커밋, 푸시, 배포는 사용자가 요청할 때 수행한다.
+- 로컬 구현과 `origin/main` 푸시는 완료했다.
+- 기능 커밋: `0efe399 fix: open todo time picker from full field`.
+- GitHub Actions/Vercel production 배포 상태 확인이 남았다.
 
 #### 다음 우선순위
 
