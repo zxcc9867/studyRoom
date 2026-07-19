@@ -115,3 +115,21 @@ Personal MVP users who want to plan and visualize today's study tasks in either 
 
 - Whether the circular planner should eventually support drag-to-resize time blocks directly on the wheel.
 - Whether section order editing should become a separate personalization page if more widgets are added.
+
+## 13. 2026-07-19 Update: Full-Surface Time Picker
+
+### Problem
+
+Chrome의 native `input[type="time"]`은 우측 시계 아이콘을 눌렀을 때만 시간 선택기를 여는 경우가 있어, 오전/오후 또는 시간 숫자를 클릭·더블클릭해도 선택기가 나타나지 않았다.
+
+### Functional Requirements
+
+- [x] 시작·종료 시간 입력의 오전/오후, 시, 분, 여백을 포함한 전체 입력 표면 클릭으로 native 시간 선택기를 연다.
+- [x] 더블클릭도 동일한 선택기를 열며 첫 클릭만으로도 동작해야 한다.
+- [x] Enter와 Space로 키보드 사용자가 선택기를 열 수 있다.
+- [x] `showPicker()` 미지원 또는 호출 제한 브라우저에서는 포커스와 기존 직접 입력을 유지한다.
+- [x] hover와 focus-visible 상태로 전체 영역이 상호작용 가능함을 표시한다.
+
+### Success Metric
+
+- 사용자는 별도의 시계 아이콘을 정확히 누르지 않아도 시작·종료 시간 값을 선택할 수 있다.

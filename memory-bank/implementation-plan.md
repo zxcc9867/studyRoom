@@ -727,3 +727,23 @@ docs/images/study-room-thumbnail.png
 - 마이그레이션 파일: `supabase/migrations/20260719045940_secure_rpc_and_study_period_summary.sql`
 - 확인 방법: 원격 migration `20260719052739`, 인증 컨텍스트 RPC 실행, anon/authenticated/service 역할 권한 행렬, Supabase Advisors
 - 주의 사항: 사용자용 SECURITY DEFINER 함수는 `auth.uid()` 검사와 고정 `search_path`를 유지해야 한다. 공유 프로젝트의 다른 테이블 Advisor 경고는 별도 범위로 다룬다.
+
+## Todo Time Picker Interaction (2026-07-19)
+
+### Architecture
+
+- `timeInputPicker.mjs` owns the guarded native picker invocation and activation-key predicate.
+- The todo modal keeps semantic `input[type="time"]` controls and calls the helper from click, double-click, Enter, and Space events.
+- Unsupported or blocked `showPicker()` calls fall back to focus/direct editing instead of replacing the native control with a custom dropdown.
+
+### Accessibility and Styling
+
+- Start and end fields have explicit Korean `aria-label` and interaction title text.
+- Pointer hover and `focus-visible` states communicate that the whole field is interactive.
+- Disabled fields never focus or open the picker.
+
+### Testing and Deployment
+
+- Unit tests cover successful picker opening, unsupported/blocked fallback, disabled behavior, and activation keys.
+- Source contract tests require both fields to expose click, double-click, keyboard, labels, and pointer styling.
+- No Supabase or environment change is required; full tests and production build remain the release gates.

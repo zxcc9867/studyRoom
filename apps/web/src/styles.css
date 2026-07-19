@@ -2151,6 +2151,22 @@ label {
   min-height: 40px;
 }
 
+.todo-time-details input[type="time"] {
+  cursor: pointer;
+  transition: border-color 160ms ease, box-shadow 160ms ease, background-color 160ms ease;
+}
+
+.todo-time-details input[type="time"]:hover {
+  border-color: #4f916f;
+  background: #fffdf1;
+  box-shadow: 0 0 0 3px rgba(79, 145, 111, 0.12);
+}
+
+.todo-time-details input[type="time"]:focus-visible {
+  outline: 3px solid rgba(79, 145, 111, 0.28);
+  outline-offset: 2px;
+}
+
 .todo-list {
   list-style: none;
   display: grid;

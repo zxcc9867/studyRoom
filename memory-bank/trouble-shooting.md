@@ -3204,3 +3204,38 @@ windows sandbox failed: helper_unknown_error: apply deny-read ACLs
 ### 재발 방지
 
 같은 `apply deny-read ACLs`가 브라우저 런타임 초기화에서 발생하면 다른 자동화 도구로 우회하지 않는다. 브라우저 환경이 복구된 세션에서 로컬 또는 배포 URL을 열어 모바일 폭, Dialog 키보드 이동, 주간 리뷰 문구를 확인한다.
+
+## 2026-07-19 - 시간 숫자나 오전·오후를 눌러도 시간 선택기가 열리지 않음
+
+### 상황
+
+todo 생성·수정 모달에서 시작·종료 시간의 오전/오후 또는 숫자를 클릭·더블클릭해도 시간 드롭다운이 열리지 않고, 우측 시계 아이콘을 눌러야만 열렸다.
+
+### 에러 메시지
+
+```txt
+사용자 증상: 오전/오후 및 시간 숫자 영역 더블클릭은 반응 없음.
+우측 native 시계 아이콘 클릭만 시간 선택기를 표시함.
+```
+
+### 원인
+
+`input[type="time"]`에 별도 이벤트가 없어서 브라우저 기본 동작에만 의존했다. 데스크톱 Chrome의 기본 UI는 캘린더 인디케이터 아이콘 클릭에 선택기 열기를 집중하고 텍스트 영역은 직접 편집 포커스로 처리한다.
+
+### 해결 방법
+
+- 전체 입력의 click/double-click 사용자 이벤트에서 guarded `showPicker()`를 호출했다.
+- Enter/Space 키도 같은 helper에 연결했다.
+- 미지원·호출 차단 환경에서는 focus와 직접 입력을 유지한다.
+- hover/focus-visible 스타일로 전체 영역의 클릭 가능성을 표시했다.
+
+### 관련 파일
+
+- `apps/web/src/main.tsx`
+- `apps/web/src/timeInputPicker.mjs`
+- `apps/web/src/styles.css`
+- `apps/web/test/timeInputPicker.test.mjs`
+
+### 재발 방지
+
+native date/time 입력을 사용할 때 아이콘 전용 기본 동작을 전제로 하지 않는다. 입력 전체 표면과 키보드 접근을 계약 테스트로 고정하고 미지원 브라우저 fallback을 유지한다.

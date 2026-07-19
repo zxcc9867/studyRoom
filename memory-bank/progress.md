@@ -4709,3 +4709,43 @@
 
 - 운영 계정에서 주간 리뷰와 수동 세션 회고 종료를 확인한다.
 - 모바일 앱 배포가 필요하면 EAS 설정과 배포 채널을 확인한 후 별도 릴리즈한다.
+
+### 2026-07-19 - todo 시간 입력 전체 영역 선택기 개선
+
+#### 완료한 작업
+
+- 시작·종료 시간의 오전/오후, 숫자, 여백을 포함한 전체 입력 클릭으로 native 시간 선택기가 열리도록 했다.
+- 더블클릭, Enter, Space에도 같은 동작을 연결했다.
+- `showPicker()` 미지원·차단 fallback과 disabled 동작을 helper로 분리했다.
+- 시간 입력 hover/focus-visible 상태와 한국어 접근성 레이블을 추가했다.
+- PRD와 README를 현재 동작에 맞춰 갱신했다.
+
+#### 변경된 파일
+
+- `apps/web/src/main.tsx`
+- `apps/web/src/styles.css`
+- `apps/web/src/timeInputPicker.mjs`
+- `apps/web/src/timeInputPicker.d.mts`
+- `apps/web/test/timeInputPicker.test.mjs`
+- `apps/web/test/readme.test.mjs`
+- `README.md`
+- `memory-bank/active-context.md`
+- `memory-bank/implementation-plan.md`
+- `memory-bank/prd-daily-planner-dashboard.md`
+- `memory-bank/progress.md`
+- `memory-bank/trouble-shooting.md`
+
+#### 검증 방법
+
+- 시간 선택기/todo schedule 대상 테스트 10개 통과.
+- `npm.cmd test`: 274개 통과.
+- `npm.cmd run build`: TypeScript 및 Vite production build 통과.
+
+#### 남은 작업
+
+- 로컬 구현 기준 필수 작업은 없다.
+- 커밋, 푸시, 배포는 사용자가 요청할 때 수행한다.
+
+#### 다음 우선순위
+
+- 실제 Chrome과 모바일 브라우저에서 입력 숫자 영역 클릭 시 각 native picker가 열리는지 수동 확인한다.

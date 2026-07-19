@@ -7,6 +7,7 @@ const readme = readFileSync("README.md", "utf8");
 test("README documents the current study loop, forest, mobile policy, and lease cap", () => {
   assert.match(readme, /세션 회고/);
   assert.match(readme, /주간 리뷰/);
+  assert.match(readme, /숫자 표시 영역 어디를 클릭·더블클릭/);
   assert.match(readme, /지난주 시간·분 비교 및 오늘 기준 표시/);
   assert.match(readme, /적응형 알림/);
   assert.match(readme, /Three\.js/);

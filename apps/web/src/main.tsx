@@ -230,6 +230,7 @@ import {
   formatTodoWithSchedule,
   normalizeTodoSchedule,
 } from "./todoSchedule.mjs";
+import { isTimeInputPickerKey, openTimeInputPicker } from "./timeInputPicker.mjs";
 import { getWebPushStatus, registerWebPushTarget, showLocalTestNotification, type WebPushStatus } from "./webPush";
 import "./styles.css";
 import "./improvements.css";
@@ -4446,8 +4447,17 @@ function DashboardApp() {
                         시작
                         <input
                           type="time"
+                          aria-label="시작 시간 선택"
+                          title="클릭하거나 Enter 키로 시작 시간 선택"
                           value={todoStartTime}
                           onChange={(event) => setTodoStartTime(event.target.value)}
+                          onClick={(event) => openTimeInputPicker(event.currentTarget)}
+                          onDoubleClick={(event) => openTimeInputPicker(event.currentTarget)}
+                          onKeyDown={(event) => {
+                            if (!isTimeInputPickerKey(event.key)) return;
+                            event.preventDefault();
+                            openTimeInputPicker(event.currentTarget);
+                          }}
                           disabled={todoBusy}
                         />
                       </label>
@@ -4455,8 +4465,17 @@ function DashboardApp() {
                         종료
                         <input
                           type="time"
+                          aria-label="종료 시간 선택"
+                          title="클릭하거나 Enter 키로 종료 시간 선택"
                           value={todoEndTime}
                           onChange={(event) => setTodoEndTime(event.target.value)}
+                          onClick={(event) => openTimeInputPicker(event.currentTarget)}
+                          onDoubleClick={(event) => openTimeInputPicker(event.currentTarget)}
+                          onKeyDown={(event) => {
+                            if (!isTimeInputPickerKey(event.key)) return;
+                            event.preventDefault();
+                            openTimeInputPicker(event.currentTarget);
+                          }}
                           disabled={todoBusy}
                         />
                       </label>
