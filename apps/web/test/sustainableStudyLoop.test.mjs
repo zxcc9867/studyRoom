@@ -32,7 +32,7 @@ test("forest customization unlocks rewards by completed tree count and rejects l
   );
 });
 
-test("weekly review compares Monday-to-Sunday study, completion, attendance, and reflections", () => {
+test("weekly review compares the same elapsed weekdays for study, completion, attendance, and reflections", () => {
   assert.deepEqual(getStudyWeekRange("2026-07-15"), {
     startDate: "2026-07-13",
     endDate: "2026-07-19",
@@ -71,8 +71,8 @@ test("weekly review compares Monday-to-Sunday study, completion, attendance, and
   assert.equal(review.current.presentDays, 2);
   assert.equal(review.current.averageFocus, 4);
   assert.deepEqual(review.current.nextActions, ["Review chapter notes"]);
-  assert.equal(review.studySecondsChange, 4200);
-  assert.equal(review.completionRateChange, -50);
+  assert.equal(review.studySecondsChange, 5400);
+  assert.equal(review.completionRateChange, 50);
 });
 
 test("weekly review formats study totals and comparisons as readable hours", () => {

@@ -692,3 +692,38 @@ docs/images/study-room-thumbnail.png
 - Historical rows are not capped, rewritten, or deleted by the presentation layer.
 - Verification uses a read-only Supabase aggregate query. There is no schema, RLS, RPC, or Edge Function change.
 - Commit, push, and deployment require an explicit user request.
+
+## Study Period Summary and Client Reliability (2026-07-19)
+
+### Architecture
+
+- `get_study_period_summary(date, date)` is the canonical authenticated source for completed study totals. It converts the requested local-date range through the user's profile time zone and proportionally allocates counted duration for sessions that cross the range boundary.
+- `daily_completed_study_seconds(uuid, date)` uses the same allocation model, and `end_study_session` evaluates every local date touched by a cross-midnight session for attendance promotion.
+- `dashboardData.ts` owns explicit query errors and pagination. Core dashboard data loads eagerly, while reflections and notification delivery diagnostics load only on their routes.
+- `weeklyReview.mjs` compares Monday-to-today with the previous Monday-to-the-same-weekday and accepts canonical server summaries.
+- `AccessibleDialog.tsx` centralizes dialog focus trapping, initial focus, Escape close, body scroll lock, and focus restoration.
+- Expo mobile uses `complete_study_session` for atomic reflection/todo completion and `extend_study_session_lease` for the server-capped lease policy.
+
+### Security Notes
+
+- Internal attendance, reminder, delivery cleanup, and auth trigger helpers revoke `EXECUTE` from `public`, `anon`, and `authenticated`; only `service_role` retains direct execution.
+- User-facing summary and session functions require `authenticated`, validate `(select auth.uid())`, and use `set search_path = ''`.
+- Long historical sessions are not rewritten. The summary reports 12-hour-plus and cross-date counts for transparent review.
+
+### Testing and Deployment
+
+- Contract tests cover comparable week ranges, server summary overrides, anomaly metadata, RPC privilege SQL, web/mobile wiring, and route-scoped data loading.
+- Required gates are the full Node test suite, Vite production build, Expo TypeScript check, remote migration list, role privilege matrix, and Supabase security/performance Advisors.
+- Commit, push, and Vercel deployment still require an explicit user request.
+
+### Supabase 변경 이력
+
+#### 2026-07-19
+
+- 변경 대상: `daily_completed_study_seconds`, `get_study_period_summary`, `end_study_session`, 내부 cron/trigger helper RPC 실행 권한
+- 변경 내용: 사용자 시간대 기반 기간 집계와 자정 경과 분할을 추가하고, 장기/자정 경과 세션 건수를 함께 반환하며, 내부 함수의 익명·인증 사용자 직접 실행 권한을 회수했다.
+- 변경 이유: 주간·오늘 합계의 날짜 왜곡과 기본 PUBLIC 함수 실행 권한 노출을 제거하기 위해서다.
+- 관련 기능: 웹 오늘/월간/주간 통계, Expo 오늘 통계, 자정 경과 출석 승격, 주간 데이터 품질 안내
+- 마이그레이션 파일: `supabase/migrations/20260719045940_secure_rpc_and_study_period_summary.sql`
+- 확인 방법: 원격 migration `20260719052739`, 인증 컨텍스트 RPC 실행, anon/authenticated/service 역할 권한 행렬, Supabase Advisors
+- 주의 사항: 사용자용 SECURITY DEFINER 함수는 `auth.uid()` 검사와 고정 `search_path`를 유지해야 한다. 공유 프로젝트의 다른 테이블 Advisor 경고는 별도 범위로 다룬다.

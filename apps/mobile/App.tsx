@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
+  Modal,
   Pressable,
   SafeAreaView,
   ScrollView,
@@ -53,6 +54,7 @@ type StudySession = {
   ended_at: string | null;
   duration_seconds: number;
   status: "active" | "completed" | "cancelled";
+  lease_expires_at: string | null;
 };
 
 type StudyTodo = {
@@ -63,6 +65,22 @@ type StudyTodo = {
   is_completed: boolean;
   position: number;
 };
+
+type StudySessionTodoLink = {
+  session_id: string;
+  todo_id: string;
+};
+
+type InterruptionReason = "none" | "phone" | "environment" | "fatigue" | "schedule" | "other";
+
+const interruptionOptions: Array<{ value: InterruptionReason; label: string }> = [
+  { value: "none", label: "방해 없음" },
+  { value: "phone", label: "휴대폰" },
+  { value: "environment", label: "소음·환경" },
+  { value: "fatigue", label: "피로" },
+  { value: "schedule", label: "일정" },
+  { value: "other", label: "기타" },
+];
 
 export default function App() {
   const [session, setSession] = useState<Session | null>(null);
@@ -75,7 +93,16 @@ export default function App() {
   const [attendance, setAttendance] = useState<AttendanceDay | null>(null);
   const [sessions, setSessions] = useState<StudySession[]>([]);
   const [studyTodos, setStudyTodos] = useState<StudyTodo[]>([]);
+  const [studySessionTodoLinks, setStudySessionTodoLinks] = useState<StudySessionTodoLink[]>([]);
+  const [todayStudySeconds, setTodayStudySeconds] = useState(0);
   const [selectedSessionTodoIds, setSelectedSessionTodoIds] = useState<string[]>([]);
+  const [reflectionOpen, setReflectionOpen] = useState(false);
+  const [selectedCompletionTodoIds, setSelectedCompletionTodoIds] = useState<string[]>([]);
+  const [focusScore, setFocusScore] = useState(3);
+  const [energyScore, setEnergyScore] = useState(3);
+  const [interruptionReason, setInterruptionReason] = useState<InterruptionReason>("none");
+  const [reflectionNote, setReflectionNote] = useState("");
+  const [nextAction, setNextAction] = useState("");
   const [quickTodoTitle, setQuickTodoTitle] = useState("");
   const [reminderTime, setReminderTime] = useState("20:30");
   const [loading, setLoading] = useState(true);
@@ -130,7 +157,20 @@ export default function App() {
     () => studyTodos.filter((todo) => todo.local_date === todayDateKey && !todo.is_completed),
     [studyTodos, todayDateKey],
   );
-  const totalSeconds = sessions.reduce((sum, item) => sum + item.duration_seconds, 0);
+  const linkedActiveTodoIds = useMemo(
+    () => activeSession
+      ? studySessionTodoLinks.filter((link) => link.session_id === activeSession.id).map((link) => link.todo_id)
+      : [],
+    [activeSession?.id, studySessionTodoLinks],
+  );
+  const completionCandidates = useMemo(() => [...todayTodos].sort((left, right) => {
+    const leftLinked = linkedActiveTodoIds.includes(left.id) ? 0 : 1;
+    const rightLinked = linkedActiveTodoIds.includes(right.id) ? 0 : 1;
+    return leftLinked - rightLinked || left.position - right.position;
+  }), [linkedActiveTodoIds, todayTodos]);
+  const leaseRemainingSeconds = activeSession?.lease_expires_at
+    ? Math.max(0, Math.ceil((new Date(activeSession.lease_expires_at).getTime() - nowMs) / 1000))
+    : 0;
   const resendSeconds = Math.max(0, Math.ceil((resendAvailableAt - nowMs) / 1000));
 
   async function requestCode() {
@@ -194,13 +234,12 @@ export default function App() {
 
       const resolvedTimeZone = profileData?.time_zone ?? Intl.DateTimeFormat().resolvedOptions().timeZone;
       const localDate = getLocalDateKey(new Date(), resolvedTimeZone);
-      const [attendanceResult, sessionsResult, todosResult] = await Promise.all([
+      const [attendanceResult, sessionsResult, todosResult, sessionTodoResult, studySummaryResult] = await Promise.all([
         supabase
           .from("attendance_days")
           .select("*")
           .eq("user_id", userId)
-          .order("local_date", { ascending: false })
-          .limit(1)
+          .eq("local_date", localDate)
           .maybeSingle(),
         supabase
           .from("study_sessions")
@@ -215,8 +254,22 @@ export default function App() {
           .eq("local_date", localDate)
           .eq("is_completed", false)
           .order("position", { ascending: true }),
+        supabase
+          .from("study_session_todos")
+          .select("session_id,todo_id")
+          .eq("user_id", userId)
+          .order("linked_at", { ascending: false })
+          .limit(100),
+        supabase.rpc("get_study_period_summary", {
+          p_start_date: localDate,
+          p_end_date: localDate,
+        }),
       ]);
-      const queryError = attendanceResult.error ?? sessionsResult.error ?? todosResult.error;
+      const queryError = attendanceResult.error
+        ?? sessionsResult.error
+        ?? todosResult.error
+        ?? sessionTodoResult.error
+        ?? studySummaryResult.error;
       if (queryError) throw queryError;
 
       if (profileData) {
@@ -225,6 +278,9 @@ export default function App() {
       }
       setAttendance((attendanceResult.data ?? null) as AttendanceDay | null);
       setSessions((sessionsResult.data ?? []) as StudySession[]);
+      setStudySessionTodoLinks((sessionTodoResult.data ?? []) as StudySessionTodoLink[]);
+      const summaryRow = Array.isArray(studySummaryResult.data) ? studySummaryResult.data[0] : studySummaryResult.data;
+      setTodayStudySeconds(Math.max(0, Number(summaryRow?.completed_seconds) || 0));
       const nextTodos = (todosResult.data ?? []) as StudyTodo[];
       setStudyTodos(nextTodos);
       setSelectedSessionTodoIds((current) => {
@@ -334,14 +390,40 @@ export default function App() {
     }
   }
 
-  async function endTimer() {
-    if (!activeSession || !session?.user.id) return;
+  function openReflection() {
+    if (!activeSession) return;
+    setSelectedCompletionTodoIds(linkedActiveTodoIds);
+    setFocusScore(3);
+    setEnergyScore(3);
+    setInterruptionReason("none");
+    setReflectionNote("");
+    setNextAction("");
+    setReflectionOpen(true);
+  }
 
+  function toggleCompletionTodo(todoId: string) {
+    setSelectedCompletionTodoIds((current) =>
+      current.includes(todoId) ? current.filter((id) => id !== todoId) : [...current, todoId],
+    );
+  }
+
+  async function completeTimer() {
+    if (!activeSession || !session?.user.id) return;
     setBusy(true);
     try {
-      const { error } = await supabase.rpc("end_study_session", { p_session_id: activeSession.id });
+      const { error } = await supabase.rpc("complete_study_session", {
+        p_session_id: activeSession.id,
+        p_excluded_seconds: 0,
+        p_completed_todo_ids: selectedCompletionTodoIds,
+        p_focus_score: focusScore,
+        p_energy_score: energyScore,
+        p_interruption_reason: interruptionReason,
+        p_note: reflectionNote,
+        p_next_action: nextAction,
+      });
       if (error) throw error;
       await refreshData(session.user.id);
+      setReflectionOpen(false);
     } catch (error) {
       Alert.alert("종료 실패", formatError(error));
     } finally {
@@ -349,6 +431,22 @@ export default function App() {
     }
   }
 
+  async function extendSessionLease() {
+    if (!activeSession || !session?.user.id) return;
+    setBusy(true);
+    try {
+      const { error } = await supabase.rpc("extend_study_session_lease", {
+        p_session_id: activeSession.id,
+        p_extension_minutes: 60,
+      });
+      if (error) throw error;
+      await refreshData(session.user.id);
+    } catch (error) {
+      Alert.alert("세션 유지 실패", formatError(error));
+    } finally {
+      setBusy(false);
+    }
+  }
   if (loading) {
     return (
       <SafeAreaView style={styles.center}>
@@ -428,8 +526,8 @@ export default function App() {
 
         <View style={styles.row}>
           <View style={styles.metric}>
-            <Text style={styles.metricValue}>{formatSeconds(totalSeconds)}</Text>
-            <Text style={styles.metricLabel}>최근 누적 공부</Text>
+            <Text style={styles.metricValue}>{formatSeconds(todayStudySeconds)}</Text>
+            <Text style={styles.metricLabel}>오늘 완료 공부</Text>
           </View>
           <View style={styles.metric}>
             <Text style={styles.metricValue}>{activeSession ? "진행 중" : "대기"}</Text>
@@ -501,12 +599,24 @@ export default function App() {
           </Pressable>
           <Pressable
             style={[styles.secondaryButton, !activeSession ? styles.disabledButton : null]}
-            onPress={endTimer}
+            onPress={openReflection}
             disabled={busy || !activeSession}
           >
             <Text style={styles.secondaryButtonText}>퇴실하고 종료</Text>
           </Pressable>
         </View>
+
+        {activeSession && (
+          <View style={styles.leasePanel}>
+            <View>
+              <Text style={styles.sectionTitle}>세션 유지시간</Text>
+              <Text style={styles.copy}>남은 시간 {formatSeconds(leaseRemainingSeconds)} · 최대 2시간까지 유지</Text>
+            </View>
+            <Pressable style={styles.secondaryButton} onPress={extendSessionLease} disabled={busy}>
+              <Text style={styles.secondaryButtonText}>1시간 유지하기</Text>
+            </Pressable>
+          </View>
+        )}
 
         <View style={styles.settings}>
           <Text style={styles.sectionTitle}>알림 설정</Text>
@@ -519,7 +629,79 @@ export default function App() {
           </Pressable>
         </View>
       </ScrollView>
+      <Modal
+        visible={reflectionOpen}
+        transparent
+        animationType="fade"
+        onRequestClose={() => { if (!busy) setReflectionOpen(false); }}
+      >
+        <View style={styles.modalBackdrop}>
+          <View style={styles.reflectionModal}>
+            <ScrollView contentContainerStyle={styles.reflectionContent}>
+              <Text style={styles.kicker}>session reflection</Text>
+              <Text style={styles.sectionTitle}>오늘의 집중을 짧게 돌아봐요</Text>
+              <Text style={styles.copy}>회고와 완료한 할 일을 한 번에 저장한 뒤 세션을 종료합니다.</Text>
+              <ScorePicker label="집중도" value={focusScore} onChange={setFocusScore} />
+              <ScorePicker label="에너지" value={energyScore} onChange={setEnergyScore} />
+              <Text style={styles.fieldLabel}>가장 큰 방해 요인</Text>
+              <View style={styles.reasonChoices}>
+                {interruptionOptions.map((option) => (
+                  <Pressable
+                    key={option.value}
+                    style={[styles.reasonChoice, interruptionReason === option.value ? styles.reasonChoiceSelected : null]}
+                    accessibilityRole="radio"
+                    accessibilityState={{ selected: interruptionReason === option.value }}
+                    onPress={() => setInterruptionReason(option.value)}
+                  >
+                    <Text style={styles.reasonChoiceText}>{option.label}</Text>
+                  </Pressable>
+                ))}
+              </View>
+              <Text style={styles.fieldLabel}>다음 세션에서 바로 할 한 가지</Text>
+              <TextInput value={nextAction} onChangeText={setNextAction} maxLength={160} style={styles.input} placeholder="예: 3단원 문제 1번부터" />
+              <Text style={styles.fieldLabel}>한 줄 메모</Text>
+              <TextInput value={reflectionNote} onChangeText={setReflectionNote} maxLength={500} multiline style={[styles.input, styles.noteInput]} placeholder="잘된 점이나 바꿀 점" />
+              <Text style={styles.fieldLabel}>이번 세션에서 끝낸 할 일</Text>
+              {completionCandidates.map((todo) => {
+                const selected = selectedCompletionTodoIds.includes(todo.id);
+                return (
+                  <Pressable key={todo.id} style={[styles.todoChoice, selected ? styles.todoChoiceSelected : null]} onPress={() => toggleCompletionTodo(todo.id)}>
+                    <View style={[styles.todoCheck, selected ? styles.todoCheckSelected : null]}><Text style={styles.todoCheckText}>{selected ? "✓" : ""}</Text></View>
+                    <Text style={styles.todoChoiceText}>{todo.title}</Text>
+                  </Pressable>
+                );
+              })}
+              <Pressable style={styles.primaryButton} onPress={completeTimer} disabled={busy}>
+                <Text style={styles.primaryButtonText}>{busy ? "저장하는 중..." : "회고 저장하고 종료"}</Text>
+              </Pressable>
+              <Pressable style={styles.ghostButton} onPress={() => setReflectionOpen(false)} disabled={busy}>
+                <Text style={styles.ghostButtonText}>계속 공부하기</Text>
+              </Pressable>
+            </ScrollView>
+          </View>
+        </View>
+      </Modal>
     </SafeAreaView>
+  );
+}
+function ScorePicker({ label, value, onChange }: { label: string; value: number; onChange: (value: number) => void }) {
+  return (
+    <View style={styles.scoreField} accessibilityRole="radiogroup">
+      <Text style={styles.fieldLabel}>{label}</Text>
+      <View style={styles.scoreChoices}>
+        {[1, 2, 3, 4, 5].map((score) => (
+          <Pressable
+            key={score}
+            style={[styles.scoreChoice, value === score ? styles.scoreChoiceSelected : null]}
+            accessibilityRole="radio"
+            accessibilityState={{ selected: value === score }}
+            onPress={() => onChange(score)}
+          >
+            <Text style={styles.scoreChoiceText}>{score}</Text>
+          </Pressable>
+        ))}
+      </View>
+    </View>
   );
 }
 
@@ -843,5 +1025,87 @@ const styles = StyleSheet.create({
   },
   disabledButton: {
     opacity: 0.45,
+  },
+  leasePanel: {
+    borderWidth: 2,
+    borderColor: mobilePalette.goldDark,
+    borderRadius: 14,
+    backgroundColor: mobilePalette.surfaceWarm,
+    padding: 18,
+    gap: 12,
+  },
+  modalBackdrop: {
+    flex: 1,
+    justifyContent: "center",
+    backgroundColor: "rgba(32, 52, 43, 0.68)",
+    padding: 16,
+  },
+  reflectionModal: {
+    maxHeight: "92%",
+    borderWidth: 3,
+    borderColor: mobilePalette.border,
+    borderRadius: 16,
+    backgroundColor: mobilePalette.surface,
+    overflow: "hidden",
+  },
+  reflectionContent: {
+    padding: 20,
+    gap: 14,
+  },
+  fieldLabel: {
+    color: mobilePalette.text,
+    fontSize: 15,
+    fontWeight: "900",
+  },
+  scoreField: {
+    gap: 8,
+  },
+  scoreChoices: {
+    flexDirection: "row",
+    gap: 8,
+  },
+  scoreChoice: {
+    flex: 1,
+    minHeight: 44,
+    alignItems: "center",
+    justifyContent: "center",
+    borderWidth: 2,
+    borderColor: mobilePalette.softBorder,
+    borderRadius: 10,
+    backgroundColor: mobilePalette.surfaceWarm,
+  },
+  scoreChoiceSelected: {
+    borderColor: mobilePalette.primary,
+    backgroundColor: mobilePalette.primarySoft,
+  },
+  scoreChoiceText: {
+    color: mobilePalette.primary,
+    fontWeight: "900",
+  },
+  reasonChoices: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 8,
+  },
+  reasonChoice: {
+    borderWidth: 2,
+    borderColor: mobilePalette.softBorder,
+    borderRadius: 999,
+    backgroundColor: mobilePalette.surfaceWarm,
+    paddingHorizontal: 12,
+    paddingVertical: 9,
+  },
+  reasonChoiceSelected: {
+    borderColor: mobilePalette.primary,
+    backgroundColor: mobilePalette.primarySoft,
+  },
+  reasonChoiceText: {
+    color: mobilePalette.text,
+    fontWeight: "800",
+  },
+  noteInput: {
+    minHeight: 96,
+    paddingTop: 12,
+    textAlignVertical: "top",
   },
 });

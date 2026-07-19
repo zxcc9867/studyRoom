@@ -9,11 +9,42 @@ export function getStudyWeekRange(dateKey, weekOffset = 0) {
   return { startDate: formatDateKey(start), endDate: formatDateKey(end) };
 }
 
-export function buildWeeklyStudyReview({ todayDateKey, sessions = [], todos = [], attendanceDays = [], reflections = [] }) {
-  const currentRange = getStudyWeekRange(todayDateKey, 0);
-  const previousRange = getStudyWeekRange(todayDateKey, -1);
-  const current = buildRangeMetrics(currentRange, sessions, todos, attendanceDays, reflections);
-  const previous = buildRangeMetrics(previousRange, sessions, todos, attendanceDays, reflections);
+export function getComparableStudyWeekRanges(todayDateKey) {
+  const fullCurrentRange = getStudyWeekRange(todayDateKey, 0);
+  const fullPreviousRange = getStudyWeekRange(todayDateKey, -1);
+  const elapsedDays = Math.floor(
+    (parseDateKey(todayDateKey).getTime() - parseDateKey(fullCurrentRange.startDate).getTime()) / DAY_MS,
+  );
+  return {
+    currentRange: {
+      startDate: fullCurrentRange.startDate,
+      endDate: todayDateKey,
+      coveredDayCount: elapsedDays + 1,
+    },
+    previousRange: {
+      startDate: fullPreviousRange.startDate,
+      endDate: formatDateKey(new Date(parseDateKey(fullPreviousRange.startDate).getTime() + elapsedDays * DAY_MS)),
+      coveredDayCount: elapsedDays + 1,
+    },
+  };
+}
+
+export function buildWeeklyStudyReview(input) {
+  return buildComparableWeeklyStudyReview(input);
+}
+
+export function buildComparableWeeklyStudyReview({
+  todayDateKey,
+  sessions = [],
+  todos = [],
+  attendanceDays = [],
+  reflections = [],
+  currentStudySummary = null,
+  previousStudySummary = null,
+}) {
+  const { currentRange, previousRange } = getComparableStudyWeekRanges(todayDateKey);
+  const current = buildRangeMetrics(currentRange, sessions, todos, attendanceDays, reflections, currentStudySummary);
+  const previous = buildRangeMetrics(previousRange, sessions, todos, attendanceDays, reflections, previousStudySummary);
 
   return {
     current,
@@ -37,7 +68,7 @@ export function formatStudyDurationChange(seconds) {
   return `지난주보다 ${numericSeconds > 0 ? "+" : "-"}${formatStudyMinutes(totalMinutes)}`;
 }
 
-function buildRangeMetrics(range, sessions, todos, attendanceDays, reflections) {
+function buildRangeMetrics(range, sessions, todos, attendanceDays, reflections, studySummary) {
   const inRange = (dateKey) => dateKey >= range.startDate && dateKey <= range.endDate;
   const rangeSessions = sessions.filter((session) => session.status === "completed" && inRange(session.local_date));
   const rangeTodos = todos.filter((todo) => inRange(todo.local_date));
@@ -50,15 +81,18 @@ function buildRangeMetrics(range, sessions, todos, attendanceDays, reflections) 
   const presentDays = new Set(rangeAttendance.filter((day) => day.status === "present").map((day) => day.local_date)).size;
   const reflectedSessionRate = rangeSessions.length > 0 ? rangeReflections.length / rangeSessions.length : 0;
   const consistencyScore = Math.round(
-    Math.min(1, presentDays / 7) * 50
+    Math.min(1, presentDays / range.coveredDayCount) * 50
       + (completionRate / 100) * 35
       + Math.min(1, reflectedSessionRate) * 15,
   );
 
   return {
     ...range,
-    studySeconds: rangeSessions.reduce((sum, session) => sum + Math.max(0, Number(session.duration_seconds) || 0), 0),
-    sessionCount: rangeSessions.length,
+    studySeconds: studySummary?.completedSeconds
+      ?? rangeSessions.reduce((sum, session) => sum + Math.max(0, Number(session.duration_seconds) || 0), 0),
+    sessionCount: studySummary?.completedSessionCount ?? rangeSessions.length,
+    anomalySessionCount: studySummary?.anomalySessionCount ?? 0,
+    crossDateSessionCount: studySummary?.crossDateSessionCount ?? 0,
     plannedTodoCount,
     completedTodoCount,
     completionRate,

@@ -112,6 +112,11 @@ import {
   type DashboardSection,
 } from "./dashboardRoute.mjs";
 import {
+  loadDashboardData,
+  loadNotificationDeliveryData,
+  loadReflectionData,
+} from "./dashboardData";
+import {
   buildDailyPlannerSegments,
   plannerAngleToTime,
   type DailyPlannerSegment,
@@ -154,6 +159,12 @@ import {
   getActiveStudySecondsForMonth,
 } from "./studyTimeSummary.mjs";
 import {
+  fetchStudyPeriodSummary,
+  getMonthDateRange,
+  type StudyPeriodSummary,
+} from "./studyPeriodSummary.mjs";
+import { getComparableStudyWeekRanges } from "./weeklyReview.mjs";
+import {
   STUDY_SESSION_ACTIVITY_HEARTBEAT_MS,
   getStudySessionActivityExcludedSeconds,
   getStudySessionActivityStorageKey,
@@ -178,6 +189,7 @@ import {
   getGoalLinkedTodos,
   sortStudyGoals,
 } from "./studyGoals.mjs";
+import { AccessibleDialog } from "./AccessibleDialog";
 import type { SessionReflectionDraft } from "./SessionReflectionModal";
 import { isSupabaseConfigured, supabase, supabaseAnonKey, supabaseUrl } from "./supabase";
 import {
@@ -220,6 +232,7 @@ import {
 } from "./todoSchedule.mjs";
 import { getWebPushStatus, registerWebPushTarget, showLocalTestNotification, type WebPushStatus } from "./webPush";
 import "./styles.css";
+import "./improvements.css";
 
 const resendCooldownKey = "study-room-auth-resend-available-at";
 const emailOtpLength = EMAIL_OTP_LENGTH;
@@ -433,6 +446,12 @@ function DashboardApp() {
   const [studyGoals, setStudyGoals] = useState<StudyGoal[]>([]);
   const [studyRecoveryRequests, setStudyRecoveryRequests] = useState<StudyRecoveryRequest[]>([]);
   const [studySessionReflections, setStudySessionReflections] = useState<StudySessionReflection[]>([]);
+  const [studyPeriodSummaries, setStudyPeriodSummaries] = useState<{
+    today: StudyPeriodSummary;
+    month: StudyPeriodSummary;
+    currentWeek: StudyPeriodSummary;
+    previousWeek: StudyPeriodSummary;
+  } | null>(null);
   const [recoveryModalRequest, setRecoveryModalRequest] = useState<StudyRecoveryRequest | null>(null);
   const [recoveryReason, setRecoveryReason] = useState("");
   const [makeupTodoTitle, setMakeupTodoTitle] = useState("");
@@ -602,6 +621,32 @@ function DashboardApp() {
     return () => window.removeEventListener("hashchange", syncRoute);
   }, [session]);
 
+  useEffect(() => {
+    if (!session?.user.id || activeSection !== "me") return;
+    let cancelled = false;
+    void loadReflectionData(supabase, session.user.id)
+      .then((rows) => {
+        if (!cancelled) setStudySessionReflections(rows as StudySessionReflection[]);
+      })
+      .catch((error) => {
+        if (!cancelled) setMessage(formatError(error));
+      });
+    return () => { cancelled = true; };
+  }, [activeSection, session?.user.id]);
+
+  useEffect(() => {
+    if (!session?.user.id || activeSection !== "settings") return;
+    let cancelled = false;
+    void loadNotificationDeliveryData(supabase, session.user.id)
+      .then((rows) => {
+        if (!cancelled) setNotificationDeliveries(normalizeNotificationDeliveries(rows as NotificationDeliveryRow[]));
+      })
+      .catch((error) => {
+        if (!cancelled) setMessage(formatError(error));
+      });
+    return () => { cancelled = true; };
+  }, [activeSection, session?.user.id]);
+
   const timeZone = profile?.time_zone ?? Intl.DateTimeFormat().resolvedOptions().timeZone;
   const activeSession = studySessions.find((item) => item.status === "active") ?? null;
   const pendingRecoveryRequests = useMemo(
@@ -643,6 +688,13 @@ function DashboardApp() {
       ? getLeaseAwareActiveNowMs({ deadlineMs: activeSessionLeaseDeadlineMs, nowMs })
       : nowMs;
   const todayDateKey = getLocalDateKey(new Date(nowMs), timeZone);
+  const completedSessionVersion = useMemo(
+    () => studySessions
+      .filter((item) => item.status === "completed")
+      .map((item) => `${item.id}:${item.duration_seconds}`)
+      .join("|"),
+    [studySessions],
+  );
   const blockingRecoveryRequests = pendingRecoveryRequests;
   const autoOpenRecoveryRequests = useMemo(() => blockingRecoveryRequests, [blockingRecoveryRequests]);
   const recoveryModalQueuePosition = recoveryModalRequest
@@ -651,6 +703,32 @@ function DashboardApp() {
   const recoveryModalRemainingCount = recoveryModalRequest
     ? pendingRecoveryRequests.filter((request) => request.id !== recoveryModalRequest.id).length
     : 0;
+
+  useEffect(() => {
+    if (!session?.user.id) {
+      setStudyPeriodSummaries(null);
+      return undefined;
+    }
+
+    let cancelled = false;
+    const monthRange = getMonthDateRange(calendarMonth);
+    const { currentRange, previousRange } = getComparableStudyWeekRanges(todayDateKey);
+
+    void Promise.all([
+      fetchStudyPeriodSummary(supabase, todayDateKey, todayDateKey),
+      fetchStudyPeriodSummary(supabase, monthRange.startDate, monthRange.endDate),
+      fetchStudyPeriodSummary(supabase, currentRange.startDate, currentRange.endDate),
+      fetchStudyPeriodSummary(supabase, previousRange.startDate, previousRange.endDate),
+    ]).then(([today, month, currentWeek, previousWeek]) => {
+      if (!cancelled) setStudyPeriodSummaries({ today, month, currentWeek, previousWeek });
+    }).catch((error) => {
+      if (!cancelled) setMessage(`\uacf5\ubd80 \uc2dc\uac04 \uc9d1\uacc4\ub97c \ubd88\ub7ec\uc624\uc9c0 \ubabb\ud588\uc2b5\ub2c8\ub2e4: ${formatError(error)}`);
+    });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [calendarMonth, completedSessionVersion, session?.user.id, todayDateKey]);
 
   useEffect(() => {
     if (!session?.user.id || recoveryModalRequest || autoOpenRecoveryRequests.length === 0) {
@@ -709,9 +787,10 @@ function DashboardApp() {
     resumeStartAfterRecoveryUnlock,
   ]);
 
-  const todayCompletedSeconds = studySessions
-    .filter((item) => item.local_date === todayDateKey && item.status !== "active")
-    .reduce((sum, item) => sum + item.duration_seconds, 0);
+  const todayCompletedSeconds = studyPeriodSummaries?.today.completedSeconds
+    ?? studySessions
+      .filter((item) => item.local_date === todayDateKey && item.status === "completed")
+      .reduce((sum, item) => sum + item.duration_seconds, 0);
   const activeTodaySeconds = activeSession
     ? getActiveStudySecondsForDate({
         startedAtMs: activeSessionStartedAtMs,
@@ -721,9 +800,10 @@ function DashboardApp() {
       })
     : 0;
   const todaySeconds = todayCompletedSeconds + activeTodaySeconds;
-  const monthCompletedSeconds = studySessions
-    .filter((item) => item.local_date.startsWith(calendarMonth) && item.status !== "active")
-    .reduce((sum, item) => sum + item.duration_seconds, 0);
+  const monthCompletedSeconds = studyPeriodSummaries?.month.completedSeconds
+    ?? studySessions
+      .filter((item) => item.local_date.startsWith(calendarMonth) && item.status === "completed")
+      .reduce((sum, item) => sum + item.duration_seconds, 0);
   const activeMonthSeconds = activeSession
     ? getActiveStudySecondsForMonth({
         startedAtMs: activeSessionStartedAtMs,
@@ -1466,101 +1546,49 @@ function DashboardApp() {
 
   async function loadDashboard(userId: string) {
     setBusy(true);
-    const [
-      { data: profileData },
-      { data: attendanceData },
-      { data: sessionData },
-      { data: todoData },
-      { data: sessionTodoLinkData },
-      { data: goalData },
-      { data: recoveryData },
-      { data: reflectionData },
-      { data: notificationDeliveryData },
-    ] = await Promise.all([
-      supabase.from("profiles").select("*").eq("user_id", userId).maybeSingle(),
-      supabase
-        .from("attendance_days")
-        .select("*")
-        .eq("user_id", userId)
-        .order("local_date", { ascending: false })
-        .limit(370),
-      supabase
-        .from("study_sessions")
-        .select("*")
-        .eq("user_id", userId)
-        .order("started_at", { ascending: false })
-        .limit(1000),
-      supabase
-        .from("study_todos")
-        .select("*")
-        .eq("user_id", userId)
-        .order("local_date", { ascending: false })
-        .order("position", { ascending: true })
-        .order("created_at", { ascending: true })
-        .limit(500),
-      supabase
-        .from("study_session_todos")
-        .select("*")
-        .eq("user_id", userId)
-        .order("linked_at", { ascending: false })
-        .limit(1000),
-      supabase
-        .from("study_goals")
-        .select("*")
-        .eq("user_id", userId)
-        .order("status", { ascending: true })
-        .order("target_date", { ascending: true })
-        .limit(100),
-      supabase
-        .from("study_recovery_requests")
-        .select("id,local_date,trigger_type,status,reason,makeup_todo_title,pledge_todo_title,created_at")
-        .eq("user_id", userId)
-        .order("created_at", { ascending: false })
-        .limit(50),
-      supabase
-        .from("study_session_reflections")
-        .select("id,session_id,focus_score,energy_score,interruption_reason,note,next_action,created_at")
-        .eq("user_id", userId)
-        .order("created_at", { ascending: false })
-        .limit(200),
-      supabase
-        .from("notification_deliveries")
-        .select("channel,status,error_message,created_at")
-        .eq("user_id", userId)
-        .order("created_at", { ascending: false })
-        .limit(5),
-    ]);
+    try {
+      const {
+        profileData,
+        attendanceData,
+        sessionData,
+        todoData,
+        sessionTodoLinkData,
+        goalData,
+        recoveryData,
+      } = await loadDashboardData(supabase, userId);
 
-    if (profileData) {
-      const typedProfile = profileData as Profile;
-      const normalizedTaskView = normalizeTodayTaskView(typedProfile.today_task_view);
-      const normalizedSectionOrder = normalizeTodaySectionOrder(typedProfile.today_section_order);
-      setProfile(typedProfile);
-      setReminderTime(profileData.reminder_time.slice(0, 5));
-      setEmailRemindersEnabled(profileData.email_reminders_enabled ?? true);
-      setAdaptiveRemindersEnabled(typedProfile.adaptive_reminders_enabled ?? false);
-      setTodayTaskView(normalizedTaskView);
-      setSavedTodayTaskView(normalizedTaskView);
-      setTodaySectionOrder(normalizedSectionOrder);
-      setDraftTodaySectionOrder(normalizedSectionOrder);
-    } else {
-      setAdaptiveRemindersEnabled(false);
-      setTodayTaskView(DEFAULT_TODAY_TASK_VIEW);
-      setSavedTodayTaskView(DEFAULT_TODAY_TASK_VIEW);
-      setTodaySectionOrder([...DEFAULT_TODAY_SECTION_ORDER]);
-      setDraftTodaySectionOrder([...DEFAULT_TODAY_SECTION_ORDER]);
+      if (profileData) {
+        const typedProfile = profileData as Profile;
+        const normalizedTaskView = normalizeTodayTaskView(typedProfile.today_task_view);
+        const normalizedSectionOrder = normalizeTodaySectionOrder(typedProfile.today_section_order);
+        setProfile(typedProfile);
+        setReminderTime(typedProfile.reminder_time.slice(0, 5));
+        setEmailRemindersEnabled(typedProfile.email_reminders_enabled ?? true);
+        setAdaptiveRemindersEnabled(typedProfile.adaptive_reminders_enabled ?? false);
+        setTodayTaskView(normalizedTaskView);
+        setSavedTodayTaskView(normalizedTaskView);
+        setTodaySectionOrder(normalizedSectionOrder);
+        setDraftTodaySectionOrder(normalizedSectionOrder);
+      } else {
+        setAdaptiveRemindersEnabled(false);
+        setTodayTaskView(DEFAULT_TODAY_TASK_VIEW);
+        setSavedTodayTaskView(DEFAULT_TODAY_TASK_VIEW);
+        setTodaySectionOrder([...DEFAULT_TODAY_SECTION_ORDER]);
+        setDraftTodaySectionOrder([...DEFAULT_TODAY_SECTION_ORDER]);
+      }
+
+      setAttendanceDays(attendanceData as AttendanceDay[]);
+      setStudySessions(sessionData as StudySession[]);
+      setStudyTodos(todoData as StudyTodo[]);
+      setStudySessionTodoLinks(sessionTodoLinkData as StudySessionTodoLink[]);
+      setStudyGoals(sortStudyGoals(goalData as StudyGoal[]));
+      setStudyRecoveryRequests(recoveryData as StudyRecoveryRequest[]);
+    } catch (error) {
+      setMessage(`\ub300\uc2dc\ubcf4\ub4dc\ub97c \ubd88\ub7ec\uc624\uc9c0 \ubabb\ud588\uc2b5\ub2c8\ub2e4: ${formatError(error)}`);
+    } finally {
+      setBusy(false);
     }
-    setAttendanceDays(attendanceData ?? []);
-    setStudySessions(sessionData ?? []);
-    setStudyTodos(todoData ?? []);
-    setStudySessionTodoLinks((sessionTodoLinkData ?? []) as StudySessionTodoLink[]);
-    setStudyGoals(sortStudyGoals((goalData ?? []) as StudyGoal[]));
-    setStudyRecoveryRequests((recoveryData ?? []) as StudyRecoveryRequest[]);
-    setStudySessionReflections((reflectionData ?? []) as StudySessionReflection[]);
-    setNotificationDeliveries(normalizeNotificationDeliveries((notificationDeliveryData ?? []) as NotificationDeliveryRow[]));
-    setBusy(false);
   }
-
   function showPlannerDate(dateKey: string) {
     setSelectedTodoDate(dateKey);
     setCalendarMonth(dateKey.slice(0, 7));
@@ -4343,18 +4371,12 @@ function DashboardApp() {
         )}
 
         {todoModalOpen && (
-          <div
-            className="modal-backdrop"
-            role="presentation"
-            onClick={closeTodoModal}
+          <AccessibleDialog
+            className="todo-modal"
+            ariaLabel={`${formatTodoDate(selectedTodoDate)} \uD560 \uC77C`}
+            closeOnBackdrop
+            onClose={closeTodoModal}
           >
-            <section
-              className="todo-modal"
-              role="dialog"
-              aria-modal="true"
-              aria-label={`${formatTodoDate(selectedTodoDate)} 할 일`}
-              onClick={(event) => event.stopPropagation()}
-            >
               <div className="todo-header">
                 <div>
                   <p className="eyebrow">daily checklist</p>
@@ -4550,23 +4572,16 @@ function DashboardApp() {
                 </div>
                 {renderTodoScheduleList(visibleTodoModalItems, "\uC774 \uB0A0\uC9DC\uC5D0 \uC800\uC7A5\uB41C \uD560 \uC77C\uC774 \uC5C6\uC2B5\uB2C8\uB2E4.")}
               </section>
-            </section>
-          </div>
+          </AccessibleDialog>
         )}
 
         {planCopyModalOpen && (
-          <div
-            className="modal-backdrop"
-            role="presentation"
-            onClick={closePlanCopyModal}
+          <AccessibleDialog
+            className="todo-modal plan-copy-modal"
+            ariaLabel={"\uC5EC\uB7EC \uB0A0\uC9DC\uC5D0 \uACC4\uD68D \uC801\uC6A9"}
+            closeOnBackdrop
+            onClose={closePlanCopyModal}
           >
-            <section
-              className="todo-modal plan-copy-modal"
-              role="dialog"
-              aria-modal="true"
-              aria-label="copy planner to dates"
-              onClick={(event) => event.stopPropagation()}
-            >
               <div className="todo-header">
                 <div>
                   <p className="eyebrow">copy planner</p>
@@ -4638,8 +4653,7 @@ function DashboardApp() {
                   {"\uCDE8\uC18C"}
                 </button>
               </div>
-            </section>
-          </div>
+          </AccessibleDialog>
         )}
 
         {endSessionCompletionModalOpen && (
@@ -4659,18 +4673,12 @@ function DashboardApp() {
 
 
         {sessionTodoModalOpen && (
-          <div
-            className="modal-backdrop"
-            role="presentation"
-            onClick={closeSessionTodoSelection}
+          <AccessibleDialog
+            className="todo-modal session-todo-modal"
+            ariaLabel={"\uC774\uBC88 \uC138\uC158\uC5D0\uC11C \uD560 \uC77C \uC120\uD0DD"}
+            closeOnBackdrop
+            onClose={closeSessionTodoSelection}
           >
-            <section
-              className="todo-modal session-todo-modal"
-              role="dialog"
-              aria-modal="true"
-              aria-label="이번 세션에서 할 일 선택"
-              onClick={(event) => event.stopPropagation()}
-            >
               <div className="todo-header">
                 <div>
                   <p className="eyebrow">session plan</p>
@@ -4751,19 +4759,16 @@ function DashboardApp() {
                   나중에
                 </button>
               </div>
-            </section>
-          </div>
+          </AccessibleDialog>
         )}
 
         {goalModalOpen && (
-          <div className="modal-backdrop" role="presentation" onClick={closeGoalModal}>
-            <section
-              className="todo-modal goal-modal"
-              role="dialog"
-              aria-modal="true"
-              aria-label={editingGoalId ? "목표 편집" : "목표 만들기"}
-              onClick={(event) => event.stopPropagation()}
-            >
+          <AccessibleDialog
+            className="todo-modal goal-modal"
+            ariaLabel={editingGoalId ? "\uBAA9\uD45C \uD3B8\uC9D1" : "\uBAA9\uD45C \uB9CC\uB4E4\uAE30"}
+            closeOnBackdrop
+            onClose={closeGoalModal}
+          >
               <div className="todo-header">
                 <div>
                   <p className="eyebrow">study goal</p>
@@ -4835,18 +4840,16 @@ function DashboardApp() {
                   </button>
                 </div>
               </form>
-            </section>
-          </div>
+          </AccessibleDialog>
         )}
 
         {reminderPopup && (
-          <div className="modal-backdrop reminder-backdrop" role="presentation">
-            <section
-              className="todo-modal reminder-modal"
-              role="dialog"
-              aria-modal="true"
-              aria-label="독서실 입장 알림"
-            >
+          <AccessibleDialog
+            className="todo-modal reminder-modal"
+            backdropClassName="reminder-backdrop"
+            ariaLabel={"\uB3C5\uC11C\uC2E4 \uC785\uC7A5 \uC54C\uB9BC"}
+            onClose={() => setReminderPopup(null)}
+          >
               <div className="todo-header">
                 <div>
                   <p className="eyebrow">study alarm</p>
@@ -4884,18 +4887,16 @@ function DashboardApp() {
                   나중에
                 </button>
               </div>
-            </section>
-          </div>
+          </AccessibleDialog>
         )}
 
         {recoveryModalRequest && (
-          <div className="modal-backdrop reminder-backdrop" role="presentation">
-            <section
-              className="todo-modal reminder-modal recovery-modal"
-              role="dialog"
-              aria-modal="true"
-              aria-label="회복 루틴 작성"
-            >
+          <AccessibleDialog
+            className="todo-modal reminder-modal recovery-modal"
+            backdropClassName="reminder-backdrop"
+            ariaLabel={"\uD68C\uBCF5 \uB8E8\uD2F4 \uC791\uC131"}
+            onClose={closeRecoveryRoutineModal}
+          >
               <div className="todo-header">
                 <div>
                   <p className="eyebrow">recovery routine</p>
@@ -4969,18 +4970,16 @@ function DashboardApp() {
                   </button>
                 </div>
               </form>
-            </section>
-          </div>
+          </AccessibleDialog>
         )}
 
         {cameraSetupPrompt && (
-          <div className="modal-backdrop reminder-backdrop" role="presentation">
-            <section
-              className="todo-modal reminder-modal camera-required-modal"
-              role="dialog"
-              aria-modal="true"
-              aria-label="카메라 인증 필요"
-            >
+          <AccessibleDialog
+            className="todo-modal reminder-modal camera-required-modal"
+            backdropClassName="reminder-backdrop"
+            ariaLabel={"\uCE74\uBA54\uB77C \uC778\uC99D \uD544\uC694"}
+            onClose={() => setCameraSetupPrompt(null)}
+          >
               <div className="todo-header">
                 <div>
                   <p className="eyebrow">camera required</p>
@@ -5017,18 +5016,16 @@ function DashboardApp() {
                   나중에
                 </button>
               </div>
-            </section>
-          </div>
+          </AccessibleDialog>
         )}
 
         {absenceWarningPopup && (
-          <div className="modal-backdrop reminder-backdrop" role="presentation">
-            <section
-              className="todo-modal reminder-modal camera-warning-modal"
-              role="dialog"
-              aria-modal="true"
-              aria-label="자리 비움 경고"
-            >
+          <AccessibleDialog
+            className="todo-modal reminder-modal camera-warning-modal"
+            backdropClassName="reminder-backdrop"
+            ariaLabel={"\uC790\uB9AC \uBE44\uC6C0 \uACBD\uACE0"}
+            onClose={() => setAbsenceWarningPopup(null)}
+          >
               <div className="todo-header">
                 <div>
                   <p className="eyebrow">camera warning</p>
@@ -5059,8 +5056,7 @@ function DashboardApp() {
                   확인
                 </button>
               </div>
-            </section>
-          </div>
+          </AccessibleDialog>
         )}
 
         {activeSection === "today" && (
@@ -5350,6 +5346,8 @@ function DashboardApp() {
               todos={studyTodos}
               attendanceDays={attendanceDays}
               reflections={studySessionReflections}
+              currentStudySummary={studyPeriodSummaries?.currentWeek}
+              previousStudySummary={studyPeriodSummaries?.previousWeek}
             />
           </Suspense>
 
@@ -5730,6 +5728,10 @@ function getPlainDateKey(date: Date) {
   const month = String(date.getMonth() + 1).padStart(2, "0");
   const day = String(date.getDate()).padStart(2, "0");
   return `${year}-${month}-${day}`;
+}
+
+function formatError(error: unknown) {
+  return error instanceof Error ? error.message : String(error);
 }
 
 function formatAuthError(message: string) {

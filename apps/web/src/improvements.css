@@ -1,0 +1,45 @@
+.weekly-data-quality {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.8rem;
+  margin-top: 1rem;
+  border: 2px solid #d4a33e;
+  border-radius: 14px;
+  background: linear-gradient(135deg, #fff5c9, #fffaf0);
+  color: #5f4620;
+  padding: 0.95rem 1rem;
+  box-shadow: 0 5px 0 rgb(142 105 36 / 14%);
+}
+
+.weekly-data-quality svg {
+  flex: 0 0 auto;
+  margin-top: 0.1rem;
+  color: #b06a2f;
+}
+
+.weekly-data-quality strong,
+.weekly-data-quality p {
+  display: block;
+  margin: 0;
+}
+
+.weekly-data-quality p {
+  margin-top: 0.25rem;
+  line-height: 1.55;
+}
+
+.todo-modal[tabindex="-1"]:focus {
+  outline: none;
+}
+
+.todo-modal[tabindex="-1"]:focus-visible {
+  outline: 3px solid #f0c85c;
+  outline-offset: 4px;
+}
+
+@media (max-width: 640px) {
+  .weekly-data-quality {
+    border-radius: 11px;
+    padding: 0.8rem;
+  }
+}

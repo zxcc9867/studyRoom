@@ -12,10 +12,11 @@ test("normalizes slack channel IDs", () => {
 
 test("web app blocks study start for every pending recovery routine", () => {
   const appSource = readFileSync("apps/web/src/main.tsx", "utf8");
+  const dataSource = readFileSync("apps/web/src/dashboardData.ts", "utf8");
 
   assert.match(appSource, /type StudyRecoveryRequest/);
   assert.match(appSource, /studyRecoveryRequests/);
-  assert.match(appSource, /\.from\("study_recovery_requests"\)/);
+  assert.match(dataSource, /\.from\("study_recovery_requests"\)/);
   assert.match(appSource, /pendingRecoveryRequests/);
   assert.match(appSource, /blockingRecoveryRequests/);
   assert.doesNotMatch(appSource, /lateStudyRecoveryRequests/);
@@ -216,11 +217,12 @@ test("web app explains when the current account has no saved slack channel targe
 
 test("settings page shows notification diagnostics from recent delivery rows", () => {
   const appSource = readFileSync("apps/web/src/main.tsx", "utf8");
+  const dataSource = readFileSync("apps/web/src/dashboardData.ts", "utf8");
   const styleSource = readFileSync("apps/web/src/styles.css", "utf8");
 
   assert.match(appSource, /NotificationDeliveryRow/);
   assert.match(appSource, /notificationDeliveries/);
-  assert.match(appSource, /\.from\("notification_deliveries"\)/);
+  assert.match(dataSource, /\.from\("notification_deliveries"\)/);
   assert.match(appSource, /buildNotificationDiagnostics/);
   assert.match(appSource, /notification-diagnostics-card/);
   assert.match(appSource, /legacy-notification-note/);

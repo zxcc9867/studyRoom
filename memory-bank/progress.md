@@ -4616,3 +4616,61 @@
 #### 다음 우선순위
 
 - 과거 장시간 세션 정리 정책이 필요하면 별도 승인 후 진행한다.
+
+### 2026-07-19 - 기간 집계·모바일 회고·접근성 개선
+
+#### 완료한 작업
+
+- 자정 경과 세션을 사용자 시간대의 날짜별로 분할하는 기간 집계 RPC를 추가했다.
+- 진행 중인 주는 지난주의 같은 진행 요일까지 비교하고, 12시간 초과·자정 경과 기록을 데이터 품질 안내로 표시했다.
+- 대시보드 조회 오류를 사용자에게 표시하고, 대용량 세션/todo/link 조회를 페이지 처리하며, 회고와 알림 진단을 화면별로 지연 조회했다.
+- Expo 모바일에 정확한 오늘 완료 공부 시간, 세션 유지, 원자적 회고 종료와 완료 todo 선택을 추가했다.
+- 웹 모달을 공용 접근성 Dialog로 통합했다.
+- 내부 Supabase RPC 권한을 service/authenticated 역할별 최소 권한으로 정리했다.
+- README와 PRD, 구현 계획, 현재 맥락, 문제 해결 기록을 갱신했다.
+
+#### 변경된 파일
+
+- `apps/mobile/App.tsx`
+- `apps/web/src/AccessibleDialog.tsx`
+- `apps/web/src/SessionReflectionModal.tsx`
+- `apps/web/src/WeeklyReviewSection.tsx`
+- `apps/web/src/dashboardData.ts`
+- `apps/web/src/improvements.css`
+- `apps/web/src/main.tsx`
+- `apps/web/src/studyPeriodSummary.mjs`
+- `apps/web/src/studyPeriodSummary.d.mts`
+- `apps/web/src/weeklyReview.mjs`
+- `apps/web/src/weeklyReview.d.mts`
+- `apps/web/test/improvementAudit.test.mjs`
+- `apps/web/test/studyPeriodSummary.test.mjs`
+- `apps/web/test/slackNotifications.test.mjs`
+- `apps/web/test/sustainableStudyLoop.test.mjs`
+- `packages/core/test/sql-migrations.test.mjs`
+- `supabase/migrations/20260719045940_secure_rpc_and_study_period_summary.sql`
+- `README.md`
+- `memory-bank/active-context.md`
+- `memory-bank/implementation-plan.md`
+- `memory-bank/prd-sustainable-study-loop.md`
+- `memory-bank/progress.md`
+- `memory-bank/trouble-shooting.md`
+
+#### 검증 방법
+
+- `npm.cmd test`: 270개 통과.
+- `npm.cmd run build`: TypeScript 및 Vite production build 통과.
+- `npx.cmd tsc -p apps/mobile/tsconfig.json --noEmit`: 통과.
+- Supabase migration `20260719052739_secure_rpc_and_study_period_summary` 적용 확인.
+- 권한 행렬: anon summary/end/internal=false, authenticated summary/end=true, internal=false, service internal=true.
+- Supabase security/performance Advisors 확인; 이번 변경으로 추가된 ERROR는 없다.
+
+#### 남은 작업
+
+- 로컬 구현과 원격 DB 기준 필수 작업은 없다.
+- 인앱 브라우저 자동 시각 검증은 Windows ACL 오류로 실행하지 못해 인증 계정 수동 확인이 남았다.
+- 커밋, 푸시, Vercel 배포는 사용자가 요청할 때 수행한다.
+
+#### 다음 우선순위
+
+- 인증된 실제 계정에서 주간 리뷰, 모바일 회고 종료, 세션 유지의 수동 스모크 테스트를 수행한다.
+- 공유 Supabase 프로젝트의 `Book`/`Review` RLS와 기존 인덱스 Advisor 항목은 별도 승인 범위에서 정리한다.

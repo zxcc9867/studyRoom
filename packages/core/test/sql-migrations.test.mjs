@@ -423,7 +423,7 @@ test("camera warning creates recovery request on repeated absence warnings only"
 
 
 test("schedule extension migration shifts selected and later incomplete timed todos", () => {
-  const sql = readLatestMigrationContaining(/extend_todo_schedule/i);
+  const sql = readLatestMigrationContaining(/create or replace function public\.extend_todo_schedule/i);
 
   assert.match(sql, /create or replace function public\.extend_todo_schedule/i);
   assert.match(sql, /p_todo_id uuid/i);
@@ -445,7 +445,7 @@ test("schedule extension migration shifts selected and later incomplete timed to
 });
 
 test("schedule changes invalidate future todo reminder locks so shifted times can reschedule", () => {
-  const sql = readLatestMigrationContaining(/clear_future_todo_schedule_deliveries/i);
+  const sql = readLatestMigrationContaining(/create or replace function public\.clear_future_todo_schedule_deliveries/i);
 
   assert.match(sql, /create or replace function public\.clear_future_todo_schedule_deliveries/i);
   assert.match(sql, /p_todo_ids uuid\[\]/i);

@@ -3136,3 +3136,71 @@ Codex Windows sandbox helper가 해당 세션의 파일 ACL 적용 단계에서 
 ### 재발 방지
 
 build-log MCP가 401이면 반복 호출하지 않고 GitHub Actions 단계 로그, deployment `READY`, 운영 자산 응답, runtime error 집계를 결합해 배포를 검증한다.
+
+## 2026-07-19 - Windows 패치 스크립트에서 한국어 오류 문구가 깨짐
+
+### 상황
+
+기존 파일에 `apply_patch`를 사용할 때 Windows ACL helper 오류가 발생해 정확한 문자열 치환 PowerShell 스크립트를 사용했고, 스크립트에 포함된 한국어 일부가 소스에서 깨진 문자열로 저장됐다.
+
+### 에러 메시지
+
+```txt
+windows sandbox failed: helper_unknown_error: apply deny-read ACLs
+예: 怨듬? ?쒓컙 ...
+```
+
+### 원인
+
+현재 sandbox helper가 기존 파일 읽기 ACL 적용에 실패했고, Windows PowerShell 5가 BOM 없는 UTF-8 `.ps1`을 시스템 ANSI 코드 페이지로 해석했다.
+
+### 해결 방법
+
+- `apply_patch`로 최소 임시 patcher를 생성했다.
+- 한국어를 포함한 patcher는 실행 전에 UTF-8 BOM으로 다시 저장했다.
+- 변경 후 `rg "[\\p{Han}]"`으로 한국어 소스에 섞인 한자형 깨짐을 검사하고, 오류 문구는 ASCII Unicode escape로 안전하게 복구했다.
+- 임시 `.codex-*.ps1` 파일을 모두 삭제했다.
+
+### 관련 파일
+
+- `apps/web/src/main.tsx`
+- `apps/mobile/App.tsx`
+- `memory-bank/active-context.md`
+
+### 재발 방지
+
+Windows PowerShell 5에서 한국어가 포함된 임시 스크립트는 반드시 UTF-8 BOM으로 실행한다. 기존 파일 패치 후에는 build만 믿지 말고 CJK 깨짐 검색과 실제 UTF-8 줄 검사를 함께 수행한다.
+
+## 2026-07-19 - 인앱 브라우저 로컬 UI 검증이 ACL 오류로 시작되지 않음
+
+### 상황
+
+전체 테스트·빌드·모바일 타입 검사 후 로컬 Vite UI를 실제 렌더링하려 했지만, 숨김 개발 서버 프로세스와 브라우저 제어 런타임이 모두 시작되지 않았다.
+
+### 에러 메시지
+
+```txt
+액세스가 거부되었습니다.
+node_repl kernel exited unexpectedly
+windows sandbox failed: helper_unknown_error: apply deny-read ACLs
+```
+
+### 원인
+
+코드나 Vite build 문제가 아니라 현재 Codex Windows sandbox helper의 ACL 적용 단계에서 프로세스/브라우저 런타임 시작이 차단됐다.
+
+### 해결 방법
+
+- 반복 우회 실행을 중단했다.
+- 전체 270개 테스트, production build, 모바일 typecheck, Supabase 원격 권한 검증을 완료 증거로 유지했다.
+- 실제 인증 상태가 필요한 주간 리뷰·모바일 종료·세션 유지 동작은 수동 스모크 테스트 항목으로 남겼다.
+
+### 관련 파일
+
+- `apps/web/src/main.tsx`
+- `apps/web/src/AccessibleDialog.tsx`
+- `apps/mobile/App.tsx`
+
+### 재발 방지
+
+같은 `apply deny-read ACLs`가 브라우저 런타임 초기화에서 발생하면 다른 자동화 도구로 우회하지 않는다. 브라우저 환경이 복구된 세션에서 로컬 또는 배포 URL을 열어 모바일 폭, Dialog 키보드 이동, 주간 리뷰 문구를 확인한다.

@@ -63,7 +63,7 @@ Personal learners who need a repeatable plan-focus-reflect-adjust loop rather th
 
 ## 8. Non-functional Requirements
 
-- Performance: derive weekly summaries from already loaded bounded rows.
+- Performance: fetch canonical timezone-aware study totals through one authenticated period-summary RPC and page large client datasets without silent row truncation.
 - Security: explicit grants, RLS ownership policies, authenticated-only RPC execution.
 - Accessibility: labeled dialog controls, keyboard-operable score choices, readable trend text.
 - Maintainability: keep review and reminder math outside React components.
@@ -78,7 +78,7 @@ Personal learners who need a repeatable plan-focus-reflect-adjust loop rather th
 
 - Manual session completion stores one reflection and selected todo results atomically.
 - Web and mobile cannot start without at least one valid same-day todo.
-- Weekly review numbers are deterministic for current and previous Monday-Sunday ranges.
+- Weekly review numbers are deterministic for Monday-to-today and the previous Monday-to-the-same-weekday comparison ranges.
 - Adaptive reminder recommendation requires at least three distinct completed days and rounds to 15 minutes.
 
 ## 11. Rollout Plan
@@ -96,9 +96,9 @@ Personal learners who need a repeatable plan-focus-reflect-adjust loop rather th
 
 ### Data Contract
 
-- Current-week study time is the sum of `duration_seconds` for completed sessions whose `local_date` is inside the Monday-to-Sunday range.
+- Current-week study time comes from the authenticated period-summary RPC for Monday through today in the user time zone.
 - Active and cancelled sessions are not included in this review total.
-- The range remains the complete calendar week, while the UI must also show the current as-of date so future dates are not mistaken for recorded time.
+- The comparison excludes future weekdays: the current range is Monday through today and the previous range is the previous Monday through the same weekday.
 - Aggregated seconds are rounded to the nearest minute for presentation; stored session data is not changed.
 
 ### Functional Requirements
@@ -107,3 +107,25 @@ Personal learners who need a repeatable plan-focus-reflect-adjust loop rather th
 - [x] Label the metric as a completed-session total and show the completed session count.
 - [x] Show the current date next to the Monday-to-Sunday range.
 - [x] Keep current and previous weekly calculations deterministic and covered by helper tests.
+
+## 14. 2026-07-19 Update: Canonical Study Totals and Mobile Completion
+
+### Functional Requirements
+
+- [x] Allocate completed study time by the user's local date, including proportional splitting for sessions that cross midnight.
+- [x] Compare an in-progress week only with the same elapsed weekdays of the previous week.
+- [x] Show cross-date and 12-hour-plus session counts as data-quality context without deleting or silently capping stored records.
+- [x] Load reflections only on My Page and notification delivery diagnostics only on Settings.
+- [x] Expose query failures instead of replacing failed responses with empty arrays.
+- [x] Give Expo mobile the server-capped session lease extension and the same atomic reflection/todo completion RPC as web.
+- [x] Use one accessible dialog primitive for focus trapping, Escape close, scroll locking, and focus restoration.
+
+### Security and Data Rules
+
+- Internal cron and trigger helper RPCs are executable only by `service_role`.
+- User-facing period summary and manual session RPCs require `authenticated`; functions validate `auth.uid()` and use an empty fixed `search_path`.
+- Historical long sessions remain unchanged. The UI labels them for review and the period aggregate remains the source of truth.
+
+### Release Criteria
+
+- Full web/core tests, web production build, mobile typecheck, remote migration registration, RPC role matrix, and Supabase Advisor review must pass before commit or deployment.
