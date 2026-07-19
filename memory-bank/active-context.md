@@ -22,7 +22,9 @@
 - 완료: 기능 커밋 `0efe399 fix: open todo time picker from full field`를 `origin/main`에 푸시.
 - 진행 중: 없음.
 - 막힌 부분: 없음.
-- 다음 작업: `0efe399`로 시작된 GitHub Actions/Vercel production 배포 상태를 확인한다.
+- 완료: GitHub Actions workflow `29681074536`과 Vercel production 배포 성공 확인.
+- 완료: 운영 별칭 HTTP 200 및 번들 `index-BM6z3ySG.js`에서 `showPicker`, `시작 시간 선택`, `종료 시간 선택` 확인.
+- 다음 작업: 실제 Chrome과 모바일 브라우저에서 native picker 동작을 수동 확인한다.
 
 ## 주의할 점
 

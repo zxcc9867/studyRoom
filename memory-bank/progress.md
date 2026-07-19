@@ -4743,9 +4743,13 @@
 
 #### 남은 작업
 
-- 로컬 구현과 `origin/main` 푸시는 완료했다.
+- 로컬 구현과 `origin/main` 푸시, Vercel production 배포를 완료했다.
 - 기능 커밋: `0efe399 fix: open todo time picker from full field`.
-- GitHub Actions/Vercel production 배포 상태 확인이 남았다.
+- 문서 커밋: `e9838c9 docs: record todo time picker push [skip ci]`.
+- GitHub Actions workflow `29681074536` 성공.
+- 운영 별칭 `https://study-room-attendance.vercel.app/` HTTP 200 및 `Server: Vercel` 확인.
+- 배포 URL `https://study-room-attendance-cwb9jhz5a-astars-projects-c2f42587.vercel.app/` 생성 확인.
+- 운영 번들 `index-BM6z3ySG.js`에서 `showPicker`, `시작 시간 선택`, `종료 시간 선택` 확인.
 
 #### 다음 우선순위
 
