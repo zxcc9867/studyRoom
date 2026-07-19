@@ -24,12 +24,17 @@
 - 완료: 원격 migration `20260719140751_add_study_session_breaks` 적용.
 - 완료: `paused_at`·`paused_seconds`, 두 check 제약, pause/resume SECURITY INVOKER와 빈 search_path, 권한 행렬, 데이터 위반 0건 확인.
 - 완료: security/performance Advisors 확인. 이번 기능으로 추가된 오류는 없고 공유 프로젝트의 기존 항목만 남아 있다.
+- 완료: 기능 커밋 `2c920f9 feat: add resumable study session breaks`를 `origin/main`에 푸시.
+- 완료: GitHub Actions production workflow `29691080936`의 테스트·빌드·Vercel 배포 성공.
+- 완료: Vercel deployment `dpl_7UidmZbtvHMXJk7xmS9dQZKYn3un` READY 및 production alias 반영 확인.
+- 완료: 운영 별칭과 고유 배포 URL HTTP 200, 번들 `index-B17t-wy4.js`의 pause/resume RPC와 휴식 UI 문구 확인.
+- 완료: 최근 1시간 Vercel runtime error 0건 확인.
 - 진행 중: 없음.
 - 막힌 부분: 없음.
-- 다음 작업: 실제 인증 계정에서 휴식 시작·새로고침·재개·휴식 중 종료를 수동 확인하고, 요청 시 커밋·푸시·프론트 배포한다.
+- 다음 작업: 실제 인증 계정에서 휴식 시작·새로고침·카메라 재개·휴식 중 종료를 수동 확인한다.
 
 ## 주의할 점
 
 - 휴식 중 공부 시간만 멈추며 `lease_expires_at`은 정지하거나 자동 연장하지 않는다.
-- 원격 DB는 휴식 기능을 받을 준비가 됐지만 웹·Expo 클라이언트 변경은 아직 로컬에만 있으며 커밋·푸시·배포되지 않았다.
-- 사용자의 명시적 요청 전에는 커밋, 푸시, Vercel 또는 모바일 배포를 수행하지 않는다.
+- 원격 DB와 웹 production은 휴식 기능 기준으로 정렬됐다.
+- Expo 소스는 `main`에 반영됐지만 Expo/EAS 모바일 바이너리는 이번 Vercel workflow에서 배포하지 않는다.

@@ -4839,3 +4839,41 @@
 
 - 요청 시 커밋·푸시·Vercel 배포를 진행한다.
 - 공유 프로젝트의 기존 `Book`·`Review` RLS ERROR와 기존 성능 Advisor는 별도 승인 범위에서 처리한다.
+
+### 2026-07-19 - 공부 세션 휴식 기능 프로덕션 배포
+
+#### 완료한 작업
+
+- 기능 커밋 `2c920f9 feat: add resumable study session breaks`를 `origin/main`에 푸시했다.
+- GitHub Actions workflow `29691080936`이 전체 테스트, 웹 build, Vercel production 배포를 모두 성공했다.
+- Vercel deployment `dpl_7UidmZbtvHMXJk7xmS9dQZKYn3un`이 `READY`, target `production`, commit SHA `2c920f9696bcf52973eee5f2096c1e209e8c6c82`임을 확인했다.
+- production alias와 고유 deployment URL이 모두 HTTP 200 및 `Server: Vercel`을 반환했다.
+- 운영 번들 `assets/index-B17t-wy4.js`에서 `pause_study_session`, `resume_study_session`, `잠시 쉬기`, `공부 계속하기`, `휴식 중`을 확인했다.
+- 최근 1시간 Vercel runtime error가 0건임을 확인했다.
+
+#### 변경된 파일
+
+- 기능·테스트·migration·README·memory-bank 15개 파일은 커밋 `2c920f9`에 포함됐다.
+- 배포 증거는 `memory-bank/active-context.md`, `memory-bank/progress.md`에 추가했다.
+
+#### 검증 방법
+
+- 로컬 `npm.cmd test`: 279개 통과.
+- 로컬 `npm.cmd run build`: TypeScript 및 Vite production build 통과.
+- 로컬 `npx.cmd tsc -p apps/mobile/tsconfig.json --noEmit`: 통과.
+- GitHub Actions: `https://github.com/zxcc9867/studyRoom/actions/runs/29691080936` 성공, 1분 16초.
+- Production: `https://study-room-attendance.vercel.app/` HTTP 200.
+- Deployment: `https://study-room-attendance-avlwv4ukv-astars-projects-c2f42587.vercel.app/` HTTP 200, READY.
+- Vercel runtime errors: 최근 1시간 0건.
+
+#### 남은 작업
+
+- 웹 production과 원격 Supabase 기준 필수 배포 작업은 없다.
+- Expo 모바일 소스는 main에 포함됐지만 Expo/EAS 릴리즈는 별도 작업이다.
+- 실제 인증 계정의 휴식 시작·새로고침·재개·휴식 중 종료는 수동 확인이 권장된다.
+- GitHub Actions의 Node.js 20 대상 action 강제 Node.js 24 실행 annotation은 배포 실패가 아닌 기존 유지보수 경고다.
+
+#### 다음 우선순위
+
+- 운영 계정에서 카메라를 포함한 전체 휴식 흐름을 확인한다.
+- 모바일 바이너리 배포가 필요하면 EAS 설정과 배포 채널을 확인한 후 별도 릴리즈한다.
