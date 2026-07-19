@@ -585,3 +585,22 @@ test("attendance cron sends weekly recovery summaries through Slack without AI A
   assert.match(summarySource, /수면\/피로/);
   assert.doesNotMatch(summarySource, /openai|chat\.completions|responses\.create|anthropic|gemini/i);
 });
+test("manual study session breaks persist and are excluded from final duration", () => {
+  const sql = readLatestMigrationContaining(/pause_study_session/);
+
+  assert.match(sql, /add column if not exists paused_at timestamptz/i);
+  assert.match(sql, /add column if not exists paused_seconds integer not null default 0/i);
+  assert.match(sql, /study_sessions_paused_seconds_check[\s\S]*paused_seconds >= 0/i);
+  assert.match(sql, /study_sessions_pause_state_check[\s\S]*status = 'active' or paused_at is null/i);
+  assert.match(sql, /create or replace function public\.pause_study_session\(p_session_id uuid\)/i);
+  assert.match(sql, /create or replace function public\.resume_study_session\(p_session_id uuid\)/i);
+  assert.match(sql, /security invoker/i);
+  assert.match(sql, /user_id = v_user_id[\s\S]*status = 'active'/i);
+  assert.match(sql, /paused_at = coalesce\(paused_at, now\(\)\)/i);
+  assert.match(sql, /paused_seconds = paused_seconds[\s\S]*extract\(epoch from \(now\(\) - paused_at\)\)/i);
+  assert.match(sql, /v_total_paused_seconds[\s\S]*duration_seconds = greatest[\s\S]*- v_total_paused_seconds/i);
+  assert.match(sql, /paused_at = null[\s\S]*paused_seconds = v_total_paused_seconds[\s\S]*status = 'completed'/i);
+  assert.match(sql, /revoke all on function public\.pause_study_session\(uuid\) from public, anon/i);
+  assert.match(sql, /grant execute on function public\.pause_study_session\(uuid\) to authenticated, service_role/i);
+  assert.match(sql, /grant execute on function public\.resume_study_session\(uuid\) to authenticated, service_role/i);
+});

@@ -55,6 +55,8 @@ type StudySession = {
   duration_seconds: number;
   status: "active" | "completed" | "cancelled";
   lease_expires_at: string | null;
+  paused_at: string | null;
+  paused_seconds: number;
 };
 
 type StudyTodo = {
@@ -149,6 +151,7 @@ export default function App() {
     () => sessions.find((item) => item.status === "active") ?? null,
     [sessions],
   );
+  const activeSessionPaused = Boolean(activeSession?.paused_at);
   const todayDateKey = useMemo(
     () => getLocalDateKey(new Date(), profile?.time_zone ?? Intl.DateTimeFormat().resolvedOptions().timeZone),
     [profile?.time_zone],
@@ -171,6 +174,7 @@ export default function App() {
   const leaseRemainingSeconds = activeSession?.lease_expires_at
     ? Math.max(0, Math.ceil((new Date(activeSession.lease_expires_at).getTime() - nowMs) / 1000))
     : 0;
+  const currentBreakSeconds = getCurrentBreakSeconds(activeSession?.paused_at, nowMs);
   const resendSeconds = Math.max(0, Math.ceil((resendAvailableAt - nowMs) / 1000));
 
   async function requestCode() {
@@ -390,6 +394,38 @@ export default function App() {
     }
   }
 
+  async function pauseTimer() {
+    if (!activeSession || activeSessionPaused || !session?.user.id) return;
+    setBusy(true);
+    try {
+      const { error } = await supabase.rpc("pause_study_session", {
+        p_session_id: activeSession.id,
+      });
+      if (error) throw error;
+      await refreshData(session.user.id);
+    } catch (error) {
+      Alert.alert("휴식 시작 실패", formatError(error));
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function resumeTimer() {
+    if (!activeSession || !activeSessionPaused || !session?.user.id) return;
+    setBusy(true);
+    try {
+      const { error } = await supabase.rpc("resume_study_session", {
+        p_session_id: activeSession.id,
+      });
+      if (error) throw error;
+      await refreshData(session.user.id);
+    } catch (error) {
+      Alert.alert("공부 재개 실패", formatError(error));
+    } finally {
+      setBusy(false);
+    }
+  }
+
   function openReflection() {
     if (!activeSession) return;
     setSelectedCompletionTodoIds(linkedActiveTodoIds);
@@ -530,7 +566,7 @@ export default function App() {
             <Text style={styles.metricLabel}>오늘 완료 공부</Text>
           </View>
           <View style={styles.metric}>
-            <Text style={styles.metricValue}>{activeSession ? "진행 중" : "대기"}</Text>
+            <Text style={styles.metricValue}>{activeSessionPaused ? "휴식 중" : activeSession ? "진행 중" : "대기"}</Text>
             <Text style={styles.metricLabel}>타이머</Text>
           </View>
         </View>
@@ -591,20 +627,33 @@ export default function App() {
         </View>
         <View style={styles.controls}>
           <Pressable
-            style={[styles.primaryButton, activeSession || selectedSessionTodoIds.length === 0 ? styles.disabledButton : null]}
-            onPress={startTimer}
-            disabled={busy || Boolean(activeSession)}
+            style={[
+              activeSession && !activeSessionPaused ? styles.breakButton : styles.primaryButton,
+              !activeSession && selectedSessionTodoIds.length === 0 ? styles.disabledButton : null,
+            ]}
+            onPress={!activeSession ? startTimer : activeSessionPaused ? resumeTimer : pauseTimer}
+            disabled={busy || (!activeSession && selectedSessionTodoIds.length === 0)}
           >
-            <Text style={styles.primaryButtonText}>입장하고 타이머 시작</Text>
+            <Text style={activeSession && !activeSessionPaused ? styles.breakButtonText : styles.primaryButtonText}>
+              {!activeSession ? "입장하고 타이머 시작" : activeSessionPaused ? "공부 계속하기" : "잠시 쉬기"}
+            </Text>
           </Pressable>
           <Pressable
-            style={[styles.secondaryButton, !activeSession ? styles.disabledButton : null]}
+            style={[styles.dangerButton, !activeSession ? styles.disabledButton : null]}
             onPress={openReflection}
             disabled={busy || !activeSession}
           >
-            <Text style={styles.secondaryButtonText}>퇴실하고 종료</Text>
+            <Text style={styles.dangerButtonText}>퇴실하고 종료</Text>
           </Pressable>
         </View>
+
+        {activeSessionPaused && (
+          <View style={styles.breakPanel} accessibilityRole="summary">
+            <Text style={styles.breakLabel}>BREAK TIME</Text>
+            <Text style={styles.breakValue}>휴식 중 · {formatTimerClock(currentBreakSeconds)}</Text>
+            <Text style={styles.copy}>공부 시간은 멈췄습니다. 세션 유지 시간은 계속 줄어듭니다.</Text>
+          </View>
+        )}
 
         {activeSession && (
           <View style={styles.leasePanel}>
@@ -727,6 +776,21 @@ function attendanceLabel(status?: AttendanceDay["status"]) {
   if (status === "missed") return "결석";
   if (status === "pending") return "대기 중";
   return "아직 기록 없음";
+}
+
+function getCurrentBreakSeconds(pausedAt: string | null | undefined, nowMs: number) {
+  if (!pausedAt) return 0;
+  const pausedAtMs = Date.parse(pausedAt);
+  if (!Number.isFinite(pausedAtMs) || !Number.isFinite(nowMs)) return 0;
+  return Math.max(0, Math.floor((nowMs - pausedAtMs) / 1000));
+}
+
+function formatTimerClock(seconds: number) {
+  const safeSeconds = Math.max(0, Math.floor(seconds));
+  const hours = Math.floor(safeSeconds / 3600);
+  const minutes = Math.floor((safeSeconds % 3600) / 60);
+  const remainingSeconds = safeSeconds % 60;
+  return [hours, minutes, remainingSeconds].map((value) => String(value).padStart(2, "0")).join(":");
 }
 
 function formatSeconds(seconds: number) {
@@ -993,6 +1057,42 @@ const styles = StyleSheet.create({
     fontWeight: "900",
     fontSize: 16,
   },
+  breakButton: {
+    minHeight: 54,
+    borderRadius: 10,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: mobilePalette.gold,
+    paddingHorizontal: 16,
+    shadowColor: mobilePalette.goldDark,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 1,
+    shadowRadius: 0,
+    elevation: 3,
+  },
+  breakButtonText: {
+    color: mobilePalette.text,
+    fontWeight: "900",
+    fontSize: 16,
+  },
+  dangerButton: {
+    minHeight: 52,
+    borderRadius: 10,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: mobilePalette.coral,
+    paddingHorizontal: 16,
+    shadowColor: "#8b3e2f",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 1,
+    shadowRadius: 0,
+    elevation: 3,
+  },
+  dangerButtonText: {
+    color: mobilePalette.surface,
+    fontWeight: "900",
+    fontSize: 15,
+  },
   secondaryButton: {
     minHeight: 52,
     borderRadius: 10,
@@ -1025,6 +1125,24 @@ const styles = StyleSheet.create({
   },
   disabledButton: {
     opacity: 0.45,
+  },
+  breakPanel: {
+    borderWidth: 2,
+    borderColor: mobilePalette.goldDark,
+    borderRadius: 14,
+    backgroundColor: "#fff2b8",
+    padding: 18,
+    gap: 6,
+  },
+  breakLabel: {
+    color: "#8a4f23",
+    fontSize: 12,
+    fontWeight: "900",
+  },
+  breakValue: {
+    color: "#6f3f20",
+    fontSize: 24,
+    fontWeight: "900",
   },
   leasePanel: {
     borderWidth: 2,

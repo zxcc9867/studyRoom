@@ -747,3 +747,39 @@ docs/images/study-room-thumbnail.png
 - Unit tests cover successful picker opening, unsupported/blocked fallback, disabled behavior, and activation keys.
 - Source contract tests require both fields to expose click, double-click, keyboard, labels, and pointer styling.
 - No Supabase or environment change is required; full tests and production build remain the release gates.
+
+## Study Session Manual Breaks (2026-07-19)
+
+### Architecture
+
+- `study_sessions.paused_at`은 진행 중인 명시적 휴식의 시작 시각, `paused_seconds`는 완료된 휴식 구간의 누적 초를 저장한다.
+- 휴식 중에도 세션은 `status = 'active'`를 유지해 기존 사용자별 active 세션 제약과 조회 경로를 그대로 사용한다.
+- `pause_study_session(uuid)`와 `resume_study_session(uuid)`는 인증 사용자의 본인 active 세션만 원자적으로 변경하는 idempotent RPC다.
+- `end_study_session(uuid, integer)`은 카메라 제외 시간과 서버에 누적된 수동 휴식 시간을 각각 한 번만 차감하고 진행 중 휴식도 종료 시 확정한다.
+- 웹은 휴식 시 카메라 감시를 정리하고 재개 전 카메라를 다시 시작한다. Expo는 카메라 기능 없이 같은 RPC와 버튼 상태 모델을 사용한다.
+- 휴식 중에는 브라우저 inactivity와 페이지 이탈 자동 종료를 건너뛰지만 `lease_expires_at`은 계속 감소하고 복귀 시 만료 세션을 정리한다.
+
+### Security Notes
+
+- pause/resume 함수는 `security invoker`, 빈 `search_path`, `auth.uid()` 소유권 검사와 RLS를 함께 사용한다.
+- `public`과 `anon`의 실행 권한을 회수하고 `authenticated`와 `service_role`에만 필요한 실행 권한을 부여한다.
+- 원격 Supabase migration은 사용자의 명시적 승인 후 프로젝트 `bqohkdzvxbrokkmuhysx`에 적용했다.
+
+### Testing Strategy
+
+- 순수 helper 테스트로 유효한 pause 상태, 현재 휴식 초, 누적+진행 중 휴식 합계를 검증한다.
+- SQL 계약 테스트로 컬럼, 제약, RPC, 종료 시간 차감, 역할별 grant/revoke를 고정한다.
+- 소스 회귀 테스트로 휴식 중 페이지 새로고침이 종료 RPC를 전송하지 않는 조건을 고정한다.
+- 전체 Node 테스트, 웹 production build, Expo TypeScript 검사를 릴리즈 게이트로 사용한다.
+
+### Supabase 변경 이력
+
+#### 2026-07-19
+
+- 변경 대상: `public.study_sessions`, `pause_study_session`, `resume_study_session`, `end_study_session`
+- 변경 내용: 수동 휴식 시작 시각과 누적 초, 소유자 전용 휴식/재개 RPC, 종료 시 휴식 제외 계산을 추가했다.
+- 변경 이유: 식사·외출 시간을 공부 시간에 포함하지 않고 같은 세션으로 복귀할 수 있게 하기 위해서다.
+- 관련 기능: 웹·Expo `잠시 쉬기`, `공부 계속하기`, 휴식 경과 표시, 최종 공부 시간
+- 마이그레이션 파일: `supabase/migrations/20260719134726_add_study_session_breaks.sql`
+- 확인 방법: 전체 Node 테스트 279개, 웹 build, Expo typecheck 통과. 원격 migration `20260719140751`, 컬럼·제약, invalid rows 0건, pause/resume anon=false·authenticated=true·service_role=true, end anon=false·authenticated=true, SECURITY INVOKER와 빈 search_path를 확인했다. security/performance Advisors도 확인했다.
+- 주의 사항: 원격 DB 적용은 완료됐지만 클라이언트 코드는 아직 배포되지 않았다. 휴식 중에도 세션 lease는 계속 감소한다.

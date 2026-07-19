@@ -616,6 +616,55 @@ label {
   font-weight: 950;
 }
 
+.session-break {
+  border: 2px solid #d2a73b;
+  border-radius: 8px;
+  background:
+    linear-gradient(135deg, rgba(255, 255, 255, 0.28) 0 18px, transparent 18px 36px),
+    #fff2b8;
+  padding: 14px 16px;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: center;
+  gap: 12px;
+  box-shadow: inset 0 0 0 1px rgba(255, 249, 223, 0.72);
+}
+
+.session-break-icon {
+  width: 44px;
+  height: 44px;
+  border: 2px solid #8a4f23;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  background: #f0c85c;
+  color: #6f3f20;
+  box-shadow: 0 3px 0 rgba(139, 78, 49, 0.24);
+}
+
+.session-break div {
+  display: grid;
+  gap: 3px;
+}
+
+.session-break span:not(.session-break-icon),
+.session-break small {
+  color: #76542f;
+  font-size: 12px;
+  font-weight: 900;
+}
+
+.session-break span:not(.session-break-icon) {
+  text-transform: uppercase;
+}
+
+.session-break strong {
+  color: #6f3f20;
+  font-size: clamp(21px, 2.8vw, 30px);
+  line-height: 1.1;
+  font-variant-numeric: tabular-nums;
+}
+
 .session-lease {
   border: 2px solid #6aa87f;
   border-radius: 8px;
@@ -962,6 +1011,15 @@ label {
 
 .camera-diagnostic-error .camera-diagnostic-head strong {
   color: #ffd3c6;
+}
+
+.camera-monitor-break {
+  border-color: #f0c85c;
+  background: rgba(126, 83, 40, 0.38);
+}
+
+.camera-monitor-break .camera-preview {
+  opacity: 0.2;
 }
 
 .camera-monitor-warning {
@@ -2320,6 +2378,13 @@ label {
   box-shadow: 0 5px 0 #1f4d3a;
 }
 
+.break-action {
+  background: #f0c85c;
+  color: #2f2a1f;
+  padding: 0 16px;
+  box-shadow: 0 5px 0 #bf9736;
+}
+
 .secondary {
   background: #f0c85c;
   color: #2f2a1f;
@@ -2451,8 +2516,14 @@ button:active:not(:disabled) {
     width: max-content;
   }
 
+  .session-break,
   .session-lease {
     grid-template-columns: 1fr;
+  }
+
+  .session-break-icon {
+    width: 40px;
+    height: 40px;
   }
 
   .session-lease button {

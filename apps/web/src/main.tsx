@@ -28,6 +28,7 @@ import {
   LogOut,
   Mail,
   Pencil,
+  Pause,
   Pin,
   Play,
   Plus,
@@ -171,6 +172,11 @@ import {
   parseStudySessionActivityMs,
   shouldEndStudySessionForInactivity,
 } from "./sessionActivity.mjs";
+import {
+  getCurrentStudyBreakSeconds,
+  getTotalStudyBreakSeconds,
+  isStudySessionPaused,
+} from "./sessionBreak.mjs";
 import { isStaleActiveSessionEndError } from "./sessionEnd.mjs";
 import { requestEndStudySessionOnExit, shouldEndStudySessionForPageEvent } from "./sessionExit.mjs";
 import {
@@ -246,7 +252,7 @@ const WeeklyReviewSection = lazy(() => import("./WeeklyReviewSection"));
 const AdaptiveReminderCard = lazy(() => import("./AdaptiveReminderCard"));
 type TodoRepeatMode = "single" | "weekly";
 type CameraSetupPrompt = {
-  mode: "start" | "resume";
+  mode: "start" | "resume" | "break-resume";
 };
 type CameraDiagnosticReason = CameraHealth["reason"] | "permission-denied" | "unknown-error" | null;
 type SessionLeaseState = {
@@ -282,6 +288,8 @@ type StudySession = {
   status: "active" | "completed" | "cancelled";
   lease_expires_at: string | null;
   lease_warning_sent_at: string | null;
+  paused_at: string | null;
+  paused_seconds: number;
 };
 
 type StudyTodo = {
@@ -547,6 +555,7 @@ function DashboardApp() {
   const cameraStreamRef = useRef<MediaStream | null>(null);
   const presenceDetectorRef = useRef<UpperBodyPresenceDetector | null>(null);
   const presenceStateRef = useRef<PresenceState>(createPresenceState(Date.now()));
+  const carriedCameraExcludedSecondsRef = useRef(0);
   const cameraSessionIdRef = useRef<string | null>(null);
   const cameraSessionStartingRef = useRef(false);
   const cameraStartAttemptRef = useRef(0);
@@ -650,6 +659,10 @@ function DashboardApp() {
 
   const timeZone = profile?.time_zone ?? Intl.DateTimeFormat().resolvedOptions().timeZone;
   const activeSession = studySessions.find((item) => item.status === "active") ?? null;
+  const activeSessionPaused = isStudySessionPaused(activeSession);
+  useEffect(() => {
+    carriedCameraExcludedSecondsRef.current = 0;
+  }, [activeSession?.id]);
   const pendingRecoveryRequests = useMemo(
     () => studyRecoveryRequests.filter((item) => item.status === "pending").sort(compareRecoveryRequests),
     [studyRecoveryRequests],
@@ -676,7 +689,9 @@ function DashboardApp() {
       presenceState.timerPaused,
     ],
   );
-  const activeExcludedSeconds = activeSession ? getCurrentExcludedSeconds(presenceState) : 0;
+  const activeCameraExcludedSeconds = activeSession
+    ? carriedCameraExcludedSecondsRef.current + getCurrentExcludedSeconds(presenceState)
+    : 0;
   const activeSessionStartedAtMs = activeSession ? new Date(activeSession.started_at).getTime() : null;
   const activeSessionLeaseDeadlineMs =
     activeSession && activeSessionStartedAtMs !== null && Number.isFinite(activeSessionStartedAtMs)
@@ -688,6 +703,17 @@ function DashboardApp() {
     activeSessionLeaseDeadlineMs !== null
       ? getLeaseAwareActiveNowMs({ deadlineMs: activeSessionLeaseDeadlineMs, nowMs })
       : nowMs;
+  const activeBreakSeconds = activeSession
+    ? getTotalStudyBreakSeconds({
+        pausedSeconds: activeSession.paused_seconds,
+        pausedAt: activeSession.paused_at,
+        nowMs: activeSessionClockNowMs,
+      })
+    : 0;
+  const currentBreakSeconds = activeSessionPaused && activeSession
+    ? getCurrentStudyBreakSeconds({ pausedAt: activeSession.paused_at, nowMs })
+    : 0;
+  const activeExcludedSeconds = activeCameraExcludedSeconds + activeBreakSeconds;
   const todayDateKey = getLocalDateKey(new Date(nowMs), timeZone);
   const completedSessionVersion = useMemo(
     () => studySessions
@@ -984,7 +1010,7 @@ function DashboardApp() {
       try {
         const { data, error } = await supabase
           .from("study_sessions")
-          .select("id,local_date,started_at,ended_at,duration_seconds,status,lease_expires_at,lease_warning_sent_at")
+          .select("id,local_date,started_at,ended_at,duration_seconds,status,lease_expires_at,lease_warning_sent_at,paused_at,paused_seconds")
           .eq("user_id", session.user.id)
           .eq("id", activeSession.id)
           .maybeSingle();
@@ -1043,11 +1069,13 @@ function DashboardApp() {
     }
 
     sessionLeaseAutoEndInFlightRef.current = true;
-    const excludedSeconds = getSessionLeaseExcludedSeconds({
-      deadlineMs: activeSessionLeaseDeadlineMs,
-      nowMs,
-      baseExcludedSeconds: getCurrentExcludedSeconds(presenceStateRef.current),
-    });
+    const excludedSeconds = activeSessionPaused
+      ? getActiveCameraExcludedSeconds()
+      : getSessionLeaseExcludedSeconds({
+          deadlineMs: activeSessionLeaseDeadlineMs,
+          nowMs,
+          baseExcludedSeconds: getActiveCameraExcludedSeconds(),
+        });
 
     void endTimer({
       excludedSeconds,
@@ -1062,10 +1090,11 @@ function DashboardApp() {
     busy,
     nowMs,
     session?.user.id,
+    activeSession?.paused_at,
   ]);
 
   useEffect(() => {
-    if (!session?.user.id || !activeSession) {
+    if (!session?.user.id || !activeSession || activeSessionPaused) {
       sessionActivityAutoEndInFlightRef.current = false;
       return;
     }
@@ -1085,7 +1114,7 @@ function DashboardApp() {
 
     sessionActivityAutoEndInFlightRef.current = true;
     const excludedSeconds =
-      getCurrentExcludedSeconds(presenceStateRef.current) +
+      getActiveCameraExcludedSeconds() +
       getStudySessionActivityExcludedSeconds({ lastActivityMs, nowMs });
 
     void endTimer({
@@ -1094,7 +1123,7 @@ function DashboardApp() {
     }).finally(() => {
       sessionActivityAutoEndInFlightRef.current = false;
     });
-  }, [activeSession?.id, busy, nowMs, session?.user.id]);
+  }, [activeSession?.id, activeSession?.paused_at, busy, nowMs, session?.user.id]);
 
   useEffect(() => {
     if (!session?.user.id || !activeSession) {
@@ -1174,7 +1203,7 @@ function DashboardApp() {
     const activeSessionId = activeSession?.id;
     const accessToken = session?.access_token;
     const userId = session?.user.id;
-    if (!activeSessionId || !accessToken || !isSupabaseConfigured) {
+    if (!activeSessionId || activeSessionPaused || !accessToken || !isSupabaseConfigured) {
       return;
     }
 
@@ -1193,7 +1222,7 @@ function DashboardApp() {
         anonKey: supabaseAnonKey,
         accessToken,
         sessionId: activeSessionId,
-        excludedSeconds: getCurrentExcludedSeconds(presenceStateRef.current),
+        excludedSeconds: getActiveCameraExcludedSeconds(),
         fetch: window.fetch.bind(window),
       });
     };
@@ -1214,7 +1243,7 @@ function DashboardApp() {
       window.removeEventListener("beforeunload", handleBeforeUnload);
       document.removeEventListener("visibilitychange", handleVisibilityChange);
     };
-  }, [activeSession?.id, session?.access_token, session?.user.id]);
+  }, [activeSession?.id, activeSession?.paused_at, session?.access_token, session?.user.id]);
 
   useEffect(() => {
     if (
@@ -1230,7 +1259,7 @@ function DashboardApp() {
   }, [activeSession?.id, cameraEnabled, cameraStatus]);
 
   useEffect(() => {
-    if (!activeSession || !session?.user.id || cameraEnabled || cameraStatus === "starting") {
+    if (!activeSession || activeSessionPaused || !session?.user.id || cameraEnabled || cameraStatus === "starting") {
       return;
     }
 
@@ -1258,20 +1287,20 @@ function DashboardApp() {
         }
       });
     }
-  }, [activeSession?.id, session?.user.id, cameraEnabled, cameraStatus]);
+  }, [activeSession?.id, activeSession?.paused_at, session?.user.id, cameraEnabled, cameraStatus]);
 
   useEffect(() => {
-    if (!activeSession || cameraEnabled || cameraStatus === "starting" || cameraAutoRestoreAttemptedRef.current) {
+    if (!activeSession || activeSessionPaused || cameraEnabled || cameraStatus === "starting" || cameraAutoRestoreAttemptedRef.current) {
       return;
     }
 
     setCameraSetupPrompt({ mode: "resume" });
     setCameraMessage("공부 세션 중에는 카메라 감시가 필요합니다.");
     void sendCameraRequiredWarning();
-  }, [activeSession?.id, cameraEnabled, cameraStatus, session?.access_token]);
+  }, [activeSession?.id, activeSession?.paused_at, cameraEnabled, cameraStatus, session?.access_token]);
 
   useEffect(() => {
-    if (!cameraEnabled || !activeSession || !session) {
+    if (!cameraEnabled || !activeSession || activeSessionPaused || !session) {
       return;
     }
 
@@ -1337,7 +1366,7 @@ function DashboardApp() {
       cancelled = true;
       window.clearInterval(intervalId);
     };
-  }, [cameraEnabled, activeSession?.id, session?.access_token]);
+  }, [cameraEnabled, activeSession?.id, activeSession?.paused_at, session?.access_token]);
 
   useEffect(() => {
     return () => {
@@ -2997,6 +3026,66 @@ function DashboardApp() {
     }
   }
 
+  async function pauseTimer() {
+    if (!activeSession || activeSessionPaused) return;
+
+    setBusy(true);
+    try {
+      const { data, error } = await supabase.rpc("pause_study_session", {
+        p_session_id: activeSession.id,
+      });
+      if (error) throw error;
+
+      const pausedSession = data as StudySession;
+      setStudySessions((current) => [
+        pausedSession,
+        ...current.filter((item) => item.id !== pausedSession.id),
+      ]);
+      stopCameraMonitoring({ recordEvent: true, preserveExcludedSeconds: true });
+      cameraAutoRestoreAttemptedRef.current = false;
+      setCameraSetupPrompt(null);
+      persistStudySessionActivity(pausedSession.id);
+      setNowMs(Date.now());
+      setMessage("휴식을 시작했습니다. 공부 시간은 멈추고 세션 유지 시간은 계속 흐릅니다.");
+    } catch (error) {
+      setMessage(formatError(error));
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  function requestResumeTimer() {
+    if (!activeSession || !activeSessionPaused) return;
+    setCameraSetupPrompt({ mode: "break-resume" });
+  }
+
+  async function resumeTimer() {
+    if (!activeSession || !activeSessionPaused) return false;
+
+    setBusy(true);
+    try {
+      const { data, error } = await supabase.rpc("resume_study_session", {
+        p_session_id: activeSession.id,
+      });
+      if (error) throw error;
+
+      const resumedSession = data as StudySession;
+      setStudySessions((current) => [
+        resumedSession,
+        ...current.filter((item) => item.id !== resumedSession.id),
+      ]);
+      persistStudySessionActivity(resumedSession.id);
+      setNowMs(Date.now());
+      setMessage("공부를 다시 시작했습니다.");
+      return true;
+    } catch (error) {
+      setMessage(formatError(error));
+      return false;
+    } finally {
+      setBusy(false);
+    }
+  }
+
   async function endTimer(options: {
     excludedSeconds?: number;
     successMessage?: string;
@@ -3013,7 +3102,7 @@ function DashboardApp() {
     const sessionTodoSummary = summarizeSessionTodos(activeSessionTodos);
     const excludedSeconds = Math.max(
       0,
-      Math.floor(options.excludedSeconds ?? getCurrentExcludedSeconds(presenceStateRef.current)),
+      Math.floor(options.excludedSeconds ?? getActiveCameraExcludedSeconds()),
     );
 
     endSessionInFlightRef.current = endingSession.id;
@@ -3081,6 +3170,14 @@ function DashboardApp() {
     if (videoRef.current) {
       videoRef.current.srcObject = null;
     }
+  }
+
+  function getActiveCameraExcludedSeconds() {
+    return carriedCameraExcludedSecondsRef.current + getCurrentExcludedSeconds(presenceStateRef.current);
+  }
+
+  function preserveCurrentCameraExcludedSeconds() {
+    carriedCameraExcludedSecondsRef.current = getActiveCameraExcludedSeconds();
   }
 
   function resetPresenceState(now = Date.now()) {
@@ -3164,8 +3261,14 @@ function DashboardApp() {
     window.localStorage.removeItem(cameraMonitoringIntentKey(session.user.id));
   }
 
-  function stopCameraMonitoring({ recordEvent = false }: { recordEvent?: boolean } = {}) {
+  function stopCameraMonitoring({
+    recordEvent = false,
+    preserveExcludedSeconds = false,
+  }: { recordEvent?: boolean; preserveExcludedSeconds?: boolean } = {}) {
     const stoppedSessionId = cameraSessionIdRef.current;
+    if (preserveExcludedSeconds) {
+      preserveCurrentCameraExcludedSeconds();
+    }
     cameraStartAttemptRef.current += 1;
     cameraSessionStartingRef.current = false;
     cleanupCameraResources();
@@ -3306,7 +3409,7 @@ function DashboardApp() {
 
   async function toggleCameraMonitoring() {
     if (cameraEnabled) {
-      stopCameraMonitoring({ recordEvent: true });
+      stopCameraMonitoring({ recordEvent: true, preserveExcludedSeconds: true });
       void sendCameraRequiredWarning();
       return;
     }
@@ -3328,6 +3431,11 @@ function DashboardApp() {
     setCameraSetupPrompt(null);
     if (promptMode === "start") {
       await startTimer(true);
+    } else if (promptMode === "break-resume") {
+      const resumed = await resumeTimer();
+      if (!resumed) {
+        stopCameraMonitoring({ recordEvent: true });
+      }
     } else {
       cameraSessionStartingRef.current = false;
     }
@@ -4156,14 +4264,21 @@ function DashboardApp() {
               </div>
               <div className="topbar-actions" aria-label="집중 세션 조작">
                 <button
-                  className="primary"
+                  className={activeSession && !activeSessionPaused ? "break-action" : "primary"}
+                  type="button"
                   onClick={() => {
-                    void startTimer();
+                    if (!activeSession) {
+                      void startTimer();
+                    } else if (activeSessionPaused) {
+                      requestResumeTimer();
+                    } else {
+                      void pauseTimer();
+                    }
                   }}
-                  disabled={busy || Boolean(activeSession) || blockingRecoveryRequests.length > 0}
+                  disabled={busy || (!activeSession && blockingRecoveryRequests.length > 0)}
                 >
-                  <Play size={18} />
-                  입장하고 시작
+                  {activeSession && !activeSessionPaused ? <Pause size={18} /> : <Play size={18} />}
+                  {!activeSession ? "입장하고 시작" : activeSessionPaused ? "공부 계속하기" : "잠시 쉬기"}
                 </button>
                 <button
                   className="danger"
@@ -4187,6 +4302,16 @@ function DashboardApp() {
                 <strong>{formatTimerClock(monthSeconds)}</strong>
               </div>
             </div>
+            {activeSessionPaused && (
+              <div className="session-break" role="status" aria-live="polite">
+                <span className="session-break-icon" aria-hidden="true"><Pause size={20} /></span>
+                <div>
+                  <span>break time</span>
+                  <strong>휴식 중 · {formatTimerClock(currentBreakSeconds)}</strong>
+                  <small>공부 시간은 멈췄습니다. 세션 유지 시간은 계속 줄어듭니다.</small>
+                </div>
+              </div>
+            )}
             <section className="goal-hero-card" aria-label="대표 목표">
               {activeGoal && activeGoalProgress ? (
                 <>
@@ -5016,7 +5141,9 @@ function DashboardApp() {
               <p className="reminder-copy">
                 {cameraSetupPrompt.mode === "start"
                   ? "출석으로 인정받으려면 카메라 감시를 켠 뒤 타이머를 시작해야 합니다."
-                  : "현재 공부 세션의 카메라 감시가 꺼져 있습니다. 다시 켜야 출석 유지 상태를 확인할 수 있습니다."}
+                  : cameraSetupPrompt.mode === "break-resume"
+                    ? "카메라 감시를 다시 준비한 뒤 휴식 시간을 끝내고 같은 공부 세션을 이어갑니다."
+                    : "현재 공부 세션의 카메라 감시가 꺼져 있습니다. 다시 켜야 출석 유지 상태를 확인할 수 있습니다."}
               </p>
               <div className="reminder-actions">
                 <button
@@ -5028,7 +5155,11 @@ function DashboardApp() {
                   }}
                 >
                   <Camera size={18} />
-                  {cameraSetupPrompt.mode === "start" ? "카메라 켜고 시작" : "카메라 켜기"}
+                  {cameraSetupPrompt.mode === "start"
+                    ? "카메라 켜고 시작"
+                    : cameraSetupPrompt.mode === "break-resume"
+                      ? "카메라 켜고 공부 계속하기"
+                      : "카메라 켜기"}
                 </button>
                 <button className="secondary" type="button" onClick={() => setCameraSetupPrompt(null)}>
                   <X size={18} />
@@ -5091,9 +5222,13 @@ function DashboardApp() {
               <span>{todayProgress}% / {todayGoalLabel}</span>
             </div>
             {renderSessionTodoList()}
-            <div className={`camera-monitor camera-monitor-${cameraStatus}`}>
+            <div className={`camera-monitor camera-monitor-${cameraStatus}${activeSessionPaused ? " camera-monitor-break" : ""}`}>
               <div className="camera-monitor-head">
-                <strong>카메라 감시 · {getPresenceStatusLabel({ cameraEnabled, status: cameraStatus, absenceSeconds: presenceState.absenceSeconds })}</strong>
+                <strong>
+                  {activeSessionPaused
+                    ? "휴식 중 · 카메라 감시 중지"
+                    : `카메라 감시 · ${getPresenceStatusLabel({ cameraEnabled, status: cameraStatus, absenceSeconds: presenceState.absenceSeconds })}`}
+                </strong>
               </div>
               <div className="camera-monitor-body">
                 <video
@@ -5109,25 +5244,39 @@ function DashboardApp() {
                   onClick={() => {
                     void toggleCameraMonitoring();
                   }}
-                  disabled={!cameraEnabled && cameraStatus === "starting"}
+                  disabled={activeSessionPaused || (!cameraEnabled && cameraStatus === "starting")}
                 >
                   {cameraEnabled ? <CameraOff size={18} /> : <Camera size={18} />}
-                  {cameraEnabled ? "카메라 감시 끄기" : "카메라 감시 켜기"}
+                  {activeSessionPaused
+                    ? "공부 재개 시 카메라 켜기"
+                    : cameraEnabled
+                      ? "카메라 감시 끄기"
+                      : "카메라 감시 켜기"}
                 </button>
               </div>
-              {cameraMessage && cameraStatus !== "watching" && <span className="camera-message">{cameraMessage}</span>}
-              <div className={`camera-diagnostic camera-diagnostic-${cameraDiagnostic.tone}`} aria-live="polite">
-                <div className="camera-diagnostic-head">
-                  <span>상태 진단</span>
-                  <strong>{cameraDiagnostic.title}</strong>
+              {!activeSessionPaused && cameraMessage && cameraStatus !== "watching" && <span className="camera-message">{cameraMessage}</span>}
+              {activeSessionPaused ? (
+                <div className="camera-diagnostic camera-diagnostic-warning" aria-live="polite">
+                  <div className="camera-diagnostic-head">
+                    <span>휴식 상태</span>
+                    <strong>공부 시간이 멈춰 있습니다</strong>
+                  </div>
+                  <p>`공부 계속하기`를 누르면 카메라를 다시 준비한 뒤 같은 세션을 이어갑니다.</p>
                 </div>
-                <p>{cameraDiagnostic.detail}</p>
-                <ul>
-                  {cameraDiagnostic.checks.map((check) => (
-                    <li key={check}>{check}</li>
-                  ))}
-                </ul>
-              </div>
+              ) : (
+                <div className={`camera-diagnostic camera-diagnostic-${cameraDiagnostic.tone}`} aria-live="polite">
+                  <div className="camera-diagnostic-head">
+                    <span>상태 진단</span>
+                    <strong>{cameraDiagnostic.title}</strong>
+                  </div>
+                  <p>{cameraDiagnostic.detail}</p>
+                  <ul>
+                    {cameraDiagnostic.checks.map((check) => (
+                      <li key={check}>{check}</li>
+                    ))}
+                  </ul>
+                </div>
+              )}
             </div>
           </div>
         </section>

@@ -4754,3 +4754,88 @@
 #### 다음 우선순위
 
 - 실제 Chrome과 모바일 브라우저에서 입력 숫자 영역 클릭 시 각 native picker가 열리는지 수동 확인한다.
+
+### 2026-07-19 - 공부 세션 수동 휴식·재개 로컬 구현
+
+#### 완료한 작업
+
+- 기존 왼쪽 시작 버튼을 공부 중 `잠시 쉬기`, 휴식 중 `공부 계속하기`로 전환하고 `종료` 버튼은 별도로 유지했다.
+- 웹과 Expo에 휴식 상태·경과 시간·lease가 계속 감소한다는 안내를 추가했다.
+- 웹 휴식 중 카메라와 inactivity 감시를 멈추고 재개 전에 카메라를 다시 준비하도록 했다.
+- 휴식 중 페이지 이탈 종료를 건너뛰어 새로고침·복귀 후 같은 세션을 이어갈 수 있게 했다.
+- 휴식 상태·누적 시간 컬럼, pause/resume RPC, 종료 시 휴식 차감을 포함한 Supabase migration을 작성했다.
+- README, 기능 PRD, 사용자 시나리오, 구현 계획을 현재 동작에 맞춰 갱신했다.
+
+#### 변경된 파일
+
+- `apps/web/src/main.tsx`
+- `apps/web/src/styles.css`
+- `apps/web/src/sessionBreak.mjs`
+- `apps/web/src/sessionBreak.d.mts`
+- `apps/web/test/sessionBreak.test.mjs`
+- `apps/mobile/App.tsx`
+- `supabase/migrations/20260719134726_add_study_session_breaks.sql`
+- `packages/core/test/sql-migrations.test.mjs`
+- `README.md`
+- `memory-bank/prd-study-session-breaks.md`
+- `memory-bank/prd-user-profile.md`
+- `memory-bank/active-context.md`
+- `memory-bank/implementation-plan.md`
+- `memory-bank/progress.md`
+- `memory-bank/trouble-shooting.md`
+
+#### 검증 방법
+
+- 휴식 helper와 SQL migration 대상 테스트 46개 통과.
+- `npm.cmd test`: 전체 279개 통과.
+- `npm.cmd run build`: TypeScript 및 Vite production build 통과.
+- `npx.cmd tsc -p apps/mobile/tsconfig.json --noEmit`: 통과.
+- 한글 인코딩 손상 문자와 반응형 CSS 중복 여부를 확인했다.
+- 원격 migration 이력이 이 앱과 일치하고 기존 `study_sessions`의 authenticated SELECT/UPDATE=true, RLS=true임을 읽기 전용으로 확인했다.
+- security Advisor의 기존 `Book`·`Review` RLS 비활성 ERROR를 확인했으며 이번 기능 범위에서는 변경하지 않았다.
+
+#### 남은 작업
+
+- 원격 Supabase migration과 역할별 RPC 권한, 컬럼·제약, security/performance Advisors 검증을 완료했다.
+- 실제 인증 계정의 휴식·새로고침·재개·휴식 중 종료 수동 확인은 남아 있다.
+- 커밋, 푸시, Vercel 배포, Expo/EAS 릴리즈는 수행하지 않았다.
+
+#### 다음 우선순위
+
+- 실제 계정에서 휴식 시작, 새로고침, 웹 카메라 재개, 휴식 중 종료의 시간을 수동 확인한다.
+- 사용자가 요청하면 현재 로컬 변경을 커밋·푸시하고 Vercel 프론트를 배포한다.
+
+### 2026-07-19 - 공부 세션 휴식 Supabase 원격 적용
+
+#### 완료한 작업
+
+- 사용자 승인 후 프로젝트 `bqohkdzvxbrokkmuhysx`에 `add_study_session_breaks` migration을 적용했다.
+- 원격 migration version `20260719140751`을 확인했다.
+- `study_sessions.paused_at timestamptz null`, `paused_seconds integer not null default 0`과 두 check 제약을 확인했다.
+- pause/resume RPC가 SECURITY INVOKER이고 `search_path`가 비어 있음을 확인했다.
+- pause/resume/end RPC의 anon 실행 차단과 authenticated 실행 허용을 확인했다.
+- 기존 데이터의 휴식 제약 위반은 0건이며 적용 시점에 휴식 중인 세션도 0건이었다.
+
+#### 변경된 파일
+
+- `memory-bank/active-context.md`
+- `memory-bank/implementation-plan.md`
+- `memory-bank/prd-study-session-breaks.md`
+- `memory-bank/progress.md`
+- `memory-bank/trouble-shooting.md`
+
+#### 검증 방법
+
+- Supabase migration list: `20260719140751 add_study_session_breaks`.
+- 원격 information_schema/pg_constraint/pg_proc/has_function_privilege 검증.
+- security/performance Advisors 확인. 이번 migration으로 추가된 오류는 없다.
+
+#### 남은 작업
+
+- 로컬 클라이언트 코드는 아직 커밋·푸시·배포하지 않았다.
+- 실제 인증 계정의 전체 휴식 흐름은 프론트 배포 후 수동 확인한다.
+
+#### 다음 우선순위
+
+- 요청 시 커밋·푸시·Vercel 배포를 진행한다.
+- 공유 프로젝트의 기존 `Book`·`Review` RLS ERROR와 기존 성능 Advisor는 별도 승인 범위에서 처리한다.
