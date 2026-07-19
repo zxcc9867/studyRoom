@@ -4674,3 +4674,38 @@
 
 - 인증된 실제 계정에서 주간 리뷰, 모바일 회고 종료, 세션 유지의 수동 스모크 테스트를 수행한다.
 - 공유 Supabase 프로젝트의 `Book`/`Review` RLS와 기존 인덱스 Advisor 항목은 별도 승인 범위에서 정리한다.
+
+### 2026-07-19 - 기간 집계·모바일 회고·접근성 프로덕션 배포
+
+#### 완료한 작업
+
+- 기능 커밋 `cc780cf fix: harden study summaries and mobile sessions`를 `origin/main`에 푸시했다.
+- GitHub Actions production workflow `29675232021`이 의존성 설치, 270개 테스트, 웹 build, Vercel production 배포를 모두 성공했다.
+- Vercel deployment `dpl_59HjYxrWSZYtsZxGiqot2AqH953X`가 `READY`이고 production alias가 새 배포를 가리키는 것을 확인했다.
+- 운영 별칭과 고유 deployment URL의 HTTP 200 및 `Server: Vercel`을 확인했다.
+- 운영 main bundle에서 `get_study_period_summary`, `aria-modal`을, weekly chunk에서 같은 요일 비교와 12시간 초과 기록 안내를 확인했다.
+- 최근 1시간 Vercel runtime error 0건을 확인했다.
+
+#### 변경된 파일
+
+- 기능·테스트·README·memory-bank 23개 파일은 커밋 `cc780cf`에 포함됐다.
+- 배포 증거는 `memory-bank/active-context.md`, `memory-bank/progress.md`에 추가했다.
+
+#### 검증 방법
+
+- Workflow: `https://github.com/zxcc9867/studyRoom/actions/runs/29675232021`
+- Production: `https://study-room-attendance.vercel.app/` HTTP 200
+- Deployment: `https://study-room-attendance-hmctewj8d-astars-projects-c2f42587.vercel.app/` HTTP 200, `READY`
+- Assets: `index-C7e5HXWy.js`, `WeeklyReviewSection-HXqFx6mW.js` HTTP 200 및 신규 마커 확인
+- Vercel runtime errors: 최근 1시간 0건
+
+#### 남은 작업
+
+- 웹 프로덕션 배포 기준 필수 작업은 없다.
+- Expo 모바일 소스는 main에 반영됐지만 모바일 바이너리/EAS 릴리즈는 이번 Vercel workflow 범위가 아니다.
+- 인앱 브라우저 ACL 오류로 인증 화면 자동 조작은 못했으므로 실제 계정 수동 확인이 권장된다.
+
+#### 다음 우선순위
+
+- 운영 계정에서 주간 리뷰와 수동 세션 회고 종료를 확인한다.
+- 모바일 앱 배포가 필요하면 EAS 설정과 배포 채널을 확인한 후 별도 릴리즈한다.

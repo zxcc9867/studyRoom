@@ -23,13 +23,16 @@
 - 완료: Supabase 원격 migration `20260719052739_secure_rpc_and_study_period_summary` 적용.
 - 완료: anon은 기간 집계·세션 종료·내부 알림 RPC 실행 불가, authenticated/service 역할은 필요한 함수만 실행 가능함을 확인.
 - 완료: 전체 270개 테스트, 웹 production build, 모바일 TypeScript 검사 통과.
+- 완료: Vercel deployment `dpl_59HjYxrWSZYtsZxGiqot2AqH953X`가 `READY`이며 운영 별칭과 고유 URL 모두 HTTP 200.
+- 완료: 운영 main/weekly 번들에서 기간 집계 RPC, 접근성 Dialog, 같은 요일 비교, 장기 세션 안내 마커 확인.
+- 완료: 배포 후 최근 1시간 Vercel runtime error 0건.
 - 진행 중: 없음.
 - 막힌 부분: 인앱 브라우저 런타임이 Windows sandbox ACL 오류로 시작되지 않아 로컬 자동 시각 스모크 테스트는 수행하지 못했다.
-- 다음 작업: 사용자가 요청하면 커밋·푸시·배포하고, 인증된 실제 계정으로 웹/모바일 수동 스모크 테스트를 수행한다.
+- 다음 작업: 인증된 실제 계정으로 운영 주간 리뷰와 세션 종료를 수동 확인하고, Expo 모바일 바이너리 배포가 필요하면 별도 EAS 릴리즈를 진행한다.
 
 ## 주의할 점
 
-- 이번 작업은 아직 커밋, 푸시, Vercel 배포하지 않았다.
+- 기능 커밋 `cc780cf`는 `origin/main`에 푸시됐고 GitHub Actions run `29675232021`을 통해 Vercel production에 배포됐다.
 - Advisor의 `Book`/`Review` RLS 오류와 `guestbook` 공개 버킷 경고는 공유 Supabase 프로젝트의 다른 기능 영역이므로 이번 범위에서 변경하지 않았다.
 - 사용자용 SECURITY DEFINER 경고는 `auth.uid()` 소유권 검사와 고정 `search_path`를 전제로 의도된 RPC 노출이다.
 - 실제 사용자 계정을 가장해 개인 집계를 읽는 검증은 접근 경계를 우회하므로 수행하지 않는다.
