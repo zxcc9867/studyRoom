@@ -18,6 +18,7 @@ test("study forest page lazy loads its feature section and keeps accessible move
   assert.match(sectionSource, /avatar=\{avatar\}/);
   assert.match(sectionSource, /onMoveTarget=\{moveAvatarTo\}/);
   assert.match(sectionSource, /aria-label="[^"]+"/);
+  assert.match(mainSource, /weeklyHabitTarget=\{weeklyHabitRhythm\.target\}/);
   assert.match(sectionSource, /moveAvatar\("ArrowUp"\)/);
 });
 
@@ -126,4 +127,20 @@ test("bridge handrails run beside the travel direction and keep both ends open",
   assert.match(componentSource, /post\.position\.set\(x, railPostHeight \/ 2, z\)/);
   assert.doesNotMatch(componentSource, /for \(const x of \[-1\.78, 1\.78\]\)/);
   assert.match(componentSource, /reason === "bridge-rail"/);
+});
+
+test("five-of-seven starts light a persistent weekly reward in the forest", () => {
+  assert.match(sectionSource, /getWeeklyHabitRewardHistory/);
+  assert.match(sectionSource, /forest-weekly-reward-card/);
+  assert.match(sectionSource, /role="progressbar"/);
+  assert.match(sectionSource, /weeklyRewardHistory\.earnedCount/);
+  assert.match(sectionSource, /weeklyHabitTarget=\{weeklyHabitTarget\}/);
+  assert.match(componentSource, /function createWeeklyHabitReward/);
+  assert.match(componentSource, /forest-weekly-habit-reward/);
+  assert.match(componentSource, /forest-weekly-firefly-wreath/);
+  assert.match(componentSource, /forest-weekly-wreath-keepsake/);
+  assert.match(componentSource, /weeklyRewardVisual\?\.halo/);
+  assert.match(componentSource, /prefersReducedMotion/);
+  assert.match(cssSource, /\.forest-weekly-reward-seeds/);
+  assert.match(cssSource, /grid-template-columns: repeat\(5, minmax\(0, 1fr\)\)/);
 });

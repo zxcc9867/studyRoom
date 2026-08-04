@@ -7,8 +7,9 @@
 - Primary scheduler: Supabase Cron invokes `attendance-cron` Edge Function every minute through `pg_cron` and `pg_net`.
 - Optional AWS scheduler: EventBridge + Lambda can invoke the same Supabase Edge Function when AWS-managed scheduling is preferred.
 - Backend: Supabase remains responsible for Auth, DB, RLS, notification targets, attendance decisions, and actual push/email dispatch.
-- Auth session persistence: the browser Supabase client stores the Supabase session under `study-room-attendance-auth-session` with `persistSession=true` and `autoRefreshToken=true`. OAuth URL handling stays manual with `detectSessionInUrl=false`.
+- Auth session persistence and recovery: the browser Supabase client stores the Supabase session under `study-room-attendance-auth-session` with `persistSession=true` and `autoRefreshToken=true`. OAuth URL handling stays manual with `detectSessionInUrl=false`. Initial `getSession()` or OAuth callback work is bounded by `authInitialization.mjs` at 12 seconds; timeout/error renders the normal login form with an accessible retry notice instead of indefinite loading. Retry attempts are numbered so only the newest attempt updates initialization state, while the synchronous `onAuthStateChange` subscription remains active and may restore a late valid session. The fallback never deletes tokens, signs out, or changes Supabase Auth policy.
 - Study session refresh persistence: browser lifecycle events such as `visibilitychange`, `pagehide`, and `beforeunload` do not end active study sessions. Active sessions continue to be restored from Supabase after refresh.
+- Break return plan: while a web session is paused, `sessionBreak.mjs` derives 10/20/40-minute return deadlines, due state, and whether the session lease ends first. The deadline is stored only in user/session-scoped localStorage and driven by the existing one-second `nowMs` clock. Resume, successful end, stale-end refresh, or an externally observed unpaused state clears it. This layer never resumes the session, starts the camera, extends the lease, changes counted break time, or adds a Supabase request.
 - Study time display windows: active study-session elapsed time is split by local date and selected-month windows for summary cards. A cross-midnight active session contributes only the post-midnight segment to today's study timer, while the one-hour session lease countdown remains based on `study_sessions.lease_expires_at`.
 - Study session end idempotency: the web app treats `Active study session not found` from `end_study_session` as a stale local active-session signal. It clears local lease/activity/camera intent, closes end-completion state, and reloads dashboard data instead of leaving the stale active row in UI state.
 - Study session lease: every active web study session starts with a 1-hour server-backed lease in `study_sessions.lease_expires_at`. The in-app and Slack `세션 유지` actions request a 60-minute extension through `extend_study_session_lease`, but the RPC caps the resulting deadline at `now() + interval '2 hours'`; 30 minutes remaining becomes 90 minutes, while 90 minutes remaining becomes 120 minutes. `lease_warning_sent_at` prevents duplicate warnings and resets after an extension. The web dashboard prefers the server deadline, polls the active row every 15 seconds, and uses the same capped pure helper only as a client fallback. The `SECURITY DEFINER` RPC validates the authenticated owner, allows service-role Slack handling, and explicitly revokes `public/anon` execution. If the lease expires while the app is open, `end_study_session` excludes lease-overrun seconds from saved study time. Existing sessions without a server deadline fall back to `started_at + 1 hour`.
@@ -33,9 +34,9 @@
 - Recurring todos: weekday repetition is materialized into dated `study_todos` rows on save, and each generated weekly row stores lightweight repeat metadata (`repeat_group_id`, `repeat_mode`, `repeat_weekdays`, `repeat_until`, `repeat_forever`) so the group can be edited later from the calendar modal. `repeat_forever = true` means no user-selected end date; the current MVP generates a rolling one-year set of rows while preserving the no-end metadata. This keeps reminders, today's tasks, and completed history on the existing date-based data path without adding a separate recurrence-rule table.
 - Scheduled todos: `study_todos` can optionally store `start_time` and `end_time`. If one is present, both must be present. Same-day schedules use `start_time < end_time`; overnight schedules use `end_time < start_time`; equal start/end times are invalid.
 - Reminder todo enrichment: `attendance-cron` loads `study_todos` for each due reminder's `user_id` and `local_date`, then appends a compact `오늘 할 일` summary to server-side notification bodies. The open web app also renders the same date's todos in the reminder popup from already loaded dashboard state.
-- Two-step attendance enforcement: `get_due_reminders()` emits an initial reminder at the effective reminder time and a `nudge` reminder 15 minutes later if no qualifying timer start or completed daily goal exists. Weekdays use the saved profile reminder time with a `20:30` default; weekends use fixed `14:00`. `mark_missed_attendance()` marks the day missed at reminder time + 30 minutes only when no qualifying timer start and no completed daily goal exists.
+- Two-step attendance enforcement: `get_due_reminders()` atomically claims an initial reminder at the effective reminder time for both pending and already-present days. It claims a `nudge` 15 minutes later only for `pending` days with no qualifying timer start or completed daily goal. Weekdays use the saved profile reminder time with a `20:30` default; weekends use fixed `14:00`. `mark_missed_attendance()` marks only still-pending days missed at reminder time + 30 minutes.
 - Daily attendance goals: weekdays require 2 hours of completed saved study time, weekends require 4 hours. If the user misses the 30-minute check-in window but later ends sessions whose same-day total reaches the goal, `end_study_session()` promotes `attendance_days.status` to `present`.
-- Pre-reminder active attendance: if a study session started before the configured reminder time and is still open, or ended after crossing the reminder timestamp, Supabase treats it as a qualifying attendance session and suppresses initial/nudge reminders.
+- Pre-reminder active attendance: if a study session spans the configured reminder timestamp or the daily study goal is already complete, Supabase marks the day `present` and still emits the configured-time initial reminder with `attendance_already_present = true`. It suppresses the nudge and missed transition.
 - Camera presence warning: web study sessions require camera monitoring before the timer can start. MediaPipe PoseLandmarker runs in the browser only, and the server receives only camera event metadata through `camera-presence-warning`.
 - Camera video health: before running PoseLandmarker absence checks, the web app verifies the camera stream has a live unmuted enabled video track and that the current video frame is visible. Missing, muted, ended, disabled, unavailable, or nearly black frames are treated as camera errors instead of user absence.
 - Camera stalled-frame recovery: if a live camera stream stops producing a current frame or reports zero video size for 15 seconds, the web app attempts one same-session camera reconnect. If the reconnect still cannot produce frames, the app releases the stream and asks the user to turn camera monitoring on again.
@@ -189,8 +190,8 @@ docs/images/study-room-thumbnail.png
 - `camera-presence-warning` validates that `study_sessions.user_id` matches the authenticated Supabase user before inserting `study_presence_events` or sending Slack.
 - `submit_study_recovery_request(p_request_id uuid, p_reason text, p_makeup_todo_title text, p_pledge_todo_title text)` is called by the web app with the logged-in Supabase session. It verifies `auth.uid()`, locks the user's pending recovery request, inserts only the makeup todo, stores the pledge on `study_recovery_requests.pledge_todo_title` without creating a todo row, marks the request submitted, and returns the updated recovery request.
 - `end_study_session` receives `{ p_session_id, p_excluded_seconds }`; `p_excluded_seconds` is the camera absence time that should not be counted as study duration.
-- `attendance-cron` Slack notification bodies use emoji-led plain-text sections for `출석 마감`, `오늘 할 일`, `지금 할 일`, and `앱 열기`; they include up to a compact subset of reminder-date todo titles, mark completed items with a check indicator, and mention the 2-hour weekday or 4-hour weekend late-study recovery goal.
-- `get_due_reminders()` returns `reminder_stage = 'initial' | 'nudge'`. `attendance-cron` uses this stage to choose the first-reminder or final-nudge title/body and includes `reminderStage` in push payload data.
+- `attendance-cron` Slack notification bodies use emoji-led plain-text sections. Pending initial/nudge reminders include `출석 마감`, `오늘 할 일`, `지금 할 일`, and `앱 열기`; already-present initial reminders use `출석 상태`, explicitly say attendance is complete, and omit deadline/missed warnings.
+- `get_due_reminders()` returns `reminder_stage = 'initial' | 'nudge'` and `attendance_already_present`. `attendance-cron` uses both fields to choose the message, and push payloads include `reminderStage` and `attendanceAlreadyPresent`.
 - Lambda sends `POST` to `AttendanceCronUrl`.
 - Lambda sends `x-cron-secret` header from `CronSecret`.
 - Lambda body includes `source: "aws-eventbridge"` and `triggeredAt`.
@@ -212,10 +213,10 @@ docs/images/study-room-thumbnail.png
 - `notification_targets.kind = 'telegram'` is retained only for legacy delivery history and is disabled by the Slack migration.
 - `start_study_session()` creates a `study_sessions` row at any start time, but it only marks `attendance_days.status = 'present'` when the current timestamp is between the effective `reminder_at` and `deadline_at`.
 - `start_study_session()` blocks all pending recovery requests, including same-day `missed_attendance` requests. The Slack message and app behavior must match: users must submit the recovery routine before another session can start.
-- Timer starts before the configured reminder time must not create a `present` attendance row, because `get_due_reminders()` excludes days that are already `present` or `missed`.
-- Timer starts before the configured reminder time are converted to `attendance_days.status = 'present'` by `get_due_reminders()` at the reminder minute only when the session spans the reminder timestamp.
+- Timer starts before the configured reminder time do not create a `present` attendance row immediately. At the reminder minute, a session spanning `reminder_at` is converted to `present`, but the configured-time initial reminder is still claimed and sent with completion-safe copy.
 - Attendance deadline is `reminder_at + interval '30 minutes'`. Timer starts qualify only when `started_at >= reminder_at` and `started_at < deadline_at`; starts at the exact deadline or later do not qualify through the check-in window, but the day can still become `present` when completed study total reaches the weekday/weekend goal.
 - `mark_missed_attendance()` also checks pre-reminder sessions that span `reminder_at` before marking a pending day missed, and updates such days to `present` with `qualifying_session_id`.
+- `attendance_days.initial_reminder_claimed_at` and `nudge_reminder_claimed_at` are atomic dispatch claims. The initial UPSERT preserves `present`; the nudge UPDATE and missed UPDATE require `status = 'pending'`.
 - The 15-minute nudge is not a separate attendance status. It is derived by `get_due_reminders()` from an existing `attendance_days.status = 'pending'` row and the absence of a qualifying `study_sessions.started_at`.
 - `study_presence_events` stores camera presence events only: `camera_started`, `camera_stopped`, `absence_warning`, `camera_permission_denied`, and `camera_required_warning`.
 - `study_presence_events.metadata` must not contain `image`, `video`, `frame`, `faceEmbedding`, or `landmarks` keys.
@@ -783,3 +784,330 @@ docs/images/study-room-thumbnail.png
 - 마이그레이션 파일: `supabase/migrations/20260719134726_add_study_session_breaks.sql`
 - 확인 방법: 전체 Node 테스트 279개, 웹 build, Expo typecheck 통과. 원격 migration `20260719140751`, 컬럼·제약, invalid rows 0건, pause/resume anon=false·authenticated=true·service_role=true, end anon=false·authenticated=true, SECURITY INVOKER와 빈 search_path를 확인했다. security/performance Advisors도 확인했다.
 - 주의 사항: 원격 DB 적용은 완료됐지만 클라이언트 코드는 아직 배포되지 않았다. 휴식 중에도 세션 lease는 계속 감소한다.
+
+## Daily Habit Loop (2026-07-20)
+
+### Architecture
+
+- `apps/web/src/dailyHabit.mjs` owns deterministic daily habit stage calculation, duration copy, next-action normalization, and same-title todo matching outside React.
+- The habit state is derived from today's counted study seconds, the existing weekday/weekend goal, and completed-todo count. It does not write or reinterpret `attendance_days.status`.
+- `loadDashboardData()` fetches only the newest non-null `study_session_reflections.next_action`; full reflection history remains lazy-loaded for My Page.
+- The Today card passes a normalized suggestion through existing recovery, camera, and session-todo gates. It never starts a session or inserts a todo without the user's confirmation.
+- Cancelling a recovery or camera start prompt clears the pending suggestion so a later ordinary session cannot inherit stale intent.
+
+### Data and Security
+
+- No Supabase schema, RLS, RPC, Edge Function, or environment-variable change is required.
+- The latest reflection read includes an explicit `user_id` filter in addition to existing authenticated, owner-scoped RLS.
+- The query uses `study_session_reflections_user_created_idx (user_id, created_at desc)`, `order(created_at desc)`, `limit(1)`, and `maybeSingle()`.
+- The remote plan is an Index Scan with startup cost `0.15` and total cost `1.82`.
+
+### Accessibility and Responsive Design
+
+- The three milestones use an ordered list, visible text, Lucide icons, and `aria-current="step"` for the active milestone.
+- The warm cream, forest green, seed yellow, and terracotta accents extend the existing organic study-forest visual language.
+- At `860px` the card and next-action row become single-column; at `720px` the three milestones become single-column.
+
+### Testing and Deployment
+
+- Pure helper tests cover `0`, `10 minutes`, full goal, goal plus completed todo, duration rounding, and normalized todo matching.
+- Source-contract tests cover Today wiring, one-row reflection filtering, responsive selectors, and recovery-cancel cleanup.
+- Full Node tests `283/283`, TypeScript/Vite production build, `git diff --check`, remote RLS/index verification, and Chrome rendering at `1440px` and `390px` are required before handoff.
+- No commit, push, or Vercel deployment occurs without an explicit user request.
+
+## Weekly Habit Rhythm (2026-07-20)
+
+### Architecture
+
+- `apps/web/src/weeklyHabit.mjs` owns rolling civil-date generation, timezone boundary conversion, completed-session allocation, streak calculation, stage labels, and coaching copy outside React.
+- The rolling range always contains seven local dates ending on `todayDateKey`; it is intentionally separate from the Monday-to-today comparison on My Page.
+- Each date reuses `getDailyAttendanceGoalSeconds()` and `getDailyHabitState()` so weekday/weekend targets and `ready·seed·tree·bloom` semantics cannot drift.
+- `main.tsx` recalculates the live rhythm only when the visible Today minute changes. This preserves exact minute milestones without scanning full history every second.
+
+### Data Conventions
+
+- Past completed sessions use the same server formula: `overlap_seconds * least(1, counted_seconds / elapsed_seconds)`, summed and rounded per local date.
+- Timezone midnight boundaries are derived with `Intl.DateTimeFormat`; an invalid client timezone falls back to UTC instead of rendering corrupt dates.
+- Today's derived total is overwritten with the existing canonical Today completed summary plus current active-session seconds.
+- Completed todos are grouped by their stored `local_date`; no new table, RPC, query, RLS policy, environment variable, or background job is introduced.
+- When today has not reached ten minutes, the displayed streak scans backward from yesterday. Once today succeeds, it includes today.
+
+### Accessibility and Responsive Design
+
+- The seven dates are an ordered list. Every item exposes date, weekday, stage, and study duration as text and an accessible label; color and icon are secondary cues.
+- The organic trail uses connected circular markers on desktop, then removes the line and switches to a two-column readable grid below `720px`.
+- The summary changes from three columns to one column on mobile, and coaching copy wraps without truncation.
+
+### Testing and Deployment
+
+- Helper tests cover year/month rollover, Seoul cross-midnight proportional allocation, a 23-hour DST date, duration capping, canonical Today override, weekend goals, bloom, and the today-in-progress streak rule.
+- Source-contract tests require accessible labels and the `7→2` path and `3→1` summary responsive selectors.
+- Release gates are all 289 Node tests, TypeScript/Vite production build, `git diff --check`, and Chrome rendering at `1440px` and `390px` with content-level overflow checks.
+- No Supabase migration or remote mutation is required. Commit, push, and deployment still require an explicit user request.
+
+## Flexible Weekly Start Goal (2026-07-20)
+
+### Architecture
+
+- `weeklyHabit.mjs` owns `WEEKLY_HABIT_TARGET_DAYS = 5`, `WEEKLY_HABIT_REST_ALLOWANCE_DAYS = 2`, target-state calculation, non-punitive coaching, and the current-day primary action label outside React.
+- Target credit is clamped to five for the progress UI, while the weekly rhythm still retains and displays all seven day records and the actual start-success count.
+- `main.tsx` renders the target as a forest wooden sign above the path. Five seed markers expose `progressbar` min, max, current, and value text so progress is not color-only.
+
+### Action Routing
+
+- Before ten minutes, the weekly context label is `10분 시작 준비`; after ten minutes and before the daily goal it is `오늘 목표 이어가기`; `getStudyStartAction()` applies that context to the one inactive-session topbar button after reflection priority.
+- While a study session is active or paused, start-only daily and weekly guidance is hidden and the topbar becomes `잠시 쉬기` or `공부 계속하기`.
+- The single topbar action passes the newest normalized reflection `next_action`, falling back to the first incomplete today todo title, into the existing `startTimer()` path.
+- Recovery submission, camera readiness, todo selection, quick-add confirmation, and the server session-start RPC remain authoritative; the target card stays non-interactive and never bypasses or duplicates those gates.
+
+### Data, Security, and Performance
+
+- The target is derived from the existing `weeklyHabitRhythm` and in-memory today todo list. It adds no Supabase query, table, column, RLS policy, RPC, Edge Function, environment variable, or background job.
+- The five-of-seven target does not change `attendance_days.status`, the ten-minute habit threshold, or weekday/weekend two/four-hour study goals.
+- Target helpers are deterministic and typed through `weeklyHabit.d.mts` so a future user preference can replace constants without rewriting UI logic.
+
+### Responsive and Visual Design
+
+- The visual direction stays organic and toy-like: a warm wooden sign, cream paper surface, forest green completion state, an upward information cue, and five circular seed tokens.
+- Desktop uses copy and seed progress columns. Below `720px`, the sign becomes one column, the information cue wraps safely, and all five seeds remain visible without horizontal scrolling.
+
+### Testing and Deployment
+
+- Unit coverage fixes 0, 4, 5, and 7 start boundaries, completed-target rest coaching, and primary-action labels.
+- Source contracts cover `progressbar` semantics, single-topbar routing, active/paused start-guidance hiding, and the mobile one-column selector.
+- Release gates include focused weekly and single-start tests, all 314 Node tests, TypeScript/Vite production build, `git diff --check`, and actual Chrome rendering at `1440px` and `390px` with content-level overflow measurements.
+- No commit, push, Supabase mutation, or Vercel deployment occurs without an explicit user request.
+
+## Weekly Forest Reward (2026-07-20)
+
+### Architecture
+
+- `weeklyHabit.mjs` owns persistent reward derivation because it already owns the ten-minute success threshold, target count, time-zone boundaries, and proportional completed-session allocation rules.
+- `getWeeklyHabitRewardHistory()` walks each valid completed session only across the local dates it overlaps, marks dates with at least ten counted minutes, and awards on the fifth successful date inside a trailing seven-day window.
+- After an award, the next eligible earned date is seven days later. This prevents a continuous streak from generating one reward for every overlapping trailing window while still allowing a new weekly reward.
+- The returned history contains deterministic IDs, earned dates, source window dates, successful date keys, the latest earned date, and the cumulative count.
+
+### UI and Three.js Integration
+
+- `main.tsx` passes the existing live `weeklyHabitRhythm.target`, full already-loaded session array, and profile time zone into the lazy Study Forest section.
+- `StudyForestSection.tsx` computes reward history only while the forest feature is mounted, renders an accessible five-seed progressbar, explains remaining starts, and shows the cumulative wreath count.
+- `StudyForest3D.tsx` builds five low-poly seed pods around the current tree. Credited starts add stems and leaves; target completion adds an emissive five-firefly halo; any earned history adds a permanent golden flower keepsake.
+- The reward group uses world anchor `(3.15, 0.5, -1.2)`, which maps to the existing normalized current-tree collider around `(75, 55)`. No new walkable obstruction or collider rule is introduced.
+- Halo rotation and bobbing run only when `prefers-reduced-motion` is false. Static seed and keepsake geometry remain visible in reduced-motion mode.
+
+### Data, Security, and Performance
+
+- No additional Supabase request is made. The forest receives the `study_sessions` array already paged into dashboard memory under user-scoped RLS.
+- Only `status = completed` rows with valid start/end times and positive counted duration participate. Active sessions can affect live 5/7 progress but cannot mint a permanent reward before completion.
+- Invalid or more-than-ten-year single-session spans are ignored as malformed input to prevent an unbounded client loop.
+- No table, migration, policy, RPC, Edge Function, preference write, environment variable, or Expo change is required.
+
+### Testing and Deployment
+
+- Unit tests cover two rewards across twelve continuous starts, seven-day duplicate spacing, and preservation of an old reward when the current rolling target is zero.
+- Source tests require main-to-forest target wiring, reward-history use, accessible progress semantics, Three.js seed/halo/keepsake builders, reduced-motion gating, and five-column mobile seed layout.
+- Release gates are all 294 Node tests, TypeScript/Vite production build, `git diff --check`, and actual Chrome at 1440px and 390px with WebGL ready, one canvas, `2→1` forest grid columns, and document/card/seeds/scene overflow measurements.
+- No commit, push, Supabase mutation, or Vercel deployment occurs without an explicit user request.
+
+## First Ten-Minute Checkpoint (2026-07-21)
+
+### Architecture
+
+- `dailyHabit.mjs` reuses `DAILY_HABIT_SEED_SECONDS` and owns deterministic checkpoint eligibility, threshold crossing, progress, remaining time, and acknowledgement storage helpers outside React.
+- `main.tsx` supplies the canonical completed-today total and existing lease-aware active-today total. The active total already excludes persisted/current breaks, camera absence, and lease overflow.
+- `TenMinuteCheckpoint.tsx` owns the progress and completion presentations so the state can be verified independently without duplicating Today business logic.
+- The component is mounted only for an active session. A prior completed total at or above ten minutes makes the checkpoint ineligible for later sessions that day.
+
+### Interaction and Persistence
+
+- Before ten minutes, the card exposes a `0..600` progressbar, rounded remaining-time copy, and a paused explanation when the active session is resting.
+- On the first active-session threshold crossing, `조금 더 이어가기` stores an acknowledgement and leaves the session running unchanged.
+- `오늘은 마무리` opens the existing end-session todo/reflection modal; cancelling that modal does not acknowledge or discard the checkpoint.
+- The acknowledgement key is scoped to user ID, session ID, and local date. Only the literal acknowledgement marker is stored; session data, tokens, study seconds, and todo data are not copied to localStorage.
+- localStorage read/write failures degrade to the current in-memory state and never affect the study session.
+
+### Data, Security, and Performance
+
+- No Supabase query, table, column, migration, RLS policy, RPC, Edge Function, environment variable, timer interval, or Expo change is introduced.
+- The existing one-second Today clock drives rendering; checkpoint calculation is constant-time and adds no history scan.
+- Ten-minute habit success remains separate from weekday two-hour/weekend four-hour `present` policy.
+
+### Accessibility, Responsive Design, and Testing
+
+- Visible copy, progressbar values, polite completion announcement, and two named buttons make state and choices available without relying on color.
+- The visual language uses the existing cream paper, forest green, seed yellow, and hand-shaped organic borders; reduced motion removes progress-width animation.
+- Desktop keeps the two choices inline. At `720px` the card metadata and actions become one column and fill the available width.
+- Release gates are six focused tests, all 300 Node tests, TypeScript/Vite production build, `git diff --check`, and actual Chrome at 1440px/390px with interaction, responsive, content-overflow, console, and page-error checks.
+- No commit, push, Supabase mutation, or Vercel deployment occurs without an explicit user request.
+
+## Weekly Reset Bridge (2026-07-21)
+
+### Architecture
+
+- `weeklyReview.mjs` owns deterministic normalization, incomplete-todo matching, planned/unplanned status, and safe `MM.DD` labels outside React.
+- `WeeklyReviewSection.tsx` converts up to three already-derived reflection actions into an accessible action list without changing weekly metric calculation.
+- `main.tsx` routes an unplanned action to the existing todo modal after resetting it for today and prefilling the normalized title.
+- A matching incomplete todo routes to the existing `startTodoEditing()` flow; stale IDs surface a user message instead of creating a duplicate.
+
+### Data, Security, and Performance
+
+- Matching compares normalized titles case-insensitively and ignores completed todos. An invalid stored date keeps planned status but omits its date label.
+- Opening either action performs no write. Only the existing authenticated `saveTodo()` or update flow can mutate `study_todos` under its current RLS policy.
+- The feature scans at most three actions against the already-loaded in-memory todo array and adds no query, table, column, migration, RPC, RLS, Edge Function, environment variable, timer, or Expo change.
+
+### Accessibility and Responsive Design
+
+- Each row includes visible action text and planned/unplanned copy; color and icon are secondary cues.
+- Buttons include the action title in their accessible name and use the existing keyboard-accessible todo modal.
+- The organic paper-and-seed design extends the existing cream, forest, yellow, and terracotta visual language. At `620px`, the action and button become a full-width two-row layout without horizontal scrolling.
+
+### Testing and Deployment
+
+- TDD starts with a missing helper export, then covers normalization, completed-todo exclusion, invalid dates, and source wiring.
+- Release gates are three focused tests, all 309 Node tests, TypeScript/Vite production build, `git diff --check`, and actual Chrome at `1440px` and `390px` with create/edit prefill, plan date, responsive columns, content bounds, console, and page-error checks.
+- No Supabase mutation, commit, push, or Vercel deployment occurs without an explicit user request.
+
+## Single Adaptive Study Start Action (2026-07-21)
+
+### Architecture
+
+- `dailyHabit.mjs` owns `getStudyStartAction()`, which normalizes and prioritizes the latest reflection action, weekly habit action label, and first incomplete today todo outside React.
+- The helper returns one visible label, one optional suggested todo title, and a diagnostic source of `reflection`, `weekly-goal`, `today-todo`, or `default`.
+- `main.tsx` keeps the existing topbar session control as the only persistent Today start surface. Its inactive branch passes the derived suggestion into the existing `startTimer()` path.
+- Active and paused branches remain `잠시 쉬기` and `공부 계속하기`; End and reminder-dialog actions are outside this consolidation.
+
+### Interaction Rules
+
+- A normalized reflection next action has first priority, labels the button `이어서 준비하기`, and becomes the todo suggestion.
+- Without reflection, the weekly helper label (`10분 시작 준비`, `10분으로 다시 잇기`, or `오늘 목표 이어가기`) controls the button while the first incomplete today todo remains the suggestion.
+- Without a weekly label, the stable `입장하고 시작` label remains; a first incomplete today todo may still be suggested.
+- Daily reflection and weekly target cards are non-interactive context only while no session is active. They point upward to the single start control when inactive, then disappear during active or paused sessions instead of pointing at Pause or Resume.
+- Recovery, camera, todo selection, quick add, stale-suggestion cleanup, and server start transactions are unchanged.
+
+### Data, Security, and Performance
+
+- Derivation is constant-time and uses values already held by Today. No request, table, migration, RLS policy, RPC, Edge Function, environment variable, timer, localStorage key, or Expo change is introduced.
+- The helper never creates a todo or starts a session; the existing explicit user click and authenticated flow remain authoritative.
+
+### Accessibility, Responsive Design, and Testing
+
+- One active button exposes the single accessible action name; supporting cards use readable copy and decorative upward cues rather than disabled controls.
+- Desktop keeps the wooden weekly sign in three readable columns. Below `720px`, it becomes one column and the note left-aligns without creating another hit target.
+- Release gates are focused priority/source tests, existing daily/weekly habit regressions, the full Node suite, TypeScript/Vite build, `git diff --check`, and actual Chrome at 1440px/390px for one-button count, suggestion routing, content bounds, console, and page errors.
+- No commit, push, Supabase mutation, or Vercel deployment occurs without an explicit user request.
+
+## Gentle Restart Cue (2026-07-21)
+
+### Architecture
+
+- `weeklyHabit.mjs` derives `isGentleRestart` from the fixed seven-day rhythm outside React: today and yesterday are below ten minutes, at least one earlier day succeeded, and the five-start target is not yet reached.
+- The same helper selects `다시 잇는 날` coaching and `10분으로 다시 잇기`; `main.tsx` only renders the returned state in the existing target sign and single topbar start flow.
+- The weekly sign remains informational. No new click handler, modal, button, session transition, or state store is introduced.
+
+### Interaction Rules
+
+- No prior success keeps the first-start guidance; yesterday's success keeps streak guidance; today's success moves to the existing next stage; a reached five-start target keeps optional-rest guidance.
+- A latest reflection next action still outranks the restart label in `getStudyStartAction()` and carries its todo suggestion into the existing preparation flow.
+- Active and paused sessions keep Pause and Resume. Restart copy never starts or resumes a session automatically.
+
+### Data, Security, and Performance
+
+- Calculation reuses the existing seven-element in-memory day array and is O(7).
+- No Supabase query, table, migration, RLS policy, RPC, Edge Function, environment variable, timer, localStorage key, or Expo change is introduced.
+
+### Accessibility, Responsive Design, and Testing
+
+- The target sign exposes visible `다시 잇는 날` text rather than relying on the green state alone; the label is supporting context, not another focus target.
+- The existing wooden sign changes from three columns to one below `720px`, so the compact restart badge remains within the same responsive contract.
+- Release gates are focused restart and single-action tests, the full Node suite, TypeScript/Vite production build, `git diff --check`, and actual Chromium at 1440px/390px for restart/non-restart states, one start action, content bounds, console, and page errors.
+- No commit, push, Supabase mutation, or Vercel deployment occurs without an explicit user request.
+
+## Reflection Inbox (2026-07-21)
+
+### Architecture
+
+- `reflectionInbox.mjs` owns deterministic candidate selection outside React: the seven local dates ending today, completed rows only, existing reflection exclusion, newest ending first, and a maximum of three.
+- `main.tsx` loads reflection history only on My Page, marks it loaded only after a successful response, and derives the inbox from already-loaded study sessions and reflections.
+- `ReflectionInboxCard.tsx` renders an accessible organic “forest postbox” list. `SessionReflectionModal.tsx` shares the same fields through `completion` and `follow-up` modes while keeping todo completion exclusive to the completion mode.
+- Follow-up saving uses a session-keyed PostgREST upsert, updates the in-memory reflection list, and promotes a non-empty next action to the existing Today and weekly reset flows.
+
+### Data, Security, and Performance
+
+- No new table, column, read request, RPC, Edge Function, environment variable, timer, localStorage key, or Expo change is introduced.
+- The browser writes `user_id`, selected completed `session_id`, bounded scores/text, and `updated_at`; Postgres remains authoritative for uniqueness, constraints, and RLS.
+- `20260720182136_add_reflection_inbox.sql` replaces reflection policies with `TO authenticated` policies that require reflection-row ownership and an owned linked session. INSERT and UPDATE additionally require `study_sessions.status = 'completed'`.
+- UPDATE has both `USING` and `WITH CHECK`; SELECT is retained because Postgres RLS requires it for update/upsert. Public and anon keep no table privileges; authenticated is reset to SELECT·INSERT·UPDATE.
+- The existing `complete_study_session(...)` SECURITY DEFINER RPC still validates the active session owner and remains unchanged.
+
+### Accessibility and Responsive Design
+
+- The inbox is a named section with a list; each action's accessible name includes the session date and readable duration.
+- The forest-postbox visual uses the existing cream, forest green, seed yellow, terracotta, irregular borders, and fixed hit targets without moving-button animation.
+- Below 620px, each letter becomes a two-column summary with a full-width 44px action; the follow-up modal stays inside the viewport and scrolls vertically.
+
+### Testing and Deployment
+
+- Focused tests cover selection boundaries and source wiring; all 321 Node tests and the TypeScript/Vite production build pass.
+- Actual Chromium verifies candidate display, follow-up save, immediate inbox/weekly/Today updates, desktop behavior, and 390×844 responsive bounds.
+- The remote migration and Vercel deployment are intentionally deferred until the user explicitly requests deployment.
+
+## Supabase 변경 이력
+
+### 2026-07-22
+
+- 변경 대상: `public.attendance_days`, `public.get_due_reminders(timestamptz)`, `public.mark_missed_attendance(timestamptz)`, `attendance-cron`
+- 변경 내용: 초기·재촉 알림 claim 열을 추가하고, 이미 `present`인 날에도 설정 시각 초기 알림을 1회 반환하는 `attendance_already_present` 계약을 추가했다. 재촉과 결석은 `pending`에만 적용하며 Edge Function은 출석 완료 전용 문구를 사용한다.
+- 변경 이유: 오늘 목표를 이미 달성해 출석 보정된 사용자가 설정한 20:30 알림을 받지 못한 문제를 해결하고 출석 판정과 알림 시간 약속을 분리하기 위해서다.
+- 관련 기능: Supabase Cron 출석 알림, Slack/Web Push/Expo/Email, 출석·결석 자동 처리
+- 마이그레이션 파일: `supabase/migrations/20260722133736_send_initial_reminder_when_present.sql`
+- 원격 적용: `20260722133736_send_initial_reminder_when_present`, `attendance-cron` v28
+- 확인 방법: 원격 rollback 시나리오에서 출석 완료 초기 1·중복 0·재촉 0·결석 0·최종 present, 미출석 초기 1·재촉 1·결석 1을 확인했다. 전체 331개 테스트, production build, Cron v28 200 응답, 권한 행렬을 확인했다.
+- 주의 사항: claim 시각은 발송 시도를 나타내며 실제 채널 성공은 `notification_deliveries`로 확인한다. `get_due_reminders`와 `mark_missed_attendance`는 `service_role`만 실행할 수 있고 고정 빈 `search_path`를 유지한다.
+
+### 2026-07-21
+
+- 변경 대상: `public.study_session_reflections` RLS와 테이블 권한
+- 변경 내용: 로컬 migration에서 SELECT·INSERT·UPDATE 정책에 linked session ownership을 추가하고 INSERT·UPDATE는 completed session만 허용한다.
+- 변경 이유: follow-up upsert가 다른 사용자의 session ID 또는 미완료 session에 연결되는 BOLA/IDOR 경로를 차단한다.
+- 관련 기능: My Page 회고 인박스
+- 마이그레이션 파일: `supabase/migrations/20260720182136_add_reflection_inbox.sql`
+- 확인 방법: source contract, 현재 원격 정책 read-only 조회, 전체 테스트·build, 명시적 배포 후 원격 `pg_policies`·grants·Advisors 재확인
+- 주의 사항: migration은 아직 원격 프로젝트에 적용하지 않았다. 웹 배포보다 먼저 적용해야 한다.
+
+## Weekly Friction Plan (2026-07-21)
+
+### Architecture
+
+- `weeklyReview.mjs` owns the deterministic interruption aggregation and reason-specific copy outside React.
+- `buildRangeMetrics()` first filters reflections through completed session IDs in the requested range, then derives `frictionPlan` from that range only.
+- `buildWeeklyFrictionPlan()` scans the reflection array once, ignores `none` and unknown values, and requires a count of at least two.
+- Candidate selection sorts by count descending, latest valid `created_at` descending, then the fixed order `phone → environment → fatigue → schedule → other`.
+- `WeeklyReviewSection.tsx` renders the current plan independently from the anomaly/cross-date data-quality note and before the existing next-action plan.
+
+### Data, Security, and Performance
+
+- The feature reuses `studySessionReflections` and `studySessions` already loaded for My Page. It adds no network request or server write.
+- No Supabase table, column, migration, RLS policy, RPC, Edge Function, environment variable, timer, localStorage key, or Expo change is required.
+- Invalid reasons are ignored and invalid timestamps fall back to the stable reason order rather than breaking rendering.
+- Runtime work is linear in the already-filtered current-week reflection count with a constant five-reason sort.
+
+### Accessibility and Visual Design
+
+- The plan exposes reason, weekly count, title, concrete action, and cue as visible text; color and icon are secondary.
+- The component is an `aside` labelled by a heading and contains no button, preserving the single adaptive start surface.
+- The organic design uses a forest-green trail sign, warm paper, seed-yellow shield accent, directional desktop clip-path, and a calm non-punitive tone.
+- Desktop uses two columns. At `620px` the sign and note become one column and remove the directional clip-path.
+
+### Testing and Deployment
+
+- TDD covers helper absence, repeated and one-off reasons, invalid values, tie-breaking, current-range filtering, independent conditions, no new button, and non-nested mobile CSS.
+- Release evidence is five focused tests, all 326 Node tests, production build, `git diff --check`, and actual Chromium at 1440px/390px with computed columns, bounds, overflow, console, and page-error checks.
+- All browser Supabase requests are stubbed. No remote mutation, commit, push, or deployment occurs without an explicit user request.
+
+## Session Lease Expiry Enforcement (2026-08-04)
+
+- `study_sessions.lease_expires_at` is the server-owned upper bound for each persistence operation. User-facing manual completion remains authenticated and ownership-checked; reflection completion delegates to the same guarded end RPC.
+- `close_expired_study_sessions(p_now)` is service-role-only and runs in the existing every-minute `attendance-cron` Edge Function before reminder work. It selects no more than 100 eligible active rows ordered by expiry and uses `FOR UPDATE SKIP LOCKED` to avoid duplicate cleanup under concurrent invocations.
+- `study_sessions_active_lease_expiry_idx` is a partial index over active sessions with a lease, keeping the frequent expiry lookup narrow.
+- Both manual and automatic end paths calculate at the effective end timestamp, accumulate an in-progress break only up to that timestamp, then promote attendance only for local dates the corrected session actually overlaps.
+- Rows without a lease use the original `started_at + interval '1 hour'` fallback only for backward compatibility.

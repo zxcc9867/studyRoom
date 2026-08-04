@@ -21,6 +21,9 @@ import {
   ChevronRight,
   Chrome,
   ArrowDown,
+  Flower2,
+  Footprints,
+  Sprout,
   ArrowUp,
   GripVertical,
   KeyRound,
@@ -33,6 +36,7 @@ import {
   Play,
   Plus,
   Repeat2,
+  RefreshCw,
   Save,
   Clock3,
   Square,
@@ -73,6 +77,10 @@ import {
   isAuthCallbackUrl,
   type IdentityPayload,
 } from "./authProviders.mjs";
+import {
+  isAuthInitializationTimeoutError,
+  runAuthInitializationWithTimeout,
+} from "./authInitialization.mjs";
 import {
   canStartStudySessionWithCamera,
   createPresenceState,
@@ -118,6 +126,22 @@ import {
   loadReflectionData,
 } from "./dashboardData";
 import {
+  findMatchingNextActionTodo,
+  getDailyHabitState,
+  getLatestNextAction,
+  getStudyStartAction,
+  getTenMinuteCheckpointState,
+  getTenMinuteCheckpointStorageKey,
+  normalizeHabitText,
+  persistTenMinuteCheckpointAcknowledged,
+  readTenMinuteCheckpointAcknowledged,
+} from "./dailyHabit.mjs";
+import TenMinuteCheckpoint from "./TenMinuteCheckpoint";
+import BreakReturnPlan from "./BreakReturnPlan";
+import { getWeeklyHabitRhythm } from "./weeklyHabit.mjs";
+import { getPendingReflectionSessions } from "./reflectionInbox.mjs";
+import ReflectionInbox from "./ReflectionInboxCard";
+import {
   buildDailyPlannerSegments,
   plannerAngleToTime,
   type DailyPlannerSegment,
@@ -149,7 +173,6 @@ import {
   createSessionLeaseDeadlineMs,
   getExtendedSessionLeaseDeadlineMs,
   getLeaseAwareActiveNowMs,
-  getSessionLeaseExcludedSeconds,
   getSessionLeaseRemainingSeconds,
   getSessionLeaseStorageKey,
   getStoredSessionLeaseDeadlineMs,
@@ -173,9 +196,15 @@ import {
   shouldEndStudySessionForInactivity,
 } from "./sessionActivity.mjs";
 import {
+  clearStudyBreakReturnDeadline,
+  createStudyBreakReturnDeadlineMs,
+  extendStudyBreakReturnDeadlineMs,
   getCurrentStudyBreakSeconds,
+  getStudyBreakReturnStorageKey,
   getTotalStudyBreakSeconds,
   isStudySessionPaused,
+  persistStudyBreakReturnDeadlineMs,
+  readStudyBreakReturnDeadlineMs,
 } from "./sessionBreak.mjs";
 import { isStaleActiveSessionEndError } from "./sessionEnd.mjs";
 import { requestEndStudySessionOnExit, shouldEndStudySessionForPageEvent } from "./sessionExit.mjs";
@@ -442,6 +471,7 @@ VITE_WEB_PUSH_VAPID_PUBLIC_KEY=your-vapid-public-key`}</pre>
 function DashboardApp() {
   const [session, setSession] = useState<Session | null>(null);
   const [sessionInitialized, setSessionInitialized] = useState(false);
+  const [authInitializationError, setAuthInitializationError] = useState("");
   const [email, setEmail] = useState("");
   const [otp, setOtp] = useState("");
   const [codeSent, setCodeSent] = useState(false);
@@ -455,6 +485,12 @@ function DashboardApp() {
   const [studyGoals, setStudyGoals] = useState<StudyGoal[]>([]);
   const [studyRecoveryRequests, setStudyRecoveryRequests] = useState<StudyRecoveryRequest[]>([]);
   const [studySessionReflections, setStudySessionReflections] = useState<StudySessionReflection[]>([]);
+  const [latestStudySessionReflection, setLatestStudySessionReflection] = useState<StudySessionReflection | null>(null);
+  const [reflectionHistoryLoaded, setReflectionHistoryLoaded] = useState(false);
+  const [reflectionInboxSessionId, setReflectionInboxSessionId] = useState<string | null>(null);
+  const [reflectionInboxBusy, setReflectionInboxBusy] = useState(false);
+  const [tenMinuteCheckpointAcknowledged, setTenMinuteCheckpointAcknowledged] = useState(false);
+  const [breakReturnDeadlineMs, setBreakReturnDeadlineMs] = useState<number | null>(null);
   const [studyPeriodSummaries, setStudyPeriodSummaries] = useState<{
     today: StudyPeriodSummary;
     month: StudyPeriodSummary;
@@ -550,6 +586,7 @@ function DashboardApp() {
   } | null>(null);
   const [cameraSetupPrompt, setCameraSetupPrompt] = useState<CameraSetupPrompt | null>(null);
   const [sessionLease, setSessionLease] = useState<SessionLeaseState | null>(null);
+  const authInitializationAttemptRef = useRef(0);
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const cameraFrameCanvasRef = useRef<HTMLCanvasElement | null>(null);
   const cameraStreamRef = useRef<MediaStream | null>(null);
@@ -568,29 +605,57 @@ function DashboardApp() {
   const activeSessionLeaseRefreshInFlightRef = useRef(false);
   const sessionActivityAutoEndInFlightRef = useRef(false);
   const endSessionInFlightRef = useRef<string | null>(null);
+  const sessionTodoSuggestionRef = useRef<string | null>(null);
   const recoveryAutoEndInFlightRef = useRef(false);
   const recoveryModalDismissedIdsRef = useRef<Set<string>>(new Set());
 
-  useEffect(() => {
-    async function initializeSession() {
-      try {
-        if (isAuthCallbackUrl(window.location.href)) {
-          await finishOAuthCallback();
-          return;
-        }
+  async function initializeSession() {
+    const attemptId = authInitializationAttemptRef.current + 1;
+    authInitializationAttemptRef.current = attemptId;
+    setSessionInitialized(false);
+    setAuthInitializationError("");
 
-        const { data } = await supabase.auth.getSession();
+    try {
+      if (isAuthCallbackUrl(window.location.href)) {
+        await runAuthInitializationWithTimeout(() => finishOAuthCallback());
+        return;
+      }
+
+      const { data, error } = await runAuthInitializationWithTimeout(
+        () => supabase.auth.getSession(),
+      );
+      if (error) throw error;
+      if (authInitializationAttemptRef.current === attemptId) {
         setSession(data.session);
-      } finally {
+      }
+    } catch (error) {
+      if (authInitializationAttemptRef.current !== attemptId) return;
+      setBusy(false);
+      setAuthInitializationError(
+        isAuthInitializationTimeoutError(error)
+          ? "인증 서버 응답이 늦어 저장된 로그인을 확인하지 못했습니다. 잠시 후 다시 확인하거나 로그인해 주세요."
+          : "저장된 로그인 정보를 확인하지 못했습니다. 잠시 후 다시 확인하거나 로그인해 주세요.",
+      );
+    } finally {
+      if (authInitializationAttemptRef.current === attemptId) {
         setSessionInitialized(true);
       }
     }
+  }
 
+  useEffect(() => {
     void initializeSession();
     const { data } = supabase.auth.onAuthStateChange((_event, nextSession) => {
       setSession(nextSession);
+      if (nextSession) {
+        setAuthInitializationError("");
+        setSessionInitialized(true);
+      }
     });
-    return () => data.subscription.unsubscribe();
+    return () => {
+      authInitializationAttemptRef.current += 1;
+      data.subscription.unsubscribe();
+    };
   }, []);
 
   useEffect(() => {
@@ -632,14 +697,23 @@ function DashboardApp() {
   }, [session]);
 
   useEffect(() => {
-    if (!session?.user.id || activeSection !== "me") return;
+    if (!session?.user.id || activeSection !== "me") {
+      setReflectionHistoryLoaded(false);
+      return;
+    }
     let cancelled = false;
+    setReflectionHistoryLoaded(false);
     void loadReflectionData(supabase, session.user.id)
       .then((rows) => {
-        if (!cancelled) setStudySessionReflections(rows as StudySessionReflection[]);
+        if (cancelled) return;
+        setStudySessionReflections(rows as StudySessionReflection[]);
+        setReflectionHistoryLoaded(true);
       })
       .catch((error) => {
-        if (!cancelled) setMessage(formatError(error));
+        if (!cancelled) {
+          setReflectionHistoryLoaded(false);
+          setMessage(formatError(error));
+        }
       });
     return () => { cancelled = true; };
   }, [activeSection, session?.user.id]);
@@ -713,8 +787,41 @@ function DashboardApp() {
   const currentBreakSeconds = activeSessionPaused && activeSession
     ? getCurrentStudyBreakSeconds({ pausedAt: activeSession.paused_at, nowMs })
     : 0;
+  const breakReturnStorageKey = getStudyBreakReturnStorageKey({
+    userId: session?.user.id,
+    sessionId: activeSession?.id,
+  });
+  useEffect(() => {
+    if (!breakReturnStorageKey) {
+      setBreakReturnDeadlineMs(null);
+      return;
+    }
+
+    if (!activeSessionPaused) {
+      clearStudyBreakReturnDeadline(window.localStorage, breakReturnStorageKey);
+      setBreakReturnDeadlineMs(null);
+      return;
+    }
+
+    setBreakReturnDeadlineMs(
+      readStudyBreakReturnDeadlineMs(window.localStorage, breakReturnStorageKey),
+    );
+  }, [activeSessionPaused, breakReturnStorageKey]);
   const activeExcludedSeconds = activeCameraExcludedSeconds + activeBreakSeconds;
   const todayDateKey = getLocalDateKey(new Date(nowMs), timeZone);
+  const tenMinuteCheckpointStorageKey = getTenMinuteCheckpointStorageKey({
+    userId: session?.user.id,
+    sessionId: activeSession?.id,
+    dateKey: todayDateKey,
+  });
+  useEffect(() => {
+    setTenMinuteCheckpointAcknowledged(
+      readTenMinuteCheckpointAcknowledged(
+        window.localStorage,
+        tenMinuteCheckpointStorageKey,
+      ),
+    );
+  }, [tenMinuteCheckpointStorageKey]);
   const completedSessionVersion = useMemo(
     () => studySessions
       .filter((item) => item.status === "completed")
@@ -827,6 +934,13 @@ function DashboardApp() {
       })
     : 0;
   const todaySeconds = todayCompletedSeconds + activeTodaySeconds;
+  const tenMinuteCheckpoint = getTenMinuteCheckpointState({
+    completedTodaySeconds: todayCompletedSeconds,
+    activeTodaySeconds,
+    hasActiveSession: Boolean(activeSession),
+    activeSessionPaused,
+    acknowledged: tenMinuteCheckpointAcknowledged,
+  });
   const monthCompletedSeconds = studyPeriodSummaries?.month.completedSeconds
     ?? studySessions
       .filter((item) => item.local_date.startsWith(calendarMonth) && item.status === "completed")
@@ -874,6 +988,53 @@ function DashboardApp() {
     () => getIncompleteTodayTodos(studyTodos, todayDateKey),
     [studyTodos, todayDateKey],
   );
+  const completedTodayTodoCount = useMemo(
+    () => todayTodos.filter((todo) => todo.is_completed).length,
+    [todayTodos],
+  );
+  const dailyHabitState = useMemo(
+    () =>
+      getDailyHabitState({
+        studySeconds: todaySeconds,
+        goalSeconds: todayGoalSeconds,
+        completedTodoCount: completedTodayTodoCount,
+      }),
+    [completedTodayTodoCount, todayGoalSeconds, todaySeconds],
+  );
+  const weeklyHabitTodayMinute = Math.floor(todaySeconds / 60);
+  const weeklyHabitRhythm = useMemo(
+    () => getWeeklyHabitRhythm({
+      todayDateKey,
+      timeZone,
+      sessions: studySessions,
+      todos: studyTodos,
+      todayStudySeconds: weeklyHabitTodayMinute * 60,
+    }),
+    [studySessions, studyTodos, timeZone, todayDateKey, weeklyHabitTodayMinute],
+  );
+  const pendingReflectionSessions = useMemo(
+    () => reflectionHistoryLoaded
+      ? getPendingReflectionSessions({
+          todayDateKey,
+          sessions: studySessions,
+          reflections: studySessionReflections,
+        })
+      : [],
+    [reflectionHistoryLoaded, studySessionReflections, studySessions, todayDateKey],
+  );
+  const reflectionInboxSession = useMemo(
+    () => pendingReflectionSessions.find((item) => item.id === reflectionInboxSessionId) ?? null,
+    [pendingReflectionSessions, reflectionInboxSessionId],
+  );
+  const latestNextAction = useMemo(
+    () => getLatestNextAction(latestStudySessionReflection),
+    [latestStudySessionReflection],
+  );
+  const studyStartAction = getStudyStartAction({
+    latestNextAction,
+    primaryActionLabel: weeklyHabitRhythm.primaryActionLabel,
+    fallbackTodoTitle: incompleteTodayTodos[0]?.title,
+  });
   const activeSessionTodos = useMemo(
     () =>
       getSessionLinkedTodos({
@@ -1069,16 +1230,8 @@ function DashboardApp() {
     }
 
     sessionLeaseAutoEndInFlightRef.current = true;
-    const excludedSeconds = activeSessionPaused
-      ? getActiveCameraExcludedSeconds()
-      : getSessionLeaseExcludedSeconds({
-          deadlineMs: activeSessionLeaseDeadlineMs,
-          nowMs,
-          baseExcludedSeconds: getActiveCameraExcludedSeconds(),
-        });
-
     void endTimer({
-      excludedSeconds,
+      excludedSeconds: getActiveCameraExcludedSeconds(),
       successMessage: "세션 유지 시간이 만료되어 자동 종료되었습니다.",
     }).finally(() => {
       sessionLeaseAutoEndInFlightRef.current = false;
@@ -1585,6 +1738,7 @@ function DashboardApp() {
         sessionTodoLinkData,
         goalData,
         recoveryData,
+        latestReflectionData,
       } = await loadDashboardData(supabase, userId);
 
       if (profileData) {
@@ -1613,6 +1767,7 @@ function DashboardApp() {
       setStudySessionTodoLinks(sessionTodoLinkData as StudySessionTodoLink[]);
       setStudyGoals(sortStudyGoals(goalData as StudyGoal[]));
       setStudyRecoveryRequests(recoveryData as StudyRecoveryRequest[]);
+      setLatestStudySessionReflection(latestReflectionData as StudySessionReflection | null);
     } catch (error) {
       setMessage(`\ub300\uc2dc\ubcf4\ub4dc\ub97c \ubd88\ub7ec\uc624\uc9c0 \ubabb\ud588\uc2b5\ub2c8\ub2e4: ${formatError(error)}`);
     } finally {
@@ -1642,6 +1797,26 @@ function DashboardApp() {
     setTodoStartTime("09:00");
     setTodoEndTime("10:00");
     setTodoGoalId(activeGoal?.id ?? "");
+  }
+
+  function openWeeklyReviewActionPlan(action: string) {
+    const normalizedAction = normalizeHabitText(action);
+    if (!normalizedAction) return;
+
+    showPlannerDate(todayDateKey);
+    resetTodoDraftForDate(todayDateKey);
+    setTodoDraft(normalizedAction);
+    setTodoModalOpen(true);
+  }
+
+  function openWeeklyReviewPlannedTodo(todoId: string) {
+    const plannedTodo = studyTodos.find((todo) => todo.id === todoId && !todo.is_completed);
+    if (!plannedTodo) {
+      setMessage("이 계획을 찾지 못했어요. 대시보드를 새로고침한 뒤 다시 시도해 주세요.");
+      return;
+    }
+
+    startTodoEditing(plannedTodo);
   }
 
   function closeTodoModal() {
@@ -1942,8 +2117,12 @@ function DashboardApp() {
   }
 
   function openSessionTodoSelection(cameraReadyOverride: boolean) {
+    const suggestedTodoTitle = normalizeHabitText(sessionTodoSuggestionRef.current);
+    const matchingTodo = findMatchingNextActionTodo({ nextAction: suggestedTodoTitle, todos: incompleteTodayTodos });
     setSessionTodoStartRequest({ cameraReadyOverride });
-    setSelectedSessionTodoIds([]);
+    setSelectedSessionTodoIds(matchingTodo ? [matchingTodo.id] : []);
+    setSessionTodoDraft(suggestedTodoTitle && !matchingTodo ? suggestedTodoTitle : "");
+    sessionTodoSuggestionRef.current = null;
     setSessionTodoModalOpen(true);
   }
 
@@ -2403,6 +2582,81 @@ function DashboardApp() {
       reflection: sessionReflectionDraft,
       successMessage: "회고와 세션을 함께 저장했어요.",
     });
+  }
+
+  function openReflectionInbox(sessionId: string) {
+    const targetSession = pendingReflectionSessions.find((item) => item.id === sessionId);
+    if (!targetSession) {
+      setMessage("이미 회고했거나 회고할 수 없는 세션이에요.");
+      return;
+    }
+
+    setSessionReflectionDraft({
+      focusScore: 3,
+      energyScore: 3,
+      interruptionReason: "none",
+      note: "",
+      nextAction: "",
+    });
+    setReflectionInboxSessionId(targetSession.id);
+  }
+
+  function closeReflectionInbox() {
+    if (reflectionInboxBusy) return;
+    setReflectionInboxSessionId(null);
+  }
+
+  async function saveReflectionInboxEntry() {
+    if (!session?.user.id || !reflectionInboxSession) return;
+    const isStillEligible = pendingReflectionSessions.some((item) => item.id === reflectionInboxSession.id);
+    if (!isStillEligible) {
+      setReflectionInboxSessionId(null);
+      setMessage("이미 회고했거나 회고할 수 없는 세션이에요.");
+      return;
+    }
+
+    setReflectionInboxBusy(true);
+    try {
+      const { data, error } = await supabase
+        .from("study_session_reflections")
+        .upsert({
+          user_id: session.user.id,
+          session_id: reflectionInboxSession.id,
+          focus_score: sessionReflectionDraft.focusScore,
+          energy_score: sessionReflectionDraft.energyScore,
+          interruption_reason: sessionReflectionDraft.interruptionReason,
+          note: sessionReflectionDraft.note.trim().slice(0, 500) || null,
+          next_action: sessionReflectionDraft.nextAction.trim().slice(0, 160) || null,
+          updated_at: new Date().toISOString(),
+        }, { onConflict: "session_id" })
+        .select("id,session_id,focus_score,energy_score,interruption_reason,note,next_action,created_at")
+        .single();
+
+      if (error) throw error;
+      if (!data) throw new Error("저장된 회고를 확인하지 못했습니다.");
+
+      const savedReflection = data as StudySessionReflection;
+      setStudySessionReflections((current) => [
+        savedReflection,
+        ...current.filter((item) => item.session_id !== savedReflection.session_id),
+      ]);
+      if (normalizeHabitText(savedReflection.next_action)) {
+        setLatestStudySessionReflection(savedReflection);
+      }
+      setReflectionInboxSessionId(null);
+      setSessionReflectionDraft({
+        focusScore: 3,
+        energyScore: 3,
+        interruptionReason: "none",
+        note: "",
+        nextAction: "",
+      });
+      setMessage("회고를 저장했어요. 다음 행동은 오늘의 시작 제안으로 이어집니다.");
+    } catch (error) {
+      setMessage(`회고를 저장하지 못했습니다: ${formatError(error)}`);
+    } finally {
+      setReflectionInboxBusy(false);
+    }
   }
 
   async function deleteTodo(todo: StudyTodo) {
@@ -2867,6 +3121,7 @@ function DashboardApp() {
     if (recoveryModalRequest) {
       recoveryModalDismissedIdsRef.current.add(recoveryModalRequest.id);
     }
+    sessionTodoSuggestionRef.current = null;
     setResumeStartAfterRecoveryUnlock(false);
     setRecoveryModalRequest(null);
   }
@@ -2935,7 +3190,23 @@ function DashboardApp() {
     }
   }
 
-  async function startTimer(cameraReadyOverride = false, selectedTodoIds?: string[]) {
+  function acknowledgeTenMinuteCheckpoint() {
+    if (tenMinuteCheckpointStorageKey) {
+      persistTenMinuteCheckpointAcknowledged(
+        window.localStorage,
+        tenMinuteCheckpointStorageKey,
+      );
+    }
+    setTenMinuteCheckpointAcknowledged(true);
+    setMessage("10분 시작을 완성했습니다. 부담 없으면 지금 흐름을 조금 더 이어가세요.");
+  }
+
+  async function startTimer(cameraReadyOverride = false, selectedTodoIds?: string[], suggestedTodoTitle?: string) {
+    const normalizedSuggestedTodoTitle = normalizeHabitText(suggestedTodoTitle);
+    if (normalizedSuggestedTodoTitle) {
+      sessionTodoSuggestionRef.current = normalizedSuggestedTodoTitle;
+    }
+
     if (blockingRecoveryRequests.length > 0) {
       setResumeStartAfterRecoveryUnlock(true);
       openRecoveryRoutineModal(blockingRecoveryRequests[0]);
@@ -3021,9 +3292,39 @@ function DashboardApp() {
       }
       setMessage(startMessage);
       setCameraSetupPrompt(null);
+      sessionTodoSuggestionRef.current = null;
       cameraSessionStartingRef.current = false;
       await loadDashboard(session.user.id);
     }
+  }
+
+  function planStudyBreakReturn(durationMinutes: number) {
+    if (!activeSessionPaused) return;
+    const currentNowMs = Date.now();
+    const deadlineMs = createStudyBreakReturnDeadlineMs({ nowMs: currentNowMs, durationMinutes });
+    if (deadlineMs === null) return;
+    persistStudyBreakReturnDeadlineMs(window.localStorage, breakReturnStorageKey, deadlineMs);
+    setBreakReturnDeadlineMs(deadlineMs);
+    setNowMs(currentNowMs);
+  }
+
+  function extendStudyBreakReturn(durationMinutes: number) {
+    if (!activeSessionPaused) return;
+    const currentNowMs = Date.now();
+    const deadlineMs = extendStudyBreakReturnDeadlineMs({
+      deadlineMs: breakReturnDeadlineMs,
+      nowMs: currentNowMs,
+      durationMinutes,
+    });
+    if (deadlineMs === null) return;
+    persistStudyBreakReturnDeadlineMs(window.localStorage, breakReturnStorageKey, deadlineMs);
+    setBreakReturnDeadlineMs(deadlineMs);
+    setNowMs(currentNowMs);
+  }
+
+  function clearBreakReturnPlan() {
+    clearStudyBreakReturnDeadline(window.localStorage, breakReturnStorageKey);
+    setBreakReturnDeadlineMs(null);
   }
 
   async function pauseTimer() {
@@ -3074,6 +3375,7 @@ function DashboardApp() {
         resumedSession,
         ...current.filter((item) => item.id !== resumedSession.id),
       ]);
+      clearBreakReturnPlan();
       persistStudySessionActivity(resumedSession.id);
       setNowMs(Date.now());
       setMessage("공부를 다시 시작했습니다.");
@@ -3128,6 +3430,7 @@ function DashboardApp() {
         if (isStaleActiveSessionEndError(error)) {
           forgetCameraMonitoringIntent();
           forgetSessionLease(endingSession.id);
+          clearBreakReturnPlan();
           forgetStudySessionActivity(endingSession.id);
           setEndSessionCompletionModalOpen(false);
           setSelectedEndSessionCompletionTodoIds([]);
@@ -3145,6 +3448,7 @@ function DashboardApp() {
       if (session?.user.id) {
         forgetCameraMonitoringIntent();
         forgetSessionLease(endingSession.id);
+        clearBreakReturnPlan();
         forgetStudySessionActivity(endingSession.id);
         setMessage(options.successMessage ?? sessionTodoSummary.message);
         if (options.reflection) {
@@ -3415,6 +3719,13 @@ function DashboardApp() {
     }
 
     await startCameraMonitoring();
+  }
+
+  function closeCameraSetupPrompt() {
+    if (cameraSetupPrompt?.mode === "start") {
+      sessionTodoSuggestionRef.current = null;
+    }
+    setCameraSetupPrompt(null);
   }
 
   async function confirmCameraSetupPrompt() {
@@ -4146,10 +4457,13 @@ function DashboardApp() {
   if (!sessionInitialized) {
     return (
       <main className="login-shell">
-        <section className="login-panel">
+        <section className="login-panel" role="status" aria-live="polite">
           <p className="eyebrow">session</p>
           <h1>로그인 상태 확인 중</h1>
-          <p className="login-copy">저장된 세션이 있는지 확인하고 있습니다.</p>
+          <p className="login-copy">
+            저장된 세션이 있는지 확인하고 있습니다. 응답이 늦으면 로그인 화면에서 다시 확인할 수
+            있습니다.
+          </p>
         </section>
       </main>
     );
@@ -4165,6 +4479,23 @@ function DashboardApp() {
             이메일로 받은 8자리 코드를 입력하면 로그인됩니다. 알림 후 30분 안에 타이머를 시작하거나,
             오늘 목표 시간을 채우면 출석으로 인정됩니다.
           </p>
+          {authInitializationError && (
+            <div className="auth-recovery-notice" role="alert">
+              <strong>로그인 확인이 지연됐어요</strong>
+              <p>{authInitializationError}</p>
+              <button
+                className="secondary"
+                type="button"
+                onClick={() => {
+                  void initializeSession();
+                }}
+                disabled={busy}
+              >
+                <RefreshCw size={18} aria-hidden="true" />
+                로그인 상태 다시 확인
+              </button>
+            </div>
+          )}
           <div className="login-form">
             <button
               className={`google-login ${googleAuthEnabled ? "" : "google-login-pending"}`}
@@ -4268,7 +4599,7 @@ function DashboardApp() {
                   type="button"
                   onClick={() => {
                     if (!activeSession) {
-                      void startTimer();
+                      void startTimer(false, undefined, studyStartAction.suggestedTodoTitle);
                     } else if (activeSessionPaused) {
                       requestResumeTimer();
                     } else {
@@ -4278,7 +4609,7 @@ function DashboardApp() {
                   disabled={busy || (!activeSession && blockingRecoveryRequests.length > 0)}
                 >
                   {activeSession && !activeSessionPaused ? <Pause size={18} /> : <Play size={18} />}
-                  {!activeSession ? "입장하고 시작" : activeSessionPaused ? "공부 계속하기" : "잠시 쉬기"}
+                  {!activeSession ? studyStartAction.label : activeSessionPaused ? "공부 계속하기" : "잠시 쉬기"}
                 </button>
                 <button
                   className="danger"
@@ -4310,8 +4641,176 @@ function DashboardApp() {
                   <strong>휴식 중 · {formatTimerClock(currentBreakSeconds)}</strong>
                   <small>공부 시간은 멈췄습니다. 세션 유지 시간은 계속 줄어듭니다.</small>
                 </div>
+                <BreakReturnPlan
+                  deadlineMs={breakReturnDeadlineMs}
+                  nowMs={nowMs}
+                  timeZone={timeZone}
+                  leaseDeadlineMs={activeSessionLeaseDeadlineMs}
+                  disabled={busy}
+                  onPlan={planStudyBreakReturn}
+                  onExtend={extendStudyBreakReturn}
+                  onClear={clearBreakReturnPlan}
+                />
               </div>
             )}
+            <section
+              className={`daily-habit-card daily-habit-${dailyHabitState.stage}`}
+              aria-labelledby="daily-habit-title"
+            >
+              <div className="daily-habit-copy">
+                <p className="eyebrow"><TreePine size={16} aria-hidden="true" /> daily habit</p>
+                <h3 id="daily-habit-title">{dailyHabitState.title}</h3>
+                <p>{dailyHabitState.description}</p>
+              </div>
+              <ol className="daily-habit-milestones" aria-label="오늘 습관 성장 단계">
+                {dailyHabitState.milestones.map((milestone) => {
+                  const isCurrent = dailyHabitState.currentMilestoneId === milestone.id;
+                  return (
+                    <li
+                      className={`${milestone.completed ? "completed" : ""} ${isCurrent ? "current" : ""}`.trim()}
+                      key={milestone.id}
+                      aria-current={isCurrent ? "step" : undefined}
+                    >
+                      <span className="daily-habit-step-icon" aria-hidden="true">
+                        {milestone.id === "seed" ? (
+                          <Play size={18} />
+                        ) : milestone.id === "goal" ? (
+                          <TreePine size={18} />
+                        ) : (
+                          <CheckCircle2 size={18} />
+                        )}
+                      </span>
+                      <span>
+                        <strong>{milestone.label}</strong>
+                        <small>{milestone.detail}</small>
+                      </span>
+                    </li>
+                  );
+                })}
+              </ol>
+              {activeSession && (
+                <TenMinuteCheckpoint
+                  state={tenMinuteCheckpoint}
+                  paused={activeSessionPaused}
+                  busy={busy}
+                  onContinue={acknowledgeTenMinuteCheckpoint}
+                  onFinish={() => void openEndSessionCompletionModal()}
+                />
+              )}
+              {latestNextAction && !activeSession && (
+                <aside className="daily-habit-next-action" aria-label="지난 세션 이어가기 안내">
+                  <span className="daily-habit-next-action-cue" aria-hidden="true">
+                    <ArrowUp size={18} />
+                  </span>
+                  <div>
+                    <span>지난 세션에서 이어하기</span>
+                    <strong>{latestNextAction}</strong>
+                    <small>위 시작 버튼을 누르면 오늘 할 일 선택에 바로 이어져요.</small>
+                  </div>
+                </aside>
+              )}
+              <section className="weekly-habit-rhythm" aria-labelledby="weekly-habit-title">
+                <div className="weekly-habit-heading">
+                  <div>
+                    <p className="eyebrow"><Footprints size={16} aria-hidden="true" /> last 7 days</p>
+                    <h4 id="weekly-habit-title">최근 7일 숲길</h4>
+                  </div>
+                  <span>{weeklyHabitRhythm.rangeLabel}</span>
+                </div>
+                <div className={`weekly-habit-target ${weeklyHabitRhythm.target.targetReached ? "completed" : ""} ${weeklyHabitRhythm.isGentleRestart ? "restart" : ""}`.trim()}>
+                  <div className="weekly-habit-target-copy">
+                    <p><Target size={15} aria-hidden="true" /> flexible goal</p>
+                    {weeklyHabitRhythm.isGentleRestart && (
+                      <span className="weekly-habit-restart-cue">
+                        <RefreshCw size={13} aria-hidden="true" /> 다시 잇는 날
+                      </span>
+                    )}
+                    <strong>
+                      {weeklyHabitRhythm.target.targetReached
+                        ? "5번 시작 목표 완료"
+                        : `5번 시작까지 ${weeklyHabitRhythm.target.remainingTargetDays}번`}
+                    </strong>
+                    <small>
+                      {weeklyHabitRhythm.isGentleRestart
+                        ? "쉬었던 하루는 실패가 아니에요. 오늘 10분으로 다시 이어가요."
+                        : "최근 7일에서 이틀은 쉬어도 괜찮아요."}
+                    </small>
+                  </div>
+                  <div
+                    className="weekly-habit-target-seeds"
+                    role="progressbar"
+                    aria-label="최근 7일 5번 시작 목표"
+                    aria-valuemin={0}
+                    aria-valuemax={weeklyHabitRhythm.target.targetDays}
+                    aria-valuenow={weeklyHabitRhythm.target.creditedStartDays}
+                    aria-valuetext={`${weeklyHabitRhythm.target.creditedStartDays}번 완료, ${weeklyHabitRhythm.target.remainingTargetDays}번 남음`}
+                  >
+                    {Array.from({ length: weeklyHabitRhythm.target.targetDays }, (_, index) => (
+                      <span
+                        className={index < weeklyHabitRhythm.target.creditedStartDays ? "completed" : ""}
+                        key={index}
+                        aria-hidden="true"
+                      >
+                        <Sprout size={17} />
+                      </span>
+                    ))}
+                  </div>
+                  {weeklyHabitRhythm.primaryActionLabel && !activeSession && (
+                    <p className="weekly-habit-action-note">
+                      <ArrowUp size={16} aria-hidden="true" />
+                      <span><strong>{weeklyHabitRhythm.primaryActionLabel}</strong> · 위 시작 버튼에서 준비해요.</span>
+                    </p>
+                  )}
+                </div>
+                <ol className="weekly-habit-path" aria-label="최근 7일 날짜별 공부 습관">
+                  {weeklyHabitRhythm.days.map((day) => (
+                    <li
+                      className={`weekly-habit-day weekly-habit-day-${day.stage} ${day.isToday ? "today" : ""}`.trim()}
+                      key={day.dateKey}
+                      aria-current={day.isToday ? "date" : undefined}
+                      aria-label={`${day.dateLabel} ${day.weekdayLabel}요일, ${day.stageLabel}, 공부 ${day.studyLabel}`}
+                    >
+                      <span className="weekly-habit-marker" aria-hidden="true">
+                        {day.stage === "bloom" ? (
+                          <Flower2 size={18} />
+                        ) : day.stage === "tree" ? (
+                          <TreePine size={18} />
+                        ) : day.stage === "seed" ? (
+                          <Sprout size={18} />
+                        ) : (
+                          <span className="weekly-habit-rest-dot" />
+                        )}
+                      </span>
+                      <span className="weekly-habit-day-name">{day.isToday ? "오늘" : `${day.weekdayLabel}요일`}</span>
+                      <strong>{day.dateLabel}</strong>
+                      <span className="weekly-habit-stage">{day.stageLabel}</span>
+                      <small>{day.studyLabel}</small>
+                    </li>
+                  ))}
+                </ol>
+                <div className="weekly-habit-stats" aria-label="최근 7일 습관 요약">
+                  <div>
+                    <span>7일 시작</span>
+                    <strong>{weeklyHabitRhythm.startSuccessDays}<small>/7일</small></strong>
+                  </div>
+                  <div>
+                    <span>이어온 시작</span>
+                    <strong>{weeklyHabitRhythm.currentStreakDays}<small>일</small></strong>
+                  </div>
+                  <div>
+                    <span>목표 달성</span>
+                    <strong>{weeklyHabitRhythm.goalDays}<small>일 · 꽃 {weeklyHabitRhythm.bloomDays}일</small></strong>
+                  </div>
+                </div>
+                <div className="weekly-habit-coach" role="status">
+                  <span className="weekly-habit-coach-icon" aria-hidden="true"><Sprout size={20} /></span>
+                  <span>
+                    <strong>{weeklyHabitRhythm.coach.title}</strong>
+                    <small>{weeklyHabitRhythm.coach.description}</small>
+                  </span>
+                </div>
+              </section>
+            </section>
             <section className="goal-hero-card" aria-label="대표 목표">
               {activeGoal && activeGoalProgress ? (
                 <>
@@ -4815,6 +5314,23 @@ function DashboardApp() {
           </Suspense>
         )}
 
+        {reflectionInboxSession && (
+          <Suspense fallback={<div className="modal-backdrop"><div className="todo-modal" role="status">회고 화면을 불러오는 중...</div></div>}>
+            <SessionReflectionModal
+              mode="follow-up"
+              sessionLabel={formatTodoDate(reflectionInboxSession.local_date)}
+              candidates={[]}
+              selectedTodoIds={[]}
+              draft={sessionReflectionDraft}
+              busy={reflectionInboxBusy}
+              onToggleTodo={() => undefined}
+              onDraftChange={setSessionReflectionDraft}
+              onClose={closeReflectionInbox}
+              onSubmit={() => void saveReflectionInboxEntry()}
+            />
+          </Suspense>
+        )}
+
 
         {sessionTodoModalOpen && (
           <AccessibleDialog
@@ -5122,7 +5638,7 @@ function DashboardApp() {
             className="todo-modal reminder-modal camera-required-modal"
             backdropClassName="reminder-backdrop"
             ariaLabel={"\uCE74\uBA54\uB77C \uC778\uC99D \uD544\uC694"}
-            onClose={() => setCameraSetupPrompt(null)}
+            onClose={closeCameraSetupPrompt}
           >
               <div className="todo-header">
                 <div>
@@ -5133,7 +5649,7 @@ function DashboardApp() {
                   className="modal-close"
                   type="button"
                   aria-label="카메라 인증 안내 닫기"
-                  onClick={() => setCameraSetupPrompt(null)}
+                  onClick={closeCameraSetupPrompt}
                 >
                   <X size={18} />
                 </button>
@@ -5161,7 +5677,7 @@ function DashboardApp() {
                       ? "카메라 켜고 공부 계속하기"
                       : "카메라 켜기"}
                 </button>
-                <button className="secondary" type="button" onClick={() => setCameraSetupPrompt(null)}>
+                <button className="secondary" type="button" onClick={closeCameraSetupPrompt}>
                   <X size={18} />
                   나중에
                 </button>
@@ -5465,6 +5981,9 @@ function DashboardApp() {
               userId={session.user.id}
               todayDateKey={todayDateKey}
               attendanceDays={attendanceDays}
+              sessions={studySessions}
+              timeZone={timeZone}
+              weeklyHabitTarget={weeklyHabitRhythm.target}
             />
           </Suspense>
         )}
@@ -5507,6 +6026,13 @@ function DashboardApp() {
             </div>
           </div>
 
+          {reflectionHistoryLoaded && pendingReflectionSessions.length > 0 && (
+            <ReflectionInbox
+              items={pendingReflectionSessions}
+              onOpen={openReflectionInbox}
+            />
+          )}
+
           <Suspense fallback={<div className="weekly-review-card" role="status">주간 리뷰를 불러오는 중...</div>}>
             <WeeklyReviewSection
               todayDateKey={todayDateKey}
@@ -5516,6 +6042,8 @@ function DashboardApp() {
               reflections={studySessionReflections}
               currentStudySummary={studyPeriodSummaries?.currentWeek}
               previousStudySummary={studyPeriodSummaries?.previousWeek}
+              onPlanAction={openWeeklyReviewActionPlan}
+              onOpenPlannedTodo={openWeeklyReviewPlannedTodo}
             />
           </Suspense>
 

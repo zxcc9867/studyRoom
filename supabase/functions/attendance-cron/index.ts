@@ -16,6 +16,7 @@ type DueReminder = {
   reminder_at: string;
   deadline_at: string;
   reminder_stage: "initial" | "nudge";
+  attendance_already_present: boolean;
 };
 
 type MissedAttendance = {
@@ -86,6 +87,11 @@ Deno.serve(async (request) => {
   });
 
   const now = new Date().toISOString();
+  const { data: expiredSessions, error: expiredSessionError } = await admin.rpc("close_expired_study_sessions", { p_now: now });
+  if (expiredSessionError) {
+    return new Response(JSON.stringify({ error: expiredSessionError.message }), { status: 500, headers: jsonHeaders });
+  }
+
   const { data: dueReminders, error: dueError } = await admin.rpc("get_due_reminders", { p_now: now });
   if (dueError) {
     return new Response(JSON.stringify({ error: dueError.message }), { status: 500, headers: jsonHeaders });
@@ -134,6 +140,7 @@ Deno.serve(async (request) => {
       missedCount: missed?.length ?? 0,
       scheduleReminderCount: scheduleReminders.length,
       sessionLeaseWarningCount: sessionLeaseWarnings.length,
+      expiredSessionCount: expiredSessions?.length ?? 0,
       deliveryResults,
       scheduleReminderResults,
       sessionLeaseWarningResults,
@@ -440,6 +447,7 @@ async function sendExpoPush(to: string, reminder: DueReminder, todos: StudyTodo[
         localDate: reminder.local_date,
         deadlineAt: reminder.deadline_at,
         reminderStage: reminder.reminder_stage,
+        attendanceAlreadyPresent: reminder.attendance_already_present,
       },
     }),
   });
@@ -456,6 +464,7 @@ async function sendEmail(to: string | null, reminder: DueReminder, todos: StudyT
 
   const apiKey = requiredEnv("RESEND_API_KEY");
   const from = Deno.env.get("RESEND_FROM_EMAIL") ?? "Study Room <onboarding@resend.dev>";
+  const bodyHtml = escapeHtml(buildReminderBody(reminder, todos)).replace(/\n/g, "<br />");
   const response = await fetch("https://api.resend.com/emails", {
     method: "POST",
     headers: {
@@ -466,7 +475,7 @@ async function sendEmail(to: string | null, reminder: DueReminder, todos: StudyT
       from,
       to,
       subject: buildReminderTitle(reminder),
-      html: `<p>Open the study room app and start your timer now.</p><p>Check-in deadline: ${reminder.deadline_at}</p><p>If you miss the check-in window, completing today's ${getDailyAttendanceGoalLabel(reminder.local_date)} study goal will still count as present.</p>${formatTodoHtml(todos)}`,
+      html: `<p>${bodyHtml}</p>`,
     }),
   });
 
@@ -490,6 +499,7 @@ async function sendWebPush(subscription: Record<string, unknown>, reminder: DueR
       localDate: reminder.local_date,
       deadlineAt: reminder.deadline_at,
       reminderStage: reminder.reminder_stage,
+      attendanceAlreadyPresent: reminder.attendance_already_present,
       todos: todos.map((todo) => ({ title: formatTodoWithSchedule(todo), isCompleted: todo.is_completed })),
     }),
   );
@@ -604,13 +614,23 @@ function getReminderTodoKey(userId: string, localDate: string) {
 }
 
 function buildReminderTitle(reminder: DueReminder) {
+  if (reminder.attendance_already_present) {
+    return "Study room attendance already complete";
+  }
   return reminder.reminder_stage === "nudge" ? "Study room final nudge" : "Study room check-in time";
 }
 
 function buildReminderBody(reminder: DueReminder, todos: StudyTodo[], options: { maxTodos?: number } = {}) {
   const goalLabel = getDailyAttendanceGoalLabel(reminder.local_date);
   const lines =
-    reminder.reminder_stage === "nudge"
+    reminder.attendance_already_present
+      ? [
+          "Study-room reminder time.",
+          "Today's attendance is already complete.",
+          "This configured-time reminder is still being sent as requested.",
+          "You will not be marked missed if you do not start another session after this reminder.",
+        ]
+      : reminder.reminder_stage === "nudge"
       ? [
           "Final study-room nudge.",
           "15 minutes have passed since the first alarm.",
@@ -630,6 +650,25 @@ function buildReminderBody(reminder: DueReminder, todos: StudyTodo[], options: {
 }
 
 function buildSlackReminderMessage(reminder: DueReminder, todos: StudyTodo[], appUrl: string) {
+  if (reminder.attendance_already_present) {
+    return [
+      "*✅ 오늘 출석 완료 · 독서실 알림*",
+      "",
+      "🌿 출석 상태",
+      "• 오늘 출석은 이미 완료됐어요.",
+      "• 설정한 시간 알림은 출석 여부와 관계없이 약속대로 보내드렸어요.",
+      "• 지금 다시 공부를 시작하지 않아도 결석 처리되지 않아요.",
+      "",
+      formatSlackTodoSection(todos, 5),
+      "",
+      "🎯 지금 할 일",
+      "• 더 공부하려면 앱을 열고 [입장하고 시작]을 눌러주세요.",
+      "",
+      "🔗 앱 열기",
+      appUrl,
+    ].join("\n");
+  }
+
   const isNudge = reminder.reminder_stage === "nudge";
   const title = isNudge ? "🚨 독서실 마지막 재촉 알림" : "📚 독서실 입장 알림";
   const goalLabel = getDailyAttendanceGoalLabel(reminder.local_date);
@@ -665,7 +704,7 @@ function buildSlackSessionLeaseWarningMessage(warning: DueSessionLeaseWarning, a
     "",
     `세션 유지 시간이 ${formatDateTime(warning.lease_expires_at)}에 만료됩니다.`,
     "계속 공부 중이면 아래 버튼으로 연장하세요. 연장 후 남은 시간은 최대 2시간입니다.",
-    "연장하지 않으면 앱이 열려 있을 때 세션이 자동 종료되고, 이후 시간은 공부 시간에서 제외됩니다.",
+    "연장하지 않으면 서버가 만료 시각에 세션을 자동 종료합니다. 이후 시간은 공부 시간에서 제외됩니다.",
     "",
     "🔗 앱 열기",
     appUrl,

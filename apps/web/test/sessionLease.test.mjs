@@ -133,3 +133,13 @@ test("parses only finite positive lease deadlines", () => {
   assert.equal(parseSessionLeaseDeadlineMs("-1"), null);
   assert.equal(parseSessionLeaseDeadlineMs("12345"), 12345);
 });
+
+test("web lease auto-end leaves persisted elapsed-time capping to the server", () => {
+  const appSource = readFileSync("apps/web/src/main.tsx", "utf8");
+
+  assert.match(
+    appSource,
+    /void endTimer\(\{\s*excludedSeconds: getActiveCameraExcludedSeconds\(\),[\s\S]{0,200}sessionLeaseAutoEndInFlightRef\.current = false/,
+  );
+  assert.doesNotMatch(appSource, /getSessionLeaseExcludedSeconds/);
+});

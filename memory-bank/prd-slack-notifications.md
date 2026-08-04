@@ -1,5 +1,13 @@
 # PRD: Slack Bot Notifications
 
+## 2026-07-22 Update: Already-Present Scheduled Reminder
+
+- The configured-time initial Slack reminder must be sent once even when attendance is already `present`.
+- An already-present reminder must say `오늘 출석은 이미 완료됐어요` and must not show a check-in deadline or missed-attendance warning.
+- Already-present days do not receive the 15-minute nudge and are never downgraded to `missed`.
+- Pending days keep the existing initial, 15-minute nudge, and 30-minute missed flow.
+- The earlier `출석 마감` section requirement applies only to pending initial and nudge reminders; already-present reminders use an `출석 상태` section.
+
 ## 2026-07-05 Update: Notification Diagnostics and Deploy Build Gate
 
 - Settings must show a concise notification diagnostics card for browser push status, saved Slack Channel ID status, the latest notification delivery result, and legacy-channel context.

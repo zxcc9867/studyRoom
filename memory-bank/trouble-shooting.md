@@ -3308,3 +3308,743 @@ The project match to this app is not fully established, and the user did not exp
 - Supabase migration `20260719140751_add_study_session_breaks`를 정상 적용했다.
 - 컬럼·제약·함수 보안 속성·권한 행렬과 데이터 위반 0건을 확인했다.
 - 이번 migration으로 추가된 Advisor 오류는 없었다.
+
+## 2026-07-20 - Supabase 리소스 포화로 인증 요청 타임아웃
+
+### 상황
+
+운영 URL 접속 시 앱이 `로그인 상태 확인 중`에 머물렀고, 이후 브라우저에는 `upstream request timeout`이 표시됐다. Supabase 대시보드에는 프로젝트가 여러 리소스를 소진하고 있다는 경고가 노출됐다. 잠시 후 별도 코드 변경 없이 정상화됐다.
+
+### 에러 메시지
+
+```txt
+504: Processing this request timed out, please retry after a moment.
+error finding refresh token: failed to connect to host=localhost user=supabase_auth_admin database=postgres
+Post https://oauth2.googleapis.com/token: context deadline exceeded
+```
+
+### 원인
+
+운영 프로젝트 `bqohkdzvxbrokkmuhysx`의 Supabase Auth가 내부 Postgres 연결을 제시간에 확보하지 못해 세션 복원용 `/token`과 OAuth `/authorize`, `/callback` 요청이 504로 실패했다. 앱은 초기 `getSession()` 응답을 기다리므로 사용자 화면에서는 로그인 확인 단계가 멈춘 것처럼 보였다.
+
+누적 통계상 매분 실행되는 `attendance-cron`의 `pg_cron`/`pg_net` 경로가 주요 상시 부하였다. `cron.job_run_details`는 실제 행이 정리된 뒤에도 163 MB, `net._http_response`는 78 MB의 할당 크기를 유지했고, `net._http_response` 정리 쿼리는 153,505회·누적 약 82,488초로 가장 비싼 쿼리였다. 따라서 직접 원인은 Supabase 컴퓨트/DB의 일시적 포화이고, 매분 cron 및 pg_net 이력 테이블 팽창은 가장 유력한 기여 요인이다. 당시 Supabase 리소스 그래프의 원시 수치가 보존되지 않아 CPU·메모리·I/O 중 단일 항목 하나로는 확정하지 않는다.
+
+### 해결 방법
+
+Supabase가 회복된 뒤 프로젝트 상태는 `ACTIVE_HEALTHY`로 돌아왔고, 같은 날 12:41 UTC와 13:39 UTC의 refresh-token 요청이 HTTP 200으로 성공했다. 이번 진단에서는 DB·코드·스케줄 설정을 변경하지 않았다.
+
+### 관련 파일
+
+- `apps/web/src/main.tsx`
+- `apps/web/src/supabase.ts`
+- `supabase/cron.sql`
+
+### 재발 방지
+
+- `attendance-cron`의 매분 실행 필요성을 유지하더라도 빈 작업에서 Edge Function과 DB 조회를 최소화한다.
+- `cron.job_run_details`와 `net._http_response`의 보존·정리 정책 및 물리적 팽창을 점검한다.
+- 재발 시 Supabase Auth 로그의 `/token` 504와 내부 Postgres 연결 실패, 프로젝트 CPU·메모리·Disk I/O·연결 수 그래프를 같은 시간대로 비교한다.
+- 앱 초기 인증에는 제한 시간과 재시도 안내를 두어 백엔드 장애가 무한 로딩으로 보이지 않게 한다.
+
+## 2026-07-20 - 로컬 습관 카드 브라우저 검증 런타임 누락
+
+### 상황
+
+데스크톱·모바일 폭의 실제 CSS overflow를 확인하려고 `webapp-testing`의 서버 helper와 Playwright 스크립트를 실행했다.
+
+### 에러 메시지
+
+```txt
+ModuleNotFoundError: No module named 'playwright'
+Error: Cannot find module 'playwright-core'
+browserType.launch: Executable doesn't exist at ...chromium_headless_shell...
+```
+
+### 원인
+
+시스템 Python에는 Playwright가 없었고, 번들 Node의 `playwright`와 `playwright-core`는 pnpm 가상 경로에 나뉘어 있었다. 번들 Playwright 전용 Chromium 바이너리도 설치되어 있지 않았다.
+
+### 해결 방법
+
+새 패키지나 브라우저를 다운로드하지 않았다. 번들 Node의 일반 `node_modules`와 `.pnpm/node_modules`를 모듈 경로에 포함하고, 이미 설치된 Google Chrome을 Playwright `executablePath`로 사용했다. 실제 앱 stylesheet와 카드 markup을 렌더링해 1440px·390px 모두 overflow 없음과 반응형 열 전환을 확인한 뒤 임시 스크립트와 이미지를 삭제했다.
+
+### 관련 파일
+
+- `apps/web/src/styles.css`
+- `apps/web/src/main.tsx`
+- `apps/web/test/dailyHabit.test.mjs`
+
+### 재발 방지
+
+Windows 로컬 시각 검증에서는 먼저 시스템 Chrome 경로와 번들 Node의 pnpm 모듈 경로를 확인한다. 전용 Playwright 브라우저가 없다는 이유만으로 프로젝트 의존성을 추가하거나 브라우저를 다운로드하지 않는다.
+
+## 2026-07-20 - 주간 습관 경계 테스트와 로컬 시각 검증 포트 불일치
+
+### 상황
+
+최근 7일 집계의 첫 경계 테스트와 Chrome 시각 검증을 실행하는 과정에서 각각 기대값 실패와 임시 페이지 선택자 누락이 발생했다.
+
+### 에러 메시지
+
+```txt
+Expected { 2026-07-13: 2700, 2026-07-14: 2700 }
+Actual   { 2026-07-13: 1350, 2026-07-14: 4050 }
+Expected stages [seed, tree, bloom]
+Actual stages   [seed, seed, bloom]
+page.evaluate: Cannot read properties of null (reading 'scrollWidth')
+page.goto: net::ERR_EMPTY_RESPONSE
+```
+
+### 원인
+
+서울 자정 테스트 입력이 현지 23:30~01:30이라 실제 겹침은 30분/90분이었고, 토요일 세션은 평일 2시간이 아니라 주말 4시간 목표를 적용해야 했다. 시각 검증의 첫 포트 `4177`에는 기존 Vite 서버가 떠 있어 임시 HTML 대신 앱 index fallback을 반환했다. 다음 임시 포트에서는 서버 시작 직후 한 번 빈 응답이 발생했다. 카드 자체의 큰 `scrollWidth`는 기존 오른쪽 위 장식 원을 `overflow: hidden`으로 자르는 구조였으며 실제 콘텐츠 넘침은 아니었다.
+
+### 해결 방법
+
+- 자정 테스트를 현지 23:00~01:00으로 수정하고 제외 시간 비례 기대값을 각 2,700초로 유지했다.
+- 토요일 목표 테스트를 4시간으로 수정했다.
+- 비어 있는 포트 `43178`에서 검증을 재실행하고 실제 문서·주간 리듬·숲길·요약·코칭·날짜 카드의 overflow를 각각 측정했다.
+- 데스크톱 7열/3열과 모바일 2열/1열을 실제 computed style로 확인하고 스크린샷도 시각 검사했다.
+
+### 관련 파일
+
+- `apps/web/src/weeklyHabit.mjs`
+- `apps/web/src/styles.css`
+- `apps/web/test/weeklyHabit.test.mjs`
+
+### 재발 방지
+
+시간대 테스트는 UTC 시각을 쓰기 전에 현지 시각과 날짜별 실제 겹침을 명시한다. 주말 경계 테스트는 일일 목표 helper 결과를 기준으로 기대값을 만든다. 로컬 시각 검증은 고정 포트가 이미 사용 중인지 확인하고, 장식 pseudo-element의 scroll 영역과 실제 콘텐츠 overflow를 분리해 측정한다.
+
+## 2026-07-20 - 5/7 CTA source contract 소유 모듈 불일치
+
+### 상황
+
+5/7 목표의 행동 라벨과 화면 연결을 고정하는 source-contract 테스트를 처음 실행했을 때, CTA 문자열을 잘못된 소스 파일에서 찾았다.
+
+### 에러 메시지
+
+```txt
+AssertionError: input did not match /10분 시작 준비/
+```
+
+### 원인
+
+`10분 시작 준비`와 `오늘 목표 이어가기` 라벨은 React 화면에 중복 하드코딩하지 않고 `weeklyHabit.mjs`의 `primaryActionLabel` 계산이 소유한다. 테스트가 `main.tsx`만 읽어 문자열 자체를 요구해 올바른 모듈 경계를 실패로 오인했다.
+
+### 해결 방법
+
+테스트가 `weeklyHabit.mjs`에서 행동 라벨 계약을 확인하고, `main.tsx`에서는 `primaryActionLabel`, 기존 `startTimer()` 경로, 활성 세션 비활성화 연결만 확인하도록 책임을 나눴다. 수정 후 집중 테스트 8개와 전체 테스트 291개가 통과했다.
+
+### 관련 파일
+
+- `apps/web/src/weeklyHabit.mjs`
+- `apps/web/src/main.tsx`
+- `apps/web/test/weeklyHabit.test.mjs`
+
+### 재발 방지
+
+source-contract 테스트는 문자열과 계산을 실제로 소유한 모듈에서 검증하고, 소비 컴포넌트에는 연결 계약만 요구한다. 테스트 통과를 위해 동일한 사용자 문구를 여러 파일에 중복하지 않는다.
+
+## 2026-07-20 - 주간 숲 보상 다중 파일 패치 문맥 불일치
+
+### 상황
+
+화환 helper·테스트·Three.js·CSS를 기존 미커밋 습관 변경 위에 적용하기 전에 다중 파일 patch를 검사했다.
+
+### 에러 메시지
+
+```txt
+patch failed: apps/web/test/weeklyHabit.test.mjs
+patch failed: apps/web/src/styles.css
+```
+
+### 원인
+
+테스트는 예상했던 inline session fixture 대신 기존 `completedSession()` helper를 사용하고 있었고, 모바일 CSS hunk는 `forest-level-roadmap`과 힌트 사이의 실제 문맥보다 앞선 줄을 기준으로 작성돼 있었다. 제품 코드나 테스트 동작 실패가 아니라 현재 작업 트리와 patch context의 불일치였다.
+
+### 해결 방법
+
+일치하는 helper·타입·React·Three.js 변경만 먼저 분리 검사·적용했다. 테스트와 CSS는 실제 현재 줄을 다시 읽고 작은 patch로 나눠 `git apply --check --recount` 통과 후 적용했다. 이후 집중 테스트 37개와 production build가 통과했다.
+
+### 관련 파일
+
+- `apps/web/test/weeklyHabit.test.mjs`
+- `apps/web/src/styles.css`
+
+### 재발 방지
+
+미커밋 기능 위에 다중 파일 patch를 적용할 때는 각 파일의 실제 fixture와 breakpoint 문맥을 먼저 확인하고, 실패한 hunk만 분리해 다시 검사한다. 검사 실패 뒤 같은 patch를 강제로 적용하지 않는다.
+
+## 2026-07-21 - 번들 Playwright 경로와 임시 route 삽입 위치 오류
+
+### 상황
+
+주간 숲 보상을 실제 Chrome에서 재검증하기 위해 임시 하네스를 실행했으나, 첫 실행은 번들 Playwright 의존성 해석에 실패했고 외부 요청을 격리하는 route를 추가한 첫 patch는 잘못된 콜백 안에 삽입됐다.
+
+### 에러 메시지
+
+```txt
+Error: Cannot find module 'playwright-core'
+SyntaxError: await is only valid in async functions and the top level bodies of modules
+```
+
+### 원인
+
+Codex 번들 Node의 최상위 `node_modules/playwright` 링크에서는 같은 높이의 `playwright-core`를 해석하지 못했지만, pnpm 저장소의 `playwright@1.61.1` 패키지와 연결된 `playwright-core`는 정상적으로 존재했다. 두 번째 오류는 줄 번호만 기준으로 만든 임시 patch가 `page.route()`를 `page.on("console")` 콜백 내부에 삽입해 발생했다. 두 오류 모두 제품 코드와 무관한 검증 하네스 문제였다.
+
+### 해결 방법
+
+- pnpm 저장소의 실제 `playwright@1.61.1/node_modules/playwright` 경로를 사용했다.
+- 임시 스크립트를 줄 번호와 함께 다시 읽고 `page.route()`를 async IIFE 안, 콘솔 리스너 앞에 배치했다.
+- 가짜 사용자 선호 조회와 favicon 요청을 하네스에서 격리한 뒤 실제 Chrome 1440px·390px 검증을 다시 수행했다.
+- 최종 실행에서 WebGL·레이아웃·5/5 화환 상태가 정상이고 `consoleErrors`와 `pageErrors`가 모두 0건임을 확인했다.
+
+### 관련 파일
+
+- 검증용 `.codex-*` 임시 파일만 사용했으며 제품 파일 변경은 없다.
+- `memory-bank/trouble-shooting.md`
+
+### 재발 방지
+
+번들 패키지를 직접 사용할 때는 최상위 링크가 아니라 실제 pnpm 패키지의 의존성 연결 상태를 먼저 확인한다. 임시 source patch도 적용 후 줄 번호를 다시 읽거나 `node --check`를 수행한 뒤 브라우저를 실행한다.
+
+## 2026-07-21 - 10분 체크포인트 RED 계약과 장식 scrollWidth 오인
+
+### 상황
+
+체크포인트 테스트를 먼저 고정한 뒤 구현 전 RED 상태를 확인했고, 첫 브라우저 측정에서는 카드가 화면 안에 보이지만 `scrollWidth` 기준 overflow가 false로 보고됐다.
+
+### 에러 메시지
+
+```txt
+SyntaxError: The requested module '../src/dailyHabit.mjs' does not provide an export named 'getTenMinuteCheckpointState'
+cardFits: false
+checkpointFits: false
+```
+
+### 원인
+
+첫 오류는 helper 구현 전 테스트 계약을 실행한 의도된 RED 단계였다. 브라우저 false 값은 `.daily-habit-card::after`와 `.ten-minute-checkpoint::after`의 잘려 보이는 장식 원이 내부 scroll 영역에는 포함되지만, 부모의 `overflow: hidden`으로 실제 문서나 사용자 콘텐츠를 넘지 않기 때문이었다.
+
+### 해결 방법
+
+- 기존 `DAILY_HABIT_SEED_SECONDS`를 재사용하는 helper와 타입 선언을 구현해 집중 테스트 6개를 통과시켰다.
+- 문서 전체 overflow는 `documentElement`로 유지하고, 카드·체크포인트는 pseudo-element가 아닌 실제 자식 요소의 bounding rect를 컨테이너 경계와 비교했다.
+- 데스크톱 완료, 모바일 진행·완료 상태를 다시 측정해 실제 콘텐츠 overflow 없음과 콘솔·페이지 오류 0건을 확인했다.
+
+### 관련 파일
+
+- `apps/web/src/dailyHabit.mjs`
+- `apps/web/src/TenMinuteCheckpoint.tsx`
+- `apps/web/src/styles.css`
+- `apps/web/test/tenMinuteCheckpoint.test.mjs`
+
+### 재발 방지
+
+TDD의 의도된 RED 실패도 최종 기록에서 구현 오류와 구분한다. 장식 pseudo-element를 자르는 컴포넌트는 raw `scrollWidth`만으로 overflow를 판정하지 말고 문서 overflow와 실제 콘텐츠 bounding box를 함께 측정한다.
+
+## 2026-07-21 - 복귀 약속 RED와 due 카드 버튼 조작 불안정
+
+### 상황
+
+휴식 복귀 약속 helper를 테스트 우선으로 추가했고, 실제 Chrome에서 약속 도달 상태의 관리 버튼을 눌러 반응형 상호작용을 검증했다.
+
+### 에러 메시지
+
+```txt
+SyntaxError: The requested module '../src/sessionBreak.mjs' does not provide an export named 'BREAK_RETURN_PRESET_MINUTES'
+locator.click: Timeout 5000ms exceeded.
+element is not stable
+mobile planWidth: 824
+```
+
+### 원인
+
+첫 오류는 구현 전 helper 계약을 확인한 의도된 TDD RED였다. 실제 제품 문제는 due 상태가 카드 전체에 `translateY` 반복 애니메이션을 적용해 내부 버튼의 위치가 계속 변한 것이었다. 마지막 폭 값은 Playwright 하네스가 `browser.newPage()`에 지원되지 않는 `viewportSize`를 전달해 기본 viewport를 사용한 검증 오류였다. 첫 하네스 실패 때 `catch`에서 브라우저를 닫지 않아 프로세스가 남은 문제도 있었다.
+
+### 해결 방법
+
+- deadline·연장·예정/도달·lease·storage helper와 타입을 구현해 집중 테스트를 GREEN으로 전환했다.
+- due 상태는 카드 위치를 움직이지 않고 border·box-shadow만 강조하도록 바꿨다.
+- 하네스에 5초 selector timeout과 실패 시 browser close를 추가했다.
+- `viewport` 옵션으로 실제 390px을 적용하고 favicon 요청을 격리했다.
+- 클릭 뒤 due 페이지를 다시 불러와 약속 지우기 상호작용과 due 레이아웃을 모두 같은 시나리오에서 검증했다.
+
+### 관련 파일
+
+- `apps/web/src/sessionBreak.mjs`
+- `apps/web/src/BreakReturnPlan.tsx`
+- `apps/web/src/styles.css`
+- `apps/web/test/breakReturnPlan.test.mjs`
+
+### 재발 방지
+
+상호작용 요소를 포함한 반복 애니메이션은 컨테이너 위치를 이동하지 말고 색·그림자처럼 hit target을 고정하는 속성을 사용한다. Playwright viewport는 `browser.newPage({ viewport })`로 설정하고 측정값이 요청 폭과 일치하는지 확인한다. 임시 브라우저 하네스도 실패 경로에서 브라우저와 서버를 반드시 닫는다.
+
+## 2026-07-21 - 주간 리셋 검증 서버와 DOM 역할 선택자 오류
+
+### 상황
+
+주간 리셋 UI를 실제 Chrome에서 검증하기 위해 임시 Vite 서버와 Playwright 하네스를 실행했다. 처음 두 서버 관리 실행은 포트를 열지 못했고, 서버를 직접 연 뒤 첫 브라우저 시나리오는 화면이 정상인데도 대기 시간 초과가 발생했다.
+
+### 에러 메시지
+
+```txt
+npm error Missing script: "dev"
+RuntimeError: Server failed to start on port 4179 within 40s
+locator.waitFor: Timeout 30000ms exceeded.
+waiting for getByRole('heading', { name: '다음 공부로 이어가기' })
+ModuleNotFoundError: No module named 'playwright'
+```
+
+### 원인
+
+루트 `package.json`에는 `dev`가 없고 웹 워크스페이스에만 개발 서버 script가 있었다. 렌더링된 `다음 공부로 이어가기`는 `strong`이라 heading 역할이 아니었지만 하네스가 heading으로 조회했다. 시스템 Python에는 Playwright 모듈이 설치되지 않았다. 모두 제품 코드가 아닌 검증 하네스 문제였다.
+
+### 해결 방법
+
+- `npm.cmd --workspace apps/web run dev -- --host 127.0.0.1 --port 4179`로 웹 워크스페이스 서버를 실행했다.
+- 접근 가능한 실제 요소 `#weekly-action-plan-title`을 대기 선택자로 사용했다.
+- 이미 검증된 Codex 번들 pnpm Playwright와 시스템 Chrome을 사용하고 favicon 요청은 204로 격리했다.
+- 데스크톱·모바일 작성/편집 상호작용, 제목 prefill, 날짜 문구, 문서·카드·버튼 bounds, 콘솔·페이지 오류를 다시 확인했다.
+- 검증 후 명령줄을 확인한 Vite node 프로세스만 종료하고 포트 4179가 닫혔음을 확인했다.
+
+### 관련 파일
+
+- `apps/web/src/WeeklyReviewSection.tsx`
+- `apps/web/src/styles.css`
+- 임시 `.codex-weekly-reset-*` 검증 파일
+
+### 재발 방지
+
+모노레포의 개발 서버는 루트 script 존재 여부를 먼저 확인하고 올바른 workspace 명령을 사용한다. Playwright 선택자는 시각적 의미가 아니라 실제 DOM 역할을 기준으로 잡고, 선택자 실패 시 timeout을 늘리기 전에 page text와 console/pageerror를 먼저 수집한다.
+
+### 후속 접근성 개선
+
+브라우저 검증에서 드러난 시각적 소제목과 DOM 역할의 차이는 제품 코드에도 반영했다. 주간 리셋 컨테이너를 이름 있는 `section`, 제목을 실제 `h4`로 바꿔 시각적 의미와 문서 구조를 일치시켰다.
+
+## 2026-07-21 - 단일 CTA 패치 헤더와 스크린샷 ACL 오류
+
+### 상황
+
+Windows ACL 때문에 기존 TSX·CSS 파일을 `apply_patch`가 직접 읽지 못해 임시 Git 인덱스 패턴을 사용했다. 첫 임시 patch 형식과 브라우저 스크린샷 직접 열기에서 검증 도구 오류가 발생했다.
+
+### 에러 메시지
+
+```txt
+error: patch with only garbage at line 4
+error: patch failed: apps/web/src/main.tsx:4446
+windows sandbox failed: helper_unknown_error: apply deny-read ACLs
+image content omitted because it could not be processed
+```
+
+### 원인
+
+첫 patch가 줄 범위 없는 bare `@@` hunk를 사용해 unified diff로 해석되지 않았다. 줄 번호를 추가한 뒤에는 같은 파일의 앞 hunk 추가량과 뒤 hunk의 새 줄 번호가 맞지 않아 topbar hunk가 실패했다. 생성된 PNG도 작업공간의 deny-read ACL을 상속해 `view_image`가 직접 읽지 못했다.
+
+### 해결 방법
+
+topbar hunk를 독립 patch로 분리해 적용 전 검사를 통과시킨 뒤, 나머지 hunk의 누적 줄 이동을 반영했다. 현재 사용자 변경을 임시 인덱스에 먼저 담고 검증된 patch만 적용한 뒤 `checkout-index`로 대상 파일을 복원했다. 시각 검증은 실제 Chrome에서 DOM 수, 라벨, 클릭 결과, bounding box, document overflow, console/page error를 네 상태와 두 viewport에서 측정했고 임시 파일은 제거했다.
+
+### 관련 파일
+
+- `apps/web/src/main.tsx`
+- `apps/web/src/styles.css`
+- `apps/web/test/singleStartAction.test.mjs`
+
+### 재발 방지
+
+ACL 우회 patch에도 항상 유효한 `@@ -old,count +new,count @@` 헤더를 사용한다. 같은 파일의 여러 hunk가 줄을 추가·삭제하면 새 줄 번호의 누적 이동을 계산하거나 독립 patch로 분리한다. 스크린샷 직접 열기가 막히더라도 실제 브라우저의 요소 수·bounds·오류 측정을 최종 검증 근거로 남긴다.
+
+## 2026-07-21 - 활성 세션 안내 브라우저 하네스 런타임·overflow 오판
+
+### 상황
+
+활성·휴식 세션에서 시작 전용 안내가 숨겨지는지 production build를 실제 브라우저로 검증했다. 첫 Python 실행과 첫 직접 Playwright 실행이 하네스 환경 차이로 중단됐고, 카드 내부 `scrollWidth` 측정이 장식 요소를 콘텐츠 overflow로 오인했다.
+
+### 에러 메시지
+
+```txt
+ModuleNotFoundError: No module named 'playwright'
+ReferenceError: URL is not defined
+overflow: {"document":0,"body":0,"topbar":0,"habit":38}
+```
+
+### 원인
+
+시스템 Python에는 Playwright 모듈이 없었다. Codex Playwright 실행기의 route callback 환경에는 Node 전역 `URL` 생성자가 노출되지 않았다. 마지막 38px은 `.daily-habit-card::after`가 `right: -38px`로 배치된 장식 원 때문에 생긴 `scrollWidth`였으며, 카드는 `overflow: hidden`이고 실제 DOM 자식·document·body는 경계를 넘지 않았다. 서버 helper 종료 뒤 Vite 자식 프로세스가 잠시 4173 포트를 계속 listen한 문제도 제품 코드와 무관한 정리 이슈였다.
+
+### 해결 방법
+
+- 설치되지 않은 시스템 Python 대신 제공된 Playwright 브라우저를 사용했다.
+- route URL은 `split('.supabase.co')` 문자열 파싱으로 처리했다.
+- overflow는 숨겨진 pseudo-element의 `scrollWidth`가 아니라 document/body 폭과 모든 실제 카드 자식의 bounding rect로 검증했다.
+- 1440×900·390×844에서 active·paused 네 조합을 다시 실행해 Pause·Resume 라벨, 시작 안내 0개, 휴식 카드, 종료 버튼, 콘텐츠 bounds, 콘솔·페이지 오류를 확인했다.
+- 모든 Supabase 요청을 route로 스텁해 운영 쓰기를 차단했다.
+- 4173 listener의 명령줄이 현재 workspace의 `vite preview --port 4173`인지 확인한 뒤 해당 PID만 종료하고 listen 0건을 확인했다.
+
+### 관련 파일
+
+- `apps/web/src/main.tsx`
+- `apps/web/src/styles.css`
+- `apps/web/test/studyStartGuidance.test.mjs`
+- 임시 `.codex-active-session-verify.py` 하네스
+
+### 재발 방지
+
+브라우저 런타임은 사용 전 모듈 가용성을 확인하고, 제공된 Playwright 연결이 있으면 별도 설치 없이 사용한다. route callback에서는 런타임 전역을 가정하지 않는다. `overflow: hidden` 컨테이너의 pseudo-element가 있는 경우 `scrollWidth` 하나로 실패시키지 말고 실제 DOM 자식 bounds와 document overflow를 함께 측정한다. 서버 helper가 끝난 뒤에는 listen 포트와 명령줄을 확인해 자신의 Vite 자식 프로세스만 정리한다.
+
+## 2026-07-21 - Auth 초기화 복구 TDD와 Windows 패치·브라우저 하네스 오류
+
+### 상황
+
+Supabase Auth 지연 시 무한 로딩을 제거하는 테스트 우선 구현, ACL 제약 아래 문서 적용, 실제 Chrome timeout 검증을 순서대로 수행했다.
+
+### 에러 메시지
+
+```txt
+ERR_MODULE_NOT_FOUND: apps/web/src/authInitialization.mjs
+AssertionError: input did not match /runAuthInitializationWithTimeout/
+error: can't open patch 'C:/jini-dev/project/study-room-attendance/.codex-auth-ui.patch': No such file or directory
+apply_patch direct add did not yield and was terminated
+ReferenceError: Buffer is not defined
+```
+
+### 원인
+
+- 첫 두 오류는 helper와 React 연결 전에 테스트 계약을 실행한 의도된 TDD RED였다.
+- 임시 patch는 도구의 실제 작업 기준인 `C:\jini-dev`에 생성됐지만 첫 Git 명령은 프로젝트 루트에 있다고 가정했다.
+- deny-read ACL이 적용된 프로젝트 하위에 새 PRD를 직접 추가하는 `apply_patch`가 응답 없이 멈췄다.
+- 제공된 Playwright 실행기의 route 환경은 Node 전역 `Buffer`를 노출하지 않았다.
+- 재확인 검증에서 나타난 HTTP 400 콘솔 오류는 잠겨 있던 가짜 refresh 요청을 의도적으로 해제한 테스트 응답이며 제품 page error는 아니었다.
+
+### 해결 방법
+
+- 순수 12초 timeout helper와 타입 선언을 만든 뒤 React 초기화·복구 UI source contract를 GREEN으로 전환했다.
+- 임시 patch의 절대 경로를 먼저 확인하고, 현재 사용자 변경을 별도 Git index에 담은 뒤 `git apply --cached --check` 통과본만 `checkout-index`로 반영했다.
+- 새 PRD도 직접 쓰기 대신 같은 임시 index 패턴으로 추가했다.
+- 브라우저 테스트 JWT의 base64url 값은 실제 브라우저의 `btoa`로 만들었다.
+- 모든 Supabase 요청을 route로 스텁하고, 12초 timeout·재확인·늦은 성공 Auth 이벤트를 별도 격리 컨텍스트에서 검증했다.
+- 검증 후 명령줄이 현재 workspace와 포트 4181을 가리키는 Vite listener만 종료하고 listener 0건을 확인했다.
+
+### 관련 파일
+
+- `apps/web/src/authInitialization.mjs`
+- `apps/web/src/authInitialization.d.mts`
+- `apps/web/src/main.tsx`
+- `apps/web/src/styles.css`
+- `apps/web/test/authInitialization.test.mjs`
+- `memory-bank/prd-auth-initialization-recovery.md`
+
+### 재발 방지
+
+TDD의 의도된 RED와 제품 오류를 구분해 기록한다. ACL 환경의 임시 patch는 생성 기준 경로를 먼저 확인하고 기존 파일과 새 파일 모두 검사된 임시 index에서 반영한다. Playwright route callback에서는 `URL`·`Buffer` 같은 Node 전역을 가정하지 않는다. 실패 응답을 의도적으로 주입한 시나리오는 그 콘솔 오류와 실제 page error를 분리하고, 성공 복구 시나리오는 console/page error 0건을 별도로 확인한다.
+
+## 2026-07-21 - 회고 인박스 파일명 충돌과 Playwright 격리 런타임 오류
+
+### 상황
+
+회고 인박스 UI를 연결한 뒤 첫 production build와 실제 Chromium 격리 검증을 수행했다.
+
+### 에러 메시지
+
+```txt
+src/main.tsx (143:7): "default" is not exported by "src/reflectionInbox.mjs"
+error: patch with only garbage at line 90
+ReferenceError: btoa is not defined
+ReferenceError: URL is not defined
+Unknown command: errors
+```
+
+### 원인
+
+Windows는 파일명을 대소문자로 구분하지 않아 확장자 없는 `./ReflectionInbox` import가 같은 basename의 `reflectionInbox.mjs` helper를 먼저 해석했다. 첫 ACL 우회 patch에는 줄 범위 없는 bare `@@` hunk가 있었다. Playwright CLI `run-code`의 바깥 실행 문맥에는 브라우저 전역 `btoa`와 Node/Web 전역 `URL`이 보장되지 않았다. 현재 CLI에는 별도 `errors` 명령도 없어 과거 pageerror를 그 방식으로 조회할 수 없었다. 모두 데이터나 제품 상태가 아닌 빌드 해석·검증 하네스 문제였다.
+
+### 해결 방법
+
+- UI 파일을 `ReflectionInboxCard.tsx`로 바꾸고 helper와 basename을 분리했다.
+- 모든 임시 patch hunk에 유효한 old/new 줄 범위를 추가하고 적용 전 `git apply --check`를 통과시켰다.
+- JWT base64는 `page.evaluate` 안의 브라우저 `btoa`로 만들고 route URL은 문자열 query 분리로 판별했다.
+- 모든 Supabase Auth/REST 요청을 route로 격리한 뒤 실제 Chromium에서 저장·상태 연결·모바일 bounds를 다시 확인했다.
+- pageerror listener를 등록한 상태로 페이지를 다시 로드해 uncaught error 0건을 확인하고, `console error`·`console warning`도 각각 0건임을 확인했다.
+
+### 관련 파일
+
+- `apps/web/src/ReflectionInboxCard.tsx`
+- `apps/web/src/reflectionInbox.mjs`
+- `apps/web/src/main.tsx`
+- `apps/web/test/reflectionInbox.test.mjs`
+
+### 재발 방지
+
+대소문자만 다른 동일 basename의 TSX와 MJS 파일을 함께 만들지 않는다. Windows에서 확장자 없는 import는 Vite resolver가 의도와 다른 확장자를 고를 수 있으므로 역할이 다른 모듈은 이름도 구분한다. ACL 우회 patch는 bare `@@`를 사용하지 않는다. Playwright route callback은 `URL`·`Buffer`·`btoa` 전역을 가정하지 말고 실행 문맥에 맞춰 문자열 처리 또는 `page.evaluate`를 사용한다. CLI 지원 명령은 `--help`에서 먼저 확인하고 pageerror는 재현 전에 listener를 붙인다.
+
+## 2026-07-21 - Supabase 다중 리소스 고갈과 Auth timeout 사후 분석
+
+### 상황
+
+운영 웹이 `로그인 상태 확인 중`에 머물고 Vercel에서 `upstream request timeout`을 표시한 시각에 Supabase 대시보드는 프로젝트가 여러 리소스를 소진 중이라고 경고했다. 서비스가 자연 복구된 뒤 Supabase 프로젝트 상태, 최근 Auth 로그, `pg_cron` 실행 이력, `pg_stat_statements`, 현재 연결과 큐를 읽기 전용으로 대조했다.
+
+### 에러 메시지
+
+```txt
+504: Processing this request timed out, please retry after a moment.
+failed to connect to host=localhost user=supabase_auth_admin database=postgres
+job startup timeout
+```
+
+### 원인
+
+- 직접 원인: 2026-07-20 19:14~19:26 JST 무렵 Supabase Auth가 내부 Postgres에 연결하지 못해 refresh token과 Google OAuth 요청이 10~17초 뒤 504로 종료됐다.
+- 같은 장애 구간에 매분 실행되는 `study-room-attendance-cron`도 연속으로 시작하지 못했다. 최근 24시간 집계 1,440회 중 218회가 `job startup timeout`으로 실패했고, 실패는 2026-07-20 16:00~20:59 JST에 집중됐다.
+- 가장 유력한 리소스 압박원은 매분 크론과 `pg_net` 누적 작업이다. 누적 통계에서 `net._http_response` 정리 쿼리는 154,180회, 평균 535ms, 총 약 22.9시간의 실행 시간을 사용했고, `cron.job_run_details`와 `net._http_response`는 각각 약 172MB와 83MB였다.
+- 다만 MCP가 과거 CPU·메모리·Disk I/O 시계열을 제공하지 않으므로 어느 물리 리소스가 최초 병목이었는지까지는 확정하지 않는다. RLS 재평가와 미인덱스 FK Advisor 경고는 개선 대상이지만 이 Auth 장애의 직접 원인이라는 근거는 없다.
+- 앱이 계속 멈춰 보인 2차 원인은 초기 `getSession()`에 timeout 복구 UI가 없었던 것이다.
+
+### 해결 방법
+
+- Supabase 컴퓨트가 정상화된 뒤 Auth와 크론이 다시 성공해 서비스가 자연 복구됐다.
+- 웹 Auth 초기화에는 12초 제한, 로그인 화면 복귀, 재확인 버튼, 늦은 유효 세션 복구를 추가해 같은 백엔드 지연이 무한 로딩으로 이어지지 않게 했다.
+- 이번 사후 분석은 읽기 전용으로 수행했으며 Supabase 설정·스키마·크론 주기·데이터를 변경하지 않았다.
+
+### 관련 파일
+
+- `apps/web/src/authInitialization.mjs`
+- `apps/web/src/main.tsx`
+- `memory-bank/prd-auth-initialization-recovery.md`
+- `memory-bank/trouble-shooting.md`
+
+### 재발 방지
+
+크론을 한 개의 매분 작업으로 유지하더라도 실행 중복 방지, `cron.job_run_details`·`net._http_response` 보존량, HTTP timeout, 작업별 실행 빈도를 별도 최적화한다. 재발 시 같은 시각의 Auth 5xx, 크론 `job startup timeout`, CPU·메모리·Disk I/O·connections 그래프를 함께 보존한다. 현재 Advisor의 RLS init plan과 미인덱스 FK도 사용자 데이터가 늘기 전에 별도 마이그레이션으로 검토한다.
+
+## 2026-07-21 - 주간 마찰 계획 patch 위치와 브라우저 fixture 오류
+
+### 상황
+
+Windows deny-read ACL 아래에서 주간 마찰 계획 helper·타입·JSX·CSS를 임시 Git index patch로 적용하고, 실제 Chromium의 완전 격리 fixture로 검증했다.
+
+### 에러 메시지
+
+```txt
+SyntaxError: Unexpected token 'export'
+weeklyReview.d.mts: Property or signature expected
+TimeoutError: waiting for locator('.weekly-friction-plan')
+mobile gridTemplateColumns: "99.6875px 146.312px"
+SyntaxError: Unexpected token 'const'
+JWT not in base64url format
+```
+
+### 원인
+
+- 줄 번호만 사용한 첫 patch가 helper를 `buildComparableWeeklyStudyReview()` 본문에, `frictionPlan` 속성을 변수 선언 사이에 삽입했다.
+- 선언 파일의 함수 시그니처도 `buildWeeklyActionPlanItems()` 인수 블록에 들어갔다.
+- JSX 안내가 데이터 품질 경고 `<div>` 안에 중첩되어 anomaly가 없으면 렌더링되지 않았다.
+- 모바일 `.weekly-friction-plan` 규칙이 닫히지 않은 `.adaptive-reminder-card` 안에 중첩되어 390px에서도 데스크톱 두 열을 유지했다.
+- Playwright CLI `run-code`는 함수 표현식을 요구했고, 앱은 기본 Supabase key가 아닌 사용자 지정 storage key와 `/auth/callback` 경로를 사용했다. Windows `npx.cmd`는 URL의 `&`도 명령 구분자로 해석했다.
+- 첫 fixture JWT 서명 문자열 길이가 올바른 base64url 형식이 아니었다.
+
+### 해결 방법
+
+- helper·반환 속성·타입 시그니처를 각각 올바른 최상위/반환 객체에 옮기고 focused test와 production build를 반복했다.
+- 브라우저에서 카드 부재와 모바일 두 열을 확인한 즉시, 데이터 품질 조건 밖의 JSX와 sibling CSS selector를 요구하는 회귀 테스트를 먼저 RED로 추가했다.
+- Playwright는 `--filename` 함수 파일과 CLI persistent route를 사용했다. Supabase 도메인 전체 fallback을 먼저 막고 Auth·REST·RPC fixture만 뒤에 등록했다.
+- 실제 `/auth/callback` 경로와 base64url-safe 모의 JWT를 사용했으며 최종 세션은 인증 오류 메시지 없이 reload됐다.
+- 1440px·390px 계산 스타일, card/child bounds, document overflow, button count, console/page error를 측정하고 카드 스크린샷을 시각 확인했다.
+
+### 관련 파일
+
+- `apps/web/src/weeklyReview.mjs`
+- `apps/web/src/weeklyReview.d.mts`
+- `apps/web/src/WeeklyReviewSection.tsx`
+- `apps/web/src/styles.css`
+- `apps/web/test/weeklyFrictionPlan.test.mjs`
+
+### 재발 방지
+
+ACL 우회 patch는 줄 번호만 믿지 말고 닫는 괄호·반환 객체·selector sibling 같은 구조 context를 포함한다. source contract는 단순 문자열 존재뿐 아니라 조건과 CSS selector의 독립성도 확인한다. Playwright fixture는 앱의 `storageKey`와 callback pathname을 먼저 읽고, Windows에서는 `&`가 있는 URL을 함수 파일 안에서 탐색한다. 최종 판정은 build만이 아니라 조건별 실제 렌더링과 계산 스타일로 확인한다.
+
+## 2026-07-21 - 부드러운 복귀 신호 patch와 Playwright fixture 오류
+
+### 상황
+
+Windows deny-read ACL 아래에서 주간 복귀 helper·타입·JSX·CSS·문서를 임시 Git index patch로 적용하고, 실제 Chromium의 Supabase 격리 fixture로 검증했다.
+
+### 에러 메시지
+
+```txt
+error: patch failed: apps/web/src/main.tsx
+error: corrupt patch at line 167
+ReferenceError: Buffer is not defined
+SyntaxError: Expected property name or '}' in JSON at position 1
+TimeoutError: page.getByText('다시 잇는 날')
+```
+
+### 원인
+
+- 첫 구현 patch의 `main.tsx` hunk 두 개가 서로 겹쳐 같은 줄 범위를 두 번 수정하려 했다.
+- 첫 문서 patch의 README 제거 줄에서 Markdown 목록 기호 `-`가 빠져 원문 context와 일치하지 않았다.
+- Playwright CLI `run-code` 환경에는 Node의 `Buffer`가 없었다.
+- Windows `.cmd` 인수 전달 중 route 응답 JSON의 큰따옴표가 제거돼 Supabase fixture 본문이 유효하지 않았다.
+- `run-code` 안에서 등록한 context route는 다음 CLI 호출까지 유지되지 않아 후속 reload가 실제 요청을 시도했다.
+- 모바일 locator screenshot은 고정 헤더가 대상 위치를 가리는 지점으로 자동 스크롤했다.
+
+### 해결 방법
+
+- 겹친 `main.tsx` 변경을 하나의 구조적 hunk로 다시 만들고 `git apply --cached --check` 후 반영했다.
+- README와 나머지 문서 patch를 분리하고 정확한 Markdown context로 README patch를 다시 만들었다.
+- 모의 JWT는 브라우저 `btoa`로 생성했다.
+- CLI persistent `route`를 사용하고 JSON 인수를 `{"key":"value"}` 형태로 전달했으며 본문 인수에는 공백을 넣지 않았다.
+- 대상 카드를 viewport 중앙으로 이동한 뒤 데스크톱·모바일 스크린샷과 계산 bounds를 함께 확인했다.
+- 복귀·비복귀·회고 우선 fixture를 각각 reload해 시작 버튼 개수, 카드 내부 버튼, overflow, console/page error를 측정했다.
+
+### 관련 파일
+
+- `apps/web/src/weeklyHabit.mjs`
+- `apps/web/src/weeklyHabit.d.mts`
+- `apps/web/src/main.tsx`
+- `apps/web/src/styles.css`
+- `apps/web/test/weeklyHabit.test.mjs`
+- `memory-bank/prd-gentle-restart-cue.md`
+
+### 재발 방지
+
+한 파일의 가까운 위치를 여러 번 바꾸는 patch는 하나의 hunk로 합친다. 문서 patch도 제거 줄의 Markdown 기호를 포함해 원문과 대조한다. Playwright CLI fixture는 일회성 `run-code` route가 아니라 persistent route를 사용하고 Windows 인수 escaping을 먼저 작은 응답으로 검증한다. 모바일 시각 검증은 자동 locator 스크롤 결과만 믿지 말고 대상 위치와 고정 헤더 겹침을 함께 확인한다.
+
+## 2026-07-21 - 습관 루프 완료 감사 Playwright 세션·JWT fixture 오류
+
+### 상황
+
+완료된 습관 루프를 현재 작업 트리의 실제 Chromium 1440px·390px에서 재검증하기 위해 Supabase 요청을 persistent route로 격리하고 모의 인증 세션을 주입했다.
+
+### 에러 메시지
+
+```txt
+The browser '$session' is not open
+error: too many arguments: expected 1, received 3
+ReferenceError: btoa is not defined
+ReferenceError: g is not defined
+TimeoutError: waiting for heading/button
+```
+
+### 원인
+
+- Windows `.cmd`가 `-s=$session`을 PowerShell 변수로 확장하지 않고 문자 그대로 Playwright에 전달했다.
+- JSON fixture 값의 공백이 `.cmd` 경계에서 여러 CLI 인수로 나뉘었다.
+- `run-code` 바깥 함수는 브라우저가 아닌 Node 실행 영역이라 `btoa`가 없었다.
+- 명령행을 지난 정규식 `/\\+/g`가 변형돼 브라우저에서 `g`를 식별자로 해석했다.
+- 위 모의 세션 생성 실패 때문에 앱이 인증된 Today가 아니라 로그인 화면을 표시했다.
+
+### 해결 방법
+
+- Playwright 세션 이름을 `-s=habit-audit`로 명시했다.
+- JSON 본문에서 공백을 `\\u0020`으로 바꾸고 모든 route body를 공백 없는 한 인수로 전달했다.
+- JWT는 로컬 origin을 연 뒤 `page.evaluate()`의 브라우저 `btoa`로 생성했다.
+- base64url 변환은 명령행에 취약한 전역 정규식 대신 `split('+').join('-').split('/').join('_')`를 사용했다.
+- 실패한 init script가 남은 첫 세션을 닫고 새 세션에 route와 storage를 다시 등록했다.
+- 인증된 화면의 fresh snapshot ref로 실제 시작 버튼을 클릭하고 카메라 gate와 취소 복귀까지 확인했다.
+
+### 관련 파일
+
+- `apps/web/src/main.tsx`
+- `apps/web/src/dailyHabit.mjs`
+- `apps/web/src/weeklyHabit.mjs`
+- `memory-bank/prd-sustainable-study-loop.md`
+
+### 재발 방지
+
+Windows의 Playwright CLI에서는 세션 변수를 `.cmd` 인수 안에 삽입하지 말고 이름을 명시한다. route JSON에는 literal 공백을 피하고, JWT 생성과 base64url 변환은 브라우저 영역에서 정규식 의존 없이 수행한다. init script가 실패했다면 같은 context를 재사용하지 말고 테스트 세션만 닫아 깨끗하게 다시 만든다. 화면 상호작용은 navigation·viewport 변경 후 snapshot을 새로 찍고 최신 ref를 사용한다.
+
+## 2026-07-22 - 이미 출석인 날의 설정 시각 알림 누락
+
+### 상황
+
+사용자가 설정한 평일 알림 시각 전에 알림을 받지 못했다고 보고해 Supabase 원격 출석·발송·Cron 기록과 배포 함수 정의를 대조했다.
+
+### 에러 메시지
+
+```txt
+설정 시각 20:30 전후 notification_deliveries 발송 기록 없음
+cron.job_run_details.status = succeeded
+attendance_days.status = present, marked_at = 20:30
+```
+
+### 원인
+
+`get_due_reminders()`는 설정 시각에 일일 완료 공부 시간이 목표 이상이면 먼저 출석을 `present`로 보정한다. 이어지는 초기 알림 조회는 같은 날짜의 `present` 또는 `missed` 행이 있거나 목표를 이미 충족하면 후보에서 제외한다. 따라서 오늘은 Cron과 Edge Function이 정상 실행됐지만 알림 대상 행 자체가 반환되지 않았다.
+
+### 해결 방법
+
+사용자 승인 후 PRD를 변경하고 `attendance_days`에 stage별 claim 시각을 추가했다. `get_due_reminders()`는 이미 `present`인 날도 설정 시각의 초기 알림을 원자적으로 한 번 반환하면서 `attendance_already_present = true`를 전달하고, 재촉과 `mark_missed_attendance()`는 `pending`만 처리한다. Edge Function은 출석 완료 알림에서 마감·결석 경고를 제거했다.
+
+### 관련 파일
+
+- `memory-bank/prd-supabase-cron.md`
+- `memory-bank/implementation-plan.md`
+- `supabase/functions/attendance-cron/index.ts`
+- `supabase/migrations/20260722133736_send_initial_reminder_when_present.sql`
+- `supabase/migrations/0015_pre_reminder_active_session_attendance.sql`
+- `supabase/migrations/0021_late_study_goal_attendance_policy.sql`
+
+### 재발 방지
+
+
+원격 rollback 검증에서 이미 출석 흐름은 초기 1회·중복 0회·재촉 0회·결석 0회·최종 `present`, 미출석 흐름은 초기 1회·재촉 1회·결석 1회를 확인했다. 실제 발송 성공은 다음 설정 시각의 `notification_deliveries`로 계속 관찰한다.
+출석 상태 판정과 알림 발송 자격을 하나의 조건으로 묶지 않는다. 이미 출석인 날의 초기 알림, 재촉 미발송, 결석 비전환, 매분 Cron 중복 방지를 각각 회귀 테스트로 고정하고 `notification_deliveries`에 알림 단계 또는 별도 claim을 남겨 운영 추적성을 확보한다.
+
+## 2026-08-04 - Lease 만료 후 수동 종료가 장기 공부시간으로 저장됨
+
+### 상황
+
+사용자가 종료 버튼을 누르지 않은 세션이 며칠 동안 열린 상태로 남았고, 8월 누적 공부시간이 비정상적으로 커 보인다고 보고했다.
+
+### 원인
+
+웹의 lease 만료 자동 종료는 열린 브라우저에서만 실행된다. 브라우저가 닫힌 뒤 수동 또는 회고 종료를 하면 `endTimer()`가 카메라 제외 시간만 전달한다. 서버 `end_study_session()`은 `now() - started_at`을 기준으로 계산하고 `lease_expires_at`을 상한으로 적용하지 않는다.
+
+### 확인 결과
+
+- 8월 2일 11:56(KST) 시작 세션이 lease 만료 후 8월 4일 22:17(KST)에 종료됐다.
+- 저장된 `duration_seconds`는 `210,050초(58시간 20분 50초)`였다.
+- 종료 직후 새 활성 세션이 시작됐으며, 이는 장기 기록과 별개다.
+
+### 후속 해결 방향
+
+- 서버 종료 RPC에서 실제 종료 시각을 `least(now(), lease_expires_at)`으로 제한한다.
+- 만료된 활성 세션은 Cron 또는 재접속 시 서버에서 정리해 클라이언트 탭 상태에 의존하지 않는다.
+- 기존 장기 기록 보정은 사용자의 명시적 승인 없이 수행하지 않는다.
+## 2026-08-04 - 닫힌 브라우저에서 세션 lease가 만료된 뒤 과대 공부 시간이 저장됨
+
+### 상황
+
+브라우저가 닫힌 상태로 남은 세션을 며칠 뒤 수동 종료하자 8월 누적 공부 시간이 비정상적으로 커졌다.
+
+### 에러 메시지
+
+```txt
+오류 메시지는 없었음. 완료 세션 duration_seconds = 210050 (58시간 20분 50초)
+```
+
+### 원인
+
+기존 자동 종료는 열린 웹 앱의 `useEffect`에만 있었고, 서버 `end_study_session()`은 `now() - started_at`만 사용했다. 따라서 lease가 이미 만료된 세션도 뒤늦은 수동/회고 종료 시 전체 경과 시간이 저장됐다.
+
+### 해결 방법
+
+- `end_study_session()`이 lease 만료 시각을 종료 상한으로 사용하도록 변경했다.
+- 기존 1분 Cron이 service-role 전용 `close_expired_study_sessions()`로 만료 활성 세션을 종료하게 했다.
+- lease 조회용 partial index와 `SKIP LOCKED` 배치 처리를 추가했다.
+- 잘못 저장된 과거 세션을 lease 기준 25,200초로 보정하고, 그 세션만으로 잘못 출석 처리된 날짜를 정정했다.
+
+### 관련 파일
+
+- `supabase/migrations/20260804133546_enforce_session_lease_expiry.sql`
+- `supabase/functions/attendance-cron/index.ts`
+- `apps/web/src/main.tsx`
+
+### 재발 방지
+
+- 타이머의 저장 시간 상한은 클라이언트 표시가 아니라 서버 RPC에서 항상 강제한다.
+- 만료 cleanup은 열린 브라우저가 아니라 예약 실행되는 서버 작업으로 수행한다.
+- 장기 세션 또는 날짜를 넘는 세션이 보이면 `lease_expires_at`, `ended_at`, `duration_seconds`, `paused_seconds`를 함께 확인한다.

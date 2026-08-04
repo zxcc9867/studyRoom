@@ -185,3 +185,28 @@ Personal MVP users who want a softer Animal Crossing-style reward for sustained 
 - [x] X 51/59와 데크 양옆은 `bridge-rail` 충돌로 차단된다.
 - [x] 장거리 이동 경로는 계속 X 55 중앙을 사용한다.
 - [x] 난간 방향, 열린 양 끝, 통로 경계와 캐릭터 반경 계산을 회귀 테스트로 검증한다.
+
+## 15. 2026-07-20 Update: Five-of-Seven Firefly Wreath
+
+### Decision
+
+- 최근 7일의 다섯 번 시작은 현재 나무 둘레의 다섯 씨앗 조명으로 표현한다.
+- 완료 세션 기준으로 7일 안의 다섯 번째 10분 시작일에 반딧불 화환을 획득한다.
+- 같은 연속 기록에서 매일 중복 획득하지 않도록 화환 획득일 사이를 최소 7일로 둔다.
+- 이동 7일 진행도가 낮아져도 과거 화환은 완료 세션 이력에서 다시 계산해 누적 보존한다.
+- 씨앗·화환·영구 꽃 표식은 현재 나무의 기존 collider anchor 안에 배치해 새 장식을 통과하는 물리 오류를 만들지 않는다.
+- 상세 요구사항과 경계 조건은 `memory-bank/prd-weekly-forest-reward.md`를 기준으로 한다.
+
+### Added Functional Requirements
+
+- [x] 숲 상태 카드에 접근 가능한 5개 씨앗 진행도와 남은 시작 횟수를 표시한다.
+- [x] 완료 세션 이력에서 누적 반딧불 화환 수를 결정적으로 계산한다.
+- [x] Three.js 장면에 현재 진행 씨앗, 완성 halo, 누적 꽃 표식을 렌더링한다.
+- [x] 완성 halo의 움직임은 reduced-motion 설정을 따른다.
+- [x] 주간 보상 장식은 현재 나무의 기존 충돌 영역을 공유한다.
+- [x] 추가 Supabase 조회·스키마·저장 요청 없이 기존 메모리 데이터를 사용한다.
+
+### Success Evidence
+
+- 화환 획득·7일 중복 방지·현재 미달 후 과거 보존 테스트와 Three.js/UI source contract가 통과한다.
+- production build와 실제 Chrome 1440px·390px WebGL/overflow/시각 검증이 통과한다.

@@ -4877,3 +4877,920 @@
 
 - 운영 계정에서 카메라를 포함한 전체 휴식 흐름을 확인한다.
 - 모바일 바이너리 배포가 필요하면 EAS 설정과 배포 채널을 확인한 후 별도 릴리즈한다.
+
+### 2026-07-20 - Supabase 인증 타임아웃 원인 확인
+
+#### 완료한 작업
+
+- 운영 프로젝트 `bqohkdzvxbrokkmuhysx`의 최근 Auth/API/Postgres 로그와 성능 통계를 읽기 전용으로 확인했다.
+- 장애 시점에 refresh token, Google OAuth authorize/callback 요청이 내부 Postgres 연결 실패 및 `context deadline exceeded`로 504를 반환한 사실을 확인했다.
+- 매분 `attendance-cron` 호출과 `pg_net` 이력 정리 경로가 누적 DB 부하 및 테이블 팽창의 가장 유력한 기여 요인임을 확인했다.
+- 현재 프로젝트가 `ACTIVE_HEALTHY`이고 후속 refresh-token 요청이 HTTP 200인 것을 확인했다.
+
+#### 변경된 파일
+
+- `memory-bank/trouble-shooting.md`
+- `memory-bank/progress.md`
+
+#### 검증 방법
+
+- Supabase MCP `get_project`, `get_logs`, `execute_sql`, performance Advisors를 사용한 읽기 전용 진단.
+- `pg_stat_statements`, `pg_stat_user_tables`, `cron.job` 기준으로 누적 실행량과 할당 크기를 비교했다.
+
+#### 남은 작업
+
+- 이번 진단에서는 운영 DB나 앱 코드를 변경하지 않았다.
+- 재발하면 같은 시간대의 Supabase 리소스 그래프로 CPU·메모리·Disk I/O 중 포화 지점을 확정한다.
+
+#### 다음 우선순위
+
+- 별도 승인 시 cron 호출 경량화, pg_cron/pg_net 이력 보존 정책, 인증 초기화 timeout UX를 순서대로 개선한다.
+
+### 2026-07-20 - 단계형 오늘 습관과 지난 세션 이어하기
+
+#### 완료한 작업
+
+- 10분 시작, 기존 일일 2·4시간 목표, 오늘 todo 1개 완료를 구분하는 네 단계 순수 helper를 추가했다.
+- Today 화면에 현재 단계, 남은 시간, 세 milestone을 보여 주는 숲 테마 카드를 추가했다.
+- 가장 최근의 non-null `next_action` 회고 1건을 불러와 같은 제목의 오늘 미완료 todo를 선택하거나 빠른 추가 입력에 채우도록 했다.
+- 이어하기가 기존 회복 루틴, 카메라 준비, todo 선택을 우회하지 않도록 제안 상태를 시작 흐름 전반에 유지했다.
+- 회복 루틴 또는 카메라 시작 안내를 취소하면 제안 상태를 지워 다음 일반 세션에 남지 않도록 했다.
+- 데스크톱과 모바일 웹의 한 열 재배치 및 텍스트 줄바꿈을 추가했다.
+
+#### 변경된 파일
+
+- `README.md`
+- `apps/web/src/dailyHabit.mjs`
+- `apps/web/src/dailyHabit.d.mts`
+- `apps/web/src/dashboardData.ts`
+- `apps/web/src/main.tsx`
+- `apps/web/src/styles.css`
+- `apps/web/test/dailyHabit.test.mjs`
+- `memory-bank/prd-daily-habit-loop.md`
+- `memory-bank/prd-user-profile.md`
+- `memory-bank/prd-sustainable-study-loop.md`
+- `memory-bank/active-context.md`
+- `memory-bank/implementation-plan.md`
+- `memory-bank/progress.md`
+- `memory-bank/trouble-shooting.md`
+
+#### 검증 방법
+
+- `node --test apps/web/test/dailyHabit.test.mjs`: 4개 통과.
+- `npm test`: 283개 통과.
+- `npm run build`: TypeScript 및 Vite production build 통과.
+- Supabase 원격 확인: RLS 활성, authenticated owner SELECT, `(user_id, created_at desc)` 인덱스, Index Scan 총 비용 `1.82`.
+- Chrome 실제 CSS 렌더링: 1440px은 milestone 3열·이어하기 2열, 390px은 모두 1열이며 문서·콘텐츠·버튼 overflow 없음.
+
+#### 남은 작업
+
+- 실제 인증 계정에서 네 단계 상태와 이어하기의 기존 todo 선택·새 todo prefill을 수동 확인한다.
+- 커밋·푸시·배포는 사용자가 요청할 때 수행한다.
+
+#### 다음 우선순위
+
+- 실제 사용 후 10분 시작률과 이어하기 사용성을 관찰하고, 필요하면 공부의 숲 보상 연결 또는 사용자별 최소 시작 시간을 별도 PRD로 검토한다.
+
+### 2026-07-20 - 최근 7일 주간 습관 리듬
+
+#### 완료한 작업
+
+- 오늘까지의 최근 7개 현지 날짜와 날짜별 습관 단계를 계산하는 순수 helper를 추가했다.
+- 완료 세션이 자정을 넘거나 제외 시간이 있으면 서버 기간 집계와 같은 비례식으로 각 날짜에 시간을 배분했다.
+- 오늘은 기존 서버 기준 완료 합계와 활성 세션 시간을 최종값으로 사용해 실시간 상태를 유지했다.
+- 오늘이 아직 10분 미만이면 어제까지 이어진 시작을 보존하고, 오늘 성공 후에는 오늘을 포함하도록 연속 기록 규칙을 구현했다.
+- Today 카드에 7일 숲길, 날짜별 `쉼·10분·목표·꽃`, 시작 일수, 이어온 시작, 목표·꽃피움, 비징벌적 코칭을 추가했다.
+- 추가 Supabase 요청이나 스키마 변경 없이 기존 세션·todo 데이터만 재사용했다.
+
+#### 변경된 파일
+
+- `README.md`
+- `apps/web/src/weeklyHabit.mjs`
+- `apps/web/src/weeklyHabit.d.mts`
+- `apps/web/src/main.tsx`
+- `apps/web/src/styles.css`
+- `apps/web/test/weeklyHabit.test.mjs`
+- `memory-bank/prd-weekly-habit-rhythm.md`
+- `memory-bank/prd-sustainable-study-loop.md`
+- `memory-bank/prd-user-profile.md`
+- `memory-bank/active-context.md`
+- `memory-bank/implementation-plan.md`
+- `memory-bank/progress.md`
+- `memory-bank/trouble-shooting.md`
+
+#### 검증 방법
+
+- `node --test apps/web/test/weeklyHabit.test.mjs`: 6개 통과.
+- `npm test`: 전체 289개 통과.
+- `npm run build`: TypeScript 및 Vite production build 통과.
+- `git diff --check`: 통과.
+- 실제 Chrome 1440px: 날짜 7열, 요약 3열, 문서·숲길·날짜·요약·코칭 overflow 없음.
+- 실제 Chrome 390px: 날짜 2열, 요약 1열, 문서·숲길·날짜·요약·코칭 overflow 없음.
+
+#### 남은 작업
+
+- 실제 인증 계정에서 자정 경과 세션, 오늘 활성 세션, todo 완료가 숲길에 즉시 반영되는지 수동 확인한다.
+- 커밋·푸시·Vercel 배포는 수행하지 않았다.
+
+#### 다음 우선순위
+
+- 실제 사용에서 최근 7일 시작 일수와 10분 시작률을 관찰한다.
+- 다음 단계로 주간 계획 재설정 의식 또는 공부의 숲 보상 연결을 별도 PRD로 검토한다.
+
+### 2026-07-20 - 최근 7일 5/7 유연 시작 목표
+
+#### 완료한 작업
+
+- 최근 7일 중 10분 시작 5회를 기본 목표로 하고 이틀의 휴식 여백을 명시하는 목표 상태 helper를 추가했다.
+- 0·4·5·7회에서 인정 횟수, 남은 시작 수, 달성 여부, 진행률을 결정적으로 계산하고 표시 진행도는 5/5로 제한했다.
+- 목표 달성 후 오늘 미시작 상태를 실패가 아닌 선택 가능한 휴식으로 안내하는 코칭을 추가했다.
+- 5개 씨앗 progressbar와 숲 테마 나무 표지판을 7일 숲길 위에 추가했다.
+- 오늘 10분 미만에는 `10분 시작 준비`, 일일 목표 전에는 `오늘 목표 이어가기`를 제공하고, 목표 달성 후에는 숨기며 활성 세션 중에는 비활성화했다.
+- CTA가 최근 다음 행동 또는 첫 오늘 미완료 todo를 기존 회복·카메라·todo 선택·세션 시작 흐름에 전달하도록 연결했다.
+- 추가 Supabase 요청, 스키마, RLS, RPC, Edge Function, 환경 변수 또는 Expo 변경 없이 기존 로드 데이터만 재사용했다.
+
+#### 변경된 파일
+
+- `README.md`
+- `apps/web/src/weeklyHabit.mjs`
+- `apps/web/src/weeklyHabit.d.mts`
+- `apps/web/src/main.tsx`
+- `apps/web/src/styles.css`
+- `apps/web/test/weeklyHabit.test.mjs`
+- `memory-bank/prd-flexible-weekly-start-goal.md`
+- `memory-bank/prd-weekly-habit-rhythm.md`
+- `memory-bank/prd-sustainable-study-loop.md`
+- `memory-bank/prd-user-profile.md`
+- `memory-bank/active-context.md`
+- `memory-bank/implementation-plan.md`
+- `memory-bank/progress.md`
+- `memory-bank/trouble-shooting.md`
+
+#### 검증 방법
+
+- `node --test apps/web/test/weeklyHabit.test.mjs`: 목표 경계·휴식 코칭·화면 계약 포함 8개 통과.
+- `npm test`: 전체 291개 통과.
+- `npm run build`: TypeScript 및 Vite production build 통과.
+- `git diff --check`: 통과.
+- 실제 Chrome 1440px: 목표 표지판 3열, 날짜 7열, 요약 3열이며 문서·표지판·씨앗·CTA에 overflow 없음.
+- 실제 Chrome 390px: 목표 표지판 1열, 날짜 2열, 요약 1열, CTA 전체 너비이며 씨앗 5개와 모든 실제 콘텐츠에 overflow 없음.
+
+#### 남은 작업
+
+- 실제 인증 계정에서 4/5→5/5 목표 전환과 CTA의 기존 todo 선택·빠른 추가 제안을 수동 확인한다.
+- 커밋·푸시·Vercel 배포는 수행하지 않았다.
+
+#### 다음 우선순위
+
+- 실제 사용에서 5/7 목표 달성률과 CTA를 통한 세션 시작 비율을 관찰한다.
+- 사용자별 3~7회 목표 설정 또는 5/7 달성과 공부의 숲 주간 장식 연결은 별도 PRD로 검토한다.
+
+### 2026-07-20 - 5/7 공부의 숲 반딧불 화환
+
+#### 완료한 작업
+
+- 완료 세션을 사용자 현지 날짜에 비례 배분하고 10분 이상 성공 날짜를 찾는 주간 보상 이력 helper를 추가했다.
+- 이동 7일 안의 다섯 번째 성공일에 화환을 획득하고 다음 획득 가능일을 7일 뒤로 제한해 겹치는 창의 중복 보상을 막았다.
+- 현재 이동 7일이 미달이어도 과거 완료 세션에서 얻은 화환 수가 유지되도록 재계산했다.
+- 공부의 숲 상태 카드에 5개 씨앗 progressbar, 남은 시작 횟수, 누적 화환 수와 휴식 여백 설명을 추가했다.
+- Three.js 현재 나무 주변에 다섯 씨앗 조명, 완성 반딧불 halo, 누적 황금 꽃 표식을 추가했다.
+- 장식 anchor를 기존 현재 나무 collider에 맞춰 새 물리 장애물이나 통과 문제를 만들지 않았다.
+- reduced-motion에서는 halo 회전과 떠오름을 멈추고 정적 보상은 유지했다.
+- 추가 Supabase 요청·스키마·RLS·RPC·Edge Function·환경 변수·Expo 변경은 만들지 않았다.
+
+#### 변경된 파일
+
+- `README.md`
+- `apps/web/src/weeklyHabit.mjs`
+- `apps/web/src/weeklyHabit.d.mts`
+- `apps/web/src/StudyForestSection.tsx`
+- `apps/web/src/StudyForest3D.tsx`
+- `apps/web/src/main.tsx`
+- `apps/web/src/styles.css`
+- `apps/web/test/weeklyHabit.test.mjs`
+- `apps/web/test/studyForestUi.test.mjs`
+- `memory-bank/prd-weekly-forest-reward.md`
+- `memory-bank/prd-flexible-weekly-start-goal.md`
+- `memory-bank/prd-study-forest.md`
+- `memory-bank/prd-sustainable-study-loop.md`
+- `memory-bank/prd-user-profile.md`
+- `memory-bank/active-context.md`
+- `memory-bank/implementation-plan.md`
+- `memory-bank/progress.md`
+- `memory-bank/trouble-shooting.md`
+
+#### 검증 방법
+
+- 집중 테스트: 주간 이력·숲 물리·Three.js/UI 37개 통과.
+- `npm test`: 전체 Node 테스트 294개 통과.
+- `npm run build`: TypeScript 및 Vite production build 통과.
+- `git diff --check`: 통과.
+- 실제 Chrome 1440px: WebGL ready, canvas 1개, 숲 grid `756px 364px`, 문서·카드·씨앗·장면 overflow 없음.
+- 실제 Chrome 390px: WebGL ready, canvas 1개, 숲 grid `324px` 한 열, 씨앗 5개와 모든 콘텐츠 overflow 없음.
+- 데스크톱 완성 상태와 모바일 3/5 상태 스크린샷을 직접 검사해 화환·씨앗·누적 문구 배치를 확인했다.
+
+#### 남은 작업
+
+- 실제 인증 계정에서 세션 완료 직후 누적 화환 수 증가를 확인한다.
+- 커밋·푸시·Vercel 배포는 수행하지 않았다.
+
+#### 다음 우선순위
+
+- 실제 사용에서 화환 획득 후 숲 방문률과 다음 10분 시작까지 걸리는 시간을 관찰한다.
+- 누적 화환 수에 따른 계절 장식이나 별도 섬 구역은 별도 PRD로 검토한다.
+
+### 2026-07-21 - 주간 숲 보상 최종 검증 및 문서 정리
+
+#### 완료한 작업
+
+- 5/7 반딧불 화환 구현의 남은 검증 문구를 실제 전체 회귀·빌드 결과와 일치시켰다.
+- 실제 앱 콘텐츠 폭을 사용하는 임시 시각 하네스에서 완료 세션 5일과 화환 1개 상태를 렌더링했다.
+- 데스크톱과 모바일의 WebGL, progressbar, 반응형 열, 실제 콘텐츠 overflow와 브라우저 오류를 재검증했다.
+- 검증용 하네스·패치·스크린샷은 최종 확인 뒤 작업 트리에서 제거했다.
+
+#### 변경된 파일
+
+- `memory-bank/active-context.md`
+- `memory-bank/progress.md`
+- `memory-bank/trouble-shooting.md`
+
+#### 검증 방법
+
+- `npm test`: 전체 Node 테스트 294개 통과.
+- `npm run build`: TypeScript 및 Vite production build 통과.
+- 실제 Chrome 1440px: WebGL ready, canvas 1개, 씨앗 5개, 5/5 progressbar, `845.094px 406.906px` 2열, 문서·카드·씨앗·장면 overflow 없음.
+- 실제 Chrome 390px: WebGL ready, canvas 1개, 씨앗 5개, 5/5 progressbar, `300px` 1열, 문서·카드·씨앗·장면 overflow 없음.
+- 브라우저 `consoleErrors` 0건, `pageErrors` 0건을 확인하고 데스크톱·모바일 스크린샷을 직접 검사했다.
+- `git diff --check`: 통과.
+
+#### 남은 작업
+
+- 실제 인증 계정에서 4/5→5/5 완료 세션 저장 직후 누적 화환 수가 증가하는 흐름을 확인한다.
+- 커밋·푸시·Vercel 배포는 수행하지 않았다.
+
+#### 다음 우선순위
+
+- 실제 사용에서 화환 획득 후 숲 방문률과 다음 10분 시작까지 걸리는 시간을 관찰한다.
+- 누적 화환에 따른 새 장식은 사용 데이터가 쌓인 뒤 별도 PRD로 검토한다.
+
+### 2026-07-21 - 활성 세션 첫 10분 체크포인트
+
+#### 완료한 작업
+
+- 오늘 완료 공부와 현재 활성 세션의 유효 공부를 합산해 첫 10분 진행도·남은 시간·임계점 도달을 계산하는 순수 helper를 추가했다.
+- 이전 완료 공부가 이미 10분 이상이면 이후 세션에서 체크포인트를 만들지 않고, 8분 완료+2분 활성처럼 부분 누적은 정확히 인정한다.
+- 휴식·카메라 부재·lease 초과 시간을 제외한 기존 active-time 계산을 그대로 사용했다.
+- 진행 중에는 accessible progressbar를, 달성 순간에는 `조금 더 이어가기`와 `오늘은 마무리` 선택을 표시했다.
+- 이어가기 확인은 사용자·세션·현지 날짜별 localStorage marker로 복원하고 저장 실패는 세션과 분리했다.
+- 마무리 선택은 기존 todo 완료·세션 회고 모달을 열어 원자적 종료 흐름을 보존했다.
+- 유기적인 크림 종이·숲 초록·씨앗 노랑 디자인과 reduced-motion·모바일 한 열 버튼을 적용했다.
+- 새 Supabase 요청·스키마·RLS·RPC·Edge Function·환경 변수·Expo 변경은 추가하지 않았다.
+
+#### 변경된 파일
+
+- `README.md`
+- `apps/web/src/dailyHabit.mjs`
+- `apps/web/src/dailyHabit.d.mts`
+- `apps/web/src/TenMinuteCheckpoint.tsx`
+- `apps/web/src/main.tsx`
+- `apps/web/src/styles.css`
+- `apps/web/test/tenMinuteCheckpoint.test.mjs`
+- `memory-bank/prd-ten-minute-checkpoint.md`
+- `memory-bank/prd-daily-habit-loop.md`
+- `memory-bank/prd-sustainable-study-loop.md`
+- `memory-bank/prd-user-profile.md`
+- `memory-bank/design-document.md`
+- `memory-bank/active-context.md`
+- `memory-bank/implementation-plan.md`
+- `memory-bank/progress.md`
+- `memory-bank/trouble-shooting.md`
+
+#### 검증 방법
+
+- 집중 테스트: 임계값·부분 누적·기존 성공 억제·휴식·확인 복원·storage 실패·화면 연결 6개 통과.
+- `npm test`: 전체 Node 테스트 300개 통과.
+- `npm run build`: TypeScript 및 Vite production build 통과.
+- 실제 Chrome 1440px 완료 상태: Daily Habit `414.797px 561.203px` 2열, 선택 버튼 2개, 실제 콘텐츠 overflow 없음, 이어가기 후 체크포인트 제거 확인.
+- 실제 Chrome 390px 진행 상태: 카드 `302px` 1열, progressbar `360/600`, `4분 남음`, 실제 콘텐츠 overflow 없음.
+- 실제 Chrome 390px 완료 상태: 선택 버튼 2개가 `272px` 한 열로 재배치되고 실제 콘텐츠 overflow 없음.
+- 브라우저 `consoleErrors` 0건, `pageErrors` 0건과 스크린샷 시각 검사를 완료했다.
+- `git diff --check`: 통과.
+
+#### 남은 작업
+
+- 실제 인증 계정에서 오늘 누적 9분대→10분 달성, 이어가기 새로고침 복원, 마무리 회고 저장을 확인한다.
+- 커밋·푸시·Vercel 배포는 수행하지 않았다.
+
+#### 다음 우선순위
+
+- 실제 사용에서 10분 체크포인트의 이어가기·마무리 선택과 다음날 다시 시작 비율을 관찰한다.
+- `10분 더` 같은 두 번째 구간은 사용 데이터가 쌓인 뒤 검토한다.
+
+### 2026-07-21 - 휴식 복귀 약속
+
+#### 완료한 작업
+
+- 기존 서버 휴식 카드 안에 10·20·40분 복귀 약속을 추가했다.
+- 현지 복귀 시각, 초 단위 남은 시간, 약속 도달 상태, `10분 더`, 약속 지우기를 구현했다.
+- `10분 더`는 현재 시각과 기존 deadline 중 늦은 값부터 연장해 예정 약속과 지연된 약속을 모두 자연스럽게 처리한다.
+- 복귀 약속이 session lease보다 늦으면 자동 연장하지 않고 유지 시간이 먼저 끝날 수 있음을 안내한다.
+- deadline을 사용자·세션별 localStorage에 저장하고 새로고침 뒤 복원하며 storage 실패 시 현재 탭 상태로 동작한다.
+- 성공한 재개·종료, stale 종료 복구, 외부에서 동기화된 unpaused 상태에서 deadline을 제거한다.
+- 자동 재개·새 interval·새 Supabase 요청·스키마·RPC·RLS·Edge Function·환경 변수·Expo 변경은 추가하지 않았다.
+- due 카드가 움직여 버튼 조작이 불안정했던 시각 효과를 위치 고정 그림자 강조로 수정했다.
+
+#### 변경된 파일
+
+- `README.md`
+- `apps/web/src/sessionBreak.mjs`
+- `apps/web/src/sessionBreak.d.mts`
+- `apps/web/src/BreakReturnPlan.tsx`
+- `apps/web/src/main.tsx`
+- `apps/web/src/styles.css`
+- `apps/web/test/breakReturnPlan.test.mjs`
+- `memory-bank/prd-break-return-plan.md`
+- `memory-bank/prd-study-session-breaks.md`
+- `memory-bank/prd-sustainable-study-loop.md`
+- `memory-bank/prd-user-profile.md`
+- `memory-bank/design-document.md`
+- `memory-bank/implementation-plan.md`
+- `memory-bank/active-context.md`
+- `memory-bank/progress.md`
+- `memory-bank/trouble-shooting.md`
+
+#### 검증 방법
+
+- TDD RED: helper 구현 전 `BREAK_RETURN_PRESET_MINUTES` export 부재로 집중 테스트가 의도대로 실패했다.
+- 집중 테스트: 새 helper·storage·화면 연결 6개와 기존 휴식 회귀 4개, 총 10개 통과.
+- `npm test`: 전체 Node 테스트 306개 통과.
+- `npm run build`: TypeScript 및 Vite production build 통과.
+- 실제 Chrome 1440px: 20분 선택 후 예정 상태 전환, `10분 더` 정확히 600,000ms 연장, `824px` 카드, 실제 콘텐츠·문서 overflow 없음.
+- 실제 Chrome 390px: due 카드 `326px`, 두 액션 `294px` 한 열, 약속 지우기 동작, lease 경고 상태, 실제 콘텐츠·문서 overflow 없음.
+- 최종 브라우저 시나리오에서 `consoleErrors` 0건, `pageErrors` 0건.
+
+#### 남은 작업
+
+- 실제 인증 계정에서 pause RPC 뒤 약속 저장, 새로고침 복원, 카메라 준비와 resume RPC, 종료 정리를 확인한다.
+- 브라우저가 닫힌 동안의 Web Push 알림과 다른 기기 동기화는 이번 범위가 아니다.
+- 커밋·푸시·Vercel 배포는 수행하지 않았다.
+
+#### 다음 우선순위
+
+- 실제 사용에서 복귀 약속 선택률, 도달 후 재개 여부, 반복 `10분 더` 빈도를 관찰한다.
+- 브라우저 알림이나 서버 동기화는 로컬 약속만으로 부족하다는 사용 증거가 생길 때 별도 PRD로 검토한다.
+
+### 2026-07-21 - 주간 리셋 연결
+
+#### 완료한 작업
+
+- 주간 리뷰의 최대 세 개 다음 행동을 정규화하고 같은 제목의 미완료 todo와 대소문자 무시 방식으로 연결했다.
+- 완료 todo는 새 계획을 막지 않고, invalid date 미완료 todo는 계획됨 상태만 유지하도록 경계를 고정했다.
+- 미계획 행동에 `계획에 넣기`, 기존 계획에 날짜와 `계획 보기`를 제공했다.
+- 새 행동은 오늘 날짜로 초기화된 기존 todo 모달에 정규화 제목을 prefill하고, 기존 행동은 현재 편집 모달을 연다.
+- 버튼 클릭만으로는 서버 write를 수행하지 않으며 기존 `saveTodo`·update·RLS 흐름을 그대로 사용한다.
+- cream paper, forest green, seed yellow, terracotta를 사용한 비징벌적 행동 노트 UI와 390px 한 열 액션을 구현했다.
+- 새 Supabase query·schema·migration·RPC·RLS·Edge Function·환경 변수·timer·Expo 변경은 추가하지 않았다.
+
+#### 변경된 파일
+
+- `README.md`
+- `apps/web/src/weeklyReview.mjs`
+- `apps/web/src/weeklyReview.d.mts`
+- `apps/web/src/WeeklyReviewSection.tsx`
+- `apps/web/src/main.tsx`
+- `apps/web/src/styles.css`
+- `apps/web/test/weeklyResetBridge.test.mjs`
+- `memory-bank/prd-weekly-reset-bridge.md`
+- `memory-bank/prd-sustainable-study-loop.md`
+- `memory-bank/prd-user-profile.md`
+- `memory-bank/design-document.md`
+- `memory-bank/implementation-plan.md`
+- `memory-bank/active-context.md`
+- `memory-bank/progress.md`
+- `memory-bank/trouble-shooting.md`
+
+#### 검증 방법
+
+- TDD RED: 구현 전 `buildWeeklyActionPlanItems` export 부재로 집중 테스트가 의도대로 실패했다.
+- 집중 테스트: 정규화 매칭, 완료 제외, invalid date, main callback·반응형 source contract 3개 통과.
+- `npm test`: 전체 Node 테스트 309개 통과.
+- `npm run build`: TypeScript 및 Vite production build 통과.
+- 실제 Chrome 1440px: 카드 `1080px`, 작성 제목 `AWS 자격증 12번`, 편집 제목 `오답 노트 복습`, 계획 날짜 `07.24`, 실제 콘텐츠·문서 overflow 없음.
+- 실제 Chrome 390px: 카드 `351px`, 액션 행 `34px 208px` 두 열, 버튼 `253px` 전체 행, 실제 콘텐츠·문서 overflow 없음.
+- 두 시나리오 모두 `consoleErrors` 0건, `pageErrors` 0건.
+- `git diff --check`: 통과.
+
+#### 남은 작업
+
+- 실제 인증 계정에서 계획 생성 저장 후 주간 리뷰가 `계획됨`으로 바뀌고 `계획 보기`가 같은 todo 편집을 여는지 확인한다.
+- 커밋·푸시·Vercel 배포는 수행하지 않았다.
+
+#### 다음 우선순위
+
+- 실제 사용에서 회고 다음 행동의 계획 전환률과 계획 후 다음 세션 시작 여부를 관찰한다.
+- 오늘 기본 날짜보다 다음 학습 가능일 추천이 필요한지는 사용 증거가 생기면 별도 PRD로 검토한다.
+
+### 2026-07-21 - Today 단일 상태 적응형 시작 액션
+
+#### 완료한 작업
+
+- Today에서 같은 세션 시작 흐름을 호출하던 최상단·회고·5/7 카드의 세 실행 표면을 최상단 버튼 하나로 통합했다.
+- 회고 다음 행동, 주간 목표 라벨, 첫 미완료 오늘 todo, 기본 상태의 우선순위를 결정적 helper로 분리했다.
+- 회고가 있으면 `이어서 준비하기`, 회고가 없고 오늘 목표가 남으면 `10분 시작 준비` 또는 `오늘 목표 이어가기`, 그 외에는 `입장하고 시작`을 사용한다.
+- todo 제안은 기존 recovery·camera·todo-selection·quick-add gate를 그대로 통과하며 자동 생성이나 자동 시작은 하지 않는다.
+- 일간 다음 행동과 주간 5/7 카드는 버튼을 제거하고 최상단 버튼으로 이어지는 정보형 organic paper/wood cue로 정리했다.
+- Pause·Resume·End·reminder modal·Supabase·Expo 계약은 변경하지 않았다.
+
+#### 변경된 파일
+
+- `README.md`
+- `apps/web/src/dailyHabit.mjs`
+- `apps/web/src/dailyHabit.d.mts`
+- `apps/web/src/main.tsx`
+- `apps/web/src/styles.css`
+- `apps/web/test/singleStartAction.test.mjs`
+- `apps/web/test/dailyHabit.test.mjs`
+- `apps/web/test/weeklyHabit.test.mjs`
+- `memory-bank/prd-single-start-action.md`
+- `memory-bank/prd-sustainable-study-loop.md`
+- `memory-bank/implementation-plan.md`
+- `memory-bank/active-context.md`
+- `memory-bank/progress.md`
+- `memory-bank/trouble-shooting.md`
+
+#### 검증 방법
+
+- TDD RED: 구현 전 `getStudyStartAction` export 부재로 새 테스트가 의도대로 실패했다.
+- 집중 테스트: helper 우선순위와 Today source contract를 포함한 일간·주간 습관 테스트 18개 통과.
+- `npm test`: 전체 Node 테스트 313개 통과.
+- `npm run build`: TypeScript 및 Vite production build 통과.
+- `git diff --check`: 통과.
+- 실제 Chrome 1440px·390px: reflection·weekly·todo·default 네 상태 모두 지속 시작 CTA 1개, 카드 내부 start 버튼 0개, 예상 라벨·제안 전달 일치, 문서·카드 overflow 없음.
+- 두 viewport 모두 `consoleErrors` 0건, `pageErrors` 0건.
+
+#### 남은 작업
+
+- 실제 인증 계정에서 회고/주간/기본 상태가 바뀔 때 최상단 라벨과 todo prefill이 같은 흐름으로 전환되는지 확인한다.
+- 커밋·푸시·Vercel 배포는 수행하지 않았다.
+
+#### 다음 우선순위
+
+- 실제 사용에서 Today 진입 후 첫 클릭까지의 망설임과 세션 시작 전환을 관찰한다.
+- 적응형 문구가 오히려 혼란을 만든다는 사용 증거가 있으면 사용자별 고정 라벨 설정을 별도 PRD로 검토한다.
+
+### 2026-07-21 - 활성·휴식 세션 시작 안내 정합화
+
+#### 완료한 작업
+
+- 활성 또는 휴식 세션에서 일간 회고와 주간 5/7 카드의 `위 시작 버튼` 안내를 숨겼다.
+- 상단 세션 조작은 공부 중 `잠시 쉬기`, 휴식 중 `공부 계속하기`를 유지하고 `종료`는 그대로 활성화했다.
+- 일간·주간·5/7·상위 지속학습 PRD와 사용자 PRD, README, 구현 계획을 최상단 단일 시작 액션 기준으로 정합화했다.
+- 문서가 과거의 카드 CTA 비활성화 설계로 돌아가지 않도록 source/document contract를 추가했다.
+- Supabase·RLS·RPC·Edge Function·환경 변수·timer·localStorage·Expo 동작은 변경하지 않았다.
+
+#### 변경된 파일
+
+- `README.md`
+- `apps/web/src/main.tsx`
+- `apps/web/test/studyStartGuidance.test.mjs`
+- `memory-bank/prd-daily-habit-loop.md`
+- `memory-bank/prd-flexible-weekly-start-goal.md`
+- `memory-bank/prd-weekly-habit-rhythm.md`
+- `memory-bank/prd-single-start-action.md`
+- `memory-bank/prd-sustainable-study-loop.md`
+- `memory-bank/prd-user-profile.md`
+- `memory-bank/implementation-plan.md`
+- `memory-bank/active-context.md`
+- `memory-bank/progress.md`
+- `memory-bank/trouble-shooting.md`
+
+#### 검증 방법
+
+- TDD RED: 수정 전 `latestNextAction && !activeSession` 계약이 없어 `studyStartGuidance.test.mjs`가 의도대로 실패했다.
+- 집중 테스트: 일간·주간·단일 시작·활성 안내 계약 19개 통과.
+- `npm test`: 전체 Node 테스트 314개 통과.
+- `npm run build`: TypeScript 및 Vite production build 통과.
+- 실제 Playwright 1440×900·390×844, active·paused 네 조합: 버튼 라벨 `잠시 쉬기`·`공부 계속하기`, 일간·주간 시작 안내 각각 0개, 휴식 카드 상태, 종료 버튼 활성 상태 확인.
+- 네 조합 모두 실제 DOM 자식 bounds와 document/body overflow 0, 콘솔·페이지 오류 0건.
+- 모든 Supabase 요청은 브라우저 route에서 스텁해 운영 데이터 쓰기를 수행하지 않았다.
+- `git diff --check`: 통과.
+
+#### 남은 작업
+
+- 실제 인증 계정에서 회고·주간 목표·todo-only·기본 라벨과 todo prefill, active·paused 전환을 하나의 사용자 흐름으로 확인한다.
+- 커밋·푸시·Supabase 변경·Vercel 배포는 수행하지 않았다.
+
+#### 다음 우선순위
+
+- 실제 사용에서 Today 진입 후 첫 시작까지의 마찰, 첫 10분 도달, 휴식 후 복귀, 회고 다음 행동 재시작을 하나의 습관 퍼널로 관찰한다.
+- 수치가 필요하면 기존 이벤트 의미를 먼저 정의한 별도 계측 PRD를 작성하고 사용자 동의 범위에서 최소 이벤트만 추가한다.
+
+### 2026-07-21 - Supabase Auth 초기화 timeout 복구
+
+#### 완료한 작업
+
+- 초기 저장 세션 확인과 OAuth callback 처리를 12초로 제한하는 `authInitialization` helper를 추가했다.
+- timeout 또는 초기화 오류가 나면 무한 로딩 대신 기존 로그인 화면, 접근 가능한 복구 안내, `로그인 상태 다시 확인` 버튼을 표시한다.
+- 시도 번호로 이전 늦은 결과가 최신 상태를 덮지 못하게 하고, 기존 `onAuthStateChange` 구독은 늦게 도착한 유효 세션을 계속 복구하도록 유지했다.
+- timeout 시 OAuth callback이 설정한 busy 상태도 해제해 이메일 OTP와 Google 로그인 버튼을 사용할 수 있게 했다.
+- Supabase SDK의 저장 세션, 자동 refresh, 수동 OAuth URL 처리 계약은 유지하고 원격 프로젝트·DB·RLS·RPC·Edge Function·환경 변수는 변경하지 않았다.
+- 관련 PRD, 사용자 PRD, README, 구현 계획을 복구 계약과 일치시켰다.
+
+#### 변경된 파일
+
+- `README.md`
+- `apps/web/src/authInitialization.mjs`
+- `apps/web/src/authInitialization.d.mts`
+- `apps/web/src/main.tsx`
+- `apps/web/src/styles.css`
+- `apps/web/test/authInitialization.test.mjs`
+- `memory-bank/prd-auth-initialization-recovery.md`
+- `memory-bank/prd-user-profile.md`
+- `memory-bank/implementation-plan.md`
+- `memory-bank/active-context.md`
+- `memory-bank/progress.md`
+- `memory-bank/trouble-shooting.md`
+
+#### 검증 방법
+
+- TDD RED: helper 추가 전 `ERR_MODULE_NOT_FOUND`, UI 연결 전 source contract 실패를 확인했다.
+- 집중 Auth 테스트: timeout·기존 세션·OAuth 계약 11개 통과.
+- `npm test`: 전체 Node 테스트 317개 통과.
+- `npm run build`: TypeScript와 Vite production build 통과.
+- 실제 Chrome: 멈춘 refresh 요청에서 12.301초 후 alert와 재확인 버튼, 이메일·Google 로그인 활성 상태 확인.
+- 실제 Chrome 1440px·390px: 문서·안내·실제 자식 overflow 없음.
+- 의도적 HTTP 400으로 잠긴 테스트 요청을 해제한 재확인 경로는 page error 0건, 늦은 HTTP 200 Auth 복구 경로는 console/page error 모두 0건이었다.
+- 모든 Supabase 요청을 브라우저 route에서 스텁해 운영 읽기·쓰기를 수행하지 않았다.
+
+#### 남은 작업
+
+- 실제 운영 장애를 인위적으로 만들지 않았으므로 운영 계정의 진짜 504 상황은 재발 시 관찰한다.
+- 실제 인증 데이터와 Supabase 쓰기를 포함한 전체 공부 습관 end-to-end 검증은 남아 있다.
+- 커밋·푸시·배포는 수행하지 않았다.
+
+#### 다음 우선순위
+
+- 운영 timeout 빈도와 Supabase 리소스 그래프를 함께 관찰해 12초 기준과 cron·`pg_net` 최적화 필요성을 판단한다.
+
+### 2026-07-21 - 완료 세션 회고 인박스
+
+#### 완료한 작업
+
+- 익명 집계에서 가장 약했던 회고 연결을 보완하기 위해 최근 7일 완료·미회고 세션 복구 경로를 추가했다.
+- 순수 helper가 completed 상태, 현지 날짜 경계, 기존 reflection, 종료 시각, 최대 3개 상한을 결정적으로 처리한다.
+- My Page에 기존 숲 색상과 종이 질감을 확장한 “숲 우체통” 인박스를 추가했다.
+- 기존 `SessionReflectionModal`을 completion/follow-up 두 모드로 공유하고 follow-up에서는 todo 변경을 숨겼다.
+- session 단위 upsert 성공 후 인박스·주간 리뷰·최신 다음 행동 상태를 즉시 갱신한다.
+- reflection INSERT·UPDATE가 user row뿐 아니라 연결된 owned completed session까지 검사하도록 로컬 RLS migration을 작성했다.
+- Supabase 공식 문서에서 upsert 반환을 위한 `.select()`, UPDATE의 SELECT 정책·`USING`·`WITH CHECK`, 명시적 role grant 계약을 재확인했다.
+
+#### 변경된 파일
+
+- `README.md`
+- `apps/web/src/reflectionInbox.mjs`
+- `apps/web/src/reflectionInbox.d.mts`
+- `apps/web/src/ReflectionInboxCard.tsx`
+- `apps/web/src/SessionReflectionModal.tsx`
+- `apps/web/src/main.tsx`
+- `apps/web/src/styles.css`
+- `apps/web/test/reflectionInbox.test.mjs`
+- `supabase/migrations/20260720182136_add_reflection_inbox.sql`
+- `memory-bank/prd-reflection-inbox.md`
+- `memory-bank/prd-sustainable-study-loop.md`
+- `memory-bank/prd-user-profile.md`
+- `memory-bank/implementation-plan.md`
+- `memory-bank/active-context.md`
+- `memory-bank/progress.md`
+- `memory-bank/trouble-shooting.md`
+
+#### 검증 방법
+
+- TDD RED: helper 부재와 UI source contract 부재를 순서대로 확인한 뒤 GREEN으로 전환했다.
+- 집중 테스트: 회고 인박스와 기존 지속학습·주간 리셋·단일 시작 회귀 17개 통과.
+- `npm test`: 전체 Node 테스트 321개 통과.
+- `npm run build`: TypeScript와 Vite production build 통과.
+- `git diff --check`: 통과.
+- 실제 Chromium: 3개 후보, follow-up 입력·저장, 2개로 감소, 주간 지표/다음 행동 갱신, Today `이어서 준비하기`와 다음 행동 안내 확인.
+- 390×844: document/modal horizontal overflow 없음, 인박스 버튼 44px, console warning/error 0건.
+- 원격 read-only 확인: authenticated 권한은 SELECT·INSERT·UPDATE만 존재하지만 RLS는 아직 기존 user-row ownership 정책이다.
+
+#### 남은 작업
+
+- 명시적 배포 요청 후 `20260720182136_add_reflection_inbox.sql`을 원격에 적용하고 정책·권한·Advisors와 실제 인증 upsert를 검증한다.
+- 커밋·푸시·Supabase 변경·Vercel 배포는 수행하지 않았다.
+
+#### 다음 우선순위
+
+- 실제 사용에서 인박스 노출이 회고 저장과 다음 세션 시작으로 이어지는지 관찰하고, 7일 창·3개 상한 조정은 사용 증거가 있을 때만 검토한다.
+
+### 2026-07-21 - Supabase 리소스 장애 사후 원인 확인
+
+#### 완료한 작업
+
+- Supabase 프로젝트 `bqohkdzvxbrokkmuhysx`가 현재 `ACTIVE_HEALTHY`임을 확인했다.
+- 장애 시각 Auth 로그에서 refresh token과 Google OAuth 요청이 내부 Postgres 연결 실패로 504 timeout 난 사실을 확인했다.
+- 매분 실행되는 `study-room-attendance-cron`이 최근 24시간 1,440회 중 218회 `job startup timeout`으로 실패했고 장애 시간대와 겹친 것을 확인했다.
+- 누적 statement 통계에서 `pg_net` 응답 정리 쿼리 154,180회·평균 535ms·총 약 22.9시간, 크론 이력 약 172MB, HTTP 응답 관계 약 83MB를 확인했다.
+- 현재 연결 16개 중 idle 13개, active 1개, deadlock 0건, HTTP queue 0건을 확인했다.
+- 과거 리소스 시계열 부재 때문에 최초 포화 리소스 하나는 단정하지 않고 직접 원인과 유력 부하원을 구분해 기록했다.
+
+#### 변경된 파일
+
+- `memory-bank/active-context.md`
+- `memory-bank/progress.md`
+- `memory-bank/trouble-shooting.md`
+
+#### 검증 방법
+
+- Supabase MCP `get_project`, Auth/API/Postgres 최근 로그, Performance Advisor를 읽기 전용으로 확인했다.
+- `pg_stat_database`, `pg_stat_activity`, `pg_stat_statements`, `cron.job`, `cron.job_run_details`, `pg_stat_all_tables`, `net` 큐를 읽기 전용 SQL로 대조했다.
+- Auth 504 발생 구간과 분 단위 크론 실패 구간이 일치함을 확인했다.
+
+#### 남은 작업
+
+- 사용자가 요청하면 크론 중복 방지·실행 빈도·HTTP timeout·이력/응답 보존량 최적화를 별도 설계하고 마이그레이션으로 적용한다.
+- 재발 시 Supabase Dashboard의 같은 시각 CPU·메모리·Disk I/O·connections 그래프를 보존해 최초 포화 리소스를 확정한다.
+- 커밋·푸시·Supabase 변경·Vercel 배포는 수행하지 않았다.
+
+#### 다음 우선순위
+
+- 자연 복구에 의존하지 않도록 매분 크론의 겹침 방지와 `cron`·`pg_net` 테이블 보존 정책을 우선 검토한다.
+
+### 2026-07-21 - 주간 마찰 계획
+
+#### 완료한 작업
+
+- 현재 주 완료 세션 회고에서 유효 방해 요인을 결정적으로 집계하는 `buildWeeklyFrictionPlan()`을 추가했다.
+- 동일 요인 2회 이상만 후보로 삼고 횟수, 최신 유효 시각, 고정 순서로 하나를 선택한다.
+- 휴대폰·소음/환경·피로·일정·기타별 구체적 환경 행동과 실행 단서를 React 밖에 정의했다.
+- My Page 주간 리뷰에 비대화형 “숲길 정비 노트”를 추가하고 기존 다음 행동 계획과 단일 시작 CTA를 유지했다.
+- 데이터 품질 경고와 마찰 안내 조건을 분리하고 620px 이하에서는 1열로 배치했다.
+- 관련 README·PRD·사용자 PRD·구현 계획·활성 맥락·장애 기록을 업데이트했다.
+
+#### 변경된 파일
+
+- `README.md`
+- `apps/web/src/weeklyReview.mjs`
+- `apps/web/src/weeklyReview.d.mts`
+- `apps/web/src/WeeklyReviewSection.tsx`
+- `apps/web/src/styles.css`
+- `apps/web/test/weeklyFrictionPlan.test.mjs`
+- `memory-bank/prd-weekly-friction-plan.md`
+- `memory-bank/prd-sustainable-study-loop.md`
+- `memory-bank/prd-user-profile.md`
+- `memory-bank/implementation-plan.md`
+- `memory-bank/active-context.md`
+- `memory-bank/progress.md`
+- `memory-bank/trouble-shooting.md`
+
+#### 검증 방법
+
+- TDD RED: helper export 부재를 확인하고, 실제 브라우저가 발견한 JSX 조건 중첩과 모바일 CSS 중첩도 각각 실패 테스트로 고정했다.
+- 집중 테스트 5개 통과.
+- `npm test`: 전체 Node 테스트 326개 통과.
+- `npm run build`: TypeScript와 Vite production build 통과.
+- `git diff --check`: 통과.
+- 실제 Chromium: 휴대폰 방해 2회 → 카드 1개, 새 버튼 0개, 인증 오류 메시지 없음.
+- 1440px은 2열, 390px은 1열이며 document/card/자식 overflow와 경계 이탈이 모두 0건이었다.
+- 최종 reload에서 console warning/error와 page error가 모두 0건이었다.
+- 모든 Supabase 요청을 Playwright context route로 스텁해 원격 read/write를 수행하지 않았다.
+
+#### 남은 작업
+
+- 실제 사용에서 2회 임계값과 각 조정 문구의 유용성을 관찰한다.
+- 커밋·푸시·Supabase 변경·Vercel 배포는 수행하지 않았다.
+
+#### 다음 우선순위
+
+- 사용 증거가 쌓이면 추천 숨김/사용자 수정이 필요한지 검토하고, 당장은 새 기능보다 실제 plan→start→reflect 연결을 관찰한다.
+
+### 2026-07-21 - 하루 쉰 뒤 부드러운 복귀 신호
+
+#### 완료한 작업
+
+- 오늘과 어제가 10분 미만이고, 그보다 앞선 최근 7일 안에 10분 성공이 있으며, 5/7 목표 미달일 때만 켜지는 `isGentleRestart`를 주간 습관 helper에 추가했다.
+- 복귀 상태에 `다시 잇는 날` 코칭과 `10분으로 다시 잇기` 단일 시작 라벨을 연결했다.
+- 주간 목표 표지판에 별도 버튼이 아닌 비대화형 복귀 신호와 비징벌적 안내 문구를 추가했다.
+- 처음 시작·어제 성공·오늘 성공·5/7 달성 상태에서는 복귀 신호가 나오지 않도록 고정했다.
+- 저장된 회고 다음 행동이 있을 때 `이어서 준비하기`가 복귀 라벨보다 우선하도록 기존 단일 시작 게이트를 보존했다.
+- README와 관련 PRD·구현 계획·활성 맥락·장애 기록을 업데이트했다.
+
+#### 변경된 파일
+
+- `README.md`
+- `apps/web/src/weeklyHabit.mjs`
+- `apps/web/src/weeklyHabit.d.mts`
+- `apps/web/src/main.tsx`
+- `apps/web/src/styles.css`
+- `apps/web/test/weeklyHabit.test.mjs`
+- `memory-bank/prd-gentle-restart-cue.md`
+- `memory-bank/prd-sustainable-study-loop.md`
+- `memory-bank/prd-user-profile.md`
+- `memory-bank/implementation-plan.md`
+- `memory-bank/active-context.md`
+- `memory-bank/progress.md`
+- `memory-bank/trouble-shooting.md`
+
+#### 검증 방법
+
+- TDD RED: 복귀 조건·제외 조건·단일 시작 게이트/UI source contract 테스트 3개가 구현 전 실패함을 확인한 뒤 GREEN으로 전환했다.
+- 주간 습관과 단일 시작 게이트 집중 테스트 17개 통과.
+- `npm test`: 전체 Node 테스트 329개 통과.
+- `npm run build`: TypeScript와 Vite production build 통과, 1,684개 모듈 변환 완료.
+- `git diff --check`: 통과.
+- 실제 Chromium 1440×1000과 390×844에서 복귀 fixture를 확인했다. 두 화면 모두 가로 overflow 0, 주간 카드 내부 버튼 0개, 최상단 시작 버튼 1개였다.
+- 비복귀 fixture에서는 복귀 신호가 사라지고 `10분 시작 준비`가 유지됨을 확인했다.
+- 회고 우선 fixture에서는 `이어서 준비하기` 버튼 1개, `10분으로 다시 잇기` 버튼 0개이며 복귀 안내는 비대화형 보조 정보로 남음을 확인했다.
+- 최종 fixture reload에서 console warning/error와 page error가 모두 0건이었다.
+- 모든 Supabase 요청을 Playwright route로 스텁해 원격 read/write를 수행하지 않았다.
+
+#### 남은 작업
+
+- 실제 사용에서 복귀 안내가 하루 휴식 뒤 10분 시작으로 이어지는지 관찰한다.
+- 커밋·푸시·Supabase 변경·Vercel 배포는 수행하지 않았다.
+
+#### 다음 우선순위
+
+- 현재 plan→start→reflect→restart 루프를 먼저 관찰하고, 장기 휴식 전용 문구나 임계값 변경은 실제 사용 증거가 있을 때만 검토한다.
+
+### 2026-07-21 - 공부 습관 루프 완료 감사
+
+#### 완료한 작업
+
+- 상위 목표를 계획, 진입, 집중, 중단 복귀, 마무리, 주간 조정, 휴식 후 복귀, 지속 보상의 여덟 단계로 나눠 관련 PRD·구현·테스트를 대조했다.
+- 계획은 오늘 todo·주간 리셋·회고 다음 행동, 진입은 최상단 단일 적응형 CTA와 기존 회복·카메라·todo 게이트가 담당함을 확인했다.
+- 집중은 오늘 첫 10분 체크포인트, 중단 복귀는 10·20·40분 약속, 마무리는 원자적 종료 회고와 나중 회고 인박스가 담당함을 확인했다.
+- 주간 조정은 비교 리뷰·적응형 알림·반복 방해 환경 계획, 복귀는 5/7 휴식 여백과 `다시 잇는 날`, 지속 보상은 비회수 반딧불 화환이 담당함을 확인했다.
+- 필수 기능 요구는 모두 `[x]`이고, 각 단계에 순수 helper 또는 source-contract 테스트가 존재하며, 새 결손 기능은 발견되지 않았다.
+- 기능 추가가 오히려 선택 마찰을 늘릴 수 있어 이번 감사에서는 제품 코드를 변경하지 않았다.
+
+#### 변경된 파일
+
+- `memory-bank/active-context.md`
+- `memory-bank/progress.md`
+- `memory-bank/trouble-shooting.md`
+- `memory-bank/prd-sustainable-study-loop.md`
+
+#### 검증 방법
+
+- `npm test`: 전체 Node 테스트 329개 통과.
+- `npm run build`: TypeScript와 Vite production build 통과, 1,684개 모듈 변환 완료.
+- `npm.cmd --workspace apps/mobile run typecheck`: Expo 모바일 TypeScript 검사 통과.
+- 실제 Chromium 1440×1000: `10분으로 다시 잇기` 버튼 1개, 44px 높이, 습관 카드 내부 버튼 0개, 주간 progressbar 1개, document overflow 0, `color-scheme: light only`를 확인했다.
+- 실제 Chromium 390×844: 시작 버튼 1개, 44px 높이, 주간 날짜 2열, 요약 1열, document overflow 0을 확인했다.
+- 두 viewport 모두 visible descendant 경계 이탈 0건, console warning/error와 page error 0건이었다.
+- 모바일에서 단일 시작 버튼을 실제 클릭해 `카메라 인증 필요` dialog가 열림을 확인했다. `나중에` 취소 후 dialog 0개·시작 버튼 1개·세션 미시작 상태가 유지됐다.
+- 모든 Supabase Auth·REST 요청은 Playwright persistent route로 격리해 원격 read/write를 수행하지 않았다.
+- 브라우저·Vite 세션과 생성한 screenshot·log·Playwright metadata는 검증 후 정확한 경로로 제거했다.
+
+#### 완료 감사 판정
+
+- 계획: 충족 — 오늘 todo, 장기 목표, 회고 다음 행동, 주간 reset bridge.
+- 시작: 충족 — 하나의 문맥형 CTA와 회복·카메라·todo gate.
+- 집중: 충족 — 유효 시간 기반 첫 10분 checkpoint와 기존 일일 목표.
+- 회복: 충족 — pause/resume과 구체적인 복귀 약속, 늦은 복귀 비징벌 처리.
+- 마무리: 충족 — todo·회고 원자적 종료와 미회고 inbox.
+- 조정: 충족 — 주간 비교, 반복 방해 환경 계획, 적응형 알림.
+- 지속: 충족 — 5/7 휴식 여백, 하루 쉰 뒤 복귀, 영구 숲 보상.
+- 접근성·반응형·회귀 안전성: 충족 — 테스트, build, mobile typecheck, 실제 Chrome 증거.
+
+#### 남은 작업
+
+- 제품 목표 관점의 필수 구현은 남지 않았다. 이후 변경은 실제 사용 관찰 또는 사용자의 구체적 요청을 근거로 진행한다.
+- 최신 작업 트리의 커밋·푸시, reflection RLS migration 원격 적용, Vercel 배포는 사용자의 명시적 요청이 필요하다.
+
+#### 다음 우선순위
+
+- 출시 요청 시 reflection migration을 먼저 적용·검증하고 전체 테스트·build를 다시 통과한 뒤 기존 CI로 배포한다.
+- 운영에서는 10분 시작 전환, 휴식 복귀, 회고 저장, 5/7 달성만 관찰하고 새 점수나 경쟁 요소를 기본값으로 추가하지 않는다.
+
+### 2026-07-22 - 출석 완료 상태의 정시 알림 누락 진단
+
+#### 완료한 작업
+
+- Supabase 원격 프로젝트의 오늘 출석, 세션, 알림 대상, 발송 이력, Cron 실행 이력과 배포된 알림 RPC 정의를 읽기 전용으로 대조했다.
+- 설정 시각 20:30에 Cron이 정상 성공했지만 같은 실행에서 목표 시간 충족으로 출석이 먼저 `present` 처리되어 초기 알림 후보에서 제외된 사실을 확인했다.
+- Cron 장애와 Slack 전송 오류가 아니라 현재 제품 정책과 SQL 조건이 알림을 의도적으로 억제한 것이 직접 원인임을 확정했다.
+- 사용자 요청 정책과 기존 `prd-supabase-cron.md`의 충돌을 확인하고 구현 전 결정이 필요한 상태로 기록했다.
+
+#### 변경된 파일
+
+- `memory-bank/active-context.md`
+- `memory-bank/progress.md`
+- `memory-bank/trouble-shooting.md`
+
+#### 검증 방법
+
+- Supabase 프로젝트 상태 `ACTIVE_HEALTHY` 확인.
+- `cron.job`의 1분 주기 작업 활성화와 설정 시각 전후 `cron.job_run_details.status = succeeded` 확인.
+- 관련 계정의 유효 알림 시각 20:30, 출석 `present`, 출석 기록 시각 20:30, 목표 7,200초 대비 완료 8,527초 확인.
+- 해당 설정 시각의 `notification_deliveries` 발송 행 부재와 `get_due_reminders()`의 `present`/목표 충족 제외 조건 확인.
+
+#### 남은 작업
+
+- PRD를 새 정책으로 바꿀지 사용자 확인이 필요하다.
+- 승인 시 이미 출석인 날의 정시 초기 알림 1회, 재촉 없음, 결석 전환 없음 규칙을 SQL·Edge Function·테스트에 구현한다.
+- 원격 migration과 Edge Function 배포는 구현·검증 후 별도 명시적 배포 요청 범위에서 수행한다.
+
+#### 다음 우선순위
+
+- 정책 승인 후 알림 발송과 출석 판정을 분리하고, 매분 Cron의 중복 발송을 막는 멱등성 테스트부터 추가한다.
+
+### 2026-07-22 - 출석 완료 상태의 정시 알림 구현 및 Supabase 적용
+
+#### 완료한 작업
+
+- 사용자 승인에 따라 `목표 충족 시 초기 알림 억제` PRD를 폐기하고 출석 여부와 설정 시각 알림을 분리했다.
+- `attendance_days`에 초기·재촉 claim 시각을 추가하고 `get_due_reminders()`를 원자적 UPSERT/UPDATE 구조로 변경했다.
+- 이미 출석인 날은 초기 알림을 1회 반환하고 `attendance_already_present = true`를 전달하며, 재촉과 결석은 계속 `pending`에만 적용했다.
+- Slack, Web Push, Expo, Email에 출석 완료 문맥을 연결하고 Slack 출석 완료 알림에서 마감·결석 경고를 제거했다.
+- Supabase 원격 migration과 `attendance-cron` v28을 적용했다.
+- README, 관련 PRD, 구현 계획과 장애 기록을 현재 정책으로 갱신했다.
+
+#### 변경된 파일
+
+- `README.md`
+- `supabase/migrations/20260722133736_send_initial_reminder_when_present.sql`
+- `supabase/functions/attendance-cron/index.ts`
+- `packages/core/test/sql-migrations.test.mjs`
+- `memory-bank/prd-supabase-cron.md`
+- `memory-bank/prd-slack-notifications.md`
+- `memory-bank/prd-user-profile.md`
+- `memory-bank/implementation-plan.md`
+- `memory-bank/active-context.md`
+- `memory-bank/progress.md`
+- `memory-bank/trouble-shooting.md`
+
+#### 검증 방법
+
+- TDD RED: 빈 migration과 기존 Edge Function에서 새 정책 테스트 2개가 실패함을 확인했다.
+- 집중 테스트 2개 통과 후 `npm test`: 전체 331개 통과.
+- `npm run build`: TypeScript/Vite production build 통과, 1,684개 모듈 변환 완료.
+- migration 전체를 원격 트랜잭션에서 실행 후 rollback해 SQL 문법을 확인했다.
+- 원격 rollback 정책 테스트: 이미 출석 초기 1·중복 0·재촉 0·결석 0·최종 present, 미출석 초기 1·재촉 1·결석 1·최종 missed.
+- 원격 migration `20260722133736_send_initial_reminder_when_present`, Edge Function v28 ACTIVE, 최근 Cron v28 200 응답을 확인했다.
+- `get_due_reminders()` 실행 권한은 public/anon/authenticated=false, service_role=true이고 `search_path = ''`임을 확인했다.
+- Supabase Advisors에서 이번 함수·열로 새 보안/성능 경고가 추가되지 않았으며 기존 공유 프로젝트 경고만 남아 있다.
+
+#### 남은 작업
+
+- 다음 실제 설정 시각에 Slack `notification_deliveries.status = sent`를 확인한다.
+- 별도 20:00 계정의 Resend 403과 Web Push 오류는 필요 시 별도 범위에서 해결한다.
+- Git 커밋·푸시와 Vercel 배포는 수행하지 않았다.
+
+#### 다음 우선순위
+
+- 다음 20:30 초기 알림이 출석 상태와 관계없이 1회 발송되고, 출석 완료 문구와 중복 방지 claim이 함께 기록되는지 운영 확인한다.
+
+### 2026-08-04
+
+#### 진단한 작업
+
+- 8월 공부시간 과다 표시와 종료하지 않은 세션의 동작을 원격 Supabase 데이터로 확인했다.
+- 8월 2일 시작 세션이 lease 만료 후에도 열려 있다가 8월 4일에 수동 종료되어 `210,050초(58시간 20분 50초)`가 저장된 것을 확인했다.
+- 새 활성 세션은 8월 4일 22:17(KST) 시작, 23:17(KST) lease 만료 예정임을 확인했다.
+
+#### 원인
+
+- 브라우저의 lease 자동 종료는 클라이언트가 실행 중일 때만 동작한다.
+- 수동 종료·회고 종료의 `endTimer()`는 lease 초과 시간을 제외하지 않으며, 원격 `end_study_session()`도 `lease_expires_at`을 기준으로 종료 시간을 제한하지 않는다.
+
+#### 다음 우선순위
+
+- 서버에서 lease 상한을 강제하고, 만료된 활성 세션을 안전하게 정리하는 수정안을 구현한다.
+- 이미 저장된 장기 세션의 시간을 보정할지는 사용자 승인을 받은 뒤 별도로 처리한다.
+### 2026-08-04 - 서버 lease 만료 강제와 과대 기록 보정
+
+#### 완료한 작업
+
+- `end_study_session`이 실제 저장 종료 시각을 server-owned lease와 현재 시각 중 이른 값으로 제한하도록 변경했다.
+- `close_expired_study_sessions(timestamptz)`를 추가해 만료 활성 세션을 `FOR UPDATE SKIP LOCKED` 및 100건 배치로 자동 종료하도록 했다.
+- 기존 1분 `attendance-cron` Edge Function v29가 다른 알림 처리 전에 만료 세션 정리를 실행하고 `expiredSessionCount`를 반환하도록 배포했다.
+- 문제였던 완료 세션을 58시간 20분 50초에서 lease 기준 7시간으로 보정했다. 해당 세션만으로 출석 처리된 8월 3일과 4일도 `missed`로 정정했다.
+
+#### 변경된 파일
+
+- `supabase/migrations/20260804133546_enforce_session_lease_expiry.sql`
+- `supabase/functions/attendance-cron/index.ts`
+- `apps/web/src/main.tsx`
+- `apps/web/test/sessionLease.test.mjs`
+- `packages/core/test/sql-migrations.test.mjs`
+- `memory-bank/prd-session-lease-expiry.md`
+- `README.md`
+
+#### 검증 방법
+
+- TDD: 새 source/migration 계약 테스트가 구현 전 2건 실패한 뒤 통과했다.
+- 원격 transaction-scoped 검증: 활성 세션을 임시 만료시킨 후 `close_expired_study_sessions()`가 lease 시각에 종료하고 1,328초만 저장한 뒤 rollback 됐다.
+- 원격 권한 검증: 새 cleanup RPC는 anon/authenticated 실행 불가, service_role만 실행 가능하다.
+- 원격 데이터 검증: 보정 세션 25,200초, 8월 2일 25,200초·8월 3일 0초·8월 4일 0초의 완료 세션 합계, 출석은 present/missed/missed로 확인했다.
+- `npm test`: 333 passed.
+- `npm run build`: TypeScript/Vite production build passed.
+
+#### 남은 작업
+
+- 브라우저를 닫은 실제 세션이 lease 만료 뒤 1분 내 정리되는지 운영 Cron 응답으로 관찰한다.
+
+#### 다음 우선순위
+
+- 사용자가 요청할 때에만 Git commit/push 및 Vercel 웹 배포를 수행한다.

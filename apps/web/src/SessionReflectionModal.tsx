@@ -18,6 +18,8 @@ type TodoCandidate = {
 };
 
 type SessionReflectionModalProps = {
+  mode?: "completion" | "follow-up";
+  sessionLabel?: string;
   candidates: TodoCandidate[];
   selectedTodoIds: string[];
   draft: SessionReflectionDraft;
@@ -38,6 +40,8 @@ const interruptionOptions: Array<{ value: SessionReflectionDraft["interruptionRe
 ];
 
 export default function SessionReflectionModal({
+  mode = "completion",
+  sessionLabel,
   candidates,
   selectedTodoIds,
   draft,
@@ -47,25 +51,32 @@ export default function SessionReflectionModal({
   onClose,
   onSubmit,
 }: SessionReflectionModalProps) {
+  const followUp = mode === "follow-up";
+
   return (
     <AccessibleDialog
       className="todo-modal session-reflection-modal"
       labelledBy="session-reflection-title"
       describedBy="session-reflection-description"
-      onClose={onClose}
+      onClose={() => { if (!busy) onClose(); }}
     >
       <button
         className="modal-close"
         type="button"
         onClick={onClose}
-        aria-label="회고 닫기"
+        aria-label={followUp ? "나중 회고 닫기" : "회고 닫기"}
         data-dialog-initial-focus
       >
         <X size={22} />
       </button>
-      <p className="eyebrow">session reflection</p>
-      <h3 id="session-reflection-title">오늘의 집중을 짧게 돌아봐요</h3>
-      <p id="session-reflection-description">집중과 에너지 상태를 남기면 다음 세션을 더 쉽게 시작할 수 있어요.</p>
+      <p className="eyebrow">{followUp ? "reflection follow-up" : "session reflection"}</p>
+      <h3 id="session-reflection-title">
+        {followUp ? "놓친 세션을 짧게 돌아봐요" : "오늘의 집중을 짧게 돌아봐요"}
+      </h3>
+      <p id="session-reflection-description">
+        {followUp && sessionLabel ? `${sessionLabel} 집중 세션이에요. ` : ""}
+        집중과 에너지 상태를 남기면 다음 세션을 더 쉽게 시작할 수 있어요.
+      </p>
 
       <div className="reflection-score-grid">
         <ScoreField label="집중도" value={draft.focusScore} onChange={(focusScore) => onDraftChange({ ...draft, focusScore })} />
@@ -103,7 +114,7 @@ export default function SessionReflectionModal({
         />
       </label>
 
-      <div className="reflection-todo-block">
+      {!followUp && <div className="reflection-todo-block">
         <strong>이번 세션에서 끝낸 할 일</strong>
         {candidates.length === 0 ? (
           <p className="todo-empty">완료할 수 있는 오늘 할 일이 없어요.</p>
@@ -119,13 +130,15 @@ export default function SessionReflectionModal({
             ))}
           </ul>
         )}
-      </div>
+      </div>}
 
       <div className="modal-actions">
         <button className="primary" type="button" disabled={busy} onClick={onSubmit}>
-          <CheckCircle2 size={18} />{busy ? "저장하는 중" : "회고 저장하고 종료"}
+          <CheckCircle2 size={18} />{busy ? "저장하는 중" : followUp ? "회고 저장하기" : "회고 저장하고 종료"}
         </button>
-        <button className="secondary" type="button" disabled={busy} onClick={onClose}><X size={18} />계속 공부하기</button>
+        <button className="secondary" type="button" disabled={busy} onClick={onClose}>
+          <X size={18} />{followUp ? "나중에" : "계속 공부하기"}
+        </button>
       </div>
     </AccessibleDialog>
   );

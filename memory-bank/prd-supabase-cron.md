@@ -12,8 +12,10 @@
 
 - Supabase Cron이 매분 `attendance-cron` Edge Function을 호출한다.
 - Edge Function이 알림 대상자를 조회하고 웹푸시/이메일/Expo Push 발송을 시도한다.
-- 알림 시각에는 1차 알림을 보내고, 15분 내 타이머 시작 기록이 없으면 재촉 알림을 한 번 더 보낸다.
-- 알림 후 30분까지 타이머 시작 기록이 없으면 `missed`로 처리한다.
+- 알림 시각의 1차 알림은 당일 출석 상태와 관계없이 한 번 발송한다.
+- 아직 출석하지 않았고 15분 내 타이머 시작 기록이 없으면 재촉 알림을 한 번 더 보낸다.
+- 아직 출석하지 않았고 알림 후 30분까지 타이머 시작 기록이 없으면 `missed`로 처리한다.
+- 이미 `present`인 날은 1차 알림에 출석 완료 상태를 표시하고 재촉·결석 처리에서 제외한다.
 - 평일은 20:30 기본 알림과 2시간 공부 목표를 사용하고, 주말은 14:00 알림과 4시간 공부 목표를 사용한다.
 - 알림 후 30분 출석 창을 놓쳐도 같은 날짜의 완료 공부 시간이 목표를 채우면 `present`로 전환한다.
 - 브라우저 웹푸시는 현재 VAPID 공개키와 맞는 subscription으로 저장된다.
@@ -29,7 +31,8 @@
 ```md
 - As an operator, I want Supabase to run the reminder worker every minute, so that reminders work without my local server.
 - As a web user, I want computer notification registration to refresh stale push subscriptions, so that web push delivery uses the current VAPID key.
-- As a student, I want missed attendance to be marked automatically, so that the app reflects my actual habit.
+- As a student, I want the configured-time reminder even after attendance is complete, without being threatened with a missed mark.
+- As a student, I want missed attendance to be marked automatically only while I am still pending, so that the app reflects my actual habit.
 ```
 
 ## 6. User Scenarios
@@ -40,17 +43,19 @@
 2. 웹앱이 `profiles.reminder_time`과 `notification_targets`를 저장한다. 주말 알림은 서버에서 14:00으로 계산한다.
 3. Supabase Cron이 매분 `attendance-cron`을 호출한다.
 4. Edge Function이 `get_due_reminders`와 `mark_missed_attendance`를 실행한다.
-5. 알림 시각에는 `reminder_stage = initial` 알림이 발송되고 `attendance_days.status = pending`이 저장된다.
-6. 15분 뒤에도 출석 타이머 시작이 없으면 `reminder_stage = nudge` 재촉 알림이 발송된다.
-7. 30분 뒤에도 출석 타이머 시작과 완료된 목표 공부 시간이 없으면 `attendance_days.status = missed`로 바뀐다.
-8. 이후 사용자가 같은 날짜의 완료 공부 시간을 평일 2시간 또는 주말 4시간까지 채우면 `attendance_days.status = present`로 전환된다.
-9. 발송 결과가 `notification_deliveries`에 저장된다.
+5. 알림 시각에는 `reminder_stage = initial`이 원자적으로 1회 claim되고, 출석 전이면 `pending`, 이미 출석이면 기존 `present`를 유지한다.
+6. Edge Function은 `attendance_already_present`에 따라 일반 입장 알림 또는 결석 경고 없는 출석 완료 알림을 발송한다.
+7. 15분 뒤에도 `pending`이고 출석 타이머 시작이 없으면 `reminder_stage = nudge`를 1회 claim하고 재촉한다.
+8. 30분 뒤에도 `pending`이며 출석 타이머 시작과 완료된 목표 공부 시간이 없으면 `attendance_days.status = missed`로 바뀐다.
+9. 이후 사용자가 같은 날짜의 완료 공부 시간을 평일 2시간 또는 주말 4시간까지 채우면 `attendance_days.status = present`로 전환된다.
+10. 발송 결과가 `notification_deliveries`에 저장된다.
 
 ### Edge Cases
 
 * VAPID key가 바뀐 경우 기존 브라우저 subscription을 해제하고 다시 구독한다.
 * 지금 보낼 알림이 없으면 Edge Function은 200과 `dueReminderCount: 0`을 반환한다.
-* 오늘 목표 공부 시간이 이미 충족된 경우 초기 알림/재촉 알림을 보내지 않고 출석으로 보정한다.
+* 오늘 목표 공부 시간이 이미 충족된 경우 출석으로 보정한 뒤 초기 알림은 보내고 재촉 알림과 결석 처리는 생략한다.
+* 같은 알림 분에 Cron이 재호출되더라도 `initial_reminder_claimed_at` 또는 `nudge_reminder_claimed_at`이 있으면 중복 반환하지 않는다.
 
 ### Error Cases
 
@@ -70,10 +75,14 @@
 * [x] 알림 후 15분에 재촉 알림을 발송하고, 알림 후 30분에 결석 처리한다.
 * [x] 주말 알림을 14:00으로 계산한다.
 * [x] 평일 2시간/주말 4시간 완료 공부 목표를 출석 인정 조건으로 추가한다.
+* [x] 이미 출석인 날도 설정 시각 초기 알림을 한 번 발송한다.
+* [x] 이미 출석인 날은 출석 완료 문구를 사용하고 재촉·결석 처리에서 제외한다.
+* [x] 초기·재촉 알림 claim을 원자적으로 저장해 Cron 중복 발송을 방지한다.
 
 ## 8. Non-functional Requirements
 
 * 성능: cron은 매분 1회만 실행한다.
+* 신뢰성: 알림 stage별 claim은 `(user_id, local_date)` 출석 행에서 원자적으로 한 번만 기록한다.
 * 보안: `cron_secret`은 Vault와 Edge Function secret에만 저장한다.
 * 접근성: 기존 웹 UI 흐름은 유지한다.
 * 확장성: AWS Lambda invoker와 Supabase Cron 중 하나를 선택할 수 있게 유지한다.
@@ -81,26 +90,28 @@
 
 ## 9. Dependencies
 
-* 내부 의존성: `attendance-cron` Edge Function, `notification_targets`
+* 내부 의존성: `attendance-cron` Edge Function, `attendance_days`, `notification_targets`
 * 외부 의존성: Supabase Cron, Supabase Vault, pg_net
 * Supabase: project `bqohkdzvxbrokkmuhysx`
-* API: Expo Push, Web Push, Resend
+* API: Expo Push, Web Push, Resend, Slack Bot API
 * 환경 변수: `VITE_WEB_PUSH_VAPID_PUBLIC_KEY`, Edge Function secrets
 
 ## 10. Success Metrics
 
-* 자동 cron 호출이 `net._http_response`에서 200을 반환한다.
-* `npm.cmd test`가 통과한다.
-* `npm.cmd run build`가 통과한다.
+* 이미 출석인 원격 rollback 시나리오가 초기 1회, 중복 0회, 재촉 0회, 결석 0회, 최종 `present`를 반환한다.
+* 미출석 시나리오가 초기 1회, 재촉 1회, 결석 1회 흐름을 유지한다.
+* 자동 cron 호출이 200을 반환한다.
+* `npm test`가 통과한다.
+* `npm run build`가 통과한다.
 
 ## 11. Rollout Plan
 
-* 개발: SQL/Web Push 보강
-* 테스트: 로컬 테스트 및 원격 RPC 분리 검증
-* 배포: Supabase Management API로 secrets/Vault/cron 적용
-* 모니터링: `net._http_response`, `notification_deliveries` 확인
+* 개발: SQL claim, 반환 계약, 채널별 문구 보강
+* 테스트: 로컬 테스트 및 원격 rollback RPC 분리 검증
+* 배포: Supabase migration과 `attendance-cron` Edge Function 적용
+* 모니터링: `cron.job_run_details`, `notification_deliveries`, `attendance_days` claim 시각 확인
 
 ## 12. Open Questions
 
-* Resend API key를 언제 설정할지 결정해야 한다.
+* Resend API key와 발신 도메인을 언제 정상화할지 결정해야 한다.
 * Expo EAS project id를 언제 설정할지 결정해야 한다.

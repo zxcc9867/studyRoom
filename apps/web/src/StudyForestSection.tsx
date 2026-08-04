@@ -26,6 +26,11 @@ import {
 } from "./studyForest.mjs";
 import { StudyForest3D } from "./StudyForest3D";
 import { supabase } from "./supabase";
+import {
+  getWeeklyHabitRewardHistory,
+  type WeeklyHabitSession,
+  type WeeklyHabitTargetState,
+} from "./weeklyHabit.mjs";
 
 type AttendanceDay = {
   local_date: string;
@@ -36,6 +41,9 @@ type StudyForestSectionProps = {
   userId: string;
   todayDateKey: string;
   attendanceDays: AttendanceDay[];
+  sessions: WeeklyHabitSession[];
+  timeZone: string;
+  weeklyHabitTarget: WeeklyHabitTargetState;
 };
 
 type AvatarState = StudyForestAvatarPosition & { facing: StudyForestAvatarFacing };
@@ -43,7 +51,14 @@ type AvatarState = StudyForestAvatarPosition & { facing: StudyForestAvatarFacing
 const MEADOW_BOUNDS = { minX: 8, maxX: 92, minY: 42, maxY: 84, step: 4 };
 const MANUAL_CONTROL_MS = 8_000;
 
-export default function StudyForestSection({ userId, todayDateKey, attendanceDays }: StudyForestSectionProps) {
+export default function StudyForestSection({
+  userId,
+  todayDateKey,
+  attendanceDays,
+  sessions,
+  timeZone,
+  weeklyHabitTarget,
+}: StudyForestSectionProps) {
   const [avatar, setAvatar] = useState<AvatarState>({ x: 52, y: 64, facing: "down" });
   const [interiorAvatar, setInteriorAvatar] = useState<AvatarState>({ x: 50, y: 80, facing: "up" });
   const [manualUntilMs, setManualUntilMs] = useState(0);
@@ -55,6 +70,10 @@ export default function StudyForestSection({ userId, todayDateKey, attendanceDay
   const forestState = useMemo(
     () => buildStudyForestState({ todayDateKey, attendanceDays }),
     [attendanceDays, todayDateKey],
+  );
+  const weeklyRewardHistory = useMemo(
+    () => getWeeklyHabitRewardHistory({ todayDateKey, timeZone, sessions }),
+    [sessions, timeZone, todayDateKey],
   );
   const completedTreeCount = forestState.placedTrees.length;
   const progressPercent = Math.round((forestState.currentTree.progressDays / 7) * 100);
@@ -184,11 +203,12 @@ export default function StudyForestSection({ userId, todayDateKey, attendanceDay
         <div>
           <p className="eyebrow">study forest</p>
           <h2>공부의 숲</h2>
-          <p className="section-description">7일 연속 출석으로 나무와 새로운 섬 장식을 완성해 보세요.</p>
+          <p className="section-description">꾸준한 출석으로 나무를 키우고, 5/7 작은 시작으로 반딧불 화환을 남겨 보세요.</p>
         </div>
         <div className="forest-badges">
           <span className="pill"><TreePine size={16} /> 완성 나무 {completedTreeCount}그루</span>
           <span className="pill"><Sprout size={16} /> {progressPercent}%</span>
+          <span className="pill"><Sparkles size={16} /> 화환 {weeklyRewardHistory.earnedCount}개</span>
         </div>
       </div>
 
@@ -214,6 +234,8 @@ export default function StudyForestSection({ userId, todayDateKey, attendanceDay
             interiorAvatar={interiorAvatar}
             sceneMode={sceneMode}
             customization={preferences}
+            weeklyHabitTarget={weeklyHabitTarget}
+            weeklyRewardCount={weeklyRewardHistory.earnedCount}
             onMoveTarget={moveAvatarTo}
             onInteriorMoveTarget={moveInteriorAvatarTo}
             onSceneModeChange={(mode) => {
@@ -236,6 +258,51 @@ export default function StudyForestSection({ userId, todayDateKey, attendanceDay
           <h3>{forestState.currentTree.label}</h3>
           <div className="forest-progress-track"><span style={{ width: `${progressPercent}%` }} /></div>
           <p>현재 연속 출석 {forestState.currentStreak}일 · 이번 나무 {forestState.currentTree.progressDays}/7일</p>
+          <section
+            className={`forest-weekly-reward-card ${weeklyHabitTarget.targetReached ? "complete" : ""}`.trim()}
+            aria-labelledby="forest-weekly-reward-title"
+          >
+            <div className="forest-weekly-reward-heading">
+              <div>
+                <p className="eyebrow"><Sparkles size={15} aria-hidden="true" /> weekly glow</p>
+                <h4 id="forest-weekly-reward-title">
+                  {weeklyHabitTarget.targetReached
+                    ? "이번 7일 반딧불 화환 완성"
+                    : `새 반딧불 화환까지 ${weeklyHabitTarget.remainingTargetDays}번`}
+                </h4>
+              </div>
+              <strong>{weeklyHabitTarget.creditedStartDays}/{weeklyHabitTarget.targetDays}</strong>
+            </div>
+            <div
+              className="forest-weekly-reward-seeds"
+              role="progressbar"
+              aria-label="반딧불 화환을 위한 최근 7일 시작"
+              aria-valuemin={0}
+              aria-valuemax={weeklyHabitTarget.targetDays}
+              aria-valuenow={weeklyHabitTarget.creditedStartDays}
+              aria-valuetext={`${weeklyHabitTarget.creditedStartDays}번 완료, ${weeklyHabitTarget.remainingTargetDays}번 남음`}
+            >
+              {Array.from({ length: weeklyHabitTarget.targetDays }, (_, index) => (
+                <span
+                  key={index}
+                  className={index < weeklyHabitTarget.creditedStartDays ? "complete" : ""}
+                  aria-hidden="true"
+                >
+                  <Sprout size={15} />
+                </span>
+              ))}
+            </div>
+            <p>
+              {weeklyHabitTarget.targetReached
+                ? "다섯 씨앗이 모두 빛나요. 이번 화환은 완료 세션으로 확정되면 숲에 계속 남습니다."
+                : "10분 시작 한 번마다 현재 나무 둘레의 씨앗 조명이 하나씩 켜져요."}
+            </p>
+            <small>
+              {weeklyRewardHistory.earnedCount > 0
+                ? `지금까지 완성한 반딧불 화환 ${weeklyRewardHistory.earnedCount}개는 다음 휴식 주에도 사라지지 않아요.`
+                : "첫 화환을 완성해도 매일 공부할 필요는 없어요. 최근 7일 중 이틀은 쉬어도 괜찮습니다."}
+            </small>
+          </section>
           <div className="forest-next-level-card">
             <div><Sparkles size={19} /><span>다음 변화까지 {nextLevel.remainingDays}일</span></div>
             <strong>{nextLevel.title}</strong>

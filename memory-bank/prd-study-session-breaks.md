@@ -91,3 +91,22 @@
 ## 12. Open Questions
 
 - 장기적으로 휴식 사유별 통계가 필요하면 별도 break interval 테이블을 검토한다.
+
+## 13. 2026-07-21 Update: Break Return Plan
+
+기존 서버 휴식 상태 위에 브라우저 전용 복귀 실행 계획을 추가한다. 상세 요구사항은 `memory-bank/prd-break-return-plan.md`를 기준으로 한다.
+
+### Functional Requirements
+
+- [x] 휴식 중에만 10·20·40분 복귀 프리셋을 표시한다.
+- [x] 약속 시각·카운트다운·도달 상태·10분 연장·약속 지우기를 제공한다.
+- [x] 복귀 약속이 lease 만료보다 늦으면 자동 연장 없이 주의 문구를 제공한다.
+- [x] 사용자·세션별 localStorage deadline을 새로고침 뒤 복원한다.
+- [x] 성공한 재개·종료와 외부에서 동기화된 재개 상태에서 deadline을 제거한다.
+- [x] resume 실패, 카메라 준비 실패, storage 실패가 서버 휴식 상태를 바꾸지 않는다.
+- [x] Supabase 스키마·RPC·RLS·Edge Function·Expo는 변경하지 않는다.
+
+### Success Evidence
+
+- 집중 테스트 10개, 전체 Node 테스트 306개, production build가 통과한다.
+- 실제 Chrome 1440px 예정 상태와 390px 도달·lease 경고 상태에서 상호작용·한 열 버튼·콘텐츠 overflow·브라우저 오류를 검증한다.

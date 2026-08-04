@@ -159,6 +159,37 @@ test("attendance cron distinguishes initial reminders from 15 minute nudge remin
   assert.match(source, /15 minutes/);
 });
 
+test("present attendance still claims one initial reminder without nudge or missed", () => {
+  const sql = readFileSync(
+    "supabase/migrations/20260722133736_send_initial_reminder_when_present.sql",
+    "utf8",
+  );
+
+  assert.match(sql, /add column if not exists initial_reminder_claimed_at timestamptz/i);
+  assert.match(sql, /add column if not exists nudge_reminder_claimed_at timestamptz/i);
+  assert.match(sql, /attendance_already_present boolean/i);
+  assert.match(sql, /initial_reminder_claimed_at = excluded\.initial_reminder_claimed_at/i);
+  assert.match(sql, /attendance_days\.status is distinct from 'missed'/i);
+  assert.match(sql, /attendance_days\.initial_reminder_claimed_at is null/i);
+  assert.match(sql, /ad\.status = 'pending'/i);
+  assert.match(sql, /ad\.nudge_reminder_claimed_at is null/i);
+  assert.match(sql, /set nudge_reminder_claimed_at = p_now/i);
+  assert.match(sql, /\(initial_claimed\.status = 'present'\) as attendance_already_present/i);
+  assert.match(sql, /set status = 'missed'[\s\S]*where ad\.status = 'pending'/i);
+  assert.match(sql, /revoke all on function public\.get_due_reminders\(timestamptz\) from public, anon, authenticated/i);
+  assert.match(sql, /grant execute on function public\.get_due_reminders\(timestamptz\) to service_role/i);
+});
+
+test("attendance cron tells already-present users that attendance stays complete", () => {
+  const source = readFileSync("supabase/functions/attendance-cron/index.ts", "utf8");
+
+  assert.match(source, /attendance_already_present: boolean/);
+  assert.match(source, /reminder\.attendance_already_present/);
+  assert.match(source, /오늘 출석은 이미 완료됐어요/);
+  assert.match(source, /결석 처리되지 않아요/);
+  assert.match(source, /attendanceAlreadyPresent: reminder\.attendance_already_present/);
+});
+
 test("start_study_session only marks attendance present inside the reminder window", () => {
   const sql = readFileSync("supabase/migrations/0009_start_session_attendance_window.sql", "utf8");
 
@@ -603,4 +634,24 @@ test("manual study session breaks persist and are excluded from final duration",
   assert.match(sql, /revoke all on function public\.pause_study_session\(uuid\) from public, anon/i);
   assert.match(sql, /grant execute on function public\.pause_study_session\(uuid\) to authenticated, service_role/i);
   assert.match(sql, /grant execute on function public\.resume_study_session\(uuid\) to authenticated, service_role/i);
+});
+test("expired study sessions are server-capped and closed by the attendance cron", () => {
+  const sql = readLatestMigrationContaining(/close_expired_study_sessions/i);
+  const attendanceSource = readFileSync("supabase/functions/attendance-cron/index.ts", "utf8");
+
+  assert.match(sql, /study_sessions_active_lease_expiry_idx/i);
+  assert.match(sql, /where status = 'active' and lease_expires_at is not null/i);
+  assert.match(sql, /create or replace function public\.end_study_session\(\s*p_session_id uuid,\s*p_excluded_seconds integer default 0/i);
+  assert.match(sql, /v_ended_at := least\(/i);
+  assert.match(sql, /coalesce\(v_session\.lease_expires_at, v_session\.started_at \+ interval '1 hour'\)/i);
+  assert.match(sql, /create or replace function public\.close_expired_study_sessions/i);
+  assert.match(sql, /for update skip locked/i);
+  assert.match(sql, /coalesce\(expired_row\.lease_expires_at, expired_row\.started_at \+ interval '1 hour'\)/i);
+  assert.match(sql, /perform public\.promote_attendance_by_daily_study_total/i);
+  assert.match(sql, /revoke all on function public\.close_expired_study_sessions\(timestamptz\) from public, anon, authenticated/i);
+  assert.match(sql, /grant execute on function public\.close_expired_study_sessions\(timestamptz\) to service_role/i);
+
+  assert.match(attendanceSource, /admin\.rpc\("close_expired_study_sessions", \{ p_now: now \}\)/);
+  assert.match(attendanceSource, /expiredSessionCount/);
+  assert.doesNotMatch(attendanceSource, /앱이 열려 있을 때 세션이 자동 종료/);
 });

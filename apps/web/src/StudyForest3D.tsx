@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import * as THREE from "three";
 import type { ForestPreferences } from "./forestCustomization.mjs";
+import type { WeeklyHabitTargetState } from "./weeklyHabit.mjs";
 
 import {
   forestBridgePhysics,
@@ -32,6 +33,8 @@ type StudyForest3DProps = {
   interiorAvatar: StudyForestAvatarPosition & { facing: StudyForestAvatarFacing };
   sceneMode: StudyForestSceneMode;
   customization: ForestPreferences;
+  weeklyHabitTarget: WeeklyHabitTargetState;
+  weeklyRewardCount: number;
   onMoveTarget: (target: AvatarTarget) => void;
   onInteriorMoveTarget: (target: AvatarTarget) => void;
   onSceneModeChange: (mode: StudyForestSceneMode) => void;
@@ -823,6 +826,101 @@ function createGarden(scene: THREE.Scene) {
   return garden;
 }
 
+function createWeeklyHabitReward(
+  scene: THREE.Scene,
+  target: WeeklyHabitTargetState,
+  earnedRewardCount: number,
+) {
+  const group = new THREE.Group();
+  group.name = "forest-weekly-habit-reward";
+  // The reward shares the current tree's existing collider so it never creates a walk-through prop.
+  group.position.set(3.15, 0.5, -1.2);
+
+  const targetDays = Math.max(1, Math.trunc(target.targetDays));
+  const creditedStartDays = THREE.MathUtils.clamp(Math.trunc(target.creditedStartDays), 0, targetDays);
+  const seedRingRadius = 0.62;
+  for (let index = 0; index < targetDays; index += 1) {
+    const lit = index < creditedStartDays;
+    const angle = -Math.PI / 2 + (index / targetDays) * Math.PI * 2;
+    const seed = new THREE.Group();
+    seed.name = lit ? "forest-weekly-seed-lit" : "forest-weekly-seed-resting";
+    seed.position.set(Math.cos(angle) * seedRingRadius, 0.04, Math.sin(angle) * seedRingRadius);
+
+    const pod = new THREE.Mesh(
+      new THREE.IcosahedronGeometry(0.14, 0),
+      standardMaterial(lit ? palette.gold : 0xb8aa82, lit
+        ? { emissive: new THREE.Color(0xe8a641), emissiveIntensity: 0.35 }
+        : {}),
+    );
+    pod.scale.set(1, 0.72, 1);
+    pod.position.y = 0.12;
+    seed.add(pod);
+
+    if (lit) {
+      const stem = new THREE.Mesh(
+        new THREE.CylinderGeometry(0.018, 0.024, 0.28, 6),
+        standardMaterial(palette.cedar),
+      );
+      stem.position.y = 0.34;
+      seed.add(stem);
+      for (const direction of [-1, 1]) {
+        const leaf = new THREE.Mesh(new THREE.SphereGeometry(0.075, 7, 5), standardMaterial(palette.leafLight));
+        leaf.scale.set(1.2, 0.55, 0.55);
+        leaf.rotation.z = direction * 0.45;
+        leaf.position.set(direction * 0.07, 0.42, 0);
+        seed.add(leaf);
+      }
+    }
+    group.add(seed);
+  }
+
+  let halo: THREE.Group | null = null;
+  if (target.targetReached) {
+    halo = new THREE.Group();
+    halo.name = "forest-weekly-firefly-wreath";
+    for (let index = 0; index < targetDays; index += 1) {
+      const angle = (index / targetDays) * Math.PI * 2;
+      const firefly = new THREE.Mesh(
+        new THREE.OctahedronGeometry(0.095, 0),
+        standardMaterial(0xfff09b, { emissive: new THREE.Color(0xffb74d), emissiveIntensity: 1.1 }),
+      );
+      firefly.name = "forest-weekly-firefly";
+      firefly.position.set(Math.cos(angle) * 0.78, 2.12 + (index % 2) * 0.16, Math.sin(angle) * 0.78);
+      firefly.userData.baseY = firefly.position.y;
+      halo.add(firefly);
+    }
+    const glow = new THREE.PointLight(0xffd96a, 2.8, 4.5, 2);
+    glow.position.y = 2.05;
+    halo.add(glow);
+    group.add(halo);
+  }
+
+  if (Math.max(0, Math.trunc(earnedRewardCount)) > 0) {
+    const keepsake = new THREE.Group();
+    keepsake.name = "forest-weekly-wreath-keepsake";
+    keepsake.userData.rewardCount = Math.max(0, Math.trunc(earnedRewardCount));
+    keepsake.position.set(0.42, 0.13, 0.38);
+    const base = new THREE.Mesh(new THREE.CylinderGeometry(0.21, 0.25, 0.12, 8), standardMaterial(palette.woodLight));
+    keepsake.add(base);
+    for (let index = 0; index < 5; index += 1) {
+      const angle = (index / 5) * Math.PI * 2;
+      const petal = new THREE.Mesh(new THREE.SphereGeometry(0.095, 7, 5), standardMaterial(palette.gold));
+      petal.scale.set(1.35, 0.55, 0.8);
+      petal.position.set(Math.cos(angle) * 0.17, 0.14, Math.sin(angle) * 0.17);
+      petal.rotation.y = -angle;
+      keepsake.add(petal);
+    }
+    const center = new THREE.Mesh(new THREE.SphereGeometry(0.09, 7, 5), standardMaterial(palette.coral));
+    center.position.y = 0.16;
+    keepsake.add(center);
+    group.add(keepsake);
+  }
+
+  enableShadows(group);
+  scene.add(group);
+  return { group, halo };
+}
+
 function createFeaturedReward(scene: THREE.Scene, reward: ForestPreferences["featuredReward"], accentColor: number) {
   if (reward === "none") return null;
   const group = new THREE.Group();
@@ -1066,6 +1164,8 @@ export function StudyForest3D({
   interiorAvatar,
   sceneMode,
   customization,
+  weeklyHabitTarget,
+  weeklyRewardCount,
   onMoveTarget,
   onInteriorMoveTarget,
   onSceneModeChange,
@@ -1195,6 +1295,7 @@ export function StudyForest3D({
     let cottageDoor: THREE.Mesh | null = null;
     let interactionPlane: THREE.Mesh | null = null;
     let fireflies: THREE.Group | null = null;
+    let weeklyRewardVisual: ReturnType<typeof createWeeklyHabitReward> | null = null;
     const avatarGroup = createAvatar();
 
     if (sceneMode === "island") {
@@ -1206,6 +1307,7 @@ export function StudyForest3D({
       cottageDoor = cottage.door;
       createGarden(scene);
       createFeaturedReward(scene, customization.featuredReward, accentColor);
+      weeklyRewardVisual = createWeeklyHabitReward(scene, weeklyHabitTarget, weeklyRewardCount);
       createLantern(scene, -1.8, -1.25);
       createLantern(scene, 2.25, 2.15);
       if (timePhase === "sunset" || timePhase === "night") {
@@ -1393,6 +1495,13 @@ export function StudyForest3D({
         });
         if (river) river.position.y = Math.sin(elapsed * 1.2) * 0.012;
         if (currentTree) currentTree.rotation.z = Math.sin(elapsed * 0.8) * 0.012;
+        if (weeklyRewardVisual?.halo) {
+          weeklyRewardVisual.halo.rotation.y = elapsed * 0.24;
+          weeklyRewardVisual.halo.children.forEach((child, index) => {
+            if (!Number.isFinite(child.userData.baseY)) return;
+            child.position.y = child.userData.baseY + Math.sin(elapsed * 1.8 + index) * 0.08;
+          });
+        }
       }
 
       renderer.render(scene, camera);
@@ -1423,6 +1532,10 @@ export function StudyForest3D({
     customization.islandTheme,
     sceneMode,
     timePhase,
+    weeklyHabitTarget.creditedStartDays,
+    weeklyHabitTarget.targetDays,
+    weeklyHabitTarget.targetReached,
+    weeklyRewardCount,
   ]);
 
   return (

@@ -22,7 +22,10 @@ Personal MVP users who want a lightweight study room dashboard with attendance p
 - Daily reminder time
 - Attendance recognition when a study timer starts within the allowed window
 - Study sessions and daily/monthly time visualization
+- 휴식이 무기한 이탈로 바뀌지 않도록 10·20·40분 복귀 약속과 비징벌적 복귀 신호 제공
+- 활성 세션의 첫 10분 진행도와 비징벌적 이어가기·마무리 선택을 제공하는 습관 체크포인트
 - 세션 종료 회고, 주간 비교 리뷰, 실제 공부 시작 패턴을 반영하는 적응형 알림
+- 주간 회고의 다음 행동을 기존 todo 날짜·시간 계획으로 연결하는 주간 리셋 브리지
 - Calendar todos, weekday recurring todo creation, and completion rate
 - Today task checklist plus a pinned circular life-planner view for timed todos
 - User-customizable Today dashboard section order
