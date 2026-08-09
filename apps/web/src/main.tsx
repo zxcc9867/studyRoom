@@ -3122,7 +3122,7 @@ function DashboardApp() {
         ...current.filter((item) => item.id !== updatedSession.id),
       ]);
     }
-    setMessage("세션 유지 시간을 연장했습니다. 남은 시간은 최대 2시간입니다.");
+    setMessage("세션 유지 시간을 1시간 연장했습니다. 남은 시간은 현재 시각 기준 최대 2시간입니다.");
   }
 
   function openRecoveryRoutineModal(request: StudyRecoveryRequest, options: { auto?: boolean } = {}) {
@@ -4789,11 +4789,11 @@ function DashboardApp() {
                 <div>
                   <span>세션 유지 남은 시간</span>
                   <strong>{formatTimerClock(sessionLeaseRemainingSeconds)}</strong>
-                  <small>버튼을 누르면 1시간 연장되며, 남은 시간은 최대 2시간입니다.</small>
+                  <small>누를 때마다 1시간 연장됩니다. 남은 시간은 현재 시각 기준 최대 2시간입니다.</small>
                 </div>
                 <button className="secondary" type="button" onClick={extendSessionLease} disabled={busy}>
                   <Clock3 size={18} />
-                  세션 유지
+                  +1시간 연장
                 </button>
               </div>
             )}

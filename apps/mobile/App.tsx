@@ -658,11 +658,11 @@ export default function App() {
         {activeSession && (
           <View style={styles.leasePanel}>
             <View>
-              <Text style={styles.sectionTitle}>세션 유지시간</Text>
-              <Text style={styles.copy}>남은 시간 {formatSeconds(leaseRemainingSeconds)} · 최대 2시간까지 유지</Text>
+              <Text style={styles.sectionTitle}>세션 유지 시간</Text>
+              <Text style={styles.copy}>남은 시간 {formatSeconds(leaseRemainingSeconds)} · 누를 때마다 1시간 연장 · 현재 시각 기준 최대 2시간</Text>
             </View>
             <Pressable style={styles.secondaryButton} onPress={extendSessionLease} disabled={busy}>
-              <Text style={styles.secondaryButtonText}>1시간 유지하기</Text>
+              <Text style={styles.secondaryButtonText}>+1시간 연장</Text>
             </Pressable>
           </View>
         )}

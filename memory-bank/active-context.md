@@ -5,7 +5,9 @@
 - The start-study session modal now collects a title plus start/end time for a quick-added task.
 - Quick-added session tasks are saved with `study_todos.start_time` and `study_todos.end_time`, selected automatically, and therefore appear in Today's time schedule.
 - The default is the next half-hour through one hour later; the learner can edit both values before adding the task.
-- Next: run the web regression suite, push `main`, and verify the production deployment.
+- Production deployment completed at commit `2c3e3b0`; the production URL returned HTTP 200.
+- README now documents the split Today domains and the timed session quick-add flow.
+- Session lease controls now say `+1시간 연장` and explain that two hours is a cap on remaining time from the current time.
 
 ## 현재 작업
 
