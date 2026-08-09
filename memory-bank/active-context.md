@@ -1,5 +1,12 @@
 # Active Context
 
+## 2026-08-09 - Timed session planning and production deployment
+
+- The start-study session modal now collects a title plus start/end time for a quick-added task.
+- Quick-added session tasks are saved with `study_todos.start_time` and `study_todos.end_time`, selected automatically, and therefore appear in Today's time schedule.
+- The default is the next half-hour through one hour later; the learner can edit both values before adding the task.
+- Next: run the web regression suite, push `main`, and verify the production deployment.
+
 ## 현재 작업
 
 - 작업명: 출석 완료 상태의 정시 알림 정책 구현 및 Supabase 적용

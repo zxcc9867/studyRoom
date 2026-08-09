@@ -474,6 +474,18 @@
 
 # Progress
 
+### 2026-08-09 - Timed quick-add for start-study planning
+
+#### Delivered
+
+- Added start and end time inputs to the session planning modal opened by the Today study-start action.
+- New session todos now persist their time range, are selected automatically, and populate the daily time schedule.
+- Added pure schedule-default coverage for next-half-hour and overnight values.
+
+#### Verification
+
+- Pending web regression suite and production deployment verification.
+
 ### 2026-07-01 - Cross-day active session today study timer fix
 
 #### Completed Work

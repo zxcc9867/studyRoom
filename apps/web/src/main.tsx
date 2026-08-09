@@ -264,6 +264,7 @@ import {
   formatTodoWithSchedule,
   normalizeTodoSchedule,
 } from "./todoSchedule.mjs";
+import { getSuggestedSessionTodoSchedule } from "./sessionTodoSchedule.mjs";
 import { isTimeInputPickerKey, openTimeInputPicker } from "./timeInputPicker.mjs";
 import { getWebPushStatus, registerWebPushTarget, showLocalTestNotification, type WebPushStatus } from "./webPush";
 import "./styles.css";
@@ -542,6 +543,8 @@ function DashboardApp() {
   const [sessionTodoStartRequest, setSessionTodoStartRequest] = useState<{ cameraReadyOverride: boolean } | null>(null);
   const [selectedSessionTodoIds, setSelectedSessionTodoIds] = useState<string[]>([]);
   const [sessionTodoDraft, setSessionTodoDraft] = useState("");
+  const [sessionTodoStartTime, setSessionTodoStartTime] = useState("09:00");
+  const [sessionTodoEndTime, setSessionTodoEndTime] = useState("10:00");
   const [sessionTodoAddBusy, setSessionTodoAddBusy] = useState(false);
   const [endSessionCompletionModalOpen, setEndSessionCompletionModalOpen] = useState(false);
   const [selectedEndSessionCompletionTodoIds, setSelectedEndSessionCompletionTodoIds] = useState<string[]>([]);
@@ -2119,9 +2122,12 @@ function DashboardApp() {
   function openSessionTodoSelection(cameraReadyOverride: boolean) {
     const suggestedTodoTitle = normalizeHabitText(sessionTodoSuggestionRef.current);
     const matchingTodo = findMatchingNextActionTodo({ nextAction: suggestedTodoTitle, todos: incompleteTodayTodos });
+    const suggestedSchedule = getSuggestedSessionTodoSchedule();
     setSessionTodoStartRequest({ cameraReadyOverride });
     setSelectedSessionTodoIds(matchingTodo ? [matchingTodo.id] : []);
     setSessionTodoDraft(suggestedTodoTitle && !matchingTodo ? suggestedTodoTitle : "");
+    setSessionTodoStartTime(suggestedSchedule.startTime);
+    setSessionTodoEndTime(suggestedSchedule.endTime);
     sessionTodoSuggestionRef.current = null;
     setSessionTodoModalOpen(true);
   }
@@ -2135,6 +2141,8 @@ function DashboardApp() {
     setSessionTodoStartRequest(null);
     setSelectedSessionTodoIds([]);
     setSessionTodoDraft("");
+    setSessionTodoStartTime("09:00");
+    setSessionTodoEndTime("10:00");
   }
 
   async function confirmSessionTodoSelection() {
@@ -2216,11 +2224,21 @@ function DashboardApp() {
       return;
     }
 
+    const schedule = normalizeTodoSchedule({
+      enabled: true,
+      startTime: sessionTodoStartTime,
+      endTime: sessionTodoEndTime,
+    });
+    if (!schedule.ok) {
+      setMessage(schedule.message);
+      return;
+    }
+
     const rows = buildTodoInsertRows({
       targetDates: [todayDateKey],
       title,
       userId: session.user.id,
-      schedule: { startTime: null, endTime: null },
+      schedule,
       repeatGroupId: null,
       repeatMode: "single",
       repeatWeekdays: [],
@@ -2249,7 +2267,7 @@ function DashboardApp() {
         current.includes(insertedTodo.id) ? current : [...current, insertedTodo.id],
       );
       setSessionTodoDraft("");
-      setMessage("이번 세션 할 일을 추가했습니다.");
+      setMessage("이번 세션 할 일을 시간표에 추가했습니다.");
     }
   }
 
@@ -5264,6 +5282,9 @@ function DashboardApp() {
               <p className="reminder-copy">
                 오늘 미완료 할 일 중 이번 집중 세션에서 처리할 일을 1개 이상 선택하세요.
               </p>
+              <p className="session-todo-schedule-note">
+                새 할 일은 시간까지 입력하면 오늘의 타임 스케줄에 바로 표시됩니다.
+              </p>
               <form
                 className="session-todo-quick-add"
                 onSubmit={(event: FormEvent<HTMLFormElement>) => {
@@ -5278,6 +5299,44 @@ function DashboardApp() {
                   placeholder="예: AWS 기출 1회 풀기"
                   disabled={busy || sessionTodoAddBusy}
                 />
+                <div className="session-todo-time-details" aria-label="새 할 일 시간 설정">
+                  <label>
+                    시작
+                    <input
+                      type="time"
+                      aria-label="새 할 일 시작 시간 선택"
+                      title="클릭하거나 Enter 키로 시작 시간 선택"
+                      value={sessionTodoStartTime}
+                      onChange={(event) => setSessionTodoStartTime(event.target.value)}
+                      onClick={(event) => openTimeInputPicker(event.currentTarget)}
+                      onDoubleClick={(event) => openTimeInputPicker(event.currentTarget)}
+                      onKeyDown={(event) => {
+                        if (!isTimeInputPickerKey(event.key)) return;
+                        event.preventDefault();
+                        openTimeInputPicker(event.currentTarget);
+                      }}
+                      disabled={busy || sessionTodoAddBusy}
+                    />
+                  </label>
+                  <label>
+                    종료
+                    <input
+                      type="time"
+                      aria-label="새 할 일 종료 시간 선택"
+                      title="클릭하거나 Enter 키로 종료 시간 선택"
+                      value={sessionTodoEndTime}
+                      onChange={(event) => setSessionTodoEndTime(event.target.value)}
+                      onClick={(event) => openTimeInputPicker(event.currentTarget)}
+                      onDoubleClick={(event) => openTimeInputPicker(event.currentTarget)}
+                      onKeyDown={(event) => {
+                        if (!isTimeInputPickerKey(event.key)) return;
+                        event.preventDefault();
+                        openTimeInputPicker(event.currentTarget);
+                      }}
+                      disabled={busy || sessionTodoAddBusy}
+                    />
+                  </label>
+                </div>
                 <button className="secondary" type="submit" disabled={busy || sessionTodoAddBusy}>
                   <Plus size={18} />
                   추가

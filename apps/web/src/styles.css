@@ -2875,7 +2875,7 @@ label {
 
 .session-todo-quick-add {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
+  grid-template-columns: minmax(0, 1fr) minmax(240px, 0.6fr) auto;
   gap: 10px;
   align-items: stretch;
   margin: 0 0 14px;
@@ -2895,6 +2895,33 @@ label {
 
 .session-todo-quick-add button {
   min-width: 104px;
+}
+
+.session-todo-schedule-note {
+  margin: -4px 0 12px;
+  color: #5a513d;
+  font-size: 14px;
+  font-weight: 750;
+  line-height: 1.45;
+}
+
+.session-todo-time-details {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.session-todo-time-details label {
+  display: grid;
+  gap: 5px;
+  color: #5a513d;
+  font-size: 12px;
+  font-weight: 850;
+}
+
+.session-todo-time-details input {
+  min-height: 54px;
+  cursor: pointer;
 }
 
 .session-todo-empty {
