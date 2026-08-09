@@ -320,6 +320,53 @@ label {
   gap: 20px;
 }
 
+.today-domain-tabs {
+  position: sticky;
+  z-index: 4;
+  top: 14px;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+  border: 2px solid rgba(79, 145, 111, 0.42);
+  border-radius: 12px;
+  background: rgba(255, 249, 223, 0.92);
+  box-shadow: 0 6px 0 rgba(47, 107, 82, 0.16);
+  padding: 8px;
+  backdrop-filter: blur(12px);
+}
+
+.today-domain-tabs button {
+  min-height: 58px;
+  justify-content: flex-start;
+  border: 2px solid transparent;
+  background: transparent;
+  color: #5a513d;
+  padding: 8px 12px;
+  text-align: left;
+}
+
+.today-domain-tabs button:hover,
+.today-domain-tabs button.selected {
+  border-color: #4f916f;
+  background: #dff4cd;
+  color: #2f6b52;
+}
+
+.today-domain-tabs button > span {
+  display: grid;
+  gap: 1px;
+}
+
+.today-domain-tabs strong {
+  font-size: 15px;
+}
+
+.today-domain-tabs small {
+  color: #6a604d;
+  font-size: 11px;
+  font-weight: 800;
+}
+
 .topbar {
   border: 3px solid #4f916f;
   border-radius: 8px;
@@ -749,6 +796,15 @@ label {
   gap: 12px;
 }
 
+.weekly-habit-rhythm.history-panel {
+  border: 3px solid #4f916f;
+  border-top-style: solid;
+  border-radius: 12px;
+  background: #eff8d8;
+  box-shadow: 0 8px 0 rgba(47, 107, 82, 0.18);
+  padding: clamp(18px, 3vw, 30px);
+}
+
 .weekly-habit-heading {
   display: flex;
   align-items: flex-end;
@@ -767,7 +823,8 @@ label {
   gap: 5px;
 }
 
-.weekly-habit-heading h4 {
+.weekly-habit-heading h4,
+.weekly-habit-heading h2 {
   margin: 0;
   color: #2f6b52;
   font-size: clamp(19px, 2vw, 24px);
@@ -928,6 +985,34 @@ label {
 .weekly-habit-action-note strong {
   color: #2f6b52;
   font-weight: 950;
+}
+
+@media (max-width: 620px) {
+  .today-domain-tabs {
+    top: 8px;
+    gap: 5px;
+    border-radius: 10px;
+    padding: 5px;
+  }
+
+  .today-domain-tabs button {
+    min-height: 52px;
+    justify-content: center;
+    padding: 6px;
+  }
+
+  .today-domain-tabs button > span {
+    gap: 0;
+  }
+
+  .today-domain-tabs small {
+    display: none;
+  }
+
+  .today-domain-tabs strong {
+    font-size: 13px;
+  }
+
 }
 
 .weekly-habit-path {
