@@ -484,7 +484,7 @@
 
 #### Verification
 
-- Pending web regression suite and production deployment verification.
+- The web regression suite passed. The first production build exposed a missing TypeScript declaration for the new JavaScript helper; the declaration is being added before retrying deployment.
 
 ### 2026-07-01 - Cross-day active session today study timer fix
 
