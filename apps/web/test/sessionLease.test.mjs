@@ -108,7 +108,9 @@ test("web dashboard wires session lease UI and avoids adding stale active sessio
   assert.match(appSource, /lease_expires_at/);
   assert.match(appSource, /extend_study_session_lease/);
   assert.match(appSource, /getExtendedSessionLeaseDeadlineMs/);
-  assert.match(appSource, /남은 시간은 최대 2시간/);
+  assert.match(appSource, /누를 때마다 1시간 연장됩니다/);
+  assert.match(appSource, /\+1시간 연장/);
+  assert.match(appSource, /현재 시각 기준 최대 2시간/);
   assert.match(appSource, /session-lease/);
   assert.match(appSource, /getActiveStudySecondsForDate/);
   assert.match(appSource, /dateKey: todayDateKey/);

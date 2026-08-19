@@ -474,6 +474,43 @@
 
 # Progress
 
+### 2026-08-09 - Session lease wording clarified
+
+#### Delivered
+
+- Renamed the extension action to `+1시간 연장` in web, Expo mobile, and Slack.
+- Clarified that each action adds one hour, while two hours is the remaining-time cap measured from the current time.
+- Added regression checks for the one-hour action and the current-time-based two-hour cap.
+
+#### Verification
+
+- `node --test packages/core/test/*.test.mjs apps/web/test/*.test.mjs` passed: 337 tests.
+- Supabase Edge Functions `attendance-cron` v30 and `slack-recovery-interactions` v9 are ACTIVE with the updated wording.
+
+### 2026-08-09 - README synchronized with current web experience
+
+#### Delivered
+
+- Updated the README implementation date to 2026-08-09.
+- Documented the Today focus/plan/record split and the web-only timed quick-add flow that populates the daily planner.
+- Clarified the current difference between web and Expo quick todo creation.
+
+#### Verification
+
+- Repository configuration and documentation references were reviewed; this is a documentation-only update, so no production deployment was triggered.
+
+### 2026-08-09 - Timed quick-add for start-study planning
+
+#### Delivered
+
+- Added start and end time inputs to the session planning modal opened by the Today study-start action.
+- New session todos now persist their time range, are selected automatically, and populate the daily time schedule.
+- Added pure schedule-default coverage for next-half-hour and overnight values.
+
+#### Verification
+
+- The web regression suite passed. The first production build exposed a missing TypeScript declaration for the new JavaScript helper; the declaration is being added before retrying deployment.
+
 ### 2026-07-01 - Cross-day active session today study timer fix
 
 #### Completed Work

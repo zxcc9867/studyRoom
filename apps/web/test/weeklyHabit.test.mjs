@@ -265,30 +265,34 @@ test("gentle restart does not replace first-start, active streak, or earned-rest
 
 test("Today exposes the gentle restart cue as guidance without adding another action", () => {
   const main = readFileSync(new URL("../src/main.tsx", import.meta.url), "utf8");
+  const panel = readFileSync(new URL("../src/WeeklyHabitRhythmPanel.tsx", import.meta.url), "utf8");
   const styles = readFileSync(new URL("../src/styles.css", import.meta.url), "utf8");
 
-  assert.match(main, /weeklyHabitRhythm\.isGentleRestart/);
-  assert.match(main, /weekly-habit-restart-cue/);
+  assert.match(main, /<WeeklyHabitRhythmPanel/);
+  assert.match(panel, /rhythm\.isGentleRestart/);
+  assert.match(panel, /weekly-habit-restart-cue/);
   assert.match(styles, /\.weekly-habit-target\.restart/);
   assert.match(styles, /\.weekly-habit-restart-cue/);
-  assert.doesNotMatch(main, /weekly-habit-restart-action/);
+  assert.doesNotMatch(panel, /startTimer\(/);
 });
 
 test("today screen renders the accessible responsive seven-day forest path", () => {
   const main = readFileSync(new URL("../src/main.tsx", import.meta.url), "utf8");
+  const panel = readFileSync(new URL("../src/WeeklyHabitRhythmPanel.tsx", import.meta.url), "utf8");
   const styles = readFileSync(new URL("../src/styles.css", import.meta.url), "utf8");
   const helper = readFileSync(new URL("../src/weeklyHabit.mjs", import.meta.url), "utf8");
 
   assert.match(main, /getWeeklyHabitRhythm/);
-  assert.match(main, /최근 7일 숲길/);
-  assert.match(main, /aria-label="최근 7일 날짜별 공부 습관"/);
-  assert.match(main, /weekly-habit-day-/);
-  assert.match(main, /role="progressbar"/);
-  assert.match(main, /aria-valuemax=\{weeklyHabitRhythm\.target\.targetDays\}/);
+  assert.match(main, /<WeeklyHabitRhythmPanel/);
+  assert.match(panel, /최근 7일 숲길/);
+  assert.match(panel, /aria-label="최근 7일 날짜별 공부 습관"/);
+  assert.match(panel, /weekly-habit-day-/);
+  assert.match(panel, /role="progressbar"/);
+  assert.match(panel, /aria-valuemax=\{rhythm\.target\.targetDays\}/);
   assert.match(helper, /10분 시작 준비/);
-  assert.match(main, /weekly-habit-action-note/);
+  assert.match(panel, /weekly-habit-action-note/);
   assert.match(main, /startTimer\(false, undefined, studyStartAction\.suggestedTodoTitle\)/);
-  assert.doesNotMatch(main, /className="secondary weekly-habit-action"/);
+  assert.doesNotMatch(panel, /className="secondary weekly-habit-action"/);
   assert.match(styles, /\.weekly-habit-path/);
   assert.match(styles, /\.weekly-habit-target-seeds/);
   assert.match(styles, /grid-template-columns: repeat\(7, minmax\(0, 1fr\)\)/);

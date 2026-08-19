@@ -35,7 +35,7 @@ The study timer can run without an explicit plan for what the user will study in
 1. User clicks `입장하고 시작`.
 2. App checks camera/recovery gates first.
 3. App opens a session-todo selection modal.
-4. If today has no incomplete todos, user can quick-add a plain today todo inside the same session modal.
+4. If today has no incomplete todos, user can quick-add a timed today todo inside the same session modal. The start and end times are saved on the todo so it appears in Today's time schedule.
 5. User selects one or more todos. Quick-added todos are selected automatically.
 6. App creates a `study_sessions` row, inserts `study_session_todos` link rows, and shows the session task list in Today Focus.
 
@@ -57,6 +57,7 @@ The study timer can run without an explicit plan for what the user will study in
 - [x] App blocks a new session when there are no incomplete todos for today.
 - [x] App requires selecting at least one incomplete todo before starting.
 - [x] App lets the user quick-add a today todo from the session planning modal when no plan was pre-registered.
+- [x] Session quick-add collects start and end time and persists the todo as a scheduled item for Today's planner.
 - [x] App shows active session linked todos separately from the full daily todo list.
 - [x] App opens a completion modal when the user ends a session.
 - [x] App records whether a linked todo was completed during the session.

@@ -52,6 +52,7 @@ test("todo-only and empty states keep the stable entry label", () => {
 
 test("Today routes one adaptive persistent start action and leaves habit cards informational", () => {
   const main = readFileSync(new URL("../src/main.tsx", import.meta.url), "utf8");
+  const weeklyPanel = readFileSync(new URL("../src/WeeklyHabitRhythmPanel.tsx", import.meta.url), "utf8");
   const styles = readFileSync(new URL("../src/styles.css", import.meta.url), "utf8");
 
   assert.match(main, /const studyStartAction = getStudyStartAction\(/);
@@ -64,7 +65,7 @@ test("Today routes one adaptive persistent start action and leaves habit cards i
   assert.doesNotMatch(main, /className="secondary weekly-habit-action"/);
   assert.doesNotMatch(main, /startTimer\(false, undefined, latestNextAction/);
   assert.match(main, /daily-habit-next-action-cue/);
-  assert.match(main, /weekly-habit-action-note/);
+  assert.match(weeklyPanel, /weekly-habit-action-note/);
   assert.doesNotMatch(styles, /\.daily-habit-next-action button/);
   assert.doesNotMatch(styles, /\.weekly-habit-action\s*\{/);
   assert.match(styles, /\.weekly-habit-action-note/);

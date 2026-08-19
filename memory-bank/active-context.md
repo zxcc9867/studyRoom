@@ -1,5 +1,14 @@
 # Active Context
 
+## 2026-08-09 - Timed session planning and production deployment
+
+- The start-study session modal now collects a title plus start/end time for a quick-added task.
+- Quick-added session tasks are saved with `study_todos.start_time` and `study_todos.end_time`, selected automatically, and therefore appear in Today's time schedule.
+- The default is the next half-hour through one hour later; the learner can edit both values before adding the task.
+- Production deployment completed at commit `2c3e3b0`; the production URL returned HTTP 200.
+- README now documents the split Today domains and the timed session quick-add flow.
+- Session lease controls now say `+1시간 연장` and explain that two hours is a cap on remaining time from the current time.
+
 ## 현재 작업
 
 - 작업명: 출석 완료 상태의 정시 알림 정책 구현 및 Supabase 적용
@@ -67,6 +76,13 @@
 
 - lease는 세션 전체 시간 상한이 아니라 현재 시각 기준의 유지 가능 시간 상한이다. 사용자가 명시적으로 연장하면 정상적으로 계속 공부할 수 있다.
 - 현재 활성 세션은 보정하지 않았으며, 서버 Cron이 만료 시각에 별도로 종료한다.
+
+## 2026-08-09 - Today 화면 도메인 분리
+
+- 결정: 긴 Today 단일 대시보드를 집중·계획·기록 화면으로 분리한다.
+- 이유: 최근 7일 습관, 출석 캘린더, 계획표가 집중 세션보다 아래에 길게 누적돼 모바일과 데스크톱 모두에서 탐색 비용이 컸다.
+- 범위: 웹 UI와 컴포넌트 분리만 변경하며 Supabase 쿼리, 출석 정책, 카메라 판정, 세션 RPC는 변경하지 않는다.
+- 다음 작업: 프로덕션 빌드와 브라우저 전환을 확인한 뒤 Vercel 배포 상태를 검증한다.
 
 ## 2026-08-19 - 다국어 README 구성
 

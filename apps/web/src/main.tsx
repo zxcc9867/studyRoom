@@ -21,9 +21,6 @@ import {
   ChevronRight,
   Chrome,
   ArrowDown,
-  Flower2,
-  Footprints,
-  Sprout,
   ArrowUp,
   GripVertical,
   KeyRound,
@@ -139,6 +136,8 @@ import {
 import TenMinuteCheckpoint from "./TenMinuteCheckpoint";
 import BreakReturnPlan from "./BreakReturnPlan";
 import { getWeeklyHabitRhythm } from "./weeklyHabit.mjs";
+import TodayDomainTabs, { type TodayDomain } from "./TodayDomainTabs";
+import WeeklyHabitRhythmPanel from "./WeeklyHabitRhythmPanel";
 import { getPendingReflectionSessions } from "./reflectionInbox.mjs";
 import ReflectionInbox from "./ReflectionInboxCard";
 import {
@@ -265,6 +264,7 @@ import {
   formatTodoWithSchedule,
   normalizeTodoSchedule,
 } from "./todoSchedule.mjs";
+import { getSuggestedSessionTodoSchedule } from "./sessionTodoSchedule.mjs";
 import { isTimeInputPickerKey, openTimeInputPicker } from "./timeInputPicker.mjs";
 import { getWebPushStatus, registerWebPushTarget, showLocalTestNotification, type WebPushStatus } from "./webPush";
 import "./styles.css";
@@ -543,6 +543,8 @@ function DashboardApp() {
   const [sessionTodoStartRequest, setSessionTodoStartRequest] = useState<{ cameraReadyOverride: boolean } | null>(null);
   const [selectedSessionTodoIds, setSelectedSessionTodoIds] = useState<string[]>([]);
   const [sessionTodoDraft, setSessionTodoDraft] = useState("");
+  const [sessionTodoStartTime, setSessionTodoStartTime] = useState("09:00");
+  const [sessionTodoEndTime, setSessionTodoEndTime] = useState("10:00");
   const [sessionTodoAddBusy, setSessionTodoAddBusy] = useState(false);
   const [endSessionCompletionModalOpen, setEndSessionCompletionModalOpen] = useState(false);
   const [selectedEndSessionCompletionTodoIds, setSelectedEndSessionCompletionTodoIds] = useState<string[]>([]);
@@ -571,6 +573,7 @@ function DashboardApp() {
   const [activeSection, setActiveSection] = useState<DashboardSection>(() =>
     getDashboardSectionFromHash(window.location.hash),
   );
+  const [todayDomain, setTodayDomain] = useState<TodayDomain>("focus");
   const [calendarMonth, setCalendarMonth] = useState(() => getMonthKey(new Date()));
   const [todoHistoryPage, setTodoHistoryPage] = useState(1);
   const [recoveryHistoryPage, setRecoveryHistoryPage] = useState(1);
@@ -2119,9 +2122,12 @@ function DashboardApp() {
   function openSessionTodoSelection(cameraReadyOverride: boolean) {
     const suggestedTodoTitle = normalizeHabitText(sessionTodoSuggestionRef.current);
     const matchingTodo = findMatchingNextActionTodo({ nextAction: suggestedTodoTitle, todos: incompleteTodayTodos });
+    const suggestedSchedule = getSuggestedSessionTodoSchedule();
     setSessionTodoStartRequest({ cameraReadyOverride });
     setSelectedSessionTodoIds(matchingTodo ? [matchingTodo.id] : []);
     setSessionTodoDraft(suggestedTodoTitle && !matchingTodo ? suggestedTodoTitle : "");
+    setSessionTodoStartTime(suggestedSchedule.startTime);
+    setSessionTodoEndTime(suggestedSchedule.endTime);
     sessionTodoSuggestionRef.current = null;
     setSessionTodoModalOpen(true);
   }
@@ -2135,6 +2141,8 @@ function DashboardApp() {
     setSessionTodoStartRequest(null);
     setSelectedSessionTodoIds([]);
     setSessionTodoDraft("");
+    setSessionTodoStartTime("09:00");
+    setSessionTodoEndTime("10:00");
   }
 
   async function confirmSessionTodoSelection() {
@@ -2216,11 +2224,21 @@ function DashboardApp() {
       return;
     }
 
+    const schedule = normalizeTodoSchedule({
+      enabled: true,
+      startTime: sessionTodoStartTime,
+      endTime: sessionTodoEndTime,
+    });
+    if (!schedule.ok) {
+      setMessage(schedule.message);
+      return;
+    }
+
     const rows = buildTodoInsertRows({
       targetDates: [todayDateKey],
       title,
       userId: session.user.id,
-      schedule: { startTime: null, endTime: null },
+      schedule,
       repeatGroupId: null,
       repeatMode: "single",
       repeatWeekdays: [],
@@ -2249,7 +2267,7 @@ function DashboardApp() {
         current.includes(insertedTodo.id) ? current : [...current, insertedTodo.id],
       );
       setSessionTodoDraft("");
-      setMessage("이번 세션 할 일을 추가했습니다.");
+      setMessage("이번 세션 할 일을 시간표에 추가했습니다.");
     }
   }
 
@@ -3104,7 +3122,7 @@ function DashboardApp() {
         ...current.filter((item) => item.id !== updatedSession.id),
       ]);
     }
-    setMessage("세션 유지 시간을 연장했습니다. 남은 시간은 최대 2시간입니다.");
+    setMessage("세션 유지 시간을 1시간 연장했습니다. 남은 시간은 현재 시각 기준 최대 2시간입니다.");
   }
 
   function openRecoveryRoutineModal(request: StudyRecoveryRequest, options: { auto?: boolean } = {}) {
@@ -4584,9 +4602,11 @@ function DashboardApp() {
       </aside>
 
       <section className="workspace">
-        {activeSection === "today" && renderTodaySectionOrderEditor()}
-
         {activeSection === "today" && (
+          <TodayDomainTabs activeDomain={todayDomain} onChange={setTodayDomain} />
+        )}
+
+        {activeSection === "today" && todayDomain === "focus" && (
           <header className="topbar today-ordered-section" style={{ order: getTodaySectionSortOrder("topbar") }}>
             <div className="topbar-head">
               <div>
@@ -4709,107 +4729,6 @@ function DashboardApp() {
                   </div>
                 </aside>
               )}
-              <section className="weekly-habit-rhythm" aria-labelledby="weekly-habit-title">
-                <div className="weekly-habit-heading">
-                  <div>
-                    <p className="eyebrow"><Footprints size={16} aria-hidden="true" /> last 7 days</p>
-                    <h4 id="weekly-habit-title">최근 7일 숲길</h4>
-                  </div>
-                  <span>{weeklyHabitRhythm.rangeLabel}</span>
-                </div>
-                <div className={`weekly-habit-target ${weeklyHabitRhythm.target.targetReached ? "completed" : ""} ${weeklyHabitRhythm.isGentleRestart ? "restart" : ""}`.trim()}>
-                  <div className="weekly-habit-target-copy">
-                    <p><Target size={15} aria-hidden="true" /> flexible goal</p>
-                    {weeklyHabitRhythm.isGentleRestart && (
-                      <span className="weekly-habit-restart-cue">
-                        <RefreshCw size={13} aria-hidden="true" /> 다시 잇는 날
-                      </span>
-                    )}
-                    <strong>
-                      {weeklyHabitRhythm.target.targetReached
-                        ? "5번 시작 목표 완료"
-                        : `5번 시작까지 ${weeklyHabitRhythm.target.remainingTargetDays}번`}
-                    </strong>
-                    <small>
-                      {weeklyHabitRhythm.isGentleRestart
-                        ? "쉬었던 하루는 실패가 아니에요. 오늘 10분으로 다시 이어가요."
-                        : "최근 7일에서 이틀은 쉬어도 괜찮아요."}
-                    </small>
-                  </div>
-                  <div
-                    className="weekly-habit-target-seeds"
-                    role="progressbar"
-                    aria-label="최근 7일 5번 시작 목표"
-                    aria-valuemin={0}
-                    aria-valuemax={weeklyHabitRhythm.target.targetDays}
-                    aria-valuenow={weeklyHabitRhythm.target.creditedStartDays}
-                    aria-valuetext={`${weeklyHabitRhythm.target.creditedStartDays}번 완료, ${weeklyHabitRhythm.target.remainingTargetDays}번 남음`}
-                  >
-                    {Array.from({ length: weeklyHabitRhythm.target.targetDays }, (_, index) => (
-                      <span
-                        className={index < weeklyHabitRhythm.target.creditedStartDays ? "completed" : ""}
-                        key={index}
-                        aria-hidden="true"
-                      >
-                        <Sprout size={17} />
-                      </span>
-                    ))}
-                  </div>
-                  {weeklyHabitRhythm.primaryActionLabel && !activeSession && (
-                    <p className="weekly-habit-action-note">
-                      <ArrowUp size={16} aria-hidden="true" />
-                      <span><strong>{weeklyHabitRhythm.primaryActionLabel}</strong> · 위 시작 버튼에서 준비해요.</span>
-                    </p>
-                  )}
-                </div>
-                <ol className="weekly-habit-path" aria-label="최근 7일 날짜별 공부 습관">
-                  {weeklyHabitRhythm.days.map((day) => (
-                    <li
-                      className={`weekly-habit-day weekly-habit-day-${day.stage} ${day.isToday ? "today" : ""}`.trim()}
-                      key={day.dateKey}
-                      aria-current={day.isToday ? "date" : undefined}
-                      aria-label={`${day.dateLabel} ${day.weekdayLabel}요일, ${day.stageLabel}, 공부 ${day.studyLabel}`}
-                    >
-                      <span className="weekly-habit-marker" aria-hidden="true">
-                        {day.stage === "bloom" ? (
-                          <Flower2 size={18} />
-                        ) : day.stage === "tree" ? (
-                          <TreePine size={18} />
-                        ) : day.stage === "seed" ? (
-                          <Sprout size={18} />
-                        ) : (
-                          <span className="weekly-habit-rest-dot" />
-                        )}
-                      </span>
-                      <span className="weekly-habit-day-name">{day.isToday ? "오늘" : `${day.weekdayLabel}요일`}</span>
-                      <strong>{day.dateLabel}</strong>
-                      <span className="weekly-habit-stage">{day.stageLabel}</span>
-                      <small>{day.studyLabel}</small>
-                    </li>
-                  ))}
-                </ol>
-                <div className="weekly-habit-stats" aria-label="최근 7일 습관 요약">
-                  <div>
-                    <span>7일 시작</span>
-                    <strong>{weeklyHabitRhythm.startSuccessDays}<small>/7일</small></strong>
-                  </div>
-                  <div>
-                    <span>이어온 시작</span>
-                    <strong>{weeklyHabitRhythm.currentStreakDays}<small>일</small></strong>
-                  </div>
-                  <div>
-                    <span>목표 달성</span>
-                    <strong>{weeklyHabitRhythm.goalDays}<small>일 · 꽃 {weeklyHabitRhythm.bloomDays}일</small></strong>
-                  </div>
-                </div>
-                <div className="weekly-habit-coach" role="status">
-                  <span className="weekly-habit-coach-icon" aria-hidden="true"><Sprout size={20} /></span>
-                  <span>
-                    <strong>{weeklyHabitRhythm.coach.title}</strong>
-                    <small>{weeklyHabitRhythm.coach.description}</small>
-                  </span>
-                </div>
-              </section>
             </section>
             <section className="goal-hero-card" aria-label="대표 목표">
               {activeGoal && activeGoalProgress ? (
@@ -4870,18 +4789,18 @@ function DashboardApp() {
                 <div>
                   <span>세션 유지 남은 시간</span>
                   <strong>{formatTimerClock(sessionLeaseRemainingSeconds)}</strong>
-                  <small>버튼을 누르면 1시간 연장되며, 남은 시간은 최대 2시간입니다.</small>
+                  <small>누를 때마다 1시간 연장됩니다. 남은 시간은 현재 시각 기준 최대 2시간입니다.</small>
                 </div>
                 <button className="secondary" type="button" onClick={extendSessionLease} disabled={busy}>
                   <Clock3 size={18} />
-                  세션 유지
+                  +1시간 연장
                 </button>
               </div>
             )}
           </header>
         )}
 
-        {activeSection === "today" && blockingRecoveryRequests.length > 0 && (
+        {activeSection === "today" && todayDomain === "focus" && blockingRecoveryRequests.length > 0 && (
           <section
             className="recovery-blocker today-ordered-section"
             style={{ order: getTodaySectionSortOrder("topbar") + 1 }}
@@ -4913,7 +4832,7 @@ function DashboardApp() {
           </section>
         )}
 
-        {activeSection === "today" && blockingRecoveryRequests.length === 0 && recoveryWeeklySummary.totalCount > 0 && (
+        {activeSection === "today" && todayDomain === "focus" && blockingRecoveryRequests.length === 0 && recoveryWeeklySummary.totalCount > 0 && (
           <section
             className="recovery-precheck today-ordered-section"
             style={{ order: getTodaySectionSortOrder("topbar") + 1 }}
@@ -4939,7 +4858,14 @@ function DashboardApp() {
           </p>
         )}
 
-        {activeSection === "today" && (
+        {activeSection === "today" && todayDomain === "record" && (
+          <WeeklyHabitRhythmPanel
+            rhythm={weeklyHabitRhythm}
+            inactiveSession={!activeSession}
+          />
+        )}
+
+        {activeSection === "today" && todayDomain === "record" && (
         <section
           id="today"
           className="history-panel today-ordered-section"
@@ -5356,6 +5282,9 @@ function DashboardApp() {
               <p className="reminder-copy">
                 오늘 미완료 할 일 중 이번 집중 세션에서 처리할 일을 1개 이상 선택하세요.
               </p>
+              <p className="session-todo-schedule-note">
+                새 할 일은 시간까지 입력하면 오늘의 타임 스케줄에 바로 표시됩니다.
+              </p>
               <form
                 className="session-todo-quick-add"
                 onSubmit={(event: FormEvent<HTMLFormElement>) => {
@@ -5370,6 +5299,44 @@ function DashboardApp() {
                   placeholder="예: AWS 기출 1회 풀기"
                   disabled={busy || sessionTodoAddBusy}
                 />
+                <div className="session-todo-time-details" aria-label="새 할 일 시간 설정">
+                  <label>
+                    시작
+                    <input
+                      type="time"
+                      aria-label="새 할 일 시작 시간 선택"
+                      title="클릭하거나 Enter 키로 시작 시간 선택"
+                      value={sessionTodoStartTime}
+                      onChange={(event) => setSessionTodoStartTime(event.target.value)}
+                      onClick={(event) => openTimeInputPicker(event.currentTarget)}
+                      onDoubleClick={(event) => openTimeInputPicker(event.currentTarget)}
+                      onKeyDown={(event) => {
+                        if (!isTimeInputPickerKey(event.key)) return;
+                        event.preventDefault();
+                        openTimeInputPicker(event.currentTarget);
+                      }}
+                      disabled={busy || sessionTodoAddBusy}
+                    />
+                  </label>
+                  <label>
+                    종료
+                    <input
+                      type="time"
+                      aria-label="새 할 일 종료 시간 선택"
+                      title="클릭하거나 Enter 키로 종료 시간 선택"
+                      value={sessionTodoEndTime}
+                      onChange={(event) => setSessionTodoEndTime(event.target.value)}
+                      onClick={(event) => openTimeInputPicker(event.currentTarget)}
+                      onDoubleClick={(event) => openTimeInputPicker(event.currentTarget)}
+                      onKeyDown={(event) => {
+                        if (!isTimeInputPickerKey(event.key)) return;
+                        event.preventDefault();
+                        openTimeInputPicker(event.currentTarget);
+                      }}
+                      disabled={busy || sessionTodoAddBusy}
+                    />
+                  </label>
+                </div>
                 <button className="secondary" type="submit" disabled={busy || sessionTodoAddBusy}>
                   <Plus size={18} />
                   추가
@@ -5725,7 +5692,7 @@ function DashboardApp() {
           </AccessibleDialog>
         )}
 
-        {activeSection === "today" && (
+        {activeSection === "today" && todayDomain === "focus" && (
         <section className="daily-visual"
           style={{ order: getTodaySectionSortOrder("focus") }}
           aria-label="집중 세션 카메라 감시와 목표 진행률"
@@ -5798,7 +5765,7 @@ function DashboardApp() {
         </section>
         )}
 
-        {activeSection === "today" && (
+        {activeSection === "today" && todayDomain === "plan" && (
         <section className="today-task-panel"
           style={{ order: getTodaySectionSortOrder("tasks") }}
           aria-label="오늘 할 일"

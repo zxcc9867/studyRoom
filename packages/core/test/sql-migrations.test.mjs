@@ -560,13 +560,16 @@ test("session lease Slack warnings expose a one hour extension action", () => {
   assert.match(attendanceSource, /extend_session_lease_60/);
   assert.match(attendanceSource, /session_lease_extension\|\$\{warning\.session_id\}\|60/);
   assert.match(attendanceSource, /lease_warning_sent_at/);
+  assert.match(attendanceSource, /\+1시간 연장/);
+  assert.match(attendanceSource, /현재 시각 기준 최대 2시간/);
 
   assert.match(interactionSource, /extend_session_lease_60/);
   assert.match(interactionSource, /session_lease_extension/);
   assert.match(interactionSource, /extend_study_session_lease/);
   assert.match(interactionSource, /p_session_id/);
   assert.match(interactionSource, /p_extension_minutes/);
-  assert.match(interactionSource, /\uB0A8\uC740 \uC2DC\uAC04\uC740 \uCD5C\uB300 2\uC2DC\uAC04/);
+  assert.match(interactionSource, /1시간 연장/);
+  assert.match(interactionSource, /현재 시각 기준 최대 2시간/);
 });
 
 test("slack recovery interactions verify signatures, open modal, and create the makeup todo", () => {

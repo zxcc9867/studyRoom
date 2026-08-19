@@ -21,7 +21,7 @@ The system combines a Vite/React web app, an Expo mobile client, Supabase Auth/P
 1. Restore an existing Supabase session, or sign in with email OTP and optional Google OAuth.
 2. Plan dated todos, timed schedules, recurring work, goals, and D-days.
 3. Receive a scheduled reminder through Web Push, Slack, or email fallback.
-4. Start a session only after selecting at least one unfinished todo for today.
+4. Use the Today workspace through Focus, Plan, and Records tabs. Start a session only after selecting at least one unfinished todo for today. On the web, a quick-added todo can include a title and start/end time, appears immediately in the circular schedule, and is selected for the session; Expo quick add currently captures the title only.
 5. Begin with a one-hour session lease and extend it in one-hour increments, with at most two hours remaining from the current time.
 6. Pause and resume without counting break time as study time; optionally set a 10, 20, or 40-minute return promise.
 7. Use browser-only upper-body presence detection on the web. No photo, video, face feature, or raw pose landmark is stored.
@@ -46,11 +46,13 @@ The system combines a Vite/React web app, an Expo mobile client, Supabase Auth/P
 
 ### Planning and study sessions
 
+- Today is separated into Focus, Plan, and Records so the active timer, schedule, and history remain easy to scan.
 - Dated and recurring todos, cross-midnight schedules, monthly completion history, and goal-linked tasks.
+- The web start modal can quick-add a timed todo and place it directly into the current session and circular schedule.
 - Circular daily planner with overlap detection.
 - Atomic server-side start, pause, resume, extend, and end flows.
 - Break time exclusion and optional return promises.
-- Web and Expo clients share the same session and todo rules.
+- Web and Expo clients share the same session and todo rules; mobile camera monitoring remains out of scope until a separate PRD is approved.
 
 ### Sustainable learning loop
 
