@@ -4082,3 +4082,40 @@ AssertionError: README.md did not match /세션 회고/
 ### 재발 방지
 
 기본 문서의 언어를 가정하지 말고 언어별 README가 담당하는 계약을 분리한다. 영어 기본 문서는 글로벌 개요, 한국어 문서는 기존 상세 운영 계약, 모든 문서는 상호 언어 링크를 검증한다.
+## 2026-08-20 - 다국어 README PR과 최신 main 충돌
+
+### 상황
+
+문서 브랜치를 푸시하고 Draft PR을 만든 뒤 GitHub에서 PR이 충돌 상태로 표시됐다.
+
+### 에러 메시지
+
+```txt
+mergeStateStatus: DIRTY
+mergeable: CONFLICTING
+conflicts: README.md, memory-bank/active-context.md, memory-bank/progress.md
+```
+
+### 원인
+
+문서 브랜치 기준점 이후 원격 `main`에 Today 도메인 분리, 세션 todo 시간표 빠른 추가, lease 설명 변경이 추가됐다. 양쪽에서 README와 최신 작업 기록을 수정해 동일 파일에 충돌이 발생했다.
+
+### 해결 방법
+
+- 최신 `origin/main`을 문서 브랜치에 병합했다.
+- 최신 한국어 README 전체를 `README.ko.md`에 보존하고 언어 링크를 추가했다.
+- Today 탭, 시간 지정 빠른 추가, Expo 제한을 영어·일본어 README에도 반영했다.
+- 최신 main의 active-context/progress와 다국어 문서 기록을 모두 보존했다.
+- 전체 338개 테스트와 diff 공백 검사를 통과했다.
+
+### 관련 파일
+
+- `README.md`
+- `README.ko.md`
+- `README.ja.md`
+- `memory-bank/active-context.md`
+- `memory-bank/progress.md`
+
+### 재발 방지
+
+PR 생성 직전 원격 기본 브랜치를 fetch하고 문서 브랜치의 merge-base를 확인한다. 기본 README 언어가 바뀌는 작업에서는 최신 기본 브랜치 README를 언어별 보존 문서의 원본으로 사용한다.

@@ -68,6 +68,7 @@
 ## 현재 상태
 
 - 완료: 원격 migration `20260804133546_enforce_session_lease_expiry`, `attendance-cron` Edge Function v29, 과거 과대 세션과 해당 출석 보정.
+- 완료: agent/multilingual-readmes 브랜치 푸시 및 Draft PR #1 생성 (https://github.com/zxcc9867/studyRoom/pull/1)
 - 진행 중: 없음.
 - 막힌 부분: 없음.
 - 다음 작업: 실제 만료 시각 이후 Cron 응답의 `expiredSessionCount`를 운영 중 확인한다.
@@ -102,9 +103,10 @@
 ### 현재 상태
 
 - 완료: 세 언어 README 작성, 언어 전환 링크·핵심 용어·상대 링크·diff 공백 검사, README 계약을 포함한 전체 334개 테스트.
+- 완료: agent/multilingual-readmes 브랜치 푸시 및 Draft PR #1 생성 (https://github.com/zxcc9867/studyRoom/pull/1)
 - 진행 중: 없음.
 - 막힌 부분: 없음.
-- 다음 작업: 사용자 명시적 승인 후 README 및 관련 memory-bank 문서만 커밋·푸시한다.
+- 다음 작업: Draft PR 검토 후 병합 여부 결정한다.
 
 ### 주의할 점
 

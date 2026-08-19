@@ -5863,8 +5863,39 @@
 
 #### 남은 작업
 
-- 사용자 명시적 승인 후 문서 관련 변경만 커밋·푸시
+- Draft PR 검토 및 병합
 
 #### 다음 우선순위
 
-- 게시 승인 시 문서 전용 브랜치와 커밋 범위를 다시 확인한다.
+- Draft PR을 검토한 뒤 병합한다.
+
+### 2026-08-20 - 다국어 README Draft PR 게시
+
+#### 완료한 작업
+
+- 문서 전용 브랜치 `agent/multilingual-readmes`를 생성하고 원격에 푸시했다.
+- README 콘텐츠 커밋 `711cdd8`을 생성했다.
+- Draft PR #1: https://github.com/zxcc9867/studyRoom/pull/1
+- 최신 `origin/main`을 병합하고 README·active-context·progress 충돌을 양쪽 내용 보존 방식으로 해결했다.
+- 최신 main 병합 후 전체 338개 테스트가 통과했다.
+
+#### 변경된 파일
+
+- `memory-bank/active-context.md`
+- `memory-bank/progress.md`
+- `memory-bank/trouble-shooting.md`
+
+#### 검증 방법
+
+- 원격 브랜치 추적 상태 확인
+- Draft PR의 base/head, open/draft 상태 확인
+- 최신 main 병합 후 `npm.cmd test`: 338 passed
+- `git diff --check` 통과
+
+#### 남은 작업
+
+- Draft PR 검토 및 병합
+
+#### 다음 우선순위
+
+- PR의 언어별 렌더링을 최종 확인한 뒤 병합한다.
