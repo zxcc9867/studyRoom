@@ -5899,3 +5899,29 @@
 #### 다음 우선순위
 
 - PR의 언어별 렌더링을 최종 확인한 뒤 병합한다.
+
+### 2026-08-20 - 다국어 README 병합 완료
+
+#### 완료한 작업
+
+- PR #1 을(를) main 브랜치에 squash merge했다: https://github.com/zxcc9867/studyRoom/pull/1
+- 병합 커밋 SHA는 81b20025b7b833fd142c337946d885b753e7a2ba 이다.
+
+#### 변경된 파일
+
+- memory-bank/active-context.md
+- memory-bank/progress.md
+
+#### 검증 방법
+
+- GitHub PR 상태 MERGED 확인
+- main 브랜치가 병합 커밋을 포함하는지 확인
+- 병합 전 최신 main 기준 npm.cmd test: 338 passed
+
+#### 남은 작업
+
+- 원격 agent/multilingual-readmes 브랜치 삭제는 별도 승인 시 수행
+
+#### 다음 우선순위
+
+- 없음
