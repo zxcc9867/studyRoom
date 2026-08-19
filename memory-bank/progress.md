@@ -5831,3 +5831,71 @@
 #### 다음 우선순위
 
 - 사용자가 요청할 때에만 Git commit/push 및 Vercel 웹 배포를 수행한다.
+
+### 2026-08-19 - 다국어 README 완료
+
+#### 완료한 작업
+
+- `README.md`를 영어 기본 문서로 정리했다.
+- 기존 한국어 설명을 `README.ko.md`로 보존했다.
+- `README.ja.md`를 추가했다.
+- 세 문서 상단에 `English | 한국어 | 日本語` 전환 링크를 추가했다.
+- 실제 저장소의 기능, 기술 스택, 실행 방법, 환경 변수, 보안·제약 사항을 대조했다.
+
+#### 변경된 파일
+
+- `README.md`
+- `README.ko.md`
+- `README.ja.md`
+- `apps/web/test/readme.test.mjs`
+- `memory-bank/prd-multilingual-readme.md`
+- `memory-bank/active-context.md`
+- `memory-bank/implementation-plan.md`
+- `memory-bank/progress.md`
+
+#### 검증 방법
+
+- 세 README 파일과 상단 언어 전환 링크 존재 확인
+- 기술 핵심 용어 및 저장소 내부 상대 링크 해석 확인
+- `git diff --check` 통과
+- `npm.cmd test`: README 다국어 계약을 포함한 334개 테스트 통과
+- 애플리케이션 런타임 소스 변경이 없음을 `git status`로 확인
+
+#### 남은 작업
+
+- Draft PR 검토 및 병합
+
+#### 다음 우선순위
+
+- Draft PR을 검토한 뒤 병합한다.
+
+### 2026-08-20 - 다국어 README Draft PR 게시
+
+#### 완료한 작업
+
+- 문서 전용 브랜치 `agent/multilingual-readmes`를 생성하고 원격에 푸시했다.
+- README 콘텐츠 커밋 `711cdd8`을 생성했다.
+- Draft PR #1: https://github.com/zxcc9867/studyRoom/pull/1
+- 최신 `origin/main`을 병합하고 README·active-context·progress 충돌을 양쪽 내용 보존 방식으로 해결했다.
+- 최신 main 병합 후 전체 338개 테스트가 통과했다.
+
+#### 변경된 파일
+
+- `memory-bank/active-context.md`
+- `memory-bank/progress.md`
+- `memory-bank/trouble-shooting.md`
+
+#### 검증 방법
+
+- 원격 브랜치 추적 상태 확인
+- Draft PR의 base/head, open/draft 상태 확인
+- 최신 main 병합 후 `npm.cmd test`: 338 passed
+- `git diff --check` 통과
+
+#### 남은 작업
+
+- Draft PR 검토 및 병합
+
+#### 다음 우선순위
+
+- PR의 언어별 렌더링을 최종 확인한 뒤 병합한다.
