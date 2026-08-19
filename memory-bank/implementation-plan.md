@@ -1111,3 +1111,10 @@ docs/images/study-room-thumbnail.png
 - `study_sessions_active_lease_expiry_idx` is a partial index over active sessions with a lease, keeping the frequent expiry lookup narrow.
 - Both manual and automatic end paths calculate at the effective end timestamp, accumulate an in-progress break only up to that timestamp, then promote attendance only for local dates the corrected session actually overlaps.
 - Rows without a lease use the original `started_at + interval '1 hour'` fallback only for backward compatibility.
+## Documentation Convention
+
+- `README.md` is the English default document.
+- `README.ko.md` preserves the Korean documentation.
+- `README.ja.md` provides the Japanese documentation.
+- Every README starts with relative links to all three language files.
+- Features, commands, environment variables, security notes, and project limitations must remain consistent with the repository.

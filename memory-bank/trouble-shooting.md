@@ -4048,3 +4048,37 @@ attendance_days.status = present, marked_at = 20:30
 - 타이머의 저장 시간 상한은 클라이언트 표시가 아니라 서버 RPC에서 항상 강제한다.
 - 만료 cleanup은 열린 브라우저가 아니라 예약 실행되는 서버 작업으로 수행한다.
 - 장기 세션 또는 날짜를 넘는 세션이 보이면 `lease_expires_at`, `ended_at`, `duration_seconds`, `paused_seconds`를 함께 확인한다.
+## 2026-08-19 - 영어 기본 README 전환 후 문서 계약 테스트 실패
+
+### 상황
+
+기존 한국어 `README.md`를 영어 기본 문서로 전환한 뒤 전체 테스트를 실행했다.
+
+### 에러 메시지
+
+```txt
+README documents the current study loop, forest, mobile policy, and lease cap
+AssertionError: README.md did not match /세션 회고/
+```
+
+### 원인
+
+`apps/web/test/readme.test.mjs`가 기본 README가 한국어라는 전제 아래 한국어 상세 문구를 직접 검사하고 있었다. 영어 기본 문서로 전환하면서 기능 설명은 유지됐지만 언어 전제가 더 이상 유효하지 않았다.
+
+### 해결 방법
+
+- 영어 `README.md`의 제품 핵심, Study Forest, Expo, session lease, memory-bank 연결을 영어 문구로 검사한다.
+- 보존된 `README.ko.md`에는 기존의 상세 운영·상호작용 정책이 남아 있는지 별도 검사한다.
+- 세 언어 README 모두 동일한 언어 전환 링크를 포함하는지 검사한다.
+- 전체 테스트를 다시 실행해 334개 통과를 확인했다.
+
+### 관련 파일
+
+- `README.md`
+- `README.ko.md`
+- `README.ja.md`
+- `apps/web/test/readme.test.mjs`
+
+### 재발 방지
+
+기본 문서의 언어를 가정하지 말고 언어별 README가 담당하는 계약을 분리한다. 영어 기본 문서는 글로벌 개요, 한국어 문서는 기존 상세 운영 계약, 모든 문서는 상호 언어 링크를 검증한다.
