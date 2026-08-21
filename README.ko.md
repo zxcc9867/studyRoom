@@ -146,6 +146,22 @@ docs/
 - `main` 푸시는 GitHub Actions에서 `npm ci`, 전체 테스트, 웹 build 후 Vercel production을 배포합니다.
 - 휴식 복귀 약속은 기존 1초 화면 시계를 재사용하고 사용자·세션별 브라우저 localStorage에 deadline만 저장합니다. Supabase 휴식 상태·lease·공부 시간의 원천 데이터는 변경하지 않습니다.
 
+### 런타임 인프라와 운영 비용
+
+```mermaid
+flowchart LR
+  web["Web browser"] --> vercel["Vercel<br/>Vite static app"]
+  mobile["Expo mobile app"] --> supabase["Supabase<br/>Auth · Postgres · RPC · Realtime"]
+  vercel --> supabase
+  cron["Supabase Cron"] --> edge["Edge Functions"]
+  edge --> notify["Web Push · Slack · Resend"]
+  optional["Optional AWS CDK"] -.-> vercel
+  optional -.-> edge
+```
+
+- 기본 운영 경로는 소규모 Vercel·Supabase 무료 범위에 맞출 수 있고, 선택적 AWS 인프라는 기본 경로에 필요하지 않습니다.
+- 알림 제공자, 저장량, 통신량과 활성화한 AWS 리소스는 사용량이 늘면 과금될 수 있습니다. 비용 최소화 구조이지 0원 운영을 보장하는 표현은 아닙니다.
+
 자세한 구성은 [인프라 구성도](docs/infrastructure-architecture.md)와 [구현 계획](memory-bank/implementation-plan.md)을 참고합니다.
 
 ## 주요 데이터
