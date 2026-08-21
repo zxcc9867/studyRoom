@@ -17,7 +17,7 @@ flowchart LR
   cron["Supabase Cron<br/>pg_cron + pg_net"]
   edge["Edge Function<br/>attendance-cron"]
   webPush["Web Push<br/>컴퓨터 브라우저 알림"]
-  telegram["Telegram Bot API<br/>개인 채팅 알림"]
+  slack["Slack Bot<br/>workspace·DM 알림"]
   resend["Resend<br/>이메일 보완 알림"]
   expo["Expo Push<br/>모바일 푸시"]
 
@@ -31,11 +31,11 @@ flowchart LR
   edge -->|"알림 대상/오늘 todo 조회"| db
   edge -->|"발송 기록 저장"| db
   edge --> webPush
-  edge --> telegram
+  edge --> slack
   edge --> resend
   edge --> expo
   webPush --> user
-  telegram --> user
+  slack --> user
   resend --> user
   expo --> mobile
 ```
@@ -50,7 +50,7 @@ sequenceDiagram
   participant S as Supabase DB
   participant C as Supabase Cron
   participant E as attendance-cron Edge Function
-  participant N as Web Push / Telegram / Email / Expo
+  participant N as Web Push / Slack / Email / Expo
 
   U->>W: 알림 시간, 알림 대상, todo 저장
   W->>S: profiles / notification_targets / study_todos 저장
@@ -73,7 +73,7 @@ flowchart TB
   anon["Supabase anon key<br/>브라우저 공개 가능"]
   rls["RLS 정책<br/>auth.uid() 기준 본인 행만 접근"]
   service["Service role key<br/>Edge Function 전용"]
-  secrets["Edge Function secrets<br/>CRON_SECRET<br/>TELEGRAM_BOT_TOKEN<br/>RESEND_API_KEY<br/>VAPID private key"]
+  secrets["Edge Function secrets<br/>CRON_SECRET<br/>SLACK_BOT_TOKEN<br/>RESEND_API_KEY<br/>VAPID private key"]
   db[("Supabase Postgres")]
 
   client --> anon
@@ -84,7 +84,7 @@ flowchart TB
 ```
 
 - 프론트엔드에는 `VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY`, `VITE_WEB_PUSH_VAPID_PUBLIC_KEY`처럼 공개 가능한 값만 들어간다.
-- `SUPABASE_SERVICE_ROLE_KEY`, `TELEGRAM_BOT_TOKEN`, `RESEND_API_KEY`, `WEB_PUSH_VAPID_PRIVATE_KEY`, `CRON_SECRET`은 Edge Function secret 또는 서버 측 환경에만 둔다.
+- `SUPABASE_SERVICE_ROLE_KEY`, `SLACK_BOT_TOKEN`, `RESEND_API_KEY`, `WEB_PUSH_VAPID_PRIVATE_KEY`, `CRON_SECRET`은 Edge Function secret 또는 서버 측 환경에만 둔다.
 - 사용자 데이터 접근은 Supabase RLS가 `auth.uid()` 기준으로 제한한다.
 
 ## 선택적 AWS 구성
@@ -117,7 +117,7 @@ AWS 선택 구성의 역할은 두 가지뿐이다.
 
 ## 운영 메모
 
-- 컴퓨터가 꺼져 있으면 브라우저 Web Push는 받을 수 없다. 이 경우 Telegram, 이메일, 모바일 Expo Push 같은 외부 채널이 보완 역할을 한다.
+- 컴퓨터가 꺼져 있으면 브라우저 Web Push는 받을 수 없다. 이 경우 Slack, 이메일, 모바일 Expo Push 같은 외부 채널이 보완 역할을 한다.
 - Vercel/S3 같은 정적 호스팅은 화면 제공만 담당한다. 정해진 시간 알림은 Supabase Cron 또는 AWS EventBridge 같은 서버 측 스케줄러가 담당해야 한다.
-- Telegram 알림에는 해당 날짜 todo가 있으면 같이 포함된다.
+- Slack 알림에는 해당 날짜 todo가 있으면 같이 포함된다.
 - `attendance-cron`은 알림 발송뿐 아니라 15분 미입장 사용자의 결석 처리도 수행한다.
