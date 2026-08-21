@@ -104,6 +104,22 @@ memory-bank       Product requirements, decisions, progress, and troubleshooting
 - Daily, weekly, and monthly study time use timezone-aware server summaries.
 - Client-only habit indicators reuse already loaded session and todo data instead of adding API traffic.
 
+### Runtime infrastructure and cost posture
+
+```mermaid
+flowchart LR
+  web["Web browser"] --> vercel["Vercel<br/>Vite static app"]
+  mobile["Expo mobile app"] --> supabase["Supabase<br/>Auth · Postgres · RPC · Realtime"]
+  vercel --> supabase
+  cron["Supabase Cron"] --> edge["Edge Functions"]
+  edge --> notify["Web Push · Slack · Resend"]
+  optional["Optional AWS CDK"] -.-> vercel
+  optional -.-> edge
+```
+
+- The production baseline is compatible with low-volume Vercel and Supabase allowances; optional AWS infrastructure is not required for the default path.
+- Notification providers, storage, bandwidth, and any enabled AWS resources can incur charges as usage grows. This is a cost-minimized design, not a guarantee of zero cost.
+
 See [infrastructure architecture](docs/infrastructure-architecture.md) and the [implementation plan](memory-bank/implementation-plan.md).
 
 ## Important data domains
