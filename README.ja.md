@@ -109,6 +109,22 @@ memory-bank       要件、設計判断、進捗、トラブルシューティ�
 - 日次・週次・月次の学習時間はタイムゾーン対応のサーバー集計を使用します。
 - 習慣表示は読み込み済みセッションとtodoを再利用し、追加API負荷を発生させません。
 
+### ランタイム構成と運用コスト
+
+```mermaid
+flowchart LR
+  web["Web browser"] --> vercel["Vercel<br/>Vite static app"]
+  mobile["Expo mobile app"] --> supabase["Supabase<br/>Auth · Postgres · RPC · Realtime"]
+  vercel --> supabase
+  cron["Supabase Cron"] --> edge["Edge Functions"]
+  edge --> notify["Web Push · Slack · Resend"]
+  optional["Optional AWS CDK"] -.-> vercel
+  optional -.-> edge
+```
+
+- 基本運用は小規模なVercel・Supabaseの無料枠に合わせられ、任意のAWS構成はデフォルト経路には不要です。
+- 通知サービス、保存量、通信量、有効化したAWSリソースは利用量に応じて課金されます。コスト最小化の設計であり、完全無料を保証するものではありません。
+
 [インフラ構成](docs/infrastructure-architecture.md)と[実装計画](memory-bank/implementation-plan.md)も参照してください。
 
 ## 主なデータ領域
