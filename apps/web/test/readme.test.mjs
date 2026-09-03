@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import { test } from "node:test";
 
 const englishReadme = readFileSync("README.md", "utf8");
@@ -7,6 +7,12 @@ const koreanReadme = readFileSync("README.ko.md", "utf8");
 const japaneseReadme = readFileSync("README.ja.md", "utf8");
 const languageNav =
   "[English](README.md) | [한국어](README.ko.md) | [日本語](README.ja.md)";
+const studyForestScreenshots = [
+  "study-forest-growth-path.png",
+  "study-forest-live-island.png",
+  "study-forest-cottage-interior.png",
+  "study-forest-atelier.png",
+];
 
 test("multilingual READMEs are connected and the English default covers the current product", () => {
   for (const readme of [englishReadme, koreanReadme, japaneseReadme]) {
@@ -38,4 +44,13 @@ test("the preserved Korean README keeps detailed operating and interaction polic
   assert.match(koreanReadme, /카메라 시작 응답을 15초/);
   assert.match(koreanReadme, /Expo 모바일/);
   assert.match(koreanReadme, /memory-bank\/prd-/);
+});
+test("every README introduces Study Forest with real scene screenshots", () => {
+  for (const screenshot of studyForestScreenshots) {
+    assert.ok(existsSync(`docs/images/${screenshot}`), `missing Study Forest screenshot: ${screenshot}`);
+  }
+
+  for (const readme of [englishReadme, koreanReadme, japaneseReadme]) {
+    for (const screenshot of studyForestScreenshots) assert.ok(readme.includes(screenshot));
+  }
 });

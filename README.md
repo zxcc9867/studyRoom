@@ -71,6 +71,25 @@ The system combines a Vite/React web app, an Expo mobile client, Supabase Auth/P
 - User-selectable island theme, house accent, and representative reward.
 - Persistent five-of-seven seed lights and firefly garlands derived from completed sessions.
 
+#### A habit space you can walk through
+
+<p align="center">
+  <img src="docs/images/study-forest-growth-path.png" alt="Study Forest growth path with a low-poly island, seed tree, and weekly firefly progress" width="100%" />
+</p>
+
+A study streak is not a static badge here. The avatar walks across the island, crosses a collision-aware bridge, enters the cottage, and sees the environment change as attendance and small starts accumulate.
+
+| Explore a live island | Step into the study cottage |
+| --- | --- |
+| ![Avatar standing on the bridge in the low-poly Study Forest](docs/images/study-forest-live-island.png) | ![Avatar inside the Cozy Study Cottage](docs/images/study-forest-cottage-interior.png) |
+| **Move with intent.** Keyboard, touch, click, and auto-walk all use the same walkable routes across land and bridge. | **Keep the reward personal.** The cottage has a real doorway, an interior study space, furniture, and a walk-out exit. |
+
+**Progress has a place in the world.** Five small starts light seed lamps around the current tree, seven consecutive attendance days finish a tree, and completed trees unlock new interior and outdoor rewards.
+
+<p align="center">
+  <img src="docs/images/study-forest-atelier.png" alt="Island Atelier showing selectable themes, home accents, outdoor rewards, and locked items" width="100%" />
+</p>
+
 ### Attendance, presence, and recovery
 
 - Weekday and weekend attendance goals with late-study recovery.
