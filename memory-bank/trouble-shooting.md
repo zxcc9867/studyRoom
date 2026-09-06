@@ -4139,3 +4139,6 @@ PR 생성 직전 원격 기본 브랜치를 fetch하고 문서 브랜치의 merg
 - PGlite execution exposed SQL range-variable naming ambiguity; explicit PL/pgSQL block qualification fixed it. Added actual SQL tests covering RLS, shared AI quota, idempotent acceptance, schedule conflicts, DST, date-only invariance, stable task instants and stale integration writes.
 - Browser settings received Postgres time values with seconds while validation requires HH:mm. Normalize loaded form times; test DB-shaped state roundtrips before release.
 - Automatic approval review rejected the specific remote next-js schema mutation. It was not applied. Ask for and wait for the specific remote approval; do not bypass it via another transport or ship dependent UI before DB readiness.
+
+### Production Deno bootstrap fix
+The initial five Edge deployments returned WORKER_ERROR500 because Deno1 has a global window and the shared AI browser guard threw during import. Reproduced with a server window alias, changed guard to require DOM document, added regression and deployed again. Auth rejection401 and scheduled200 confirm recovery. Slack snooze also needed per-isolate pilot loading after signature/owner checks.

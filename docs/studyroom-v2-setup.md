@@ -27,6 +27,8 @@ This guide describes configuration, not proof that an account/device is connecte
 
 Existing Slack, Resend and Web Push secrets remain in the Edge Functions runtime. User notification preferences remain off until explicitly enabled. No email fallback to a disabled channel.
 
+Coaching email requires both `RESEND_API_KEY` and `RESEND_FROM_EMAIL`. Push uses `WEB_PUSH_VAPID_PUBLIC_KEY`, `WEB_PUSH_VAPID_PRIVATE_KEY` and optional `WEB_PUSH_SUBJECT`. Slack uses `SLACK_SIGNING_SECRET` and `SLACK_BOT_TOKEN` (or `STUDY_ALERT_SLACK_BOT_TOKEN`). These settings are independent of channel opt-in.
+
 ## Google Calendar
 
 Enable Calendar API for the existing Google Cloud project. Use a Web application OAuth client and register `https://bqohkdzvxbrokkmuhysx.supabase.co/functions/v1/coach-integrations?provider=google` as the authorized redirect URI. Request offline access and the calendar-list/event read-only scopes, not write access. Add the pilot account to OAuth test users when the app is in testing mode. Testing-mode tokens and revoked grants may require reconnection; show that status rather than treating stale data as free time.

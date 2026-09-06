@@ -1,5 +1,5 @@
 // Server-only integration. Never import this module from apps/web or apps/mobile.
-if (typeof window !== 'undefined') {
+if (typeof window !== 'undefined' && typeof window.document !== 'undefined') {
   throw new Error('OpenRouter is only available on the server.');
 }
 

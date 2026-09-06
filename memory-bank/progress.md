@@ -1,3 +1,11 @@
+## 2026-09-06 — Approved production backend rollout
+
+- User explicitly approved next-js/bqohkdzvxbrokkmuhysx schema, functions, cron and web deployment after automatic review requested exact scope.
+- Applied migrations20260906083030_studyroom_v2_coach and20260906083337_studyroom_v2_coach_cron. Seeded one owner pilot; coaching enabled/channel settings were not changed. Existing attendance cron remains active.
+- Deployed career-coach v3, coach-worker v2, coach-integrations v2, coach-notifications v2, slack-recovery-interactions v14. All five reject unsigned/unauthenticated requests with401. Latest scheduled worker and notifier return200 with completed0/failed0 and sent0.
+- Initial boot failure was reproduced as the server-only AI guard mistaking Deno1 window for browser. Both free-client copies now check DOM presence; regression added. All Supabase client imports in new handlers aligned to pinned JSR2.57.4. Slack snooze now loads pilot IDs after signature/owner verification.
+- Local Node tests470 pass. Security advisors: server-only coach token/state/quota/pilot tables intentionally have RLS with no browser policies; existing unrelated RPC/search-path/Auth warnings remain outside this rollout.
+- Web production push/deployment verification is in progress. OAuth secret configuration, real connected accounts/device receipt and live model30-scenario quality evaluation remain unverified; no external alerts sent during verification.
 ## 2026-09-06 — StudyRoom 2.0 implementation, awaiting remote approval
 
 - Implemented career/skill roadmap editing, automatic recommendations, acceptance with atomic schedule recheck, feedback, life events, profile time-zone picker, optional channel controls and Google/GitHub connection UI.

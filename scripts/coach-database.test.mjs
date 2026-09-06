@@ -24,7 +24,8 @@ before(async()=>{
     insert into public.profiles(user_id) values('${owner}'),('${other}');
   `);
   const folder=process.env.COACH_MIGRATIONS_DIR||resolve('supabase/migrations');
-  for(const name of readdirSync(folder).filter(n=>/studyroom_v2.*\.sql$/.test(n)).sort()) {
+  // pg_cron/pg_net are production extensions, verified against Supabase after deployment.
+  for(const name of readdirSync(folder).filter(n=>/studyroom_v2.*\.sql$/.test(n) && !n.endsWith('_cron.sql')).sort()) {
     await db.exec(readFileSync(resolve(folder,name),'utf8'));
   }
   const tables=await db.query("select count(*)::int n from pg_tables where tablename='coach_settings'");

@@ -1,6 +1,7 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
-import { createClient, type SupabaseClient } from "npm:@supabase/supabase-js@2.49.8";
+import { createClient, type SupabaseClient } from "jsr:@supabase/supabase-js@2.57.4";
 import { handleCoachSlackAction } from "../_shared/coach-notifications.ts";
+import { loadPilotUsers } from "../_shared/coach-store.ts";
 
 type SlackPayload = {
   type: string;
@@ -69,6 +70,7 @@ Deno.serve(async (request) => {
         .eq("destination", payload.channel.id).eq("slack_user_id", payload.user.id).limit(2);
       if (error || !targets || targets.length !== 1) return json({ error: "Notification owner not linked" }, 403);
       try {
+        if (coachAction.action_id === "coach_snooze") await loadPilotUsers(admin);
         await handleCoachSlackAction(admin, targets[0].user_id, coachAction.action_id!, coachAction.value ?? "");
         return json({ ok: true });
       } catch {

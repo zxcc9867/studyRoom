@@ -112,9 +112,17 @@ test('response body is bounded and a stalled response body can be cancelled', as
 });
 
 test('browser runtime cannot import the server module', async () => {
-  globalThis.window = {};
+  globalThis.window = { document: {} };
   try {
     await assert.rejects(import('./openrouter.mjs?browser-guard'), /only available on the server/);
+  } finally { delete globalThis.window; }
+});
+
+test('Deno 1 server window without a document can import the module', async () => {
+  globalThis.window = globalThis;
+  try {
+    const module = await import('./openrouter.mjs?deno1-server');
+    assert.equal(typeof module.createOpenRouterClient, 'function');
   } finally { delete globalThis.window; }
 });
 
