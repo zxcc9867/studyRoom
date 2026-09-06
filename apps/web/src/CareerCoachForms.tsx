@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import type { Career, CoachEvent, CoachSettings, Skill } from './careerCoachTypes';
 import { localParts, shiftDate, wallTimeToInstant } from './coachTime.mjs';
+import { coachSettingsDraft } from './coachSettingsDraft.mjs';
 
 export type RunAction = (payload:Record<string,unknown>)=>Promise<boolean>;
 const days = ['일', '월', '화', '수', '목', '금', '토'];
@@ -35,7 +36,7 @@ export function CareerForm({ career, busy, onSave }: {career:Career|null;busy:bo
 }
 
 export function CoachSettingsForm({settings,busy,onSave,onManageNotifications}:{settings:CoachSettings;busy:boolean;onSave:RunAction;onManageNotifications:()=>void}) {
-  const [draft,setDraft]=useState(settings);
+  const [draft,setDraft]=useState(()=>coachSettingsDraft(settings));
   const [consent,setConsent]=useState(settings.enabled);
   return <form className="coach-form" onSubmit={e=>{e.preventDefault();void onSave({action:'settings',settings:draft});}}>
     <h3>공부 리듬과 알림</h3><fieldset disabled={busy}>
