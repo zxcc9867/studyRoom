@@ -4125,3 +4125,9 @@ PR 생성 직전 원격 기본 브랜치를 fetch하고 문서 브랜치의 merg
 - 원인: 기존 deleteTodo/deleteGoal은 다른 화면에만 연결됐으며, 시간 입력의 click/double-click 핸들러가 showPicker를 강제로 열어 숫자 직접 수정을 방해했다.
 - 해결: 세션 선택 목록과 목표 편집 모달에 삭제 버튼 연결, 삭제된 ID 정리 및 오류 시 busy 해제. 시간 입력의 click/double-click 핸들러를 제거하고 native 숫자 입력/아이콘/키보드 선택을 유지했다.
 - 검증 환경: npm root dev:web에 추가 port를 전달하면 npm 옵션 해석 오류가 발생해 workspace dev -- --port 5178로 실행했다. agent-browser의 Edge 지정 실행이 실패해 기본 Chromium으로 검증했다.
+
+## 2026-09-06 - 목표 달성 오류 문구 및 배지 검증
+
+- 독립 리뷰에서 Supabase 응답 객체를 그대로 throw하면 formatNotificationError가 [object Object]를 표시하는 회귀를 발견했다. new Error(error.message)로 변환하고 finally로 버튼을 복구했다.
+- 브라우저 fixture의 외부 API mock은 CORS 응답 헤더 부족으로 실패했다. 별도 Vite 프로세스의 테스트 전용 URL을 같은 localhost origin으로 지정해 해결했다. 실제 설정 파일/계정/DB 데이터는 바꾸지 않았다.
+- agent-browser에서 목표 달성 취소, 통신 실패 후 재시도, Today/목표 목록 달성, 마이페이지 배지, 저장된 fixture 재조회, 재개와 삭제 반영을 확인했다. 390px 화면의 scrollWidth는 390, Vite 오류 overlay 없음.

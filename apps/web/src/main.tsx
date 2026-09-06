@@ -11,6 +11,7 @@ import {
   type MouseEvent,
 } from "react";
 import { createRoot } from "react-dom/client";
+import GoalAchievementBadges from "./GoalAchievementBadges";
 import {
   Bell,
   Camera,
@@ -2817,22 +2818,30 @@ function DashboardApp() {
   }
 
   async function updateGoalStatus(goal: StudyGoal, status: StudyGoal["status"]) {
+    if (goalBusy || !session?.user.id || goal.status === status) return;
+    const confirmation = status === "completed"
+      ? `“${goal.title}” 목표를 달성했나요? 마이페이지에 달성 배지가 추가됩니다. 연결된 할 일의 완료 상태는 바뀌지 않습니다.`
+      : `“${goal.title}” 목표를 다시 진행할까요? 마이페이지의 달성 배지는 사라지며, 다시 달성하면 표시됩니다.`;
+    if (!window.confirm(confirmation)) return;
     setGoalBusy(true);
-    const { data, error } = await supabase.from("study_goals").update({ status }).eq("id", goal.id).select("*").single();
-    setGoalBusy(false);
-
-    if (error) {
-      setMessage(error.message);
-      return;
+    try {
+      const { data, error } = await supabase.from("study_goals").update({ status })
+        .eq("id", goal.id).eq("user_id", session.user.id).select("*").single();
+      if (error) throw new Error(error.message);
+      setStudyGoals((current) => sortStudyGoals(current.map((item) => (item.id === goal.id ? (data as StudyGoal) : item))));
+      setMessage(status === "completed"
+        ? "목표 달성을 축하합니다! 마이페이지에 달성 배지가 추가되었습니다."
+        : "목표를 다시 진행합니다. 달성 배지는 다시 달성하면 표시됩니다.");
+    } catch (error) {
+      setMessage(formatNotificationError(error));
+    } finally {
+      setGoalBusy(false);
     }
-
-    setStudyGoals((current) => sortStudyGoals(current.map((item) => (item.id === goal.id ? (data as StudyGoal) : item))));
-    setMessage(status === "completed" ? "목표를 완료 처리했습니다." : "목표 상태를 변경했습니다.");
   }
 
   async function deleteGoal(goal: StudyGoal) {
     if (goalBusy || !session?.user.id) return;
-    if (!window.confirm(`“${goal.title}” 목표를 삭제할까요? 연결된 할 일과 공부 기록은 유지됩니다.`)) return;
+    if (!window.confirm(`“${goal.title}” 목표를 삭제할까요? ${goal.status === "completed" ? "마이페이지의 달성 배지도 삭제됩니다. " : ""}연결된 할 일과 공부 기록은 유지됩니다.`)) return;
     setGoalBusy(true);
     try {
       const linkedTodoIds = studyTodos.filter((todo) => todo.goal_id === goal.id).map((todo) => todo.id);
@@ -4770,6 +4779,11 @@ function DashboardApp() {
                     </span>
                   </div>
                   <div className="goal-hero-actions">
+                    <button className="primary compact-action" type="button" disabled={goalBusy}
+                      onClick={() => void updateGoalStatus(activeGoal, "completed")}>
+                      <CheckCircle2 size={16} />
+                      목표 달성
+                    </button>
                     <button className="secondary compact-action" type="button" onClick={() => openGoalEditor(activeGoal)}>
                       <Pencil size={16} />
                       목표 편집
@@ -5912,7 +5926,7 @@ function DashboardApp() {
                     <div className="goal-card-head">
                       <span className="goal-dday">{formatDdayLabel(todayDateKey, goal.target_date)}</span>
                       <div>
-                        <p className="eyebrow">{goal.status}</p>
+                        <p className="eyebrow">{goal.status === "completed" ? "달성한 목표" : goal.status === "active" ? "진행 중" : "보관한 목표"}</p>
                         <h3>{goal.title}</h3>
                         <p>{formatGoalDate(goal.target_date)}까지</p>
                       </div>
@@ -5953,8 +5967,11 @@ function DashboardApp() {
                         onClick={() => void updateGoalStatus(goal, goal.status === "completed" ? "active" : "completed")}
                       >
                         <CheckCircle2 size={16} />
-                        {goal.status === "completed" ? "다시 진행" : "완료"}
+                        {goal.status === "completed" ? "다시 진행" : "목표 달성"}
                       </button>
+                      {goal.status === "completed" && (
+                        <a className="secondary compact-action goal-view-link" href="#me">달성 배지 보기</a>
+                      )}
                       <button
                         className="todo-delete"
                         type="button"
@@ -5995,8 +6012,10 @@ function DashboardApp() {
               <p className="eyebrow">my page</p>
               <h2>내 페이지</h2>
             </div>
-            <strong className="profile-badge">{todoHistoryStats.completedTodos}개 완료</strong>
+            <strong className="profile-badge">할 일 {todoHistoryStats.completedTodos}개 완료</strong>
           </div>
+
+          <GoalAchievementBadges goals={studyGoals} />
 
           <div className="profile-summary-grid" aria-label="나의 정보">
             <div>

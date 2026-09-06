@@ -1118,3 +1118,9 @@ docs/images/study-room-thumbnail.png
 - `README.ja.md` provides the Japanese documentation.
 - Every README starts with relative links to all three language files.
 - Features, commands, environment variables, security notes, and project limitations must remain consistent with the repository.
+## 2026-09-06 - Goal achievement badges
+
+- main.tsx shares updateGoalStatus between Today and Goals. Mutations filter by goal ID and authenticated user ID, and update local state only after a successful single-row response. try/finally restores the busy state.
+- GoalAchievementBadges.tsx derives My Page badges from completed study_goals via goalAchievements.mjs. No duplicate badge table, localStorage reward, or invented completion timestamp.
+- dashboardData.ts loads every goal using the existing fetchAllPages utility, ordered by status/target_date/id. Goal history is no longer truncated at 100 rows.
+- Supabase inspection confirmed status constraint and ownership SELECT/INSERT/UPDATE/DELETE RLS. No remote mutation or schema change was needed.

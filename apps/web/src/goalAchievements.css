@@ -1,0 +1,127 @@
+.goal-achievements {
+  padding: 24px;
+  border: 2px solid #579673;
+  border-radius: 12px;
+  background: #fffdf2;
+  box-shadow: 0 5px 0 #bad2bc;
+  min-width: 0;
+}
+
+.goal-achievements-heading {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+.goal-achievements-heading h2 {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin: 4px 0;
+  color: #2d6d55;
+  font-size: 24px;
+}
+
+.goal-achievements-heading h2 span {
+  font-size: 16px;
+}
+
+.goal-achievements-link {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  padding: 8px 14px;
+  border: 2px solid #579673;
+  border-radius: 8px;
+  color: #24543f;
+  background: #e5f1d5;
+  font-weight: 700;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.goal-achievements-link:focus-visible {
+  outline: 3px solid #2d6d55;
+  outline-offset: 3px;
+}
+
+.goal-achievements-description,
+.goal-achievements-note {
+  color: #62543b;
+  line-height: 1.6;
+}
+
+.goal-achievements-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 240px), 1fr));
+  gap: 14px;
+  list-style: none;
+  padding: 0;
+  margin: 18px 0;
+}
+
+.goal-achievement-badge {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 18px;
+  border: 2px solid #d9b55d;
+  border-radius: 12px;
+  background: #fff6ce;
+  min-width: 0;
+}
+
+.goal-achievement-medal {
+  display: grid;
+  place-items: center;
+  flex: 0 0 58px;
+  height: 58px;
+  border: 2px solid #b88a22;
+  border-radius: 50%;
+  color: #78530b;
+  background: #f4cf65;
+}
+
+.goal-achievement-copy {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.goal-achievement-label {
+  color: #745514;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.goal-achievement-copy h3 {
+  margin: 5px 0 0;
+  color: #2d6d55;
+  font-size: 18px;
+  line-height: 1.5;
+}
+
+.goal-achievements-empty {
+  padding: 26px 12px;
+  text-align: center;
+  color: #62543b;
+  line-height: 1.6;
+}
+
+.goal-achievements-empty p {
+  margin: 8px 0;
+  font-weight: 700;
+}
+
+.goal-achievements-note {
+  margin-bottom: 0;
+  font-size: 13px;
+}
+
+@media (max-width: 480px) {
+  .goal-achievements { padding: 16px; }
+  .goal-achievements-heading h2 { font-size: 21px; }
+  .goal-achievement-badge { padding: 14px; }
+}
