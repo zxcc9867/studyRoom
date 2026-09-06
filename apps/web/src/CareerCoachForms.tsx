@@ -11,7 +11,7 @@ export function CareerForm({ career, busy, onSave }: {career:Career|null;busy:bo
   const [interests, setInterests] = useState(draft.interests.join(', '));
   const [consent, setConsent] = useState(Boolean(career));
   function updateSkill(id:string, patch:Partial<Skill>) { setDraft(current => ({...current,skills:current.skills.map(skill => skill.id === id ? {...skill,...patch} : skill)})); }
-  return <form className="coach-form" onSubmit={event => { event.preventDefault(); void onSave({action:'save_career',career:{...draft,interests:interests.split(',').map(s=>s.trim()).filter(Boolean)}}); }}>
+  return <form className="coach-form" onSubmit={event => { event.preventDefault(); void onSave({action:'save_career',career:{...draft,interests:interests.split(',').map(s=>s.trim()).filter(Boolean),skills:draft.skills.map((skill,index)=>({...skill,prerequisites:skill.prerequisites.filter(id=>draft.skills.slice(0,index).some(previous=>previous.id===id))}))}}); }}>
     <h3>{career ? '나의 커리어 로드맵' : '어떤 커리어를 만들고 싶나요?'}</h3>
     <fieldset disabled={busy}>
       <label>희망 직무<input required maxLength={160} value={draft.title} placeholder="예: 안정적인 서비스를 만드는 백엔드 개발자" onChange={e=>setDraft({...draft,title:e.target.value})}/></label>
@@ -20,9 +20,9 @@ export function CareerForm({ career, busy, onSave }: {career:Career|null;busy:bo
       {!career && <><p>로드맵 작성을 위해 입력한 커리어·경험·관심 기술을 OpenRouter 무료 AI로 전달합니다. 이용이 어려우면 기본 로드맵을 제공합니다.</p><label className="coach-check"><input type="checkbox" required checked={consent} onChange={e=>setConsent(e.target.checked)}/>AI 연결 설명을 확인했습니다.</label></>}
       {!draft.skills.length && <p>저장하면 로드맵 초안을 준비합니다. 초안을 검토하고 확정해 주세요.</p>}
       {draft.skills.map((skill,index)=><section key={skill.id} className="coach-skill">
-        <div className="coach-row"><h4>스킬 {index+1}</h4><button type="button" className="plain" aria-label={`${skill.title || `스킬 ${index+1}`} 삭제`} onClick={()=>setDraft({...draft,skills:draft.skills.filter(s=>s.id!==skill.id)})}>삭제</button></div>
+        <div className="coach-row"><h4>스킬 {index+1}</h4><button type="button" className="plain" aria-label={`${skill.title || `스킬 ${index+1}`} 삭제`} onClick={()=>setDraft({...draft,skills:draft.skills.filter(s=>s.id!==skill.id).map(s=>({...s,prerequisites:s.prerequisites.filter(id=>id!==skill.id)}))})}>삭제</button></div>
         <label>스킬 이름<input required maxLength={160} value={skill.title} onChange={e=>updateSkill(skill.id,{title:e.target.value})}/></label>
-        <label>먼저 익힐 내용 (쉼표로 구분)<input value={skill.prerequisites.join(', ')} onChange={e=>updateSkill(skill.id,{prerequisites:e.target.value.split(',').map(s=>s.trim())})}/></label>
+        <fieldset><legend>먼저 익힐 스킬</legend>{index===0?<p>첫 단계입니다. 먼저 완료해야 할 스킬이 없습니다.</p>:draft.skills.slice(0,index).map(previous=><label className="coach-check" key={previous.id}><input type="checkbox" checked={skill.prerequisites.includes(previous.id)} onChange={e=>updateSkill(skill.id,{prerequisites:e.target.checked?[...skill.prerequisites,previous.id]:skill.prerequisites.filter(id=>id!==previous.id)})}/>{previous.title||'이름 없는 스킬'}</label>)}</fieldset>
         <label>실습 과제<textarea required maxLength={1000} value={skill.task} onChange={e=>updateSkill(skill.id,{task:e.target.value})}/></label>
         <label>완료 기준<textarea required maxLength={1000} value={skill.acceptance} onChange={e=>updateSkill(skill.id,{acceptance:e.target.value})}/></label>
         <label>진행 상태<select value={skill.status} onChange={e=>updateSkill(skill.id,{status:e.target.value as Skill['status']})}><option value="todo">시작 전</option><option value="doing">진행 중</option><option value="done">완료 확인</option></select></label>
