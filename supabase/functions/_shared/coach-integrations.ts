@@ -83,7 +83,7 @@ export async function githubUserToken(row: any, env: Env = envDefault, admin?: A
     }
     return token.access_token;
 }
-export async function githubRepositories(row: any, env: Env = envDefault, admin?: Admin) {
+export async function githubRepositories(row: any, env: Env = envDefault, admin?: Admin): Promise<any[]> {
     const headers = githubHeaders(await githubUserToken(row, env, admin));
     const result = [];
     for (let page = 1; page <= 20; page++) {
@@ -92,7 +92,7 @@ export async function githubRepositories(row: any, env: Env = envDefault, admin?
         if (response.repositories.length < 100)
             return result;
     }
-    fail('repository_list_too_large');
+    throw new Error('repository_list_too_large');
 }
 export async function analyzeRepositories(admin: Admin, userId: string, env: Env = envDefault) {
     if (!eligible(userId))
@@ -114,7 +114,7 @@ export async function analyzeRepositories(admin: Admin, userId: string, env: Env
             continue;
         }
         const tree = await requestJson(`${base}/git/trees/${commit.sha}?recursive=1`, { headers });
-        const files = [];
+        const files: Array<{path:string;text:string}> = [];
         for (const entry of tree.tree.filter((e: any) => e.type === 'blob' && safeSource(e.path, e.size)).slice(0, 12)) {
             const blob = await requestJson(`${base}/git/blobs/${entry.sha}`, { headers });
             if (blob.encoding !== 'base64' || blob.size > 24000)
