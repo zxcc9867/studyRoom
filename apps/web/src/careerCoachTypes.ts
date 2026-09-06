@@ -1,0 +1,8 @@
+export type Skill = {id:string;title:string;prerequisites:string[];task:string;acceptance:string;status:'todo'|'doing'|'done'};
+export type Career = {id?:string;title:string;experience:string;target_date:string;interests:string[];skills:Skill[];confirmed:boolean};
+export type CoachSettings = {enabled:boolean;time_zone?:string;summary_time:string;quiet_start:string;quiet_end:string;buffer_minutes:number;min_slot_minutes:number;availability:{weekday:number;start:string;end:string}[];channels:{slack:boolean;web_push:boolean;email:boolean}};
+export type CoachEvent = {id:string;title:string;source:'internal'|'google';all_day:boolean;start_at?:string|null;end_at?:string|null;start_date?:string|null;end_date?:string|null;repeat_weekdays:number[];repeat_until?:string|null;time_zone:string};
+export type Recommendation = {id:string;title:string;reason:string;skill_id?:string;acceptance:string;duration_minutes:number;start_at:string;end_at:string;status:'pending'|'accepted'|'skipped'|'expired';source:string;evidence:unknown[];feedback?:string;payload?:{model?:string;configured_model?:string;prompt_version?:string};created_at:string};
+export type CoachConnection = {id:string;provider:'google'|'github';status:string;last_synced_at?:string;last_error?:string;config?:{calendar_ids?:string[]}};
+export type Repository = {id:string;owner:string;name:string;private:boolean;ai_enabled:boolean;head_sha?:string;analyzed_sha?:string;analysis:unknown[]};
+export type CoachState = {enabled:boolean;eligible?:boolean;settings:CoachSettings;career:Career|null;events:CoachEvent[];recommendations:Recommendation[];jobs:{id:string;kind:string;status:string;error_code?:string}[];integrations:CoachConnection[];repositories:Repository[]};

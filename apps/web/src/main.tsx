@@ -13,6 +13,10 @@ import {
 import { createRoot } from "react-dom/client";
 import GoalAchievementBadges from "./GoalAchievementBadges";
 import StudyRestartCoach from "./StudyRestartCoach";
+import CareerCoach from "./CareerCoach";
+import TimeZonePicker from "./TimeZonePicker";
+import type { CoachState } from "./careerCoachTypes";
+import { eventsOnDate, localParts } from "./coachTime.mjs";
 import {
   Bell,
   Camera,
@@ -480,6 +484,7 @@ function DashboardApp() {
   const [resendAvailableAt, setResendAvailableAt] = useState(0);
   const [nowMs, setNowMs] = useState(Date.now());
   const [profile, setProfile] = useState<Profile | null>(null);
+  const [coachState, setCoachState] = useState<CoachState | null>(null);
   const [attendanceDays, setAttendanceDays] = useState<AttendanceDay[]>([]);
   const [studySessions, setStudySessions] = useState<StudySession[]>([]);
   const [studyTodos, setStudyTodos] = useState<StudyTodo[]>([]);
@@ -683,6 +688,7 @@ function DashboardApp() {
   }, [message]);
 
   useEffect(() => {
+    setCoachState(null);
     if (session?.user.id) {
       void syncSignedInUser(session);
       void loadDashboard(session.user.id);
@@ -1351,6 +1357,8 @@ function DashboardApp() {
     () => buildAttendanceCalendar(calendarMonth, attendanceDays),
     [attendanceDays, calendarMonth],
   );
+  const coachEventsByDate = useMemo(() => new Map(attendanceCalendarDays.map(day => [day.dateKey,
+    coachState?.enabled ? eventsOnDate(coachState.events, day.dateKey, timeZone) : []])), [attendanceCalendarDays, coachState?.enabled, coachState?.events, timeZone]);
   const planCopyCalendarDays = useMemo(
     () => buildAttendanceCalendar(planCopyMonth, attendanceDays),
     [attendanceDays, planCopyMonth],
@@ -2883,7 +2891,7 @@ function DashboardApp() {
       user_id: session.user.id,
       email: session.user.email ?? profile?.email ?? null,
       reminder_time: reminderTime,
-      time_zone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+      time_zone: timeZone,
       email_reminders_enabled: emailRemindersEnabled,
     });
 
@@ -2927,7 +2935,7 @@ function DashboardApp() {
     if (!session?.user.id) return;
 
     const nextReminderTime = reminderTime.slice(0, 5);
-    const nextTimeZone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+    const nextTimeZone = timeZone;
 
     setBusy(true);
     const { error } = await supabase.from("profiles").upsert({
@@ -4881,15 +4889,24 @@ function DashboardApp() {
             <strong>{recoveryWeeklySummary.nextAction}</strong>
           </section>
         )}
-        {activeSection === "today" && todayDomain === "focus" && (
-          <section className="today-ordered-section" style={{ order: getTodaySectionSortOrder("topbar") + 1 }}>
-            <StudyRestartCoach
+        {activeSection === "today" && (
+          <section hidden={todayDomain !== "focus"} className="today-ordered-section" style={{ order: getTodaySectionSortOrder("topbar") + 1 }}>
+            <CareerCoach
+              key={session.user.id}
+              userId={session.user.id}
+              supabase={supabase}
+              timeZone={timeZone}
+              onState={setCoachState}
+              onChanged={() => { void loadDashboard(session.user.id); }}
+              onManageNotifications={() => setActiveSection("settings")}
+              legacy={<StudyRestartCoach
               key={session.user.id}
               userId={session.user.id}
               supabase={supabase}
               todos={studyTodos.filter(todo => todo.local_date <= todayDateKey)}
               onPlanAction={openWeeklyReviewActionPlan}
               onAddTodo={() => { resetTodoDraftForDate(todayDateKey); setTodoModalOpen(true); }}
+            />}
             />
           </section>
         )}
@@ -4940,6 +4957,8 @@ function DashboardApp() {
           <div className="attendance-calendar" aria-label="월별 출석 캘린더">
             {attendanceCalendarDays.map((day) => {
               const todoCount = todoCountsByDate.get(day.dateKey) ?? 0;
+              const coachEvents = coachEventsByDate.get(day.dateKey) ?? [];
+              const coachRecommendation = coachState?.enabled && coachState.recommendations.some(item => item.status === 'pending' && item.start_at && localParts(item.start_at, timeZone).startsWith(day.dateKey));
               return (
                 <button
                   className={`calendar-day calendar-${day.status ?? "empty"} ${
@@ -4953,6 +4972,9 @@ function DashboardApp() {
                   <strong>{day.dayNumber}</strong>
                   {day.status && <small>{attendanceLabel(day.status)}</small>}
                   {todoCount > 0 && <span className="todo-badge">{todoCount}</span>}
+                  {coachEvents.slice(0, 2).map(event => <span key={event.id} className={`coach-calendar-badge ${event.source}`}>{event.source === 'google' ? 'Google · ' : '생활 · '}{event.title}</span>)}
+                  {coachEvents.length > 2 && <span className="coach-calendar-badge">+{coachEvents.length - 2} 일정</span>}
+                  {coachRecommendation && <span className="coach-calendar-badge recommendation">공부 추천</span>}
                 </button>
               );
             })}
@@ -4962,6 +4984,7 @@ function DashboardApp() {
             <span className="legend-pending">대기</span>
             <span className="legend-missed">결석</span>
           </div>
+          {coachState?.enabled && <p className="field-help">생활 일정 · Google 일정 · 공부 추천이 함께 표시됩니다. 날짜를 누르면 자세히 볼 수 있어요.</p>}
         </section>
         )}
 
@@ -4992,6 +5015,10 @@ function DashboardApp() {
                   <span className="todo-progress-fill" style={{ width: `${selectedTodoStats.percent}%` }} />
                 </div>
               </div>
+              {coachState?.enabled && <div className="coach-calendar-agenda" aria-label="이 날짜의 생활 일정과 공부 추천">
+                {eventsOnDate(coachState.events, selectedTodoDate, timeZone).map(event => <article key={event.id}><small>{event.source === 'google' ? 'Google' : '생활 일정'} · {event.all_day ? '종일' : localParts(event.start_at!, timeZone).slice(11)}</small><strong>{event.title}</strong></article>)}
+                {coachState.recommendations.filter(item => item.status === 'pending' && item.start_at && localParts(item.start_at, timeZone).startsWith(selectedTodoDate)).map(item => <article key={item.id}><small>공부 추천 · {localParts(item.start_at, timeZone).slice(11)} · {item.duration_minutes}분</small><strong>{item.title}</strong></article>)}
+              </div>}
               <form
                 className="todo-form"
                 onSubmit={(event) => {
@@ -6029,6 +6056,24 @@ function DashboardApp() {
           </div>
 
           <GoalAchievementBadges goals={studyGoals} />
+
+          <TimeZonePicker key={session.user.id} value={timeZone} onSave={async zone => {
+            const userId = session.user.id;
+            const { data: before } = await supabase.auth.getSession();
+            if (before.session?.user.id !== userId) throw new Error('로그인 상태가 변경되었어요. 다시 시도해 주세요.');
+            const { error } = await supabase.functions.invoke('career-coach', { body: { action: 'settings', settings: { time_zone: zone } } });
+            if (error) throw new Error('시간대를 저장하지 못했어요. 연결을 확인하고 다시 시도해 주세요.');
+            const { data: after } = await supabase.auth.getSession();
+            if (after.session?.user.id !== userId) return;
+            setProfile(current => current?.user_id === userId ? { ...current, time_zone: zone } : current);
+            const localToday = getLocalDateKey(new Date(), zone);
+            setCalendarMonth(localToday.slice(0, 7));
+            setSelectedTodoDate(localToday);
+            await loadDashboard(userId);
+          }} />
+          <CareerCoach key={session.user.id} userId={session.user.id} supabase={supabase} timeZone={timeZone}
+            initialTab="settings" onState={setCoachState} onChanged={() => { void loadDashboard(session.user.id); }}
+            onManageNotifications={() => setActiveSection("settings")} />
 
           <div className="profile-summary-grid" aria-label="나의 정보">
             <div>
