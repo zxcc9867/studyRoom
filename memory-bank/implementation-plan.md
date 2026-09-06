@@ -1145,3 +1145,12 @@ docs/images/study-room-thumbnail.png
 - study_coaching: owner SELECT/RLS, no direct client INSERT/UPDATE/DELETE; private definer/public invoker RPC enforces advisory-locked daily3 attempts, fingerprint cache, 90s reservation lease. Untrusted direct RPC results cannot become trusted AI cache without server HMAC.
 - Migration 20260906064942_study_restart_coaching applied via Supabase MCP; real DB transactional tests for pending/cache/feedback/quota/ownership rolled back, rows remaining0. Security advisors reported no new coaching object issues; pre-existing unrelated Book/Review and legacy function findings remain out of scope.
 - Frontend StudyRestartCoach uses explicit request, cancel/request identity and user key, safe response parsing, editable existing todo draft and feedback. No original study record mutations from AI.
+
+## 2026-09-06 — Career coach v2 architecture
+
+- PRD: prd-studyroom-v2.md; interface contract: studyroom-v2-contract.md; runtime setup: ../docs/studyroom-v2-setup.md.
+- React UI calls four Supabase Edge functions. Browser credentials never read OAuth secrets. Google and GitHub callbacks bind short-lived one-use state to the signed-in user; atomic completion prevents disconnect races.
+- Service-role mutations run after authenticated user/pilot validation. Postgres owner RLS covers public-facing data; tokens/OAuth state/quota/pilot allowlist have no browser grants. UTC instants remain stable, date-only values remain dates, repeated windows use selected IANA zone with DST checks.
+- Leased worker jobs carry input versions; final result RPCs check current lease and enabled state. Provider work has a shared 50-second deadline, requests a 12-second bound and streaming 2MiB response cap. Git analyzes one selected repository per job with at most four source files; large Google snapshots above999 events fail closed.
+- Notifications have independent adapters and per-event/channel/target idempotency. Explicitly enabled and connected channels only. Ambiguous outcomes do not trigger blind resend or cross-channel fallback.
+- Deploy additive migration before new functions and web; retain existing attendance cron. Production application is pending explicit remote project approval. Pilot allowlist alone never opts a user into coaching or notifications.

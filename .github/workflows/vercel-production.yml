@@ -39,6 +39,12 @@ jobs:
       - name: Run tests
         run: npm test
 
+      - name: Check README screenshot assets
+        run: npm run docs:check
+
+      - name: Check Edge Functions and pilot isolation
+        run: npm run test:edge
+
       - name: Build web app
         run: npm run build
 

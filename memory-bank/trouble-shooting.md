@@ -4131,3 +4131,11 @@ PR 생성 직전 원격 기본 브랜치를 fetch하고 문서 브랜치의 merg
 - 독립 리뷰에서 Supabase 응답 객체를 그대로 throw하면 formatNotificationError가 [object Object]를 표시하는 회귀를 발견했다. new Error(error.message)로 변환하고 finally로 버튼을 복구했다.
 - 브라우저 fixture의 외부 API mock은 CORS 응답 헤더 부족으로 실패했다. 별도 Vite 프로세스의 테스트 전용 URL을 같은 localhost origin으로 지정해 해결했다. 실제 설정 파일/계정/DB 데이터는 바꾸지 않았다.
 - agent-browser에서 목표 달성 취소, 통신 실패 후 재시도, Today/목표 목록 달성, 마이페이지 배지, 저장된 fixture 재조회, 재개와 삭제 반영을 확인했다. 390px 화면의 scrollWidth는 390, Vite 오류 overlay 없음.
+
+## 2026-09-06 — Integration review and SQL verification
+
+- External jobs could exceed90-second leases and publish after another worker claimed them. Added50-second abort propagation, bounded streamed bodies, single-repository jobs, and final transactional checks of current lease/owner/kind/enablement.
+- OAuth completion, token refresh and repository selection could race disconnect/reconnect. Added one-use completion/selection RPCs under the same user lock, authorization-version config comparison and checks for zero-row CAS updates.
+- PGlite execution exposed SQL range-variable naming ambiguity; explicit PL/pgSQL block qualification fixed it. Added actual SQL tests covering RLS, shared AI quota, idempotent acceptance, schedule conflicts, DST, date-only invariance, stable task instants and stale integration writes.
+- Browser settings received Postgres time values with seconds while validation requires HH:mm. Normalize loaded form times; test DB-shaped state roundtrips before release.
+- Automatic approval review rejected the specific remote next-js schema mutation. It was not applied. Ask for and wait for the specific remote approval; do not bypass it via another transport or ship dependent UI before DB readiness.

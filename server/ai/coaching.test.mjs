@@ -8,7 +8,7 @@ const coachingId = '00000000-0000-4000-8000-000000000002';
 const input = { todo: { title: '자료 복습', is_completed: false }, sessions: [{local_date:'2026-09-01',status:'completed',duration_seconds:600}], todos: [{is_completed:false}], reflections: [] };
 function fixture(overrides = {}) {
   const calls = [];
-  const store = { load: async () => input, mutate: async (payload) => { calls.push(payload); return payload.operation === 'reserve' ? {status:'reserved',id:coachingId,lease:'lease'} : {status:'saved'}; }, ...overrides };
+  const store = { load: async () => input, reserveAiCall: async () => true, mutate: async (payload) => { calls.push(payload); return payload.operation === 'reserve' ? {status:'reserved',id:coachingId,lease:'lease'} : {status:'saved'}; }, ...overrides };
   return { store, calls };
 }
 test('summary counts records without equating todo check with study', () => {
@@ -22,6 +22,26 @@ test('free AI unavailable returns saved deterministic coaching', async () => {
   const result = await createCoachingService({store,env:{}})('owner',{action:'generate',todoId});
   assert.equal(result.source,'rules');
   assert.equal(calls[1].operation,'finish');
+});
+test('shared career budget exhaustion prevents legacy model calls and preserves rules', async () => {
+  const {store} = fixture({reserveAiCall: async () => false});
+  const result = await createCoachingService({store, generate: () => assert.fail('must not call model')})('owner',{action:'generate',todoId});
+  assert.equal(result.source,'rules');
+});
+test('missing model configuration does not reserve shared quota', async () => {
+  const {store} = fixture({reserveAiCall: () => assert.fail('no actual AI call')});
+  assert.equal((await createCoachingService({store,env:{}})('owner',{action:'generate',todoId})).source,'rules');
+});
+test('shared quota RPC uses the authenticated caller and accepts only true', async () => {
+  for (const allowed of [true,false,{},null]) {
+    const store=createCoachingStore({env:{SUPABASE_URL:'https://example.invalid',SUPABASE_ANON_KEY:'public'},token:'test',fetchImpl:async(url,options)=>{
+      assert.ok(url.endsWith('/rpc/coach_reserve_ai'));
+      assert.equal(options.headers.Authorization,'Bearer test');
+      assert.equal(options.body,'{}');
+      return Response.json(allowed);
+    }});
+    assert.equal(await store.reserveAiCall(),allowed===true);
+  }
 });
 test('AI receives only aggregate and selected title, fixed evidence retained', async () => {
   const {store} = fixture();

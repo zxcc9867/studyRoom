@@ -1,5 +1,6 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
-import { createClient } from "jsr:@supabase/supabase-js@2";
+import { createClient, type SupabaseClient } from "npm:@supabase/supabase-js@2.49.8";
+import { handleCoachSlackAction } from "../_shared/coach-notifications.ts";
 
 type SlackPayload = {
   type: string;
@@ -58,6 +59,22 @@ Deno.serve(async (request) => {
   });
 
   if (payload.type === "block_actions") {
+    const coachAction = payload.actions?.find((action) => ["coach_snooze", "coach_mute"].includes(action.action_id ?? ""));
+    if (coachAction) {
+      // Signature has been checked above; a channel alone does not establish
+      // ownership in shared Slack channels. Require the linked Slack member.
+      if (!payload.channel?.id || !payload.user?.id) return json({ error: "Missing notification owner" }, 403);
+      const { data: targets, error } = await admin.from("notification_targets")
+        .select("user_id").eq("kind", "slack").eq("enabled", true)
+        .eq("destination", payload.channel.id).eq("slack_user_id", payload.user.id).limit(2);
+      if (error || !targets || targets.length !== 1) return json({ error: "Notification owner not linked" }, 403);
+      try {
+        await handleCoachSlackAction(admin, targets[0].user_id, coachAction.action_id!, coachAction.value ?? "");
+        return json({ ok: true });
+      } catch {
+        return json({ error: "Coaching action unavailable" }, 400);
+      }
+    }
     if (hasSessionLeaseExtensionAction(payload)) {
       return await handleSessionLeaseExtensionAction(admin, payload);
     }
@@ -81,7 +98,7 @@ function hasSessionLeaseExtensionAction(payload: SlackPayload) {
   return payload.actions?.some((item) => item.action_id && supportedSessionLeaseExtensionActionIds.has(item.action_id)) ?? false;
 }
 
-async function handleSessionLeaseExtensionAction(admin: ReturnType<typeof createClient>, payload: SlackPayload) {
+async function handleSessionLeaseExtensionAction(admin: SupabaseClient, payload: SlackPayload) {
   const action = payload.actions?.find((item) => item.action_id && supportedSessionLeaseExtensionActionIds.has(item.action_id));
   const parsed = parseSessionLeaseExtensionValue(action?.value ?? "");
   if (!action?.action_id || !parsed) {
@@ -124,7 +141,7 @@ function hasScheduleExtensionAction(payload: SlackPayload) {
   return payload.actions?.some((item) => item.action_id && supportedScheduleExtensionActionIds.has(item.action_id)) ?? false;
 }
 
-async function handleScheduleExtensionAction(admin: ReturnType<typeof createClient>, payload: SlackPayload) {
+async function handleScheduleExtensionAction(admin: SupabaseClient, payload: SlackPayload) {
   const action = payload.actions?.find((item) => item.action_id && supportedScheduleExtensionActionIds.has(item.action_id));
   const parsed = parseScheduleExtensionValue(action?.value ?? "");
   if (!action?.action_id || !parsed) {
@@ -154,7 +171,7 @@ async function handleScheduleExtensionAction(admin: ReturnType<typeof createClie
   return json({ ok: true, updatedCount });
 }
 
-async function handleScheduleExtensionSubmission(admin: ReturnType<typeof createClient>, payload: SlackPayload) {
+async function handleScheduleExtensionSubmission(admin: SupabaseClient, payload: SlackPayload) {
   const metadata = parseScheduleExtensionMetadata(payload.view?.private_metadata ?? "");
   if (!metadata || !isUuid(metadata.todoId)) {
     return slackErrors({ extension_minutes: "연장할 일정을 찾을 수 없습니다." });
@@ -179,7 +196,7 @@ async function handleScheduleExtensionSubmission(admin: ReturnType<typeof create
   }
 }
 
-async function extendSchedule(admin: ReturnType<typeof createClient>, todoId: string, minutes: number) {
+async function extendSchedule(admin: SupabaseClient, todoId: string, minutes: number) {
   const { data, error } = await admin.rpc("extend_todo_schedule", {
     p_todo_id: todoId,
     p_extension_minutes: minutes,
@@ -295,7 +312,7 @@ function parseScheduleExtensionMetadata(value: string) {
     return null;
   }
 }
-async function handleRecoveryButton(admin: ReturnType<typeof createClient>, payload: SlackPayload) {
+async function handleRecoveryButton(admin: SupabaseClient, payload: SlackPayload) {
   const action = payload.actions?.find((item) => item.action_id === "open_recovery_routine");
   const requestId = action?.value ?? "";
   const triggerId = payload.trigger_id ?? "";
@@ -313,7 +330,7 @@ async function handleRecoveryButton(admin: ReturnType<typeof createClient>, payl
   return json({ ok: true });
 }
 
-async function handleRecoverySubmission(admin: ReturnType<typeof createClient>, payload: SlackPayload) {
+async function handleRecoverySubmission(admin: SupabaseClient, payload: SlackPayload) {
   const requestId = payload.view?.private_metadata ?? "";
   const recoveryRequest = await loadRecoveryRequest(admin, requestId);
   if (!recoveryRequest) {
@@ -378,7 +395,7 @@ async function handleRecoverySubmission(admin: ReturnType<typeof createClient>, 
   return json({ response_action: "clear" });
 }
 
-async function loadRecoveryRequest(admin: ReturnType<typeof createClient>, requestId: string) {
+async function loadRecoveryRequest(admin: SupabaseClient, requestId: string) {
   if (!isUuid(requestId)) {
     return null;
   }
@@ -397,7 +414,7 @@ async function loadRecoveryRequest(admin: ReturnType<typeof createClient>, reque
 }
 
 async function createTodo(
-  admin: ReturnType<typeof createClient>,
+  admin: SupabaseClient,
   input: { userId: string; localDate: string; title: string; position: number },
 ) {
   const { data, error } = await admin
@@ -610,3 +627,4 @@ function getSlackBotToken() {
 function json(body: Record<string, unknown>, status = 200) {
   return new Response(JSON.stringify(body), { status, headers: jsonHeaders });
 }
+

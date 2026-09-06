@@ -43,5 +43,9 @@ export function createCoachingStore({ env = process.env, token, fetchImpl = fetc
       return { todo: selected[0], sessions, todos, reflections: reflections.filter((r) => completedIds.has(r.session_id)) };
     },
     mutate(payload) { return request('/rest/v1/rpc/study_coaching_mutate', { method: 'POST', body: JSON.stringify({ p_input: payload }) }); },
+    async reserveAiCall() {
+      // The same database budget is shared with scheduled career coaching.
+      return await request('/rest/v1/rpc/coach_reserve_ai', { method: 'POST', body: '{}' }) === true;
+    },
   };
 }

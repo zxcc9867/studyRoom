@@ -10,6 +10,46 @@ A personal study-habit product that turns a scheduled commitment into a repeatab
 
 > The README summarizes the current user experience and operating model. Detailed requirements, decisions, and delivery history live in the [memory bank](memory-bank/).
 
+## StudyRoom 2.0: a career study coach
+
+The 2.0 pilot connects one active career to an editable skill roadmap, available calendar time, and automatic daily recommendations. Suggestions become real todos only when accepted. Google Calendar and selected public/private GitHub repositories require their own connections; registering an OAuth app alone does not connect an account.
+
+- Choose a time zone, including Seoul and Tokyo. Your saved choice is preserved across devices and alarm-setting edits.
+- Define study windows and rest, add life events, and read selected Google calendars. Calendar titles are not sent to the model.
+- Review an automatic next action, its skill, duration and completion criteria; accept, reschedule or skip it.
+- Connect Slack, Web Push or email explicitly. Only enabled channels receive coaching; no connected channels means in-app recommendations only, with no email fallback.
+- Inspect repository improvement ideas with file/commit evidence. Private-code AI analysis is opt-in per repository. The coach never executes code or creates commits/PRs.
+
+External OAuth configuration, device notification permission and actual delivery must be verified separately. [Connection and operation guide](docs/studyroom-v2-setup.md) · [Requirements and rollout](memory-bank/prd-studyroom-v2.md).
+
+### AI service and model policy
+
+| Setting | Behavior |
+| --- | --- |
+| Service | OpenRouter, server-side only |
+| Configured model | `OPENROUTER_MODEL`; default `openrouter/free`, or an explicitly selected `:free` model |
+| Actual model | Read from each successful provider response; a router is not a fixed model |
+| Cost policy | Free models only, zero-price provider limits, no paid fallback |
+| Default limits | 1,024 output tokens, 20-second timeout; optional environment overrides |
+| Shared pilot budget | At most 6 actual model calls per user/day, including failed requests; cached results do not call AI |
+| Failure behavior | Deterministic recommendations from the confirmed roadmap; no claim that the fallback was AI-generated |
+
+Routing does not guarantee the same model or the highest quality on every call. No credentials, private prompts or private repository source are included in this README.
+
+### Screenshots of the 2.0 interface
+
+Captured from the implemented React interface with synthetic test data. These images demonstrate the UI, not a live Google/GitHub connection or actual notification delivery.
+
+![Automatic daily recommendation with reasons and acceptance criteria](docs/images/studyroom-v2-today.png)
+
+![Editable career and skill roadmap](docs/images/studyroom-v2-career.png)
+
+![Study windows and individually selected notification channels](docs/images/studyroom-v2-settings.png)
+
+![Responsive study settings on a 390px browser viewport](docs/images/studyroom-v2-mobile.png)
+
+![Life event editor and saved time zone](docs/images/studyroom-v2-calendar.png)
+
 ## Why this project exists
 
 Starting to study consistently is often harder than planning to study. This product adds gentle pressure around a chosen attendance time, then supports the entire session lifecycle without turning missed days into a punitive streak reset.
