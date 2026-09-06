@@ -5941,3 +5941,10 @@
 - 완료: 전체 목표 페이지 조회 및 601개 fixture 회귀 테스트. 배지 helper/페이지 로딩을 포함한 345개 테스트 통과.
 - 완료: agent-browser fixture로 취소, 실패/복구, 달성, 새로고침 복원, 재개/삭제, 390px 모바일 배치 검증. Supabase RLS/상태 제약 읽기 전용 확인.
 - 배포 결과는 완료 후 아래 또는 공용 handoff에 기록한다.
+
+## 2026-09-06 - OpenRouter foundation
+
+- 완료: server-only OpenRouter module, strict config/message/response validation, timeout/cancellation, sanitized errors, no automatic retries/fallback.
+- 완료: GitHub secret OPENROUTER_API_KEY 및 Variables OPENROUTER_MODEL/옵션의 Vercel production 동기화 구조. 미설정 skip/부분설정 fail/순차실패 중단/키 stdin 전달.
+- 검증: 359 tests 통과(기존345 + provider11 + deployment adapter3), ai:check disabled 확인, 독립 리뷰 문제 없음.
+- 한계: 키·모델 미등록, 실AI 및 실제값 env 동기화 미실행. 기능별 인증/사용량 제한/라우트는 AI 기능 추가 시 구현한다.

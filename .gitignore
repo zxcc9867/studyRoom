@@ -9,6 +9,8 @@ dist/
 .venv-speckit/
 .env
 .env.local
+.env.*
+!.env.example
 apps/web/dist/
 infra/aws-cdk/cdk.out/
 infra/aws-cdk/dist/

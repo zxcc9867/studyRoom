@@ -48,5 +48,15 @@ jobs:
       - name: Pull Vercel production environment
         run: vercel pull --yes --environment=production --token="$VERCEL_TOKEN"
 
+      - name: Sync optional OpenRouter server environment
+        env:
+          OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
+          OPENROUTER_MODEL: ${{ vars.OPENROUTER_MODEL }}
+          OPENROUTER_MAX_TOKENS: ${{ vars.OPENROUTER_MAX_TOKENS }}
+          OPENROUTER_TIMEOUT_MS: ${{ vars.OPENROUTER_TIMEOUT_MS }}
+          OPENROUTER_SITE_URL: ${{ vars.OPENROUTER_SITE_URL }}
+          OPENROUTER_APP_NAME: ${{ vars.OPENROUTER_APP_NAME }}
+        run: node scripts/sync-openrouter-env.mjs
+
       - name: Deploy to Vercel production
         run: vercel deploy --prod --yes --token="$VERCEL_TOKEN"

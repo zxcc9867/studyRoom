@@ -8,7 +8,8 @@
     "packages/*"
   ],
   "scripts": {
-    "test": "node --test packages/core/test/*.test.mjs apps/web/test/*.test.mjs",
+    "test": "node --test packages/core/test/*.test.mjs apps/web/test/*.test.mjs server/ai/*.test.mjs scripts/*.test.mjs",
+    "ai:check": "node --env-file-if-exists=.env.local scripts/check-ai-config.mjs",
     "build": "npm --workspace apps/web run build",
     "dev:web": "npm.cmd --workspace apps/web run dev",
     "dev:mobile": "npm.cmd --workspace apps/mobile run start",

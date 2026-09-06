@@ -211,3 +211,7 @@ npm.cmd run infra:synth
 ## Detailed documentation
 
 The README is an overview. Feature-level requirements and operational history are maintained under [`memory-bank/`](memory-bank/), including the sustainable study loop, authentication recovery, session lease expiry, break return plan, weekly habit rhythm, Study Forest, notifications, and deployment.
+
+## AI integration foundation
+
+Server-only OpenRouter client and optional GitHub-to-Vercel environment sync are prepared for future AI features. No generation endpoint or automatic model calls are enabled. See [setup and server usage](docs/openrouter-setup.md).

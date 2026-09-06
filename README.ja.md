@@ -215,3 +215,7 @@ npm.cmd run infra:synth
 ## 詳細ドキュメント
 
 READMEは概要です。継続学習ループ、認証復旧、session lease、休憩復帰予定、週次習慣リズム、Study Forest、通知、デプロイなどの機能要件と運用履歴は[`memory-bank/`](memory-bank/)で管理します。
+
+## AI 連携の基盤
+
+今後の AI 機能向けに、サーバー専用 OpenRouter クライアントと GitHub→Vercel 環境変数同期を用意しました。生成用の公開 API や自動モデル呼び出しは有効にしていません。[設定とサーバー側の使用方法（韓国語）](docs/openrouter-setup.md)を参照してください。

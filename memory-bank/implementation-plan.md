@@ -1124,3 +1124,10 @@ docs/images/study-room-thumbnail.png
 - GoalAchievementBadges.tsx derives My Page badges from completed study_goals via goalAchievements.mjs. No duplicate badge table, localStorage reward, or invented completion timestamp.
 - dashboardData.ts loads every goal using the existing fetchAllPages utility, ordered by status/target_date/id. Goal history is no longer truncated at 100 rows.
 - Supabase inspection confirmed status constraint and ownership SELECT/INSERT/UPDATE/DELETE RLS. No remote mutation or schema change was needed.
+
+## 2026-09-06 - OpenRouter server foundation
+
+- server/ai/openrouter.mjs is a server-only, dependency-free fetch client; no web/mobile import or public HTTP route is added. API key and exact model ID come from server environment.
+- scripts/sync-openrouter-env.mjs runs only in the deployment step with the GitHub secret/key and Variables settings. Vercel CLI 48.6.0 --force/--sensitive options were verified. Missing key/model pair skips without clearing Vercel-managed values; partial pair fails before writing.
+- Key values use stdin, child output is suppressed, and configuration is validated before six sequential env writes. A failed write stops deployment; rerun after correction. Runtime env changes take effect in the next deployment.
+- npm run ai:check loads optional root .env.local, prints readiness only and makes no API calls. npm test includes provider and deployment adapter mocks. See docs/openrouter-setup.md and prd-ai-integration.md.

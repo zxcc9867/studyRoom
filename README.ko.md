@@ -292,3 +292,7 @@ README는 현재 사용자 기능과 운영 구조의 요약입니다. 요구사
 - [현재 작업 맥락](memory-bank/active-context.md)
 - [진행 이력](memory-bank/progress.md)
 - [문제 해결 기록](memory-bank/trouble-shooting.md)
+
+## AI 연동 기반
+
+추후 AI 기능을 위한 서버 전용 OpenRouter 호출 모듈과 GitHub→Vercel 환경변수 동기화 구조를 준비했습니다. 공개 생성 API나 자동 모델 호출은 활성화하지 않았습니다. [설정 및 서버 사용 안내](docs/openrouter-setup.md)를 참고하세요.
