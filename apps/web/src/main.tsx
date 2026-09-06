@@ -2678,6 +2678,7 @@ function DashboardApp() {
   }
 
   async function deleteTodo(todo: StudyTodo) {
+    if (todoBusy || !session?.user.id) return;
     const deleteRepeatGroup =
       Boolean(todo.repeat_group_id) &&
       window.confirm(
@@ -2685,24 +2686,37 @@ function DashboardApp() {
       );
 
     setTodoBusy(true);
-    const deleteQuery = supabase.from("study_todos").delete();
-    const { error } =
-      deleteRepeatGroup && todo.repeat_group_id
-        ? await deleteQuery.eq("repeat_group_id", todo.repeat_group_id)
-        : await deleteQuery.eq("id", todo.id);
-    setTodoBusy(false);
+    try {
+      const deleteQuery = supabase.from("study_todos").delete().eq("user_id", session.user.id);
+      const { error } =
+        deleteRepeatGroup && todo.repeat_group_id
+          ? await deleteQuery.eq("repeat_group_id", todo.repeat_group_id)
+          : await deleteQuery.eq("id", todo.id);
 
-    if (error) {
-      setMessage(error.message);
-      return;
+      if (error) {
+        setMessage(error.message);
+        return;
+      }
+
+      setStudyTodos((current) =>
+        deleteRepeatGroup && todo.repeat_group_id
+          ? current.filter((item) => item.repeat_group_id !== todo.repeat_group_id)
+          : current.filter((item) => item.id !== todo.id),
+      );
+      const removedIds = new Set(studyTodos.filter((item) =>
+        deleteRepeatGroup && todo.repeat_group_id
+          ? item.repeat_group_id === todo.repeat_group_id
+          : item.id === todo.id,
+      ).map((item) => item.id));
+      setSelectedSessionTodoIds((current) => current.filter((id) => !removedIds.has(id)));
+      setGoalLinkedTodoIds((current) => current.filter((id) => !removedIds.has(id)));
+      setStudySessionTodoLinks((current) => current.filter((link) => !removedIds.has(link.todo_id)));
+      setMessage(deleteRepeatGroup ? "반복 일정 전체를 삭제했습니다." : "할 일을 삭제했습니다.");
+    } catch (error) {
+      setMessage(formatNotificationError(error));
+    } finally {
+      setTodoBusy(false);
     }
-
-    setStudyTodos((current) =>
-      deleteRepeatGroup && todo.repeat_group_id
-        ? current.filter((item) => item.repeat_group_id !== todo.repeat_group_id)
-        : current.filter((item) => item.id !== todo.id),
-    );
-    setMessage(deleteRepeatGroup ? "반복 일정 전체를 삭제했습니다." : "할 일을 삭제했습니다.");
   }
 
   function openNewGoalModal() {
@@ -2777,7 +2791,7 @@ function DashboardApp() {
         title,
         target_date: goalTargetDate,
         target_study_seconds: 0,
-        status: "active",
+        status: studyGoals.find((goal) => goal.id === editingGoalId)?.status ?? "active",
       };
       const goalResult = editingGoalId
         ? await supabase.from("study_goals").update(payload).eq("id", editingGoalId).select("*").single()
@@ -2817,6 +2831,8 @@ function DashboardApp() {
   }
 
   async function deleteGoal(goal: StudyGoal) {
+    if (goalBusy || !session?.user.id) return;
+    if (!window.confirm(`“${goal.title}” 목표를 삭제할까요? 연결된 할 일과 공부 기록은 유지됩니다.`)) return;
     setGoalBusy(true);
     try {
       const linkedTodoIds = studyTodos.filter((todo) => todo.goal_id === goal.id).map((todo) => todo.id);
@@ -2829,7 +2845,8 @@ function DashboardApp() {
 
       setStudyTodos((current) => current.map((todo) => (todo.goal_id === goal.id ? { ...todo, goal_id: null } : todo)));
       setStudyGoals((current) => current.filter((item) => item.id !== goal.id));
-      setMessage("목표를 삭제했습니다.");
+      if (editingGoalId === goal.id) closeGoalModal();
+      setMessage("목표를 삭제했습니다. 연결된 할 일은 유지됩니다.");
     } catch (error) {
       setMessage(formatNotificationError(error));
     } finally {
@@ -4998,11 +5015,9 @@ function DashboardApp() {
                         <input
                           type="time"
                           aria-label="시작 시간 선택"
-                          title="클릭하거나 Enter 키로 시작 시간 선택"
+                          title="숫자를 직접 입력하거나 시계 아이콘으로 시작 시간 선택"
                           value={todoStartTime}
                           onChange={(event) => setTodoStartTime(event.target.value)}
-                          onClick={(event) => openTimeInputPicker(event.currentTarget)}
-                          onDoubleClick={(event) => openTimeInputPicker(event.currentTarget)}
                           onKeyDown={(event) => {
                             if (!isTimeInputPickerKey(event.key)) return;
                             event.preventDefault();
@@ -5016,11 +5031,9 @@ function DashboardApp() {
                         <input
                           type="time"
                           aria-label="종료 시간 선택"
-                          title="클릭하거나 Enter 키로 종료 시간 선택"
+                          title="숫자를 직접 입력하거나 시계 아이콘으로 종료 시간 선택"
                           value={todoEndTime}
                           onChange={(event) => setTodoEndTime(event.target.value)}
-                          onClick={(event) => openTimeInputPicker(event.currentTarget)}
-                          onDoubleClick={(event) => openTimeInputPicker(event.currentTarget)}
                           onKeyDown={(event) => {
                             if (!isTimeInputPickerKey(event.key)) return;
                             event.preventDefault();
@@ -5283,7 +5296,7 @@ function DashboardApp() {
                 오늘 미완료 할 일 중 이번 집중 세션에서 처리할 일을 1개 이상 선택하세요.
               </p>
               <p className="session-todo-schedule-note">
-                새 할 일은 시간까지 입력하면 오늘의 타임 스케줄에 바로 표시됩니다.
+                새 할 일은 시간까지 입력하면 오늘의 타임 스케줄에 바로 표시됩니다. 숫자를 직접 입력하거나 시계 아이콘으로 선택하세요.
               </p>
               <form
                 className="session-todo-quick-add"
@@ -5305,11 +5318,9 @@ function DashboardApp() {
                     <input
                       type="time"
                       aria-label="새 할 일 시작 시간 선택"
-                      title="클릭하거나 Enter 키로 시작 시간 선택"
+                      title="숫자를 직접 입력하거나 시계 아이콘으로 시작 시간 선택"
                       value={sessionTodoStartTime}
                       onChange={(event) => setSessionTodoStartTime(event.target.value)}
-                      onClick={(event) => openTimeInputPicker(event.currentTarget)}
-                      onDoubleClick={(event) => openTimeInputPicker(event.currentTarget)}
                       onKeyDown={(event) => {
                         if (!isTimeInputPickerKey(event.key)) return;
                         event.preventDefault();
@@ -5323,11 +5334,9 @@ function DashboardApp() {
                     <input
                       type="time"
                       aria-label="새 할 일 종료 시간 선택"
-                      title="클릭하거나 Enter 키로 종료 시간 선택"
+                      title="숫자를 직접 입력하거나 시계 아이콘으로 종료 시간 선택"
                       value={sessionTodoEndTime}
                       onChange={(event) => setSessionTodoEndTime(event.target.value)}
-                      onClick={(event) => openTimeInputPicker(event.currentTarget)}
-                      onDoubleClick={(event) => openTimeInputPicker(event.currentTarget)}
                       onKeyDown={(event) => {
                         if (!isTimeInputPickerKey(event.key)) return;
                         event.preventDefault();
@@ -5357,10 +5366,20 @@ function DashboardApp() {
                           type="checkbox"
                           checked={selected}
                           onChange={() => toggleSessionTodoSelection(todo.id)}
-                          disabled={busy || sessionTodoAddBusy}
+                          disabled={busy || sessionTodoAddBusy || todoBusy}
                         />
                         <span>{formatTodoWithSchedule(todo)}</span>
                       </label>
+                      <button
+                        className="todo-delete"
+                        type="button"
+                        aria-label={`${todo.title} 삭제`}
+                        disabled={busy || sessionTodoAddBusy || todoBusy}
+                        onClick={() => void deleteTodo(todo)}
+                      >
+                        <Trash2 size={18} />
+                        삭제
+                      </button>
                     </li>
                   );
                 })}
@@ -5370,7 +5389,7 @@ function DashboardApp() {
                   className="primary"
                   type="button"
                   disabled={shouldDisableSessionTodoStart({
-                    busy,
+                    busy: busy || todoBusy,
                     addBusy: sessionTodoAddBusy,
                     selectedTodoIds: selectedSessionTodoIds,
                   })}
@@ -5456,6 +5475,19 @@ function DashboardApp() {
                     </div>
                   )}
                 </div>
+                {editingGoalId && (
+                  <button
+                    className="danger"
+                    type="button"
+                    disabled={goalBusy}
+                    onClick={() => {
+                      const goal = studyGoals.find((item) => item.id === editingGoalId);
+                      if (goal) void deleteGoal(goal);
+                    }}
+                  >
+                    <Trash2 size={18} /> 목표 삭제
+                  </button>
+                )}
                 <div className="reminder-actions">
                   <button className="primary" type="submit" disabled={goalBusy}>
                     <CheckCircle2 size={18} />

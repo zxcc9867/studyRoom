@@ -5925,3 +5925,12 @@
 #### 다음 우선순위
 
 - 없음
+
+## 2026-09-06 - 계획 입력 및 삭제 편의 개선
+
+- 완료: 세션 계획 목록 삭제 버튼과 선택 상태 정리, 시간 숫자 직접 입력 및 native picker 병행, 목표 편집 삭제 버튼, 완료 목표 수정 시 상태 보존.
+- 변경 파일: apps/web/src/main.tsx, apps/web/src/styles.css, apps/web/test/timeInputPicker.test.mjs 및 관련 memory-bank.
+- 검증: 전체 339개 Node 테스트와 TypeScript/Vite build 통과. 브라우저 및 배포 결과는 최종 확인 후 기록.
+
+- 최종 로컬 검증: 339개 테스트, 웹 TypeScript/Vite build, diff --check 통과. agent-browser 로그인 화면 렌더/오류 없음 확인. Chromium fixture에서 목표 삭제 취소/확인과 todo 보존, 직접 입력 09:45~10:30 저장, 삭제 실패 후 재시도, 마지막 선택 삭제 시 시작 비활성화, 390px 모달 경계 및 pageerror 없음 확인.
+- 브라우저 검증은 가짜 Supabase 응답/세션을 사용했으며 세션 목록 접근을 위해 카메라 필수 게이트만 로컬 응답에서 우회했다. 실제 카메라·운영 DB 삭제 검증은 하지 않았다.

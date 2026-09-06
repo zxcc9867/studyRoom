@@ -3209,7 +3209,7 @@ label {
 }
 
 .todo-time-details input[type="time"] {
-  cursor: pointer;
+  cursor: text;
   transition: border-color 160ms ease, box-shadow 160ms ease, background-color 160ms ease;
 }
 
@@ -5737,3 +5737,8 @@ button:active:not(:disabled) {
     align-items: flex-start;
   }
 }
+
+.session-todo-choice-list li { display: flex; align-items: stretch; gap: 8px; }
+.session-todo-choice-list li > label { flex: 1; min-width: 0; }
+.session-todo-choice-list label span { overflow-wrap: anywhere; }
+.session-todo-choice-list .todo-delete { flex-shrink: 0; width: auto; min-width: 64px; min-height: 44px; }

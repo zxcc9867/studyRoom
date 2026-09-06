@@ -4119,3 +4119,9 @@ conflicts: README.md, memory-bank/active-context.md, memory-bank/progress.md
 ### 재발 방지
 
 PR 생성 직전 원격 기본 브랜치를 fetch하고 문서 브랜치의 merge-base를 확인한다. 기본 README 언어가 바뀌는 작업에서는 최신 기본 브랜치 README를 언어별 보존 문서의 원본으로 사용한다.
+
+## 2026-09-06 - 계획 편집의 삭제·시간 입력 진입점 누락
+
+- 원인: 기존 deleteTodo/deleteGoal은 다른 화면에만 연결됐으며, 시간 입력의 click/double-click 핸들러가 showPicker를 강제로 열어 숫자 직접 수정을 방해했다.
+- 해결: 세션 선택 목록과 목표 편집 모달에 삭제 버튼 연결, 삭제된 ID 정리 및 오류 시 busy 해제. 시간 입력의 click/double-click 핸들러를 제거하고 native 숫자 입력/아이콘/키보드 선택을 유지했다.
+- 검증 환경: npm root dev:web에 추가 port를 전달하면 npm 옵션 해석 오류가 발생해 workspace dev -- --port 5178로 실행했다. agent-browser의 Edge 지정 실행이 실패해 기본 Chromium으로 검증했다.

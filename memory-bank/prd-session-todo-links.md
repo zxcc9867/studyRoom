@@ -91,3 +91,10 @@ The study timer can run without an explicit plan for what the user will study in
 
 - Should completed session todos later appear in My Page as session-grouped history?
 - Should a completed linked todo automatically end the session when all selected todos are done?
+
+## 2026-09-06 - 세션 계획 수정 편의
+
+- 세션 시작 선택 목록 각 행에서 기존 할 일 삭제 기능을 사용할 수 있다.
+- 삭제 성공 시 세션 선택 ID, 목표 연결 선택 ID와 로컬 세션 링크에서 해당 할 일을 제거한다. 실패 시 항목을 유지하고 재시도가 가능하다.
+- 삭제 중 체크박스와 시작 버튼을 잠가 삭제 요청과 세션 시작이 겹치지 않게 한다. 반복 일정은 기존 전체/당일 삭제 정책을 유지한다.
+- 시간 입력칸 클릭 시 showPicker를 강제하지 않는다. 숫자 직접 입력, 시계 아이콘 선택, Enter/Space 선택을 함께 지원한다. 일반 할 일 편집에도 동일하게 적용한다.
