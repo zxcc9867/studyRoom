@@ -47,9 +47,9 @@ test('fixed endpoint, env model and limits, safe message fields and normalized r
     assert.equal(options.headers['HTTP-Referer'], 'https://study.example');
     assert.equal(options.headers['X-OpenRouter-Title'], 'Study Room');
     assert.equal(options.redirect, 'error');
-    assert.deepEqual(JSON.parse(options.body), { model: env.OPENROUTER_MODEL, messages, stream: false, max_tokens: 128 });
+    assert.deepEqual(JSON.parse(options.body), { model: env.OPENROUTER_MODEL, provider: { max_price: { prompt: 0, completion: 0, request: 0 }, data_collection: 'deny' }, messages, stream: false, max_tokens: 128 });
     return json(completion);
-  }, { ...env, OPENROUTER_MAX_TOKENS: '128', OPENROUTER_SITE_URL: 'https://study.example', OPENROUTER_APP_NAME: 'Study Room' })
+  }, { ...env, OPENROUTER_ROUTING_MODE: 'fixed', OPENROUTER_MAX_TOKENS: '128', OPENROUTER_SITE_URL: 'https://study.example', OPENROUTER_APP_NAME: 'Study Room' })
     .generateText({ messages: [{ ...messages[0], extra: 'ignored' }], model: 'expensive/model' });
   assert.deepEqual(result, { id: 'gen-test', model: env.OPENROUTER_MODEL, text: 'Study plan', usage: { prompt_tokens: 5, completion_tokens: 3, total_tokens: 8 } });
   assert.equal(calls, 1);
@@ -116,4 +116,26 @@ test('browser runtime cannot import the server module', async () => {
   try {
     await assert.rejects(import('./openrouter.mjs?browser-guard'), /only available on the server/);
   } finally { delete globalThis.window; }
+});
+
+
+test('free-only routing overrides legacy paid settings and caller overrides', async () => {
+  for (const model of ['openrouter/auto', 'paid/model', 'test/model:free', 'openrouter/free']) {
+    const result = await client(async (_url, options) => {
+      const body = JSON.parse(options.body);
+      assert.equal(body.model, model.endsWith(':free') || model === 'openrouter/free' ? model : 'openrouter/free');
+      assert.deepEqual(body.provider, { max_price: { prompt: 0, completion: 0, request: 0 }, data_collection: 'deny' });
+      assert.equal(body.plugins, undefined);
+      assert.equal(body.models, undefined);
+      return json({ ...completion, model: 'actual/free-model' });
+    }, { ...env, OPENROUTER_MODEL: model, OPENROUTER_ROUTING_MODE: 'auto', OPENROUTER_AUTO_COST_TIER: 'max' })
+      .generateText({ messages, model: 'paid/override', provider: { max_price: { prompt: 10 } } });
+    assert.equal(result.model, 'actual/free-model');
+  }
+});
+
+test('free model suffix tricks never pass as a configured free variant', () => {
+  for (const model of ['paid/model:free:online', 'paid/model:free?x=1', 'paid/model:free/other']) {
+    assert.equal(getOpenRouterConfig({ ...env, OPENROUTER_MODEL: model }).model, 'openrouter/free');
+  }
 });

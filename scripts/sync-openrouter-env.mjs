@@ -8,13 +8,13 @@ export function syncOpenRouterEnvironment(env = process.env, run = spawnSync) {
   const model = env.OPENROUTER_MODEL?.trim();
   if (!key && !model) return { skipped: true, count: 0 };
   if (!key || !model) throw new Error("Set both GitHub secret OPENROUTER_API_KEY and variable OPENROUTER_MODEL before syncing.");
-  getOpenRouterConfig(env); // Validate the entire plan before any external write.
+  const config = getOpenRouterConfig(env); // Validate the entire plan before any external write.
   if (!env.VERCEL_TOKEN || !env.VERCEL_PROJECT_ID || !env.VERCEL_ORG_ID) {
     throw new Error("Vercel deployment credentials and project IDs are required.");
   }
   const values = {
     OPENROUTER_API_KEY: key,
-    OPENROUTER_MODEL: model,
+    OPENROUTER_MODEL: config.model,
     OPENROUTER_MAX_TOKENS: env.OPENROUTER_MAX_TOKENS?.trim() || "1024",
     OPENROUTER_TIMEOUT_MS: env.OPENROUTER_TIMEOUT_MS?.trim() || "20000",
     OPENROUTER_SITE_URL: env.OPENROUTER_SITE_URL?.trim() || "https://study-room-attendance.vercel.app",

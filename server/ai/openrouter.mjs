@@ -47,6 +47,9 @@ function integerSetting(env, name, fallback, min, max) {
 export function getOpenRouterConfig(env = process.env) {
   const apiKey = setting(env, 'OPENROUTER_API_KEY');
   const model = setting(env, 'OPENROUTER_MODEL');
+  // Legacy routing settings cannot opt this application into paid inference.
+  const freeModel = model === 'openrouter/free' || /^[a-zA-Z0-9._-]+\/[a-zA-Z0-9._-]+:free$/.test(model)
+    ? model : 'openrouter/free';
   const siteUrl = setting(env, 'OPENROUTER_SITE_URL');
   const appName = setting(env, 'OPENROUTER_APP_NAME');
   // Headers must be single-line ASCII; do not let fetch errors echo secret values.
@@ -63,7 +66,7 @@ export function getOpenRouterConfig(env = process.env) {
     }
   }
   return Object.freeze({
-    enabled: Boolean(apiKey && model), apiKey, model, siteUrl, appName,
+    enabled: Boolean(apiKey && model), apiKey, model: freeModel, siteUrl, appName,
     maxTokens: integerSetting(env, 'OPENROUTER_MAX_TOKENS', 1024, 1, 8192),
     timeoutMs: integerSetting(env, 'OPENROUTER_TIMEOUT_MS', 20000, 1000, 55000),
   });
@@ -157,7 +160,11 @@ export function createOpenRouterClient({ env = process.env, fetchImpl = globalTh
           const response = await fetchImpl(ENDPOINT, {
             method: 'POST', headers, signal: controller.signal,
             redirect: 'error',
-            body: JSON.stringify({ model: config.model, messages: safeMessages, stream: false, max_tokens: config.maxTokens }),
+            body: JSON.stringify({
+              model: config.model,
+              provider: { max_price: { prompt: 0, completion: 0, request: 0 }, data_collection: 'deny' },
+              messages: safeMessages, stream: false, max_tokens: config.maxTokens,
+            }),
           });
           if (!response.ok) {
             void response.body?.cancel().catch(() => {});

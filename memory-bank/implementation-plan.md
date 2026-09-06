@@ -1129,5 +1129,19 @@ docs/images/study-room-thumbnail.png
 
 - server/ai/openrouter.mjs is a server-only, dependency-free fetch client; no web/mobile import or public HTTP route is added. API key and exact model ID come from server environment.
 - scripts/sync-openrouter-env.mjs runs only in the deployment step with the GitHub secret/key and Variables settings. Vercel CLI 48.6.0 --force/--sensitive options were verified. Missing key/model pair skips without clearing Vercel-managed values; partial pair fails before writing.
-- Key values use stdin, child output is suppressed, and configuration is validated before six sequential env writes. A failed write stops deployment; rerun after correction. Runtime env changes take effect in the next deployment.
+- Key values use stdin, child output is suppressed, and configuration is validated before eight sequential env writes. A failed write stops deployment; rerun after correction. Runtime env changes take effect in the next deployment.
 - npm run ai:check loads optional root .env.local, prints readiness only and makes no API calls. npm test includes provider and deployment adapter mocks. See docs/openrouter-setup.md and prd-ai-integration.md.
+
+## 2026-09-06 - Dynamic OpenRouter routing
+
+- Server default auto sends openrouter/auto with auto-router cost_tier (default medium); fixed uses configured OPENROUTER_MODEL. No local catalog ranking or hidden fallback.
+- CI synchronizes optional OPENROUTER_ROUTING_MODE and OPENROUTER_AUTO_COST_TIER; omitted token/timeout still use 1024/20000. Result model preserves provider-selected model.
+
+## 2026-09-06 - Free restart coaching
+
+- Supersedes earlier auto/medium routing: openrouter/free or strict :free model, provider.max_price prompt/completion/request=0, data_collection=deny. Legacy paid configuration cannot activate paid inference.
+- api/study-coaching.mjs validates Supabase user then queries owned records using anon/publishable key + bearer token. 50s overall deadline, AI cap20s, DB request cap8s. Vercel filesystem routing preserves API before SPA fallback; function cap60s.
+- coaching.mjs computes facts, asks for one short prospective action, validates JSON and uses deterministic fallback. HMAC seals cached content; signature serialization uses fixed fields to survive PostgreSQL JSONB ordering. Feedback is mutable separately.
+- study_coaching: owner SELECT/RLS, no direct client INSERT/UPDATE/DELETE; private definer/public invoker RPC enforces advisory-locked daily3 attempts, fingerprint cache, 90s reservation lease. Untrusted direct RPC results cannot become trusted AI cache without server HMAC.
+- Migration 20260906064942_study_restart_coaching applied via Supabase MCP; real DB transactional tests for pending/cache/feedback/quota/ownership rolled back, rows remaining0. Security advisors reported no new coaching object issues; pre-existing unrelated Book/Review and legacy function findings remain out of scope.
+- Frontend StudyRestartCoach uses explicit request, cancel/request identity and user key, safe response parsing, editable existing todo draft and feedback. No original study record mutations from AI.

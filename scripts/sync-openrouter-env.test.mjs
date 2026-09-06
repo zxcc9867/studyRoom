@@ -18,7 +18,10 @@ test("API key goes to stdin as sensitive production env, never an argument", () 
   assert.ok(args.includes("production"));
   assert.ok(!args.includes(env.OPENROUTER_API_KEY));
   assert.equal(options.input, env.OPENROUTER_API_KEY);
-  assert.equal(calls[1][2].input, env.OPENROUTER_MODEL);
+  assert.equal(calls[1][2].input, 'openrouter/free');
+  const values = Object.fromEntries(calls.map(([, args, options]) => [args[2], options.input]));
+  assert.equal(values.OPENROUTER_MAX_TOKENS, '1024');
+  assert.equal(values.OPENROUTER_TIMEOUT_MS, '20000');
 });
 test("failed sync stops immediately and never exposes upstream output", () => {
   let calls = 0;

@@ -1,0 +1,17 @@
+.study-restart-coach { padding: 1.25rem; border: 2px solid #548d70; border-radius: 8px; background: #fffbe7; color: #354e40; display: grid; gap: .75rem; min-width: 0; }
+.study-restart-coach h3, .study-restart-coach h4, .study-restart-coach p { margin: 0; }
+.study-restart-coach h3 { font-size: 1.35rem; }
+.study-restart-coach h4 { font-size: 1.15rem; }
+.study-restart-coach select { width: 100%; min-width: 0; min-height: 44px; border: 1px solid #748a64; border-radius: 6px; padding: .65rem; background: #fffef8; color: #263d30; font: inherit; }
+.study-restart-coach button { min-height: 44px; white-space: normal; }
+.study-restart-coach button:focus-visible, .study-restart-coach select:focus-visible, .study-restart-coach summary:focus-visible { outline: 3px solid #28644e; outline-offset: 3px; }
+.study-restart-coach .coach-disclosure { font-size: .85rem; line-height: 1.6; }
+.coach-actions, .coach-feedback { display: flex; flex-wrap: wrap; align-items: center; gap: .65rem; }
+.coach-result { display: grid; gap: .8rem; padding: 1rem; background: #fffef8; border: 1px solid #acc59d; border-radius: 6px; overflow-wrap: anywhere; }
+.coach-source { font-size: .8rem; font-weight: 700; }
+.coach-first-action { font-size: 1.05rem; font-weight: 700; }
+.coach-feedback button[aria-pressed="true"] { background: #dbeacc; outline: 2px solid #548d70; }
+.coach-error { color: #9b2525; }
+.coach-status:empty { display: none; }
+.coach-result summary { cursor: pointer; padding: .5rem 0; }
+@media (max-width: 520px) { .study-restart-coach { padding: .9rem; } .coach-actions > button { flex: 1 1 100%; } .coach-feedback > span { flex-basis: 100%; } }

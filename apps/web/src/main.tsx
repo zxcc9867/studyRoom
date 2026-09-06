@@ -12,6 +12,7 @@ import {
 } from "react";
 import { createRoot } from "react-dom/client";
 import GoalAchievementBadges from "./GoalAchievementBadges";
+import StudyRestartCoach from "./StudyRestartCoach";
 import {
   Bell,
   Camera,
@@ -4878,6 +4879,18 @@ function DashboardApp() {
               </p>
             </div>
             <strong>{recoveryWeeklySummary.nextAction}</strong>
+          </section>
+        )}
+        {activeSection === "today" && todayDomain === "focus" && (
+          <section className="today-ordered-section" style={{ order: getTodaySectionSortOrder("topbar") + 1 }}>
+            <StudyRestartCoach
+              key={session.user.id}
+              userId={session.user.id}
+              supabase={supabase}
+              todos={studyTodos.filter(todo => todo.local_date <= todayDateKey)}
+              onPlanAction={openWeeklyReviewActionPlan}
+              onAddTodo={() => { resetTodoDraftForDate(todayDateKey); setTodoModalOpen(true); }}
+            />
           </section>
         )}
         {message && (
