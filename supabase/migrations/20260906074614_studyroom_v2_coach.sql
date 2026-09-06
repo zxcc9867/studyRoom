@@ -267,4 +267,35 @@ language plpgsql security invoker set search_path='' as $$begin
  if not found then return false;end if;
  update public.coach_repositories set head_sha=p_sha,analyzed_sha=p_sha,analysis=p_analysis,last_checked_at=now() where id=p_repo_id and user_id=p_user_id and connection_id=p_connection_id and ai_enabled=p_expected_ai_enabled;return found;
 end $$;
-do $$declare f record;begin for f in select p.oid::regprocedure as sig from pg_proc p join pg_namespace n on n.oid=p.pronamespace where n.nspname='public' and p.proname in('coach_enqueue','coach_claim_jobs','coach_finish_job','coach_mutate','coach_save_result','coach_google_snapshot','coach_repository_result','coach_wall_at') loop execute format('revoke all on function %s from public,anon,authenticated',f.sig);execute format('grant execute on function %s to service_role',f.sig);end loop;end $$;
+
+-- OAuth exchange occurs outside the transaction; a claimed, unexpired state is
+-- checked again under the same lock used for disconnect before saving tokens.
+create function public.coach_complete_connection(p_state_id text,p_claim_id text,p_provider text,p_config jsonb,p_encrypted_credentials text) returns boolean
+language plpgsql security invoker set search_path='' as $$declare u uuid;begin
+ select user_id into u from public.coach_oauth_states where id=p_state_id;
+ if u is null then return false;end if;
+ perform pg_advisory_xact_lock(hashtextextended(u::text,8764));
+ perform 1 from public.coach_oauth_states where id=p_state_id and user_id=u and provider=p_provider and config->>'claim_id'=p_claim_id and expires_at>now() for update;
+ if not found then return false;end if;
+ insert into public.coach_connections(user_id,provider,status,config,encrypted_credentials,updated_at)
+ values(u,p_provider,'connected',p_config,p_encrypted_credentials,now())
+ on conflict(user_id,provider) do update set status='connected',config=excluded.config,encrypted_credentials=excluded.encrypted_credentials,last_synced_at=null,last_error=null,updated_at=now();
+ delete from public.coach_oauth_states where id=p_state_id;
+ return true;
+end $$;
+
+create function public.coach_disconnect(p_user_id uuid,p_provider text) returns boolean
+language plpgsql security invoker set search_path='' as $$begin
+ if p_provider not in('google','github') then raise exception 'invalid_provider';end if;
+ perform pg_advisory_xact_lock(hashtextextended(p_user_id::text,8764));
+ delete from public.coach_oauth_states where user_id=p_user_id and provider=p_provider;
+ update public.coach_connections set status='disconnected',encrypted_credentials=null,config='{}',last_synced_at=null,last_error=null,updated_at=now() where user_id=p_user_id and provider=p_provider;
+ if p_provider='google' then delete from public.coach_events where user_id=p_user_id and source='google';
+ else delete from public.coach_repositories where user_id=p_user_id;end if;
+ update public.coach_settings set version=version+1,updated_at=now() where user_id=p_user_id;
+ update public.coach_recommendations set status='expired' where user_id=p_user_id and status='pending';
+ update public.coach_jobs set status='failed',error_code='disconnected' where user_id=p_user_id and status in('pending','running') and (kind='recommendations' or kind=case when p_provider='google' then 'google_sync' else 'github_analysis' end);
+ update public.coach_deliveries set status='cancelled' where user_id=p_user_id and status='pending';
+ return true;
+end $$;
+do $$declare f record;begin for f in select p.oid::regprocedure as sig from pg_proc p join pg_namespace n on n.oid=p.pronamespace where n.nspname='public' and p.proname in('coach_enqueue','coach_claim_jobs','coach_finish_job','coach_mutate','coach_save_result','coach_google_snapshot','coach_repository_result','coach_wall_at','coach_complete_connection','coach_disconnect') loop execute format('revoke all on function %s from public,anon,authenticated',f.sig);execute format('grant execute on function %s to service_role',f.sig);end loop;end $$;
