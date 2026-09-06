@@ -69,9 +69,9 @@ Deno.serve(async request=>{
       const available=await googlePages('https://www.googleapis.com/calendar/v3/users/me/calendarList?maxResults=250',await googleToken(admin,row));
       if(!Array.isArray(body.calendar_ids)||body.calendar_ids.length>10||body.calendar_ids.some((id:any)=>!available.some((c:any)=>c.id===id))) return json({error:'invalid_calendars'},400);
       unwrap(await admin.from('coach_connections').update({config:{...row.config,calendar_ids:[...new Set(body.calendar_ids)]},last_synced_at:null}).eq('id',row.id));
-    } else if(body.action==='repositories'&&provider==='github') { const selected=unwrap(await admin.from('coach_repositories').select('owner,name,ai_enabled').eq('user_id',user.id)); return json({repositories:(await githubRepositories(row)).map((r:any)=>({owner:r.owner.login,name:r.name,private:r.private,selected:selected.some((s:any)=>s.owner===r.owner.login&&s.name===r.name),ai_enabled:selected.find((s:any)=>s.owner===r.owner.login&&s.name===r.name)?.ai_enabled||false}))}); }
+    } else if(body.action==='repositories'&&provider==='github') { const selected=unwrap(await admin.from('coach_repositories').select('owner,name,ai_enabled').eq('user_id',user.id)); return json({repositories:(await githubRepositories(row,env,admin)).map((r:any)=>({owner:r.owner.login,name:r.name,private:r.private,selected:selected.some((s:any)=>s.owner===r.owner.login&&s.name===r.name),ai_enabled:selected.find((s:any)=>s.owner===r.owner.login&&s.name===r.name)?.ai_enabled||false}))}); }
     else if(body.action==='select_repository'&&provider==='github') {
-      const repo=(await githubRepositories(row)).find((r:any)=>r.owner.login===body.owner&&r.name===body.name); if(!repo) return json({error:'repository_not_authorized'},403);
+      const repo=(await githubRepositories(row,env,admin)).find((r:any)=>r.owner.login===body.owner&&r.name===body.name); if(!repo) return json({error:'repository_not_authorized'},403);
       const existing=unwrap(await admin.from('coach_repositories').select('id').eq('user_id',user.id).eq('owner',body.owner).eq('name',body.name).maybeSingle());
       if(body.selected===false) { if(existing) unwrap(await admin.from('coach_repositories').delete().eq('id',existing.id).eq('user_id',user.id)); return json({ok:true}); }
       const value={user_id:user.id,connection_id:row.id,owner:repo.owner.login,name:repo.name,private:repo.private,ai_enabled:body.ai_enabled===true};
@@ -81,6 +81,7 @@ Deno.serve(async request=>{
     return json({ok:true});
   } catch { return json({error:'연결 요청을 완료하지 못했습니다. 연결 상태를 확인하고 다시 시도하세요.'},400); }
 });
+
 
 
 
