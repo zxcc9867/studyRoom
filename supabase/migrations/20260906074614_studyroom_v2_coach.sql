@@ -1,5 +1,9 @@
 -- Additive server-owned coach state. Authenticated clients receive owner reads;
 -- validated Edge handlers perform writes, and multi-row mutations use RPC locks.
+create table public.coach_pilot_users(user_id uuid primary key references auth.users on delete cascade);
+alter table public.coach_pilot_users enable row level security;
+revoke all on public.coach_pilot_users from public,anon,authenticated;
+grant all on public.coach_pilot_users to service_role;
 create table public.coach_settings (
  user_id uuid primary key references auth.users on delete cascade, enabled boolean not null default false,
  summary_time time not null default '09:00', quiet_start time not null default '22:00', quiet_end time not null default '08:00',

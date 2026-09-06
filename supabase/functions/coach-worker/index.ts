@@ -4,6 +4,7 @@ import {
   eligible,
   enqueue,
   executeCoachJob,
+  loadPilotUsers,
   reply,
 } from "../_shared/coach-store.ts";
 import {
@@ -21,6 +22,7 @@ Deno.serve(async (req: Request) => {
   const admin = adminClient();
   let completed = 0, failed = 0;
   try {
+    await loadPilotUsers(admin);
     const settings = check(
       await admin.from("coach_settings").select("user_id,version").eq(
         "enabled",

@@ -45,20 +45,47 @@ export async function authenticate(req: Request) {
   if (error || !data.user || data.user.is_anonymous) {
     throw new Error("unauthorized");
   }
+  await loadPilotUsers(admin);
   return { admin, user: data.user };
 }
+let pilotUsers = new Set<string>();
+// Load per request: revoking a pilot must not wait for an Edge isolate restart.
+// An explicitly configured empty environment override disables every pilot.
+export async function loadPilotUsers(admin: any) {
+  const override = Deno.env.get("COACH_PILOT_USER_IDS");
+  if (override !== undefined) {
+    pilotUsers = new Set(
+      override.split(",").map((id) => id.trim()).filter(Boolean),
+    );
+    return;
+  }
+  pilotUsers = new Set();
+  const rows = check(
+    await admin.from("coach_pilot_users").select("user_id").limit(1000),
+  );
+  if (rows.length >= 1000) throw Error("pilot_limit");
+  pilotUsers = new Set(rows.map((row: { user_id: string }) => row.user_id));
+}
 export function eligible(userId: string) {
-  return (Deno.env.get("COACH_PILOT_USER_IDS") || "").split(",").map((x) =>
-    x.trim()
-  ).includes(userId);
+  return pilotUsers.has(userId);
 }
 // Supabase generated database types predate this additive migration. All browser
 // input is validated before writes; database rows remain internal to this module.
 export function check(result: { data: any; error: unknown }): any {
   if (result.error) {
-    const message = typeof result.error === "object" && "message" in result.error
-      ? String(result.error.message) : "";
-    const safe = ["schedule_conflict", "outside_availability", "calendar_stale", "stale_recommendation", "invalid_start", "missing_event", "missing_recommendation"];
+    const message =
+      typeof result.error === "object" && "message" in result.error
+        ? String(result.error.message)
+        : "";
+    const safe = [
+      "schedule_conflict",
+      "outside_availability",
+      "calendar_stale",
+      "stale_recommendation",
+      "invalid_start",
+      "missing_event",
+      "missing_recommendation",
+    ];
     throw new Error(safe.includes(message) ? message : "storage_failed");
   }
   return result.data;
