@@ -12,6 +12,7 @@ Deno.serve(async (request) => {
         return new Response(null, { status: 204, headers });
     const admin = createClient(env('SUPABASE_URL')!, env('SUPABASE_SERVICE_ROLE_KEY')!, { auth: { persistSession: false, autoRefreshToken: false } });
     try {
+        const signal = AbortSignal.timeout(50000);
         await loadPilotUsers(admin);
         if (request.method === 'GET') {
             const url = new URL(request.url), state = url.searchParams.get('state') || '', provider = url.searchParams.get('provider');
@@ -27,22 +28,22 @@ Deno.serve(async (request) => {
                 return json({ error: 'coach_disabled' }, 403);
             let token, config;
             if (provider === 'google') {
-                token = await requestJson('https://oauth2.googleapis.com/token', { method: 'POST', body: new URLSearchParams({ client_id: env('GOOGLE_CLIENT_ID')!, client_secret: env('GOOGLE_CLIENT_SECRET')!, code: url.searchParams.get('code') || '', redirect_uri: callback('google'), grant_type: 'authorization_code' }) });
+                token = await requestJson('https://oauth2.googleapis.com/token', { signal, method: 'POST', body: new URLSearchParams({ client_id: env('GOOGLE_CLIENT_ID')!, client_secret: env('GOOGLE_CLIENT_SECRET')!, code: url.searchParams.get('code') || '', redirect_uri: callback('google'), grant_type: 'authorization_code' }) });
                 if (!token.refresh_token || !token.access_token)
                     fail('offline_access_required');
-                config = { calendar_ids: [] };
+                config = { calendar_ids: [], authorization_version: crypto.randomUUID() };
                 token.expires_at = Date.now() + Number(token.expires_in) * 1000;
             }
             else {
-                token = await requestJson('https://github.com/login/oauth/access_token', { method: 'POST', headers: { Accept: 'application/json' }, body: new URLSearchParams({ client_id: env('GITHUB_APP_CLIENT_ID')!, client_secret: env('GITHUB_APP_CLIENT_SECRET')!, code: url.searchParams.get('code') || '', redirect_uri: callback('github') }) });
+                token = await requestJson('https://github.com/login/oauth/access_token', { signal, method: 'POST', headers: { Accept: 'application/json' }, body: new URLSearchParams({ client_id: env('GITHUB_APP_CLIENT_ID')!, client_secret: env('GITHUB_APP_CLIENT_SECRET')!, code: url.searchParams.get('code') || '', redirect_uri: callback('github') }) });
                 if (!token.access_token)
                     fail('github_authorization_required');
                 const installationId = Number(url.searchParams.get('installation_id') || saved.config?.installation_id);
-                const installations = await requestJson('https://api.github.com/user/installations?per_page=100', { headers: githubHeaders(token.access_token) });
+                const installations = await requestJson('https://api.github.com/user/installations?per_page=100', { headers: githubHeaders(token.access_token), signal });
                 const verified = installations.installations.find((i: any) => i.id === installationId && String(i.app_id) === env('GITHUB_APP_ID'));
                 if (!verified)
                     fail('github_installation_not_authorized');
-                config = { installation_id: verified.id };
+                config = { installation_id: verified.id, authorization_version: crypto.randomUUID() };
                 if (token.expires_in)
                     token.expires_at = Date.now() + Number(token.expires_in) * 1000;
             }
@@ -91,32 +92,36 @@ Deno.serve(async (request) => {
         }
         const row = await connection(admin, user.id, provider);
         if (body.action === 'calendars' && provider === 'google')
-            return json({ calendars: (await googlePages('https://www.googleapis.com/calendar/v3/users/me/calendarList?maxResults=250', await googleToken(admin, row))).map((c: any) => ({ id: c.id, title: c.summary, summary: c.summary, time_zone: c.timeZone, selected: row.config?.calendar_ids?.includes(c.id) || false })) });
+            return json({ calendars: (await googlePages('https://www.googleapis.com/calendar/v3/users/me/calendarList?maxResults=250', await googleToken(admin, row, env, signal), fetch, { signal })).map((c: any) => ({ id: c.id, title: c.summary, summary: c.summary, time_zone: c.timeZone, selected: row.config?.calendar_ids?.includes(c.id) || false })) });
         if (body.action === 'select_calendars' && provider === 'google') {
-            const available = await googlePages('https://www.googleapis.com/calendar/v3/users/me/calendarList?maxResults=250', await googleToken(admin, row));
+            const available = await googlePages('https://www.googleapis.com/calendar/v3/users/me/calendarList?maxResults=250', await googleToken(admin, row, env, signal), fetch, { signal });
             if (!Array.isArray(body.calendar_ids) || body.calendar_ids.length > 10 || body.calendar_ids.some((id: any) => !available.some((c: any) => c.id === id)))
                 return json({ error: 'invalid_calendars' }, 400);
-            unwrap(await admin.from('coach_connections').update({ config: { ...row.config, calendar_ids: [...new Set(body.calendar_ids)] }, last_synced_at: null }).eq('id', row.id));
+            signal.throwIfAborted();
+            const selected = unwrap(await admin.from('coach_connections').update({ config: { ...row.config, calendar_ids: [...new Set(body.calendar_ids)] }, last_synced_at: null }).eq('id', row.id).eq('status', 'connected').eq('config', JSON.stringify(row.config)).select('id').maybeSingle());
+            if (!selected)
+                throw new Error('connection_changed');
         }
         else if (body.action === 'repositories' && provider === 'github') {
             const selected = unwrap(await admin.from('coach_repositories').select('owner,name,ai_enabled').eq('user_id', user.id));
-            return json({ repositories: (await githubRepositories(row, env, admin)).map((r: any) => ({ owner: r.owner.login, name: r.name, private: r.private, selected: selected.some((s: any) => s.owner === r.owner.login && s.name === r.name), ai_enabled: selected.find((s: any) => s.owner === r.owner.login && s.name === r.name)?.ai_enabled || false })) });
+            return json({ repositories: (await githubRepositories(row, env, admin, signal)).map((r: any) => ({ owner: r.owner.login, name: r.name, private: r.private, selected: selected.some((s: any) => s.owner === r.owner.login && s.name === r.name), ai_enabled: selected.find((s: any) => s.owner === r.owner.login && s.name === r.name)?.ai_enabled || false })) });
         }
         else if (body.action === 'select_repository' && provider === 'github') {
-            const repo = (await githubRepositories(row, env, admin)).find((r: any) => r.owner.login === body.owner && r.name === body.name);
+            if(body.selected===false) {
+                if(typeof body.owner!=='string'||typeof body.name!=='string'||!/^[A-Za-z0-9-]{1,39}$/.test(body.owner)||!/^[A-Za-z0-9_.-]{1,100}$/.test(body.name))return json({error:'invalid_repository'},400);
+                const removed=unwrap(await admin.rpc('coach_select_repository',{p_user_id:user.id,p_connection_id:row.id,p_expected_config:row.config,p_repository:{owner:body.owner,name:body.name},p_selected:false}));
+                if(removed!==true)throw new Error('connection_changed');
+                return json({ok:true});
+            }
+            const repo = (await githubRepositories(row, env, admin, signal)).find((r: any) => r.owner.login === body.owner && r.name === body.name);
             if (!repo)
                 return json({ error: 'repository_not_authorized' }, 403);
-            const existing = unwrap(await admin.from('coach_repositories').select('id,ai_enabled').eq('user_id', user.id).eq('owner', body.owner).eq('name', body.name).maybeSingle());
-            if (body.selected === false) {
-                if (existing)
-                    unwrap(await admin.from('coach_repositories').delete().eq('id', existing.id).eq('user_id', user.id));
-                unwrap(await admin.rpc('coach_mutate', { p_user_id: user.id, p_action: 'settings', p_input: {} }));
+            signal.throwIfAborted();
+            const selected = unwrap(await admin.rpc('coach_select_repository', { p_user_id: user.id, p_connection_id: row.id, p_expected_config: row.config, p_repository: { owner: repo.owner.login, name: repo.name, private: repo.private, ai_enabled: body.ai_enabled === true }, p_selected: body.selected !== false }));
+            if (selected !== true)
+                throw new Error('connection_changed');
+            if (body.selected === false)
                 return json({ ok: true });
-            }
-            const value = { user_id: user.id, connection_id: row.id, owner: repo.owner.login, name: repo.name, private: repo.private, ai_enabled: body.ai_enabled === true, analyzed_sha: null, analysis: [] };
-            unwrap(existing ? await admin.from('coach_repositories').update(value).eq('id', existing.id) : await admin.from('coach_repositories').insert(value));
-            // Invalidate recommendation work that may have read the previous source consent.
-            unwrap(await admin.rpc('coach_mutate', { p_user_id: user.id, p_action: 'settings', p_input: {} }));
         }
         else if (body.action !== 'sync')
             return json({ error: 'invalid_action' }, 400);

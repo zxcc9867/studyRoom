@@ -48,3 +48,26 @@ test('30 minute snooze uses new future recommendation rather than expired opport
  const now=Date.parse('2026-09-06T10:30Z');const recs=[{id:'old',status:'pending',local_date:'2026-09-06',start_at:'2026-09-06T10:10Z'},{id:'accepted',status:'accepted',local_date:'2026-09-06',start_at:'2026-09-06T10:40Z'},{id:'new',status:'pending',local_date:'2026-09-06',start_at:'2026-09-06T10:35Z'}];
  assert.equal(selectSnoozedRecommendation(recs,'2026-09-06',now).id,'new');assert.equal(selectSnoozedRecommendation(recs.slice(0,2),'2026-09-06',now),null);
 });
+
+import {requestJson} from './coach-integrations-core.mjs';
+test('provider streaming cap rejects before buffering oversized body',async()=>{
+ let cancelled=false,pulls=0;
+ const stream=new ReadableStream({pull(controller){pulls++;controller.enqueue(new Uint8Array(512*1024).fill(65));},cancel(){cancelled=true;}});
+ await assert.rejects(()=>requestJson('https://example.test',{},async()=>new Response(stream)),/provider_response_too_large/);
+ assert.equal(cancelled,true);assert.ok(pulls<=6);
+});
+test('caller deadline aborts provider body reading, not only fetch headers',async()=>{
+ const controller=new AbortController();let cancelled=false;
+ const stream=new ReadableStream({start(c){c.enqueue(new TextEncoder().encode('{"unfinished":'));},cancel(){cancelled=true;}});
+ const promise=requestJson('https://example.test',{signal:controller.signal},async()=>new Response(stream));
+ setTimeout(()=>controller.abort(new Error('shared_deadline')),10);
+ await assert.rejects(()=>promise,/shared_deadline/);assert.equal(cancelled,true);
+});
+test('already aborted caller prevents provider request',async()=>{
+ const signal=AbortSignal.abort(new Error('stopped'));let calls=0;
+ await assert.rejects(()=>requestJson('https://example.test',{signal},async()=>{calls++;return new Response('{}');}),/stopped/);assert.equal(calls,0);
+});
+test('calendar pagination fails closed above remaining total999 budget',async()=>{
+ await assert.rejects(()=>googlePages('https://example.test','token',async()=>new Response(JSON.stringify({items:Array.from({length:1000},(_,id)=>({id}))}))),/calendar_too_large/);
+ await assert.rejects(()=>googlePages('https://example.test','token',async()=>new Response(JSON.stringify({items:[{id:1},{id:2}]})),{maxItems:1}),/calendar_too_large/);
+});

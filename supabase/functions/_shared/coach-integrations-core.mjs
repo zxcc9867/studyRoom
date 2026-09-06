@@ -24,15 +24,45 @@ export async function unseal(value, key, context) {
     return JSON.parse(new TextDecoder().decode(await crypto.subtle.decrypt({ name: 'AES-GCM', iv: bytes(iv), additionalData: new TextEncoder().encode(context) }, k, bytes(cipher))));
 }
 export async function requestJson(url, options = {}, fetcher = fetch) {
-    const response = await fetcher(url, { ...options, redirect: 'error', signal: AbortSignal.timeout(12000) });
+    const signal = AbortSignal.any([AbortSignal.timeout(12000), ...(options.signal ? [options.signal] : [])]);
+    signal.throwIfAborted();
+    const response = await fetcher(url, { ...options, redirect: 'error', signal });
     if (!response.ok)
         fail(response.status === 401 || response.status === 403 ? 'connection_authorization_required' : 'provider_unavailable');
-    const text = await response.text();
-    if (text.length > 2000000)
+    const maximum = 2 * 1024 * 1024;
+    if (Number(response.headers.get('content-length')) > maximum) {
+        await response.body?.cancel();
         fail('provider_response_too_large');
-    return JSON.parse(text);
+    }
+    const reader = response.body?.getReader();
+    if (!reader)
+        fail('provider_empty_response');
+    const abort = () => { void reader.cancel().catch(() => { }); };
+    signal.addEventListener('abort', abort, { once: true });
+    const decoder = new TextDecoder();
+    let length = 0, text = '';
+    try {
+        while (true) {
+            signal.throwIfAborted();
+            const chunk = await reader.read();
+            signal.throwIfAborted();
+            if (chunk.done)
+                break;
+            length += chunk.value.byteLength;
+            if (length > maximum) {
+                await reader.cancel();
+                fail('provider_response_too_large');
+            }
+            text += decoder.decode(chunk.value, { stream: true });
+        }
+        return JSON.parse(text + decoder.decode());
+    }
+    finally {
+        signal.removeEventListener('abort', abort);
+        reader.releaseLock();
+    }
 }
-export async function googlePages(url, token, fetcher = fetch) {
+export async function googlePages(url, token, fetcher = fetch, options = {}) {
     const out = [];
     let page;
     const seen = new Set();
@@ -40,9 +70,9 @@ export async function googlePages(url, token, fetcher = fetch) {
         const next = new URL(url);
         if (page)
             next.searchParams.set('pageToken', page);
-        const data = await requestJson(next, { headers: { Authorization: `Bearer ${token}` } }, fetcher);
+        const data = await requestJson(next, { headers: { Authorization: `Bearer ${token}` }, signal: options.signal }, fetcher);
         out.push(...(data.items || []));
-        if (out.length > 10000)
+        if (out.length > (options.maxItems ?? 999))
             fail('calendar_too_large');
         page = data.nextPageToken;
         if (page && seen.has(page))
