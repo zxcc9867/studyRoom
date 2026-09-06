@@ -73,7 +73,7 @@ export default function CareerCoach({supabase,userId,timeZone,legacy,initialTab=
     {tab==='career'&&<CareerForm key={`${state.career?.id??'new'}:${JSON.stringify(state.career?.skills)}`} career={state.career} busy={busy} onSave={run}/>}
     {tab==='settings'&&<CoachSettingsForm key={JSON.stringify(state.settings)} settings={state.settings} busy={busy} onSave={run} onManageNotifications={onManageNotifications}/>}
     {tab==='calendar'&&<><CoachEventForm timeZone={timeZone} busy={busy} onSave={run}/><CoachEventList events={state.events} timeZone={timeZone} busy={busy} onDelete={id=>void run({action:'delete_event',id})}/></>}
-    {tab==='connections'&&<><CoachIntegrations state={state} request={request} onChanged={reload}/><CoachChannels supabase={supabase} userId={userId} settings={state.settings} request={request} onManage={onManageNotifications}/></>}
+    {tab==='connections'&&<><CoachIntegrations state={state} request={request} onChanged={reload}/><CoachChannels supabase={supabase} userId={userId} settings={state.settings} request={request} onManage={onManageNotifications} onChanged={()=>actions.current.onChanged()}/></>}
   </section>;
 }
 
