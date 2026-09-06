@@ -1,3 +1,11 @@
+## 2026-09-06 — Production deployment verified
+
+- Deployed app commit8daa2d40dcc737420581889667cb2d56b63e0705 via GitHub Actions34022526519 (success): https://github.com/zxcc9867/studyRoom/actions/runs/34022526519.
+- Vercel deployment dpl_9Fx5ZpVAT8FhVD34BAZw6W4q38Sz is READY; production alias https://study-room-attendance.vercel.app returned HTTP200 and points to that deployment. Build completed2026-09-06T08:42:29Z.
+- Backend migrations, five Edge functions, one-owner pilot gate and separate worker/notification cron are active. Latest cron calls200, no failed jobs or coaching deliveries. Existing attendance remains200. Auth/signature rejection401 verified for all five updated functions.
+- CI passed470 tests, Edge typechecks and3 pilot tests,24 README asset references and web build. Synthetic live free-coaching check used configured google/gemma-4-26b-a4b-it:free but returned invalid_action; tested rules fallback is required, no paid retry. This is not a successful AI-quality score or proof of the Edge runtime key configuration.
+- Remaining user flow: opt into coaching, save career and study windows, verify Google/GitHub Edge Secrets and connect accounts, explicitly enable desired channels and verify real receipt. Thirty actual-model scenarios and two-week pilot outcomes remain pending. Registered OAuth apps alone do not establish runtime configuration or account authorization.
+- Updated documents: active-context, progress, trouble-shooting, setup guide and root handoff. Deployment-readiness documents were reviewed; private values/user schedule data were not recorded.
 ## 2026-09-06 — Approved production backend rollout
 
 - User explicitly approved next-js/bqohkdzvxbrokkmuhysx schema, functions, cron and web deployment after automatic review requested exact scope.
