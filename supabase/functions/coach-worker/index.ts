@@ -99,6 +99,8 @@ Deno.serve(async (req: Request) => {
     for (const job of jobs) {
       try {
         if (!eligible(job.user_id)) throw Error("disabled");
+        const currentSettings = check(await admin.from("coach_settings").select("enabled").eq("user_id", job.user_id).maybeSingle());
+        if (!currentSettings?.enabled) throw Error("disabled");
         if (job.kind === "google_sync") await syncGoogle(admin, job.user_id);
         else if (job.kind === "github_analysis") {
           await analyzeRepositories(admin, job.user_id);

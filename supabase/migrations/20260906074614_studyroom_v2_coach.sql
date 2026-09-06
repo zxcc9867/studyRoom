@@ -224,6 +224,9 @@ begin
  else raise exception 'invalid_action';end if;
  update public.coach_recommendations set status='expired' where user_id=p_user_id and status='pending';
  update public.coach_jobs set status='failed',error_code='input_changed' where user_id=p_user_id and kind in('roadmap','recommendations') and status in('pending','running');
+ if not exists(select 1 from public.coach_settings where user_id=p_user_id and enabled) then
+  update public.coach_jobs set status='failed',error_code='disabled' where user_id=p_user_id and status in('pending','running');
+ end if;
  update public.coach_deliveries set status='cancelled' where user_id=p_user_id and status='pending';
  return '{"ok":true}';
 end $$;
