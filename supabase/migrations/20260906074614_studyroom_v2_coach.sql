@@ -318,4 +318,28 @@ language plpgsql security invoker set search_path='' as $$begin
  update public.coach_deliveries set status='cancelled' where user_id=p_user_id and status='pending';
  return true;
 end $$;
-do $$declare f record;begin for f in select p.oid::regprocedure as sig from pg_proc p join pg_namespace n on n.oid=p.pronamespace where n.nspname='public' and p.proname in('coach_enqueue','coach_claim_jobs','coach_finish_job','coach_mutate','coach_save_result','coach_google_snapshot','coach_repository_result','coach_wall_at','coach_complete_connection','coach_disconnect') loop execute format('revoke all on function %s from public,anon,authenticated',f.sig);execute format('grant execute on function %s to service_role',f.sig);end loop;end $$;
+
+-- Provider authorization is checked before this RPC; the connection generation
+-- is checked again atomically so a slow selection cannot resurrect disconnected
+-- repository access or restore consent from a previous authorization.
+create function public.coach_select_repository(p_user_id uuid,p_connection_id uuid,p_expected_config jsonb,p_repository jsonb,p_selected boolean default true) returns boolean
+language plpgsql security invoker set search_path='' as $$begin
+ if coalesce(p_repository->>'owner','') !~ '^[A-Za-z0-9][A-Za-z0-9-]{0,99}$' or coalesce(p_repository->>'name','') !~ '^[A-Za-z0-9_.-]{1,100}$' then raise exception 'invalid_repository';end if;
+ perform pg_advisory_xact_lock(hashtextextended(p_user_id::text,8764));
+ perform 1 from public.coach_connections where id=p_connection_id and user_id=p_user_id and provider='github' and status='connected' and config=p_expected_config for update;
+ if not found then return false;end if;
+ if p_selected then
+  if jsonb_typeof(p_repository->'private') is distinct from 'boolean' or jsonb_typeof(p_repository->'ai_enabled') is distinct from 'boolean' then raise exception 'invalid_repository';end if;
+  insert into public.coach_repositories(user_id,connection_id,owner,name,private,ai_enabled,analyzed_sha,analysis,last_checked_at)
+  values(p_user_id,p_connection_id,p_repository->>'owner',p_repository->>'name',(p_repository->>'private')::boolean,(p_repository->>'ai_enabled')::boolean,null,'[]',null)
+  on conflict(user_id,owner,name) do update set connection_id=excluded.connection_id,private=excluded.private,ai_enabled=excluded.ai_enabled,analyzed_sha=null,analysis='[]',last_checked_at=null;
+ else
+  delete from public.coach_repositories where user_id=p_user_id and connection_id=p_connection_id and owner=p_repository->>'owner' and name=p_repository->>'name';
+ end if;
+ update public.coach_settings set version=version+1,updated_at=now() where user_id=p_user_id;
+ update public.coach_recommendations set status='expired' where user_id=p_user_id and status='pending';
+ update public.coach_jobs set status='failed',error_code='input_changed' where user_id=p_user_id and kind in('github_analysis','recommendations') and status in('pending','running');
+ update public.coach_deliveries set status='cancelled' where user_id=p_user_id and status='pending';
+ return true;
+end $$;
+do $$declare f record;begin for f in select p.oid::regprocedure as sig from pg_proc p join pg_namespace n on n.oid=p.pronamespace where n.nspname='public' and p.proname in('coach_enqueue','coach_claim_jobs','coach_finish_job','coach_mutate','coach_save_result','coach_google_snapshot','coach_repository_result','coach_wall_at','coach_complete_connection','coach_disconnect','coach_select_repository') loop execute format('revoke all on function %s from public,anon,authenticated',f.sig);execute format('grant execute on function %s to service_role',f.sig);end loop;end $$;
