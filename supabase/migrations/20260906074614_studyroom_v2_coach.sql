@@ -236,7 +236,9 @@ language plpgsql security invoker set search_path='' as $$declare j public.coach
  select * into j from public.coach_jobs where id=p_id; if j.id is null then return false;end if;
  perform pg_advisory_xact_lock(hashtextextended(j.user_id::text,8764));
  select version into v from public.coach_settings where user_id=j.user_id and enabled;
- if v is distinct from p_version or not exists(select 1 from public.coach_jobs where id=p_id and status='running' and lease=p_lease and lease_until>now()) then return false;end if;
+ if v is distinct from p_version then return false;end if;
+ perform 1 from public.coach_jobs where id=p_id and status='running' and lease=p_lease and lease_until>clock_timestamp() for update;
+ if not found then return false;end if;
  if j.kind='roadmap' then update public.coach_careers set skills=p_result->'skills',metadata=p_result-'skills',updated_at=now() where user_id=j.user_id and status='active' and not confirmed;
  elsif j.kind='recommendations' then
   update public.coach_recommendations set status='expired' where user_id=j.user_id and local_date=(p_result->>'local_date')::date and status='pending';
@@ -248,9 +250,14 @@ language plpgsql security invoker set search_path='' as $$declare j public.coach
  update public.coach_jobs set status='done',lease_until=null where id=p_id and lease=p_lease;return true;
 end $$;
 
-create function public.coach_google_snapshot(p_user_id uuid,p_connection_id uuid,p_events jsonb,p_expected_config jsonb default null) returns boolean
+create function public.coach_google_snapshot(p_user_id uuid,p_connection_id uuid,p_events jsonb,p_expected_config jsonb default null,p_job_id uuid default null,p_lease uuid default null) returns boolean
 language plpgsql security invoker set search_path='' as $$ declare e jsonb;before_times jsonb;after_times jsonb;begin
  perform pg_advisory_xact_lock(hashtextextended(p_user_id::text,8764));
+ if not exists(select 1 from public.coach_settings where user_id=p_user_id and enabled) then return false;end if;
+ if p_job_id is not null or p_lease is not null then
+  perform 1 from public.coach_jobs where id=p_job_id and user_id=p_user_id and kind='google_sync' and status='running' and lease=p_lease and lease_until>clock_timestamp() for update;
+  if not found then return false;end if;
+ end if;
  perform 1 from public.coach_connections where id=p_connection_id and user_id=p_user_id and provider='google' and status in('connected','error') and (p_expected_config is null or config=p_expected_config) for update;
  if not found then return false;end if;
  select coalesce(jsonb_agg(jsonb_build_array(external_id,start_at,end_at,start_date,end_date,all_day,time_zone) order by external_id),'[]') into before_times from public.coach_events where user_id=p_user_id and connection_id=p_connection_id and source='google';
@@ -268,8 +275,14 @@ language plpgsql security invoker set search_path='' as $$ declare e jsonb;befor
  end if;
  update public.coach_connections set last_synced_at=now(),last_error=null,status='connected',updated_at=now() where id=p_connection_id;return true;
 end $$;
-create function public.coach_repository_result(p_user_id uuid,p_repo_id uuid,p_connection_id uuid,p_expected_config jsonb,p_expected_ai_enabled boolean,p_sha text,p_analysis jsonb) returns boolean
+create function public.coach_repository_result(p_user_id uuid,p_repo_id uuid,p_connection_id uuid,p_expected_config jsonb,p_expected_ai_enabled boolean,p_sha text,p_analysis jsonb,p_job_id uuid default null,p_lease uuid default null) returns boolean
 language plpgsql security invoker set search_path='' as $$begin
+ perform pg_advisory_xact_lock(hashtextextended(p_user_id::text,8764));
+ if not exists(select 1 from public.coach_settings where user_id=p_user_id and enabled) then return false;end if;
+ if p_job_id is not null or p_lease is not null then
+  perform 1 from public.coach_jobs where id=p_job_id and user_id=p_user_id and kind='github_analysis' and status='running' and lease=p_lease and lease_until>clock_timestamp() for update;
+  if not found then return false;end if;
+ end if;
  perform 1 from public.coach_connections where id=p_connection_id and user_id=p_user_id and provider='github' and status='connected' and config=p_expected_config for update;
  if not found then return false;end if;
  update public.coach_repositories set head_sha=p_sha,analyzed_sha=p_sha,analysis=p_analysis,last_checked_at=now() where id=p_repo_id and user_id=p_user_id and connection_id=p_connection_id and ai_enabled=p_expected_ai_enabled;return found;

@@ -164,7 +164,9 @@ export async function askAi(
   admin: any,
   userId: string,
   messages: { role: string; content: string }[],
+  signal?: AbortSignal,
 ) {
+  if (signal?.aborted) return null;
   const env = Deno.env.toObject();
   let config;
   try {
@@ -184,7 +186,7 @@ export async function askAi(
         OPENROUTER_TIMEOUT_MS: "20000",
         OPENROUTER_MAX_TOKENS: env.OPENROUTER_MAX_TOKENS || "1024",
       },
-    }).generateText({ messages });
+    }).generateText({ messages, signal });
     return {
       ...response,
       configured_model: config.model,

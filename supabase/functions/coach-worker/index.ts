@@ -99,19 +99,35 @@ Deno.serve(async (req: Request) => {
     for (const job of jobs) {
       try {
         if (!eligible(job.user_id)) throw Error("disabled");
-        const currentSettings = check(await admin.from("coach_settings").select("enabled").eq("user_id", job.user_id).maybeSingle());
+        const currentSettings = check(
+          await admin.from("coach_settings").select("enabled").eq(
+            "user_id",
+            job.user_id,
+          ).maybeSingle(),
+        );
         if (!currentSettings?.enabled) throw Error("disabled");
-        if (job.kind === "google_sync") await syncGoogle(admin, job.user_id);
-        else if (job.kind === "github_analysis") {
-          await analyzeRepositories(admin, job.user_id);
+        let integrationResult: { has_more?: boolean } | undefined;
+        const jobLease = { id: job.id, lease: job.lease };
+        if (job.kind === "google_sync") {
+          await syncGoogle(admin, job.user_id, undefined, jobLease);
+        } else if (job.kind === "github_analysis") {
+          integrationResult = await analyzeRepositories(
+            admin,
+            job.user_id,
+            undefined,
+            jobLease,
+          );
         } else await executeCoachJob(admin, job);
-        check(
+        const finished = check(
           await admin.rpc("coach_finish_job", {
             p_id: job.id,
             p_lease: job.lease,
             p_status: "done",
           }),
         );
+        if (integrationResult?.has_more && finished) {
+          await enqueue(admin, job.user_id, "github_analysis");
+        }
         completed++;
       } catch (error) {
         const code =
