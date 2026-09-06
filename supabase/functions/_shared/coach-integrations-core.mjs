@@ -1,7 +1,10 @@
 export const envDefault = (name) => globalThis.Deno?.env.get(name);
 export const fail = (code) => { throw new Error(code); };
-export const unwrap = ({ data, error }) => { if (error)
-    fail('storage_error'); return data; };
+export const unwrap = ({ data, error }) => {
+    if (error)
+        fail('storage_error');
+    return data;
+};
 const bytes = (s) => Uint8Array.from(atob(s), c => c.charCodeAt(0));
 const base64 = (b) => btoa(String.fromCharCode(...new Uint8Array(b)));
 export async function seal(value, key, context) {
@@ -63,10 +66,32 @@ export function calendarEvent(event, calendarId, timeZone) {
     return { source: 'google', external_id: `${calendarId}:${event.id}`, title: String(event.summary || '일정').slice(0, 200), all_day: allDay, start_at: allDay ? null : event.start.dateTime, end_at: allDay ? null : event.end.dateTime, start_date: allDay ? event.start.date : null, end_date: allDay ? event.end.date : null, time_zone: event.start.timeZone || timeZone, repeat_weekdays: [] };
 }
 export function safeSource(path, size = 0) {
-    return size <= 24000 && !/(^|\/)(\.|node_modules|vendor|dist|build|coverage|lock|secrets?)(\/|$)/i.test(path) && !/(\.env|lock\.|\.lock$|\.pem$|\.key$|credentials|secret|token)/i.test(path) && /\.(ts|tsx|js|jsx|mjs|py|go|rs|json)$/.test(path);
+    if (typeof path !== 'string' || !Number.isFinite(size) || size < 0 || size > 24000)
+        return false;
+    const parts = path.replaceAll('\\', '/').split('/');
+    if (parts.some(part => !part || part.startsWith('.') || /^(node_modules|vendor|dist|build|coverage|secrets?|credentials?|certs?|keys?)$/i.test(part)))
+        return false;
+    return !/(\.env|lock\.|\.lock$|\.pem$|\.key$|credentials|secret|token|service[-_]?account)/i.test(path) && /\.(ts|tsx|js|jsx|mjs|py|go|rs|json)$/.test(path);
 }
 export function redactSource(text) {
-    return !/(-----BEGIN |(?:sk|ghp|github_pat|xoxb)-[\w-]+|(?:api[_-]?key|password|secret|token)\s*[:=]\s*["'][^"']{8,})/i.test(text) && !text.includes('\0');
+    if (typeof text !== 'string' || text.includes('\0'))
+        return false;
+    // Exclude the complete file when recognizable credentials occur. Do not replace
+    // substrings and risk sending a partially redacted credential to an AI provider.
+    const credentialPatterns = [
+        /-----BEGIN\s+(?:[A-Z0-9]+\s+)*PRIVATE KEY-----/i,
+        /\b(?:gh[pousr]_|github_pat_)[A-Za-z0-9_]{12,}/,
+        /\bsk-(?:proj-|or-v1-|ant-api\d+-)?[A-Za-z0-9_-]{12,}/,
+        /\bxox[baprs]-[A-Za-z0-9-]{10,}/,
+        /\b(?:AKIA|ASIA)[A-Z0-9]{16}\b/,
+        /\bAIza[A-Za-z0-9_-]{30,}/,
+        /\beyJ[A-Za-z0-9_-]{8,}\.[A-Za-z0-9_-]{8,}\.[A-Za-z0-9_-]{8,}/,
+        /\b(?:postgres(?:ql)?|mysql|mongodb(?:\+srv)?|redis|amqps?):\/\/[^\s/@:]+:[^\s/@]+@/i,
+        /\b(?:accountkey|sharedaccesskey|password|pwd)\s*=\s*[^;\s]{6,}/i,
+        /\b(?:api[_-]?key|access[_-]?key|private[_-]?key|password|passwd|secret|token|authorization|client[_-]?secret)\b["']?\s*[:=]\s*["'`][^"'`\r\n]{6,}/i,
+        /\b(?:Basic|Bearer)\s+[A-Za-z0-9_+\/.=-]{16,}/i,
+    ];
+    return !credentialPatterns.some(pattern => pattern.test(text));
 }
 export function repositoryTasks(files, sha) {
     const tasks = [];

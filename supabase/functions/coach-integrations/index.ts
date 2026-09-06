@@ -1,7 +1,7 @@
 import { createClient } from 'jsr:@supabase/supabase-js@2.57.4';
 import { connection, googleToken, githubRepositories, githubHeaders } from '../_shared/coach-integrations.ts';
 import { seal, requestJson, googlePages, unwrap, fail } from '../_shared/coach-integrations-core.mjs';
-import { eligible } from '../_shared/coach-store.ts';
+import { eligible, loadPilotUsers } from '../_shared/coach-store.ts';
 const env = (name: string) => Deno.env.get(name);
 const headers = { 'Access-Control-Allow-Origin': '*', 'Access-Control-Allow-Headers': 'authorization,apikey,content-type,x-client-info', 'Access-Control-Allow-Methods': 'POST,GET,OPTIONS', 'Content-Type': 'application/json', 'Cache-Control': 'no-store' };
 const json = (body: unknown, status = 200) => new Response(JSON.stringify(body), { status, headers });
@@ -12,12 +12,15 @@ Deno.serve(async (request) => {
         return new Response(null, { status: 204, headers });
     const admin = createClient(env('SUPABASE_URL')!, env('SUPABASE_SERVICE_ROLE_KEY')!, { auth: { persistSession: false, autoRefreshToken: false } });
     try {
+        await loadPilotUsers(admin);
         if (request.method === 'GET') {
             const url = new URL(request.url), state = url.searchParams.get('state') || '', provider = url.searchParams.get('provider');
             if (!['google', 'github'].includes(provider || '') || !state)
                 return json({ error: 'invalid_oauth_state' }, 400);
-            // DELETE RETURNING atomically consumes state; expired/cancelled callbacks cannot replay.
-            const saved = unwrap(await admin.from('coach_oauth_states').delete().eq('id', state).eq('provider', provider).gt('expires_at', new Date().toISOString()).select().maybeSingle());
+            // Keep the claimed row until finalization. Disconnect can revoke a callback
+            // that is currently awaiting the provider's token exchange.
+            const claimId = crypto.randomUUID();
+            const saved = unwrap(await admin.from('coach_oauth_states').update({ config: { claim_id: claimId } }).eq('id', state).eq('provider', provider).eq('config', '{}').gt('expires_at', new Date().toISOString()).select().maybeSingle());
             if (!saved || url.searchParams.has('error'))
                 fail('invalid_oauth_state');
             if (!eligible(saved.user_id))
@@ -44,7 +47,11 @@ Deno.serve(async (request) => {
                     token.expires_at = Date.now() + Number(token.expires_in) * 1000;
             }
             const encrypted_credentials = await seal(token, env('COACH_ENCRYPTION_KEY'), `${saved.user_id}:${provider}`);
-            unwrap(await admin.from('coach_connections').upsert({ user_id: saved.user_id, provider, status: 'connected', config, encrypted_credentials, last_error: null, last_synced_at: null }, { onConflict: 'user_id,provider' }));
+            if (!eligible(saved.user_id))
+                fail('coach_disabled');
+            const completed = unwrap(await admin.rpc('coach_complete_connection', { p_state_id: state, p_claim_id: claimId, p_provider: provider, p_config: config, p_encrypted_credentials: encrypted_credentials }));
+            if (!completed)
+                fail('connection_cancelled');
             return Response.redirect(`${env('SITE_URL') || 'https://study-room-attendance.vercel.app'}/#me`, 303);
         }
         if (request.method !== 'POST')
@@ -66,14 +73,7 @@ Deno.serve(async (request) => {
         if (body.action !== 'disconnect' && !eligible(user.id))
             return json({ error: 'coach_disabled' }, 403);
         if (body.action === 'disconnect') {
-            unwrap(await admin.from('coach_connections').update({ status: 'disconnected', encrypted_credentials: null, config: {}, last_synced_at: null }).eq('user_id', user.id).eq('provider', provider));
-            unwrap(await admin.from('coach_oauth_states').delete().eq('user_id', user.id).eq('provider', provider));
-            if (provider === 'google')
-                unwrap(await admin.from('coach_events').delete().eq('user_id', user.id).eq('source', 'google'));
-            else
-                unwrap(await admin.from('coach_repositories').delete().eq('user_id', user.id));
-            unwrap(await admin.from('coach_jobs').update({ status: 'failed', error_code: 'connection_disconnected' }).eq('user_id', user.id).eq('kind', provider === 'google' ? 'google_sync' : 'github_analysis').in('status', ['pending', 'running']));
-            unwrap(await admin.from('coach_deliveries').update({ status: 'cancelled' }).eq('user_id', user.id).eq('status', 'pending'));
+            unwrap(await admin.rpc('coach_disconnect', { p_user_id: user.id, p_provider: provider }));
             return json({ ok: true });
         }
         if (!configured(provider))
@@ -106,14 +106,17 @@ Deno.serve(async (request) => {
             const repo = (await githubRepositories(row, env, admin)).find((r: any) => r.owner.login === body.owner && r.name === body.name);
             if (!repo)
                 return json({ error: 'repository_not_authorized' }, 403);
-            const existing = unwrap(await admin.from('coach_repositories').select('id').eq('user_id', user.id).eq('owner', body.owner).eq('name', body.name).maybeSingle());
+            const existing = unwrap(await admin.from('coach_repositories').select('id,ai_enabled').eq('user_id', user.id).eq('owner', body.owner).eq('name', body.name).maybeSingle());
             if (body.selected === false) {
                 if (existing)
                     unwrap(await admin.from('coach_repositories').delete().eq('id', existing.id).eq('user_id', user.id));
+                unwrap(await admin.rpc('coach_mutate', { p_user_id: user.id, p_action: 'settings', p_input: {} }));
                 return json({ ok: true });
             }
-            const value = { user_id: user.id, connection_id: row.id, owner: repo.owner.login, name: repo.name, private: repo.private, ai_enabled: body.ai_enabled === true };
+            const value = { user_id: user.id, connection_id: row.id, owner: repo.owner.login, name: repo.name, private: repo.private, ai_enabled: body.ai_enabled === true, analyzed_sha: null, analysis: [] };
             unwrap(existing ? await admin.from('coach_repositories').update(value).eq('id', existing.id) : await admin.from('coach_repositories').insert(value));
+            // Invalidate recommendation work that may have read the previous source consent.
+            unwrap(await admin.rpc('coach_mutate', { p_user_id: user.id, p_action: 'settings', p_input: {} }));
         }
         else if (body.action !== 'sync')
             return json({ error: 'invalid_action' }, 400);

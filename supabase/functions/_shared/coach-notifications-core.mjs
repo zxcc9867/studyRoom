@@ -37,3 +37,27 @@ export function pushEndpointAllowed(subscription) {
         return false;
     }
 }
+// Invoked only after Auth verification and pilot authorization by the handler.
+// No caller-supplied email or user_id is accepted, and this never sends a message.
+export async function configureEmailTarget(admin, user, connect) {
+    if (!user?.id || user.is_anonymous)
+        throw new Error('unauthorized');
+    if (connect && (!user.email_confirmed_at || typeof user.email !== 'string' || !user.email.includes('@')))
+        throw new Error('verified_email_required');
+    const checked = ({ data, error }) => { if (error)
+        throw new Error('storage_error'); return data; };
+    checked(await admin.from('notification_targets').update({ enabled: false }).eq('user_id', user.id).eq('kind', 'email'));
+    checked(await admin.from('coach_deliveries').update({ status: 'cancelled' }).eq('user_id', user.id).eq('channel', 'email').eq('status', 'pending'));
+    if (connect) {
+        const destination = user.email.trim().toLowerCase();
+        checked(await admin.from('notification_targets').upsert({ user_id: user.id, kind: 'email', destination, enabled: true }, { onConflict: 'user_id,kind,target_key' }));
+        checked(await admin.from('profiles').update({ email_reminders_enabled: true }).eq('user_id', user.id));
+        return { connected: true, channel: 'email', destination };
+    }
+    checked(await admin.from('profiles').update({ email_reminders_enabled: false }).eq('user_id', user.id));
+    return { connected: false, channel: 'email' };
+}
+export function selectSnoozedRecommendation(recommendations, date, now = Date.now()) {
+    return recommendations.filter(rec => rec.status === 'pending' && rec.local_date === date && Date.parse(rec.start_at) >= now)
+        .sort((a, b) => Date.parse(a.start_at) - Date.parse(b.start_at))[0] || null;
+}

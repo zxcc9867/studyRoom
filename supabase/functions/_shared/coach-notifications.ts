@@ -3,7 +3,7 @@ import { syncGoogle } from './coach-integrations.ts';
 import { unwrap, envDefault } from './coach-integrations-core.mjs';
 import { eligible } from './coach-store.ts';
 import { freeSlots, addDays } from './coach-domain.mjs';
-import { localParts, dueKind, eligibleTargets, pushEndpointAllowed, quiet } from './coach-notifications-core.mjs';
+import { localParts, dueKind, eligibleTargets, pushEndpointAllowed, quiet, selectSnoozedRecommendation } from './coach-notifications-core.mjs';
 type Admin = any;
 async function recommendationReady(admin: Admin, uid: string, rec: any, settings: any, zone: string, kind: string) {
     const now = Date.now();
@@ -75,7 +75,23 @@ export async function dispatchCoaching(admin: Admin, userId?: string) {
         const pending = unwrap(await admin.from('coach_deliveries').select('*').eq('user_id', uid).eq('status', 'pending').lte('scheduled_at', now.toISOString()).limit(10));
         for (const delivery of pending) {
             const current = unwrap(await admin.from('coach_settings').select('*').eq('user_id', uid).single());
-            const rec = unwrap(await admin.from('coach_recommendations').select('*').eq('id', delivery.recommendation_id).eq('user_id', uid).maybeSingle());
+            let rec = unwrap(await admin.from('coach_recommendations').select('*').eq('id', delivery.recommendation_id).eq('user_id', uid).maybeSingle());
+            // An explicit snooze must point at a new usable slot, not the original
+            // opportunity that has already passed while the user was away.
+            if (delivery.sent_at && delivery.local_date === date && (!rec || rec.status !== 'pending' || Date.parse(rec.start_at) < Date.now())) {
+                const alternatives = unwrap(await admin.from('coach_recommendations').select('*').eq('user_id', uid).eq('local_date', date).eq('status', 'pending').gte('start_at', new Date().toISOString()).order('start_at').limit(3));
+                rec = selectSnoozedRecommendation(alternatives, date);
+                if (!rec) {
+                    const jobs = unwrap(await admin.from('coach_jobs').select('status,created_at').eq('user_id', uid).eq('kind', 'recommendations').gte('created_at', delivery.scheduled_at).order('created_at', { ascending: false }).limit(5));
+                    if (jobs.some((job: any) => job.status === 'done')) {
+                        await admin.from('coach_deliveries').update({ status: 'cancelled' }).eq('id', delivery.id).eq('status', 'pending');
+                        continue;
+                    }
+                    unwrap(await admin.rpc('coach_enqueue', { p_user_id: uid, p_kind: 'recommendations', p_payload: { input_version: current.version } }));
+                    continue;
+                }
+                unwrap(await admin.from('coach_deliveries').update({ recommendation_id: rec.id }).eq('id', delivery.id).eq('status', 'pending'));
+            }
             const target = unwrap(await admin.from('notification_targets').select('*').eq('id', delivery.target_id).eq('user_id', uid).maybeSingle());
             const studying = unwrap(await admin.from('study_sessions').select('id').eq('user_id', uid).eq('status', 'active').limit(1));
             if (!target || !rec || rec.status !== 'pending' || delivery.local_date !== date || !eligibleTargets(current, [target], profile).length || Date.parse(current.muted_until) > now.getTime() || quiet(localParts(now, zone).time, current.quiet_start, current.quiet_end) || studying.length || !await recommendationReady(admin, uid, rec, current, zone, delivery.kind)) {
@@ -152,8 +168,13 @@ export async function handleCoachSlackAction(admin: Admin, userId: string, actio
         unwrap(await admin.from('coach_deliveries').update({ status: 'cancelled' }).eq('user_id', userId).eq('status', 'pending'));
     }
     else {
-        // User explicitly requests one later delivery; retain the same event identity.
-        unwrap(await admin.from('coach_deliveries').update({ status: 'pending', scheduled_at: new Date(Date.now() + 1800000).toISOString() }).eq('id', delivery.id).eq('status', 'sent'));
+        // Keep the same event identity but regenerate its recommendation shortly
+        // before the requested reminder so the proposed slot remains actionable.
+        const due = Date.now() + 1800000;
+        const changed = unwrap(await admin.from('coach_deliveries').update({ status: 'pending', scheduled_at: new Date(due).toISOString() }).eq('id', delivery.id).eq('status', 'sent').select('id').maybeSingle());
+        if (changed) {
+            unwrap(await admin.rpc('coach_enqueue', { p_user_id: userId, p_kind: 'recommendations', p_payload: {}, p_run_after: new Date(due - 60000).toISOString() }));
+        }
     }
     return true;
 }
