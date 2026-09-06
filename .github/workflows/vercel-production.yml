@@ -58,5 +58,11 @@ jobs:
           OPENROUTER_APP_NAME: ${{ vars.OPENROUTER_APP_NAME }}
         run: node scripts/sync-openrouter-env.mjs
 
+      - name: Verify free coaching with synthetic input
+        env:
+          OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
+          OPENROUTER_MODEL: ${{ vars.OPENROUTER_MODEL }}
+        run: node scripts/check-free-coaching-live.mjs
+
       - name: Deploy to Vercel production
         run: vercel deploy --prod --yes --token="$VERCEL_TOKEN"
