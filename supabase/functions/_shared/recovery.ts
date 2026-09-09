@@ -5,6 +5,9 @@ export type RecoveryRequestRow = {
   user_id: string;
   local_date: string;
   trigger_type: RecoveryTriggerType;
+  covered_start_date: string;
+  covered_end_date: string;
+  covered_missed_days: number;
   status: "pending" | "submitted";
   slack_channel_id: string | null;
   slack_message_ts: string | null;
@@ -23,7 +26,7 @@ type AdminClient = {
 };
 
 const recoverySelect =
-  "id,user_id,local_date,trigger_type,status,slack_channel_id,slack_message_ts,followup_sent_at,created_at";
+  "id,user_id,local_date,covered_start_date,covered_end_date,covered_missed_days,trigger_type,status,slack_channel_id,slack_message_ts,followup_sent_at,created_at";
 
 export async function createRecoveryRequest(
   admin: AdminClient,
@@ -33,7 +36,11 @@ export async function createRecoveryRequest(
     triggerType: RecoveryTriggerType;
   },
 ) {
+  if (input.triggerType === "missed_attendance") {
+    return await createOrExtendAttendanceRecoveryRequest(admin, input);
+  }
   const existing = await loadPendingRecoveryRequest(admin, input);
+
   if (existing) {
     return { request: existing, created: false };
   }
@@ -44,6 +51,9 @@ export async function createRecoveryRequest(
       user_id: input.userId,
       local_date: input.localDate,
       trigger_type: input.triggerType,
+      covered_start_date: input.localDate,
+      covered_end_date: input.localDate,
+      covered_missed_days: 1,
       status: "pending",
     })
     .select(recoverySelect)
@@ -58,6 +68,66 @@ export async function createRecoveryRequest(
   }
 
   return { request: data as RecoveryRequestRow, created: true };
+}
+
+async function createOrExtendAttendanceRecoveryRequest(
+  admin: AdminClient,
+  input: { userId: string; localDate: string; triggerType: RecoveryTriggerType },
+) {
+  const existing = await loadPendingAttendanceRecoveryRequest(admin, input.userId);
+  if (existing) {
+    return { request: await extendAttendanceRecoveryCoverage(admin, existing, input.localDate), created: false };
+  }
+
+  const { data, error } = await admin
+    .from("study_recovery_requests")
+    .insert({
+      user_id: input.userId,
+      local_date: input.localDate,
+      covered_start_date: input.localDate,
+      covered_end_date: input.localDate,
+      covered_missed_days: 1,
+      trigger_type: input.triggerType,
+      status: "pending",
+    })
+    .select(recoverySelect)
+    .single();
+
+  if (!error) {
+    return { request: data as RecoveryRequestRow, created: true };
+  }
+
+  const retry = await loadPendingAttendanceRecoveryRequest(admin, input.userId);
+  if (retry) {
+    return { request: await extendAttendanceRecoveryCoverage(admin, retry, input.localDate), created: false };
+  }
+  throw error;
+}
+
+async function extendAttendanceRecoveryCoverage(
+  admin: AdminClient,
+  request: RecoveryRequestRow,
+  localDate: string,
+) {
+  const startDate = request.covered_start_date < localDate ? request.covered_start_date : localDate;
+  const endDate = request.covered_end_date > localDate ? request.covered_end_date : localDate;
+  const addsNewDate = localDate < request.covered_start_date || localDate > request.covered_end_date;
+  if (!addsNewDate) return request;
+
+  const { data, error } = await admin
+    .from("study_recovery_requests")
+    .update({
+      covered_start_date: startDate,
+      covered_end_date: endDate,
+      covered_missed_days: Math.max(1, request.covered_missed_days) + 1,
+    })
+    .eq("id", request.id)
+    .eq("status", "pending")
+    .select(recoverySelect)
+    .single();
+
+  if (error) throw error;
+  return data as RecoveryRequestRow;
 }
 
 export async function loadSlackTarget(admin: AdminClient, userId: string) {
@@ -210,6 +280,21 @@ async function loadPendingRecoveryRequest(
   return (data as RecoveryRequestRow | null) ?? null;
 }
 
+async function loadPendingAttendanceRecoveryRequest(admin: AdminClient, userId: string) {
+  const { data, error } = await admin
+    .from("study_recovery_requests")
+    .select(recoverySelect)
+    .eq("user_id", userId)
+    .eq("trigger_type", "missed_attendance")
+    .eq("status", "pending")
+    .order("created_at", { ascending: true })
+    .limit(1)
+    .maybeSingle();
+
+  if (error) throw error;
+  return (data as RecoveryRequestRow | null) ?? null;
+}
+
 async function recordRecoveryDelivery(
   admin: AdminClient,
   target: SlackTargetRow,
@@ -243,18 +328,22 @@ function buildRecoveryBlocks(
       ? "사유와 보충 계획을 제출해야 다음 공부 세션을 시작할 수 있습니다."
       : "오늘 카메라 자리 비움 경고가 2회 발생했습니다. 회복 루틴을 작성해야 다음 세션을 시작할 수 있습니다.";
 
+  const attendanceCoverage = request.trigger_type === "missed_attendance" && request.covered_missed_days > 1
+    ? ` 누적 결석 ${request.covered_missed_days}일(${request.covered_start_date} ~ ${request.covered_end_date})을 한 번에 정리합니다.`
+    : "";
+
   return [
     {
       type: "section",
       text: {
         type: "mrkdwn",
-        text: `*${title}*\n${detail}`,
+        text: `*${title}*\n${detail}${attendanceCoverage}`,
       },
     },
     {
       type: "section",
       fields: [
-        { type: "mrkdwn", text: `*날짜*\n${request.local_date}` },
+        { type: "mrkdwn", text: `*기간*\n${request.covered_start_date} ~ ${request.covered_end_date}` },
         { type: "mrkdwn", text: `*상태*\n회복 루틴 필요` },
       ],
     },
@@ -289,7 +378,7 @@ function buildRecoveryFallbackText(
       : "📷 자리 비움 반복 감지";
   return [
     `*${title}*`,
-    "사유와 보충 계획을 제출해야 다음 공부 세션을 시작할 수 있습니다.",
+    `사유와 보충 계획을 제출해야 다음 공부 세션을 시작할 수 있습니다.${request.trigger_type === "missed_attendance" && request.covered_missed_days > 1 ? ` 누적 결석 ${request.covered_missed_days}일을 한 번에 정리합니다.` : ""}`,
     "버튼: 회복 루틴 작성",
     appUrl,
   ].join("\n");

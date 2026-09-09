@@ -228,3 +228,35 @@
 - Vercel dpl_9W9pnmKaprmPcsyeMGPnG3kLN4de production READY, HEAD 및 production alias 일치.
 - https://study-room-attendance.vercel.app HTTP 200, entry asset 200, 10분 재시작 코치 UI 포함 확인. 무인증 coaching POST 401/no-store 확인.
 - 기존 변경 및 CLAUDE.md 보존. 로그인 사용자 전체 운영 흐름 검증 범위는 이전 기록과 동일.
+
+## 2026-09-09 - Recovery consistency audit and release
+
+### Current work
+
+- Reconcile recovery behavior across production DB, latest main, and deployed Slack code after the approved cross-device recovery fix.
+- Worktree: `C:/jini-dev/worktrees/study-room-recovery-audit`, branch `codex/recovery-consistency`, based on `e42b2a9`. The original dirty checkout is preserved.
+- Relevant PRD: `prd-slack-recovery-routines.md`.
+
+### Decisions and evidence
+
+- Production has the aggregate recovery schema, but latest main lacked the coverage fields, audit-row filter, and aggregate creation logic.
+- Deployed Slack v14 preserved coach actions but had regressed makeup todo dates to the historical missed date.
+- Dashboard recovery loading now pages all pending/submitted records with stable created_at/id ordering.
+- Merge preserves the newer goal pagination and coach integration. New tests execute real data loading/shared recovery/Slack submission logic with only external transports stubbed.
+- Restore the exact remote recovery migrations `20260827144548` and `20260827145316`; these are source-history repairs, not new production schema operations.
+- The approved Book/Review deletion is already applied as `20260909141751`; its exact SQL is also retained in this branch.
+
+### Status
+
+- Baseline: 470 tests passed on latest main.
+- Regression evidence: four recovery data/creation tests and three timezone submission tests failed against the old behavior and passed after the fixes.
+- Remaining: full tests, build, Edge checks, source review, production deployment and final verification.
+- Broader goal next candidates: monthly study report, dependency/security findings, and focused mobile parity after the current consistency fix is released.
+
+### Release validation
+
+- Full Node suite: 477 passed, 0 failed. Web TypeScript/Vite build passed; README assets check verified 24 references across three languages.
+- Edge gate now covers all eight deployed functions plus three coach pilot isolation tests; all passed.
+- Fixed pre-existing rebuild failures in attendance/camera/test-alarm: pin Supabase SDK to the existing 2.57.4 compatibility version, use SupabaseClient types, explicitly type response unions and the profile map.
+- Exact normalized SQL equality confirmed for all three restored remote migrations. No recovery data migration will be re-applied.
+- Deployment is the remaining release step.

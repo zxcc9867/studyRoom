@@ -23,7 +23,7 @@ type RecoveryRequest = {
   user_id: string;
   local_date: string;
   trigger_type: string;
-  status: "pending" | "submitted";
+  status: "pending" | "submitted" | "consolidated";
 };
 
 type StudyTodoRow = {
@@ -371,7 +371,7 @@ async function handleRecoverySubmission(admin: SupabaseClient, payload: SlackPay
 
   const makeupTodo = await createTodo(admin, {
     userId: recoveryRequest.user_id,
-    localDate: recoveryRequest.local_date,
+    localDate: await getUserLocalDate(admin, recoveryRequest.user_id),
     title: makeupTodoTitle,
     position: 0,
   });
@@ -413,6 +413,25 @@ async function loadRecoveryRequest(admin: SupabaseClient, requestId: string) {
   }
 
   return (data as RecoveryRequest | null) ?? null;
+}
+
+async function getUserLocalDate(admin: SupabaseClient, userId: string) {
+  const { data, error } = await admin
+    .from("profiles")
+    .select("time_zone")
+    .eq("user_id", userId)
+    .maybeSingle();
+  if (error) throw error;
+
+  const timeZone = typeof data?.time_zone === "string" && data.time_zone ? data.time_zone : "Asia/Seoul";
+  const parts = new Intl.DateTimeFormat("en-US", {
+    timeZone,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).formatToParts(new Date());
+  const values = Object.fromEntries(parts.map((part) => [part.type, part.value]));
+  return `${values.year}-${values.month}-${values.day}`;
 }
 
 async function createTodo(

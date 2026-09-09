@@ -12,7 +12,7 @@ test("web app exposes an in-app recovery routine modal and authenticated submit 
   assert.match(appSource, /blockingRecoveryRequests/);
   assert.match(appSource, /compareRecoveryRequests/);
   assert.match(appSource, /formatRecoveryRequestSummary/);
-  assert.match(appSource, /recoveryModalQueuePosition/);
+  assert.match(appSource, /formatRecoveryCoverage/);
   assert.match(appSource, /recovery-modal-summary/);
   assert.match(appSource, /openRecoveryRoutineModal/);
   assert.match(appSource, /submitRecoveryRoutine/);

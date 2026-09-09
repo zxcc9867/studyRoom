@@ -4142,3 +4142,33 @@ PR 생성 직전 원격 기본 브랜치를 fetch하고 문서 브랜치의 merg
 
 ### Production Deno bootstrap fix
 The initial five Edge deployments returned WORKER_ERROR500 because Deno1 has a global window and the shared AI browser guard threw during import. Reproduced with a server window alias, changed guard to require DOM document, added regression and deployed again. Auth rejection401 and scheduled200 confirm recovery. Slack snooze also needed per-isolate pilot loading after signature/owner checks.
+
+## 2026-09-09 - Recovery logic regressed across deployment layers
+
+### Situation and cause
+
+The aggregate recovery DB migration and attendance cron were deployed in August, but their source changes remained uncommitted. Latest main still loaded consolidated audit rows with a 100-row limit and created recovery requests per date. Slack v14 added coach handling from that older main and therefore put makeup todos on the original missed date again.
+
+### Resolution
+
+- Reconcile existing recovery patches on latest main in a separate worktree.
+- Resolve the dashboard conflict by preserving new goal pagination and adding stable pending/submitted recovery pagination.
+- Restore exact remote migration SQL/version filenames rather than applying old data updates again.
+- Keep existing coach Slack ownership checks and use the user's current local date for makeup todos.
+- Test the real functions through synthetic transport; four queue/creation cases and three timezone cases reproduced and then fixed the defects.
+
+### Tooling
+
+- Existing-file `apply_patch` still failed with `helper_unknown_error: apply deny-read ACLs`. Approved Git patches applied the same minimal edits; new files were created with `apply_patch`.
+- The three-way merge conflicted only where later goal pagination and older recovery query edits touched adjacent lines; resolved both behaviors explicitly.
+
+### Prevention
+
+Ship DB migrations, shared Edge function code, and consuming UI in the same reviewed release. Re-deploying an Edge function from stale source can overwrite an earlier production hotfix. Check migration version and SQL equality and preserve regression tests that exercise runtime behavior rather than only source strings.
+
+### Validation findings resolved in the same release
+
+- The first full run failed two goal-history tests because their query fake lacked the new PostgREST `in` method. Added the method to that goal-only fake; recovery filtering itself is tested through the real Supabase query builder.
+- The restored Slack date helper used the old generic ReturnType declaration; changed it to the existing SupabaseClient convention.
+- Expanding Deno checks found 40 pre-existing type errors in older notification functions: unpinned SDK resolution, createClient generic inference, success/error unions, and a profile Map inferred as unknown.
+- Pinned the SDK to 2.57.4, corrected explicit types and missing-target nullability, and verified all eight entrypoints plus the pilot tests. Runtime notification/attendance decisions were preserved.

@@ -1,5 +1,5 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
-import { createClient } from "jsr:@supabase/supabase-js@2";
+import { createClient, type SupabaseClient } from "jsr:@supabase/supabase-js@2.57.4";
 
 type SlackTarget = {
   id: string;
@@ -107,7 +107,7 @@ Deno.serve(async (request) => {
   }
 });
 
-async function getAuthenticatedUserId(admin: ReturnType<typeof createClient>, request: Request) {
+async function getAuthenticatedUserId(admin: SupabaseClient, request: Request): Promise<{ response: Response } | { userId: string }> {
   const authHeader = request.headers.get("authorization") ?? "";
   const jwt = authHeader.replace(/^Bearer\s+/i, "").trim();
   if (!jwt) {
@@ -125,7 +125,7 @@ async function getAuthenticatedUserId(admin: ReturnType<typeof createClient>, re
   return { userId: user.id };
 }
 
-async function loadSlackTarget(admin: ReturnType<typeof createClient>, userId: string | null) {
+async function loadSlackTarget(admin: SupabaseClient, userId: string | null) {
   let query = admin
     .from("notification_targets")
     .select("id,user_id,destination")
@@ -147,7 +147,7 @@ async function loadSlackTarget(admin: ReturnType<typeof createClient>, userId: s
   return ((data ?? []) as SlackTarget[]).find((target) => target.destination?.trim());
 }
 
-async function getLocalDate(admin: ReturnType<typeof createClient>, userId: string) {
+async function getLocalDate(admin: SupabaseClient, userId: string) {
   const { data, error } = await admin
     .from("profiles")
     .select("time_zone")
@@ -171,7 +171,7 @@ function getLocalDateForTimeZone(timeZone: string) {
   }).format(new Date());
 }
 
-async function loadTodos(admin: ReturnType<typeof createClient>, userId: string, localDate: string) {
+async function loadTodos(admin: SupabaseClient, userId: string, localDate: string) {
   const { data, error } = await admin
     .from("study_todos")
     .select("title,is_completed,start_time,end_time,position,created_at")
@@ -233,7 +233,7 @@ function parseRecoveryRequestId(payload: unknown) {
   return isUuid(recoveryRequestId) ? recoveryRequestId : "";
 }
 
-async function loadRecoveryRequest(admin: ReturnType<typeof createClient>, recoveryRequestId: string) {
+async function loadRecoveryRequest(admin: SupabaseClient, recoveryRequestId: string) {
   const { data, error } = await admin
     .from("study_recovery_requests")
     .select("id,local_date,trigger_type,status")
@@ -375,7 +375,7 @@ function formatTodoWithSchedule(todo: StudyTodo) {
 }
 
 async function recordDelivery(
-  admin: ReturnType<typeof createClient>,
+  admin: SupabaseClient,
   target: SlackTarget,
   localDate: string,
   status: "sent" | "failed",

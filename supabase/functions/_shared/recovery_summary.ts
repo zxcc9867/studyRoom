@@ -108,7 +108,7 @@ export async function sendWeeklyRecoverySummaries(admin: AdminClient, nowIso: st
     throw profileError;
   }
 
-  const profileByUserId = new Map((profiles ?? []).map((profile: ProfileRow) => [profile.user_id, profile]));
+  const profileByUserId = new Map<string, ProfileRow>((profiles ?? []).map((profile: ProfileRow) => [profile.user_id, profile]));
   const results = [];
 
   for (const target of slackTargets) {

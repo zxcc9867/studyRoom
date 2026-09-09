@@ -368,6 +368,9 @@ type StudyGoal = {
 type StudyRecoveryRequest = {
   id: string;
   local_date: string;
+  covered_start_date: string;
+  covered_end_date: string;
+  covered_missed_days: number;
   trigger_type: "missed_attendance" | "camera_absence_repeat";
   status: "pending" | "submitted";
   reason: string | null;
@@ -842,9 +845,6 @@ function DashboardApp() {
   );
   const blockingRecoveryRequests = pendingRecoveryRequests;
   const autoOpenRecoveryRequests = useMemo(() => blockingRecoveryRequests, [blockingRecoveryRequests]);
-  const recoveryModalQueuePosition = recoveryModalRequest
-    ? pendingRecoveryRequests.findIndex((request) => request.id === recoveryModalRequest.id) + 1
-    : 0;
   const recoveryModalRemainingCount = recoveryModalRequest
     ? pendingRecoveryRequests.filter((request) => request.id !== recoveryModalRequest.id).length
     : 0;
@@ -3223,7 +3223,7 @@ function DashboardApp() {
     setPledgeTodoTitle("");
     if (nextBlockingRequest) {
       setMessage(
-        `회복 루틴을 제출했습니다. 아직 ${remainingRequests.length}건이 남아 있습니다: ${formatRecoveryRequestSummary(nextBlockingRequest)}`,
+        `회복 루틴을 제출했습니다. 다음 회복 루틴이 남아 있습니다: ${formatRecoveryRequestSummary(nextBlockingRequest)}`,
       );
       openRecoveryRoutineModal(nextBlockingRequest, { auto: true });
     } else if (remainingRequests.length > 0) {
@@ -4850,16 +4850,14 @@ function DashboardApp() {
             <div>
               <p className="eyebrow">recovery required</p>
               <h3>회복 루틴 필요</h3>
-              <p>
-                Slack에서 결석/이탈 사유와 보충 계획을 제출해야 다음 공부 세션을 시작할 수 있습니다.
-              </p>
+              <p>누적 결석은 하나의 회복 루틴으로 정리합니다. 사유와 오늘의 보충 계획을 제출한 뒤 다시 시작하세요.</p>
             </div>
             <ul>
               {blockingRecoveryRequests.map((request) => (
                 <li key={request.id}>
-                  <span>{request.local_date}</span>
+                  <span>{formatRecoveryCoverage(request)}</span>
                   <strong>
-                    {request.trigger_type === "missed_attendance" ? "출석 실패" : "자리 비움 반복"}
+                    {getRecoveryRequestTitle(request)}
                   </strong>
                 </li>
               ))}
@@ -5628,13 +5626,13 @@ function DashboardApp() {
                 Slack에서 작성해도 되고, 여기에서 바로 사유와 보충 계획을 제출해도 됩니다.
               </p>
               <div className="recovery-modal-summary">
-                <span>{formatTodoDate(recoveryModalRequest.local_date)}</span>
+                <span>{formatRecoveryCoverage(recoveryModalRequest)}</span>
                 <strong>{getRecoveryRequestTitle(recoveryModalRequest)}</strong>
                 <small>
-                  {recoveryModalQueuePosition > 0
-                    ? `${recoveryModalQueuePosition}/${pendingRecoveryRequests.length}번째 회복 루틴`
+                  {isConsolidatedAttendanceRecovery(recoveryModalRequest)
+                    ? "누적 결석을 한 번의 회복 루틴으로 정리합니다."
                     : "회복 루틴"}
-                  {recoveryModalRemainingCount > 0 ? ` · 제출 후 ${recoveryModalRemainingCount}건 남음` : ""}
+                  {recoveryModalRemainingCount > 0 ? ` · 제출 후 다른 회복 루틴 ${recoveryModalRemainingCount}건 남음` : ""}
                 </small>
               </div>
               <form className="recovery-form" onSubmit={submitRecoveryRoutine}>
@@ -6343,7 +6341,21 @@ function compareRecoveryRequests(left: StudyRecoveryRequest, right: StudyRecover
 }
 
 function getRecoveryRequestTitle(request: StudyRecoveryRequest) {
-  return request.trigger_type === "missed_attendance" ? "출석 실패" : "자리 비움 반복";
+  if (request.trigger_type === "camera_absence_repeat") return "자리 비움 반복";
+  return isConsolidatedAttendanceRecovery(request)
+    ? `누적 출석 실패 ${request.covered_missed_days}일`
+    : "출석 실패";
+}
+
+function isConsolidatedAttendanceRecovery(request: StudyRecoveryRequest) {
+  return request.trigger_type === "missed_attendance" && request.covered_missed_days > 1;
+}
+
+function formatRecoveryCoverage(request: StudyRecoveryRequest) {
+  if (!isConsolidatedAttendanceRecovery(request)) {
+    return formatTodoDate(request.local_date);
+  }
+  return `${formatTodoDate(request.covered_start_date)} ~ ${formatTodoDate(request.covered_end_date)} · 결석 ${request.covered_missed_days}일`;
 }
 
 function formatRecoveryRequestSummary(request: StudyRecoveryRequest) {

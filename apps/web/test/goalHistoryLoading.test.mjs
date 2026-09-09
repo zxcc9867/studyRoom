@@ -13,6 +13,7 @@ function fixtureClient(goals, failureOnSecondPage = false) {
         eq(field, value) { if (table === "study_goals") calls.push(["eq", field, value]); return query; },
         order(field) { if (table === "study_goals") calls.push(["order", field]); return query; },
         not() { return query; },
+        in() { return query; },
         limit() { return query; },
         maybeSingle() { return Promise.resolve({ data: null, error: null }); },
         range(from, to) { range = [from, to]; if (table === "study_goals") calls.push(["range", from, to]); return query; },

@@ -135,6 +135,7 @@ A study streak is not a static badge here. The avatar walks across the island, c
 - Weekday and weekend attendance goals with late-study recovery.
 - Browser-only presence classification with a five-minute warning and a ten-minute study-time pause.
 - Recovery requests for missed attendance or repeated absence.
+- Accumulated missed days share one recovery routine across devices; the covered dates and day count remain visible, and makeup tasks are scheduled for the user's current local date.
 - Weekly recovery summaries and reason categories.
 
 ### Notifications and diagnostics

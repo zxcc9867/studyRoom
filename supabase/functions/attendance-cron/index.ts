@@ -1,5 +1,5 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
-import { createClient } from "jsr:@supabase/supabase-js@2";
+import { createClient, type SupabaseClient } from "jsr:@supabase/supabase-js@2.57.4";
 import webpush from "npm:web-push@3.6.7";
 import {
   createRecoveryRequest,
@@ -152,7 +152,7 @@ Deno.serve(async (request) => {
   );
 });
 
-async function loadTargets(admin: ReturnType<typeof createClient>, userIds: string[]) {
+async function loadTargets(admin: SupabaseClient, userIds: string[]) {
   if (userIds.length === 0) {
     return [] as NotificationTarget[];
   }
@@ -171,7 +171,7 @@ async function loadTargets(admin: ReturnType<typeof createClient>, userIds: stri
   return (data ?? []) as NotificationTarget[];
 }
 
-async function loadTodosByReminder(admin: ReturnType<typeof createClient>, reminders: DueReminder[]) {
+async function loadTodosByReminder(admin: SupabaseClient, reminders: DueReminder[]) {
   if (reminders.length === 0) {
     return new Map<string, StudyTodo[]>();
   }
@@ -201,7 +201,7 @@ async function loadTodosByReminder(admin: ReturnType<typeof createClient>, remin
 }
 
 async function sendReminderNotifications(
-  admin: ReturnType<typeof createClient>,
+  admin: SupabaseClient,
   reminders: DueReminder[],
   targets: NotificationTarget[],
   todoMap: Map<string, StudyTodo[]>,
@@ -229,7 +229,7 @@ async function sendReminderNotifications(
 }
 
 async function sendTodoScheduleReminderNotifications(
-  admin: ReturnType<typeof createClient>,
+  admin: SupabaseClient,
   reminders: DueTodoScheduleReminder[],
 ) {
   const results = [];
@@ -309,7 +309,7 @@ async function sendTodoScheduleReminderNotifications(
 }
 
 async function sendSessionLeaseWarningNotifications(
-  admin: ReturnType<typeof createClient>,
+  admin: SupabaseClient,
   warnings: DueSessionLeaseWarning[],
 ) {
   const results = [];
@@ -358,7 +358,7 @@ async function sendSessionLeaseWarningTarget(channelId: string, warning: DueSess
   }
 }
 async function sendMissedRecoveryRequests(
-  admin: ReturnType<typeof createClient>,
+  admin: SupabaseClient,
   missedRows: MissedAttendance[],
 ) {
   const results = [];

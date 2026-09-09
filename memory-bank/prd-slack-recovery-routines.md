@@ -125,3 +125,14 @@ Students using the Slack notification channel who want stronger accountability a
 - `attendance-cron` sends a Monday 08:00 local-time Slack summary for submitted recovery routines from the previous Monday-Sunday week.
 - `study_recovery_weekly_reports` stores the sent summary and prevents duplicate weekly Slack sends per user/week.
 - If no submitted recovery routines exist for the previous week, no Slack weekly summary is sent.
+## 2026-09-09 Update: Cross-device recovery consistency
+
+- Reflect the approved aggregate-recovery behavior in web, Slack, shared creation code, and migration history together.
+- Keep at most one pending missed-attendance recovery per user. Later missed days extend its date coverage until submission; this supersedes the earlier per-user/date attendance success metric.
+- Preserve old requests as `consolidated` audit rows, excluding them from the visible recovery queue and history.
+- Load every pending/submitted recovery page with stable ordering so an older pending request cannot disappear behind a recent-history limit.
+- Show the covered range and missed-day count and explain that one submission resolves the accumulated attendance recovery.
+- Keep camera-absence recovery separate and idempotent for the same user/date.
+- Date makeup todos using the submitting user's current local date in both the authenticated app RPC and Slack handler.
+- Preserve coach Slack actions and authorization checks when reconciling the handler.
+- Store already-applied migrations with their actual remote versions; do not replay the consolidation data update on production.

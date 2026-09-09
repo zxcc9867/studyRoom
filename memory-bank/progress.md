@@ -6039,3 +6039,34 @@
 - Vercel dpl_9W9pnmKaprmPcsyeMGPnG3kLN4de production READY, HEAD 및 production alias 일치.
 - https://study-room-attendance.vercel.app HTTP 200, entry asset 200, 10분 재시작 코치 UI 포함 확인. 무인증 coaching POST 401/no-store 확인.
 - 기존 변경 및 CLAUDE.md 보존. 로그인 사용자 전체 운영 흐름 검증 범위는 이전 기록과 동일.
+
+## 2026-09-09 - Recovery consistency improvement
+
+### Completed implementation
+
+- Audited latest `origin/main` against production schema and deployed Slack v14 and reproduced missing aggregation, historical-date todo creation, and the 100-record recovery visibility limit.
+- Reapplied only the existing recovery changes onto an isolated latest-main worktree, preserving goal pagination and coach Slack behavior.
+- Added stable pagination of all pending/submitted recovery rows and excluded consolidated audit rows.
+- Added seven behavioral regression cases for two-device loads, old pending visibility beyond 500 records, aggregate extension/retry, camera separation, and three user time zones.
+- Restored exact remote recovery migration versions and the already-applied Book/Review deletion migration.
+
+### Files
+
+- `apps/web/src/dashboardData.ts`, `apps/web/src/main.tsx`, recovery tests.
+- `supabase/functions/_shared/recovery.ts`, `supabase/functions/slack-recovery-interactions/index.ts`, three restored migration files.
+- Three README translations and recovery PRD/active-context/implementation-plan/progress/trouble-shooting.
+
+### Verification and release
+
+- Latest-main baseline: 470 tests passed.
+- New regression tests: observed old-behavior failures, then all seven passed.
+- Full-suite/build/Edge and production results will be recorded after execution.
+- Original checkout and unrelated uncommitted changes remain preserved.
+
+### Final local validation
+
+- 477 Node tests passed, 0 failed.
+- Web TypeScript/Vite production build passed. README assets: 24 verified.
+- Eight Edge Function checks and three pilot tests passed.
+- Three restored migrations match the remote history SQL exactly after newline normalization.
+- Expanded the permanent Edge CI gate to include attendance-cron, camera-presence-warning and slack-test-alarm.

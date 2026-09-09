@@ -4,20 +4,19 @@ type QueryError = { message?: string; code?: string } | null;
 type PageResult = { data: unknown[] | null; error: QueryError };
 
 export async function loadDashboardData(client: SupabaseClient, userId: string) {
-  const [profileResult, attendanceResult, sessionData, todoData, sessionTodoLinkData, goalData, recoveryResult, latestReflectionResult] = await Promise.all([
+  const [profileResult, attendanceResult, sessionData, todoData, sessionTodoLinkData, goalData, recoveryData, latestReflectionResult] = await Promise.all([
     client.from("profiles").select("*").eq("user_id", userId).maybeSingle(),
     client.from("attendance_days").select("*").eq("user_id", userId).order("local_date", { ascending: false }).limit(370),
     fetchAllPages((from, to) => client.from("study_sessions").select("*").eq("user_id", userId).order("started_at", { ascending: false }).range(from, to)),
     fetchAllPages((from, to) => client.from("study_todos").select("*").eq("user_id", userId).order("local_date", { ascending: false }).order("position", { ascending: true }).order("created_at", { ascending: true }).range(from, to)),
     fetchAllPages((from, to) => client.from("study_session_todos").select("*").eq("user_id", userId).order("linked_at", { ascending: false }).range(from, to)),
     fetchAllPages((from, to) => client.from("study_goals").select("*").eq("user_id", userId).order("status", { ascending: true }).order("target_date", { ascending: true }).order("id", { ascending: true }).range(from, to)),
-    client.from("study_recovery_requests").select("id,local_date,trigger_type,status,reason,makeup_todo_title,pledge_todo_title,created_at").eq("user_id", userId).order("created_at", { ascending: false }).limit(100),
+    fetchAllPages((from, to) => client.from("study_recovery_requests").select("id,local_date,covered_start_date,covered_end_date,covered_missed_days,trigger_type,status,reason,makeup_todo_title,pledge_todo_title,created_at").eq("user_id", userId).in("status", ["pending", "submitted"]).order("created_at", { ascending: false }).order("id", { ascending: true }).range(from, to)),
     client.from("study_session_reflections").select("id,session_id,focus_score,energy_score,interruption_reason,note,next_action,created_at").eq("user_id", userId).not("next_action", "is", null).order("created_at", { ascending: false }).limit(1).maybeSingle(),
   ]);
 
   assertQuerySucceeded("프로필", profileResult.error);
   assertQuerySucceeded("출석 기록", attendanceResult.error);
-  assertQuerySucceeded("회복 루틴", recoveryResult.error);
   assertQuerySucceeded("최근 다음 행동", latestReflectionResult.error);
 
   return {
@@ -27,7 +26,7 @@ export async function loadDashboardData(client: SupabaseClient, userId: string) 
     todoData,
     sessionTodoLinkData,
     goalData,
-    recoveryData: recoveryResult.data ?? [],
+    recoveryData,
     latestReflectionData: latestReflectionResult.data ?? null,
   };
 }

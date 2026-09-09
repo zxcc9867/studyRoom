@@ -1,5 +1,5 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
-import { createClient } from "jsr:@supabase/supabase-js@2";
+import { createClient, type SupabaseClient } from "jsr:@supabase/supabase-js@2.57.4";
 import {
   createRecoveryRequest,
   sendRecoveryRequestSlackMessage,
@@ -99,7 +99,7 @@ Deno.serve(async (request) => {
   }
 });
 
-async function getAuthenticatedUser(admin: ReturnType<typeof createClient>, request: Request) {
+async function getAuthenticatedUser(admin: SupabaseClient, request: Request): Promise<{ response: Response } | { user: { id: string } }> {
   const authHeader = request.headers.get("authorization") ?? "";
   const jwt = authHeader.replace(/^Bearer\s+/i, "").trim();
   if (!jwt) {
@@ -117,7 +117,7 @@ async function getAuthenticatedUser(admin: ReturnType<typeof createClient>, requ
   return { user };
 }
 
-function parseWarningPayload(payload: unknown) {
+function parseWarningPayload(payload: unknown): { response: Response } | { sessionId: string; absenceSeconds: number; detectedAt: string; eventType: PresenceWarningEventType } {
   const data = payload && typeof payload === "object" ? (payload as Record<string, unknown>) : null;
   const sessionId = typeof data?.sessionId === "string" ? data.sessionId : "";
   const absenceSeconds = Number(data?.absenceSeconds);
@@ -158,7 +158,7 @@ function parseEventType(value: unknown): PresenceWarningEventType | null {
   return null;
 }
 
-async function loadStudySession(admin: ReturnType<typeof createClient>, sessionId: string) {
+async function loadStudySession(admin: SupabaseClient, sessionId: string) {
   const { data, error } = await admin
     .from("study_sessions")
     .select("id,user_id,local_date,status")
@@ -172,7 +172,7 @@ async function loadStudySession(admin: ReturnType<typeof createClient>, sessionI
   return data as StudySessionRow | null;
 }
 
-async function loadSlackTarget(admin: ReturnType<typeof createClient>, userId: string) {
+async function loadSlackTarget(admin: SupabaseClient, userId: string) {
   const { data, error } = await admin
     .from("notification_targets")
     .select("id,user_id,destination")
@@ -187,11 +187,11 @@ async function loadSlackTarget(admin: ReturnType<typeof createClient>, userId: s
     throw error;
   }
 
-  return ((data ?? []) as SlackTarget[]).find((target) => target.destination?.trim());
+  return ((data ?? []) as SlackTarget[]).find((target) => target.destination?.trim()) ?? null;
 }
 
 async function recordPresenceEvent(
-  admin: ReturnType<typeof createClient>,
+  admin: SupabaseClient,
   studySession: StudySessionRow,
   eventType: PresenceWarningEventType,
   absenceSeconds: number,
@@ -223,7 +223,7 @@ async function recordPresenceEvent(
 }
 
 async function countAbsenceWarningsForDate(
-  admin: ReturnType<typeof createClient>,
+  admin: SupabaseClient,
   userId: string,
   localDate: string,
 ) {
@@ -242,7 +242,7 @@ async function countAbsenceWarningsForDate(
 }
 
 async function sendRepeatedAbsenceRecoveryRequest(
-  admin: ReturnType<typeof createClient>,
+  admin: SupabaseClient,
   studySession: StudySessionRow,
   target: SlackTarget | null,
 ) {
@@ -350,7 +350,7 @@ function buildWarningMessage(appUrl: string, eventType: PresenceWarningEventType
 }
 
 async function recordDelivery(
-  admin: ReturnType<typeof createClient>,
+  admin: SupabaseClient,
   target: SlackTarget,
   localDate: string,
   status: "sent" | "failed",

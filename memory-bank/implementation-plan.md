@@ -1154,3 +1154,22 @@ docs/images/study-room-thumbnail.png
 - Leased worker jobs carry input versions; final result RPCs check current lease and enabled state. Provider work has a shared 50-second deadline, requests a 12-second bound and streaming 2MiB response cap. Git analyzes one selected repository per job with at most four source files; large Google snapshots above999 events fail closed.
 - Notifications have independent adapters and per-event/channel/target idempotency. Explicitly enabled and connected channels only. Ambiguous outcomes do not trigger blind resend or cross-channel fallback.
 - Deploy additive migration before new functions and web; retain existing attendance cron. Production application is pending explicit remote project approval. Pilot allowlist alone never opts a user into coaching or notifications.
+
+## Supabase 변경 이력
+
+### 2026-09-09 - Recovery source and migration consistency
+
+- 변경 대상: dashboard recovery query, shared recovery creation, Slack recovery submission; existing aggregate schema.
+- 변경 내용: coverage fields in web/shared types and queries; pending/submitted-only stable pagination; reuse and extend pending attendance aggregate; separate camera requests; makeup todo dated in profile time zone.
+- 변경 이유: prior DB/Edge changes remained outside Git main and the later Slack coach release restored the older date behavior.
+- 관련 기능: cross-device recovery queue and app/Slack makeup planning.
+- 마이그레이션 파일: restored exact remote SQL in `20260827144548_consolidate_pending_attendance_recovery.sql` and `20260827145316_index_consolidated_recovery_reference.sql`.
+- 확인 방법: compare remote history statements with local files; test real Supabase queries through a synthetic REST transport, shared create/extend behavior, and real Slack submission with fixed time zones.
+- 주의 사항: restored recovery migrations are already applied; do not run the consolidation data update again. Other historical migration version differences remain outside this release.
+- The separate, user-approved unused table deletion `20260909141751_drop_unused_book_review_tables.sql` removed Book (12 rows) and Review (56 rows). Remote verification found both absent and the other 30 public tables unchanged.
+
+### Edge reproducibility
+
+- The attendance/camera/test-alarm functions now share the pinned Supabase SDK 2.57.4 used by the coach-compatible Slack handler.
+- Use explicit SupabaseClient types instead of ReturnType over generic createClient; response helpers use explicit success/error unions.
+- test:edge covers all eight Edge entrypoints, not only the coach subset, so older notification functions cannot bypass the build gate.
