@@ -333,3 +333,13 @@
 - Fetched origin/main and confirmed it matches the worktree base 01d157b. The original dirty checkout remains untouched.
 - Release path: normal fast-forward push to main, existing GitHub Actions workflow, then Vercel production verification. No Supabase migration or Edge redeployment is required.
 - Deployment is pending; success will be recorded only after CI and live checks complete. Physical-device validation and dependency-security follow-up remain separate.
+
+### Production verification completed
+
+- Application commit 0f23f752e7d88fb09d5ac085f0b879749ba67e30 was pushed to main; GitHub Actions 34488632591 completed successfully, including all gates and the synthetic free-coaching check.
+- Vercel dpl_9Pq4cjqx7xiyMbZVjcoL7ZcyEogV is production READY with the matching application commit and study-room-attendance.vercel.app alias. Vercel build duration was approximately 33 seconds.
+- Live checks passed: page, index-D8Em-tMe.js, StudyReportSection-enyNap4v.js and StudyReportSection-D4Vrp-PI.css returned HTTP 200 with correct content types. Unauthenticated coaching POST returned 401/no-store.
+- After more than 60 seconds from READY, Vercel runtime-error clusters and deployment-scoped error/fatal logs returned no matches for the initial observation window. This is not a claim about long-term or signed-in user behavior.
+- Account is on Hobby; external drain/integration configuration was not established by the available tools. No new monitoring integration was installed.
+- No Supabase schema/data or Edge deployment changes, no real-account submissions, and no app-store release. Original checkout remains untouched.
+- Final verification notes are recorded in a documentation-only follow-up commit with [skip ci], following the existing repository convention; the deployed application commit remains the one above.

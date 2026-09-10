@@ -6146,3 +6146,12 @@
 - User requested deployment. Revalidated all 501 Node tests, web build, mobile:check, docs:check, eight Edge Function checks, three pilot tests and whitespace checks successfully.
 - origin/main is still 01d157b; release will include the approved report/mobile implementation and documentation, without modifying the original checkout or production database.
 - Commit/push, GitHub Actions outcome, Vercel READY/commit/alias and live responses remain to be verified.
+
+#### Production release verified
+
+- Application commit: 0f23f752e7d88fb09d5ac085f0b879749ba67e30.
+- CI: https://github.com/zxcc9867/studyRoom/actions/runs/34488632591 - completed/success; all test, native, Edge, build, synthetic AI and deploy steps passed.
+- Vercel: dpl_9Pq4cjqx7xiyMbZVjcoL7ZcyEogV, production READY, matching commit/alias; build approximately 33 seconds.
+- https://study-room-attendance.vercel.app/ plus published entry/report JS/report CSS returned HTTP 200. Coaching auth guard returned 401 with no-store.
+- Initial post-READY error scan (more than 60 seconds after readiness) found no runtime error clusters or error/fatal log entries. External drains/integrations and real-account flows were not verified.
+- Final deployment records are a docs-only [skip ci] follow-up; no duplicate application deployment, Supabase mutation or mobile-store publication. Physical-device and dependency-security work remain outside this release.
