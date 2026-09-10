@@ -1173,3 +1173,36 @@ docs/images/study-room-thumbnail.png
 - The attendance/camera/test-alarm functions now share the pinned Supabase SDK 2.57.4 used by the coach-compatible Slack handler.
 - Use explicit SupabaseClient types instead of ReturnType over generic createClient; response helpers use explicit success/error unions.
 - test:edge covers all eight Edge entrypoints, not only the coach subset, so older notification functions cannot bypass the build gate.
+
+### 2026-09-09 - Verified deployed recovery runtime
+
+- Changed targets: attendance-cron v33, camera-presence-warning v10, slack-recovery-interactions v15, slack-test-alarm v10.
+- Deployment used the Supabase CLI API path for the four functions only. Existing verify_jwt=false values were preserved, not newly disabled.
+- Authorization remains in function code: cron secret, authenticated user checks or verified Slack signatures. All four unauthenticated probes returned 401 after deployment.
+- Vercel production deployment `dpl_78wFkC5ZxAHVPk5RS3WXbRnei2hh` serves commit `01d157b`; CI `34365469581` succeeded and public page/entry asset returned 200.
+- Previously applied recovery migrations were not replayed. The approved Book/Review deletion migration `20260909141751` remains recorded and both unused tables are absent.
+
+## 2026-09-10 - Report data boundary and native dependency isolation
+
+### Architecture / API Conventions
+
+- StudyReportSection first reads owned profiles.time_zone through the authenticated client (missing/null zone follows the existing RPC's UTC fallback). Parent profile zone is an invalidation hint, not a date authority.
+- studyReports.mjs computes UTC date-key calendar boundaries from the user's saved local today. It reuses weekly metric aggregation with mandatory canonical summaries; no active/paused timer estimate enters reports.
+- studyReportData.mjs queries the two selected ranges through get_study_period_summary and stable 500-row pages of owner-filtered attendance, completed sessions and todos. Reflection session IDs are batched in 100s, with owner checks and pagination. Owned incomplete todos are loaded separately for action matching.
+- Requests have a 15-second deadline, identity/version guard, abort cleanup and explicit loading/error/ready states. New owner/time-zone/period/revision keys hide old data synchronously before effects.
+- Main no longer fetches unused current/previous-week summaries; Today/month dashboard totals retain their existing separate implementation.
+- Pure modules, typed declarations, presentational existing weekly view and a small scoped stylesheet keep the report lazy-loaded. Native date/month inputs preserve browser partial-segment editing and synchronize external period navigation.
+
+### Tech Stack / Testing Strategy
+
+- Expo 53.0.27 uses mobile-local React 19.0.0, a single RN 0.79.6 anchored by root devDependency, and AsyncStorage 2.1.2. Web React/DOM stay 19.2.7.
+- Android/iOS-only Metro aliases keep hoisted Expo imports on native React/JSX/RN; other imports/platform resolution are unchanged. Mobile-local index.js registers App.
+- mobile:check executes installed compatibility guards/Metro resolution and TypeScript; CI includes it. Android/iOS export is distinct from device/native-toolchain validation.
+- Report tests exercise real Supabase query construction with synthetic fetch, period arithmetic, canonical validation, request races and actual React rendering. Run node scripts/serve-study-report-fixture.mjs for a local no-credentials browser fixture at 127.0.0.1:4179.
+
+### Database / Deployment / Security Notes
+
+- Supabase query consumers changed only; no table/policy/function/migration/environment changes or remote record writes.
+- The existing authenticated RPC and RLS remain authoritative. No new secret, AI request or scheduled notification.
+- npm audit findings remain documented, not automatically fixed. No forced/major dependency upgrade.
+- Latest shared instructions require explicit commit/push/deploy requests; this implementation remains local.

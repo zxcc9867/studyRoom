@@ -6070,3 +6070,79 @@
 - Eight Edge Function checks and three pilot tests passed.
 - Three restored migrations match the remote history SQL exactly after newline normalization.
 - Expanded the permanent Edge CI gate to include attendance-cron, camera-presence-warning and slack-test-alarm.
+
+### Production release verified
+
+- Main code commit: `01d157b0d6bdb1043954caae65498c20f44cf4fe`.
+- GitHub Actions: https://github.com/zxcc9867/studyRoom/actions/runs/34365469581 - completed/success; tests, README assets, Edge checks, build, synthetic free coaching check and deploy steps passed.
+- Vercel: `dpl_78wFkC5ZxAHVPk5RS3WXbRnei2hh`, production READY, matching commit and production alias.
+- https://study-room-attendance.vercel.app/ and entry asset `/assets/index-gy4oKZiu.js`: HTTP 200; recovery coverage code found in the published bundle.
+- Supabase: attendance-cron v33, camera-presence-warning v10, slack-recovery-interactions v15, slack-test-alarm v10 are ACTIVE. Four unauthenticated empty POST probes returned 401.
+- Book/Review deletion verified again through MCP: both relations absent, 30 public tables remain, deletion migration present.
+- No real Slack messages or signed-in user recovery submissions were performed. Existing regression tests cover those paths with synthetic data.
+- Remaining broader goal candidates: monthly reports, dependency/security review and focused mobile parity. This release is verified; the broad goal is not marked complete.
+
+## 2026-09-09 - Report coverage and readiness audit
+
+- Confirmed current-week-only review and missing monthly/completed-week report navigation from actual source and UI props.
+- Reproduced an incorrect provisional 0-minute display with actual component rendering for a one-hour current-week contribution; no real account or network data was used.
+- Existing four related test files passed all 18 tests. Loading/error and historical/monthly coverage are not covered by those tests.
+- Added report-feature-audit.md; updated active context and troubleshooting. Existing implementation and deployed data remain unchanged.
+- Proposed a bounded week/month extension with reliable selected-period loading and requested design approval before implementation. No commit, push or deployment this audit turn.
+
+## 2026-09-10 - Dependency scope and native runtime investigation
+
+- The npm registry audit request was blocked before execution; informed the user and requested consent for metadata-only inspection. No bypass or automated package repair.
+- Classified package-lock dependency closures offline and read actual web deployment/API imports; did not assert current vulnerability counts.
+- Compared installed native dependencies with Expo's bundled compatibility table and reproduced the installed React Native guard rejecting React 19.2.7 instead of required 19.0.0.
+- Mobile TypeScript check passed, showing it does not cover this renderer startup constraint. Full native device launch remains unverified.
+- Added dependency-compatibility-audit.md and updated active context/troubleshooting; only documentation changed. Pending: report design, registry audit consent, and scoped native compatibility repair decision.
+
+## 2026-09-10 - Goal awaiting user decision
+
+- Confirmed unchanged source HEAD 01d157b and documentation-only local modifications. No further runtime, database, package or deployment changes.
+- The previous turn made diagnostic progress; this turn revalidated the same unapproved report design for the third consecutive goal turn. No live deployment/test process remains to wait on.
+- Report and native-runtime findings are reproducible and recorded; implementation is not approved under the current design gate. The separate npm audit metadata transfer remains unapproved.
+- Broad goal is blocked pending user input, not achieved. Do not repeat the same audits or retry the denied registry call automatically; continue from the two audit records when the user supplies the decisions.
+
+## Timeline
+
+### 2026-09-10 - 승인된 리포트·모바일 호환성 개선
+
+#### 완료한 작업
+
+- 내 페이지에 주간/월간 학습 리포트와 과거 날짜·월 선택, 이전/다음/현재 기간 이동을 추가했다.
+- 현재 기간은 오늘까지의 동일 경과 일수, 완료 기간은 전체 기간끼리 비교한다. 월별 일수 차이는 양쪽 날짜·일수와 일평균으로 드러낸다.
+- 계정 프로필 시간대가 준비되기 전에는 지표를 표시하지 않는다. 선택 기간의 owner-scoped 페이지 조회, canonical summary 필수 검증, 오류/재시도와 취소를 구현했다.
+- 기존 회고 다음 행동의 todo 연결 및 반복 방해 안내를 유지했다.
+- 모바일 native React/RN/AsyncStorage 버전과 Metro/entry를 정리하고 CI에 mobile:check를 추가했다. 감사 결과와 사용 경로 분류를 기록했다.
+
+#### 변경된 파일
+
+- 웹: StudyReportSection.tsx, studyReports/studyReportData 모듈·타입·CSS, WeeklyReviewSection/weeklyReview/main 연결.
+- 검증: studyReport*.test.mjs, 합성 브라우저 fixture/server, mobile-compatibility 검사·테스트.
+- 모바일: package.json, index.js, metro.config.cjs, root package/lock 및 CI.
+- 문서: 3개 언어 README, 리포트/모바일 PRD·감사 문서, 일반 memory-bank.
+
+#### 검증 방법
+
+- TDD: 날짜/조회 8개, UI 3개, 프로필/취소 3개의 실패를 확인한 후 14개 모두 통과.
+- 최종 전체 테스트 501/501, 웹 빌드, mobile:check, docs:check(24 references), git diff --check 통과.
+- Android 756개/iOS 755개 모듈 Hermes export 통과; source map에 모바일 React 19.0.0과 단일 RN 0.79.6만 포함.
+- 독립 웹/네이티브 코드 리뷰 수행. 시간대 선행 로딩과 실패 시 병렬 요청 취소 지적을 고친 뒤 추가 Important/Critical 없음.
+- 합성 브라우저 검증에서 기간 탐색, 29/31일 비교, 오류 시 metric 0개·재시도 복구, 계획 callback, LA/Tokyo 주 경계, 390px 밝은 테마를 확인했다.
+
+#### 남은 작업
+
+- 사용자 요청 시 커밋·푸시·배포. 이번 작업에서는 수행하지 않았다.
+- 실제 계정/기기/Gradle/Xcode 검증은 미실행. npm 기존 취약점은 해결된 것으로 표시하지 않는다.
+
+#### 다음 우선순위
+
+- 호환 가능한 도구 패치와 Expo SDK 마이그레이션을 분리해 보안 후속 범위를 결정한다.
+
+### 2026-09-10 - Approved production release preflight
+
+- User requested deployment. Revalidated all 501 Node tests, web build, mobile:check, docs:check, eight Edge Function checks, three pilot tests and whitespace checks successfully.
+- origin/main is still 01d157b; release will include the approved report/mobile implementation and documentation, without modifying the original checkout or production database.
+- Commit/push, GitHub Actions outcome, Vercel READY/commit/alias and live responses remain to be verified.

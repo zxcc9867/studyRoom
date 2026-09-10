@@ -167,15 +167,15 @@ export function formatStudyDuration(seconds) {
   return formatStudyMinutes(totalMinutes);
 }
 
-export function formatStudyDurationChange(seconds) {
+export function formatStudyDurationChange(seconds, comparisonLabel = "지난주") {
   const numericSeconds = Number(seconds) || 0;
-  if (numericSeconds === 0) return "지난주와 같아요";
+  if (numericSeconds === 0) return `${comparisonLabel}와 같아요`;
 
   const totalMinutes = Math.round(Math.abs(numericSeconds) / 60);
-  return `지난주보다 ${numericSeconds > 0 ? "+" : "-"}${formatStudyMinutes(totalMinutes)}`;
+  return `${comparisonLabel}보다 ${numericSeconds > 0 ? "+" : "-"}${formatStudyMinutes(totalMinutes)}`;
 }
 
-function buildRangeMetrics(range, sessions, todos, attendanceDays, reflections, studySummary) {
+export function buildRangeMetrics(range, sessions, todos, attendanceDays, reflections, studySummary) {
   const inRange = (dateKey) => dateKey >= range.startDate && dateKey <= range.endDate;
   const rangeSessions = sessions.filter((session) => session.status === "completed" && inRange(session.local_date));
   const rangeTodos = todos.filter((todo) => inRange(todo.local_date));

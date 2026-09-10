@@ -260,3 +260,76 @@
 - Fixed pre-existing rebuild failures in attendance/camera/test-alarm: pin Supabase SDK to the existing 2.57.4 compatibility version, use SupabaseClient types, explicitly type response unions and the profile map.
 - Exact normalized SQL equality confirmed for all three restored remote migrations. No recovery data migration will be re-applied.
 - Deployment is the remaining release step.
+
+### Production verification completed
+
+- Code commit `01d157b0d6bdb1043954caae65498c20f44cf4fe` is on origin/main; GitHub Actions `34365469581` succeeded, including tests, Edge checks, build and deployment.
+- Vercel `dpl_78wFkC5ZxAHVPk5RS3WXbRnei2hh` is production READY with matching commit and `study-room-attendance.vercel.app` alias.
+- Production page and `/assets/index-gy4oKZiu.js` returned HTTP 200; the deployed bundle contains recovery coverage fields.
+- Supabase ACTIVE versions: attendance-cron 33, camera-presence-warning 10, slack-recovery-interactions 15, slack-test-alarm 10. All four rejected unauthenticated empty POST requests with 401.
+- Approved legacy deletion rechecked: Book and Review are absent, 30 other public tables remain, migration `20260909141751` is recorded. No deletion or recovery data migration was repeated.
+- Real signed-in browser submissions and real Slack notifications were not triggered; behavioral tests use synthetic transport.
+- Original dirty checkout remains preserved. These final verification notes are local documentation updates; no additional commit or push was performed in this continuation.
+
+## 2026-09-09 - Study report audit
+
+- Current work: verify weekly/monthly report coverage against the user request; see report-feature-audit.md and prd-sustainable-study-loop.md.
+- Found: current-week review exists; completed-week navigation and a monthly report do not. Attendance archive coverage is limited to 370 dashboard rows.
+- Reproduced: a cross-midnight fixture renders 0 minutes before canonical data, then one hour after it arrives, without a data-loading indicator. Review also does not gate on reflectionHistoryLoaded.
+- Verification: 18 existing report-related tests passed, exposing a missing loading/error regression scenario rather than proving that scenario correct.
+- Decision: propose a bounded extension of the existing review (week/month, historical periods, accurate loading/error states, selected-period data coverage), retaining deterministic free summaries and the existing todo planning bridge.
+- Status: design approval question sent; no report implementation or remote mutation yet. Brainstorming skill requires the design decision before implementation. Investigation documentation is local and uncommitted.
+
+## 2026-09-10 - Offline dependency and native compatibility audit
+
+- npm audit was rejected before execution because it can send dependency metadata to the registry. Requested specific consent; no alternate transport or retry was used.
+- Offline graph inspection distinguishes the small web runtime closure from the larger Expo workspace/tooling graph; root warning counts cannot be treated as web exploit counts.
+- Reproduced a native renderer version error: mobile resolves React 19.2.7 while React Native's actual version guard requires 19.0.0. This is separate from mobile-browser UI.
+- Mobile typecheck still passes, exposing a runtime verification gap. No Android/iOS launch or current advisory scan was completed.
+- Detailed evidence: dependency-compatibility-audit.md. No package, code, lockfile, remote data, commit or deployment changes. Report design and audit egress consent remain pending.
+
+## 2026-09-10 - Goal handoff: user decision required
+
+- Revalidated HEAD and documentation-only worktree changes; no report/mobile implementation or package update has occurred.
+- Previous goal turn was progress: it established dependency boundaries and reproduced the native renderer mismatch. This continuation found no new design approval or registry-audit consent.
+- The report design gate remains unresolved across three consecutive goal turns: report investigation, offline dependency investigation, and this revalidation. Safe independent diagnostics have established actionable causes for the identified changes.
+- Remaining implementation requires the user's design decision under the brainstorming skill; the separate npm metadata-egress rejection also requires explicit consent and must not be bypassed.
+- Mark the broad goal blocked, not complete. Resume after the user's response with the existing report proposal and scoped native compatibility repair; preserve web React and all user data. Recheck advisories only if registry inspection is authorized.
+
+## 2026-09-10 - Approved study reports and native compatibility implemented
+
+### 현재 작업
+
+- 작업명: 주간·월간 학습 리포트 및 Expo 네이티브 호환성.
+- 작업 목적: 지난 기간 회고와 정확한 로딩 상태, 네이티브 시작 오류 해결.
+- 관련 PRD: prd-study-reports.md, prd-mobile-compatibility.md.
+- 관련 파일: apps/web/src/StudyReportSection.tsx, studyReports.mjs, studyReportData.mjs, apps/mobile/{package.json,index.js,metro.config.cjs}, scripts/mobile-compatibility.mjs.
+
+### 최근 결정 사항
+
+- 사용자의 `진행해`가 리포트 설계·최소 모바일 수정·공식 npm 감사 메타데이터 전송을 승인했다. 이전 승인 대기 기록은 이 결정으로 해소됐다.
+- 리포트는 현재 owner의 저장된 시간대를 먼저 조회하고, 선택 기간의 완료 시간·출석·할 일·회고를 별도로 가져온다. 초기 대시보드/브라우저 시간대나 370일 출석 제한에 의존하지 않는다.
+- 기존 회고 액션과 방해 조정 안내는 유지하며 추가 AI 비용·자동 알림·DB 변경은 없다.
+- 모바일 React 19.0.0/RN 0.79.6/AsyncStorage 2.1.2를 Expo 53에 맞추고 웹 React/DOM 19.2.7은 유지했다.
+
+### 현재 상태
+
+- 완료: 주/월·과거 기간 탐색, 비교 범위·월 일평균, 로딩/오류/재시도, stale 응답 차단, 프로필 시간대 선행 조회, 모바일 resolver/entry/CI 검사.
+- 검증: 전체 501 tests, 웹 TypeScript/Vite build, mobile:check, README 자산 24개 통과. 보고서 14개·네이티브 10개 회귀 및 별도 코드 리뷰 통과.
+- 브라우저: 합성 데이터로 주/월 전환·지난 달·윤년·키보드 월 변경·오류 재시도·계획 callback·프로필 3초 지연/LA 날짜 경계 확인. 390px/dark preference에서 overflow 0, 44px 미만 컨트롤 0, page error 0.
+- 미완료: 실계정 브라우저 흐름과 물리 기기/에뮬레이터 검증, 별도 취약점 완화 계획, 사용자가 요청하는 커밋·푸시·배포.
+
+### 주의할 점
+
+- 최신 공유 AGENTS.md는 요청 없는 커밋·푸시·배포를 금지한다. 이번 변경은 로컬이며 원격 상태를 바꾸지 않았다.
+- 기존 dirty checkout은 보존. 현재 worktree: C:/jini-dev/worktrees/study-room-recovery-audit.
+- 감사 수치는 root 28/mobile 27/web 전체 5/web omit-dev 3으로 수정 전후 동일. 웹 runtime closure 내 취약 노드 0은 제한된 그래프 근거이며 보안 문제 전체 해결을 의미하지 않는다.
+- 광범위한 개선 목표 전체를 완료했다고 보지 않는다. 남은 공급망/기기 검증 범위는 dependency-compatibility-audit.md 참조.
+
+## 2026-09-10 - Production deployment authorized
+
+- The user explicitly requested deployment of the approved reports and native compatibility changes.
+- Fresh preflight passed: 501 Node tests, web build, mobile compatibility/typecheck, 24 README assets, eight Edge checks and three pilot tests, git diff --check.
+- Fetched origin/main and confirmed it matches the worktree base 01d157b. The original dirty checkout remains untouched.
+- Release path: normal fast-forward push to main, existing GitHub Actions workflow, then Vercel production verification. No Supabase migration or Edge redeployment is required.
+- Deployment is pending; success will be recorded only after CI and live checks complete. Physical-device validation and dependency-security follow-up remain separate.

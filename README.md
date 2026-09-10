@@ -68,7 +68,7 @@ The system combines a Vite/React web app, an Expo mobile client, Supabase Auth/P
 8. Review focus, energy, friction, notes, completed todos, and the next action when ending a session.
 9. Recover missed reflections from a seven-day inbox and carry the latest next action into the following plan.
 10. Build the habit through a ten-minute start, daily study goals, a flexible five-of-seven rhythm, and non-punitive restart cues.
-11. Compare weekly performance and receive one concrete environment adjustment when the same friction repeats.
+11. Review current or past weeks/months in My Page, compare study time and habits, and receive one concrete environment adjustment when the same friction repeats.
 12. Turn attendance and consistent starts into trees, furniture, outdoor objects, seed lights, and persistent firefly garlands in the Study Forest.
 
 ## Session lease policy
@@ -101,7 +101,10 @@ The system combines a Vite/React web app, an Expo mobile client, Supabase Auth/P
 - Latest next action carried into the next session plan.
 - Seven-day rhythm with rest, ten-minute starts, goals, and flower rewards.
 - Flexible five-of-seven target with two rest-day margins.
-- Weekly comparison, repeated-friction guidance, and adaptive reminder suggestions.
+- Weekly/monthly reports with past-period navigation, explicit comparison dates and monthly daily averages.
+- Completed-session totals use the saved account time zone; loading/errors never masquerade as zero, and failed reports can be retried.
+- Repeated-friction guidance, next-action planning and adaptive reminder suggestions.
+- Reports are recalculated from saved records, not scheduled notifications or immutable snapshots. See [report requirements](memory-bank/prd-study-reports.md).
 
 ### Study Forest
 
@@ -226,7 +229,7 @@ npm.cmd run dev:mobile
 ```bash
 npm.cmd test
 npm.cmd run build
-npm.cmd --workspace apps/mobile run typecheck
+npm.cmd run mobile:check
 ```
 
 The test suite covers attendance policy, authentication recovery, session leases, breaks, the ten-minute checkpoint, planning, notifications, recovery, sustainable-learning rules, Study Forest behavior, README contracts, and SQL migrations.

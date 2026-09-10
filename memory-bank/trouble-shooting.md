@@ -4172,3 +4172,71 @@ Ship DB migrations, shared Edge function code, and consuming UI in the same revi
 - The restored Slack date helper used the old generic ReturnType declaration; changed it to the existing SupabaseClient convention.
 - Expanding Deno checks found 40 pre-existing type errors in older notification functions: unpinned SDK resolution, createClient generic inference, success/error unions, and a profile Map inferred as unknown.
 - Pinned the SDK to 2.57.4, corrected explicit types and missing-target nullability, and verified all eight entrypoints plus the pilot tests. Runtime notification/attendance decisions were preserved.
+
+### Deployment approval and final evidence
+
+- Initial deployment approval was rejected because --no-verify-jwt could appear to disable platform JWT enforcement. No alternate transport was used to bypass the rejection.
+- Read-only MCP checks confirmed all four targets already had verify_jwt=false; source inspection confirmed their existing internal authorization gates. Retrying the same command with that evidence was approved.
+- The four new ACTIVE versions rejected unauthenticated probes with 401. Vercel production and entry asset returned 200; deployment READY and successful Actions run match commit 01d157b.
+- Existing-file apply_patch and one read-only command hit the Windows deny-read ACL helper error. The exact small documentation additions were applied with an approved Git patch fallback; no ACL or sandbox setting was changed.
+- A line-count diagnostic initially used an unsupported foreach-to-pipeline PowerShell form; collecting the foreach result before ConvertTo-Json corrected it.
+
+## 2026-09-09 - Provisional weekly report totals look final
+
+- Situation: auditing the requested weekly/monthly reports exposed a data-readiness gap in the current weekly UI.
+- Cause: WeeklyReviewSection accepts optional canonical summaries, falls back to local_date-only sums, and is rendered before reflectionHistoryLoaded. Suspense only covers lazy module loading. The summary effect also retains stale values during refresh/failure.
+- Reproduction: actual component SSR with a synthetic Sunday 23:00 to Monday 01:00 session shows 0 minutes without a loading state; supplying the canonical Monday overlap changes it to one hour.
+- Status: confirmed, not fixed. A week/month report extension plus explicit ready/loading/error states was proposed and awaits design approval.
+- Files: apps/web/src/main.tsx, apps/web/src/WeeklyReviewSection.tsx, apps/web/src/weeklyReview.mjs; detailed evidence in report-feature-audit.md.
+- Prevention: test pending/error/retry and stale period responses, not only ready-state arithmetic; preserve user-time-zone canonical totals and selected-period attendance coverage.
+
+## 2026-09-10 - Native renderer mismatch despite passing typecheck
+
+- Situation: offline dependency investigation after npm audit was rejected for unapproved metadata egress. The registry request was not retried or routed elsewhere; consent was requested.
+- Error: Incompatible React versions - mobile React 19.2.7 versus react-native-renderer 19.0.0.
+- Cause: the mobile manifest allows React ^19.0.0 and resolves the hoisted 19.2.7, but the installed React Native renderer enforces exact 19.0.0 at runtime.
+- Evidence: executed the real installed version-guard excerpt against mobile-resolved React; the guard threw. Both development and production legacy renderer source contain the check. Mobile tsc --noEmit passed.
+- Status: confirmed, not fixed; no full native device launch or advisory scan. Web React DOM is a different execution path. Do not globally downgrade web React or use audit --force.
+- Related: apps/mobile/package.json, package-lock.json, .github/workflows/vercel-production.yml, dependency-compatibility-audit.md. Add a resolved-version compatibility gate and native runtime verification with the scoped future fix.
+
+## 2026-09-10 - Report readiness, native resolution and verification fixes
+
+### 상황
+
+승인된 주/월 리포트와 Expo 호환성을 구현하며 초기 지표, 시간대 경계, 병렬 요청 정리, 네이티브 시작 경로를 검증했다.
+
+### 에러 메시지
+
+- 기존 리포트: canonical 응답 전 실제 1시간 대신 0분 표시.
+- Native: Incompatible React versions; root React 19.2.7 versus renderer 19.0.0.
+- Native install: duplicate/invalid RN tree and ERESOLVE during the scoped update attempt.
+- Native export: hoisted expo/AppEntry.js could not resolve ../../App.
+- Local tools: apply_patch deny-read ACL helper error; a fixture-server launch exited -1073741205 once, then a normal retry started successfully.
+
+### 원인
+
+- 기존 weekly view의 선택적 summary fallback과 데이터 로딩 gate 부재.
+- 메인 프로필 준비 전 브라우저/이전 계정 시간대와 서버 RPC의 저장된 시간대가 달랐다.
+- Promise.all 일부 실패 시 controller 참조만 지워 나머지 요청이 살아 있었다.
+- Expo가 hoisted React/RN 및 AppEntry 상대 경로를 해석했다. 타입 검사는 실제 renderer 시작 조건을 검증하지 못했다.
+
+### 해결 방법
+
+- 리포트가 저장된 owner 시간대를 먼저 읽고 모든 지표를 직접 조회한다. 알 수 없는 summary는 오류, 실패/로딩은 숫자를 숨기고 재시도한다.
+- finally에서 controller.abort()를 호출해 실패한 병렬 요청의 나머지도 정리한다.
+- 네이티브 exact pins, 단일 root RN peer anchor, Android/iOS Metro aliases, mobile-local index.js 진입점을 적용했다. --force/legacy-peer-deps나 웹 React 하향은 하지 않았다.
+- 기존 파일 apply_patch 실패 시 정확한 최소 Git patch를 승인받아 적용했다. ACL/권한 설정은 바꾸지 않았다.
+- Windows .cmd 브라우저 래퍼는 URL의 &와 @ref를 잘못 해석할 수 있어 같은 도구의 native .exe와 인용된 인수를 사용했다. CLI fill의 native month 이벤트 한계는 실제 키보드 ArrowDown 및 DOM input 이벤트로 분리 검증했다. 앱 입력은 부분 입력을 허용하고 잘못된 값은 blur 시 이전 선택으로 복원한다.
+
+### 관련 파일
+
+- apps/web/src/StudyReportSection.tsx, studyReportData.mjs, studyReports.mjs 및 report 테스트.
+- apps/mobile/package.json, metro.config.cjs, index.js, package-lock.json, scripts/mobile-compatibility.mjs.
+- 상세 native install/export 및 감사 근거: dependency-compatibility-audit.md.
+
+### 재발 방지 / 남은 리스크
+
+- 프로필 지연과 서로 다른 시간대의 일/주 경계, 실패/취소/오래된 응답을 테스트한다.
+- 전체 501개 테스트, 웹 build, mobile:check, 14개 report 및 10개 native 회귀가 통과했다.
+- 실제 모바일 기기/에뮬레이터 검증과 기존 npm 취약점 완화는 별도 후속 작업이다. 브라우저 fixture는 실제 계정이나 Supabase 데이터에 접근하지 않는다.
+- README 변경 후 기존 현재 주 전용 문구를 검사하던 문서 테스트 2개가 실패했다. 주간·월간/같은 경과 일수/오류를 0분으로 표시하지 않는 새 계약으로 기대값을 갱신하고, 모든 번역의 리포트 PRD·mobile:check 링크도 검사한다.

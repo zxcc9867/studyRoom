@@ -3,6 +3,7 @@ import { AlertTriangle, ArrowRight, BatteryMedium, CalendarDays, CheckCircle2, C
 
 import { buildComparableWeeklyStudyReview, buildWeeklyActionPlanItems, formatStudyDuration, formatStudyDurationChange } from "./weeklyReview.mjs";
 import type { StudyPeriodSummary } from "./studyPeriodSummary.mjs";
+import type { StudyReport } from "./studyReports.mjs";
 
 type Props = {
   todayDateKey: string;
@@ -12,12 +13,15 @@ type Props = {
   reflections: Array<{ session_id: string; focus_score: number; energy_score: number; interruption_reason: "none" | "phone" | "environment" | "fatigue" | "schedule" | "other" | null; next_action: string | null; created_at: string }>;
   currentStudySummary?: StudyPeriodSummary | null;
   previousStudySummary?: StudyPeriodSummary | null;
+  review?: StudyReport;
+  reportTitle?: string;
+  comparisonLabel?: string;
   onPlanAction?: (action: string) => void;
   onOpenPlannedTodo?: (todoId: string) => void;
 };
 
 export default function WeeklyReviewSection(props: Props) {
-  const review = buildComparableWeeklyStudyReview(props);
+  const review = props.review ?? buildComparableWeeklyStudyReview(props);
   const { current, previous } = review;
   const actionPlanItems = buildWeeklyActionPlanItems({ nextActions: current.nextActions, todos: props.todos });
   const anomalyCount = current.anomalySessionCount + previous.anomalySessionCount;
@@ -26,15 +30,15 @@ export default function WeeklyReviewSection(props: Props) {
   return (
     <section className="weekly-review-card" aria-labelledby="weekly-review-title">
       <div className="weekly-review-heading">
-        <div><p className="eyebrow">weekly review</p><h3 id="weekly-review-title">이번 주 학습 리뷰</h3></div>
+        <div><p className="eyebrow">{props.review ? "study report" : "weekly review"}</p><h3 id="weekly-review-title">{props.reportTitle ?? "이번 주 학습 리뷰"}</h3></div>
         <span className="weekly-review-period">
           <strong>{formatShortDate(current.startDate)} ~ {formatShortDate(current.endDate)}</strong>
-          <small>{formatShortDate(props.todayDateKey)} 현재 · 지난주 같은 요일까지 비교</small>
+          {!props.review && <small>{formatShortDate(props.todayDateKey)} 현재 · 지난주 같은 요일까지 비교</small>}
         </span>
       </div>
       <div className="weekly-review-score">
         <div><Compass size={30} /><span>꾸준함 점수</span><strong>{current.consistencyScore}</strong></div>
-        <Trend value={review.consistencyChange} suffix="점" />
+        <Trend value={review.consistencyChange} suffix="점" comparisonLabel={props.comparisonLabel} />
       </div>
       <div className="weekly-review-metrics">
         <Metric
@@ -42,7 +46,7 @@ export default function WeeklyReviewSection(props: Props) {
           label="완료 세션 공부 시간"
           value={formatStudyDuration(current.studySeconds)}
           detail={`${current.sessionCount}회 완료 합계`}
-          trend={formatStudyDurationChange(review.studySecondsChange)}
+          trend={formatStudyDurationChange(review.studySecondsChange, props.comparisonLabel)}
         />
         <Metric icon={<CheckCircle2 size={20} />} label="할 일 완료" value={`${current.completionRate}%`} trend={`${signed(review.completionRateChange)}%p`} />
         <Metric icon={<Flame size={20} />} label="출석" value={`${current.presentDays}일`} trend={`${current.coveredDayCount}일 기준`} />
@@ -68,7 +72,7 @@ export default function WeeklyReviewSection(props: Props) {
               <p className="weekly-friction-kicker">숲길 정비 노트</p>
               <h4 id="weekly-friction-plan-title">반복된 방해를 한 칸 줄여봐요</h4>
             </div>
-            <span className="weekly-friction-count">{current.frictionPlan.label} · 이번 주 {current.frictionPlan.count}회</span>
+            <span className="weekly-friction-count">{current.frictionPlan.label} · {props.review ? "선택 기간" : "이번 주"} {current.frictionPlan.count}회</span>
           </div>
           <div className="weekly-friction-copy">
             <strong>{current.frictionPlan.title}</strong>
@@ -130,9 +134,9 @@ function Metric({ icon, label, value, detail, trend }: { icon: ReactNode; label:
   return <div className="weekly-review-metric">{icon}<span>{label}</span><strong>{value}</strong>{detail ? <small className="weekly-review-metric-detail">{detail}</small> : null}<small>{trend}</small></div>;
 }
 
-function Trend({ value, suffix }: { value: number; suffix: string }) {
+function Trend({ value, suffix, comparisonLabel = "지난주" }: { value: number; suffix: string; comparisonLabel?: string }) {
   const Icon = value >= 0 ? TrendingUp : TrendingDown;
-  return <span className={value >= 0 ? "trend-up" : "trend-down"}><Icon size={17} />지난주보다 {signed(value)}{suffix}</span>;
+  return <span className={value >= 0 ? "trend-up" : "trend-down"}><Icon size={17} />{comparisonLabel}보다 {signed(value)}{suffix}</span>;
 }
 
 function signed(value: number) { return value > 0 ? `+${value}` : String(value); }

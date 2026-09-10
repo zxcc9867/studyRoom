@@ -1,0 +1,46 @@
+.study-report { --report-ink: #2d6b53; --report-paper: #fff9df; --report-line: #8cbf9d; color: var(--report-ink); min-width: 0; }
+.study-report-toolbar { display: flex; align-items: center; flex-wrap: wrap; gap: 20px; padding: 24px; border: 2px solid var(--report-line); border-bottom: 0; border-radius: 22px 22px 0 0; background: #e5f1d3; }
+.study-report-toolbar > div:first-child { flex: 1 1 300px; }
+.study-report-toolbar h3 { margin: 5px 0 7px; font-size: clamp(21px, 2.6vw, 30px); }
+.study-report-intro { margin: 0; color: #586e54; font-size: 14px; }
+.study-report button, .study-report input { min-height: 44px; color: var(--report-ink); font: inherit; }
+.study-report button { display: inline-flex; align-items: center; justify-content: center; gap: 5px; border: 1px solid var(--report-line); background: var(--report-paper); border-radius: 12px; padding: 9px 14px; cursor: pointer; box-shadow: none; }
+.study-report button:disabled { opacity: .5; cursor: default; }
+.study-report button:focus-visible, .study-report input:focus-visible { outline: 3px solid #be633f; outline-offset: 3px; }
+.study-report-mode { display: flex; padding: 4px; gap: 4px; border: 1px solid var(--report-line); border-radius: 16px; background: #d7e8c6; }
+.study-report-mode button { border-color: transparent; background: transparent; min-width: 65px; font-weight: 700; }
+.study-report-mode button[aria-pressed="true"] { background: var(--report-ink); color: #fff9df; }
+.study-report-navigation { display: flex; flex: 1 1 100%; align-items: end; flex-wrap: wrap; gap: 8px; }
+.study-report-navigation > button { min-width: 44px; }
+.study-report-navigation label { display: flex; flex-direction: column; gap: 5px; min-width: 0; font-size: 12px; }
+.study-report-navigation input { width: 190px; max-width: 100%; border: 1px solid var(--report-line); border-radius: 12px; background: #fffdf0; padding: 8px 10px; color-scheme: light; box-sizing: border-box; }
+.study-report-navigation .study-report-today { margin-left: auto; }
+.study-report-ready, .study-report-status { border: 2px solid var(--report-line); border-radius: 0 0 22px 22px; background: var(--report-paper); }
+.study-report-comparison { padding: 21px 24px; color: #53634c; }
+.study-report-comparison p { margin: 0 0 8px; font-size: 14px; overflow-wrap: anywhere; }
+.study-report-comparison strong { color: var(--report-ink); margin-right: 8px; }
+.study-report-comparison small { display: block; line-height: 1.65; }
+.study-report-comparison .study-report-daily-average { margin: 16px 0 0; padding-top: 14px; border-top: 1px dashed #bbcca6; }
+.study-report .weekly-review-card { margin: 0 14px; box-shadow: none; }
+.study-report-footnote { margin: 0; padding: 18px 24px 24px; font-size: 12px; line-height: 1.75; color: #686849; }
+.study-report-empty { margin: 0 24px 20px; padding: 14px; background: #eff6de; border: 1px dashed var(--report-line); border-radius: 12px; line-height: 1.6; }
+.study-report-status { padding: 44px 24px; text-align: center; min-height: 220px; display: flex; flex-direction: column; align-items: center; justify-content: center; }
+.study-report-status p { max-width: 420px; font-size: 14px; line-height: 1.6; color: #63664e; }
+.study-report-seed { display: block; width: 26px; height: 18px; border-radius: 18px 2px 18px 2px; background: #7ba978; margin-bottom: 18px; transform: rotate(-15deg); }
+.study-report-error strong { color: #a64e35; }
+@media (max-width: 540px) {
+  .study-report-toolbar { padding: 18px 14px; gap: 16px; }
+  .study-report-toolbar > div:first-child { flex-basis: 100%; }
+  .study-report-navigation { gap: 6px; }
+  .study-report-navigation label { flex: 1; }
+  .study-report-navigation input { width: 100%; font-size: 16px; }
+  .study-report-navigation .study-report-today { flex-basis: 100%; margin-left: 0; }
+  .study-report-comparison { padding: 18px 14px; }
+  .study-report-comparison p span { display: inline-block; }
+  .study-report .weekly-review-card { margin: 0 8px; padding: 18px 12px; }
+  .study-report .weekly-review-heading { align-items: start; flex-direction: column; }
+  .study-report .weekly-review-period { white-space: nowrap; }
+  .study-report .weekly-review-heading h3 { font-size: 22px; }
+  .study-report-empty { margin-inline: 14px; }
+  .study-report-footnote { padding-inline: 14px; }
+}

@@ -17,10 +17,13 @@ const studyForestScreenshots = [
 test("multilingual READMEs are connected and the English default covers the current product", () => {
   for (const readme of [englishReadme, koreanReadme, japaneseReadme]) {
     assert.ok(readme.includes(languageNav));
+    assert.ok(readme.includes("memory-bank/prd-study-reports.md"));
+    assert.ok(readme.includes("npm.cmd run mobile:check"));
   }
 
   assert.match(englishReadme, /End-of-session reflections/);
-  assert.match(englishReadme, /Weekly comparison/);
+  assert.match(englishReadme, /Weekly\/monthly reports/);
+  assert.match(englishReadme, /loading\/errors never masquerade as zero/);
   assert.match(englishReadme, /adaptive reminder/i);
   assert.match(englishReadme, /Three\.js/);
   assert.match(englishReadme, /Study Forest/);
@@ -31,9 +34,10 @@ test("multilingual READMEs are connected and the English default covers the curr
 
 test("the preserved Korean README keeps detailed operating and interaction policies", () => {
   assert.match(koreanReadme, /세션 회고/);
-  assert.match(koreanReadme, /주간 리뷰/);
+  assert.match(koreanReadme, /주간·월간 학습 리포트/);
   assert.match(koreanReadme, /숫자 표시 영역 어디를 클릭·더블클릭/);
-  assert.match(koreanReadme, /지난주 시간·분 비교 및 오늘 기준 표시/);
+  assert.match(koreanReadme, /오늘까지 같은 경과 일수/);
+  assert.match(koreanReadme, /로딩·오류를 0분으로 표시하지 않으며 실패 시 재시도/);
   assert.match(koreanReadme, /적응형 알림/);
   assert.match(koreanReadme, /Three\.js/);
   assert.match(koreanReadme, /공부의 숲/);

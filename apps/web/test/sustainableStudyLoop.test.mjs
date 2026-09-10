@@ -123,7 +123,7 @@ test("web and mobile source wire the sustainable session policy and lazy feature
 
   assert.match(main, /lazy\(\(\) => import\("\.\/StudyForestSection"\)\)/);
   assert.match(main, /lazy\(\(\) => import\("\.\/SessionReflectionModal"\)\)/);
-  assert.match(main, /lazy\(\(\) => import\("\.\/WeeklyReviewSection"\)\)/);
+  assert.match(main, /lazy\(\(\) => import\("\.\/StudyReportSection"\)\)/);
   assert.match(main, /lazy\(\(\) => import\("\.\/AdaptiveReminderCard"\)\)/);
   assert.match(main, /rpc\("start_study_session", \{\s*p_todo_ids:/s);
   assert.match(main, /rpc\("complete_study_session"/);

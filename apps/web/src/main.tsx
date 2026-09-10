@@ -192,7 +192,6 @@ import {
   getMonthDateRange,
   type StudyPeriodSummary,
 } from "./studyPeriodSummary.mjs";
-import { getComparableStudyWeekRanges } from "./weeklyReview.mjs";
 import {
   STUDY_SESSION_ACTIVITY_HEARTBEAT_MS,
   getStudySessionActivityExcludedSeconds,
@@ -283,7 +282,7 @@ const cameraRequiredWarningCooldownMs = 10 * 60 * 1000;
 const ACTIVE_SESSION_LEASE_REFRESH_MS = 15 * 1000;
 const StudyForestSection = lazy(() => import("./StudyForestSection"));
 const SessionReflectionModal = lazy(() => import("./SessionReflectionModal"));
-const WeeklyReviewSection = lazy(() => import("./WeeklyReviewSection"));
+const StudyReportSection = lazy(() => import("./StudyReportSection"));
 const AdaptiveReminderCard = lazy(() => import("./AdaptiveReminderCard"));
 type TodoRepeatMode = "single" | "weekly";
 type CameraSetupPrompt = {
@@ -504,8 +503,6 @@ function DashboardApp() {
   const [studyPeriodSummaries, setStudyPeriodSummaries] = useState<{
     today: StudyPeriodSummary;
     month: StudyPeriodSummary;
-    currentWeek: StudyPeriodSummary;
-    previousWeek: StudyPeriodSummary;
   } | null>(null);
   const [recoveryModalRequest, setRecoveryModalRequest] = useState<StudyRecoveryRequest | null>(null);
   const [recoveryReason, setRecoveryReason] = useState("");
@@ -857,15 +854,12 @@ function DashboardApp() {
 
     let cancelled = false;
     const monthRange = getMonthDateRange(calendarMonth);
-    const { currentRange, previousRange } = getComparableStudyWeekRanges(todayDateKey);
 
     void Promise.all([
       fetchStudyPeriodSummary(supabase, todayDateKey, todayDateKey),
       fetchStudyPeriodSummary(supabase, monthRange.startDate, monthRange.endDate),
-      fetchStudyPeriodSummary(supabase, currentRange.startDate, currentRange.endDate),
-      fetchStudyPeriodSummary(supabase, previousRange.startDate, previousRange.endDate),
-    ]).then(([today, month, currentWeek, previousWeek]) => {
-      if (!cancelled) setStudyPeriodSummaries({ today, month, currentWeek, previousWeek });
+    ]).then(([today, month]) => {
+      if (!cancelled) setStudyPeriodSummaries({ today, month });
     }).catch((error) => {
       if (!cancelled) setMessage(`\uacf5\ubd80 \uc2dc\uac04 \uc9d1\uacc4\ub97c \ubd88\ub7ec\uc624\uc9c0 \ubabb\ud588\uc2b5\ub2c8\ub2e4: ${formatError(error)}`);
     });
@@ -6107,15 +6101,17 @@ function DashboardApp() {
             />
           )}
 
-          <Suspense fallback={<div className="weekly-review-card" role="status">주간 리뷰를 불러오는 중...</div>}>
-            <WeeklyReviewSection
-              todayDateKey={todayDateKey}
+          <Suspense fallback={<div className="weekly-review-card" role="status">학습 리포트를 불러오는 중...</div>}>
+            <StudyReportSection
+              key={session.user.id}
+              client={supabase}
+              userId={session.user.id}
+              profileTimeZone={profile?.user_id === session.user.id ? profile.time_zone : undefined}
+              nowMs={nowMs}
               sessions={studySessions}
               todos={studyTodos}
               attendanceDays={attendanceDays}
               reflections={studySessionReflections}
-              currentStudySummary={studyPeriodSummaries?.currentWeek}
-              previousStudySummary={studyPeriodSummaries?.previousWeek}
               onPlanAction={openWeeklyReviewActionPlan}
               onOpenPlannedTodo={openWeeklyReviewPlannedTodo}
             />

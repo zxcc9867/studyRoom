@@ -49,7 +49,7 @@ export function getComparableStudyWeekRanges(dateKey: string): {
   previousRange: { startDate: string; endDate: string; coveredDayCount: number };
 };
 export function formatStudyDuration(seconds: number): string;
-export function formatStudyDurationChange(seconds: number): string;
+export function formatStudyDurationChange(seconds: number, comparisonLabel?: string): string;
 export function buildWeeklyStudyReview(input: WeeklyReviewInput): WeeklyReview;
 export function buildComparableWeeklyStudyReview(input: WeeklyReviewInput): WeeklyReview;
 export function buildWeeklyFrictionPlan(reflections?: Array<{

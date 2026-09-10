@@ -39,6 +39,9 @@ jobs:
       - name: Run tests
         run: npm test
 
+      - name: Check native dependency compatibility and types
+        run: npm run mobile:check
+
       - name: Check README screenshot assets
         run: npm run docs:check
 

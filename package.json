@@ -12,6 +12,7 @@
     "test:edge": "npx --yes deno@2.9.6 check --no-config --node-modules-dir=none supabase/functions/career-coach/index.ts supabase/functions/coach-worker/index.ts supabase/functions/coach-integrations/index.ts supabase/functions/coach-notifications/index.ts supabase/functions/slack-recovery-interactions/index.ts supabase/functions/attendance-cron/index.ts supabase/functions/camera-presence-warning/index.ts supabase/functions/slack-test-alarm/index.ts && npx --yes deno@2.9.6 test --no-config --node-modules-dir=none --allow-env server/ai/coach-pilot.test.ts",
     "ai:check": "node --env-file-if-exists=.env.local scripts/check-ai-config.mjs",
     "docs:check": "node scripts/check-readme-assets.mjs",
+    "mobile:check": "node scripts/mobile-compatibility.mjs && npm --workspace apps/mobile run typecheck",
     "build": "npm --workspace apps/web run build",
     "dev:web": "npm.cmd --workspace apps/web run dev",
     "dev:mobile": "npm.cmd --workspace apps/mobile run start",
@@ -21,6 +22,7 @@
     "infra:deploy": "npm.cmd --prefix infra/aws-cdk run deploy"
   },
   "devDependencies": {
-    "@electric-sql/pglite": "0.3.14"
+    "@electric-sql/pglite": "0.3.14",
+    "react-native": "0.79.6"
   }
 }

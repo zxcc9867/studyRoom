@@ -103,3 +103,10 @@
 - 1440px에서는 `405.281px 594.719px` 2열, 390px에서는 `246px` 1열로 계산됐다.
 - 두 viewport 모두 document overflow, 카드 경계 이탈, 자식 overflow가 없었고 console warning/error와 page error는 0건이었다.
 - 모든 Supabase 요청은 Playwright context route로 차단·스텁했으며 원격 read/write는 수행하지 않았다.
+
+## 2026-09-10 - Report integration update
+
+- Approved prd-study-reports.md extends the existing current-week-only surface to selected weeks/months. This supersedes the current-week data-source restriction above, not the deterministic friction-selection rules.
+- The report loader reads owned completed-session reflections for the selected date ranges before showing metrics. Friction aggregation itself remains pure and adds no separate query or write.
+- Only reflections belonging to sessions started inside the selected current report range affect its guidance; the comparison range stays separate.
+- Labels use 선택 기간 in generalized reports. Two occurrences, tie ordering, ignored values, single noninteractive suggestion and no automatic todo/AI/notification remain unchanged.
