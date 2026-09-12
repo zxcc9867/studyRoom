@@ -1,9 +1,20 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
-import type { FeedArticle, FeedTodoDraft } from './techFeedTypes';
+import type { FeedArticle, FeedPreferences, FeedPreferenceResponse, FeedState, FeedTodoDraft, FeedSearchStatus } from './techFeedTypes';
 export const FEED_INTERESTS: [string,string][];
 export const FEED_CATEGORIES: Record<string,string>;
+export function interestPromptResult(value:unknown):{prompt:string;error:string|null};
+export function searchStatusLabel(status:Pick<FeedSearchStatus,'state'>):string;
+export function interestSavePayload(preferences:FeedPreferences,value:string):{prompt:string;receiving:true;expected_revision:number};
+export function receivingPayload(preferences:FeedPreferences,receiving:boolean):{receiving:boolean;expected_revision:number};
+export function applyPreferenceResponse(state:FeedState,response:FeedPreferenceResponse):FeedState;
+export class TechFeedRevisionConflictError extends Error {code:'revision_conflict'}
+export function isRevisionConflict(error:unknown):boolean;
+export function isCurrentFeedRequest(request:number,current:number,signal?:AbortSignal):boolean;
+export function preferenceRefreshResult<T>(previousPrompt:string,state:FeedState,articles:T[],cursor:string|null):{state:FeedState;resetFeed:boolean;articles:T[];cursor:string|null};
+export function currentFeedState(state:FeedState|null,stateUserId:string,currentUserId:string):FeedState|null;
 export function safeFeedUrl(value: string): string | null;
+export function feedSourceHost(value:string):string;
 export function mergeFeedPage<T extends {id:string}>(current:T[], incoming:T[]):T[];
-export function summaryLabel(article:Pick<FeedArticle,'summary'|'summary_status'>):string;
+export function summaryLabel(article:Pick<FeedArticle,'summary'|'summary_status'|'excerpt_provenance'>):string;
 export function feedTodoDraft(article:Pick<FeedArticle,'id'|'title'>,date:string):FeedTodoDraft;
 export function createTechFeedClient(supabase:SupabaseClient,userId:string):(action:string,payload?:Record<string,unknown>,signal?:AbortSignal)=>Promise<any>;

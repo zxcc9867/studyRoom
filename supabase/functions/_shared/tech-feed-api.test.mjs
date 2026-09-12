@@ -10,7 +10,7 @@ function setup({env=enabled,auth=true,store={},transport=async()=>({status:200,h
 }
 test('API authenticates, denies nonpilots, and timezone remains independent of feed flag',async()=>{
  assert.equal((await setup({auth:false}).handler(req({action:'state'}))).status,401);
- const f=setup({env:{}});assert.deepEqual(await(await f.handler(req({action:'state'}))).json(),{enabled:false,sources:[],interests:[],last_success_at:null});
+ const f=setup({env:{}});assert.deepEqual(await(await f.handler(req({action:'state'}))).json(),{enabled:false,sources:[],interests:[],last_success_at:null,preferences:{prompt:'',receiving:false,revision:0},search_status:{state:'paused',last_success_at:null},service_available:false});
  assert.equal((await f.handler(req({action:'save',article_id:user,saved:true}))).status,403);
  assert.equal((await f.handler(req({action:'timezone',time_zone:'Asia/Tokyo'}))).status,200);assert.deepEqual(f.writes,[['zone','Asia/Tokyo']]);
  assert.equal((await f.handler(req({action:'timezone',time_zone:'invalid/zone'}))).status,400);

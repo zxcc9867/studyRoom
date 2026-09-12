@@ -1,18 +1,11 @@
+import {classifyArticle as classify} from './tech-feed-topics.mjs';
+import {runSearchWorker} from './tech-feed-search-worker.mjs';
 import {timingSafeEqual} from 'node:crypto';
 import {fetchFeed,initialItems,parseHn,summarizeBatch} from './tech-feed-core.mjs';
 export function workerAuthorized(supplied,expected){
  if(typeof expected!=='string'||expected.length<32||typeof supplied!=='string')return false;
  const left=Buffer.from(supplied),right=Buffer.from(expected);
  return left.length===right.length&&timingSafeEqual(left,right);
-}
-function classify(item){
- const text=(item.title+' '+item.excerpt).toLowerCase(),interests=[];
- if(/\bai\b|\bllm\b|machine learning|인공지능|hugging face|gpt|claude|모델/.test(text))interests.push('ai');
- if(/react|frontend|css|javascript|browser|프론트/.test(text))interests.push('frontend');
- if(/backend|database|postgres|api\b|백엔드|데이터베이스/.test(text))interests.push('backend');
- if(/aws|cloud|kubernetes|클라우드|azure/.test(text))interests.push('cloud');
- if(/github|tool|editor|cli\b|도구/.test(text))interests.push('tools');
- return{...item,interests};
 }
 async function hnFeed(source,transport,signal,store){
  if(source.url!=='https://hacker-news.firebaseio.com/v0/newstories.json')throw Error('source_failed');
@@ -35,7 +28,7 @@ async function hnFeed(source,transport,signal,store){
  if(failures||signal.aborted)throw Error('source_failed');
  return{items:items.sort((a,b)=>String(b.published_at).localeCompare(String(a.published_at))),etag:null,last_modified:null,checkpoint:{pending_ids:pending.slice(selected.length)}};
 }
-async function executeFeedWorker({store,pilotIds,transport,ask,signal,stats}){
+async function executeFeedWorker({store,pilotIds,transport,ask,signal,stats,search}){
  const result=stats;
  if(!pilotIds.length)return result;
  const sources=await store.claimSources(pilotIds,2);
@@ -51,6 +44,10 @@ async function executeFeedWorker({store,pilotIds,transport,ask,signal,stats}){
    result.failed++;
    try{await store.finishSource(source.id,source.lease,[],'source_failed',null,null);}catch{/* lease expiry permits retry */}
   }
+ }
+ if(search){
+  try{result.search=await runSearchWorker({store,search,signal:AbortSignal.any([signal,AbortSignal.timeout(35000)])});}
+  catch{result.search={state:'unavailable',attempted:0,collected:0,failed:1};}
  }
  if(!signal.aborted){
   const claims=await store.claimSummaries(pilotIds),groups=new Map();

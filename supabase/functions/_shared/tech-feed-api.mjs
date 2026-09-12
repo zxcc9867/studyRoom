@@ -1,4 +1,5 @@
 import {INTERESTS,normalizeUrl,fetchFeed,pilotEnabled} from './tech-feed-core.mjs';
+import {canonicalTopic,feedAccess,searchState} from './tech-feed-topics.mjs';
 export const cors={'Access-Control-Allow-Origin':'*','Access-Control-Allow-Headers':'authorization,x-client-info,apikey,content-type','Access-Control-Allow-Methods':'POST,OPTIONS','Cache-Control':'no-store'};
 export function reply(body,status=200){return new Response(JSON.stringify(body),{status,headers:{...cors,'Content-Type':'application/json'}});}
 function invalid(){throw Error('invalid_input');}
@@ -20,6 +21,7 @@ function todo(data){
  return{article_id,title,local_date:data.local_date,start_time,end_time,goal_id:data.goal_id==null?null:uuid(data.goal_id)};
 }
 const errorMessages={
+ revision_conflict:[409,'다른 기기에서 설정이 변경되었습니다. 새로고침 후 다시 시도해 주세요.'],
  unauthorized:[401,'로그인이 필요합니다.'],disabled:[403,'기술 피드를 사용할 수 없습니다.'],
  invalid_input:[400,'입력 내용을 확인해 주세요.'],invalid_url:[400,'공개 HTTPS 피드 주소를 입력해 주세요.'],
  invalid_feed:[400,'RSS 또는 Atom 피드를 확인할 수 없습니다.'],source_limit:[400,'사용자 소스는 최대 10개까지 구독할 수 있습니다.'],
@@ -39,11 +41,21 @@ export function createTechFeedHandler({authenticate,env,transport}){
     let zone;try{zone=new Intl.DateTimeFormat('en',{timeZone:data.time_zone}).resolvedOptions().timeZone;}catch{invalid();}
     await store.saveTimezone(zone);return reply({ok:true});
    }
-   if(!pilotEnabled(id,env())){
-    if(action==='state')return reply({enabled:false,sources:[],interests:[],last_success_at:null});
-    throw Error('disabled');
+   const config=env();
+   const withStatus=state=>({...state,enabled:true,service_available:config.TECH_FEED_ENABLED==='true'&&Boolean((state.preferences?.receiving&&config.TAVILY_API_KEY?.trim()&&!['quota_exhausted','unavailable'].includes(state.search_status?.state))||((!state.preferences?.prompt||state.preferences.receiving)&&state.sources?.some(s=>s.subscribed&&s.permission_status==='approved'))),search_status:searchState(state,config)});
+   if(action==='topics_save'||action==='receiving'){
+    if(typeof data.receiving!=='boolean'||!Number.isSafeInteger(data.expected_revision)||data.expected_revision<0)invalid();
+    const state=action==='topics_save'?await store.configure({...canonicalTopic(data.prompt),receiving:data.receiving,expected_revision:data.expected_revision}):await store.receiving({receiving:data.receiving,expected_revision:data.expected_revision});
+    const result=withStatus(state);return reply({preferences:result.preferences,search_status:result.search_status});
    }
-   if(action==='state')return reply(await store.state());
+   if(!feedAccess(id,config)||(config.TECH_FEED_ACCESS_MODE!=='self_service'&&!pilotEnabled(id,config))){
+    if(action==='state'){
+     const state=await store.state();
+     return reply({enabled:false,sources:[],interests:[],last_success_at:null,preferences:state.preferences||{prompt:'',receiving:false,revision:0},search_status:{...searchState(state,config),state:'paused'},service_available:false});
+    }
+    if(!feedAccess(id,config)||!['list','save','add_todo'].includes(action)||action==='list'&&data.view!=='saved')throw Error('disabled');
+   }
+   if(action==='state')return reply(withStatus(await store.state()));
    if(action==='list'){
     const view=data.view||'latest';if(!['latest','saved'].includes(view)||data.interest!=null&&!INTERESTS.includes(data.interest))invalid();
     const source=data.source_id==null?null:uuid(data.source_id);

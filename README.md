@@ -2,13 +2,15 @@
 
 [English](README.md) | [한국어](README.ko.md) | [日本語](README.ja.md)
 
-## StudyRoom 2.0 — hourly technology feed
+## StudyRoom 2.0 — your interests, a technology feed
 
-Discover → read a Korean summary or source excerpt → open the original → plan a study todo. The new `Technology Feed` tab provides latest/saved views, interest/source filters, 20-item pagination, and collapsible RSS subscriptions. Today remains the entry page. Saved articles and todo links are owner-scoped on the server.
+Enter a public technology interest on the website, then receive, edit or pause your feed. No personal search API key or SNS connection is required. Discover → read a Korean summary or source/search introduction → open the original → plan a study todo. Latest/saved views, filters and manual 20-item pages keep reading predictable; source subscriptions live in advanced settings. Today remains the entry page. Preferences, saves and todo links are owner-scoped on the server.
 
-A separate Supabase worker checks subscribed, approved RSS/Atom sources and the Hacker News API hourly. AI uses only free models, shares the existing six actual calls per user/day budget (failures count), and never guarantees a summary for every article. Eight recommended sources are seeded **pending permission review**, not enabled merely because a feed exists. Custom public HTTPS feeds are previewed and limited to ten per user.
+A separate worker combines approved RSS/Atom/Hacker News sources with public-web search. Normalization-equivalent interest queries share an hourly cache. Search is free-only, uses an app-wide maximum of 900 attempts/month, checks the provider's free account limits before calling, and never switches to paid services. When search quota runs out, eligible RSS/API collection continues. AI uses actual excerpts/snippets only and shares the existing six actual calls per user/day budget, including failures. Insufficient evidence remains an introduction and original link.
 
-**Code deployed; the feed remains disabled.** DB, functions and web are deployed, and the feed Cron is registered inactive. Source permissions, free-AI settings and pilot/runtime verification are still required before activation. [Deployment record](docs/tech-feed/deployment-20260912.md) · [Requirements](memory-bank/prd-tech-feed.md) · [Release guide](docs/tech-feed/release.md) · [Career code restoration](archive/career-coach/README.md). Career-only UI/automation is archived; independent time-zone settings and restart coaching remain.
+Search covers publicly indexed results, not every page or private SNS content. Search introductions are labelled separately from AI summaries. Eight recommended RSS/API sources start **pending permission review**; custom public HTTPS feeds are previewed and limited to ten per user. A search result does not approve the publisher's RSS reuse rights.
+
+**User setup and operational activation are separate.** The app operator must provision a dedicated free search key, disable pay-as-you-go, configure the worker and verify live collection. No key or exhausted quota means no live web search, not fabricated news. [Current delivery status](memory-bank/progress.md) · [Search operation guide](docs/tech-feed/search-provider.md) · [Requirements](memory-bank/prd-tech-feed.md) · [Career code restoration](archive/career-coach/README.md). Career-only UI/automation is archived; independent time-zone settings and restart coaching remain.
 
 A personal study-habit product that turns a scheduled commitment into a repeatable loop: plan, focus, reflect, adjust, and earn visible rewards.
 

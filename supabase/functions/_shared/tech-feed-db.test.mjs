@@ -19,7 +19,7 @@ before(async()=>{
  grant all on profiles,study_todos,study_goals to service_role;
  insert into auth.users values('${owner}'),('${other}');insert into profiles values('${owner}','Asia/Seoul'),('${other}','Asia/Seoul');`);
  await db.exec(readFileSync('supabase/migrations/20260906083030_studyroom_v2_coach.sql','utf8'));
- for(const name of readdirSync('supabase/migrations').filter(n=>n.endsWith('_tech_feed.sql')).sort())await db.exec(readFileSync('supabase/migrations/'+name,'utf8'));
+ for(const name of readdirSync('supabase/migrations').filter(n=>/_tech_feed(?:_web_search)?\.sql$/.test(n)).sort())await db.exec(readFileSync('supabase/migrations/'+name,'utf8'));
 });
 after(async()=>await db?.close());
 async function tx(run){await db.exec('begin');try{await run();}finally{await db.exec('rollback');}}

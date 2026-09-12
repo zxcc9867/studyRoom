@@ -1,3 +1,61 @@
+## 2026-09-13 — 배포 CLI의 과거 마이그레이션 이력 불일치
+
+### 상황 / 원인
+- 격리 worktree에 Supabase link/config가 없어서 linked dry-run 실패. 명시적 project-ref로 확인하자 과거 원격 migration 파일 일부가 로컬에 없어 LegacyDbPushMissingLocalError 발생.
+### 해결 / 검증
+- 과거 migration repair/reset 또는 DB pull을 실행하지 않고, 검토된 신규 SQL만 Supabase MCP apply_migration으로 적용했다. 새 원격 버전20260912150427과 실제 RLS/권한 확인 후 로컬 파일명만 동일 번호로 변경했다.
+- 관련: supabase/migrations/20260912150427_tech_feed_web_search.sql, docs/tech-feed/deployment-20260913.md.
+- 재발 방지: production db push 전 dry-run과 원격 이력 확인. 도구의 과거 이력 reverted 제안을 그대로 실행하지 않는다. SQL 변경이 아닌 버전 정합화임을 기록한다.
+- 기존 파일 apply_patch 읽기는 Windows sandbox deny-read ACL helper 오류로 실패했다. 보안 설정을 바꾸지 않고 apply_patch로 만든 제한된 patch를 승인된 git apply로 적용했다.
+
+## 2026-09-12 — 피드 설정·주제·계정 전환의 상태 불일치
+
+### 원인 / 해결
+- 수신 변경 응답에 service_available이 없어 재개 후 중지 안내가 남았다. 변경 후 authoritative state를 재조회하며 같은 주제의 목록/커서는 유지한다.
+- 다른 기기의 주제 변경을409 또는 수신 직후 상태 재조회로 발견하면 예전 목록/커서가 남거나 빈 목록에서 멈췄다. 주제 변경 시 목록/커서를 비우고 첫 페이지를 재요청하며 작성 중 초안은 보존한다.
+- 새 계정 상태 로딩 중 이전 state/preview/주소 입력이 남았다. 계정별 상태 소유자를 검사해 렌더링을 차단하고 계정 변경 시 관련 상태를 초기화한다.
+### 검증 / 재발 방지
+- 독립 검토2회 수정 후 모두 승인. 실제 합성 브라우저에서 paused-load→resume, 다른 주제20개/새 커서, 다음 계정 지연·실패, receiving/state 사이 주제 변경을 RED→GREEN으로 확인했다. 집중28/28, 전체533/533, 빌드 통과.
+- 정적 브라우저 fixture는 코드 수정 후 서버를 재시작해야 새 번들을 사용한다. 과거 번들로 반복된 RED는 owned server 재시작 후 해소했다.
+- 첫 viewport 스크린샷 생성 스크립트는 파일이 없었으므로 증거에서 제외했다. v2에서 파일59556bytes 생성 확인 후 실제390x844 이미지를 열어 확인했다. 파일 생성/검증 전 성공으로 보고하지 않는다.
+- 관련: apps/web/src/TechFeedSection.tsx, techFeed.mjs, techFeedStateTransitions.test.mjs, fixtures/tech-feed-browser.tsx.
+
+## 2026-09-12 — 계정 전환 후 늦은 피드 요청의 상태 갱신 방지
+
+### 상황 / 원인
+- 비동기 action의 catch/finally가 변경 가능한 현재 lifetime을 읽으면 이전 계정 요청이 새 계정의 오류/처리 상태를 갱신할 수 있다.
+- 신규 보호 테스트의 RED 단계에 전체 검사를 실행해530개 중1개가 실패했다. 구현 완료 후 전체 재실행은530/530 통과했다.
+### 해결 / 검증
+- 요청 시작 시 generation과 AbortSignal을 캡처하고 현재 요청인 경우만 오류/종료 상태를 반영한다. 계정 변경 시 상태와 잠금을 초기화한다.
+- 실제 React 합성 브라우저에서 remount 없이 userId만 바꾸며 늦은 상태·설정 응답을 검증했다. 집중25/25, 웹 빌드 및 전체530/530 통과.
+- 관련: apps/web/src/TechFeedSection.tsx, techFeed.mjs, techFeedRequestGuard.test.mjs, fixtures/tech-feed-browser.tsx.
+- 재발 방지: 합성 fixture의 key로 계정 전환 문제를 숨기지 않고, 콜백에서 최신 ref를 읽는 것과 요청의 원래 소유권 확인을 구분한다.
+
+## 2026-09-12 — 웹 검색 검토: 관심 필터 누락·갱신된 소개 미반영
+
+### 상황 / 원인
+- 독립 검토에서 실제 검색 저장 경로가 interests를 비워 두어 관심 분야 필터에 검색 글이 나타나지 않음을 발견했다. 기존 페이지 테스트는 태그를 직접 넣어 이 경로를 검증하지 못했다.
+- 동일 URL 검색 결과의 새 소개는 topic map에만 저장되고 목록/AI는 첫 article.excerpt를 읽어, 짧은 초기 소개가 계속 요약 부족 상태로 남았다.
+### 해결 방법
+- 기존 RSS의 결정적 분류기를 공유하여 실제 검색 제목/소개로 interests를 생성·저장한다. 개인 관심 입력문을 분류 근거로 쓰지 않는다.
+- RSS 근거가 없는 검색 소유 기사만 소개를 갱신한다. 제목/소개 변경 시 캐시된 요약과 진행 중인 요약 lease를 함께 무효화하고 새 근거로 자격을 재계산한다. 날짜/기사ID/사용자별 실제 AI 사용 횟수는 보존한다.
+### 검증 / 관련 파일
+- provider→worker→PGlite→필터 목록, short→substantive, 이전 lease 완료 거부, 같은 근거 캐시 유지, RSS 보호를 RED→GREEN으로 검증했다. 관련54/54, Edge8/8 통과; 독립 수정 재검토 진행 중.
+- tech-feed-topics.mjs, search-worker.mjs, worker-core.mjs, search-db.test.mjs, 20260912122630_tech_feed_web_search.sql.
+### 재발 방지 / 남은 리스크
+- 수동 DB seed만으로 실제 수집 경로를 검증했다고 간주하지 않는다. 콘텐츠 갱신 시 목록·AI·캐시·in-flight 작업을 함께 확인한다.
+- 기존 Deno punycode 의존성 경고는 별도 보류 항목이다. 이번 기능에서 숨기거나 무관한 의존성을 변경하지 않았다.
+
+## 2026-09-12 — Windows 기존 파일 패치의 ACL/줄바꿈 제약
+
+### 상황 / 원인
+- 일반 셸과 기존 파일 apply_patch가 helper_unknown_error: apply deny-read ACLs로 실패하는 환경 제약을 확인했다. 파일 권한이나 보안 정책은 변경하지 않았다.
+- scratch 패치를 git apply로 적용할 때 부분 문맥/Windows 줄바꿈으로 patch does not apply가 발생했다.
+### 해결 방법
+- 새 scratch 패치는 apply_patch로 작성하고, 소유권을 확보한 대상에 한해 승인된 셸에서 git apply --recount --unidiff-zero --ignore-space-change로 적용했다. 원문을 다시 읽고 범위와 diff를 확인한다.
+### 관련 파일 / 재발 방지
+- 이번 README3개·memory-bank 부분 갱신. 기존 내용을 삭제/초기화하지 않고 패치 적용 실패 시 재확인한다. 작업용 패치를 Git에 포함하지 않는다.
+
 ## 2026-09-12 — 기술 피드 WORKER_ERROR 해결: 동적 XML import 번들 누락
 
 ### 상황 / 에러 메시지

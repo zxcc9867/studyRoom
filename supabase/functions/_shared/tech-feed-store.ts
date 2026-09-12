@@ -1,10 +1,10 @@
 import {createClient,type SupabaseClient} from "jsr:@supabase/supabase-js@2.57.4";
 import {createOpenRouterClient,getOpenRouterConfig} from "./coach-openrouter.mjs";
-import {pilotEnabled} from "./tech-feed-core.mjs";
+import {feedAccess} from "./tech-feed-topics.mjs";
 
 function checked(result:{data:any;error:any}):any {
  if(result.error){
-  const allowed=["not_found","source_limit","invalid_input","unauthorized"];
+  const allowed=["not_found","source_limit","invalid_input","unauthorized","revision_conflict"];
   throw Error(allowed.includes(result.error.message)?result.error.message:"storage_failed");
  }
  return result.data;
@@ -20,6 +20,12 @@ export function createFeedStore(admin:SupabaseClient,owner:string|null){
  return {
   startRun:()=>rpc("tech_feed_start_run",{}),
   finishRun:(id:string,counts:unknown,error:string|null)=>rpc("tech_feed_finish_run",{p_id:id,p_counts:counts,p_error:error}),
+  configure:(data:{prompt:string;canonical:string;receiving:boolean;expected_revision:number})=>rpc("tech_feed_configure",{p_user_id:owner,p_prompt:data.prompt,p_canonical:data.canonical,p_receiving:data.receiving,p_expected_revision:data.expected_revision}),
+  receiving:(data:{receiving:boolean;expected_revision:number})=>rpc("tech_feed_receiving",{p_user_id:owner,p_receiving:data.receiving,p_expected_revision:data.expected_revision}),
+  recipients:()=>rpc("tech_feed_recipients",{}),
+  claimSearch:(recipients:string[]|null=null)=>rpc("tech_feed_search_claim",{p_recipients:recipients}),
+  reserveSearch:(id:string,lease:string,cap=900)=>rpc("tech_feed_search_reserve",{p_id:id,p_lease:lease,p_cap:cap}),
+  finishSearch:(id:string,lease:string,items:unknown[],error:string|null)=>rpc("tech_feed_search_finish",{p_id:id,p_lease:lease,p_items:items,p_error:error}),
   state:()=>rpc("tech_feed_state",{p_user_id:owner}),
   list:(view:string,interest:string|null,source:string|null,cursor:string|null)=>rpc("tech_feed_list",{p_user_id:owner,p_view:view,p_interest:interest,p_source_id:source,p_cursor:cursor}),
   mutate:(action:string,data:unknown)=>rpc("tech_feed_mutate",{p_user_id:owner,p_action:action,p_data:data}),
@@ -45,7 +51,7 @@ export async function authenticateFeed(request:Request,admin=feedAdmin()){
  return{id:data.user.id,store:createFeedStore(admin,data.user.id)};
 }
 export async function askFeedAi(admin:SupabaseClient,user:string,messages:unknown[],signal?:AbortSignal,env:Record<string,string>=Deno.env.toObject(),fetchImpl:typeof fetch=globalThis.fetch,reserve?:()=>Promise<boolean>){
- if(signal?.aborted||!pilotEnabled(user,env))return{deferred:true};
+ if(signal?.aborted||env.TECH_FEED_ENABLED!=='true'||!feedAccess(user,env))return{deferred:true};
  try{
   const config=getOpenRouterConfig(env);
   if(!config.enabled)return{deferred:true};
