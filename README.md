@@ -2,13 +2,13 @@
 
 [English](README.md) | [한국어](README.ko.md) | [日本語](README.ja.md)
 
-## StudyRoom 2.0 — hourly technology feed (local implementation)
+## StudyRoom 2.0 — hourly technology feed
 
 Discover → read a Korean summary or source excerpt → open the original → plan a study todo. The new `Technology Feed` tab provides latest/saved views, interest/source filters, 20-item pagination, and collapsible RSS subscriptions. Today remains the entry page. Saved articles and todo links are owner-scoped on the server.
 
 A separate Supabase worker checks subscribed, approved RSS/Atom sources and the Hacker News API hourly. AI uses only free models, shares the existing six actual calls per user/day budget (failures count), and never guarantees a summary for every article. Eight recommended sources are seeded **pending permission review**, not enabled merely because a feed exists. Custom public HTTPS feeds are previewed and limited to ten per user.
 
-**Not deployed or activated by this change.** Production migrations, function deployment, source permission approval and Cron activation require a separate release. [Requirements](memory-bank/prd-tech-feed.md) · [Release guide](docs/tech-feed/release.md) · [Career code restoration](archive/career-coach/README.md). Career-only UI/automation is archived; independent time-zone settings and restart coaching remain.
+**Code deployed; the feed remains disabled.** DB, functions and web are deployed, and the feed Cron is registered inactive. Source permissions, free-AI settings and pilot/runtime verification are still required before activation. [Deployment record](docs/tech-feed/deployment-20260912.md) · [Requirements](memory-bank/prd-tech-feed.md) · [Release guide](docs/tech-feed/release.md) · [Career code restoration](archive/career-coach/README.md). Career-only UI/automation is archived; independent time-zone settings and restart coaching remain.
 
 A personal study-habit product that turns a scheduled commitment into a repeatable loop: plan, focus, reflect, adjust, and earn visible rewards.
 

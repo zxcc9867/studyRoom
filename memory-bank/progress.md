@@ -2,6 +2,13 @@
 
 ## Timeline
 
+### 2026-09-12 — 기술 피드 운영 코드 배포 완료 (기능 비활성)
+
+- 완료: main6d7ee57, Actions34689621569 성공, Vercel dpl_DhGtsKswX6Tq52B4as6x1bH3Q1zQ READY/HTTP200/로그인 화면 확인. Supabase 새/기존 함수7개 배포, schema20260912104353/scheduler20260912105541 적용.
+- 검증: Node489/489·Deno6/6·웹/모바일/README와 CI 통과. 커리어410/Slack401, 신규 JWT401, 테이블10개 RLS/anon 차단.
+- Cron: 출석 활성 유지, 커리어2개 중지, 기술 피드 비활성 등록. 소스 권한/AI/파일럿/worker 인증·TLS/실제 동기화는 활성화 전 남은 작업.
+- 변경 기록: README3언어, active-context/progress/implementation-plan/trouble-shooting, docs/tech-feed와 migration 파일명 정합성. 자세한 증거는 deployment-20260912.md.
+
 ### 2026-09-12 — 기존 함수 인증 설정 유지 승인 및 서버 배포
 
 - 명시적 승인 후 기존5개 함수 배포. 커리어4개410, Slack 무서명401 확인.

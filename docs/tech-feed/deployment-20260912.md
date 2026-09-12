@@ -1,3 +1,22 @@
+# 최종 결과 — 운영 코드 배포 완료, 기술 피드 비활성
+
+- 코드 커밋: `6d7ee57fad542436f7b456506c5d7064a8bbc96d`, main 반영.
+- GitHub Actions: https://github.com/zxcc9867/studyRoom/actions/runs/34689621569 — success.
+- Vercel: `dpl_DhGtsKswX6Tq52B4as6x1bH3Q1zQ`, production READY, build 약27초. https://study-room-attendance.vercel.app HTTP200, 실제 브라우저 로그인 화면 정상, 브라우저 오류 없음.
+- 관찰: 해당 배포의 최근10분 error/fatal 로그 없음. 짧은 smoke test이며 장기 모니터링/로그인 후 기기 동기화 검증은 아님.
+- Supabase: `tech-feed`/worker v1(JWT true), career-coach v5/coach-worker v4/integrations v4/notifications v4/Slack recovery v17(기존 false 유지 승인). 각 커리어410, Slack 무서명401, 신규 무인증401 검증.
+- migration: `20260912104353_tech_feed.sql`, `20260912105541_tech_feed_cron_disabled.sql` 적용/로컬 이력 일치. 원본 SQL 내용 유지, 중복 적용 없음.
+- Cron: attendance true, coach-worker false, coach-notifications false, tech-feed false. 기존 출석 최근3회 SQL 예약 실행 succeeded; 피드 실행은 하지 않음.
+- 기능: `TECH_FEED_ENABLED=false`; 추천8개 pending/summary 금지. worker secret/파일럿/Edge AI는 미설정. 신규 worker JWT도 true로 유지하므로 Cron을 단독 활성화하지 말 것.
+- 테스트: 로컬/CI Node489/489, Deno6/6, Edge10개 검사, 웹 빌드, Expo 호환성/타입, README24개 이미지 검사 통과.
+- CI 합성 무료 coaching은 upstream 실패로 규칙 fallback, 유료 재시도 없음. 피드 AI 품질 검증 성공으로 간주하지 않는다.
+
+## 남은 활성화 조건
+
+소스 이용 조건 승인, 무료 AI와 worker secret/Vault/소유자 파일럿 설정, 신규 worker 인증 변경 승인 및 호스팅 TLS 지원 확인, 실제 로그인 시간대/구독·저장·할 일/계정 전환·기기 동기화와 두 예약 주기 확인. 코드 배포만 완료했으며 사용자 피드/자동 수집을 활성화하지 않았다.
+
+아래 부분 배포/승인 대기 기록은 당시의 이력이며 지금의 배포 상태보다 우선하지 않는다.
+
 ## 승인 후 재개 (최신 상태)
 
 사용자가 기존5개 함수 인증 설정 유지 배포를 명시적으로 승인했다. 배포 성공 후 커리어4개410, Slack 무서명401을 확인했다. 신규 함수는 JWT 검사를 계속 활성으로 유지한다.

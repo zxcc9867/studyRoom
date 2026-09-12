@@ -1,3 +1,10 @@
+## 2026-09-12 — JWT 승인 차단 해소 및 운영 배포 완료
+
+- 사용자에게 기존5개 false 유지 범위와 Slack HMAC/커리어410 동작을 설명한 뒤 명시적 승인을 받아 정상 배포했다. 신규2개는 true를 유지했다. 우회 없이 승인된 동일 명령으로 성공.
+- MCP migration 적용 시 새 timestamp가 생성되므로 로컬 schema/cron 파일명과 현재 문서 참조를 각각20260912104353/20260912105541로 일치시켰다. 같은 SQL은 재실행하지 않았다.
+- 배포 CI의 무료 coaching 합성 검사는 upstream 실패로 규칙 fallback 사용, 유료 재시도 없음. 기술 피드 AI 성공을 의미하지 않는다. 이 앱의 Supabase Edge에는 별도 AI 설정이 아직 없다.
+- 관련 파일/검증: `docs/tech-feed/deployment-20260912.md`; CI 성공, 커리어410/Slack401/신규401/웹200. 아래 승인 대기 기록은 해결 전 이력이다.
+
 ## 2026-09-12 — 운영 함수 배포의 JWT 보안 승인 차단
 
 ### 상황 / 오류
@@ -22,7 +29,7 @@
 - AI 배열 객체 검증으로 정상 실패 처리와 후속 owner/cleanup/finalization 유지. TLS 검증한 최종 URL을 parser에 전달하고 cross-origin validator 제거 유지.
 - 실제 parser/합성 TLS 전송/PGlite SQL 및 worker 회귀 RED→GREEN. 서버58개 포함 전체 Node489/489, Deno6/6 통과. 독립 최종 검토의 중요 결함2개 해소 및 로컬 인계 승인.
 ### 관련 파일 / 재발 방지
-- `supabase/functions/_shared/tech-feed-*`, `supabase/migrations/20260912104353_tech_feed.sql`, `20260912081624_tech_feed_cron_disabled.sql`.
+- `supabase/functions/_shared/tech-feed-*`, `supabase/migrations/20260912104353_tech_feed.sql`, `20260912105541_tech_feed_cron_disabled.sql`.
 - 제한은 초기 적재/증분/작업당 처리량을 구분하고, AI JSON은 배열 내부까지 불신한다. 리디렉션 안전성과 상대 링크 정확성을 함께 검증한다.
 - 구현 중 SQL 패치의 달러 구분자 손상/PGlite 구문 오류와 Deno 반환 타입 오류도 수정 후 재검증했다. 자세한 재현/해결은 `docs/tech-feed/backend-report.md` 참조.
 - 운영 TLS/DNS, 원격 RLS/동시성, 실제 Cron/AI는 미검증이며 출시 게이트로 유지한다.

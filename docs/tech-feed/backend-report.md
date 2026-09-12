@@ -27,7 +27,7 @@
 - `supabase/functions/_shared/tech-feed-store.ts`
 - Associated `tech-feed*.test.mjs` and two `tech-feed*.test.ts` files
 - `supabase/migrations/20260912104353_tech_feed.sql`
-- `supabase/migrations/20260912081624_tech_feed_cron_disabled.sql`
+- `supabase/migrations/20260912105541_tech_feed_cron_disabled.sql`
 
 No existing career entrypoint, package manifest/lockfile, frontend, or memory-bank file was edited by this worker. The controller added the exact XML parser dependency and owns shared documentation updates.
 
@@ -56,7 +56,7 @@ where id = '<reviewed-source-uuid>';
 
 Set `summary_allowed=true` only when that source's approved scope includes the AI processing. Revoke with `permission_status='blocked', summary_allowed=false`; lease finalization rechecks permission. Do not bulk-approve all catalog rows or treat preview success as authorization.
 
-Deployment ordering remains schema -> handlers -> web -> scheduler. Apply `20260912104353_tech_feed.sql` before handlers/web. Apply `20260912081624_tech_feed_cron_disabled.sql` SEPARATELY LAST after handler readiness checks; do not indiscriminately apply both files before handler verification. The scheduler migration uses one atomic DO statement and `cron.alter_job` to:
+Deployment ordering remains schema -> handlers -> web -> scheduler. Apply `20260912104353_tech_feed.sql` before handlers/web. Apply `20260912105541_tech_feed_cron_disabled.sql` SEPARATELY LAST after handler readiness checks; do not indiscriminately apply both files before handler verification. The scheduler migration uses one atomic DO statement and `cron.alter_job` to:
 
 1. Disable only `study-room-coach-worker` and `study-room-coach-notifications`.
 2. Register `study-room-tech-feed-hourly` at `* * * * *` (minute dispatcher; the stable job identifier describes the per-source hourly cadence, not its tick interval).

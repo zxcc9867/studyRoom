@@ -1,5 +1,14 @@
 # Active Context
 
+## 운영 배포 완료 — 2026-09-12 (현재 상태)
+
+- 웹 코드6d7ee57 main 푸시, Actions34689621569 성공, Vercel dpl_DhGtsKswX6Tq52B4as6x1bH3Q1zQ READY, production HTTP200/브라우저 로그인 렌더링 확인.
+- Supabase schema20260912104353 및 scheduler20260912105541 적용 완료. 로컬 파일명도 원격과 일치. 커리어4개410/Slack 무서명401, 신규2개 JWT 활성401 확인.
+- 기존 커리어 Cron2개 중지, 출석 Cron 활성 유지. 기술 피드 Cron 비활성, TECH_FEED_ENABLED=false. 소스8개 permission pending, 서버 AI/worker secret/파일럿 미설정.
+- 검증: Node489/489, Deno6/6, 웹/모바일/README 검사 및 CI 전체 성공. Vercel 최근 오류 로그 없음(짧은 관찰 범위). 실제 로그인 후 피드/시간대/기기 동기화는 미검증.
+- 다음 작업: 이용 조건 승인, 무료 AI 설정, 신규 worker 인증 설정 별도 승인과 hosted TLS/실사용 검증 후 파일럿 활성화. 코드 배포를 수집 활성화로 해석하지 말 것.
+- 상세: `docs/tech-feed/deployment-20260912.md`. 아래 중단/재개/로컬 상태는 이전 단계 기록이다.
+
 ## 승인 후 배포 재개 — 2026-09-12 (최신)
 
 - 사용자가 기존5개 함수 verify_jwt=false 유지 재배포를 명시적으로 승인했다. 커리어4개410/Slack 무서명401 확인 완료.

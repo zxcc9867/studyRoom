@@ -1,3 +1,13 @@
+## Supabase 변경 이력 — 2026-09-12 (배포 완료)
+
+- 대상/내용: 기술 피드 schema와 비활성 scheduler, 신규2개/기존5개 Edge 함수, Vercel 웹 배포 완료.
+- 이유: 승인된 기술 피드 전환과 커리어 자동 실행 중지. 기존 출석 데이터/함수/Cron 보존.
+- 파일/원격 버전: `20260912104353_tech_feed.sql`, `20260912105541_tech_feed_cron_disabled.sql`. 최초 로컬 생성 번호를 MCP 적용 번호에 맞춰 변경했으며 SQL 내용은 동일.
+- 확인: 원격 migration 조회, 함수410/401, Cron4개 활성 상태, RLS/권한, CI 성공/웹 READY/HTTP200.
+- 현재 설정: tech-feed와 worker verify_jwt=true; 기존5개는 사용자 명시적 승인으로 false 유지. TECH_FEED_ENABLED=false, 피드 Cron false, 커리어2개 false, 출석 true.
+- 주의: 신규 worker 예약 호출은 현재 JWT 게이트에 차단되므로 승인 없이 켜지 말 것. source permission/무료 AI/worker secret/Vault/파일럿 구성과 hosted TLS·실사용 검증 후 별도 활성화.
+- 상세/복구: `docs/tech-feed/deployment-20260912.md`. 아래 기록은 배포 전/중간 이력이다.
+
 ## Supabase 운영 적용 이력 — 2026-09-12 (부분)
 
 - 변경 대상/이유: 시간별 기술 피드 추가 스키마와 인증 API/worker 배포. 기존 데이터 보존.
@@ -27,7 +37,7 @@
 - 변경 대상: 기술 피드 테이블·정책·원자적 함수·독립 Cron과 커리어 전용 예약 작업 중지(로컬 마이그레이션만 작성).
 - 변경 이유: 시간별 서버 수집과 기기 간 동기화, 중복 할 일 방지 및 사용자 데이터 격리.
 - 관련 기능: 기술 피드, 시간대 독립 저장.
-- 마이그레이션 파일: `20260912104353_tech_feed.sql`, `20260912081624_tech_feed_cron_disabled.sql`.
+- 마이그레이션 파일: `20260912104353_tech_feed.sql`, `20260912105541_tech_feed_cron_disabled.sql`.
 - 확인 방법: PGlite 실제 SQL/RLS 회귀 테스트, Node/Deno 검사. 운영 적용/실제 Cron 실행은 미수행.
 - 주의 사항: 과거 DB 데이터를 삭제하지 않음. 아래 커리어 설계는 보관 기록이다.
 
