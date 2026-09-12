@@ -7,6 +7,8 @@
 Enter a public technology interest on the website, then receive, edit or pause your feed. No personal search API key or SNS connection is required. Discover → read a Korean summary or source/search introduction → open the original → plan a study todo. Latest/saved views, filters and manual 20-item pages keep reading predictable; source subscriptions live in advanced settings. Today remains the entry page. Preferences, saves and todo links are owner-scoped on the server.
 
 A separate worker combines approved RSS/Atom/Hacker News sources with public-web search. Normalization-equivalent interest queries share an hourly cache. Search is free-only, uses an app-wide maximum of 900 attempts/month, checks the provider's free account limits before calling, and never switches to paid services. When search quota runs out, eligible RSS/API collection continues. AI uses actual excerpts/snippets only and shares the existing six actual calls per user/day budget, including failures. Insufficient evidence remains an introduction and original link.
+Click `새 글 확인` to request collection immediately and reload the results when it finishes. Manual checks share active jobs and enforce a five-minute account/topic/source cooldown; automatic checks remain hourly. Each request checks one topic and up to four eligible RSS/API sources, within the same free limits. New articles and immediate AI summaries are not guaranteed.
+
 
 Search covers publicly indexed results, not every page or private SNS content. Search introductions are labelled separately from AI summaries. Eight recommended RSS/API sources start **pending permission review**; custom public HTTPS feeds are previewed and limited to ten per user. A search result does not approve the publisher's RSS reuse rights.
 

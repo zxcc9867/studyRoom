@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState, type FormEvent } from 'react';
+import {manualRefreshMessage,refreshFeedNow} from './techFeed.mjs';
 import { Bookmark, BookOpen, ExternalLink, Leaf, Plus, RefreshCw, Rss, Settings2 } from 'lucide-react';
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { applyPreferenceResponse, createTechFeedClient, currentFeedState, feedSourceHost, FEED_CATEGORIES, FEED_INTERESTS, interestSavePayload, isCurrentFeedRequest, isRevisionConflict, mergeFeedPage, preferenceRefreshResult, receivingPayload, safeFeedUrl, summaryLabel } from './techFeed.mjs';
@@ -171,6 +172,22 @@ export default function TechFeed({supabase,userId,timeZone,onPlan,linkedTodo=nul
   function retryInterest() {
     saveInterest();
   }
+  function refreshNow() {
+    if(!state)return;
+    const request=settingsGeneration.current;
+    const signal=lifetime.current?.signal;
+    void action('refresh',async()=>{
+      try{
+        const result=await refreshFeedNow(api,state.preferences.revision,{signal});
+        if(!isCurrentFeedRequest(request,settingsGeneration.current,signal))return;
+        setNotice(manualRefreshMessage(result));
+        setRevision(value=>value+1);
+      }catch(nextError){
+        if(!isRevisionConflict(nextError))throw nextError;
+        await latestPreferencesAfterConflict(request,state.preferences.prompt);
+      }
+    });
+  }
   async function loadMore() {
     const request=generation.current;
     await action('more',async()=>{
@@ -210,7 +227,7 @@ export default function TechFeed({supabase,userId,timeZone,onPlan,linkedTodo=nul
         onReceivingChange={changeReceiving}
         onRetry={retryInterest}
       />
-      <div className="feed-toolbar"><div className="feed-tabs" aria-label="피드 보기">{(['latest','saved'] as const).map(tab=><button key={tab} type="button" aria-pressed={view===tab} disabled={Boolean(busy)} onClick={()=>setView(tab)}>{tab==='latest'?'최신':'저장'}</button>)}</div><button className="secondary" type="button" disabled={loading||Boolean(busy)} onClick={()=>setRevision(n=>n+1)}><RefreshCw size={16}/>새 글 확인</button></div>
+      <div className="feed-toolbar"><div className="feed-tabs" aria-label="피드 보기">{(['latest','saved'] as const).map(tab=><button key={tab} type="button" aria-pressed={view===tab} disabled={Boolean(busy)} onClick={()=>setView(tab)}>{tab==='latest'?'최신':'저장'}</button>)}</div><button className="secondary" type="button" disabled={loading||Boolean(busy)} aria-busy={busy==='refresh'} onClick={refreshNow}><RefreshCw size={16}/>{busy==='refresh'?'새 소식 찾는 중…':'새 글 확인'}</button></div>
       <div className="feed-filters"><label>관심 분야<select value={interest} onChange={e=>setInterest(e.target.value)} disabled={Boolean(busy)}><option value="">전체 분야</option>{FEED_INTERESTS.map(([id,label])=><option value={id} key={id}>{label}</option>)}</select></label><label>출처<select value={source} onChange={e=>setSource(e.target.value)} disabled={Boolean(busy)}><option value="">전체 출처</option>{state.sources.map(item=><option key={item.id} value={item.id}>{item.name}</option>)}</select></label></div>
       <details className="feed-subscriptions"><summary><Settings2 size={17}/>고급 설정: 수집 출처 <span>{state.sources.filter(item=>item.subscribed).length}개 구독</span></summary>
         <fieldset disabled={Boolean(busy)}><legend>관심 분야를 골라 주세요</legend><div className="feed-interest-options">{FEED_INTERESTS.map(([id,label])=><label key={id}><input type="checkbox" checked={state.interests.includes(id)} onChange={()=>void action('interests',async()=>{const interests=state.interests.includes(id)?state.interests.filter(i=>i!==id):[...state.interests,id];await api('interests',{interests},lifetime.current?.signal);setState(s=>s?{...s,interests}:s);setRevision(n=>n+1);})}/>{label}</label>)}</div></fieldset>

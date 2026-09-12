@@ -1,3 +1,5 @@
+export function refreshFeedNow(api:(action:string,payload?:Record<string,unknown>,signal?:AbortSignal)=>Promise<any>,expectedRevision:number,options?:{signal?:AbortSignal;wait?:(ms:number,signal:AbortSignal)=>Promise<void>;maxPolls?:number}):Promise<any>;
+export function manualRefreshMessage(result:any):string;
 import type { SupabaseClient } from '@supabase/supabase-js';
 import type { FeedArticle, FeedPreferences, FeedPreferenceResponse, FeedState, FeedTodoDraft, FeedSearchStatus } from './techFeedTypes';
 export const FEED_INTERESTS: [string,string][];

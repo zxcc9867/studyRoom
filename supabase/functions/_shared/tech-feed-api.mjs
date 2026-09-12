@@ -1,3 +1,4 @@
+import {runManualRefresh} from './tech-feed-refresh.mjs';
 import {INTERESTS,normalizeUrl,fetchFeed,pilotEnabled} from './tech-feed-core.mjs';
 import {canonicalTopic,feedAccess,searchState} from './tech-feed-topics.mjs';
 export const cors={'Access-Control-Allow-Origin':'*','Access-Control-Allow-Headers':'authorization,x-client-info,apikey,content-type','Access-Control-Allow-Methods':'POST,OPTIONS','Cache-Control':'no-store'};
@@ -56,6 +57,11 @@ export function createTechFeedHandler({authenticate,env,transport}){
     if(!feedAccess(id,config)||!['list','save','add_todo'].includes(action)||action==='list'&&data.view!=='saved')throw Error('disabled');
    }
    if(action==='state')return reply(withStatus(await store.state()));
+   if(action==='refresh_status')return reply({...await store.refreshStatus(),search:searchState(await store.state(),config)});
+   if(action==='refresh'){
+    if(!Number.isSafeInteger(data.expected_revision)||data.expected_revision<0)invalid();
+    return reply(await runManualRefresh({store,userId:id,expectedRevision:data.expected_revision,env:config,transport,signal:request.signal}));
+   }
    if(action==='list'){
     const view=data.view||'latest';if(!['latest','saved'].includes(view)||data.interest!=null&&!INTERESTS.includes(data.interest))invalid();
     const source=data.source_id==null?null:uuid(data.source_id);

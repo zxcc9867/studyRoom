@@ -1,3 +1,22 @@
+# Progress — 수동 수집 추가
+
+## Timeline
+
+### 2026-09-13
+
+- 완료한 작업: 승인된 즉시 수집 API·DB lease/계정·주제5분 제한·화면 진행 상태 구현. 독립 리뷰의 RSS가 검색을 막는 문제, 제공자 경합, revision TOCTOU, 공유 상태 오류 수정 및 재검토 승인.
+- 변경된 파일: tech-feed-refresh 모듈/테스트, tech-feed-api/store, tech_feed_manual_refresh 마이그레이션, TechFeedSection/techFeed/fixture, 관련 PRD·설계·운영 문서·README3언어판.
+- 검증 방법: 회귀 RED→GREEN25개, 전체558/558, Edge10진입점·8/8, 웹/모바일 통과. 합성 PC 버튼 단일 요청·진행·새 기사·5분 대기·공유·미연결/중지/한도 안내 확인.
+- 남은 작업: 추가 취소 테스트·모바일 최종 확인·문서 검사 후 DB/함수/웹 production 적용. 실제 수집 활성화는 별도이며 false/키 없음/미승인 소스 상태 유지.
+- 다음 우선순위: 검증·배포 결과를 docs/tech-feed/manual-refresh-verification.md에 기록. 과거 항목은 이력으로 유지.
+
+## 2026-09-13 — 즉시 새 글 수집 버튼 조사
+
+- 완료: 새 글 확인은 state/list 재조회일 뿐 외부 수집을 하지 않는 코드 경로 확인. 기존 시간당1회 제한과 수동 즉시 요청의 차이 식별.
+- 제안: 자동1시간/수동 즉시 요청, 주제·계정5분 쿨다운 및 중복 실행 공유, 무료 상한 유지, 수집 결과·실패/키 미설정 안내.
+- 변경 파일: active-context.md/progress.md에 조사·제안만 기록. PRD/코드/DB/서버/웹 배포 변경 없음.
+- 다음: PRD 수동 요청 예외와 짧은 설계에 사용자 승인 후 구현·검증. 설계 검토만 수행하여 테스트 재실행 대상 코드 변경 없음.
+
 ## 2026-09-13 — 운영 배포 완료 / 실제 수집 준비 대기
 
 - 완료: main8a6f48c 푸시, Actions34701374352 성공, Vercel dpl_5zWa8UdsFgkHZLVwqcFikp92vPx1 READY 및 운영 HTTP200/새 번들 확인. DB/서버 적용과 전체 검증 완료.

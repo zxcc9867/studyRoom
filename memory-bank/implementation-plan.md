@@ -1,3 +1,13 @@
+## Supabase 변경 이력 — 2026-09-13 수동 수집
+
+- 변경 대상/이유: 인증된 새 글 확인을 위한 서버 전용 tech_feed_refresh_requests와 소스/주제 manual_requested_at, refresh_begin/status/finish/claim_search/claim_sources RPC.
+- 관련 마이그레이션: tech_feed_manual_refresh.sql (적용 버전은 docs/tech-feed/manual-refresh-verification.md에 기록). 추가형이며 기존 데이터·출석 Cron 불변.
+- 권한: RLS 활성, anon/authenticated 테이블·RPC 접근 없음, service_role만 쓰기. Edge 인증 사용자로 owner 고정.
+- 원자성: 계정5분 요청/90초 lease, 주제·출처5분 중복 제한. begin 및 claim은 설정 변경과 같은 owner advisory lock, provider→topic row lock 순서. 주제 revision을 다시 확인한다.
+- API: refresh(expected_revision), refresh_status. RSS 최대4개와 주제1개 독립 수집, 제공자 mutex 경합은2초마다 제한 재시도하며 사용량 예약은 실제 검색 직전1회만 한다. 공유 작업을 읽는 폴링은 제공자 호출 없음.
+- 서버40초 네트워크 예산, 웹 요청60초/클라이언트65초. 수동 AI는 호출하지 않으며 정기 공유6회 예산 유지. 오래된 계정 응답은 abort/generation으로 제거.
+- 확인 방법/주의: PGlite 권한·중복·revision 테스트와 PC/390px 합성 흐름, Node/Edge/웹/모바일 검사. hosted 다중 연결 실험 및 실제 제공자 가동은 별도. 키·Cron/JWT 설정은 보존한다.
+
 ## Supabase 변경 이력 — 2026-09-13
 
 - 변경 대상/이유: 승인된 관심 입력·공유 검색 캐시·무료 사용량 기능의 운영 반영.

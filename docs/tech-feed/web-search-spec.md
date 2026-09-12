@@ -8,7 +8,7 @@ Supersedes the unresolved search boundary in topic-feed-design.md and the old PR
 3. Normalize the full query (Unicode NFKC, case, whitespace); identical canonical queries share one leased cache/job independent of subscriber count. No claim arbitrary paraphrases are semantically identical.
 4. One saved active query per user, 3..300 characters, saved server-side. A user's original query and memberships are private. Reject URLs, emails, credential-shaped tokens, control characters; display privacy notice that the query is sent to a search provider. No user ID/email is sent with queries.
 5. User may edit or pause. Pausing preserves saved articles and todo links. Other subscribers may keep a shared query fresh.
-6. Query cache TTL one hour; max one due execution per topic per hour, with leases/backoff. Current cache can show immediately; new topics enter server queue. Do not run arbitrary new provider calls on frontend refresh.
+6. Scheduled query cache TTL remains one hour. User-approved amendment (2026-09-13): explicit `새 글 확인` calls authenticated `refresh`, not just cached list reload. A manual request may bypass hourly freshness after a durable five-minute account AND topic/source cooldown. Leases, failure backoff, free-only validation and monthly cap remain binding. Ordinary page loads never trigger provider calls. At most one topic and four eligible subscribed RSS/API sources are checked per manual request; a click does not promise new articles or all sources.
 7. Free-only search: no billing/subscription/paid fallback APIs. Tavily request fixed basic, auto_parameters false, include_answer false, include_raw_content false, include_images false, include_usage true, max_results 5, topic general, time_range week.
 8. GET /usage validates free account before a search: current_plan Free/Researcher (case-insensitive), finite nonnegative usage/limits, positive plan_limit<=1000, positive key.limit<=1000, paygo_limit=0 and paygo_usage=0, room in both plan/key. Missing/unknown/paid account or unreachable usage endpoint fails closed.
 9. Local atomic monthly attempt budget defaults900, clamped0..900. Reserve before actual POST, failed/ambiguous calls count, no automatic refund/retry or new key/provider on failure. One shared provider execution lease prevents race between account usage check and search. Dedicated app key with provider pay-as-you-go disabled is an operational requirement; app code cannot prevent an unrelated client spending the same account.
@@ -24,6 +24,8 @@ Supersedes the unresolved search boundary in topic-feed-design.md and the old PR
 
 ## Data and API contract
 POST tech-feed remains authenticated. State and topics configuration do not depend on collection being enabled.
+- refresh {expected_revision:number} => state started internally; public result ready/partial/running/cooldown/paused/not_configured/no_sources/unavailable, optional rss/search outcomes and retry_after seconds. Account identity comes only from authentication. Current preference revision is revalidated under the owner lock when claiming work.
+- refresh_status {} => running/idle plus current search status. No provider call. Client polls shared work at two-second intervals with a bounded deadline; idle is not treated as proof of successful collection. Details: manual-refresh-verification.md.
 - topics_save {prompt:string,receiving:boolean,expected_revision:number} => {preferences,search_status}
 - receiving {receiving:boolean,expected_revision:number} => same; cannot resume empty query
 - state => existing state plus preferences:{prompt,receiving,revision}, search_status:{state:'not_configured'|'paused'|'waiting'|'ready'|'quota_exhausted'|'unavailable',last_success_at:string|null}, service_available:boolean
@@ -35,7 +37,7 @@ POST tech-feed remains authenticated. State and topics configuration do not depe
 - In self_service mode active recipients come from DB opt-in, never unbounded user-ID env lists. Preserve pilot mode compatibility and kill switch.
 
 ## Acceptance cases
-- Two users save normalization-equivalent prompt: same topic, only one provider request in hour, independent private settings.
+- Two users save normalization-equivalent prompt: same topic, scheduled hourly cache, manual five-minute shared cooldown, independent private settings. Busy RSS does not suppress independent search; unrelated provider contention waits without consuming quota; cancellation finalizes the request.
 - Two simultaneous reservations with one credit left: one search at most; duplicate worker cannot double claim; month rollover cannot bypass provider remaining quota.
 - Missing API key, /usage error, unknown/paid plan, paygo enabled,429/432/433/timeout/malformed JSON: search stops safely, RSS worker still called.
 - Local900 attempts exhausted: no request901. Failed POST consumes reservation. Cache hits/validation rejection do not consume credit.

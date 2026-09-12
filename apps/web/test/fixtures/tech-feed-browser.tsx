@@ -16,6 +16,10 @@ let delayNextMutation=false;
 let failNextState=false;
 let changeTopicAfterReceiving=false;
 let changeTopicOnNextState=false;
+let refreshMode='ready';
+let refreshCalls=0;
+const refreshedOwners=new Set<string>();
+const refreshPolls=new Map<string,number>();
 const profiles=new Map<string,FeedPreferences>([
   ['fixture-owner-a',{prompt:'',receiving:false,revision:0}],
   ['fixture-owner-b',{prompt:'Rust 비동기 런타임',receiving:true,revision:3}],
@@ -65,7 +69,23 @@ const client={
     const saved=JSON.parse(localStorage.getItem(`tech-feed-fixture-saved-${requestUser}`)||'[]');
     const rows=(current.prompt==='다른 기기에서 저장한 서버 관심사'?conflictItems:items).map(item=>({...item,saved:saved.includes(item.id)}));
     let data:any;
+    if(refreshedOwners.has(requestUser))rows.unshift({...items[0],id:'manual-refresh',title:'수동 수집으로 발견한 새 소식'});
     switch(body.action){
+      case 'refresh':
+        refreshCalls++;document.body.dataset.refreshCalls=String(refreshCalls);
+        await new Promise(resolve=>setTimeout(resolve,900));
+        if(body.expected_revision!==profile(requestUser).revision)return conflict();
+        if(scenario==='paused'){data={state:'paused'};break;}
+        if(scenario==='not_configured'){data={state:'not_configured'};break;}
+        if(scenario==='quota_exhausted'){data={state:'partial',search:{state:'quota_exhausted'},rss:{collected:1}};break;}
+        if(refreshMode==='cooldown'){data={state:'cooldown',retry_after:240};break;}
+        if(refreshMode==='running'){refreshPolls.set(requestUser,0);data={state:'running'};break;}
+        refreshedOwners.add(requestUser);data={state:'ready'};break;
+      case 'refresh_status':{
+        const count=(refreshPolls.get(requestUser)||0)+1;refreshPolls.set(requestUser,count);
+        if(count>=2)refreshedOwners.add(requestUser);
+        data={state:count<2?'running':'idle'};break;
+      }
       case 'state':
         if(changeTopicOnNextState){
           changeTopicOnNextState=false;
@@ -130,6 +150,9 @@ function Fixture(){
       <button onClick={()=>{changeTopicAfterReceiving=true;}}>다음 수신 변경 후 서버 주제 변경</button>
       <button onClick={switchAccount}>계정 전환</button>
       <button onClick={()=>{fail=!fail;setFixtureVersion(version=>version+1);}}>연결 실패 전환</button>
+      <button onClick={()=>{refreshMode='cooldown';}}>다음 수집 5분 대기</button>
+      <button onClick={()=>{refreshMode='running';}}>다음 수집 공유 작업</button>
+      <button onClick={()=>{refreshMode='ready';}}>다음 수집 즉시 완료</button>
       <button onClick={()=>setLinked({userId,articleId:'22',todoId:'fixture-todo'})}>23번 글 할 일 연결</button>
     </aside>
     {plan&&<p role="status">할 일 편집 요청: {plan}</p>}

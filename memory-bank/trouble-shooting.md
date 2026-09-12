@@ -1,3 +1,18 @@
+## 2026-09-13 — 새 글 확인은 캐시 조회만 수행 / 수동 수집 동시성
+
+### 상황 / 원인
+- 기존 버튼은 revision을 올려 state/list만 읽었다. 신규 수집 기능에서 전체 source/topic lease를 요청 gate로 쓰면 바쁜 RSS 하나가 독립 검색까지 막고, provider mutex 경합을 null로 표현하면 캐시 확인으로 오인했다.
+- 설정 revision 검증과 claim 사이 owner 잠금이 없으면 관심 변경과 경쟁할 수 있다. lease 종료만으로 공유 수집 성공을 단정할 수도 없었다.
+### 해결 방법 / 검증
+- 인증 refresh 경로, owner-only begin gate, 리소스별 lease, eligible 주제의 provider busy 신호와2초 제한 재시도, claim의 owner advisory lock을 적용했다. 무료 사용량은 실제 POST 직전에만 예약한다.
+- 공유 상태는 현재 검색 오류/한도를 보존하며 RSS 성공과 검색 작업 진행을 분리한다. 계정 수명/설정 세대로 오래된 화면 응답을 차단한다. 재현 테스트 RED→GREEN 및 독립 재검토 승인.
+- 관련: tech-feed-refresh.mjs, tech-feed-api.mjs, tech_feed_manual_refresh.sql, techFeed.mjs와 신규 회귀 테스트.
+### 도구 오류 / 재발 방지
+- zero-context 삽입으로 refreshNow가 loadMore 내부에 들어가 TS2552가 발생했다. 함수 scope를 수정하고 웹 빌드로 재검증했다. fixture switch의 state/refresh 위치도 실제 브라우저 검증 전 수정했다. 패치 후 문맥을 반드시 재확인한다.
+- Playwright bash wrapper는 Windows UV_HANDLE_CLOSING으로 실패했다. 설치된 npx.cmd로 동일 CLI를 직접 실행하여 브라우저 검증을 이어갔다.
+- 기존 파일의 Windows ACL helper 오류는 보안 설정 변경 없이 apply_patch로 만든 patch + 승인된 git apply로 처리했다.
+- hosted 다중 연결 경쟁 및 운영 제공자 실수집은 합성/순차 PGlite 검증으로 대체했다고 주장하지 않는다.
+
 ## 2026-09-13 — 배포 CLI의 과거 마이그레이션 이력 불일치
 
 ### 상황 / 원인

@@ -1,3 +1,37 @@
+function refreshWait(ms,signal){
+ return new Promise((resolve,reject)=>{
+  signal.throwIfAborted();
+  const cancel=()=>{clearTimeout(timer);reject(signal.reason);};
+  const timer=setTimeout(()=>{signal.removeEventListener('abort',cancel);resolve();},ms);
+  signal.addEventListener('abort',cancel,{once:true});
+ });
+}
+export async function refreshFeedNow(api,expectedRevision,{signal,wait=refreshWait,maxPolls=20}={}){
+ const bounded=AbortSignal.any([AbortSignal.timeout(65000),...(signal?[signal]:[])]);
+ bounded.throwIfAborted();
+ const result=await api('refresh',{expected_revision:expectedRevision},bounded);
+ bounded.throwIfAborted();
+ if(result.state!=='running')return result;
+ for(let i=0;i<maxPolls;i++){
+  await wait(2000,bounded);bounded.throwIfAborted();
+  const status=await api('refresh_status',{},bounded);bounded.throwIfAborted();
+  if(status.state!=='running')return{state:['quota_exhausted','unavailable'].includes(status.search?.state)?'unavailable':'shared',search:status.search};
+ }
+ return{state:'running'};
+}
+export function manualRefreshMessage(result){
+ if(result.state==='paused')return '현재 소식 수집이 중지되어 있어요. 수신 설정 또는 서비스 준비 상태를 확인해 주세요.';
+ if(result.state==='not_configured')return '웹 검색이 아직 연결되지 않았어요. 운영용 검색 연결 준비가 필요하며, 개인 API 키는 필요하지 않아요.';
+ if(result.state==='no_sources')return '관심 소식 수신을 시작하거나 수집 가능한 출처를 구독해 주세요.';
+ if(result.state==='running')return '같은 소식을 이미 찾고 있어요. 잠시 후 새 글 확인을 눌러 진행 결과를 확인해 주세요.';
+ if(result.state==='shared')return '진행 중인 공유 수집이 없어 최신 목록과 수집 상태를 다시 불러왔어요.';
+ if(result.search?.state==='quota_exhausted')return `웹 검색 무료 한도를 모두 사용했어요. ${result.rss?.collected?'가능한 RSS 출처는 확인했어요.':'저장된 소식은 계속 볼 수 있어요.'} 유료 검색으로 전환하지 않아요.`;
+ if(result.state==='cooldown')return `최근 확인한 소식이에요. 최대 ${Math.max(1,Math.ceil((result.retry_after||300)/60))}분 뒤 다시 수집할 수 있어요. 기존 목록을 새로 불러왔어요.`;
+ if(result.state==='unavailable')return '새 소식을 확인하지 못했어요. 연결 상태나 재시도 대기 시간을 확인해 주세요. 기존 소식은 유지됩니다.';
+ if(result.state==='partial')return '일부 출처를 확인하지 못했어요. 확인한 소식은 목록에 반영했고 나머지는 재시도 대기 중이에요.';
+ return `최신 소식 확인을 마쳤어요. 새 글이 있으면 목록에 반영했어요.${result.search?.state==='not_configured'?' RSS 출처만 확인했으며 웹 검색은 아직 미연결 상태예요.':''}`;
+}
+
 export const FEED_INTERESTS = [
   ['ai', 'AI'], ['frontend', '웹·프론트엔드'], ['backend', '백엔드'], ['cloud', '클라우드·인프라'], ['tools', '개발 도구'],
 ];
@@ -112,7 +146,7 @@ export function createTechFeedClient(supabase, userId) {
       response = await supabase.functions.invoke('tech-feed', {
         body: { ...payload, action },
         headers: { Authorization: `Bearer ${verifiedSession.access_token}` },
-        signal: signal ? AbortSignal.any([signal, AbortSignal.timeout(20000)]) : AbortSignal.timeout(20000),
+        signal: signal ? AbortSignal.any([signal, AbortSignal.timeout(action==='refresh'?60000:20000)]) : AbortSignal.timeout(action==='refresh'?60000:20000),
       });
     } catch {
       if (signal?.aborted) throw new DOMException('Aborted', 'AbortError');

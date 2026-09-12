@@ -18,6 +18,11 @@ export function feedAdmin(){
 export function createFeedStore(admin:SupabaseClient,owner:string|null){
  const rpc=async(name:string,args:Record<string,unknown>)=>checked(await admin.rpc(name,args));
  return {
+  beginRefresh:(revision:number)=>rpc("tech_feed_refresh_begin",{p_user_id:owner,p_expected_revision:revision}),
+  refreshStatus:()=>rpc("tech_feed_refresh_status",{p_user_id:owner}),
+  finishRefresh:(lease:string,result:unknown)=>rpc("tech_feed_refresh_finish",{p_user_id:owner,p_lease:lease,p_result:result}),
+  claimManualSearch:(lease:string)=>rpc("tech_feed_refresh_claim_search",{p_user_id:owner,p_refresh_lease:lease}),
+  claimManualSources:(lease:string)=>rpc("tech_feed_refresh_claim_sources",{p_user_id:owner,p_refresh_lease:lease}),
   startRun:()=>rpc("tech_feed_start_run",{}),
   finishRun:(id:string,counts:unknown,error:string|null)=>rpc("tech_feed_finish_run",{p_id:id,p_counts:counts,p_error:error}),
   configure:(data:{prompt:string;canonical:string;receiving:boolean;expected_revision:number})=>rpc("tech_feed_configure",{p_user_id:owner,p_prompt:data.prompt,p_canonical:data.canonical,p_receiving:data.receiving,p_expected_revision:data.expected_revision}),
