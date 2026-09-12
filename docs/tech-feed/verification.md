@@ -2,6 +2,7 @@
 
 - Deno deploy dependency graph에 XML parser가 포함되는지 API/worker 각각 검사하는 회귀 추가: 수정 전2실패, literal import 수정 후2통과.
 - 전체 Node489/489, Deno8/8, Edge10개 타입 검사, 웹/모바일/README24개 이미지 검사 통과.
+- 독립 검토의 Edge 재실행8개 및 Linux Actions34690369024 통과. Vercel 새 배포 READY/HTTP200/로그인 렌더링, 실제 브라우저 CORS POST 내부401 확인.
 - 운영 v2 OPTIONS204 및 공개 anon JWT POST 내부 인증401 확인. 기존500 재현 경로가 정상화됨.
 - 기능 플래그/Cron 비활성 그대로. 실제 로그인 사용자 state/시간대·파일럿 수집 검증은 미실시. 아래 Deno6개 결과는 이전 버전 기록.
 

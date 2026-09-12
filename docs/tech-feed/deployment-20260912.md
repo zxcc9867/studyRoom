@@ -4,7 +4,10 @@
 - Production OPTIONS: 500 WORKER_ERROR → 204 (request 01a0954d-a4f3-7954-aefe-3b8ede466daf). 공개 anon JWT로 gateway 통과 후 각 함수 내부401 확인.
 - Node489/489, Deno8/8, Edge10개, 웹/모바일/README 검사 통과. 신규 그래프 테스트는 수정 전2실패→수정 후2통과.
 - DB/Cron/환경 변수/소스 승인 상태 변경 없음. TECH_FEED_ENABLED=false 유지. 사용자 JWT state200/시간대 실사용은 미검증.
-- 웹 재배포 결과는 확인 후 추가한다. 아래 v1 배포 결과는 최초 출시 이력이다.
+- 수정 커밋33dd05eeed81d717a7bfc406348f20ce94b0f012 main 반영. Actions https://github.com/zxcc9867/studyRoom/actions/runs/34690369024 success (Linux 전체 검사 통과).
+- Vercel dpl_GRwDhE6fRroTwPvNzednW96aWBiQ READY, production alias https://study-room-attendance.vercel.app HTTP200/로그인 화면 확인. 빌드 약27초.
+- 브라우저 production origin에서 실제 CORS POST/응답 읽기 확인(내부401). 독립 검토 승인. 배포 error/fatal 로그 조회 결과 없음(11:02~11:12 UTC의 짧은 범위, 장기 모니터링 아님).
+- 아래 v1 배포 결과는 최초 출시 이력이다. 로그인 사용자 state200과 피드 활성화 완료를 의미하지 않는다.
 
 # 최종 결과 — 운영 코드 배포 완료, 기술 피드 비활성
 

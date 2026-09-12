@@ -4,7 +4,8 @@
 - 서버: tech-feed/worker v2, JWT true 유지. 운영 OPTIONS204와 gateway 뒤 handler 인증401 확인(수정 전 모두500).
 - 검증: Node489, Deno8, Edge10개 타입 검사, 웹 빌드·모바일·README24개 참조 검사 통과.
 - 변경 파일: tech-feed-core.mjs, tech-feed-entrypoint.test.ts, package.json, 관련 memory-bank/배포 문서. DB/환경 변수/Cron 변경 없음.
-- 남음: 웹 Git/CI 재배포 확인, 로그인 사용자 state/시간대 실사용 검증, 기존 파일럿 활성화 조건.
+- 재배포: main33dd05e, Actions34690369024 success, Vercel dpl_GRwDhE6fRroTwPvNzednW96aWBiQ READY/HTTP200. 로그인 렌더링 및 브라우저 실제 CORS401 확인. 독립 검토 승인, Linux CI 검사 통과.
+- 남음: 로그인 사용자 state/시간대 실사용 검증, 기존 파일럿 활성화 조건. 피드/수집은 비활성 유지.
 
 # Progress
 

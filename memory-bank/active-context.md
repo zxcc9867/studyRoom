@@ -2,7 +2,8 @@
 
 - 사용자 수정·재배포 승인에 따라 XML 파서 import만 수정했다. 조건식 import는 Edge 의존성 그래프에서 빠졌고, literal npm import로 분리하자 포함되었다.
 - 서버 tech-feed/worker v2 배포 완료(JWT true 유지). 운영 OPTIONS 500→204, anon JWT POST는 두 함수 내부 인증401로 정상화. import.meta.main은 원인이 아니어서 수정하지 않았다.
-- Node489/489, Deno8/8(신규 의존성 그래프 회귀2개 RED→GREEN), Edge10개, 웹/모바일/README 검사 통과. 웹 Git 배포 진행 중.
+- Node489/489, Deno8/8(신규 의존성 그래프 회귀2개 RED→GREEN), Edge10개, 웹/모바일/README 검사 및 독립 검토 통과. Linux CI도 성공.
+- 수정 커밋33dd05e main, Actions34690369024 성공, Vercel dpl_GRwDhE6fRroTwPvNzednW96aWBiQ READY/production HTTP200/로그인 화면 확인. 실제 브라우저 CORS POST도 내부401 정상 응답. 해당 배포 짧은 error/fatal 조회 결과 없음.
 - TECH_FEED_ENABLED=false/수집 Cron 비활성/소스 검토 대기 유지. 실제 사용자 JWT의 state200/시간대 저장과 파일럿 활성화 검증은 아직 별도 미확인.
 - 아래 진단 미해결 기록은 수정 전 이력이다.
 
