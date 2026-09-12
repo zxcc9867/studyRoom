@@ -1,0 +1,16 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import {createRequire} from 'node:module';
+import {build} from 'esbuild';
+import React from 'react';
+import {renderToStaticMarkup} from 'react-dom/server';
+import {getDashboardSectionFromHash} from '../src/dashboardRoute.mjs';
+const require=createRequire(import.meta.url), mod={exports:{}};
+const bundle=await build({entryPoints:[new URL('../src/TechFeedSection.tsx',import.meta.url).pathname.replace(/^\/(\w:)/,'$1')],bundle:true,write:false,format:'cjs',platform:'node',packages:'external',jsx:'automatic',loader:{'.css':'empty'},logLevel:'silent'});
+new Function('require','module','exports',bundle.outputFiles[0].text)(require,mod,mod.exports);
+const article={id:'a',title:'새 도구 <script>alert(1)</script>',url:'https://example.com/post',published_at:'2026-09-12T00:00:00Z',discovered_at:'2026-09-12T01:00:00Z',sources:[{id:'s',name:'테스트 출처'}],summary_status:'pending',summary:null,excerpt:'이것은 출처 소개입니다.',category:null,interests:[],saved:false,todo_id:null};
+const render=a=>renderToStaticMarkup(React.createElement(mod.exports.FeedArticleCard,{article:a,timeZone:'Asia/Seoul',busy:false,onSave(){},onPlan(){}}));
+test('feed route is recognized without replacing default Today',()=>{assert.equal(getDashboardSectionFromHash('#feed'),'feed');assert.equal(getDashboardSectionFromHash(''),'today');});
+test('article renders safe original link and escapes source markup',()=>{const html=render(article);assert.match(html,/noopener noreferrer/);assert.match(html,/href="https:\/\/example.com\/post"/);assert.doesNotMatch(html,/<script>/);assert.match(html,/출처 소개/);assert.doesNotMatch(render({...article,url:'javascript:alert(1)'}),/href=/);});
+test('saved and linked cards convey persistent state without relying on color',()=>{const html=render({...article,saved:true,todo_id:'todo'});assert.match(html,/aria-pressed="true"/);assert.match(html,/할 일에 추가됨/);assert.match(html,/disabled=""/);});
+test('ready summary renders the three evidence sections without the source excerpt',()=>{const html=render({...article,summary_status:'ready',summary:{technology:'기술 설명',change:'변화 설명',usage:'활용 설명'}});assert.match(html,/어떤 기술인가요/);assert.match(html,/핵심 변화/);assert.match(html,/이럴 때 살펴보세요/);assert.doesNotMatch(html,/이것은 출처 소개입니다/);});

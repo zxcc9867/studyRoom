@@ -2,6 +2,14 @@
 
 [English](README.md) | [한국어](README.ko.md) | [日本語](README.ja.md)
 
+## StudyRoom 2.0 — hourly technology feed (local implementation)
+
+Discover → read a Korean summary or source excerpt → open the original → plan a study todo. The new `Technology Feed` tab provides latest/saved views, interest/source filters, 20-item pagination, and collapsible RSS subscriptions. Today remains the entry page. Saved articles and todo links are owner-scoped on the server.
+
+A separate Supabase worker checks subscribed, approved RSS/Atom sources and the Hacker News API hourly. AI uses only free models, shares the existing six actual calls per user/day budget (failures count), and never guarantees a summary for every article. Eight recommended sources are seeded **pending permission review**, not enabled merely because a feed exists. Custom public HTTPS feeds are previewed and limited to ten per user.
+
+**Not deployed or activated by this change.** Production migrations, function deployment, source permission approval and Cron activation require a separate release. [Requirements](memory-bank/prd-tech-feed.md) · [Release guide](docs/tech-feed/release.md) · [Career code restoration](archive/career-coach/README.md). Career-only UI/automation is archived; independent time-zone settings and restart coaching remain.
+
 A personal study-habit product that turns a scheduled commitment into a repeatable loop: plan, focus, reflect, adjust, and earn visible rewards.
 
 [Open the production app](https://study-room-attendance.vercel.app/) · [Production deployment workflow](https://github.com/zxcc9867/studyRoom/actions)
@@ -10,7 +18,9 @@ A personal study-habit product that turns a scheduled commitment into a repeatab
 
 > The README summarizes the current user experience and operating model. Detailed requirements, decisions, and delivery history live in the [memory bank](memory-bank/).
 
-## StudyRoom 2.0: a career study coach
+## Archived: career study coach
+
+The following description and screenshots document the previous implementation, not active features in this version. Its dedicated code/tests are preserved under `archive/career-coach/`; existing database history is retained.
 
 The 2.0 pilot connects one active career to an editable skill roadmap, available calendar time, and automatic daily recommendations. Suggestions become real todos only when accepted. Google Calendar and selected public/private GitHub repositories require their own connections; registering an OAuth app alone does not connect an account.
 

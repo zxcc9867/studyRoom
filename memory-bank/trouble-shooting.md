@@ -1,3 +1,64 @@
+## 2026-09-12 — 운영 함수 배포의 JWT 보안 승인 차단
+
+### 상황 / 오류
+- 승인된 배포 중 --no-verify-jwt가 포함된7개 함수 명령이 자동 검토에서 unacceptable risk로 거부됨. 기존5개만 동일 false 설정 보존임을 증명한 재시도도 명시적 승인 부족으로 거부됨.
+### 원인
+- 일반 배포 요청과 플랫폼 인증 검사 비활성 범위의 명시적 승인을 별도로 요구함.
+### 대응
+- 신규2개는 JWT 검사를 활성으로 유지해 배포. 기존5개는 더 이상 재시도/우회하지 않고 사용자 승인 대기. 피드 비활성, 웹/Cron 교체 중지.
+- 적용된 DB는 원격20260912104353. 같은 SQL 중복 적용을 막도록 배포 기록에 매핑 기록.
+### 관련 파일 / 재발 방지
+- `docs/tech-feed/deployment-20260912.md`, `docs/tech-feed/release.md`. 기존/신규 인증 설정과 자체 HMAC/secret 검증을 명시적으로 구분해 승인받는다.
+
+## 2026-09-12 — 기술 피드 서버 검토 회귀 수정
+
+### 상황 / 원인
+- 시간당 worker1회/소스2개 제한은 추천8개를 매시간 처리하지 못했으며 초기50개 제한이 증분에도 적용됨.
+- 첫 소유자 쿼터 소진이 다른 소유자 요약을 막고 호출하지 않은 보류도 시도 횟수를 소진함. source 테이블 전체 SELECT는 등록자 컬럼을 노출함.
+- 동일 발견 시각의 UUID 정렬은 최신 발행 순서를 보장하지 못함. AI 분류 producer와 실행 기록이 부족함.
+- 유효한 JSON의 items:[null]은 id 접근 TypeError를 발생시킴. 리디렉션 후 상대 링크는 원래 피드 URL로 잘못 계산됨.
+### 해결 / 검증
+- 매분 due 분배/소스별 시간 간격, RSS 증분과 HN durable snapshot 분리. 실제 호출 시 원자적 쿼터/시도 예약, safe-column grant, 발행 시각 커서, category와 서버 전용 실행 기록 추가.
+- AI 배열 객체 검증으로 정상 실패 처리와 후속 owner/cleanup/finalization 유지. TLS 검증한 최종 URL을 parser에 전달하고 cross-origin validator 제거 유지.
+- 실제 parser/합성 TLS 전송/PGlite SQL 및 worker 회귀 RED→GREEN. 서버58개 포함 전체 Node489/489, Deno6/6 통과. 독립 최종 검토의 중요 결함2개 해소 및 로컬 인계 승인.
+### 관련 파일 / 재발 방지
+- `supabase/functions/_shared/tech-feed-*`, `supabase/migrations/20260912104353_tech_feed.sql`, `20260912081624_tech_feed_cron_disabled.sql`.
+- 제한은 초기 적재/증분/작업당 처리량을 구분하고, AI JSON은 배열 내부까지 불신한다. 리디렉션 안전성과 상대 링크 정확성을 함께 검증한다.
+- 구현 중 SQL 패치의 달러 구분자 손상/PGlite 구문 오류와 Deno 반환 타입 오류도 수정 후 재검증했다. 자세한 재현/해결은 `docs/tech-feed/backend-report.md` 참조.
+- 운영 TLS/DNS, 원격 RLS/동시성, 실제 Cron/AI는 미검증이며 출시 게이트로 유지한다.
+
+## 2026-09-12 — 기술 피드 검토 회귀 보완
+
+### 상황 / 원인
+- Supabase 세션 사전 확인만으로는 전송 직전 계정 변경 시 다른 토큰 사용을 막지 못함.
+- 할 일 저장 후 전체 피드 재조회가 두 번째 페이지와 읽던 순서를 지움.
+- 기사 제목 초안200자와 서버 할 일 제한180자가 불일치.
+### 해결 / 검증
+- 확인한 access_token을 요청 Authorization에 고정하고 응답 후 소유자 재검증. 모의 경쟁 재현 RED→GREEN 및 실제 SDK 요청 헤더 검증 통과.
+- 계정별 article_id/todo_id 결과만 갱신. 브라우저에서23카드 유지와 마지막 카드 연결 상태 확인.
+- 초안과 입력 제한180자로 일치. 긴 제목 회귀 RED→GREEN; 오류를 편집 창 내부에 표시.
+### 관련 파일 / 재발 방지
+- `apps/web/src/techFeed.mjs`, `TechFeedSection.tsx`, `main.tsx`, `apps/web/test/techFeed*.test.mjs`.
+- 동일 계정 확인과 실제 HTTP 토큰 고정을 별개로 검증할 것. 목록 조작 후 자동 재조회로 페이지를 버리지 말 것.
+- npm audit 상세 점검에서 신규 fast-xml-parser는 경고 대상이 아니었고 tar 등 기존 Expo/도구 의존성에28건(critical1 포함)이 남음. 이번 기능에서 강제 업그레이드는 하지 않았으며 별도 정리 필요.
+
+## 2026-09-12 — 기술 피드 Windows 모듈 이름 충돌과 편집 도구 제약
+
+### 상황
+- React `TechFeed.tsx`와 helper `techFeed.mjs`를 함께 만들자 Windows 대소문자 비구분 해석으로 lazy import가 helper에 연결됨.
+- 기존 파일 apply_patch가 `helper_unknown_error: apply deny-read ACLs`로 실패.
+### 에러 메시지
+- Vite static/dynamic import 충돌 경고 및 임시 수정 중 `Could not resolve ./TechFeed`.
+### 원인
+- 확장자 없는 import와 대소문자만 다른 모듈 이름; 환경 소유 filesystem sandbox helper 실패.
+### 해결 방법
+- 컴포넌트를 `TechFeedSection.tsx`로 구분하고 import 수정 후 빌드 통과.
+- 새 파일은 apply_patch, 기존 파일은 정확한 unified Git patch 적용으로 제한. ACL/환경 설정은 변경하지 않음.
+### 관련 파일 / 재발 방지
+- `apps/web/src/main.tsx`, `TechFeedSection.tsx`, `techFeed.mjs`.
+- Windows에서 basename이 대소문자만 다른 파일을 만들지 말 것. 패치 후 diff/전체 테스트/빌드 확인.
+- 의존성 설치 시 npm audit 28건 경고 확인(세부 기존/신규 귀속 미분석). 범위 밖 강제 업데이트는 하지 않았으며 출시 전 별도 보안 점검 필요.
+
 ## 2026-07-12 - Study Forest navigation integration edit errors and browser ACL
 
 ### Situation

@@ -13,12 +13,12 @@ import {
 import { createRoot } from "react-dom/client";
 import GoalAchievementBadges from "./GoalAchievementBadges";
 import StudyRestartCoach from "./StudyRestartCoach";
-import CareerCoach from "./CareerCoach";
+import { createTechFeedClient, feedTodoDraft } from "./techFeed.mjs";
+import type { FeedArticle } from "./techFeedTypes";
 import TimeZonePicker from "./TimeZonePicker";
-import type { CoachState } from "./careerCoachTypes";
-import { eventsOnDate, localParts } from "./coachTime.mjs";
 import {
   Bell,
+  Rss,
   Camera,
   CameraOff,
   CalendarDays,
@@ -283,6 +283,7 @@ const ACTIVE_SESSION_LEASE_REFRESH_MS = 15 * 1000;
 const StudyForestSection = lazy(() => import("./StudyForestSection"));
 const SessionReflectionModal = lazy(() => import("./SessionReflectionModal"));
 const StudyReportSection = lazy(() => import("./StudyReportSection"));
+const TechFeed = lazy(() => import("./TechFeedSection"));
 const AdaptiveReminderCard = lazy(() => import("./AdaptiveReminderCard"));
 type TodoRepeatMode = "single" | "weekly";
 type CameraSetupPrompt = {
@@ -486,7 +487,10 @@ function DashboardApp() {
   const [resendAvailableAt, setResendAvailableAt] = useState(0);
   const [nowMs, setNowMs] = useState(Date.now());
   const [profile, setProfile] = useState<Profile | null>(null);
-  const [coachState, setCoachState] = useState<CoachState | null>(null);
+  const [feedPlanArticle, setFeedPlanArticle] = useState<FeedArticle | null>(null);
+  const [feedPlanError, setFeedPlanError] = useState("");
+  const [feedLinkedTodo, setFeedLinkedTodo] = useState<{userId:string;articleId:string;todoId:string}|null>(null);
+  const feedTodoSaving = useRef(false);
   const [attendanceDays, setAttendanceDays] = useState<AttendanceDay[]>([]);
   const [studySessions, setStudySessions] = useState<StudySession[]>([]);
   const [studyTodos, setStudyTodos] = useState<StudyTodo[]>([]);
@@ -688,7 +692,9 @@ function DashboardApp() {
   }, [message]);
 
   useEffect(() => {
-    setCoachState(null);
+    setFeedPlanArticle(null);
+    setFeedLinkedTodo(null);
+    setTodoModalOpen(false);
     if (session?.user.id) {
       void syncSignedInUser(session);
       void loadDashboard(session.user.id);
@@ -1351,8 +1357,6 @@ function DashboardApp() {
     () => buildAttendanceCalendar(calendarMonth, attendanceDays),
     [attendanceDays, calendarMonth],
   );
-  const coachEventsByDate = useMemo(() => new Map(attendanceCalendarDays.map(day => [day.dateKey,
-    coachState?.enabled ? eventsOnDate(coachState.events, day.dateKey, timeZone) : []])), [attendanceCalendarDays, coachState?.enabled, coachState?.events, timeZone]);
   const planCopyCalendarDays = useMemo(
     () => buildAttendanceCalendar(planCopyMonth, attendanceDays),
     [attendanceDays, planCopyMonth],
@@ -1794,6 +1798,7 @@ function DashboardApp() {
   }
 
   function resetTodoDraftForDate(dateKey: string) {
+    setFeedPlanArticle(null);
     setEditingTodoId(null);
     setTodoDraft("");
     setTodoRepeatMode("single");
@@ -1804,6 +1809,16 @@ function DashboardApp() {
     setTodoStartTime("09:00");
     setTodoEndTime("10:00");
     setTodoGoalId(activeGoal?.id ?? "");
+  }
+
+  function openFeedPlan(article: FeedArticle) {
+    showPlannerDate(todayDateKey);
+    resetTodoDraftForDate(todayDateKey);
+    setTodoGoalId("");
+    setFeedPlanArticle(article);
+    setFeedPlanError("");
+    setTodoDraft(feedTodoDraft(article, todayDateKey).title);
+    setTodoModalOpen(true);
   }
 
   function openWeeklyReviewActionPlan(action: string) {
@@ -1827,8 +1842,10 @@ function DashboardApp() {
   }
 
   function closeTodoModal() {
+    if (feedTodoSaving.current) return;
     setTodoModalOpen(false);
     setEditingTodoId(null);
+    setFeedPlanArticle(null);
   }
 
   function openPlannerTodoCreate(startTime: string) {
@@ -2017,6 +2034,7 @@ function DashboardApp() {
   }
 
   function startTodoEditing(todo: StudyTodo) {
+    setFeedPlanArticle(null);
     setSelectedTodoDate(todo.local_date);
     setCalendarMonth(todo.local_date.slice(0, 7));
     setEditingTodoId(todo.id);
@@ -2277,10 +2295,12 @@ function DashboardApp() {
 
   async function saveTodo() {
     if (!session?.user.id) return;
+    if (feedPlanArticle) setFeedPlanError("");
 
     const title = todoDraft.trim();
     if (!title) {
       setMessage("할 일을 입력하세요.");
+      if (feedPlanArticle) setFeedPlanError("할 일을 입력하세요.");
       return;
     }
 
@@ -2291,6 +2311,29 @@ function DashboardApp() {
     });
     if (!schedule.ok) {
       setMessage(schedule.message);
+      if (feedPlanArticle) setFeedPlanError(schedule.message);
+      return;
+    }
+
+    if (feedPlanArticle) {
+      if (feedTodoSaving.current) return;
+      const userId = session.user.id;
+      feedTodoSaving.current = true;
+      setTodoBusy(true);
+      try {
+        const result = await createTechFeedClient(supabase, userId)("add_todo", {
+          article_id: feedPlanArticle.id, title, local_date: selectedTodoDate,
+          start_time: schedule.startTime, end_time: schedule.endTime, goal_id: todoGoalId || null,
+        });
+        feedTodoSaving.current = false;
+        closeTodoModal();
+        setFeedLinkedTodo({userId,articleId:feedPlanArticle.id,todoId:result.todo_id});
+        setMessage("공부할 일과 원문 링크를 저장했어요.");
+        await loadDashboard(userId);
+      } catch (error) {
+        setMessage(error instanceof Error ? error.message : "할 일을 저장하지 못했어요.");
+        setFeedPlanError(error instanceof Error ? error.message : "할 일을 저장하지 못했어요.");
+      } finally { feedTodoSaving.current = false; setTodoBusy(false); }
       return;
     }
 
@@ -4612,6 +4655,9 @@ function DashboardApp() {
             <Target size={17} />
             목표
           </a>
+          <a className={activeSection === "feed" ? "active" : ""} href="#feed">
+            <Rss size={17} />기술 피드
+          </a>
           <a className={activeSection === "forest" ? "active" : ""} href="#forest">
             <TreePine size={17} />
             {"\uACF5\uBD80 \uC232"}
@@ -4631,6 +4677,11 @@ function DashboardApp() {
       </aside>
 
       <section className="workspace">
+        {activeSection === "feed" && (
+          <Suspense fallback={<p role="status">기술 피드를 불러오고 있어요…</p>}>
+            <TechFeed key={session.user.id} supabase={supabase} userId={session.user.id} timeZone={timeZone} onPlan={openFeedPlan} linkedTodo={feedLinkedTodo} />
+          </Suspense>
+        )}
         {activeSection === "today" && (
           <TodayDomainTabs activeDomain={todayDomain} onChange={setTodayDomain} />
         )}
@@ -4883,22 +4934,13 @@ function DashboardApp() {
         )}
         {activeSection === "today" && (
           <section hidden={todayDomain !== "focus"} className="today-ordered-section" style={{ order: getTodaySectionSortOrder("topbar") + 1 }}>
-            <CareerCoach
-              key={session.user.id}
-              userId={session.user.id}
-              supabase={supabase}
-              timeZone={timeZone}
-              onState={setCoachState}
-              onChanged={() => { void loadDashboard(session.user.id); }}
-              onManageNotifications={() => setActiveSection("settings")}
-              legacy={<StudyRestartCoach
+            <StudyRestartCoach
               key={session.user.id}
               userId={session.user.id}
               supabase={supabase}
               todos={studyTodos.filter(todo => todo.local_date <= todayDateKey)}
               onPlanAction={openWeeklyReviewActionPlan}
               onAddTodo={() => { resetTodoDraftForDate(todayDateKey); setTodoModalOpen(true); }}
-            />}
             />
           </section>
         )}
@@ -4949,8 +4991,6 @@ function DashboardApp() {
           <div className="attendance-calendar" aria-label="월별 출석 캘린더">
             {attendanceCalendarDays.map((day) => {
               const todoCount = todoCountsByDate.get(day.dateKey) ?? 0;
-              const coachEvents = coachEventsByDate.get(day.dateKey) ?? [];
-              const coachRecommendation = coachState?.enabled && coachState.recommendations.some(item => item.status === 'pending' && item.start_at && localParts(item.start_at, timeZone).startsWith(day.dateKey));
               return (
                 <button
                   className={`calendar-day calendar-${day.status ?? "empty"} ${
@@ -4964,9 +5004,6 @@ function DashboardApp() {
                   <strong>{day.dayNumber}</strong>
                   {day.status && <small>{attendanceLabel(day.status)}</small>}
                   {todoCount > 0 && <span className="todo-badge">{todoCount}</span>}
-                  {coachEvents.slice(0, 2).map(event => <span key={event.id} className={`coach-calendar-badge ${event.source}`}>{event.source === 'google' ? 'Google · ' : '생활 · '}{event.title}</span>)}
-                  {coachEvents.length > 2 && <span className="coach-calendar-badge">+{coachEvents.length - 2} 일정</span>}
-                  {coachRecommendation && <span className="coach-calendar-badge recommendation">공부 추천</span>}
                 </button>
               );
             })}
@@ -4976,7 +5013,6 @@ function DashboardApp() {
             <span className="legend-pending">대기</span>
             <span className="legend-missed">결석</span>
           </div>
-          {coachState?.enabled && <p className="field-help">생활 일정 · Google 일정 · 공부 추천이 함께 표시됩니다. 날짜를 누르면 자세히 볼 수 있어요.</p>}
         </section>
         )}
 
@@ -5007,9 +5043,10 @@ function DashboardApp() {
                   <span className="todo-progress-fill" style={{ width: `${selectedTodoStats.percent}%` }} />
                 </div>
               </div>
-              {coachState?.enabled && <div className="coach-calendar-agenda" aria-label="이 날짜의 생활 일정과 공부 추천">
-                {eventsOnDate(coachState.events, selectedTodoDate, timeZone).map(event => <article key={event.id}><small>{event.source === 'google' ? 'Google' : '생활 일정'} · {event.all_day ? '종일' : localParts(event.start_at!, timeZone).slice(11)}</small><strong>{event.title}</strong></article>)}
-                {coachState.recommendations.filter(item => item.status === 'pending' && item.start_at && localParts(item.start_at, timeZone).startsWith(selectedTodoDate)).map(item => <article key={item.id}><small>공부 추천 · {localParts(item.start_at, timeZone).slice(11)} · {item.duration_minutes}분</small><strong>{item.title}</strong></article>)}
+              {feedPlanArticle && <div className="feed-plan-date">
+                <p>기술 피드의 원문 링크가 이 할 일에 함께 저장됩니다.</p>
+                {feedPlanError && <p role="alert">{feedPlanError}</p>}
+                <label>공부할 날짜<input type="date" value={selectedTodoDate} disabled={todoBusy} onChange={event=>{if(event.target.value)showPlannerDate(event.target.value);}} /></label>
               </div>}
               <form
                 className="todo-form"
@@ -5021,6 +5058,8 @@ function DashboardApp() {
                 <div className="todo-entry-row">
                   <input
                     value={todoDraft}
+                    maxLength={feedPlanArticle ? 180 : undefined}
+                    required={Boolean(feedPlanArticle)}
                     onChange={(event) => setTodoDraft(event.target.value)}
                     placeholder="예: AWS 공부"
                     disabled={todoBusy}
@@ -5111,7 +5150,7 @@ function DashboardApp() {
                       type="button"
                       aria-pressed={todoRepeatMode === "weekly"}
                       onClick={() => setTodoRepeatMode("weekly")}
-                      disabled={todoBusy}
+                      disabled={todoBusy || Boolean(feedPlanArticle)}
                     >
                       <Repeat2 size={17} />
                       요일 반복
@@ -6053,8 +6092,7 @@ function DashboardApp() {
             const userId = session.user.id;
             const { data: before } = await supabase.auth.getSession();
             if (before.session?.user.id !== userId) throw new Error('로그인 상태가 변경되었어요. 다시 시도해 주세요.');
-            const { error } = await supabase.functions.invoke('career-coach', { body: { action: 'settings', settings: { time_zone: zone } } });
-            if (error) throw new Error('시간대를 저장하지 못했어요. 연결을 확인하고 다시 시도해 주세요.');
+            await createTechFeedClient(supabase, userId)('timezone', { time_zone: zone });
             const { data: after } = await supabase.auth.getSession();
             if (after.session?.user.id !== userId) return;
             setProfile(current => current?.user_id === userId ? { ...current, time_zone: zone } : current);
@@ -6063,9 +6101,6 @@ function DashboardApp() {
             setSelectedTodoDate(localToday);
             await loadDashboard(userId);
           }} />
-          <CareerCoach key={session.user.id} userId={session.user.id} supabase={supabase} timeZone={timeZone}
-            initialTab="settings" onState={setCoachState} onChanged={() => { void loadDashboard(session.user.id); }}
-            onManageNotifications={() => setActiveSection("settings")} />
 
           <div className="profile-summary-grid" aria-label="나의 정보">
             <div>

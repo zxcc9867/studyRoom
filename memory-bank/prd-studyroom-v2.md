@@ -1,3 +1,8 @@
+> **보관 상태 — 2026-09-12 사용자 승인 개정**
+> 커리어 중심 기능은 활성 제품에서 분리하고 코드·테스트·복원 절차를 `archive/career-coach/`에 보관한다.
+> 신규 제품 요구사항은 `prd-tech-feed.md`를 따른다. 이 문서와 기존 DB/마이그레이션은 삭제하지 않는다.
+> 시간대 저장·공유 AI/쿼터·공부 재시작 코칭은 독립 활성 기능으로 유지한다. 이번 로컬 구현을 운영 배포 완료로 해석하지 않는다.
+
 # StudyRoom 2.0 PRD
 
 User-approved 2026-09-06. Career-driven automatic recommendations for consistent study. First pilot for the owner's account, per-user isolation from day one. One active IT/development career; editable skill roadmap and evidence-based project tasks. Automatic suggestions, explicit acceptance into existing todos. Free AI only. Web first.

@@ -1,3 +1,41 @@
+# Active Context
+
+## 승인 후 배포 재개 — 2026-09-12 (최신)
+
+- 사용자가 기존5개 함수 verify_jwt=false 유지 재배포를 명시적으로 승인했다. 커리어4개410/Slack 무서명401 확인 완료.
+- 신규 tech-feed/worker는 JWT 활성, 피드 비활성 유지. 스키마 로컬 파일명을 원격20260912104353과 일치시켰다.
+- Node489/489, Deno6/6 및 웹/모바일/README 검사 재통과. 이제 Git/웹 배포와 마지막 비활성 Cron 등록을 진행한다.
+- 아래 승인 대기/로컬 기록은 과거 시점이다. 최종 결과는 `docs/tech-feed/deployment-20260912.md`에 추가 기록한다.
+
+## 배포 진행 상태 — 2026-09-12 (최신)
+
+- 사용자 배포 요청으로 추가 스키마와 신규 tech-feed/worker v1만 운영 적용. 피드 비활성, 신규 JWT 검사 활성 유지.
+- 기존5개 함수의 기존 verify_jwt=false 보존 재배포가 자동 보안 검토에서 차단되어 명시적 승인 대기. 웹/커밋/푸시/Cron 변경 미수행.
+- 원격 tech_feed migration20260912104353 적용됨. 로컬20260912081621과 같은 SQL이므로 재적용하지 말고 재개 시 파일명/참조 정리.
+- 신규 함수401, 웹200, Node489/489, RLS10개/anon 차단 확인. 기존 출석과 운영 웹 그대로.
+- 상세 적용/승인 범위/재개 순서: `docs/tech-feed/deployment-20260912.md`. 아래 로컬 구현 당시 상태보다 이 항목이 우선한다.
+
+## 현재 작업 — 2026-09-12
+
+- 작업명: 독서실 2.0 시간별 기술 피드 구현
+- 목적: 기술 발견 → 한국어 요약/소개 → 원문 → 공부할 일로 단순화
+- 관련 PRD: `prd-tech-feed.md`; 기존 `prd-studyroom-v2.md`는 커리어 보관 기록
+- 관련 파일: `apps/web/src/TechFeedSection.tsx`, `supabase/functions/tech-feed*`, `docs/tech-feed/`
+
+## 최근 결정 사항
+
+- 사용자 승인에 따라 커리어 전용 UI/자동 실행 코드를 archive/career-coach로 보관하고 과거 URL은 410 응답으로 전환한다. 데이터/마이그레이션 이력은 보존한다.
+- 시간대 저장과 공부 재시작 코칭, 무료 AI·6회 공유 쿼터는 활성 기능으로 유지한다.
+- 추천 8개 소스의 이용 조건은 미승인 상태로 시작한다. RSS 응답 확인을 재가공 허가로 간주하지 않는다.
+- 운영 적용은 별도 요청 필요. 현재 체크아웃은 `worktrees/study-room-recovery-audit`, 원본 체크아웃의 다른 변경은 건드리지 않는다.
+
+## 현재 상태
+
+- 완료: 피드 UI/할 일 편집 연결/커리어 보관, 수집·RLS·API 구현, 독립 UI/서버/최종 통합 검토 승인 및 로컬 검증
+- 현재 상태: 로컬 구현 완료. 전체 Node489/489, Deno6/6, Edge10개 검사, 웹 빌드·모바일 호환성·README 검사 통과. `docs/tech-feed/verification.md` 참조
+- 다음 작업: 별도 승인된 운영 출시. 소스 이용 조건, 실제 예약 수집·다른 기기 동기화·운영 DNS/TLS·AI 품질 검증 필요. 커밋·푸시·운영 적용 없음
+- 주의: 아래 항목들은 이전 작업의 역사이며 이번 로컬 변경의 배포 완료를 의미하지 않는다.
+
 ## 2026-09-06 — Production deployment verified
 
 - Deployed app commit8daa2d40dcc737420581889667cb2d56b63e0705 via GitHub Actions34022526519 (success): https://github.com/zxcc9867/studyRoom/actions/runs/34022526519.
@@ -343,3 +381,15 @@
 - Account is on Hobby; external drain/integration configuration was not established by the available tools. No new monitoring integration was installed.
 - No Supabase schema/data or Edge deployment changes, no real-account submissions, and no app-store release. Original checkout remains untouched.
 - Final verification notes are recorded in a documentation-only follow-up commit with [skip ci], following the existing repository convention; the deployed application commit remains the one above.
+
+## 2026-09-12 - Career coach implementation status audit
+
+- Request: verify whether StudyRoom 2.0 career setup and career-helpful AI task recommendations are implemented. This is an inspection, not approval to enable features, send data to AI, connect accounts or deploy.
+- Read prd-studyroom-v2.md, studyroom-v2-contract.md, setup guide and existing rollout records; inspected UI, API, roadmap/recommendation worker and ranking code.
+- Implemented: user-entered career/experience/interests, AI-assisted editable roadmap, confirmed-roadmap tasks, available-slot selection, up to three alternatives, explicit acceptance into todos and feedback. AI is hybrid: rule candidates/slots plus a rewritten first task, not a conversational career-discovery agent or semantic career-priority ranking.
+- Candidate order currently places up to three untimed existing todos before roadmap/repository tasks; this can crowd out career-specific recommendations. No corrective implementation was requested.
+- Live read-only aggregate checks: pilot rows 1, enabled coaches 0, active careers 1, confirmed roadmaps 0; jobs/recommendations/accepted recommendations 0; Google/GitHub connections and selected repositories 0. No personal IDs, titles, schedules or credentials were retrieved.
+- Deployed career-coach v3 and three supporting coach functions v2 are ACTIVE; downloaded v3 source confirms the hybrid AI/pilot/enable gates. Web production remains application commit 0f23f75 READY.
+- Both coach cron jobs are active and latest SQL scheduler runs succeeded; scheduler success alone is not proof of HTTP/provider success. Edge AI secret configuration, actual AI response quality and signed-in recommendation acceptance were not verified.
+- Focused synthetic tests: 76 passed, 0 failed. Next user steps: enable coaching with study windows, receive/review/confirm roadmap, then inspect recommendations and actual model provenance. Optional provider connections and real AI verification remain separate.
+- Only local active-context/progress notes changed. No app code, production settings/data, commit, push or deployment changes.

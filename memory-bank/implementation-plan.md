@@ -1,3 +1,36 @@
+## Supabase 운영 적용 이력 — 2026-09-12 (부분)
+
+- 변경 대상/이유: 시간별 기술 피드 추가 스키마와 인증 API/worker 배포. 기존 데이터 보존.
+- 원격 migration: `20260912104353` (`tech_feed`), 로컬 원본 `20260912104353_tech_feed.sql`. 같은 SQL 재적용 금지, 후속 Git 정리 시 버전 일치 필요.
+- 신규 함수2개 v1 verify_jwt=true. TECH_FEED_ENABLED=false. 기존5개 false 유지 재배포는 보안 승인 차단.
+- 확인: 테이블10개 RLS/anon SELECT 차단, 소스8개 pending, 함수401, 웹200, security advisor 신규 WARN 없음.
+- 주의: Cron migration/웹/기존 함수 변경 아직 미적용. worker의 secret 기반 예약 호출에는 향후 JWT 설정 승인이 필요.
+- 자세한 상태/재개 절차: `docs/tech-feed/deployment-20260912.md`. 아래 로컬 설계 상태와 구분.
+
+## 2026-09-12 Architecture — 기술 피드 (로컬, 운영 미적용)
+
+- Web: `#feed` lazy TechFeedSection, 독립 API client, latest/saved cursor20, 기존 할 일 편집 모달 재사용. 사용자 전환 시 취소/응답 identity 검증. 시간대는 독립 `tech-feed/timezone` action.
+- Server: `tech-feed` 인증 API와 `tech-feed-worker` secret 예약 진입점 분리. RSS/Atom과 HN adapter, bounded IP-pinned TLS transport, leases/backoff/dedup/summary cache.
+- Data: 공통 소스/기사와 소유자 구독·관심·저장·할 일 링크 분리. 브라우저 쓰기 제한과 owner RLS. 글-할 일 원자적 idempotent RPC, 기존 야간 일정 허용 유지.
+- AI: 기존 무료 서버 클라이언트와 사용자별 actual6/day 공유 RPC 유지. 한번에 최대3개, 부족한 내용은 소개만 표시. 모든 소스 permission pending 기본값.
+- Career: 전용 코드·테스트는 `archive/career-coach/`, 기존4개 엔드포인트는410. 공유 restart coaching/AI/profile/출석·타이머는 유지.
+- 검증/출시/복구: `docs/tech-feed/implementation.md`, `release.md`, `verification.md` 참조. DB → 함수 → 웹 → 승인 소스/Cron 순, 기존 Cron 불변.
+
+- 예약기는 매분 due 작업을 분배하고 각 소스는 시간별 run_after/백오프/lease로 제한한다. HN snapshot/tail 체크포인트로 50개 묶음을 이어 처리하며 초기50개 제한을 증분 RSS에 적용하지 않는다.
+- 피드는 published_at 또는 discovered_at + id 순서의 인덱스/커서를 사용한다. 수집·요약·보류 실행 기록은 서버 전용으로30일 보관한다.
+- source 조회는 safe-column grant로 제한해 created_by/내부 컬럼을 숨긴다. 무료 AI는 실제 호출 직전 공유 쿼터와 시도 횟수를 원자적으로 예약하고 한도 보류는 실패 시도로 세지 않는다.
+- AI category는 성공한 요약에만 엄격한 enum을 적용한다. 비정상 배열 요소는 무시하며 피드 상대 링크는 검증된 최종 redirect URL을 기준으로 해석한다.
+
+## Supabase 변경 이력
+
+### 2026-09-12
+- 변경 대상: 기술 피드 테이블·정책·원자적 함수·독립 Cron과 커리어 전용 예약 작업 중지(로컬 마이그레이션만 작성).
+- 변경 이유: 시간별 서버 수집과 기기 간 동기화, 중복 할 일 방지 및 사용자 데이터 격리.
+- 관련 기능: 기술 피드, 시간대 독립 저장.
+- 마이그레이션 파일: `20260912104353_tech_feed.sql`, `20260912081624_tech_feed_cron_disabled.sql`.
+- 확인 방법: PGlite 실제 SQL/RLS 회귀 테스트, Node/Deno 검사. 운영 적용/실제 Cron 실행은 미수행.
+- 주의 사항: 과거 DB 데이터를 삭제하지 않음. 아래 커리어 설계는 보관 기록이다.
+
 # Implementation Plan
 
 ## Architecture

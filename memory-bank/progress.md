@@ -1,3 +1,33 @@
+# Progress
+
+## Timeline
+
+### 2026-09-12 — 기존 함수 인증 설정 유지 승인 및 서버 배포
+
+- 명시적 승인 후 기존5개 함수 배포. 커리어4개410, Slack 무서명401 확인.
+- 스키마 이력 파일명 정합성 반영, Node489/489·Deno6/6·웹/모바일/README 검사 통과. 웹 배포와 마지막 Cron 단계 진행 중.
+
+### 2026-09-12 — 기술 피드 부분 배포 / 보안 승인 대기
+
+- 완료: 추가형 DB migration20260912104353, 신규 Edge2개 v1(JWT 활성), 피드 비활성 설정. Node489/489와 신규401/웹200/RLS 확인.
+- 변경 문서: active-context, implementation-plan, trouble-shooting, `docs/tech-feed/deployment-20260912.md`.
+- 차단: 기존 커리어4개/Slack1개 verify_jwt=false 유지 코드 배포에 명시적 승인 필요. 우회하지 않음.
+- 남음: 기존 함수 갱신, migration 버전 정합성, Git/웹 배포, 마지막 비활성 Cron 등록. 기존 production과 출석 Cron 유지.
+
+### 2026-09-12 — 시간별 기술 피드 로컬 구현
+
+#### 완료한 작업
+- 승인 PRD와 구현/출시 문서 작성, 기술 피드 React 화면·서버 API·수집 기반 구현.
+- 커리어 전용 코드/테스트 보관 및 과거 엔드포인트 차단, 시간대 저장 독립화, README 3개 언어 갱신.
+#### 변경된 파일
+- `apps/web/src/techFeed*`, `TechFeedSection.tsx`, `main.tsx`, `profileTimeZone*`, 서버 tech-feed 모듈과 추가형 마이그레이션, `archive/career-coach/`, 관련 테스트/문서.
+#### 검증 방법
+- 최종 Node489/489, Deno6/6 및 Edge10개 검사, 웹 빌드·Expo 호환성/타입 검사·README24개 이미지 참조 검사 통과. UI/서버/최종 통합 검토 승인. 390px/PC 합성 화면에서 로딩·저장·오류 재시도·목록 유지 확인. `docs/tech-feed/verification.md` 참조.
+#### 남은 작업 / 다음 우선순위
+- 로컬 구현/검토 완료. 소스별 이용 조건 확인, 운영 환경 DNS/TLS·RLS 및 예약 수집 두 주기·실제 기기 간 동기화·무료 AI 품질 검증은 출시 단계에 남음.
+- 커밋·푸시·운영 마이그레이션·배포·Cron 활성화는 수행하지 않음. 별도 승인된 출시 순서는 `docs/tech-feed/release.md` 참조.
+
+## 이전 작업 이력
 ## 2026-09-06 — Production deployment verified
 
 - Deployed app commit8daa2d40dcc737420581889667cb2d56b63e0705 via GitHub Actions34022526519 (success): https://github.com/zxcc9867/studyRoom/actions/runs/34022526519.
@@ -6155,3 +6185,12 @@
 - https://study-room-attendance.vercel.app/ plus published entry/report JS/report CSS returned HTTP 200. Coaching auth guard returned 401 with no-store.
 - Initial post-READY error scan (more than 60 seconds after readiness) found no runtime error clusters or error/fatal log entries. External drains/integrations and real-account flows were not verified.
 - Final deployment records are a docs-only [skip ci] follow-up; no duplicate application deployment, Supabase mutation or mobile-store publication. Physical-device and dependency-security work remain outside this release.
+
+### 2026-09-12 - Career-driven AI feature status checked
+
+- Confirmed deployed UI and Edge code implement career-input/AI-roadmap, rule-ranked schedule-aware recommendations, optional AI title refinement, acceptance and feedback. This is not AI-led career discovery or comprehensive relevance ranking.
+- Production aggregate evidence: one pilot and one active career, but no enabled coaches/confirmed roadmaps/jobs/recommendations; Google and GitHub have no connected accounts or selected repositories.
+- career-coach v3 and worker/integration/notification v2 ACTIVE; production web still 0f23f75 READY. Both coach minute schedules active with latest SQL scheduler success; no inference that the empty recommendation pipeline has produced a successful AI result.
+- Ran 76 focused domain/database/integration/UI-helper synthetic tests successfully; no live AI calls, OAuth flow, real notification delivery or account mutations performed.
+- Remaining: user opt-in/study windows/roadmap confirmation, runtime AI configuration and real recommendation validation, optional account connections; assess career-first ranking separately if requested.
+- Updated only active-context.md and progress.md locally. No code changes, commit/push or deployment.
