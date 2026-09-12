@@ -24,7 +24,13 @@
 
 ## 웹 배포
 
-- main 푸시 및 GitHub Actions/Vercel 결과 확인 진행 중. 완료 결과는 아래에 추가한다.
+- 배포 커밋 `8a6f48c87d63ddc1a6db929070602faa1c239a2c`, main fast-forward 푸시 완료.
+- [GitHub Actions34701374352](https://github.com/zxcc9867/studyRoom/actions/runs/34701374352) 모든 단계 success. Linux CI에서도 테스트/Edge/웹/모바일/README 검증 성공.
+- Vercel `dpl_5zWa8UdsFgkHZLVwqcFikp92vPx1`, production READY, 빌드 약25.6초, alias 오류 없음.
+- [운영 사이트](https://study-room-attendance.vercel.app) HTTP200. 실제 index 번들 및 `TechFeedSection-dmrrO6Oa.js` HTTP200, 새 관심 설정 문구 포함 확인.
+- 서버 smoke: tech-feed OPTIONS204, 무인증 POST401. 서버 전용 worker OPTIONS405/무인증 POST401 (POST 전용 계약). 실제 로그인 JWT를 이용한 상태 저장/조회는 미검증.
+- 해당 배포 error/fatal 로그 조회(UTC14:56:57~15:11:57) 결과 없음. 짧은 관찰 범위이며 실사용 오류 부재/지속 모니터링을 보장하지 않는다. 로그 drains 구성은 이번 범위에서 확인하지 않았다.
+- 후속 문서 커밋은 `[skip ci]`로 기록하며 웹 배포 코드는 위8a6f48c다.
 
 ## 가동 전 남은 조건
 

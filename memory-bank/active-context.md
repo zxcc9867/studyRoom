@@ -1,3 +1,11 @@
+## 현재 상태 — 공개 웹 검색 피드 코드 운영 배포 완료 (2026-09-13)
+
+- 완료: DB20260912150427, tech-feed/worker v4 JWT true, main8a6f48c, Actions34701374352 success, Vercel dpl_5zWa8UdsFgkHZLVwqcFikp92vPx1 READY.
+- 확인: 운영 홈페이지/index/기술 피드 번들 HTTP200 및 관심 설정 문구, Node533/533·Edge8/8·웹/모바일/README, 배포 직후 error/fatal 로그 없음(짧은 범위).
+- 결정: self_service로 웹 관심 설정 경로 제공. TECH_FEED_ENABLED=false/피드 Cron inactive, 검색 키·AI·worker 인증 미설정. 자동 수집 가동 완료가 아니다. 출석 Cron 유지.
+- 다음: 전용 무료 Tavily 키/종량제0·worker 인증·소스 승인 준비 후 실제 로그인 동기화 및 연속 예약 수집 확인. 키를 채팅으로 받지 않는다.
+- 상세/변경 파일: docs/tech-feed/deployment-20260913.md. 아래 배포 진행/승인 대기 내용은 이전 시점 기록이다.
+
 ## 현재 작업 — 웹 검색 기술 피드 운영 배포 (2026-09-13)
 
 - 사용자 배포 승인에 따라 DB20260912150427 적용 및 피드 함수2개 v4/JWT true 배포 완료. 웹 main 푸시·CI 확인 진행 중.

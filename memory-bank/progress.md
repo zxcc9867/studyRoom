@@ -1,3 +1,11 @@
+## 2026-09-13 — 운영 배포 완료 / 실제 수집 준비 대기
+
+- 완료: main8a6f48c 푸시, Actions34701374352 성공, Vercel dpl_5zWa8UdsFgkHZLVwqcFikp92vPx1 READY 및 운영 HTTP200/새 번들 확인. DB/서버 적용과 전체 검증 완료.
+- 검증: Node533/533, Edge10개·8/8, 웹/모바일/README, 운영 RLS·RPC권한·인증 smoke; 짧은 배포 오류 로그 없음.
+- 변경 기록: docs/tech-feed/deployment-20260913.md 및 active-context/implementation-plan/trouble-shooting/검증·실행 문서. 기능 코드43파일 배포 커밋과 후속 문서 기록을 구분한다.
+- 남음: 전용 무료 검색 키·worker 인증·RSS 소스 승인/실제 로그인·기기 동기화·예약 수집 검증. collection false/피드 Cron inactive 유지. 개인 사용자 API키/SNS 연동 불필요.
+- 다음 우선순위: 운영 조건 준비 후 별도 수집 가동. 코드 배포를 자동 수집 완료로 해석하지 않는다.
+
 ## 2026-09-13 — 승인된 웹 검색 피드 배포 진행
 
 - 완료: 운영 추가 마이그레이션20260912150427, 피드 함수2개 v4 JWT true, self_service/collection false/monthly cap900 적용. 출석 Cron 유지.

@@ -1,5 +1,9 @@
 # Web-search technology feed Implementation Plan
 
+## Status2026-09-13 — code deployed, collection disabled
+
+User explicitly approved deployment. Migration20260912150427, feed/worker v4 with JWT enabled, self_service configuration and main8a6f48c are deployed. CI34701374352 succeeded; Vercel is READY and production/new feed assets return200. See deployment-20260913.md. Earlier operational-unapplied/approval-pending statements below are historical. Dedicated free provider key, collector authentication, permitted sources and live authenticated/scheduled verification remain outstanding; collection and feed Cron stay disabled.
+
 Status2026-09-12: Tasks1/2 implemented and independently reviewed after scoped fixes; whole-change review and its single documentation fix re-review are approved. Local integration533/533+Edge/build/mobile/docs and staged whitespace checks passed. Task3 local verification/documentation is complete; operational steps remain unapplied: explicit commit/push/deploy approval, dedicated free search key and collector authentication are outstanding. Checkboxes below retain the original execution checklist; current evidence is in web-search-verification.md and memory-bank/progress.md.
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development to implement this plan task-by-task. Steps use checkbox syntax for tracking.
