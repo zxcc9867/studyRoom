@@ -6,8 +6,9 @@
 
 - 완료한 작업: 승인된 즉시 수집 API·DB lease/계정·주제5분 제한·화면 진행 상태 구현. 독립 리뷰의 RSS가 검색을 막는 문제, 제공자 경합, revision TOCTOU, 공유 상태 오류 수정 및 재검토 승인.
 - 변경된 파일: tech-feed-refresh 모듈/테스트, tech-feed-api/store, tech_feed_manual_refresh 마이그레이션, TechFeedSection/techFeed/fixture, 관련 PRD·설계·운영 문서·README3언어판.
-- 검증 방법: 회귀 RED→GREEN25개, 전체558/558, Edge10진입점·8/8, 웹/모바일 통과. 합성 PC 버튼 단일 요청·진행·새 기사·5분 대기·공유·미연결/중지/한도 안내 확인.
-- 남은 작업: 추가 취소 테스트·모바일 최종 확인·문서 검사 후 DB/함수/웹 production 적용. 실제 수집 활성화는 별도이며 false/키 없음/미승인 소스 상태 유지.
+- 검증 방법: 신규26개/전체559/559, Edge10진입점·8/8, 웹/모바일/README 통과. 합성 PC/390px 단일 요청·진행·새 기사·대기·공유·미연결/중지/한도·계정 전환 확인. 오류0/가로 넘침 없음.
+- 배포: DB20260912161611 및 함수2개 v5 JWT true, main38f1c18, Actions34704876130 success, Vercel dpl_FEhgUzGeoQyuzdM6aSt9UQgwhkdP READY/HTTP200. 새로운 수동 수집 번들 확인.
+- 남은 작업: 실제 수집 활성화는 별도이며 false/키 없음/미승인 소스 상태 유지. 운영 제공자·다중 연결 경쟁·로그인/연속 Cron 실험은 미검증.
 - 다음 우선순위: 검증·배포 결과를 docs/tech-feed/manual-refresh-verification.md에 기록. 과거 항목은 이력으로 유지.
 
 ## 2026-09-13 — 즉시 새 글 수집 버튼 조사

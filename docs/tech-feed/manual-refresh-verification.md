@@ -31,8 +31,12 @@
 
 ## 웹 배포
 
-- 프로젝트 AGENTS의 사용자 표시 기능 자동 production 배포 규칙에 따라 커밋/푸시 후 GitHub Actions를 진행한다.
-- 현재 DB/서버 적용 완료, 웹 배포 결과 확인 대기. 완료 후 commit/Actions/deployment ID/HTTP 결과를 이 절에 추가한다.
+- 프로젝트 AGENTS의 사용자 표시 기능 자동 production 배포 규칙에 따라 코드 커밋 `38f1c18bbc9df4beb93f2a21843b09db3b21f084`를 main에 fast-forward 푸시했다.
+- [GitHub Actions34704876130](https://github.com/zxcc9867/studyRoom/actions/runs/34704876130) **success**. Linux CI의 테스트·모바일·README·Edge·웹 검사와 production 배포 완료.
+- Vercel `dpl_FEhgUzGeoQyuzdM6aSt9UQgwhkdP`, **production READY**, 빌드27.1초, alias 오류 없음. [운영 사이트](https://study-room-attendance.vercel.app) HTTP200.
+- 운영 `index-GysfiDi0.js`/`TechFeedSection-G9C7NOau.js` HTTP200. 공통 번들의 refresh_status/대기·공유 문구, 화면 번들의 새 소식 찾는 중 표시를 확인했다.
+- READY 후85초 경과 시 해당 배포의 error/fatal 로그 조회(UTC16:21:21~16:22:47) 결과 없음. 짧은 관찰 범위이며 지속 모니터링/실사용 수집 성공의 증거가 아니다. Drains 설정은 확인하지 않았다.
+- 후속 완료 기록은 `[skip ci]` 문서 커밋으로 남긴다. 배포된 기능 코드는 위38f1c18이다. 원본 checkout과 다른 작업 변경은 건드리지 않았다.
 
 ## 남은 운영 조건
 

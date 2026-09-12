@@ -12,6 +12,8 @@
 - Playwright bash wrapper는 Windows UV_HANDLE_CLOSING으로 실패했다. 설치된 npx.cmd로 동일 CLI를 직접 실행하여 브라우저 검증을 이어갔다.
 - 기존 파일의 Windows ACL helper 오류는 보안 설정 변경 없이 apply_patch로 만든 patch + 승인된 git apply로 처리했다.
 - hosted 다중 연결 경쟁 및 운영 제공자 실수집은 합성/순차 PGlite 검증으로 대체했다고 주장하지 않는다.
+- 운영 smoke의 PowerShell `$home` 변수는 읽기 전용 HOME과 충돌했다. `$homepage` 및 ErrorActionPreference=Stop으로 재실행하고 빈 asset 경로를 거부하여 실제200/새 코드 확인. 공통 helper는 화면 chunk가 아닌 index chunk에 포함되므로 양쪽을 확인했다.
+- 배포 후 기존 security WARN 불변, 서버 전용 refresh 테이블 policy 없음 INFO만1개 추가(클라이언트 권한 제거 확인). 함수 v5/DB 권한/웹 READY 검증 완료. 실제 제공자 수집은 여전히 OFF이며 이번 배포의 오류로 혼동하지 않는다.
 
 ## 2026-09-13 — 배포 CLI의 과거 마이그레이션 이력 불일치
 
