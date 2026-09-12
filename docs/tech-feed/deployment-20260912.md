@@ -1,3 +1,11 @@
+## Runtime hotfix — 2026-09-12 11:08 UTC
+
+- XML 파서 computed import의 배포 그래프 누락을 재현하고 literal npm import로 수정. tech-feed/worker v2 재배포 완료, verify_jwt=true 유지.
+- Production OPTIONS: 500 WORKER_ERROR → 204 (request 01a0954d-a4f3-7954-aefe-3b8ede466daf). 공개 anon JWT로 gateway 통과 후 각 함수 내부401 확인.
+- Node489/489, Deno8/8, Edge10개, 웹/모바일/README 검사 통과. 신규 그래프 테스트는 수정 전2실패→수정 후2통과.
+- DB/Cron/환경 변수/소스 승인 상태 변경 없음. TECH_FEED_ENABLED=false 유지. 사용자 JWT state200/시간대 실사용은 미검증.
+- 웹 재배포 결과는 확인 후 추가한다. 아래 v1 배포 결과는 최초 출시 이력이다.
+
 # 최종 결과 — 운영 코드 배포 완료, 기술 피드 비활성
 
 - 코드 커밋: `6d7ee57fad542436f7b456506c5d7064a8bbc96d`, main 반영.

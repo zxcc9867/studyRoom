@@ -1,3 +1,13 @@
+## Supabase 변경 이력
+
+### 2026-09-12 — 기술 피드 runtime 재배포
+
+- 변경 대상: tech-feed/tech-feed-worker v2, 공통 XML parser import.
+- 변경 내용/이유: Edge bundle 그래프가 추적 가능한 literal npm import로 분리해 모듈 초기화500 해결.
+- 관련 기능: 기술 피드 API/worker. 마이그레이션 파일: 없음(DB·권한·Cron·환경 변수 변경 없음).
+- 확인 방법: graph 회귀2개, Deno8개, 운영 OPTIONS204와 내부 인증401. 두 함수 verify_jwt=true 보존.
+- 주의 사항: Node/Deno 공용 의존성은 로컬 실행뿐 아니라 배포 그래프 포함 여부 검사. 기술 피드 활성화와 실제 사용자 인증 검증은 별도.
+
 ## Supabase 변경 이력 — 2026-09-12 (배포 완료)
 
 - 대상/내용: 기술 피드 schema와 비활성 scheduler, 신규2개/기존5개 Edge 함수, Vercel 웹 배포 완료.

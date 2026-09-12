@@ -1,6 +1,10 @@
 import { isIP } from 'node:net';
 // One pinned XML parser in both runtimes; DOCTYPE/ENTITY are rejected before parsing.
-const { XMLParser, XMLValidator } = await import(typeof Deno === 'undefined' ? 'fast-xml-parser' : 'npm:fast-xml-parser@5.11.1');
+// Edge bundling must see a literal npm import; a computed specifier is omitted from its graph.
+const nodeParser = 'fast-xml-parser';
+const { XMLParser, XMLValidator } = typeof Deno === 'undefined'
+  ? await import(nodeParser)
+  : await import('npm:fast-xml-parser@5.11.1');
 export const INTERESTS = ['ai','frontend','backend','cloud','tools'];
 export function publicIp(ip) {
   if (isIP(ip) === 4) {

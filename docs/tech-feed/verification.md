@@ -1,3 +1,10 @@
+## 2026-09-12 Runtime hotfix 검증
+
+- Deno deploy dependency graph에 XML parser가 포함되는지 API/worker 각각 검사하는 회귀 추가: 수정 전2실패, literal import 수정 후2통과.
+- 전체 Node489/489, Deno8/8, Edge10개 타입 검사, 웹/모바일/README24개 이미지 검사 통과.
+- 운영 v2 OPTIONS204 및 공개 anon JWT POST 내부 인증401 확인. 기존500 재현 경로가 정상화됨.
+- 기능 플래그/Cron 비활성 그대로. 실제 로그인 사용자 state/시간대·파일럿 수집 검증은 미실시. 아래 Deno6개 결과는 이전 버전 기록.
+
 ## 운영 코드 검증 추가 — 2026-09-12
 
 코드6d7ee57의 CI와 Vercel production 배포가 성공했습니다. HTTP200/브라우저 로그인 렌더링, 커리어410/Slack 무서명401/신규 JWT401, RLS10개와 Cron 활성 상태를 확인했습니다. 기술 피드 기능은 비활성입니다.

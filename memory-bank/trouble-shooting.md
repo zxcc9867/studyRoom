@@ -1,3 +1,37 @@
+## 2026-09-12 — 기술 피드 WORKER_ERROR 해결: 동적 XML import 번들 누락
+
+### 상황 / 에러 메시지
+- 기술 피드/worker 모듈 초기화 실패로 OPTIONS와 anon JWT POST 모두500 WORKER_ERROR.
+### 원인
+- `await import(조건 ? Node 패키지 : npm specifier)`는 로컬 캐시에서는 실행됐지만 Deno 배포 의존성 그래프에 fast-xml-parser가 포함되지 않았다.
+- 두 진입점의 실제 deno info 그래프 테스트를 추가해 각각 실패를 확인. literal npm import만 분리한 뒤 두 테스트 통과 및 운영500 해소로 원인 확인.
+- import.meta.main/Deno.serve 가설은 배제했고 진입점 등록 코드는 유지했다.
+### 해결 방법 / 검증
+- Edge 분기를 literal `import('npm:fast-xml-parser@5.11.1')`로 변경, Node 분기는 기존 설치 패키지 사용. 버전/파서 보안 규칙 유지.
+- tech-feed/worker v2 배포 후 OPTIONS204, 두 함수 내부 인증401. JWT/피드 플래그/DB/Cron은 변경하지 않았다.
+- Node489/489, Deno8/8, Edge10개 및 웹/모바일/README 검사 통과. 실제 로그인 사용자 state200은 아직 검증하지 않았으므로 전체 사용자 흐름 완료로 확대하지 않는다.
+### 관련 파일 / 재발 방지
+- `_shared/tech-feed-core.mjs`, `_shared/tech-feed-entrypoint.test.ts`, package.json. test:edge에서 실제 배포 그래프 검사.
+- ACTIVE/웹200/gateway401만으로 성공 판단 금지. OPTIONS와 handler 내부 응답도 확인한다.
+
+## 2026-09-12 — 기술 피드 연결 오류: 운영 WORKER_ERROR (진단, 미해결)
+
+### 상황 / 오류
+- 사용자 기술 피드 탭에 연결 실패 문구. 운영 tech-feed OPTIONS(브라우저 CORS 사전 요청)500.
+- 공개 legacy anon 키로 gateway 검증을 통과시킨 tech-feed/worker POST도500: `{"code":"WORKER_ERROR","message":"Function exited due to an error (please check logs)"}`.
+### 확인된 원인 계층
+- 서버 함수 실행 단계 실패가 직접 원인. 정상 disabled state는200/enabled:false이며 UI 준비 중 분기가 있으므로 비활성 설정만의 결과가 아님.
+- `createTechFeedClient`는 전송 오류/비정상 응답을 공통 연결 오류로 바꿈. CORS 사전 요청 실패도 이 문구를 유발한다.
+- 신규2개 ACTIVE/verify_jwt=true. 공개 JWKS ES256 확인했으나 JWT 비호환을500의 원인으로 단정하지 않음.
+### 남은 조사 / 해결 방향
+- 실제 Edge 로그 상세를 아직 확보하지 못해 내부 예외는 미확정. 진입점의 import.meta.main 조건/Deno.serve 등록 및 런타임 의존성 로딩을 점검해야 함.
+- 실제 두 진입점을 Deno eval에서 import하고 Deno.serve를 계측하면 등록0개. 단, 이는 import 경로 재현일 뿐 운영의 직접 증명은 아님. 공식 edge-runtime main 소스는 load_main_es_module 경로도 있으므로 조건문을 원인으로 확정하지 말 것.
+- 운영 코드는 변경하지 않음. 다음 수정 요청 시 실행 로그 기반으로 재현/회귀 후 수정하고 OPTIONS204 + 실제 authenticated state200/시간대 저장 확인.
+### 재발 방지 / 관련 파일
+- 배포 성공/무인증 gateway401만으로 handler 정상 실행을 판단하지 말 것. 이전 Deno 테스트는 export handler 직접 호출이라 서버 등록 실패를 잡지 못함.
+- `supabase/functions/tech-feed/index.ts`, `tech-feed-worker/index.ts`, `_shared/tech-feed-transport-runtime.test.ts`, `apps/web/src/techFeed.mjs`, `TechFeedSection.tsx`.
+- 기술 피드 비활성/소스권한/무료AI 설정은 별도 활성화 조건이며500을 숨기기 위해 보안을 낮추거나 수집을 켜지 말 것.
+
 ## 2026-09-12 — JWT 승인 차단 해소 및 운영 배포 완료
 
 - 사용자에게 기존5개 false 유지 범위와 Slack HMAC/커리어410 동작을 설명한 뒤 명시적 승인을 받아 정상 배포했다. 신규2개는 true를 유지했다. 우회 없이 승인된 동일 명령으로 성공.

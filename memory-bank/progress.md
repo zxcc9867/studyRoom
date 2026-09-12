@@ -1,6 +1,20 @@
+### 2026-09-12 — 기술 피드 XML 파서 배포 누락 수정
+
+- 완료: computed dynamic import를 literal npm import로 분리, 배포 의존성 그래프 회귀2개 추가 및 정규 test:edge 편입.
+- 서버: tech-feed/worker v2, JWT true 유지. 운영 OPTIONS204와 gateway 뒤 handler 인증401 확인(수정 전 모두500).
+- 검증: Node489, Deno8, Edge10개 타입 검사, 웹 빌드·모바일·README24개 참조 검사 통과.
+- 변경 파일: tech-feed-core.mjs, tech-feed-entrypoint.test.ts, package.json, 관련 memory-bank/배포 문서. DB/환경 변수/Cron 변경 없음.
+- 남음: 웹 Git/CI 재배포 확인, 로그인 사용자 state/시간대 실사용 검증, 기존 파일럿 활성화 조건.
+
 # Progress
 
 ## Timeline
+
+### 2026-09-12 — 기술 피드 운영500 진단 (미수정)
+
+- 확인: tech-feed OPTIONS 및 tech-feed/worker 공개 anon JWT POST 모두 HTTP500 WORKER_ERROR. 사용자 네트워크나 단순 비활성 안내가 아닌 서버 실행 실패.
+- 이전 배포 확인의 한계: JWT 없는401과 웹 로그인 화면은 신규 함수 내부 실행을 검증하지 못함. 로컬 테스트도 handler 직접 호출 중심.
+- 변경: 진단 memory-bank3개만 기록, 커밋/푸시/배포/설정 변경 없음. 정확한 내부 예외 로그와 수정·재배포가 남음.
 
 ### 2026-09-12 — 기술 피드 운영 코드 배포 완료 (기능 비활성)
 

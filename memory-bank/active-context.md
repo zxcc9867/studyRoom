@@ -1,4 +1,20 @@
+## 기술 피드 실행 오류 수정 — 2026-09-12 (최신)
+
+- 사용자 수정·재배포 승인에 따라 XML 파서 import만 수정했다. 조건식 import는 Edge 의존성 그래프에서 빠졌고, literal npm import로 분리하자 포함되었다.
+- 서버 tech-feed/worker v2 배포 완료(JWT true 유지). 운영 OPTIONS 500→204, anon JWT POST는 두 함수 내부 인증401로 정상화. import.meta.main은 원인이 아니어서 수정하지 않았다.
+- Node489/489, Deno8/8(신규 의존성 그래프 회귀2개 RED→GREEN), Edge10개, 웹/모바일/README 검사 통과. 웹 Git 배포 진행 중.
+- TECH_FEED_ENABLED=false/수집 Cron 비활성/소스 검토 대기 유지. 실제 사용자 JWT의 state200/시간대 저장과 파일럿 활성화 검증은 아직 별도 미확인.
+- 아래 진단 미해결 기록은 수정 전 이력이다.
+
 # Active Context
+
+## 기술 피드 연결 오류 진단 — 2026-09-12 (최신)
+
+- 사용자 요청은 확인/진단이며 코드 수정·운영 설정 변경은 하지 않았다.
+- 운영 tech-feed OPTIONS와 공개 anon JWT로 호출한 tech-feed/worker POST 모두500 WORKER_ERROR (`Function exited due to an error`) 재현. 비활성 state 정상200까지 도달하지 못함.
+- UI는 정상 disabled state에 준비 중 안내가 있으나 서버500을 공통 연결 오류로 표시한다. 이전 무인증401은 gateway 응답이라 함수 내부 정상 실행의 증거가 아니었다.
+- 내부 예외 상세는 아직 미확인. import.meta.main/Deno.serve 초기화 및 runtime 의존성이 조사 후보. import 방식 로컬 재현은 HTTP 등록0개였으나 이것만으로 운영 원인을 단정하지 않는다(공식 runtime은 main module 로딩 경로도 있음).
+- 다음: 실제 Edge 실행 로그 확보 → 초기화/실행 예외 수정 → OPTIONS204와 authenticated state200, 독립 시간대 경로 검증. 피드 활성화/JWT 해제와 이500 문제를 분리한다.
 
 ## 운영 배포 완료 — 2026-09-12 (현재 상태)
 
