@@ -2,7 +2,7 @@
 
 - 대상/이유: 명시적 수동 확인마다 수집하기 위한 refresh_begin/claim_search/claim_sources freshness 제거. 활성90초 lease/owner advisory/revision/실패 backoff 유지.
 - 추가: tech_feed_search_topics.query_cursor nonnegative integer default0; 정기/수동 claim 반환. reserve에서 무료 예산 차감과 원자적으로1증가, 같은 lease 재차감/진행 금지. 원래 canonical/membership/RLS/ACL 불변.
-- migration: 20260913121850_tech_feed_immediate_refresh.sql. CREATE OR REPLACE SECURITY INVOKER로 기존 실행 권한 유지. 코드 검토 후 MCP 적용 예정; blanket db push 금지.
+- migration: 20260913122656_tech_feed_immediate_refresh.sql MCP 적용 완료. CREATE OR REPLACE SECURITY INVOKER로 기존 실행 권한 유지, 클라이언트 노출0 확인. 로컬 CLI 파일명은 원격 버전으로 정합화. blanket db push 없이 지정 migration만 적용.
 - API: 미실행 deferred,0건 검색 성공 ready 구분. 이전 cooldown 응답은 롤아웃 호환을 위해 웹에서만 해석. 실패 run은 기존 허용 코드 worker_failed.
 - 검증: PGlite 실SQL/권한/즉시 반복/정기 직후/중복/커서/한도 및 Node570·Edge8·웹/모바일 통과. 실제 운영 결과는 후속 기록.
 

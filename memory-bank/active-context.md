@@ -1,8 +1,14 @@
+## 2026-09-13 — 즉시 수집 배포 완료 / 실제 클릭 확인 필요
+
+- 완료: main e9c6bde, Actions34757248807 success, Vercel dpl_5WaKa5rU3Fe1aYgqeyFdW3gDwsqj READY/HTTP200. DB20260913122656, API v12/worker v13 JWT true. Node570/570·Edge8/8·웹/모바일/README·독립검토 통과.
+- 검증 한계: 임시 운영 진단 엔드포인트 추가는 승인 시스템 거부, CUA는 ACL 런타임 오류로 시작 실패. 우회하지 않음.12:32UTC articles0/cursor0로 새 코드의 실제 검색 미실행, 일반 Cron3회 정상/캐시 대기 확인.
+- 다음: 사용자가 운영 웹 새로고침→새 글 확인을 누른 후 일반 실행 기록/기사 저장을 확인. 클릭마다 새 기사를 보장하지 않음. 상세 docs/tech-feed/immediate-refresh-verification.md. 아래 미구현/배포 대기는 이전 이력.
+
 ## 2026-09-13 — 즉시 수집 구현·배포 검증 진행
 
 - 사용자 설계 승인 후 구현: 수동5분 freshness 제거, compound 관심 순환 검색/공유 cursor,0건과 deferred 표시, 실패 실행 기록 코드 수정.
 - 로컬 Node570/570·Edge8/8·웹 빌드·모바일·README 통과. 신규 핵심15개 RED→GREEN. 독립 코드검토 및 운영 배포/실제기사 저장 검증 진행 중.
-- migration20260913121850_tech_feed_immediate_refresh.sql 추가형. 기존 출석/RLS/무료900/provider lease/실패 backoff/사용자 관심 원문 불변. 아래 승인 대기는 이전 이력.
+- migration20260913122656_tech_feed_immediate_refresh.sql 운영 적용, API v12/worker v13 ACTIVE·JWT true. 기존 출석/RLS/무료900/provider lease/실패 backoff/사용자 관심 원문 불변. 아래 승인 대기는 이전 이력.
 
 ## 2026-09-13 — 매 클릭 즉시 수집 / 설계 승인 대기
 

@@ -1,3 +1,9 @@
+## 2026-09-13 — 즉시 수집 production 완료
+
+- main e9c6bde / Actions34757248807 success / Vercel dpl_5WaKa5rU3Fe1aYgqeyFdW3gDwsqj READY / URL HTTP200, 짧은 배포 후 오류 스캔 없음.
+- Node570·Edge8·웹/모바일/README 통과, 독립검토 승인. DB20260913122656 및 함수 API v12/worker v13 적용. 출석Cron 불변.
+- 실제 신규 검색과 기사 도착 검증은 사용자 정상 웹 클릭 필요. 임시 진단 배포 거부/CUA시작 실패로 우회하지 않음.12:32UTC 기사0/cursor0; 연속 일반Cron3회 정상이나 TTL 대기. 상세 immediate-refresh-verification.md.
+
 ## 2026-09-13 — 즉시 수집 로컬 구현 완료
 
 - 완료: 수동 freshness 제거, 관심사별 요청당1회 순환,0건/deferred 상태, 기존 DB CHECK에 맞는 worker_failed 실행 오류 기록.

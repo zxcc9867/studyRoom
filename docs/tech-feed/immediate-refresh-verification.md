@@ -1,3 +1,9 @@
+## Final deployment evidence
+
+- Code commit e9c6bde1467578983d99c4a192a72267f6f86081, GitHub Actions34757248807 success (all gates), Vercel dpl_5WaKa5rU3Fe1aYgqeyFdW3gDwsqj READY production. https://study-room-attendance.vercel.app HTTP200, app root present. Short post-deploy runtime error scan empty.
+-12:32:32UTC DB: articles0/query_cursor0, last provider attempt12:19:43 before new deployment. Three consecutive ordinary Cron runs completed with no error, collection0 (hourly cache not yet due). Do not claim post-change search delivery was verified.
+- Follow-up needs a normal authenticated production button click. No temporary probe was created, and no secrets/authentication were bypassed. This is a verification limitation, not a disabled collector.
+
 # Immediate refresh verification — 2026-09-13
 
 ## Implemented
