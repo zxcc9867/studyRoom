@@ -1,3 +1,12 @@
+## 2026-09-14 — 기술 블로그 피드 배포 완료
+
+- 기능 커밋 f520c2f513848b464860b8a20545a7dd79bc6b36 main 푸시. Actions34766565479 성공(1분58초), Vercel dpl_7DoZZV5fwKzE3oR7eaEiDjcy7Ykw production READY, 기존 도메인 alias 정상.
+- 운영 https://study-room-attendance.vercel.app HTTP200. /assets/index-9rg1pVMN.js→TechFeedSection-BxhJ9q6y.js 및 피드CSS HTTP200, 출처링크/영상안내/Pretendard 포함 확인.
+- 서버 tech-feed v17 / worker v19 ACTIVE·JWT true, 무인증 POST401. 배포 후 정기 실행15:45~15:46UTC completed/오류null. 이번 관찰에서 신규수집0건으로 새 기술글 실제 도착 검증을 주장하지 않는다.
+- 전체609/609·Edge8/8·웹빌드 및 CI 모바일/문서/Edge/웹/배포 통과. Vercel15:47UTC 이후 짧은 오류조회0건, 로그인 사용자 조작은 로컬 검증 외 운영에서 별도 확인 필요.
+- 현재 작업 배포 완료. 아래 배포 전/진행 기록은 이전 이력. README3개 언어판/코드/회귀 테스트 함께 반영. 완료기록 docs-only [skip ci]로 추가 푸시.
+
+
 ## 2026-09-14 — 기술 블로그 피드 운영 배포 진행
 
 - 사용자 "배포해줘"로 필요한 커밋·main푸시·서버/웹 운영 반영 승인.

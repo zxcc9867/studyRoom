@@ -1,3 +1,10 @@
+## 2026-09-14 — 기술 블로그 피드 운영 버전 확정
+
+- APIv17/workerv19, 웹 기능커밋 f520c2f, Vercel dpl_7DoZZV5fwKzE3oR7eaEiDjcy7Ykw READY. 기존 main→Actions34766565479 배포 경로 사용.
+- 운영도메인/새피드chunk/CSS HTTP200. 별도스키마/cron/환경변수 변경 없음. 문서완료기록은 [skip ci]로 남겨 같은 웹을 재배포하지 않음.
+- 정기 worker실행 completed는 확인했으나 신규수집0건이므로 모든 관심 주제의 새글도착/번역완료를 보장하지 않는다. 실제 계정에서 새 글 확인으로 현재 관심의 다음 의도 검색 가능.
+
+
 ## Supabase 변경 이력 — 2026-09-14 기술 블로그 피드
 
 - 대상: tech-feed, tech-feed-worker 두 Edge Function 공유 검색/텍스트 정책.

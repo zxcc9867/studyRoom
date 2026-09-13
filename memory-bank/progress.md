@@ -1,3 +1,13 @@
+## 2026-09-14 — 기술 블로그 피드 운영 배포 완료
+
+- 커밋 f520c2f → main. Actions https://github.com/zxcc9867/studyRoom/actions/runs/34766565479 성공(1분58초).
+- Vercel dpl_7DoZZV5fwKzE3oR7eaEiDjcy7Ykw READY/production, Vite 웹 빌드 약29초. 운영URL HTTP200 및 새피드JS/CSS의 출처·영상안내·한글폰트 코드 확인.
+- Supabase APIv17/workerv19 ACTIVE·verify_jwt=true. 공유 feedContent 모듈 번들 정상, 무인증401, 정기실행 completed·오류없음. DB/cron/예산/권한/비밀값 불변.
+- 사전609개/Edge8개/웹빌드 및 CI 전체단계 통과. 운영배포 직후15:47UTC 이후 런타임오류0(짧은관찰), 로그인E2E와 신규 기술글 실제도착은 별도 미검증.
+- CI 기존 checkout/setup-node v4의 Node20→24 강제실행 deprecation 경고가 있으나 배포성공, 이번 범위에서 워크플로 버전 변경은 하지 않음.
+- 문서만 [skip ci]로 추가 커밋해 배포 완료 상태를 GitHub에도 보존. 임시output/.playwright-cli는 제외.
+
+
 ## 2026-09-14 — 기술 블로그 피드 서버 배포 완료 / 웹 진행
 
 - 사용자 명시적 배포 요청 후 테스트609/Edge8/웹빌드 재검증 통과.
