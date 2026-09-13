@@ -1,3 +1,24 @@
+## 2026-09-13 — 실제 worker 인증500 / Tavily 무료 조건 미설정
+
+### 원인과 증거
+- secret 누락401이나 nonempty secret500: 전역 Buffer 없는 Edge 환경에서 Buffer.from이 예외를 발생시켰다. 전역 제거 회귀에서 ReferenceError 재현.
+- TextEncoder 수정 후401/200 정상. 이어진 검색은 attempted0/unavailable이며 usage API는200/Researcher/1000이지만 key.limit 및 paygo_limit=null 반환. 키 인증 실패가 아니라 보수적 무료 검증 차단이다.
+### 해결 및 현재 한계
+- timingSafeEqual에 표준 Uint8Array 사용, JWT 유지, Node560/560·Edge8/8 및 운영 응답 검증. 최종 worker v10 ACTIVE 확인.
+- 사용자에게 전용 키900 한도/종량제 비활성 확인 요청. null을0으로 추정하거나 결제를 켜지 않는다. 수집 false/Cron inactive로 복구; 기사0/검색0 유지.
+- 예약 요청은 Vault의 anon JWT + 별도 worker secret을 사용하도록 준비. 출석 Cron 보존. 일회성 usage 진단 함수 삭제.
+- 재발 방지: 로컬 최신 Deno의 전역 제공 여부를 hosted Edge와 같다고 가정하지 않는다. runs completed/HTTP200과 search.state ready·기사 저장을 구분한다. 관련 docs/tech-feed/activation-20260913.md.
+
+## 2026-09-13 — 배포 후 피드가 도착하지 않음
+
+### 상황 / 원인
+- 사용자 수신 설정은1개 저장되어 있으나 기사와 수집 실행이0건이다. 수집 스위치 false, 피드 Cron inactive, 검색 키/worker 인증 없음, RSS8개 승인 대기가 운영 조회로 확인됐다.
+- 수동 API는 전체 수집 중지일 때 beginRefresh 이전에 paused를 반환하므로 요청 테이블0건만으로 버튼 클릭이 없었다고 판단하면 안 된다.
+### 확인 / 대응
+- CLI secrets list의 키 존재 여부와 false의 SHA256 digest 일치만 출력하고 비밀값은 조회/노출하지 않았다. MCP로 Cron/소스 상태/기사·실행·수신 동의 수를 집계했으며 개인 관심 내용은 읽지 않았다.
+- 진단만 수행. 가동하려면 운영 전용 무료 검색 인증과 무료 정책 검증 또는 허용된 RSS 소스, 전체 스위치와 예약 인증/작업 준비가 필요하다. 단순 웹 재배포로 해결되지 않는다.
+- 재발 방지: 배포 완료와 운영 수집 성공을 별도 보고하고, 실제 기사 저장 및 연속 예약/수동 실행을 출시 가동 기준으로 확인한다.
+
 ## 2026-09-13 — 새 글 확인은 캐시 조회만 수행 / 수동 수집 동시성
 
 ### 상황 / 원인

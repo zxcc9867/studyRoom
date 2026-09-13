@@ -1,3 +1,17 @@
+## 2026-09-13 — 검색 키 연결 확인 / 무료 한도 설정 대기
+
+- 사용자 키 등록 후 인증200 확인. worker 인증의 전역 Buffer 의존성 오류를 TextEncoder로 수정하고 배포; 최종 목록 worker v10/JWT true. 잘못된 secret401/정상 요청200 검증.
+- Tavily Researcher/plan1000/usage0이나 key.limit 및 account.paygo_limit=null. 무료 조건을 추정하지 않고 검색0회/기사0건, collector false/Cron inactive 유지. 사용자에게 키 한도900/종량제 비활성 확인 요청.
+- 예약 인증은 Edge/Vault 전용 secret + Vault anon JWT Authorization으로 준비. 출석 Cron 불변. 일회성 usage 진단 함수 삭제 완료.
+- 검증 Node560/560, Edge8/8. 변경/다음 작업: docs/tech-feed/activation-20260913.md. 실제 수집 성공/연속 Cron은 아직 아니다.
+
+## 2026-09-13 — 피드 미도착 운영 진단
+
+- 사용자 요청: 피드가 도착하지 않는 원인 확인(수정/운영 활성화 요청 아님).
+- 실측: TECH_FEED_ENABLED=false, TAVILY_API_KEY/TECH_FEED_WORKER_SECRET 없음, 피드 Cron inactive, 추천8소스 pending. 수신 동의 계정1개이나 기사/수집 실행/수동 요청 DB 기록 모두0.
+- 판단: 사용자 관심 설정은 존재하지만 운영 수집 경로가 아직 가동되지 않았다. 자동1시간/수동 버튼 모두 수집할 수 없는 상태이며 단순 새 글 없음이나5분 제한이 원인이 아니다.
+- 다음: 별도 가동 단계에서 앱 전용 무료 키·무료 정책 확인 또는 이용 조건 확인된 RSS 출처 준비, 수집 스위치/예약 인증 활성화 후 실제 수집을 검증한다. 진단 중 코드·설정·DB 데이터·배포 변경 없음.
+
 # Active Context — 2026-09-13 수동 수집
 
 ## 현재 작업

@@ -1,3 +1,16 @@
+## 2026-09-13 — 운영 키 연결 및 worker 인증 오류 수정
+
+- 완료: Tavily 키 존재/인증 확인, worker 전용 secret 및 JWT 유지 Cron 인증 준비, 전역 Buffer 미제공 시500 재현/수정 및 배포(최종 목록 worker v10). 수집 활성화는 미완료.
+- 무료 검증: Researcher/1000/usage0이나 key_limit/paygo_limit null로 fail-closed. 검색 POST0/기사0. collector false/Cron inactive 복구, 출석 Cron active 보존.
+- 변경: tech-feed-worker-core.mjs, tech-feed-auth-runtime.test.mjs, 운영 확인 문서와 memory-bank4개. DB schema/migration 변경 없음. 일회성 preflight 삭제.
+- 검증: RED ReferenceError → 관련6/6, 전체560/560, Edge8/8, 실제 인증401/정상 요청200. 남은 작업은 제공자 한도 확인 후 실제 검색·수동/예약 수집 검증. 상세 docs/tech-feed/activation-20260913.md.
+
+## 2026-09-13 — 피드 미도착 재확인 완료
+
+- Supabase MCP SQL/CLI Secrets digest 검증: 수집 false, 검색 키/worker secret 없음, Cron inactive, RSS8개 pending, 기사0/실행0/수동 요청0, 수신 동의 계정1개.
+- 원인: 기능 코드만 배포되었고 운영 수집 준비/가동 미완료. 사용자 입력 저장과 실제 수집 활성화를 구분해 안내.
+- 변경: active-context/progress/trouble-shooting 진단 기록만 로컬 추가. 코드·운영 설정·커밋·푸시·재배포 없음. 수집 활성화/실제 기사 도착은 미완료 상태 유지.
+
 # Progress — 수동 수집 추가
 
 ## Timeline

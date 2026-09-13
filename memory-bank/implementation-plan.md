@@ -1,3 +1,11 @@
+## Supabase 변경 이력 — 2026-09-13 운영 인증 준비
+
+- 대상/이유: 사용자의 검색 키 등록 후 피드 가동 검증. TAVILY_API_KEY 인증은200 확인.
+- 변경: Edge TECH_FEED_WORKER_SECRET와 Vault tech_feed_worker_secret, Vault tech_feed_gateway_anon 추가. 피드 Cron에 Authorization 추가, 전용 secret 비교와 verify_jwt=true 유지. 출석 secret/Cron 불변.
+- 함수: worker에서 전역 Buffer 대신 TextEncoder를 사용해 Edge 인증500 해결. 최종 원격 목록 worker v10/tech-feed v9, JWT true. DB schema 및 migration 변경 없음(기존 Cron 운영 command만 갱신).
+- 검증: 잘못된 인증401, 정상 worker200, GET /usage Researcher/1000 확인. key.limit/paygo_limit=null로 무료 조건 미충족, 검색0회/기사0건.
+- 현재 스위치 false/Cron inactive. 무료 조건 확인 후만 활성화. 진단 함수 삭제. 비밀값은 코드/문서에 보관하지 않는다. 상세 docs/tech-feed/activation-20260913.md.
+
 ## Supabase 변경 이력 — 2026-09-13 수동 수집
 
 - 변경 대상/이유: 인증된 새 글 확인을 위한 서버 전용 tech_feed_refresh_requests와 소스/주제 manual_requested_at, refresh_begin/status/finish/claim_search/claim_sources RPC.

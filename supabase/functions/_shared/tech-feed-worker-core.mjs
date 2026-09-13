@@ -4,7 +4,7 @@ import {timingSafeEqual} from 'node:crypto';
 import {fetchFeed,initialItems,parseHn,summarizeBatch} from './tech-feed-core.mjs';
 export function workerAuthorized(supplied,expected){
  if(typeof expected!=='string'||expected.length<32||typeof supplied!=='string')return false;
- const left=Buffer.from(supplied),right=Buffer.from(expected);
+ const encoder=new TextEncoder(),left=encoder.encode(supplied),right=encoder.encode(expected);
  return left.length===right.length&&timingSafeEqual(left,right);
 }
 async function hnFeed(source,transport,signal,store){
