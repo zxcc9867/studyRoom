@@ -1,3 +1,11 @@
+## 2026-09-14 — 현재 미디어 운영 버전
+
+- DB20260913162410 + APIv19/workerv21 + main5946f98, Vercel dpl_4k2TKx7giQ4jsqxMooyjR1RPzHxs READY.
+- 기존 main→GitHub Actions→Vercel 경로 최종34768906400 success. 운영root/미디어chunk/CSS200 및 API무인증401.
+- 예약 실행은 기존cron 그대로, 실제원문 이미지·영상 캐시 및 소유자목록 반환 확인. 별도 키/유료API/cron/검색quota 변경 없음.
+- 장애재발방지: hosted Edge에 없는 전역 Buffer를 가정하지 않으며 실제body수신회귀를 Deno subprocess로검증. 성공확인은 deploy명령이 아니라 run완료/캐시/API출력까지 수행.
+
+
 ## 2026-09-14 — 미디어 Edge 운영 호환성 보정
 
 - 현재 APIv19/workerv21 ACTIVE, verify_jwt=true. node:buffer 명시 import로 운영 Deno2.1.4 body decode 복구.

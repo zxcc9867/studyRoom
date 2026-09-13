@@ -1,3 +1,14 @@
+## 2026-09-14 — 피드 미디어 최종 배포 완료
+
+- main 기능80555d8 및 운영호환성5946f98 반영. 최종 CI https://github.com/zxcc9867/studyRoom/actions/runs/34768906400 success.
+- Vercel dpl_4k2TKx7giQ4jsqxMooyjR1RPzHxs READY/production. https://study-room-attendance.vercel.app 및 실제미디어JS/CSS HTTP200, 기존 도메인 alias 정상.
+- DB20260913162410, tech-feed v19 / worker v21 ACTIVE·JWTtrue. 원문대표이미지2개·영상ID3개 ready 및 실제 tech_feed_list media 반환 확인. 정기16:30/16:31UTC 연속completed.
+- 최종620개+Edge9개, 웹/모바일/README 검사 통과.390/1440px 클릭 전 iframe 없음·클릭/닫기·이미지실패·overflow0·runtime0 검증. 읽기 전용 독립 리뷰3회 P1/P2없음.
+-16:30:30UTC 이후 확인 범위 Supabase function error로그0/Vercel runtime error0. 최초503 원인과수정은 trouble-shooting 보존; 출석은해당기간200.
+- 브라우저/개발서버 종료. 임시스크린샷/도구기록은 커밋제외. 완료문서만 docs [skip ci] 후속푸시.
+- 한계: 모든 글에 미디어가 있지는 않음; 최대3개씩 점진보강/외부차단fallback. 실제 로그인운영E2E·모든영상제공자 재생은 보장하지 않음.
+
+
 ## 2026-09-14 — 미디어 1차 배포 및 Edge 호환성 수정
 
 - 기능80555d894234949e57c26f19164c73d3816c2b33 main 푸시, Actions34768586596 성공1분57초, Vercel dpl_4HdauodMr5XhWhdGfYJFKbt8fbBx READY.

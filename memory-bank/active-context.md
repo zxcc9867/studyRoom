@@ -1,3 +1,14 @@
+## 2026-09-14 — 피드 미디어 최종 배포 완료
+
+- 사용자 요청 구현·배포 완료. 기능80555d8 + Edge 호환성5946f98 main 반영.
+- 최종 Actions34768906400 success, Vercel dpl_4k2TKx7giQ4jsqxMooyjR1RPzHxs production READY/기존 도메인 alias 정상.
+- 운영 웹HTTP200, index-C2Kk5TNN.js→TechFeedSection-BFzqhK4x.js/CVm6jngp.css에 미디어 표시 코드 확인. 무인증 피드API401.
+- DB20260913162410, APIv19/workerv21 ACTIVE·JWTtrue. 실제 개인목록 SQL 반환의 이미지·영상 필드와 정기수집 연속completed 확인.
+- 전체620개/Edge9개/웹빌드/모바일/README검사/390·1440px UI 통과.16:30:30UTC 이후 짧은관찰의 Supabase 오류로그 및 Vercel runtime오류0.
+- 기존 글도 최대3개씩 점진적으로 미디어 보강. 외부 사이트 이미지/임베드 제한은 텍스트·원문으로 복구. 로그인된 운영 UI와 모든 제공자의 실제영상재생은 별도 미검증.
+- 임시 브라우저/로컬서버 종료. 완료기록만 [skip ci] 추가 푸시하며 output/.playwright-cli는 제외. 아래 진행/대기기록은 이전이력.
+
+
 ## 2026-09-14 — 미디어 운영 수집 복구 확인
 
 - 최초 웹80555d8 배포 성공(Actions34768586596, Vercel dpl_4HdauodMr5XhWhdGfYJFKbt8fbBx READY).
