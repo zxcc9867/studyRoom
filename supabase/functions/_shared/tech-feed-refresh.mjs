@@ -1,3 +1,5 @@
+import {createDeepLTranslation} from './tech-feed-translation.mjs';
+import {runTranslationWorker} from './tech-feed-translation-worker.mjs';
 import {runFeedWorker} from './tech-feed-worker-core.mjs';
 import {runSearchWorker} from './tech-feed-search-worker.mjs';
 import {createTavilySearch} from './tech-feed-search.mjs';
@@ -10,7 +12,7 @@ function waitForProvider(signal){
   signal.addEventListener('abort',cancel,{once:true});
  });
 }
-export async function runManualRefresh({store,userId,expectedRevision,env,transport,signal,search=createTavilySearch({env})}){
+export async function runManualRefresh({store,userId,expectedRevision,env,transport,signal,search=createTavilySearch({env}),translator=createDeepLTranslation({env})}){
  const state=await store.state();
  if(env.TECH_FEED_ENABLED!=='true'||state.preferences?.prompt&&!state.preferences.receiving)return{state:'paused'};
  const rssAvailable=state.sources?.some(s=>s.subscribed&&s.permission_status==='approved');
@@ -47,9 +49,10 @@ export async function runManualRefresh({store,userId,expectedRevision,env,transp
    const latest=(await store.state()).search_status;
    if(['quota_exhausted','unavailable','paused','not_configured'].includes(latest?.state))web.state=latest.state;
   }
+  const translation=await runTranslationWorker({store,pilotIds:[userId],translator,signal:bounded});
   const checked=rss.collected>0||web.attempted>0&&web.state==='ready';
   const failed=Boolean(rss.failed||web.failed||['quota_exhausted','unavailable'].includes(web.state)||bounded.aborted);
-  result={state:checked?(failed?'partial':'ready'):failed?'unavailable':'deferred',rss,search:web};
+  result={state:checked?(failed?'partial':'ready'):failed?'unavailable':'deferred',rss,search:web,translation};
  }finally{
   // A failed request cannot remove a newer lease or refund a search attempt.
   const finished=await store.finishRefresh(gate.lease,result);

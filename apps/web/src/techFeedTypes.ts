@@ -3,6 +3,7 @@ export type FeedSource = {
   permission_status:'approved'|'pending'|'blocked'; last_success_at:string|null; last_error:string|null;
 };
 export type FeedArticle = {
+  title_ko?:string|null; excerpt_ko?:string|null; translation_status?:'pending'|'ready'|'failed';
   id:string; title:string; url:string; published_at:string|null; discovered_at:string; excerpt:string;
   summary:null|{technology:string;change:string;usage:string}; summary_status:'pending'|'ready'|'insufficient'|'failed';
   category:null|'news'|'practice'|'deep_dive'; interests:string[]; sources:{id:string;name:string}[]; saved:boolean; todo_id:string|null;
@@ -14,6 +15,7 @@ export type FeedSearchStatus = {
 };
 export type FeedPreferenceResponse = {preferences:FeedPreferences;search_status:FeedSearchStatus};
 export type FeedState = FeedPreferenceResponse & {
+  translation_service?:FeedSearchStatus['state'];
   enabled:boolean;service_available:boolean;sources:FeedSource[];interests:string[];last_success_at:string|null;
 };
 export type FeedPage = {items:FeedArticle[];next_cursor:string|null};

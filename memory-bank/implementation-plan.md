@@ -1,3 +1,45 @@
+## 2026-09-13 — 피드 페이지와 읽기 구성
+
+- API/DB 변경 없음. 기존20개 커서 응답 캐시를 feedPageView로20개씩 렌더링. 방문한 번호(최대5개 주변)와 이전/다음, 아직 조회하지 않은 전체 페이지 수는 추정하지 않음.
+- 저장 해제는 캐시 saved:false 슬롯을 유지하고 페이지 표시에서만 제외. 다음 미열람 글이 이전 빈칸에 섞이지 않게 함. 다음 커서가 없으면 끝쪽 빈 저장 페이지 보정.
+- 계정/필터/revision 변경은 페이지1·캐시 초기화. generation/AbortSignal/저장 응답 계정 guard 유지. 실패 시 현재 내용 보존, 이동 성공 시 목록 제목 포커스 복원.
+- feedExcerptView는260 Unicode codepoint 소개와 전체 텍스트 분리. React escaping, 번역 성공 조건, 서버 원문URL 유지. 원문 details는 line-clamp 미사용.
+- 출처 이니셜·태그는 기존 메타데이터로 표현하며 새 이미지 크롤링/가짜 소셜 수치는 없음.
+- scripts/feed-ui-preview.mjs: 실제 컴포넌트+apps/web/test/fixtures/feed-ui.tsx 메모리 API를 번들링, fixture HTML 복사. 운영 빌드 제외, output/playwright는 생성 결과.390px/1440px 브라우저 검증.
+
+## Supabase 최종 확인 — 2026-09-13 번역
+
+- 마이그레이션20260913140137, tech-feed v16/worker v18 ACTIVE·JWT true. 실제 일반Cron으로7건 한국어 번역 완료 및 source snapshot일치, POST3회/7259자 별도예산 확인.
+- DB/서버 배포는 완료됐지만 커밋·main푸시가 승인 시스템에서 거절되어 웹배포는 미완료. 로컬 코드와 운영함수의 Git반영은 다음 사용자승인 단계에서 수행한다. 운영 데이터를 지우거나 서버를 롤백할 이유는 없으며 원문 피드는 호환된다.
+
+## Supabase 운영 검증 — 2026-09-13 번역 성공
+
+- DB20260913140137, 서버 고정Free client 적용 후14:17UTC 실제 번역3건/POST1회/3007자 저장. source snapshot 일치 결과만 기존 list로 반환.
+- 사용량 응답은 양의 안전정수 한도를 검증하고 실제잔여 계산시 reported_limit을500000으로 clamp한다. 숫자가크다는이유로 Free 응답 자체를 거부하지 않으며 app450000 원자예산/Freehost/:fx/Pro필드거부는 유지한다.
+- 운영검증에서 POST0이던 failed7건과 활성lease없는 provider 대기를한번복구. 번역예산/출석/검색백오프/구독설정은 변경하지 않았다.
+
+## Supabase 변경 이력 — 2026-09-13 번역 운영 적용
+
+- 사용자 운영 배포 명시 승인 후 MCP로 tech_feed_korean_translation을 적용했다. 실제 migration20260913140137, CLI 생성 로컬 파일은 이 버전으로 이름만 정합화(SQL 내용 동일).
+- 번역3테이블 RLS=true, authenticated SELECT=false, anon/authenticated 번역RPC EXECUTE0 확인. 출석/피드 기존분단위Cron 활성 상태 유지.
+- security advisor 신규3개 RLS-no-policy INFO는 service_role 전용의 의도한 차단이며 브라우저권한없음 직접검증. 기존 touch_updated_at/local_reminder_at search_path·public pg_net·7session SECURITY DEFINER·leaked password 설정 경고는 기존범위로 별도 유지한다.
+- 실제 공급자 사전확인 오류를 구분하는 제한된 error_code 추가. 정규식 allowlist에 없는 값, 비밀키/원문응답/임의오류 메시지는 클라이언트로 반환하지 않는다. 무료예약/반환원문/코칭예산 정책 불변.
+
+## Supabase 상태 보완 — 2026-09-13 번역
+
+- 20260913131900_tech_feed_korean_translation.sql은 로컬 검증만 완료. MCP apply_migration이 별도 운영 배포 승인 필요로 거부되어 적용되지 않았고 list_migrations에서 미적용 확인. 서버/웹 변경도 없음.
+- reservation RPC 반환은 jsonb {state:reserved|quota_exhausted|deferred}. 취소는 전역 공급자 오류/한도 backoff를 만들지 않는다. DB+worker 결합 회귀로 다른 사용자 즉시 처리 확인.
+- 전체 Node589/589·Edge8/8·독립 재검토 승인. 추후 승인 시 해당 파일만 적용하고 원격 버전과 정합화한다. 기존 출석 Cron/RLS/데이터는 변경하지 않는다.
+
+## Supabase 변경 이력 — 2026-09-13 한국어 번역
+
+- 대상: tech_feed_translations(원문 snapshot/번역/lease), translation_provider(공용 잠금/상태), translation_budget(UTC월 문자/시도). 세 테이블 RLS, 브라우저 접근/EXECUTE 차단, service_role 전용 SECURITY INVOKER RPC.
+- 이유: 코칭6회와 분리된 DeepL Free 번역 예산 및 사용자 간 성공 캐시 재사용. 원문과 snapshot이 같을 때만 list에 title_ko/excerpt_ko/translation_status 제공.
+- API: state.translation_service 추가. 번역 키가 없으면 not_configured, 번역 실패가 검색/RSS를 중단하지 않음. 카드 한국어/접힌 원문/원문링크 불변.
+- worker: 수동·정기 실행에서 최대3개, 소스 승인/수신 권한 유지, 예약 시 owner lock 재검증, Free GET usage→DB문자예약→POST1회→lease결과 저장. 유료 fallback/POST자동재시도 없음.
+- migration: 20260913131900_tech_feed_korean_translation.sql(로컬 생성; 원격 적용 버전은 배포 기록에서 정합화). 확인: PGlite 실제 SQL/RLS/캐시/한도 및 Edge/전체 테스트. blanket db push 금지.
+- 주의: 공급자 사용량은 지연될 수 있어 앱450000자 여유 상한도 적용한다. 앱 UTC월과 공급자 결제기간은 다르며 실제 제공자 잔여량도 매번 확인한다. 운영 전용 Free 키 필요. 상세 docs/tech-feed/korean-translation.md.
+
 ## Supabase 변경 이력 — 2026-09-13 즉시 수집
 
 - 대상/이유: 명시적 수동 확인마다 수집하기 위한 refresh_begin/claim_search/claim_sources freshness 제거. 활성90초 lease/owner advisory/revision/실패 backoff 유지.

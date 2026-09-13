@@ -37,3 +37,31 @@ test('actual AI summary remains labelled as AI rather than a search introduction
   assert.match(html,/데이터베이스 기술/);
   assert.doesNotMatch(html,/AI가 작성한 원문/);
 });
+test('ready Korean translation is default and original text stays in a collapsed disclosure',()=>{
+ const html=render({...article,translation_status:'ready',title_ko:'PostgreSQL 쿼리 계획',excerpt_ko:'검색 결과의 한국어 소개입니다.'});
+ assert.match(html,/<h3>PostgreSQL 쿼리 계획<\/h3>/);assert.match(html,/검색 결과의 한국어 소개입니다/);
+ assert.match(html,/<details[^>]*><summary>원문 텍스트 보기<\/summary>/);assert.match(html,/PostgreSQL query planning/);
+ assert.match(html,/DeepL 자동 번역/);assert.doesNotMatch(html,/<details[^>]* open/);
+});
+test('failed or pending translations preserve English originals without claiming translation',()=>{
+ for(const translation_status of ['pending','failed']){const html=render({...article,translation_status,title_ko:'stale',excerpt_ko:'stale'});assert.match(html,/<h3>PostgreSQL query planning<\/h3>/);assert.doesNotMatch(html,/stale/);assert.match(html,/번역.*대기/);}
+});
+test('translation output is escaped and cannot replace the original URL',()=>{
+ const html=render({...article,translation_status:'ready',title_ko:'번역 <script>bad</script>',excerpt_ko:'<img src=x onerror=bad>'});
+ assert.doesNotMatch(html,/<script>|<img /);assert.match(html,/engineering.example.com\/postgres\/plans/);
+});
+
+test('long introductions expose an accessible expansion control, not a silent line clamp',()=>{
+ const html=render({...article,excerpt:'Long introduction '.repeat(40)});
+ assert.match(html,/aria-expanded="false"/);
+ assert.match(html,/내용 더 보기/);
+});
+test('pagination marks the current page and disables the unavailable next page',()=>{
+ assert.equal(typeof mod.exports.FeedPagination,'function');
+ const html=renderToStaticMarkup(React.createElement(mod.exports.FeedPagination,{
+  page:2,numbers:[1,2],hasNext:false,busy:false,onPage(){},
+ }));
+ assert.match(html,/aria-label="피드 페이지"/);
+ assert.match(html,/aria-current="page"/);
+ assert.match(html,/<button[^>]*disabled[^>]*aria-label="다음 페이지"/);
+});

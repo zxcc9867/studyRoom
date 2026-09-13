@@ -1,3 +1,4 @@
+import {createDeepLTranslation} from './tech-feed-translation.mjs';
 import {runManualRefresh} from './tech-feed-refresh.mjs';
 import {INTERESTS,normalizeUrl,fetchFeed,pilotEnabled} from './tech-feed-core.mjs';
 import {canonicalTopic,feedAccess,searchState} from './tech-feed-topics.mjs';
@@ -56,7 +57,13 @@ export function createTechFeedHandler({authenticate,env,transport}){
     }
     if(!feedAccess(id,config)||!['list','save','add_todo'].includes(action)||action==='list'&&data.view!=='saved')throw Error('disabled');
    }
-   if(action==='state')return reply(withStatus(await store.state()));
+   if(action==='state'){
+    const state=withStatus(await store.state());
+    const availability=config.TECH_FEED_ENABLED!=='true'||state.preferences?.prompt&&!state.preferences.receiving?'paused':createDeepLTranslation({env:config}).availability();
+    let translation_service=availability;
+    if(availability==='waiting')try{translation_service=(await store.translationStatus()).state;}catch{translation_service='unavailable';}
+    return reply({...state,translation_service});
+   }
    if(action==='refresh_status')return reply({...await store.refreshStatus(),search:searchState(await store.state(),config)});
    if(action==='refresh'){
     if(!Number.isSafeInteger(data.expected_revision)||data.expected_revision<0)invalid();

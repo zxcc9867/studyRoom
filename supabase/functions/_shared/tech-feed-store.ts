@@ -18,6 +18,10 @@ export function feedAdmin(){
 export function createFeedStore(admin:SupabaseClient,owner:string|null){
  const rpc=async(name:string,args:Record<string,unknown>)=>checked(await admin.rpc(name,args));
  return {
+  translationStatus:()=>rpc("tech_feed_translation_status",{}),
+  claimTranslations:(recipients:string[],limit=3)=>rpc("tech_feed_translation_claim",{p_recipients:recipients,p_limit:limit}),
+  reserveTranslation:(ids:string[],lease:string,cap=450000)=>rpc("tech_feed_translation_reserve",{p_ids:ids,p_lease:lease,p_cap:cap}),
+  finishTranslation:(ids:string[],lease:string,items:unknown[],error:string|null)=>rpc("tech_feed_translation_finish",{p_ids:ids,p_lease:lease,p_items:items,p_error:error}),
   beginRefresh:(revision:number)=>rpc("tech_feed_refresh_begin",{p_user_id:owner,p_expected_revision:revision}),
   refreshStatus:()=>rpc("tech_feed_refresh_status",{p_user_id:owner}),
   finishRefresh:(lease:string,result:unknown)=>rpc("tech_feed_refresh_finish",{p_user_id:owner,p_lease:lease,p_result:result}),

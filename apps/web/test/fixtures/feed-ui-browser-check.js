@@ -1,0 +1,36 @@
+async (page) => {
+ const check=(ok,label)=>{if(!ok)throw new Error(label)};
+ const cards=()=>page.locator('.feed-card');
+ await page.reload();
+ await page.getByRole('heading',{name:'새로운 발견 1페이지'}).waitFor();
+ check(await cards().count()===20,'first page must contain twenty');
+ await page.getByRole('button',{name:'내용 더 보기',exact:true}).first().click();
+ check(await page.getByRole('button',{name:'내용 접기',exact:true}).count()===1,'excerpt expansion');
+ check((await cards().first().locator('.feed-excerpt').innerText()).length>350,'full excerpt retained');
+ await cards().first().getByText('원문 텍스트 보기',{exact:true}).click();
+ check(await cards().first().locator('details[open]').count()===1,'original disclosure');
+ await page.getByRole('button',{name:'AI 요약 펼치기',exact:true}).first().click();
+ check(await cards().nth(1).getByText('핵심 변화',{exact:true}).isVisible(),'full AI summary');
+ await cards().first().getByRole('button',{name:'공부할 일에 추가',exact:true}).click();
+ check(await cards().first().getByRole('button',{name:'할 일에 추가됨',exact:true}).isDisabled(),'todo link reflected');
+ await page.getByRole('button',{name:'다음 페이지',exact:true}).click();
+ await page.getByRole('heading',{name:'새로운 발견 2페이지'}).waitFor();
+ check((await cards().first().locator('h3').innerText()).endsWith('· 21'),'next page begins at article21');
+ check(await cards().count()===20,'next replaces not appends');
+ const calls=await page.locator('#fixture-calls').innerText();
+ await page.getByRole('button',{name:'이전 페이지',exact:true}).click();
+ await page.getByRole('heading',{name:'새로운 발견 1페이지'}).waitFor();
+ check(await page.locator('#fixture-calls').innerText()===calls,'cached previous page makes no request');
+ check(await cards().first().getByRole('button',{name:'할 일에 추가됨',exact:true}).isDisabled(),'todo preserved across pages');
+ await page.getByRole('button',{name:'저장',exact:true}).first().click();
+ await page.getByRole('heading',{name:'저장한 발견 1페이지'}).waitFor();
+ await cards().first().getByRole('button',{name:'저장됨',exact:true}).click();
+ await page.waitForFunction(()=>document.querySelectorAll('.feed-card').length===19);
+ await page.getByRole('button',{name:'다음 페이지',exact:true}).click();
+ await page.getByRole('heading',{name:'저장한 발견 2페이지'}).waitFor();
+ check((await cards().first().locator('h3').innerText()).endsWith('· 21'),'unsave does not skip next unseen article');
+ await cards().first().getByRole('button',{name:'저장됨',exact:true}).click();
+ await page.getByRole('heading',{name:'저장한 발견 1페이지'}).waitFor();
+ check(await cards().count()===19,'empty last page returns to previous');
+ return 'PASS: twenty-item pages, cached back, full Korean/original/AI text, todo, saved-page boundaries';
+}

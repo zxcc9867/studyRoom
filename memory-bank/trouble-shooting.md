@@ -1,3 +1,46 @@
+## 2026-09-13 — 저장 해제 후 페이지 건너뛰기 및 카드 호환
+
+- 초기 배열 삭제 방식은20개 중1개 해제 후 다음 커서 첫 글을 이전 페이지 빈칸에 넣어 건너뛰게 함. 캐시 전부 해제 시 탐색도 사라짐.
+- 해결: saved:false 슬롯 보존·페이지 표시에서만 제외, 빈 페이지+다음커서 탐색 유지, 마지막 빈 저장 페이지 보정. feedSavedPagination3개 RED→GREEN 및 실제 Chromium 시나리오·독립 재검토 승인.
+- 예전 RSS 응답/fixture에 matched_topics가 없어 전체3건 실패: 태그 빈 배열 fallback 추가. AI즉시전체표시 테스트는 승인된 접힌 요약으로 개정, 실제 브라우저3항목 펼치기 검증. 전체600/600.
+- 원문 details의 line-clamp 스타일을 분리해 긴 원문도 전체 표시. 브라우저 예시글 길이/분류 검증 데이터 오류 교정.
+- view_image 기본 읽기 apply deny-read ACLs 오류는 승인된 동일PNG 읽기로 확인. ACL·운영계정·비밀값 변경 없음.
+
+## 2026-09-13 — main 커밋·푸시 별도 승인 거부
+
+- 실제7건 번역 성공 후 문서패치 적용→stage→commit→push main 셸 요청이 실행 전 거부됐다. 사유: 운영 배포 승인은 있지만 커밋·푸시 승인이 별도로 확인되지 않는다는 승인시스템 판단.
+- repo AGENTS §5 자동배포/필요 Git작업 승인 규칙과 해석이 다르지만 거부를 우회하지 않았다. CLI/직접Vercel 등 간접경로로 재시도하지 않았다.
+- 상태검증: HEAD1d38625 유지, index비어있음, 원격/웹변경미실행. 이미 완료된 DB/서버는 정상7번역ready/3POST/7259자. 문서패치만 별도로 적용하고 사용자에게 명시적 Git+웹배포 승인을 요청한다.
+
+## 2026-09-13 — DeepL 사용량 상한 거부 해결
+
+- 실제14:14UTC Cron error_code=usage_limit_above_free, attempted0/characters0로 고정 Free endpoint의 양수상한>500000 응답을 자체검증이 거부함을 확정.
+- 수정: 유효한 양수정수 상한은 min(500000,reported_limit)으로 제한하여 잔여량을 계산. 기존 유료경로차단/Free키/Pro필드차단/app450000은 그대로. 공식 usage 문서도 Free 예시에1250000을 사용하므로 응답값을 요금제확정값으로 간주하지 않는다.
+- 회귀: reported_limit500001/1250000/1e12 및 사용량499999→잔여1,500001→잔여0 RED→GREEN. 전체591·독립재검토 승인.
+- 운영: 잘못된 사전검사로 번역POST가 없던7건만재시도복구.14:17UTC 일반Cron 번역3건 ready/POST1/3007자 확인. 키/원문API응답은 노출하지 않았다.
+
+## 2026-09-13 — DeepL 실호출 사용량 한도 검증 실패 조사
+
+- 배포 후 일반Cron14:03UTC에 translation unavailable, attempts0/budget행0 확인. source수집은 정상이며 번역3기사 failed/backoff 처리.
+- 기존 오류가 unavailable로만 합쳐져 근거가 부족했다. 신규endpoint 없이 기존 번역클라이언트/worker에 stage 고정code allowlist를 추가하고 민감응답 비노출 회귀를 RED→GREEN 검증했다.
+- 14:08UTC 일반Cron 응답에서 usage_invalid_limit 확인. 이는 HTTP 성공 후 character_limit의 타입/범위검사 거부이며 무료조건 완화 없이 세부분류를 추가해 확인 중이다.
+- 키값/제공자 응답본문을 수집하거나 임시probe·권한우회·유료경로를 추가하지 않았다. 실제 원인/최종 해결은 후속기록 참조.
+
+## 2026-09-13 — 번역 예약 취소 오인과 배포 승인 차단
+
+- 검토 재현: 같은 주제 A/B 구독→A claim→usage 확인 중 A 수신중지→reserve false를 quota_exhausted로 오인, POST0/차감0인데 provider 전역1시간 backoff 발생.
+- 해결: reserve 반환 상태를 reserved/quota_exhausted/deferred로 분리. deferred는 pending/즉시 lease반환/전역backoff0. 실SQL+worker 회귀에서 B 즉시claim 확인. 최종전체589 및 독립 재검토 통과.
+- 운영 적용 오류: 승인 시스템 "This action was rejected due to unacceptable risk ... implementation approval does not explicitly authorize deployment ... separate deployment request." migration 생성/RLS/기존list함수변경 영향으로 거부.
+- 대응: 우회/재시도/CLI 적용 없이 중단. migration 목록 재조회로 미적용 확인. 커밋/푸시/함수/웹 배포 안 함. 사용자에게 명시적 운영 DB+서버+웹 배포 승인을 요청한다.
+
+## 2026-09-13 — 한국어 번역 미제공 원인과 연결 상태
+
+- 상황/원인: 기존 카드는 원문 title/excerpt를 출력하고 AI는 별도 요약3필드만 생성했다. 번역 데이터/공급자 경로가 없었음. 운영에는 DEEPL_API_KEY도 없다.
+- 해결: DeepL Free 전용 번역 경로/공유 캐시/별도 문자예산과 한국어 기본·원문 접기 구현. 키가 없으면 원문을 유지하고 연결 준비 중을 표시한다. 아직 실제 공급자 번역 성공을 주장하지 않는다.
+- 테스트 과정: UI 테스트를 top-level await 번들 앞에 등록하면 fixture 초기화 전 실행되어 실패했다. 테스트 등록을 fixture 뒤로 이동해 실제 컴포넌트 검증 후 통과. DB/수집 기능 RED→GREEN 확인.
+- 환경: 기본 편집/쉘의 apply deny-read ACLs 실패는 apply_patch 생성 패치→승인된 git apply로 처리. ACL/사용자 파일을 변경하지 않는다. memory-bank/README.md는 없는 선택 문서임을 확인하고 실제 PRD/핵심6문서를 사용.
+- 재발 방지: 번역 상태와 AI 요약 상태, 코드 배포와 API 키 활성화를 구분한다. 다른 프로젝트 키나 유료 endpoint로 우회하지 않는다.
+
 ## 2026-09-13 — 운영 검증 제한 기록
 
 - 즉시 수집 DB/함수/웹 배포 및 로컬/CI 검증 성공. 임시 probe 배포·호출은 승인 시스템이 추가 운영 엔드포인트/수집 권한 범위 문제로 거부. 다른 경로로 우회하지 않았고 함수 목록에서 probe 없음 확인.

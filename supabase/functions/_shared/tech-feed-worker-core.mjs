@@ -1,3 +1,4 @@
+import {runTranslationWorker} from './tech-feed-translation-worker.mjs';
 import {classifyArticle as classify} from './tech-feed-topics.mjs';
 import {runSearchWorker} from './tech-feed-search-worker.mjs';
 import {timingSafeEqual} from 'node:crypto';
@@ -28,7 +29,7 @@ async function hnFeed(source,transport,signal,store){
  if(failures||signal.aborted)throw Error('source_failed');
  return{items:items.sort((a,b)=>String(b.published_at).localeCompare(String(a.published_at))),etag:null,last_modified:null,checkpoint:{pending_ids:pending.slice(selected.length)}};
 }
-async function executeFeedWorker({store,pilotIds,transport,ask,signal,stats,search}){
+async function executeFeedWorker({store,pilotIds,transport,ask,signal,stats,search,translator}){
  const result=stats;
  if(!pilotIds.length)return result;
  const sources=await store.claimSources(pilotIds,2);
@@ -49,6 +50,7 @@ async function executeFeedWorker({store,pilotIds,transport,ask,signal,stats,sear
   try{result.search=await runSearchWorker({store,search,signal:AbortSignal.any([signal,AbortSignal.timeout(35000)])});}
   catch{result.search={state:'unavailable',attempted:0,collected:0,failed:1};}
  }
+ if(translator&&!signal.aborted)result.translation=await runTranslationWorker({store,pilotIds,translator,signal:AbortSignal.any([signal,AbortSignal.timeout(20000)])});
  if(!signal.aborted){
   const claims=await store.claimSummaries(pilotIds),groups=new Map();
   for(const claim of claims){
