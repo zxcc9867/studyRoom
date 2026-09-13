@@ -1,3 +1,24 @@
+## 2026-09-14 — 미디어 운영 DB·함수 적용
+
+- MCP apply_migration 성공. 운영 버전20260913162410에 맞춰 파일을 supabase/migrations/20260913162410_tech_feed_media.sql로 정렬(아래 초안 파일명은 이력).
+- tech-feed v18 / tech-feed-worker v20 ACTIVE, verify_jwt=true. CLI2.117.0 --use-api로 두 함수만 배포, feedMedia 공용 모듈 번들 업로드 확인.
+- 운영 media 테이블 RLS=true, authenticated SELECT=false/claim EXECUTE=false. 정기 worker가 별도 수동 DB 작업 없이 기존 영상 기사 media ready를 기록(16:25:11UTC).
+- 최종620/620·Edge8/8·웹 빌드 통과, 모바일/README 검사 통과. 웹 main 푸시/Actions 배포는 진행 중.
+
+
+## Supabase 변경 이력 — 2026-09-14 피드 미디어
+
+- 변경 대상: tech_feed_media 테이블, media_claim/allowed/finish RPC, tech_feed_list 반환 media 필드, tech-feed/tech-feed-worker 공유 모듈.
+- 이유: 기존/새 기사에 원문 대표 이미지와 클릭형 첨부 영상을 연결하고 중복 수집을 줄임.
+- 마이그레이션: supabase/migrations/20260913155837_tech_feed_media.sql (로컬 작성, 운영 적용 결과는 후속 기록).
+- 캐시 article_id FK cascade/PK + sponsor_user_id FK/index. RLS 활성, anon/authenticated/PUBLIC 테이블 및 RPC 접근 금지, service_role만 허용. 기존 목록 개인별 가시성과 커서 유지.
+- 짧은 advisory transaction lock으로 claim 직렬화, 최대3개/90초 lease, 원문 URL snapshot 일치, 수신중지 재검증, 성공·없음7일/오류1일 backoff. 미디어 실패는 텍스트 수집/번역/요약 실패로 전파하지 않음.
+- 기존 transport로 원문 HTML만 제한적으로 확인. 미디어 단계12초/개별6초,1MiB, HTTPS/DNS/TLS pin/리디렉션 재검증. 외부 HTML/스크립트 삽입 없음, 허용 제공자 ID로 iframe URL 재구성.
+- 정기/수동 수집의 번역과 미디어를 병렬 실행. 수동 RSS 하위 실행에서는 미디어를 끄고 최종1회만 실행. 신규 cron/키/AI예산 변경 없음.
+- API media:null|{image_url,video:{provider,id}|null}; 브라우저는 URL 재검증, 이미지 지연 로드·no-referrer, 클릭 후 iframe, autoplay=0, 종료 시 iframe 제거.
+- 확인 방법: PGlite 전체 feed migration/RLS/공유 lease/캐시 격리 테스트; scripts/feed-media-browser-check.js를 로컬 feed-ui-preview + Playwright CLI run-code --filename으로 실행.
+
+
 ## 2026-09-14 — 기술 블로그 피드 운영 버전 확정
 
 - APIv17/workerv19, 웹 기능커밋 f520c2f, Vercel dpl_7DoZZV5fwKzE3oR7eaEiDjcy7Ykw READY. 기존 main→Actions34766565479 배포 경로 사용.

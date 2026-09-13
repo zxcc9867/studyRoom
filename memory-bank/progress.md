@@ -1,3 +1,20 @@
+## 2026-09-14 — 피드 썸네일·영상 구현
+
+- 사용자 구현+완료 후 배포 승인. 원문 OG/Twitter 대표 이미지 및 YouTube/Vimeo 첨부 영상 지원, 임의 사진 검색/AI 생성 없음.
+- 공유 캐시/RLS/lease/수신중지/URL snapshot 보호와 기존 수동·정기 worker 연결. 원문 전체/미디어 파일은 저장하지 않음.
+- 카드 이미지 lazy/object-fit contain/no-referrer, 클릭 후 영상 로드/autoplay0/닫기. 미디어 차단·오류 시 텍스트·출처 유지.
+- TDD: 최초5개 media behavior 실패, DB RPC 미구현2개 실패, UI 이미지1개 실패 확인 후 구현. 관련검사 및 전체619개/Edge8개/웹/모바일/README 검사 통과. 직접 영상 URL 신규1개 RED→GREEN 추가.
+- 브라우저390/1440 검증 중 공통 hover transform이 영상버튼을 이동시키는 문제 재현·국소 수정 후 클릭/닫기/이미지오류/overflow0/runtime0 확인. 재실행 스크립트 scripts/feed-media-browser-check.js.
+- 실제 공개 원문 smoke: NEXT IAS200/대표 webp 확인, AI Business403은 정상 fallback, YouTube HTML 수집 실패는 기존 영상 원문 ID만 사용하도록 처리. 새 영상 검색 수집을 활성화하지 않음.
+- 읽기 전용 독립 리뷰에서 P1/P2 없음. 운영 배포는 다음 기록에서 확정하며 임시 output/.playwright-cli 파일은 커밋하지 않음.
+
+
+## 2026-09-14 — 피드 미디어 표시 요청 조사
+
+- 피드에 사진/영상 표시 요청. 현재 미디어 데이터 수집·저장·반환이 없어 카드와 함께 수집 경로 보강이 필요함을 코드로 확인.
+- 짧은 설계 제안: 원문 대표사진, 클릭재생 영상, 미디어 없는 글/차단·실패 시 기존 텍스트 보존, 원문출처 유지. 설계 승인 대기이며 구현·운영 변경 없음.
+
+
 ## 2026-09-14 — 기술 블로그 피드 운영 배포 완료
 
 - 커밋 f520c2f → main. Actions https://github.com/zxcc9867/studyRoom/actions/runs/34766565479 성공(1분58초).

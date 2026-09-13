@@ -3,6 +3,7 @@ export type FeedSource = {
   permission_status:'approved'|'pending'|'blocked'; last_success_at:string|null; last_error:string|null;
 };
 export type FeedArticle = {
+  media?:null|{image_url:string|null;video:null|{provider:'youtube'|'vimeo';id:string}};
   title_ko?:string|null; excerpt_ko?:string|null; translation_status?:'pending'|'ready'|'failed';
   id:string; title:string; url:string; published_at:string|null; discovered_at:string; excerpt:string;
   summary:null|{technology:string;change:string;usage:string}; summary_status:'pending'|'ready'|'insufficient'|'failed';

@@ -1,3 +1,4 @@
+import {runMediaWorker} from './tech-feed-media.mjs';
 import {createDeepLTranslation} from './tech-feed-translation.mjs';
 import {runTranslationWorker} from './tech-feed-translation-worker.mjs';
 import {runFeedWorker} from './tech-feed-worker-core.mjs';
@@ -29,7 +30,7 @@ export async function runManualRefresh({store,userId,expectedRevision,env,transp
   // Search and bounded RSS batch are independent. Manual discovery does not
   // consume additional AI calls; scheduled summaries retain their existing quota.
   const [rss,web]=await Promise.all([
-   rssAvailable?runFeedWorker({store:{...store,startRun:undefined,finishRun:undefined,
+   rssAvailable?runFeedWorker({store:{...store,startRun:undefined,finishRun:undefined,claimMedia:undefined,
     claimSources:()=>store.claimManualSources(gate.lease),claimSummaries:async()=>[],cleanup:async()=>{}},
     pilotIds:[userId],transport,ask:async()=>({deferred:true}),signal:bounded})
     .catch(()=>({collected:0,failed:1})):Promise.resolve({collected:0,failed:0}),
@@ -49,10 +50,13 @@ export async function runManualRefresh({store,userId,expectedRevision,env,transp
    const latest=(await store.state()).search_status;
    if(['quota_exhausted','unavailable','paused','not_configured'].includes(latest?.state))web.state=latest.state;
   }
-  const translation=await runTranslationWorker({store,pilotIds:[userId],translator,signal:bounded});
+  const [translation,media]=await Promise.all([
+   runTranslationWorker({store,pilotIds:[userId],translator,signal:bounded}),
+   store.claimMedia?runMediaWorker({store,pilotIds:[userId],transport,signal:AbortSignal.any([bounded,AbortSignal.timeout(12000)])}):null,
+  ]);
   const checked=rss.collected>0||web.attempted>0&&web.state==='ready';
   const failed=Boolean(rss.failed||web.failed||['quota_exhausted','unavailable'].includes(web.state)||bounded.aborted);
-  result={state:checked?(failed?'partial':'ready'):failed?'unavailable':'deferred',rss,search:web,translation};
+  result={state:checked?(failed?'partial':'ready'):failed?'unavailable':'deferred',rss,search:web,translation,...(media?{media}: {})};
  }finally{
   // A failed request cannot remove a newer lease or refund a search attempt.
   const finished=await store.finishRefresh(gate.lease,result);

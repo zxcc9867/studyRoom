@@ -87,3 +87,14 @@ test('promotional sentences are removed from displayed blog introductions withou
  assert.match(html,/Rust retries are bounded/);
  assert.doesNotMatch(html,/Subscribe to our newsletter|Follow us on social media/);
 });
+
+test('article-supplied media is lazy and video stays click-to-load',()=>{
+ const html=render({...article,media:{image_url:'https://cdn.example.com/architecture.png',video:{provider:'youtube',id:'M7lc1UVf-VE'}}});
+ assert.match(html,/<img[^>]+src="https:\/\/cdn.example.com\/architecture.png"/);
+ assert.match(html,/loading="lazy"/);assert.match(html,/referrerPolicy="no-referrer"/i);
+ assert.match(html,/영상 불러오기/);assert.doesNotMatch(html,/<iframe/);assert.match(html,/원문 제공 이미지/);
+});
+test('invalid media never changes article text or injects a player',()=>{
+ const html=render({...article,media:{image_url:'http://127.0.0.1/internal',video:{provider:'evil',id:'<script>'}}});
+ assert.doesNotMatch(html,/<img|<iframe|127.0.0.1/);assert.match(html,/PostgreSQL query planning/);
+});

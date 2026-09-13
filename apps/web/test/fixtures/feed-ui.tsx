@@ -7,6 +7,7 @@ import type {FeedArticle} from '../../src/techFeedTypes';
 
 const sources=[{id:'source',name:'Engineering Journal',url:'https://example.com/feed',kind:'rss',recommended:true,subscribed:true,permission_status:'approved',last_success_at:'2026-09-13T09:00:00Z',last_error:null}];
 const articles:FeedArticle[]=Array.from({length:43},(_,i)=>({
+ media:i===0?{image_url:'https://images.example.com/architecture.png',video:{provider:'youtube',id:'M7lc1UVf-VE'}}:i===1?{image_url:'https://images.example.com/broken.png',video:null}:i===2?{image_url:'https://images.example.com/architecture.png',video:null}:null,
  id:'article-'+i,title:'Engineering notes '+(i+1),title_ko:['작은 팀이 AI 도구를 도입하며 배운 것','React에서 접근성을 지키는 작은 습관','PostgreSQL 쿼리 성능, 실행 계획부터 읽기'][i%3]+' · '+(i+1),
  url:'https://example.com/article/'+i,published_at:'2026-09-13T09:00:00Z',discovered_at:'2026-09-13T09:01:00Z',
  excerpt:'Original technical introduction. '.repeat(30),excerpt_ko:'새로운 도구를 도입하기 전에 실제로 해결하고 싶은 문제를 먼저 살펴봅니다. 작은 실험을 통해 팀에 맞는 사용 방법을 찾고, 결과를 함께 기록하는 과정이 중요합니다. '.repeat(i===0?5:1),

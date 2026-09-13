@@ -7,6 +7,7 @@ import type { FeedArticle, FeedPage, FeedPreferenceResponse, FeedPreview, FeedSt
 import { FeedInterestSettings } from './FeedInterestSettings';
 import { feedExcerptView, feedPageView } from './feedPresentation.mjs';
 import {cleanFeedIntroduction,feedContentKind} from '../../../packages/core/src/feedContent.mjs';
+import {FeedArticleMedia} from './FeedArticleMedia';
 import './techFeed.css';
 
 type Props = {supabase:SupabaseClient;userId:string;timeZone:string;onPlan:(article:FeedArticle)=>void;linkedTodo?:{userId:string;articleId:string;todoId:string}|null};
@@ -35,6 +36,7 @@ export function FeedArticleCard({article,onSave,onPlan,busy,timeZone}:{article:F
     <div className="feed-card-body">
       {tags.length>0 && <div className="feed-topic-tags">{tags.map(tag=><span key={tag}># {tag}</span>)}</div>}
       <h3>{link ? <a href={link} target="_blank" rel="noopener noreferrer">{translated ? article.title_ko : article.title}</a> : (translated ? article.title_ko : article.title)}</h3>
+      <FeedArticleMedia key={article.id+JSON.stringify(article.media)} media={article.media} title={(translated?article.title_ko:article.title)||article.title} original={link}/>
       <div id={contentId}>
         {expanded && hasSummary ? <dl className="feed-summary">
           <div><dt>어떤 기술인가요</dt><dd>{cleanFeedIntroduction(article.summary!.technology)}</dd></div>

@@ -1,3 +1,14 @@
+## 2026-09-14 — 미디어 버튼 클릭 위치와 외부 원문 제한
+
+- 상황/에러: 브라우저 검증에서 iframe waitFor 30초 timeout. DOM은 영상 불러오기 상태 유지.
+- 원인: styles.css의 button:hover:not(:disabled)/active transform이 중앙 배치 translate(-50%,-50%)를 덮어써 클릭 시 버튼이 이동. native click target이 버튼 아닌 frame div임을 확인.
+- 해결: .tech-feed .feed-media-play hover/active에 동일 중앙 transform 유지. 공통 버튼 스타일은 그대로 보존.
+- 검증: 같은 실패 스크립트 재실행390/1440 모두 통과, iframe은 클릭 후에만 생성/닫기 때 제거, runtime error0.
+- 원문 smoke에서 AI Business403/YouTube HTML source_failed. 우회하지 않음. 기존 공개 YouTube/Vimeo 원문 URL은 안전한 ID만 추출해 player 연결, 일반 차단 페이지는 미디어 실패 cache/텍스트 유지.
+- TDD의 의도된 RED 이외 최종 제품 테스트 실패 없음. agent-browser eval의 PowerShell 인용 오류(vite is not defined)는 평가 명령 문제였으며 파일 기반 Playwright로 overlay/DOM을 검증.
+- 관련: FeedArticleMedia.tsx, techFeed.css, feedMedia.mjs, tech-feed-media.mjs, scripts/feed-media-browser-check.js. 기존 Deno punycode 경고는 별도 기존 이슈.
+
+
 ## 2026-09-14 — 기술 피드 소개 노이즈 및 필터 오탐 수정
 
 - 원인: 뉴스 접미어+1주 검색이 영상·뉴스에 편향되고, HTML 태그만 제거한 검색 소개를 그대로 번역했다. 폰트는 시스템 의존, 모바일본문14/보조10px로 작았다.

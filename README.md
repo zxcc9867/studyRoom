@@ -4,6 +4,8 @@
 
 ## StudyRoom 2.0 — your interests, a technology feed
 
+Original-page thumbnails now appear inside feed cards without cropping diagrams. Attached YouTube/Vimeo players load only when clicked, with autoplay disabled and a close action. Missing, blocked or broken media keeps the text and source link. Metadata is shared and enriched up to three articles per manual/scheduled run, including older articles; not every post provides media. No unrelated image search, full-body storage or extra AI/paid API is added.
+
 The feed searches technical blogs, engineering case studies and practical guides for **any user-selected technology interest**; AWS and Claude Code are examples, not an allowlist. These intents rotate within the same one-call budget over a one-year search window. Known video/index pages are excluded from new search collection, and obvious promotion/chapter noise is cleaned without inventing article text. A readable Korean webfont and larger text accompany direct title and introduction-source links. Full articles remain on the publisher’s site.
 
 
