@@ -1,3 +1,9 @@
+## 2026-09-13 — 수집 활성화·배포 검증 완료
+
+- 완료: collector true/Cron active, API v11·worker v12/JWT true. main a5ec757, Actions34754299449 success, Vercel dpl_GS3oNd5fHNPhoB34AZdyQrsFjU2W READY/HTTP200. 전체564/564·Edge8/8·웹·모바일·README 통과.
+- 실측: 정기·수동경로 검색 각1회 ready, 연속Cron 성공/중복검색0. 기사0건은 제공자 결과가HTTP 목록1개여서 필터 제외된 결과. 유효기사 저장/실제 브라우저 클릭은 미검증이며 도착했다고 보고하지 않는다.
+- 다음: 필요하면 관심별 검색 품질 개선. RSS pending/AI 별도. 상세 docs/tech-feed/collection-live-20260913.md. 일회성 진단 삭제; 출석/사용자 입력/안전필터 불변.
+
 ## 2026-09-13 — 무료 계정 수집 활성화 진행
 
 - 사용자 승인으로 nullable 무료 한도 처리 개정, 코드/문서 변경, 전체564/564·Edge8/8·웹·모바일·README 및 독립 검토 통과.

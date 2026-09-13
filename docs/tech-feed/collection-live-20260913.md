@@ -1,3 +1,13 @@
+## 최종 결과
+
+- 수집 활성화 완료: TECH_FEED_ENABLED=true, 피드Cron active, API v11/worker v12 ACTIVE·JWT true. 출석Cron active 유지.
+- 코드 main a5ec757, Actions34754299449 success. Vercel dpl_GS3oNd5fHNPhoB34AZdyQrsFjU2W production READY, 운영 URL HTTP200. 배포 직후 짧은 구간 Vercel runtime errors 없음.
+- 자동 Cron11:21/11:22 및11:23/11:24 UTC 연속 succeeded, worker HTTP200/추가검색0 확인. 주제1시간 캐시를 지켜 매분 검색 크레딧을 소비하지 않았다.
+- 최초 검색158523 및 표준 수동 수집 경로158534 모두 ready/attempted1. 누적 검색2회, 수동 요청1건, 저장 기사0건.
+- 수동 검증의 실제 제공자 결과1개는 HTTP 뉴스 목록 페이지라 HTTPS 필터로 제외됐다. 연결 장애가 아니며 안전 필터/사용자 관심 문장은 임의 변경하지 않았다. 유효한 기사 저장 성공은 아직 실증하지 못했다.
+- 수동 검증은 JWT+worker secret으로 보호한 일회성 함수에서 단일 수신 동의 계정의 기존 store/runManualRefresh를 호출했다. 기존 revision/5분 제한/lease/월 예산을 그대로 사용했으며 로그인 토큰을 만들거나 브라우저를 조작하지 않았다. 진단 함수 삭제 및 목록 부재 확인. 실제 로그인 브라우저 버튼 클릭과 다중 브라우저 동기화는 이번 실측에 포함하지 않는다.
+- 관심별 검색문 분리/검색 품질 개선, RSS 승인 및 AI 요약은 별도 범위. 아래 진행 중 문구는 이 최종 결과로 정리한다.
+
 # 기술 피드 무료 계정 수집 활성화 — 2026-09-13
 
 ## 승인 및 정책

@@ -1,3 +1,8 @@
+## 2026-09-13 — 수집 활성화 최종 검증
+
+- main a5ec757 / Actions34754299449 success / Vercel dpl_GS3oNd5fHNPhoB34AZdyQrsFjU2W READY/HTTP200. API v11·worker v12 JWTtrue, collectortrue/Cronactive, 출석불변.
+- 실제 정기·수동검색2회, 연속Cron 성공/중복호출0. 표시글0: 제공자HTTP목록1개를 안전필터 제외. 진단함수삭제. 수동은 기존서버경로 검증이며 로그인브라우저검증으로 주장하지 않는다. 상세 collection-live-20260913.md.
+
 ## 2026-09-13 — 무료 계정 수집 활성화
 
 - 완료: null 한도 처리 및 회귀4개, PRD/명세/운영 가이드 개정. 전체564/564, Edge8/8, 웹/모바일/README 통과, 독립 검토 지적 없음.

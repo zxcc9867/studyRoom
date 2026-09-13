@@ -1,3 +1,8 @@
+## Supabase 운영 확인 — 2026-09-13 최종
+
+- API v11/worker v12 ACTIVE·JWT true, 수집true/월900/피드Cronactive. 연속Cron HTTP200/캐시 중복검색0 및 수동서버경로1회 검증. 스키마/RLS/출석Cron 변경 없음.
+- 실제검색 총2회/저장0건. 제공자HTTP목록 응답 제외는 기존HTTPS 정책이며 관련 안전검사를 완화하지 않았다. 일회성 collection-probe 삭제. 배포·미검증 범위는 docs/tech-feed/collection-live-20260913.md 기준.
+
 ## Supabase 변경 이력 — 2026-09-13 무료 수집 활성화
 
 - 대상/이유: 사용자 카드 미등록 무료 계정 확인 후 활성화 승인. tech-feed/worker 사용량 검증 개정 및 재배포/JWT 유지.
