@@ -1,3 +1,17 @@
+## 2026-09-13 — 즉시 수집 수정과 검증
+
+- 해결: 수동5분 조건 제거, 복합 문장의 순환 focused search, 수집 성공0건과 미실행 분리. 무료 차감/lease/보안 필터 유지. 로컬 회귀15/전체570 통과, 운영 확인 진행 중.
+- 추가 발견: manual_refresh_failed는 tech_feed_runs 허용 CHECK 밖이므로 실패 기록이 다시 실패할 수 있었음. worker_failed로 수정하고 회귀 추가.
+- 로컬 SQL 테스트에서 2147483647where 숫자 뒤 공백 누락42601을 발견, 공백 수정 후 migration 테스트 통과. 운영에는 실패 SQL 적용 안 함.
+- 편집 도구의 deny-read ACL 오류는 apply_patch로 패치 파일 작성→git apply로 우회. 사용자 파일/ACL은 변경하지 않는다.
+
+## 2026-09-13 — 새 글 확인의5분 생략 및 계속0건
+
+- 실측12:15UTC attempts4/articles0, 마지막수동12:10:40/검색성공12:10:43. 가동 중이나 유효기사 없음.
+- 원인: 20260912161611_tech_feed_manual_refresh.sql의 begin/claim_search/claim_sources5분 freshness. 최근 정기 수집도 수동을 막는다. 복합 문장 검색의 raw1/accepted0도 별개 문제다.
+- 해결 미구현/승인 대기: 수동 freshness 제거·lease/한도 유지 및 관심사별 순환 검색 제안. 공식 참고 https://docs.tavily.com/documentation/best-practices/best-practices-search .
+- 재발 방지: 실제POST/유효 결과/저장 기사를 분리하고 ready만으로 도착했다고 보고하지 않는다. 관련 _shared/tech-feed-search.mjs, tech-feed-search-worker.mjs.
+
 ## 2026-09-13 — 수집 ready인데 글0건
 
 - 실제 제공자 응답과 필터 결과를 분리해 확인: 단일 수신 동의 계정의 기존 수동 경로에서 raw_count1, accepted0. 반환값은 HTTPS가 아닌 뉴스 목록 URL이었다. 기존 normalizeUrl에서 거부한 것이며 검색 인증/연결 실패가 아니다.

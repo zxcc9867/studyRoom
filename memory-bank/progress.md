@@ -1,3 +1,14 @@
+## 2026-09-13 — 즉시 수집 로컬 구현 완료
+
+- 완료: 수동 freshness 제거, 관심사별 요청당1회 순환,0건/deferred 상태, 기존 DB CHECK에 맞는 worker_failed 실행 오류 기록.
+- 테스트: 새/개정15개 RED→GREEN, 전체570/570·Edge8/8·웹/모바일/README 통과. 운영 적용·독립 검토/배포 확인은 진행 중.
+- 변경: 추가형 migration, query/search-worker/refresh, 웹 techFeed, 회귀2파일, README3개/PRD/명세/memory-bank. 스키마 세부는 implementation-plan 참조.
+
+## 2026-09-13 — 수동 수집 재진단
+
+- 현재 SQL/검색 코드/운영 DB 확인: 검색4회·기사0건, 수동5분 생략 확인. active-context/progress/trouble-shooting 조사 기록만 로컬 갱신.
+- 다음: 즉시 재수집+관심사 순환 검색 설계 승인 후 PRD/테스트/구현. 코드·운영·배포 변경 없음. 실제 새 글 여부와 검색 성공을 별도 검증할 것.
+
 ## 2026-09-13 — 수집 활성화 최종 검증
 
 - main a5ec757 / Actions34754299449 success / Vercel dpl_GS3oNd5fHNPhoB34AZdyQrsFjU2W READY/HTTP200. API v11·worker v12 JWTtrue, collectortrue/Cronactive, 출석불변.

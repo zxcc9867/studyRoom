@@ -33,7 +33,7 @@ before(async()=>{
  grant all on profiles,study_todos,study_goals to service_role;
  insert into auth.users values('${a}'),('${b}');insert into profiles values('${a}','Asia/Seoul'),('${b}','Asia/Seoul');`);
  await db.exec(readFileSync('supabase/migrations/20260906083030_studyroom_v2_coach.sql','utf8'));
- for(const name of readdirSync('supabase/migrations').filter(n=>/_tech_feed(?:_web_search|_manual_refresh)?\.sql$/.test(n)).sort())await db.exec(readFileSync('supabase/migrations/'+name,'utf8'));
+ for(const name of readdirSync('supabase/migrations').filter(n=>/_tech_feed(?:_web_search|_manual_refresh|_immediate_refresh)?\.sql$/.test(n)).sort())await db.exec(readFileSync('supabase/migrations/'+name,'utf8'));
 });
 after(async()=>db?.close());
 async function tx(work){await db.exec('begin');try{await work();}finally{await db.exec('rollback');}}
@@ -42,20 +42,17 @@ async function configure(user=a,topic='AWS Lambda',revision=0){return rpc('tech_
 async function begin(user=a,revision=1){return rpc('tech_feed_refresh_begin',user,revision);}
 async function finish(user,lease){return rpc('tech_feed_refresh_finish',user,lease,{state:'ready'});}
 
-test('manual refresh owns a durable five-minute account lease across topic changes',()=>tx(async()=>{
+test('manual refresh coalesces active requests but allows immediate next request across topic changes',()=>tx(async()=>{
  await configure();const first=await begin();assert.equal(first.state,'started');
  assert.equal((await begin()).state,'running');
  assert.equal(await finish(a,b),false);assert.equal(await finish(a,first.lease),true);
  await configure(a,'PostgreSQL',1);
- const repeated=await begin(a,2);assert.equal(repeated.state,'cooldown');assert.equal(repeated.retry_after,300);
- await db.exec("update tech_feed_refresh_requests set requested_at=now()-interval '301 seconds'");
- assert.equal((await begin(a,2)).state,'started');
+ const repeated=await begin(a,2);assert.equal(repeated.state,'started');
 }));
-test('manual search bypasses hourly cache only after five minutes and keeps provider mutex',()=>tx(async()=>{
+test('manual search immediately bypasses hourly cache and keeps provider mutex',()=>tx(async()=>{
  await configure();await configure(b);let initial=await rpc('tech_feed_search_claim',[a]);
  await rpc('tech_feed_search_reserve',initial.id,initial.lease,900);await rpc('tech_feed_search_finish',initial.id,initial.lease,[],null);
- const first=await begin();assert.equal(await rpc('tech_feed_refresh_claim_search',a,first.lease),null);
- await db.exec("update tech_feed_search_topics set last_attempt_at=now()-interval '301 seconds',last_success_at=now()-interval '301 seconds'");
+ const first=await begin();
  const job=await rpc('tech_feed_refresh_claim_search',a,first.lease);assert.equal(job.id,initial.id);
  const other=await begin(b);assert.equal(other.state,'started');
  assert.equal(await rpc('tech_feed_refresh_claim_search',b,other.lease),null);
@@ -64,7 +61,7 @@ test('manual search bypasses hourly cache only after five minutes and keeps prov
  assert.equal(await rpc('tech_feed_search_reserve',job.id,job.lease,900),true);
  assert.equal(await rpc('tech_feed_search_reserve',job.id,job.lease,900),false);
  await rpc('tech_feed_search_finish',job.id,job.lease,[],null);await finish(a,first.lease);
- assert.equal(await rpc('tech_feed_refresh_claim_search',b,other.lease),null);
+ assert.ok(await rpc('tech_feed_refresh_claim_search',b,other.lease));
  assert.equal((await db.query('select attempts from tech_feed_search_budget')).rows[0].attempts,2);
 }));
 test('manual refresh preserves backoff, paused owners and revision conflict',()=>tx(async()=>{
@@ -77,7 +74,7 @@ test('manual refresh preserves backoff, paused owners and revision conflict',()=
  assert.equal((await begin(a,2)).state,'paused');
  await db.exec('savepoint conflict');await assert.rejects(begin(a,1),/revision_conflict/);await db.exec('rollback to conflict');
 }));
-test('manual source claims are subscribed approved only and share five-minute cooldown',()=>tx(async()=>{
+test('manual source claims coalesce active work but allow immediate recollection',()=>tx(async()=>{
  await configure();await configure(b);
  const id=(await db.query("insert into tech_feed_sources(name,url,permission_status,last_success_at,run_after)values('Public','https://example.com/feed','approved',now()-interval '6 minutes',now()+interval '1 hour')returning id")).rows[0].id;
  await db.query('insert into tech_feed_subscriptions(user_id,source_id,subscribed)values($1,$3,true),($2,$3,true)',[a,b,id]);
@@ -86,7 +83,8 @@ test('manual source claims are subscribed approved only and share five-minute co
  assert.deepEqual(await rpc('tech_feed_refresh_claim_sources',b,next.lease),[]);
  assert.equal((await rpc('tech_feed_refresh_status',b)).state,'running');
  await rpc('tech_feed_finish_source',id,sources[0].lease,[],null,null,null);await finish(a,first.lease);
- assert.deepEqual(await rpc('tech_feed_refresh_claim_sources',b,next.lease),[]);
+ assert.equal((await rpc('tech_feed_refresh_claim_sources',b,next.lease)).length,1);
+ await db.exec('update tech_feed_sources set lease=null,lease_until=null');
  await finish(b,next.lease);
  assert.equal((await rpc('tech_feed_refresh_status',a)).state,'idle');
 }));
@@ -102,4 +100,17 @@ test('refresh endpoint returns missing provider state without creating a paid or
  const handler=createTechFeedHandler({authenticate:async()=>({id:a,store:{state:()=>rpc('tech_feed_state',a)}}),env:()=>({TECH_FEED_ACCESS_MODE:'self_service',TECH_FEED_ENABLED:'true'}),transport:async()=>{throw Error('unexpected fetch');}});
  const response=await handler(new Request('https://example.com/feed',{method:'POST',body:'{"action":"refresh","expected_revision":1}'}));
  assert.equal(response.status,200);assert.equal((await response.json()).state,'not_configured');
+}));
+
+test('search cursor advances once per actual reservation, including failures, not claims or quota rejection',()=>tx(async()=>{
+ await configure();let gate=await begin();let job=await rpc('tech_feed_refresh_claim_search',a,gate.lease);assert.equal(job.query_cursor,0);
+ assert.equal(await rpc('tech_feed_search_reserve',job.id,job.lease,0),false);
+ assert.equal((await db.query('select query_cursor from tech_feed_search_topics')).rows[0].query_cursor,0);
+ assert.equal(await rpc('tech_feed_search_reserve',job.id,job.lease,900),true);
+ assert.equal(await rpc('tech_feed_search_reserve',job.id,job.lease,900),false);
+ await rpc('tech_feed_search_finish',job.id,job.lease,[],null);await finish(a,gate.lease);
+ gate=await begin();job=await rpc('tech_feed_refresh_claim_search',a,gate.lease);assert.equal(job.query_cursor,1);
+ await rpc('tech_feed_search_reserve',job.id,job.lease,900);await rpc('tech_feed_search_finish',job.id,job.lease,[],'unavailable');
+ await db.exec("update tech_feed_search_provider set run_after=now();update tech_feed_search_topics set run_after=now()");
+ job=await rpc('tech_feed_search_claim',[a]);assert.equal(job.query_cursor,2);
 }));

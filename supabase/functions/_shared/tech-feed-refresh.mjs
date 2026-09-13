@@ -49,12 +49,12 @@ export async function runManualRefresh({store,userId,expectedRevision,env,transp
   }
   const checked=rss.collected>0||web.attempted>0&&web.state==='ready';
   const failed=Boolean(rss.failed||web.failed||['quota_exhausted','unavailable'].includes(web.state)||bounded.aborted);
-  result={state:checked?(failed?'partial':'ready'):failed?'unavailable':'cooldown',rss,search:web,retry_after:300};
+  result={state:checked?(failed?'partial':'ready'):failed?'unavailable':'deferred',rss,search:web};
  }finally{
   // A failed request cannot remove a newer lease or refund a search attempt.
   const finished=await store.finishRefresh(gate.lease,result);
   if(!finished)result={...result,state:'unavailable'};
-  if(runId)await store.finishRun(runId,{...(result.rss||{}),search:result.search||{}},result.state==='unavailable'?'manual_refresh_failed':null);
+  if(runId)await store.finishRun(runId,{...(result.rss||{}),search:result.search||{}},result.state==='unavailable'?'worker_failed':null);
  }
  // Another subscriber/cron can own the same work; clients only poll status.
  if((await store.refreshStatus()).state==='running')return{...result,state:'running'};

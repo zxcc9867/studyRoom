@@ -1,3 +1,16 @@
+## 2026-09-13 — 즉시 수집 구현·배포 검증 진행
+
+- 사용자 설계 승인 후 구현: 수동5분 freshness 제거, compound 관심 순환 검색/공유 cursor,0건과 deferred 표시, 실패 실행 기록 코드 수정.
+- 로컬 Node570/570·Edge8/8·웹 빌드·모바일·README 통과. 신규 핵심15개 RED→GREEN. 독립 코드검토 및 운영 배포/실제기사 저장 검증 진행 중.
+- migration20260913121850_tech_feed_immediate_refresh.sql 추가형. 기존 출석/RLS/무료900/provider lease/실패 backoff/사용자 관심 원문 불변. 아래 승인 대기는 이전 이력.
+
+## 2026-09-13 — 매 클릭 즉시 수집 / 설계 승인 대기
+
+- 사용자 요청은 기존 PRD의 계정·주제·출처5분 대기와 충돌. refresh_begin/claim_search/claim_sources freshness가 최근 정기 실행 뒤에도 수동 수집을 생략한다.
+- 실측12:15UTC: attempts4/articles0, 마지막 수동12:10:40/검색성공12:10:43. 이전 raw1/accepted0 진단과 함께 검색 품질 개선도 필요하다.
+- 제안(미구현): 수동 freshness 제거·활성 lease/실패 backoff/무료900 유지. 구분자로 나눈 관심사를 한 번에 하나씩 순환 검색해 요청당1크레딧 유지. 원래 입력/공유 membership 보존.0건과 미실행 구분.
+- brainstorming bounded 승인 게이트로 구현 전 확인 대기. 코드/운영/PRD/커밋/배포 변경 없음. 승인 후 TDD→추가형 migration→독립검토→배포/실제기사 저장 검증.
+
 ## 2026-09-13 — 수집 활성화·배포 검증 완료
 
 - 완료: collector true/Cron active, API v11·worker v12/JWT true. main a5ec757, Actions34754299449 success, Vercel dpl_GS3oNd5fHNPhoB34AZdyQrsFjU2W READY/HTTP200. 전체564/564·Edge8/8·웹·모바일·README 통과.

@@ -27,6 +27,9 @@ export function manualRefreshMessage(result){
  if(result.state==='shared')return '진행 중인 공유 수집이 없어 최신 목록과 수집 상태를 다시 불러왔어요.';
  if(result.search?.state==='quota_exhausted')return `웹 검색 무료 한도를 모두 사용했어요. ${result.rss?.collected?'가능한 RSS 출처는 확인했어요.':'저장된 소식은 계속 볼 수 있어요.'} 유료 검색으로 전환하지 않아요.`;
  if(result.state==='cooldown')return `최근 확인한 소식이에요. 최대 ${Math.max(1,Math.ceil((result.retry_after||300)/60))}분 뒤 다시 수집할 수 있어요. 기존 목록을 새로 불러왔어요.`;
+ if(result.state==='deferred')return '이번 요청에서는 수집이 실행되지 않았어요. 진행 중인 작업이나 출처의 재시도 대기 상태를 확인해 주세요.';
+ if(result.state==='ready'&&result.search?.attempted>0&&!result.search.collected&&!result.rss?.collected)return '지금 검색을 마쳤지만 표시할 새 글이 없어요. 다시 누르면 다음 관심사를 검색해요. 관심사가 하나라면 같은 주제를 다시 확인해요.';
+ if(result.state==='ready'&&result.search?.collected>0)return `지금 검색에서 ${result.search.collected}건을 확인했어요. 중복 글은 다시 추가하지 않고, 여러 관심사는 한 번에 하나씩 순서대로 검색해요.`;
  if(result.state==='unavailable')return '새 소식을 확인하지 못했어요. 연결 상태나 재시도 대기 시간을 확인해 주세요. 기존 소식은 유지됩니다.';
  if(result.state==='partial')return '일부 출처를 확인하지 못했어요. 확인한 소식은 목록에 반영했고 나머지는 재시도 대기 중이에요.';
  return `최신 소식 확인을 마쳤어요. 새 글이 있으면 목록에 반영했어요.${result.search?.state==='not_configured'?' RSS 출처만 확인했으며 웹 검색은 아직 미연결 상태예요.':''}`;

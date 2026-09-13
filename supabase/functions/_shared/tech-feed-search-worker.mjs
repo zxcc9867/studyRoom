@@ -1,3 +1,4 @@
+import {focusedSearchQuery} from './tech-feed-query.mjs';
 import {classifyArticle} from './tech-feed-topics.mjs';
 export async function runSearchWorker({store,search,signal=AbortSignal.timeout(35000),now=()=>new Date()}){
  const result={state:'waiting',attempted:0,collected:0,failed:0};let job;
@@ -8,7 +9,7 @@ export async function runSearchWorker({store,search,signal=AbortSignal.timeout(3
   await search.checkUsage(signal);signal.throwIfAborted();
   if(!await store.reserveSearch(job.id,job.lease))throw Error('quota_exhausted');
   result.attempted=1;
-  const items=(await search.search(job.canonical,signal)).map(classifyArticle);
+  const items=(await search.search(focusedSearchQuery(job.canonical,job.query_cursor),signal)).map(classifyArticle);
   if(!await store.finishSearch(job.id,job.lease,items,null))throw Error('unavailable');
   result.collected=items.length;result.state='ready';return result;
  }catch(error){
