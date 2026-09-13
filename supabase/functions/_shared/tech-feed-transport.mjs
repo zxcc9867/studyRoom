@@ -1,3 +1,4 @@
+import {Buffer} from 'node:buffer';
 import {lookup} from 'node:dns/promises';
 import {Agent,request as httpsRequest} from 'node:https';
 import {connect as tlsConnect,checkServerIdentity} from 'node:tls';

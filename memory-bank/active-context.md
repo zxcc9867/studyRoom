@@ -1,3 +1,11 @@
+## 2026-09-14 — 미디어 운영 수집 복구 확인
+
+- 최초 웹80555d8 배포 성공(Actions34768586596, Vercel dpl_4HdauodMr5XhWhdGfYJFKbt8fbBx READY).
+- 운영의 Buffer 전역 누락을 로그로 확인, 명시 import 및 Deno subprocess 회귀 추가. APIv19/workerv21 재배포 완료.
+- 정기16:30/16:31UTC 연속정상완료, 원문 NEXT IAS/AI Business 대표이미지 및 기존 YouTube영상ID cache ready. 실제 기사 메타데이터 저장 검증 완료.
+- 다음: 호환성 코드/원인기록 후속커밋과 최종웹 CI 완료, 운영HTTP/자산 확인. 아래 서버반영초기기록은 이전버전임.
+
+
 ## 2026-09-14 — 미디어 서버 반영, 웹 배포 진행
 
 - DB migration20260913162410 적용, 로컬파일명 동기화·PGlite 재검증 통과.

@@ -1,3 +1,11 @@
+## 2026-09-14 — 미디어 Edge 운영 호환성 보정
+
+- 현재 APIv19/workerv21 ACTIVE, verify_jwt=true. node:buffer 명시 import로 운영 Deno2.1.4 body decode 복구.
+- 기본 Node 테스트 외에 전역 Buffer 없는 Deno subprocess 응답 수신 완료를 Edge 검사에 추가(총9개).
+- 정기16:30/16:31UTC 연속 completed, 실제 이미지와영상 캐시 ready. source별 차단/크기/시간 제한 실패는 failed/backoff로 유지.
+- DB migration20260913162410, 새로운 스키마 변경 없음. 초기 기능웹80555d8 / Vercel dpl_4HdauodMr5XhWhdGfYJFKbt8fbBx READY. 호환성 패치 후속커밋/최종배포는 progress 참조.
+
+
 ## 2026-09-14 — 미디어 운영 DB·함수 적용
 
 - MCP apply_migration 성공. 운영 버전20260913162410에 맞춰 파일을 supabase/migrations/20260913162410_tech_feed_media.sql로 정렬(아래 초안 파일명은 이력).

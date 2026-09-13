@@ -1,3 +1,13 @@
+## 2026-09-14 — Supabase 실제 런타임의 Buffer 전역 누락
+
+- 상황: 미디어 신규배포 APIv18/workerv20 뒤16:25~16:29UTC 정기 피드 요청503, run finished_at 미기록. 출석 요청은 같은 시각200.
+- 운영 로그(Management API function_logs): event loop error: ReferenceError: Buffer is not defined, tech-feed-transport.mjs 응답 end callback. hosted edge-runtime1.76.0 / Deno2.1.4, 로컬 Node/Deno2.9 기본환경 차이.
+- 원인: 기존 DNS-pinned transport가 Buffer.concat을 전역에 의존. 기존 승인RSS 수집이 없을 때 노출되지 않았고 새 원문 HTML 읽기로 드러남. 외부 사이트 차단이 원인이 아니었음.
+- 해결: node:buffer에서 Buffer 명시 import. DNS/TLS pin·리디렉션·1MiB 제한 유지. 별도 subprocess에서 delete globalThis.Buffer 후 실제 transport의 body decode 경로를 실행하는 회귀 테스트 RED(동일ReferenceError)→GREEN.
+- APIv19/workerv21 재배포/JWT true.16:30:10→19UTC와16:31:02→03UTC 정기 run completed/error null, 실제 NEXT IAS webp 및 AI Business 대표이미지/YouTube ID ready 확인. 초기 실패 run 기록은 이력으로 보존.
+- 검증: 전체620개·Edge9개, 독립리뷰 재검증통과. 로그 조회에서 존재하지 않는 counts 칼럼 대신 실제 collection_*·summary_* 칼럼 사용. 키/토큰은 기록하지 않음.
+
+
 ## 2026-09-14 — 미디어 버튼 클릭 위치와 외부 원문 제한
 
 - 상황/에러: 브라우저 검증에서 iframe waitFor 30초 timeout. DOM은 영상 불러오기 상태 유지.

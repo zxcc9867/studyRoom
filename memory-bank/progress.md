@@ -1,3 +1,11 @@
+## 2026-09-14 — 미디어 1차 배포 및 Edge 호환성 수정
+
+- 기능80555d894234949e57c26f19164c73d3816c2b33 main 푸시, Actions34768586596 성공1분57초, Vercel dpl_4HdauodMr5XhWhdGfYJFKbt8fbBx READY.
+- 운영검증에서 Buffer 전역 부재로 worker503 발견. 원인로그→동일오류 재현테스트→node:buffer import→Edge9개/전송10개 통과→APIv19/workerv21 재배포.
+-16:30/16:31UTC 연속수집 completed/error null 및 실제2개대표이미지·3개영상캐시 ready. 차단/크기제한 글은 텍스트 유지. 초기오류 이력을 성공으로 변경하지 않음.
+- 최종 후속코드/문서 커밋 및 Vercel 배포 상태는 다음 완료기록에서 확정.
+
+
 ## 2026-09-14 — 피드 썸네일·영상 구현
 
 - 사용자 구현+완료 후 배포 승인. 원문 OG/Twitter 대표 이미지 및 YouTube/Vimeo 첨부 영상 지원, 임의 사진 검색/AI 생성 없음.
