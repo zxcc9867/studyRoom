@@ -1,3 +1,23 @@
+## 2026-09-14 — 기술 피드 소개 노이즈 및 필터 오탐 수정
+
+- 원인: 뉴스 접미어+1주 검색이 영상·뉴스에 편향되고, HTML 태그만 제거한 검색 소개를 그대로 번역했다. 폰트는 시스템 의존, 모바일본문14/보조10px로 작았다.
+- 해결: 일반 관심 기술 블로그/사례/가이드 순환,1년 탐색, 원문출처 링크, 한글웹폰트와 대비/크기 개선. 영상/명백한 목록 신규수집 제외, 기존 데이터 링크 보존.
+- TDD:6개 새 행동 실패 확인 후 구현. 전체 검사4실패는 기존 뉴스/1주 기대값으로 새 승인 정책에 맞춰 갱신.
+- 독립 리뷰: query 기반?p=123 실제글 오인과 장애타임라인 문장삭제를 재현→query permalink 보존·0시작 짧은 레이블/경계 기준 정리로 수정.
+- 후속 리뷰: plainText가 개행을 먼저 평탄화해 홍보문과 기술문장을 합쳐 삭제. 실제 어댑터 newline/HTML 테스트 RED 후 선택적 preserveParagraphs를 도입. script/style/iframe 제거와 기본 RSS 평탄화는 유지하며 검색만 문단을 보존한 뒤 정리.
+- 재발 방지: helper뿐 아니라 실제 createTavilySearch 결과 검증, 명확한 경계 없는 기술 문장은 보존. 원문 페이지 추가요청/AI 추측/일괄DB수정 없음.
+- 관련 파일: packages/core/src/feedContent.mjs, supabase/functions/_shared/tech-feed-core.mjs, tech-feed-search.mjs, tech-feed-content.test.mjs, apps/web/src/TechFeedSection.tsx.
+- 브라우저 검증: Playwright 실제 컴포넌트+격리된 예시API,390/1440px 가독성·링크·페이지회귀 통과. 기존 Deno punycode deprecation warning만 있으며 신규브라우저오류0.
+- memory-bank/README.md는 이 저장소에 없는 선택 문서라 읽기 실패; 필수6문서/관련PRD는 존재하고 확인됨. 불필요한 README 생성은 하지 않음.
+
+
+## 2026-09-14 — 영상 설명이 기술 소개로 번역되는 문제
+
+- 원인: 검색 어댑터는 HTTPS/title검사와 plainText 태그정리만 수행. YouTube 링크/채널구독 문구/방송 시간표를 품질검사하지 않아 제목·소개 번역에 그대로 전달. 운영 Bloomberg 영상에서 동일 현상확인, AI요약은pending.
+- 관련: tech-feed-search.mjs, tech-feed-query.mjs, tech-feed-core.mjs, tech-feed-translation-worker.mjs, TechFeedSection.tsx, techFeed.css.
+- 방향(승인대기): 수집단계 영상/색인/홍보 설명 제외·정제, 기존 표시 방어, 근거부족은 원문 안내. 기술 사례/해설은 뉴스와 검색 기간/의도를 분리. 저장된 원문링크는보존.
+- 진단 쿼리42703: excerpt_provenance는 list응답용 값이며 articles 실제열이 아님. 해당열 제외 후 실제확인, 스키마변경없음. changelog.md 웹도구는 text/markdown 미지원으로실패, 이번에는Supabase기능구현없고읽기SQL만수행.
+
 ## 2026-09-13 — 저장 해제 후 페이지 건너뛰기 및 카드 호환
 
 - 초기 배열 삭제 방식은20개 중1개 해제 후 다음 커서 첫 글을 이전 페이지 빈칸에 넣어 건너뛰게 함. 캐시 전부 해제 시 탐색도 사라짐.

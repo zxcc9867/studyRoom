@@ -39,12 +39,12 @@ test('actual AI summary remains labelled as AI rather than a search introduction
 });
 test('ready Korean translation is default and original text stays in a collapsed disclosure',()=>{
  const html=render({...article,translation_status:'ready',title_ko:'PostgreSQL 쿼리 계획',excerpt_ko:'검색 결과의 한국어 소개입니다.'});
- assert.match(html,/<h3>PostgreSQL 쿼리 계획<\/h3>/);assert.match(html,/검색 결과의 한국어 소개입니다/);
+ assert.match(html,/<h3><a[^>]*>PostgreSQL 쿼리 계획<\/a><\/h3>/);assert.match(html,/검색 결과의 한국어 소개입니다/);
  assert.match(html,/<details[^>]*><summary>원문 텍스트 보기<\/summary>/);assert.match(html,/PostgreSQL query planning/);
  assert.match(html,/DeepL 자동 번역/);assert.doesNotMatch(html,/<details[^>]* open/);
 });
 test('failed or pending translations preserve English originals without claiming translation',()=>{
- for(const translation_status of ['pending','failed']){const html=render({...article,translation_status,title_ko:'stale',excerpt_ko:'stale'});assert.match(html,/<h3>PostgreSQL query planning<\/h3>/);assert.doesNotMatch(html,/stale/);assert.match(html,/번역.*대기/);}
+ for(const translation_status of ['pending','failed']){const html=render({...article,translation_status,title_ko:'stale',excerpt_ko:'stale'});assert.match(html,/<h3><a[^>]*>PostgreSQL query planning<\/a><\/h3>/);assert.doesNotMatch(html,/stale/);assert.match(html,/번역.*대기/);}
 });
 test('translation output is escaped and cannot replace the original URL',()=>{
  const html=render({...article,translation_status:'ready',title_ko:'번역 <script>bad</script>',excerpt_ko:'<img src=x onerror=bad>'});
@@ -64,4 +64,26 @@ test('pagination marks the current page and disables the unavailable next page',
  assert.match(html,/aria-label="피드 페이지"/);
  assert.match(html,/aria-current="page"/);
  assert.match(html,/<button[^>]*disabled[^>]*aria-label="다음 페이지"/);
+});
+
+test('title and visible excerpt source link to the server-owned original article',()=>{
+ const html=render(article);
+ assert.match(html,/<h3><a[^>]*href="https:\/\/engineering.example.com\/postgres\/plans"[^>]*>PostgreSQL query planning<\/a><\/h3>/);
+ assert.match(html,/class="feed-citation"/);
+ assert.match(html,/출처/);
+ assert.match(html,/<a[^>]*href="https:\/\/engineering.example.com\/postgres\/plans"[^>]*>[^<]*engineering.example.com/);
+});
+
+test('previously collected video descriptions are replaced with an honest original-link notice',()=>{
+ const html=render({...article,url:'https://www.youtube.com/watch?v=example',translation_status:'ready',title_ko:'기술 인터뷰',excerpt_ko:'00:00:00 - 시작 00:01:04 - 게스트 00:03:54 - 다음 게스트'});
+ assert.doesNotMatch(html,/00:00:00|00:01:04/);
+ assert.match(html,/영상/);
+ assert.match(html,/원문 읽기/);
+ assert.doesNotMatch(html,/AI 요약/);
+});
+
+test('promotional sentences are removed from displayed blog introductions without losing technical facts',()=>{
+ const html=render({...article,excerpt:'Subscribe to our newsletter. Rust retries are bounded. Follow us on social media.'});
+ assert.match(html,/Rust retries are bounded/);
+ assert.doesNotMatch(html,/Subscribe to our newsletter|Follow us on social media/);
 });

@@ -4,6 +4,9 @@
 
 ## StudyRoom 2.0 — your interests, a technology feed
 
+The feed searches technical blogs, engineering case studies and practical guides for **any user-selected technology interest**; AWS and Claude Code are examples, not an allowlist. These intents rotate within the same one-call budget over a one-year search window. Known video/index pages are excluded from new search collection, and obvious promotion/chapter noise is cleaned without inventing article text. A readable Korean webfont and larger text accompany direct title and introduction-source links. Full articles remain on the publisher’s site.
+
+
 Enter a public technology interest on the website, then receive, edit or pause your feed. No personal search API key or SNS connection is required. Discover → read a Korean summary or source/search introduction → open the original → plan a study todo. Latest/saved views and filters use 20-item pages with previous/next and visited page numbers. A Threads-style single column highlights sources, topics and Korean introductions; longer text, AI summaries and originals expand on demand. Interest and collection settings stay in collapsible panels. Today remains the entry page. Preferences, saves and todo links are owner-scoped on the server.
 
 A separate worker combines approved RSS/Atom/Hacker News sources with public-web search. Normalization-equivalent interest queries share an hourly cache. Search is free-only, uses an app-wide maximum of 900 attempts/month, checks the provider's free account limits before calling, and never switches to paid services. When search quota runs out, eligible RSS/API collection continues. AI uses actual excerpts/snippets only and shares the existing six actual calls per user/day budget, including failures. Insufficient evidence remains an introduction and original link.

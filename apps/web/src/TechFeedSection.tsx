@@ -6,6 +6,7 @@ import { applyPreferenceResponse, createTechFeedClient, currentFeedState, feedSo
 import type { FeedArticle, FeedPage, FeedPreferenceResponse, FeedPreview, FeedState } from './techFeedTypes';
 import { FeedInterestSettings } from './FeedInterestSettings';
 import { feedExcerptView, feedPageView } from './feedPresentation.mjs';
+import {cleanFeedIntroduction,feedContentKind} from '../../../packages/core/src/feedContent.mjs';
 import './techFeed.css';
 
 type Props = {supabase:SupabaseClient;userId:string;timeZone:string;onPlan:(article:FeedArticle)=>void;linkedTodo?:{userId:string;articleId:string;todoId:string}|null};
@@ -19,8 +20,9 @@ export function FeedArticleCard({article,onSave,onPlan,busy,timeZone}:{article:F
   const sourceLine = [...new Set(sourceNames.filter(Boolean))].join(' · ');
   const date = article.published_at || article.discovered_at;
   const time = date && Number.isFinite(Date.parse(date)) ? new Intl.DateTimeFormat('ko-KR', {timeZone,month:'short',day:'numeric',hour:'2-digit',minute:'2-digit'}).format(new Date(date)) : '날짜 미확인';
-  const hasSummary = article.summary_status === 'ready' && Boolean(article.summary);
-  const excerpt = feedExcerptView(hasSummary ? article.summary!.technology : (translated ? article.excerpt_ko : article.excerpt));
+  const video = feedContentKind(article.url) === 'video';
+  const hasSummary = !video && article.summary_status === 'ready' && Boolean(article.summary);
+  const excerpt = feedExcerptView(video ? '' : cleanFeedIntroduction(hasSummary ? article.summary!.technology : (translated ? article.excerpt_ko : article.excerpt)));
   const tags = [...new Set([...(article.matched_topics || []),...article.interests.map(id=>FEED_INTERESTS.find(([key])=>key===id)?.[1] || '').filter(Boolean)])].slice(0,2);
   const sourceName = article.sources[0]?.name || host || '기술 소식';
   const expandable = excerpt.expandable || hasSummary;
@@ -32,17 +34,18 @@ export function FeedArticleCard({article,onSave,onPlan,busy,timeZone}:{article:F
     </header>
     <div className="feed-card-body">
       {tags.length>0 && <div className="feed-topic-tags">{tags.map(tag=><span key={tag}># {tag}</span>)}</div>}
-      <h3>{translated ? article.title_ko : article.title}</h3>
+      <h3>{link ? <a href={link} target="_blank" rel="noopener noreferrer">{translated ? article.title_ko : article.title}</a> : (translated ? article.title_ko : article.title)}</h3>
       <div id={contentId}>
         {expanded && hasSummary ? <dl className="feed-summary">
-          <div><dt>어떤 기술인가요</dt><dd>{article.summary!.technology}</dd></div>
-          <div><dt>핵심 변화</dt><dd>{article.summary!.change}</dd></div>
-          <div><dt>이럴 때 살펴보세요</dt><dd>{article.summary!.usage}</dd></div>
-        </dl> : <p className="feed-excerpt">{(expanded ? excerpt.full : excerpt.preview) || '소개가 짧아 요약하지 않았어요. 원문에서 자세한 내용을 확인해 보세요.'}</p>}
+          <div><dt>어떤 기술인가요</dt><dd>{cleanFeedIntroduction(article.summary!.technology)}</dd></div>
+          <div><dt>핵심 변화</dt><dd>{cleanFeedIntroduction(article.summary!.change)}</dd></div>
+          <div><dt>이럴 때 살펴보세요</dt><dd>{cleanFeedIntroduction(article.summary!.usage)}</dd></div>
+        </dl> : <p className="feed-excerpt">{(expanded ? excerpt.full : excerpt.preview) || (video ? '영상 자료입니다. 시간표·출연자 목록은 소개에서 제외했어요. 내용은 원문에서 확인해 주세요.' : '충분한 글 소개가 없어 내용을 추측하지 않았어요. 원문에서 자세히 읽어 보세요.')}</p>}
       </div>
       {expandable && <button type="button" className="feed-expand" aria-expanded={expanded} aria-controls={contentId} onClick={()=>setExpanded(value=>!value)}>{expanded?'내용 접기':hasSummary?'AI 요약 펼치기':'내용 더 보기'}<ChevronRight size={14}/></button>}
-      <div className="feed-evidence"><p>{summaryLabel(article)}</p><p>{translated ? 'DeepL 자동 번역 · 원문 확인 권장' : '한국어 번역 대기 · 원문 표시'}</p></div>
-      {translated && <details className="feed-original-text"><summary>원문 텍스트 보기</summary><p>{article.title}</p><p>{article.excerpt}</p></details>}
+      {link && <div className="feed-citation"><span>{article.origin === 'web_search' ? '검색 소개 출처' : '발췌 출처'}</span><a href={link} target="_blank" rel="noopener noreferrer">{host || sourceName}<ExternalLink size={15}/></a></div>}
+      <div className="feed-evidence"><p>{video ? '영상 원문 링크 · 본문 요약 없음' : summaryLabel(article)}</p><p>{translated ? 'DeepL 자동 번역 · 원문 확인 권장' : '한국어 번역 대기 · 원문 표시'}</p></div>
+      {translated && !video && <details className="feed-original-text"><summary>원문 텍스트 보기</summary><p>{article.title}</p><p>{cleanFeedIntroduction(article.excerpt)}</p></details>}
       <p className="feed-sources">{sourceLine}</p>
       <div className="feed-card-actions">
         {link && <a href={link} target="_blank" rel="noopener noreferrer" className="feed-original"><ExternalLink size={17}/> 원문 읽기</a>}

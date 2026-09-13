@@ -1,3 +1,22 @@
+## Supabase 변경 이력 — 2026-09-14 기술 블로그 피드
+
+- 대상: tech-feed, tech-feed-worker 두 Edge Function 공유 검색/텍스트 정책.
+- CLI2.117.0 functions deploy 두이름 --project-ref bqohkdzvxbrokkmuhysx --use-api 로 배포. config.toml 없는 기존 구조에서도 명시 대상/기본JWT로 정상 배포.
+- 확인: MCP list_edge_functions에서 v17/v19 ACTIVE·verify_jwt=true. 새로운 packages/core/src/feedContent.mjs 상대 의존성도 업로드 확인.
+- migration 없음. DB 스키마/RLS/함수권한/cron/비밀값/무료예산 변경 없음. 웹은 기존 GitHub Actions 경로 사용.
+
+
+## 2026-09-14 — 기술 블로그 검색·콘텐츠 품질
+
+- tech-feed-query.mjs가 관심별3종 검색 의도(블로그/사례/가이드)를 순환한다. query_cursor는 기존 실제 예약 때만 증가하며 별도 검색 호출이나 DB 필드를 추가하지 않는다.
+- Tavily 기본검색: time_range:year, include_published_date:true, 알려진 영상 domain 제외. 기존5개 결과/시간제한/응답크기/무료계정 검증 유지. 원문 페이지를 추가 요청하지 않는다.
+- packages/core/src/feedContent.mjs는 순수 공용 정책이다. Edge 수집 전 신규 소개를 정제하고 웹에서는 기존 기록에도 안전한 표시를 적용한다. Deno/웹이 같은 모듈을 상대 경로로 번들링하며 비밀값 의존은 없다.
+- 수집 후 DeepL은 기존 원문 snapshot/문자 예산을 그대로 사용한다. 기존 DB 텍스트를 일괄 덮어쓰거나 저장·할일 연결을 삭제하지 않는다.
+- Supabase 변경 대상: 두 Edge 진입점이 공유하는 검색 어댑터. 스키마/RLS/인덱스/권한/cron/비밀값 변경 없음, migration 없음. 배포 시 tech-feed와 tech-feed-worker 모두 반영해야 한다.
+- UI는 피드 CSS에만 고정 버전 Pretendard CDN을 로드하고 네트워크 실패 시 시스템 고딕으로 대체한다. 출처·제목은 safeFeedUrl을 통과한 같은 원문 링크를 사용한다.
+- 공식 API 옵션: https://docs.tavily.com/documentation/api-reference/endpoint/search ; 폰트: https://github.com/orioncactus/pretendard .
+
+
 ## 2026-09-14 — 웹 운영 버전 확정
 
 - 번역·페이지형 피드 코드 b4ed456을 기존 main→GitHub Actions34764366095 경로로 배포, Vercel dpl_FCNMA6k5hHrybKEsnT3QrteMeLGr READY. 운영 URL HTTP200 및 실제 새피드chunk의 페이지/한국어/펼치기 확인.

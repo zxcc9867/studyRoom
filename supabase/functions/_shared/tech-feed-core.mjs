@@ -32,8 +32,11 @@ function textValue(value) {
   if(!value||typeof value!=='object') return '';
   return Object.entries(value).filter(([key])=>!key.startsWith('@_')).map(([,v])=>arr(v).map(textValue).join(' ')).join(' ');
 }
-export function plainText(value,max=2000) {
-  return textValue(value).replace(/<(script|style|iframe)\b[^>]*>[\s\S]*?<\/\1\s*>/gi,' ').replace(/<[^>]*>/g,' ').replace(/&(?:nbsp|amp|lt|gt|quot|apos);/g,x=>({'&nbsp;':' ','&amp;':'&','&lt;':'<','&gt;':'>','&quot;':'"','&apos;':"'"}[x])).replace(/[\u0000-\u001f\u007f]/g,' ').replace(/\s+/g,' ').trim().slice(0,max);
+export function plainText(value,max=2000,preserveParagraphs=false) {
+  let text=textValue(value).replace(/<(script|style|iframe)\b[^>]*>[\s\S]*?<\/\1\s*>/gi,' ');
+  if(preserveParagraphs)text=text.replace(/<\/?(?:p|div|li|br|h[1-6])\b[^>]*>/gi,'\n\n');
+  text=text.replace(/<[^>]*>/g,' ').replace(/&(?:nbsp|amp|lt|gt|quot|apos);/g,x=>({'&nbsp;':' ','&amp;':'&','&lt;':'<','&gt;':'>','&quot;':'"','&apos;':"'" }[x])).replace(/[\u0000-\u0009\u000b\u000c\u000e-\u001f\u007f]/g,' ');
+  return (preserveParagraphs?text.replace(/\r\n?/g,'\n').replace(/[^\S\n]+/g,' ').replace(/\n{3,}/g,'\n\n'):text.replace(/\s+/g,' ')).trim().slice(0,max);
 }
 const date=value=>{const time=Date.parse(textValue(value));return Number.isFinite(time)&&time<=Date.now()+86400000?new Date(time).toISOString():null;};
 export function parseFeed(xml,base) {

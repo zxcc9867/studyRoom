@@ -1,4 +1,5 @@
 import {normalizeUrl,plainText} from './tech-feed-core.mjs';
+import {cleanFeedIntroduction,feedContentKind,FEED_VIDEO_DOMAINS} from '../../../packages/core/src/feedContent.mjs';
 import {canonicalTopic} from './tech-feed-topics.mjs';
 const finite=value=>typeof value==='number'&&Number.isFinite(value)&&value>=0;
 export function createTavilySearch({env,fetchImpl=globalThis.fetch}){
@@ -38,14 +39,14 @@ export function createTavilySearch({env,fetchImpl=globalThis.fetch}){
   },
   async search(query,signal){
    const {prompt}=canonicalTopic(query);
-   const data=await request('search',{query:prompt,search_depth:'basic',auto_parameters:false,include_answer:false,include_raw_content:false,include_images:false,include_usage:true,max_results:5,topic:'general',time_range:'week'},signal);
+   const data=await request('search',{query:prompt,search_depth:'basic',auto_parameters:false,include_answer:false,include_raw_content:false,include_images:false,include_usage:true,max_results:5,topic:'general',time_range:'year',include_published_date:true,exclude_domains:FEED_VIDEO_DOMAINS},signal);
    if(!Array.isArray(data?.results)||data.results.length>100)throw Error('unavailable');
    const items=[],seen=new Set();
    for(const row of data.results.slice(0,5))try{
     if(typeof row?.title!=='string'||typeof row.url!=='string')continue;
-    const url=normalizeUrl(row.url),title=plainText(row.title,300);if(!title||seen.has(url))continue;
+    const url=normalizeUrl(row.url),title=plainText(row.title,300);if(!title||seen.has(url)||['video','listing'].includes(feedContentKind(url)))continue;
     const timestamp=typeof row.published_date==='string'?Date.parse(row.published_date):NaN;
-    items.push({url,title,excerpt:typeof row.content==='string'?plainText(row.content,2000):'',published_at:Number.isFinite(timestamp)&&timestamp<=Date.now()?new Date(timestamp).toISOString():null,origin:'web_search',excerpt_provenance:'search_snippet'});seen.add(url);
+    items.push({url,title,excerpt:typeof row.content==='string'?cleanFeedIntroduction(plainText(row.content,2000,true)):'',published_at:Number.isFinite(timestamp)&&timestamp<=Date.now()?new Date(timestamp).toISOString():null,origin:'web_search',excerpt_provenance:'search_snippet'});seen.add(url);
    }catch{/* Keep other safe public links; never retrieve result pages. */}
    return items;
   },

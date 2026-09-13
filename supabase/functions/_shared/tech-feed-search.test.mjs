@@ -21,7 +21,7 @@ test('search payload is fixed basic and results are sanitized without fetching p
  }});
  const items=await search.search('AWS Lambda');assert.equal(items.length,1);assert.equal(items[0].url,'https://example.com/a');assert.equal(items[0].excerpt,'Real snippet');assert.equal(items[0].published_at,null);assert.equal(items[0].excerpt_provenance,'search_snippet');
  assert.equal(requests.length,1);assert.equal(requests[0].url,'https://api.tavily.com/search');assert.equal(requests[0].init.redirect,'error');
- assert.deepEqual(JSON.parse(requests[0].init.body),{query:'AWS Lambda',search_depth:'basic',auto_parameters:false,include_answer:false,include_raw_content:false,include_images:false,include_usage:true,max_results:5,topic:'general',time_range:'week'});
+ assert.deepEqual(JSON.parse(requests[0].init.body),{query:'AWS Lambda',search_depth:'basic',auto_parameters:false,include_answer:false,include_raw_content:false,include_images:false,include_usage:true,max_results:5,topic:'general',time_range:'year',include_published_date:true,exclude_domains:['youtube.com','youtu.be','vimeo.com','tiktok.com','dailymotion.com']});
 });
 test('usage and search reject rate limits, malformed/oversized bodies and aborts',async()=>{
  const {createTavilySearch}=await import('./tech-feed-search.mjs');
