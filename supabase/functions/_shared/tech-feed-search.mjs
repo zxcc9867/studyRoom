@@ -24,9 +24,17 @@ export function createTavilySearch({env,fetchImpl=globalThis.fetch}){
   availability:()=>key?'waiting':'not_configured',
   async checkUsage(signal){
    const data=await request('usage',null,signal),a=data?.account,k=data?.key;
-   if(!a||!k||!['free','researcher'].includes(String(a.current_plan).toLowerCase())||![a.plan_usage,a.plan_limit,a.paygo_usage,a.paygo_limit,k.usage,k.limit].every(finite)||a.plan_limit<=0||a.plan_limit>1000||k.limit<=0||k.limit>1000||a.paygo_usage!==0||a.paygo_limit!==0)throw Error('unavailable');
-   if(a.plan_limit-a.plan_usage<1||k.limit-k.usage<1)throw Error('quota_exhausted');
-   return{remaining:Math.min(a.plan_limit-a.plan_usage,k.limit-k.usage)};
+   if(!a||!k||!['free','researcher'].includes(String(a.current_plan).toLowerCase())||
+    ![a.plan_usage,a.plan_limit,a.paygo_usage,k.usage].every(finite)||a.plan_limit<=0||a.plan_limit>1000||
+    (k.limit!==null&&(!finite(k.limit)||k.limit>1000))||
+    a.paygo_usage!==0||(a.paygo_limit!==null&&a.paygo_limit!==0))throw Error('unavailable');
+   // Null caps are not proof of billing configuration. Only a verified free
+   // plan's remaining credits are usable; the worker also reserves its shared
+   // monthly budget under the provider lease before making any search POST.
+   const planRemaining=a.plan_limit-a.plan_usage;
+   const remaining=Math.min(planRemaining,k.limit===null?planRemaining:k.limit-k.usage);
+   if(remaining<1)throw Error('quota_exhausted');
+   return{remaining};
   },
   async search(query,signal){
    const {prompt}=canonicalTopic(query);

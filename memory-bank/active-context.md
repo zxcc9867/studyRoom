@@ -1,3 +1,9 @@
+## 2026-09-13 — 무료 계정 수집 활성화 진행
+
+- 사용자 승인으로 nullable 무료 한도 처리 개정, 코드/문서 변경, 전체564/564·Edge8/8·웹·모바일·README 및 독립 검토 통과.
+- 서버2개 재배포/JWT 유지, 수집true/월900, 피드Cron active. 첫 실검색158523 ready/attempted1/collected0. 결과0 원인과 연속 자동/수동 경로 추가 확인 중.
+- 출석Cron/개인 관심 문장/RSS 승인 불변. docs/tech-feed/collection-live-20260913.md 기준으로 이어간다. 아래 중지/설정 대기는 이전 이력이다.
+
 ## 2026-09-13 — 인증 수정 운영 배포 완료
 
 - main8690c3d / Actions34753217322 success / Vercel dpl_4yYDA7TjBLkgmJPS7m5vQgNhWqi2 READY / 운영 URL HTTP200. Node560/560·Edge8/8·웹·모바일·README 통과. 실제 검색은 무료 조건 설정 확인 대기로 중지 유지; docs/tech-feed/activation-20260913.md 참고.

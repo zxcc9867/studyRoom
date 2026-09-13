@@ -1,3 +1,10 @@
+## Supabase 변경 이력 — 2026-09-13 무료 수집 활성화
+
+- 대상/이유: 사용자 카드 미등록 무료 계정 확인 후 활성화 승인. tech-feed/worker 사용량 검증 개정 및 재배포/JWT 유지.
+- 정책: 명시적 null 한도는 무료 plan 잔여량+앱 월900으로 제한. null을 결제 비활성 증거라고 해석하지 않는다. 유료/누락/잘못된 타입/양수 paygo는 계속 거부.
+- 설정: TECH_FEED_ENABLED=true, cap900 유지, 피드Cron만active. 기존 실패로 미성공이며 활성lease 없는 topic/provider 대기만 즉시 재개.
+- 마이그레이션: 없음(스키마/권한 불변). 검증: Node564/564·Edge8/8·실제검색158523 ready/1회/0건; 최종 실수집/예약 증거는 docs/tech-feed/collection-live-20260913.md에 추가.
+
 ## Supabase 변경 이력 — 2026-09-13 운영 인증 준비
 
 - 대상/이유: 사용자의 검색 키 등록 후 피드 가동 검증. TAVILY_API_KEY 인증은200 확인.

@@ -1,3 +1,9 @@
+## 2026-09-13 — 무료 계정 수집 활성화
+
+- 완료: null 한도 처리 및 회귀4개, PRD/명세/운영 가이드 개정. 전체564/564, Edge8/8, 웹/모바일/README 통과, 독립 검토 지적 없음.
+- 운영: 피드 함수2개 배포, 수집true/900상한/JWT유지, Cron active. 실제 검색1회 성공이나 최초 저장0건으로 결과와 후속 실행 확인 중.
+- 파일/상세: tech-feed-search.mjs, tech-feed-search-nullable.test.mjs, 관련 memory-bank 및 docs/tech-feed/collection-live-20260913.md. 출석·기존 사용자 데이터 불변.
+
 ## 2026-09-13 — 인증 수정 배포 확인
 
 - main8690c3d, Actions34753217322 success, Vercel dpl_4yYDA7TjBLkgmJPS7m5vQgNhWqi2 production READY/HTTP200. 테스트560/560·Edge8/8·웹·모바일·README 통과. 실제 수집은 여전히0건/무료 설정 대기이며 자동 수집 완료라고 보고하지 않는다. 상세 docs/tech-feed/activation-20260913.md.

@@ -1,3 +1,9 @@
+## 2026-09-13 — 무료 nullable 한도 과잉 차단 해소
+
+- 원인: Researcher 무료 계정에서도 null cap이 가능하나 모든 cap을 숫자로 요구해 검색 이전 unavailable 반환.
+- 승인된 해결: 정확한 null만 허용하고 무료 plan 잔여량/숫자 key 추가한도/월900/lease 유지. paygo_usage0, 무료 요금제, 누락·타입 검사는 유지한다. null 자체를 결제 상태 증거로 쓰지 않는다.
+- 검증: 신규 RED3fail→GREEN4, 전체564/564·Edge8/8 및 실제검색 ready/attempted1. 실제 글0건의 원인은 추가 확인 중. 상세 docs/tech-feed/collection-live-20260913.md.
+
 ## 2026-09-13 — 실제 worker 인증500 / Tavily 무료 조건 미설정
 
 ### 원인과 증거
