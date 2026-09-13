@@ -1,3 +1,11 @@
+## 2026-09-14 — 번역·페이지형 피드 운영 배포 완료
+
+- main 기능 커밋 b4ed456be0da96ad40f6a9a99367d8e96bc8e6d1 푸시 완료. Actions34764366095 성공(1m45s), Vercel dpl_FCNMA6k5hHrybKEsnT3QrteMeLGr READY/production, 기존URL alias 정상.
+- https://study-room-attendance.vercel.app HTTP200, 운영assets/index-zZ8T5yA9.js→TechFeedSection-DG7DTGKY.js HTTP200, 실제 피드chunk에서 페이지/한국어title_ko/펼치기 확인.15:03:30UTC 이후 짧은 오류조회0건.
+- 배포 전 전체600/600·Edge8/8·웹빌드 통과 및 CI 테스트/모바일/README/Edge/빌드/배포 모두 성공. 기존 번역 DB·서버/Cron은 재적용하지 않음.
+- 아래 로컬완료/승인대기 기록은 이전 이력이다. 사용자 배포 요청 후 필요한 Git+기존 배포 경로가 승인되어 실행됐다. 임시output/.playwright-cli는 제외.
+- 운영 로그인 계정으로 새UI 조작은 별도 미검증(로컬 실제 Chromium 시나리오 검증은 완료). 런타임 오류0은 배포 직후 관찰 범위이며 장기간 무오류 보장은 아님.
+
 ## 2026-09-14 — 번역·페이지형 피드 웹 배포 진행
 
 - 사용자가 로컬 구현 완료 보고 후 "배포해줘" 요청. 기존 GitHub Actions main 배포 경로로 한국어 번역 UI와 SNS형 페이지 피드를 함께 반영한다.

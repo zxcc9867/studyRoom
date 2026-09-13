@@ -1,3 +1,9 @@
+## 현재 운영 상태 — 2026-09-14
+
+- 한국어 기본표시와 페이지형 피드 웹 배포 완료. 기능 커밋 b4ed456, [자동 배포 성공](https://github.com/zxcc9867/studyRoom/actions/runs/34764366095), Vercel dpl_FCNMA6k5hHrybKEsnT3QrteMeLGr READY.
+- [운영 사이트](https://study-room-attendance.vercel.app)와 새피드chunk HTTP200, 번역·페이지·내용 펼치기 코드 반영 확인. 기존 번역 DB/서버는 재적용하지 않았다.
+- 전체600테스트/Edge8/웹빌드 및 CI 통과. 로컬 예시 데이터 Chromium PC/모바일 동작 검증 완료, 운영 로그인 계정 조작은 별도 미검증. 아래 배포 기록의 승인대기·웹미반영 문장은 당시 이력이다.
+
 # 기술 피드 한국어 번역
 
 ## 사용 흐름

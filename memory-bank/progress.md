@@ -1,3 +1,10 @@
+## 2026-09-14 — 한국어 번역·SNS 페이지 피드 출시 완료
+
+- 기능34파일 커밋 b4ed456 → main 푸시. Actions https://github.com/zxcc9867/studyRoom/actions/runs/34764366095 성공, Vercel dpl_FCNMA6k5hHrybKEsnT3QrteMeLGr READY/production.
+- URL https://study-room-attendance.vercel.app 및 새 피드chunk HTTP200. 한국어title_ko·페이지·내용 펼치기 운영코드 확인. 배포 직후15:03:30UTC부터 런타임 오류0.
+- 로컬600개/Edge8개/웹빌드 재검증, CI 전체검사·배포 통과. 기존 DB/함수 재적용 없음. 운영 로그인 사용자 조작은 별도 확인 필요.
+- 완료 기록은 docs-only [skip ci] 커밋으로 남겨 동일 웹의 불필요한 재배포를 방지한다. 임시스크린샷·브라우저로그는 Git 제외.
+
 ## 2026-09-14 — 번역·페이지형 피드 웹 배포 진행
 
 - 사용자가 로컬 구현 완료 보고 후 "배포해줘" 요청. 기존 GitHub Actions main 배포 경로로 한국어 번역 UI와 SNS형 페이지 피드를 함께 반영한다.
