@@ -1,3 +1,10 @@
+## 최종 수정 배포 결과
+
+- 코드 main8690c3d, GitHub Actions34753217322 success. Vercel dpl_4yYDA7TjBLkgmJPS7m5vQgNhWqi2 production READY, https://study-room-attendance.vercel.app HTTP200.
+- 전체560/560, Edge10진입점/8테스트, 웹 빌드, 모바일 타입/호환성, README24참조 통과. 독립 인증 코드 검토 지적 없음.
+- Supabase worker v10/tech-feed v9 ACTIVE/JWT true 확인. 일회성 preflight 없음. 수집false, 키와 worker secret 존재, 출석Cron active/피드Cron inactive 확인.
+- 배포 성공과 피드 도착은 다르다. 실제 검색0회/기사0건이며 Tavily 무료 조건 설정 확인을 기다린다. 아래 웹 배포 후속 기록 문구는 이 항목으로 완료했다.
+
 # 기술 피드 운영 연결 확인 — 2026-09-13
 
 ## 결과

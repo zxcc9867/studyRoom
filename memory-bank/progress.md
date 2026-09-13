@@ -1,3 +1,7 @@
+## 2026-09-13 — 인증 수정 배포 확인
+
+- main8690c3d, Actions34753217322 success, Vercel dpl_4yYDA7TjBLkgmJPS7m5vQgNhWqi2 production READY/HTTP200. 테스트560/560·Edge8/8·웹·모바일·README 통과. 실제 수집은 여전히0건/무료 설정 대기이며 자동 수집 완료라고 보고하지 않는다. 상세 docs/tech-feed/activation-20260913.md.
+
 ## 2026-09-13 — 운영 키 연결 및 worker 인증 오류 수정
 
 - 완료: Tavily 키 존재/인증 확인, worker 전용 secret 및 JWT 유지 Cron 인증 준비, 전역 Buffer 미제공 시500 재현/수정 및 배포(최종 목록 worker v10). 수집 활성화는 미완료.

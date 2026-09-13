@@ -1,3 +1,7 @@
+## 2026-09-13 — 인증 수정 운영 배포 완료
+
+- main8690c3d / Actions34753217322 success / Vercel dpl_4yYDA7TjBLkgmJPS7m5vQgNhWqi2 READY / 운영 URL HTTP200. Node560/560·Edge8/8·웹·모바일·README 통과. 실제 검색은 무료 조건 설정 확인 대기로 중지 유지; docs/tech-feed/activation-20260913.md 참고.
+
 ## 2026-09-13 — 검색 키 연결 확인 / 무료 한도 설정 대기
 
 - 사용자 키 등록 후 인증200 확인. worker 인증의 전역 Buffer 의존성 오류를 TextEncoder로 수정하고 배포; 최종 목록 worker v10/JWT true. 잘못된 secret401/정상 요청200 검증.
