@@ -10,6 +10,7 @@ function fixtureClient(goals, failureOnSecondPage = false) {
       let range = [0, 499];
       const query = {
         select() { return query; },
+        abortSignal() { return query; },
         eq(field, value) { if (table === "study_goals") calls.push(["eq", field, value]); return query; },
         order(field) { if (table === "study_goals") calls.push(["order", field]); return query; },
         not() { return query; },

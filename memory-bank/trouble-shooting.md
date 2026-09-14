@@ -1,3 +1,40 @@
+## 2026-09-14 — 최종 리뷰 및 검증 완료
+
+- 독립 리뷰의 P2 2건(세션 시작 전 조회가 새 세션을 덮는 경합, 이전 계정 시작 실패가 새 계정 상태를 오염)을 수정. 시작 mutation 전 조회 취소/버전 무효화, RPC 중 조회 억제, 계정별 시작 요청 abort/결과 가드 적용.
+- 실제 startTimer를 실행하는 startRequestIsolation 회귀2건 RED→GREEN. 독립 재검토 중요 지적 없음, 전체626/626 및 웹빌드 통과. 기존 모바일/README 검사와390/1440 브라우저 검증 통과.
+- 회복 RPC 응답 유실 시 입력 유지·저장 성공 단정 금지·재조회로 committed 상태 반영 후 모달 해제까지 확인. 운영 DB/함수/cron 변경 없음.
+- 웹 배포를 위해 변경 코드·테스트·관련 진단문서만 커밋/푸시. output 및 브라우저 임시파일은 제외. 실제 배포 결과는 후속 기록.
+
+
+## 2026-09-14 — 회복루틴 이후 무기한 버튼 잠금 보완
+
+- 원인 경로: loadDashboard가 global busy=true를 설정하고 시간 제한 없는 전체 조회 완료까지 유지. 제출 성공 직후에도 동일 조회로 다시 잠김. 인증/DB 지연 시 회복폼·학습 기록 초기값과 비활성 버튼만 표시될 수 있었음.
+- 수정: 15초 runBoundedRequest(Promise.race+AbortController), 요청별 abortSignal, 대시보드 전용 loading/error/loadedUserId 및 최신 시도 가드. 회복 저장 후 optimistic submitted는 RPC 성공 때만 반영하고 배경 재조회로 변경.
+- 오류 복구: 첫 조회 실패는 0초 대신 확인 필요, 명시 재시도. 회복 제출 불확실하면 입력 보존+재조회로 submitted 확인 후 모달 해제. 세션 시작 불확실 시 재확인 필요 표시.
+- 회귀: SDK fetch가 abort를 무시하는 가상 전송에서도 시간 제한 종료, 계정 취소,8종 query abort,후속 retry 성공 테스트. 브라우저에서 제출 후 재조회가 멈춰도 시작 및 카메라 준비 진행 확인.
+- 검사 중 발견: 기존 목표 조회 테스트 대역의 abortSignal 누락 보정. Vite dev dependency scan은 기존 feed-ui fixture의 bundle.js 미생성 경고이나 실제 앱 렌더/빌드 정상. Playwright run-code에는 URL 전역이 없어 URL 문자열 분리로 로컬 진단 스크립트 보정.
+- 운영 SQL/Auth 지연은 이전 시점 관측이고 후속 SQL은 성공. 서버 하위 원인 미확정, 계정/기록 삭제나 서비스 재시작은 수행하지 않음.
+
+
+## 2026-09-14 — 회복 제출 후 잠금과 운영 연결 지연
+
+- 상황: 회복을 제출했는데 창이 없고 시작/종료 비활성, 공부시간 0 표시.
+- 오류: MCP 회복 상태 집계 및 select now() 각각 Connection terminated due to connection timeout. 공개키 Auth health 요청도 15초 timeout. 프로젝트 상태는 ACTIVE_HEALTHY이므로 상태 라벨과 실제 요청을 구분해야 함.
+- 코드: submitRecoveryRoutine 성공 시 로컬 submitted 반영 후 loadDashboard await. 전체 Promise.all/페이지 요청에 제한시간이 없어 요청 미완료 동안 busy=true 지속. 초기 조회 미완료 시 빈 회복 목록/0초가 함께 보일 수 있음.
+- 한계: 사용자 브라우저 요청과 실제 submitted/pending 미확인. 지연은 확인했지만 자원고갈/잠금/네트워크 하위 원인 확정 못함. 0초는 데이터 삭제 증거 아님.
+- 조치: 진단만 수행. 승인 후 제한시간/재시도/명시적 로딩·실패 UI 보완, 미제출 회복 차단은 유지. DB 복구 후 저장 상태 검증. 쿠키삭제/중복 제출/운영 재시작은 수행하지 않음.
+
+
+## 2026-09-14 — 인증 진단 확인 범위 및 도구 제약
+
+- 사용자 로그인 인증불가 제보, 정확한문구는 요청중. 독립브라우저 cold-load는 정상이나 실제저장세션 refresh/OTP/OAuth성공을 대신 검증하지 않음.
+- 공개키 health/settings200, DB lock0, Vercel최근오류0. Auth/edge로그와24시간audit빈결과이므로 과거Supabase자원고갈을현재원인으로단정하지 않음.
+- CUA node_repl sandbox helper startup 실패. 기존사용자브라우저·쿠키·세션은변경하지 않고 별도Playwright만 사용.
+- 운영클라이언트는 legacyJWT아닌 sb_publishable키 사용. 키없는health401은인증게이트응답, 공개키로200확인. 비밀값출력없음.
+- Playwright network명령은현재미지원이라help의requests사용. 이전턴functions store helper는이번턴에없어TypeError발생, 독립문서패치로전환.
+- 다음: 화면오류/수단/시점정보로세션갱신·OAuth·OTP·네트워크를구분. 제품/운영설정변경없음.
+
+
 ## 2026-09-14 — Supabase 실제 런타임의 Buffer 전역 누락
 
 - 상황: 미디어 신규배포 APIv18/workerv20 뒤16:25~16:29UTC 정기 피드 요청503, run finished_at 미기록. 출석 요청은 같은 시각200.

@@ -125,6 +125,7 @@ import {
 } from "./dashboardRoute.mjs";
 import {
   loadDashboardData,
+  runBoundedRequest,
   loadNotificationDeliveryData,
   loadReflectionData,
 } from "./dashboardData";
@@ -487,6 +488,14 @@ function DashboardApp() {
   const [resendAvailableAt, setResendAvailableAt] = useState(0);
   const [nowMs, setNowMs] = useState(Date.now());
   const [profile, setProfile] = useState<Profile | null>(null);
+  const [dashboardLoading, setDashboardLoading] = useState(false);
+  const [dashboardError, setDashboardError] = useState("");
+  const [dashboardLoadedUserId, setDashboardLoadedUserId] = useState<string | null>(null);
+  const dashboardAttemptRef = useRef(0);
+  const dashboardAbortRef = useRef<AbortController | null>(null);
+  const currentUserIdRef = useRef(session?.user.id);
+  currentUserIdRef.current = session?.user.id;
+  const dashboardReady = Boolean(session?.user.id && dashboardLoadedUserId === session.user.id);
   const [feedPlanArticle, setFeedPlanArticle] = useState<FeedArticle | null>(null);
   const [feedPlanError, setFeedPlanError] = useState("");
   const [feedLinkedTodo, setFeedLinkedTodo] = useState<{userId:string;articleId:string;todoId:string}|null>(null);
@@ -513,8 +522,10 @@ function DashboardApp() {
   const [makeupTodoTitle, setMakeupTodoTitle] = useState("");
   const [pledgeTodoTitle, setPledgeTodoTitle] = useState("");
   const [recoverySubmitBusy, setRecoverySubmitBusy] = useState(false);
+  const [recoverySubmitError, setRecoverySubmitError] = useState("");
+  const recoverySubmissionRef = useRef<AbortController | null>(null);
+  const sessionStartRequestRef = useRef<AbortController | null>(null);
   const [resumeStartAfterRecoveryUnlock, setResumeStartAfterRecoveryUnlock] = useState(false);
-  const [recoveryUnlockRefreshing, setRecoveryUnlockRefreshing] = useState(false);
   const [reminderTime, setReminderTime] = useState(DEFAULT_WEEKDAY_REMINDER_TIME);
   const [emailRemindersEnabled, setEmailRemindersEnabled] = useState(true);
   const [adaptiveRemindersEnabled, setAdaptiveRemindersEnabled] = useState(false);
@@ -695,12 +706,34 @@ function DashboardApp() {
     setFeedPlanArticle(null);
     setFeedLinkedTodo(null);
     setTodoModalOpen(false);
+    setDashboardLoadedUserId(null);
+    setDashboardError("");
+    setDashboardLoading(false);
+    setBusy(false);
+    setRecoveryModalRequest(null);
+    setStudyRecoveryRequests([]);
+    setStudySessions([]);
+    setStudyTodos([]);
+    setStudySessionTodoLinks([]);
+    setStudyGoals([]);
+    setAttendanceDays([]);
+    setProfile(null);
+    setLatestStudySessionReflection(null);
+    setStudyPeriodSummaries(null);
+    setResumeStartAfterRecoveryUnlock(false);
     if (session?.user.id) {
       void syncSignedInUser(session);
       void loadDashboard(session.user.id);
       void refreshWebPushStatus();
       void refreshSlackStatus(session.user.id);
     }
+    return () => {
+      dashboardAttemptRef.current += 1;
+      dashboardAbortRef.current?.abort();
+      recoverySubmissionRef.current?.abort();
+      sessionStartRequestRef.current?.abort();
+      sessionStartRequestRef.current = null;
+    };
   }, [session?.user.id]);
 
   useEffect(() => {
@@ -914,8 +947,7 @@ function DashboardApp() {
         blockingRecoveryCount: blockingRecoveryRequests.length,
         recoveryModalOpen: Boolean(recoveryModalRequest),
         activeSession: Boolean(activeSession),
-        busy,
-        refreshing: recoveryUnlockRefreshing,
+        busy: busy || !dashboardReady,
       })
     ) {
       return;
@@ -928,7 +960,7 @@ function DashboardApp() {
     blockingRecoveryRequests.length,
     busy,
     recoveryModalRequest?.id,
-    recoveryUnlockRefreshing,
+    dashboardReady,
     resumeStartAfterRecoveryUnlock,
   ]);
 
@@ -1739,7 +1771,14 @@ function DashboardApp() {
   }
 
   async function loadDashboard(userId: string) {
-    setBusy(true);
+    if (sessionStartRequestRef.current) return;
+    dashboardAbortRef.current?.abort();
+    const controller = new AbortController();
+    dashboardAbortRef.current = controller;
+    const attempt = ++dashboardAttemptRef.current;
+    const isCurrent = () => attempt === dashboardAttemptRef.current && currentUserIdRef.current === userId;
+    setDashboardLoading(true);
+    setDashboardError("");
     try {
       const {
         profileData,
@@ -1750,7 +1789,9 @@ function DashboardApp() {
         goalData,
         recoveryData,
         latestReflectionData,
-      } = await loadDashboardData(supabase, userId);
+      } = await loadDashboardData(supabase, userId, { signal: controller.signal });
+      if (!isCurrent()) return;
+      setDashboardLoadedUserId(userId);
 
       if (profileData) {
         const typedProfile = profileData as Profile;
@@ -1778,11 +1819,17 @@ function DashboardApp() {
       setStudySessionTodoLinks(sessionTodoLinkData as StudySessionTodoLink[]);
       setStudyGoals(sortStudyGoals(goalData as StudyGoal[]));
       setStudyRecoveryRequests(recoveryData as StudyRecoveryRequest[]);
+      // A timed-out submission may have committed on the server; reconcile on retry.
+      setRecoveryModalRequest((current) => current
+        ? (recoveryData as StudyRecoveryRequest[]).find((request) => request.id === current.id && request.status === "pending") ?? null
+        : null);
       setLatestStudySessionReflection(latestReflectionData as StudySessionReflection | null);
     } catch (error) {
-      setMessage(`\ub300\uc2dc\ubcf4\ub4dc\ub97c \ubd88\ub7ec\uc624\uc9c0 \ubabb\ud588\uc2b5\ub2c8\ub2e4: ${formatError(error)}`);
+      if (isCurrent() && !controller.signal.aborted) {
+        setDashboardError(`학습 정보를 불러오지 못했습니다: ${formatError(error)}`);
+      }
     } finally {
-      setBusy(false);
+      if (isCurrent()) setDashboardLoading(false);
     }
   }
   function showPlannerDate(dateKey: string) {
@@ -3201,6 +3248,7 @@ function DashboardApp() {
     if (!options.auto) {
       recoveryModalDismissedIdsRef.current.delete(request.id);
     }
+    setRecoverySubmitError("");
     setRecoveryModalRequest(request);
     setRecoveryReason(request.reason ?? "");
     setMakeupTodoTitle(request.makeup_todo_title ?? "");
@@ -3218,28 +3266,41 @@ function DashboardApp() {
 
   async function submitRecoveryRoutine(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    if (!session?.user.id || !recoveryModalRequest) return;
+    if (!session?.user.id || !recoveryModalRequest || recoverySubmissionRef.current) return;
 
     const submittedRequest = recoveryModalRequest;
     const remainingRequests = pendingRecoveryRequests.filter((request) => request.id !== submittedRequest.id);
     const nextBlockingRequest = remainingRequests[0] ?? null;
-    const shouldResumeStart = resumeStartAfterRecoveryUnlock && !nextBlockingRequest;
-
+    const userId = session.user.id;
+    const controller = new AbortController();
+    recoverySubmissionRef.current = controller;
     setRecoverySubmitBusy(true);
-    const { error } = await supabase.rpc("submit_study_recovery_request", {
-      p_request_id: submittedRequest.id,
-      p_reason: recoveryReason,
-      p_makeup_todo_title: makeupTodoTitle,
-      p_pledge_todo_title: pledgeTodoTitle,
-    });
-    setRecoverySubmitBusy(false);
-
-    if (error) {
-      setMessage(formatNotificationError(error));
+    setRecoverySubmitError("");
+    // Do not let an older dashboard response restore the just-submitted pending row.
+    dashboardAbortRef.current?.abort();
+    dashboardAttemptRef.current += 1;
+    setDashboardLoading(false);
+    try {
+      const { error } = await runBoundedRequest((signal) => supabase.rpc("submit_study_recovery_request", {
+        p_request_id: submittedRequest.id,
+        p_reason: recoveryReason,
+        p_makeup_todo_title: makeupTodoTitle,
+        p_pledge_todo_title: pledgeTodoTitle,
+      }).abortSignal(signal), { signal: controller.signal });
+      if (error) throw error;
+      if (currentUserIdRef.current !== userId) return;
+    } catch (error) {
+      if (currentUserIdRef.current === userId && !controller.signal.aborted) {
+        setRecoverySubmitError(`저장 결과를 확인하지 못했습니다. 입력 내용은 유지했습니다. 학습 정보를 다시 확인한 뒤 재시도해 주세요. ${formatError(error)}`);
+      }
       return;
+    } finally {
+      if (recoverySubmissionRef.current === controller) {
+        recoverySubmissionRef.current = null;
+        setRecoverySubmitBusy(false);
+      }
     }
 
-    setRecoveryUnlockRefreshing(shouldResumeStart);
     recoveryModalDismissedIdsRef.current.delete(submittedRequest.id);
     setStudyRecoveryRequests((requests) =>
       requests.map((request) =>
@@ -3271,13 +3332,8 @@ function DashboardApp() {
       setMessage("회복 루틴을 제출했습니다. 다시 공부를 시작할 수 있습니다.");
     }
 
-    try {
-      await loadDashboard(session.user.id);
-    } finally {
-      if (shouldResumeStart) {
-        setRecoveryUnlockRefreshing(false);
-      }
-    }
+    // Saving succeeded: background refresh must not lock study controls again.
+    void loadDashboard(userId);
   }
 
   function acknowledgeTenMinuteCheckpoint() {
@@ -3292,6 +3348,10 @@ function DashboardApp() {
   }
 
   async function startTimer(cameraReadyOverride = false, selectedTodoIds?: string[], suggestedTodoTitle?: string) {
+    if (!dashboardReady) {
+      setDashboardError("공부 시작 전에 회복루틴과 세션 상태를 확인해야 합니다. 학습 정보를 다시 불러와 주세요.");
+      return;
+    }
     const normalizedSuggestedTodoTitle = normalizeHabitText(suggestedTodoTitle);
     if (normalizedSuggestedTodoTitle) {
       sessionTodoSuggestionRef.current = normalizedSuggestedTodoTitle;
@@ -3338,9 +3398,30 @@ function DashboardApp() {
       return;
     }
 
+    const userId = session?.user.id;
+    if (!userId || sessionStartRequestRef.current) return;
+    const controller = new AbortController();
+    sessionStartRequestRef.current = controller;
+    const isCurrent = () => currentUserIdRef.current === userId && !controller.signal.aborted;
+    // Invalidate any snapshot taken before the session-start mutation.
+    dashboardAbortRef.current?.abort();
+    dashboardAttemptRef.current += 1;
+    setDashboardLoading(false);
     setBusy(true);
-    const { data, error } = await supabase.rpc("start_study_session", { p_todo_ids: selectedTodoIds ?? [] });
-    setBusy(false);
+    const { data, error } = await runBoundedRequest((signal) =>
+      supabase.rpc("start_study_session", { p_todo_ids: selectedTodoIds ?? [] }).abortSignal(signal),
+      { signal: controller.signal },
+    ).catch((error: unknown) => {
+      if (isCurrent()) {
+        setDashboardLoadedUserId(null);
+        setDashboardError("세션 시작 결과가 불확실합니다. 중복 시작을 방지하기 위해 학습 정보를 다시 확인해 주세요.");
+      }
+      return { data: null, error: { message: `세션 시작 결과를 확인하지 못했습니다. ${formatError(error)}` } };
+    }).finally(() => {
+      if (sessionStartRequestRef.current === controller) sessionStartRequestRef.current = null;
+      if (isCurrent()) setBusy(false);
+    });
+    if (!isCurrent()) return;
     if (error) {
       if (error.message.includes("Recovery routine required")) {
         setMessage("회복 루틴 필요: Slack에서 회복 루틴을 제출한 뒤 다시 시작하세요.");
@@ -3375,8 +3456,9 @@ function DashboardApp() {
           await recordCameraPresenceEvent(session.user.id, startedSession.id, "camera_started", {
             metadata: { source: "web-camera", requiredForAttendance: true },
           }).catch((error) => {
-            setCameraMessage(formatNotificationError(error));
+            if (isCurrent()) setCameraMessage(formatNotificationError(error));
           });
+          if (!isCurrent()) return;
           setCameraMessage("카메라 감시 중");
         }
       }
@@ -4677,6 +4759,18 @@ function DashboardApp() {
       </aside>
 
       <section className="workspace">
+        {(dashboardLoading || dashboardError) && (
+          <section className="recovery-blocker" role={dashboardError ? "alert" : "status"} style={{ order: -1 }}>
+            <div>
+              <h3>{dashboardError ? "학습 정보를 확인하지 못했어요" : "학습 정보를 불러오고 있어요"}</h3>
+              <p>{dashboardError || "회복루틴, 공부 기록과 세션 상태를 확인하고 있습니다."}</p>
+              {dashboardError && <p>저장된 기록을 삭제하지 않았습니다. 마지막으로 확인한 기록은 유지됩니다. 잠시 후 다시 확인해 주세요.</p>}
+            </div>
+            {dashboardError && <button className="secondary" type="button" disabled={dashboardLoading} onClick={() => void loadDashboard(session.user.id)}>
+              학습 정보 다시 확인
+            </button>}
+          </section>
+        )}
         {activeSection === "feed" && (
           <Suspense fallback={<p role="status">기술 피드를 불러오고 있어요…</p>}>
             <TechFeed key={session.user.id} supabase={supabase} userId={session.user.id} timeZone={timeZone} onPlan={openFeedPlan} linkedTodo={feedLinkedTodo} />
@@ -4706,10 +4800,10 @@ function DashboardApp() {
                       void pauseTimer();
                     }
                   }}
-                  disabled={busy || (!activeSession && blockingRecoveryRequests.length > 0)}
+                  disabled={busy || !dashboardReady}
                 >
                   {activeSession && !activeSessionPaused ? <Pause size={18} /> : <Play size={18} />}
-                  {!activeSession ? studyStartAction.label : activeSessionPaused ? "공부 계속하기" : "잠시 쉬기"}
+                  {!dashboardReady ? (dashboardLoading ? "학습 정보 확인 중…" : "학습 정보 확인 필요") : !activeSession && blockingRecoveryRequests.length > 0 ? "회복루틴 작성 후 시작" : !activeSession ? studyStartAction.label : activeSessionPaused ? "공부 계속하기" : "잠시 쉬기"}
                 </button>
                 <button
                   className="danger"
@@ -4726,11 +4820,11 @@ function DashboardApp() {
             <div className="study-summary" aria-label="공부 시간 요약">
               <div>
                 <span>오늘 공부</span>
-                <strong>{formatTimerClock(todaySeconds)}</strong>
+                <strong>{dashboardReady ? formatTimerClock(todaySeconds) : "확인 필요"}</strong>
               </div>
               <div>
                 <span>{formatMonthLabel(calendarMonth)} 누적</span>
-                <strong>{formatTimerClock(monthSeconds)}</strong>
+                <strong>{dashboardReady ? formatTimerClock(monthSeconds) : "확인 필요"}</strong>
               </div>
             </div>
             {activeSessionPaused && (
@@ -5617,7 +5711,7 @@ function DashboardApp() {
                 <button
                   className="primary"
                   type="button"
-                  disabled={busy || Boolean(activeSession) || blockingRecoveryRequests.length > 0}
+                  disabled={busy || !dashboardReady || Boolean(activeSession)}
                   onClick={() => {
                     setReminderPopup(null);
                     void startTimer();
@@ -5669,6 +5763,12 @@ function DashboardApp() {
                 </small>
               </div>
               <form className="recovery-form" onSubmit={submitRecoveryRoutine}>
+                {recoverySubmitError && <div role="alert">
+                  <p>{recoverySubmitError}</p>
+                  <button className="secondary" type="button" disabled={dashboardLoading || recoverySubmitBusy} onClick={() => void loadDashboard(session.user.id)}>
+                    학습 정보 다시 확인
+                  </button>
+                </div>}
                 <label>
                   <span>결석/이탈 사유</span>
                   <textarea

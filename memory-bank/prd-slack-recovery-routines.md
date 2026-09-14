@@ -1,3 +1,14 @@
+## 2026-09-14 Update: Bounded recovery unlock and visible retry
+
+- Dashboard reads, recovery submission, and session-start requests settle in the UI within 15 seconds, even if auth/transport does not observe abort immediately.
+- Before the first successful dashboard read, show loading/error/retry and unknown study totals instead of implying zero or allowing an unchecked start.
+- A pending recovery routes the primary start action into its form; actual session start remains blocked. This supersedes the older disabled-start-button UI requirement, not the recovery policy.
+- Successful recovery submission immediately unlocks the known local recovery gate; background dashboard refresh must not globally lock study controls.
+- Failed or uncertain submissions preserve input and do not claim success. Refresh reconciles a server-committed submission and closes an obsolete form.
+- Cancel superseded/account-changed reads and ignore stale results. Keep existing study data on refresh failure.
+- No automatic logout, record deletion, auth-policy change, or production DB mutation is needed for this UI recovery fix.
+
+
 # PRD: Slack Recovery Routines
 
 ## 1. Problem

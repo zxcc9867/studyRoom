@@ -1,3 +1,11 @@
+## 2026-09-14 — 대시보드 조회와 회복 제출 대기 분리
+
+- dashboardData.ts runBoundedRequest는 기본15초 전체 작업 deadline. AbortSignal을8종 PostgREST 쿼리와 페이지에 전달하며 signal을 보지 않는 auth/transport 대기도 race로 종료한다. RPC 회복 제출/세션 시작도 같은 경계 사용.
+- main.tsx dashboardLoading은 mutation busy와 독립. latest attempt+userId로 오래된 결과를 무시하고 계정 이탈 시 abort. 초기 미조회는 시작 허용하지 않되 실패/재시도 안내. 기존 성공 데이터가 있으면 배경 실패 시 유지.
+- 회복 pending 상태가 있으면 시작 액션은 회복폼을 열고 start_study_session 호출 전 차단. RPC 성공 때만 제출 처리, 전체 재조회는 비차단. 응답 유실은 성공 단정 없이 입력 보존 및 서버 상태 재검증.
+- DB/RLS/RPC 계약/서버 함수/cron 변경 없음. 기존 main→GitHub Actions→Vercel 배포 경로 사용.
+
+
 ## 2026-09-14 — 현재 미디어 운영 버전
 
 - DB20260913162410 + APIv19/workerv21 + main5946f98, Vercel dpl_4k2TKx7giQ4jsqxMooyjR1RPzHxs READY.
