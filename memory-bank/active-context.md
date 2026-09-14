@@ -1,3 +1,12 @@
+## 2026-09-14 — 회복루틴 잠금 수정 운영 배포 완료
+
+- 코드9eff7ccd503a4f28181636108971c10e8f91a450 main 푸시, Actions34850127211 success. 서버 CI 테스트/모바일/README/Edge/빌드/배포 모두 성공.
+- Vercel dpl_DtYX9kx2ZM8AYimfgLQnhVvtvXJ3 production READY, study-room-attendance.vercel.app alias 정상. 운영 root 및 /assets/index-DBTh0ZXp.js HTTP200; 회복폼 연결/재조회/RequestTimeoutError 코드 포함 확인.
+- 최종626개 테스트 통과, 독립 재리뷰 중요 지적 없음. 로컬 가상 응답의 저장직후 해제/배경지연/입력보존/응답유실 재확인 및390/1440px 검증 성공. 실제 사용자 저장세션의 운영 E2E는 미검증.
+- DB/서버함수/cron 변경 없음. 서버 가용성 자체 개선과 UI 대기 복구를 구분. 운영 DB 후속 조회는 성공했으나 원래 지연의 자원/네트워크 하위원인은 미확정.
+- 검증용 브라우저/서버 종료. output/.playwright-cli는 커밋 제외. 배포 완료 문서만 [skip ci] 후속 반영.
+
+
 ## 2026-09-14 — 최종 리뷰 및 검증 완료
 
 - 독립 리뷰의 P2 2건(세션 시작 전 조회가 새 세션을 덮는 경합, 이전 계정 시작 실패가 새 계정 상태를 오염)을 수정. 시작 mutation 전 조회 취소/버전 무효화, RPC 중 조회 억제, 계정별 시작 요청 abort/결과 가드 적용.
