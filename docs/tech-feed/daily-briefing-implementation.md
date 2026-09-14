@@ -108,8 +108,8 @@ assert.match(html,/실무·튜토리얼/);
 
 ## Task 4: Integration, documentation and release (parent)
 
-- [ ] Review all three task diffs against spec; all Important/Critical findings resolved before release. Run npm.cmd test, run build, run test:edge, run mobile:check, run docs:check. Recheck frontend at390/1440 and source citations with isolated fixture browser.
-- [ ] Update approved design status, README3languages and memory-bank actual results; claim docs and reread before patching. Keep preexisting server diagnosis changes separate from this feature's release commit.
-- [ ] Deploy additive DB migration through MCP, verify RLS/grants/query plan. Deploy only tech-feed API/worker via verified CLI, then scoped commit/push per local AGENTS and GitHub Actions production workflow.
-- [ ] Verify API authorization rejection, bounded backfill, stats/list contract, valid source-link rendering, Actions success/Vercel READY/rootHTTP200. Generate AI in owner scope only if current authenticated owner available; otherwise mark actual-user AI generation unverified, never impersonate arbitrary users.
-- [ ] Report tested implementation and deployment separately from unavailable live-user checks. Keep all decisions in project records and release path claims.
+- [x] Review all three task diffs against spec; all Important/Critical findings resolved before release. Run npm.cmd test, run build, run test:edge, run mobile:check, run docs:check. Recheck frontend at390/1440 and source citations with isolated fixture browser.
+- [x] Update approved design status, README3languages and memory-bank actual results; claim docs and reread before patching. Keep preexisting server diagnosis changes separate from this feature's release commit.
+- [x] Deploy additive DB migration through MCP, verify RLS/grants/query plan. Deploy only tech-feed API/worker via verified CLI, then scoped commit/push per local AGENTS and GitHub Actions production workflow.
+- [x] Verify API authorization rejection, bounded backfill, stats/list contract, valid source-link rendering, Actions success/Vercel READY/rootHTTP200. Generate AI in owner scope only if current authenticated owner available; otherwise mark actual-user AI generation unverified, never impersonate arbitrary users.
+- [x] Report tested implementation and deployment separately from unavailable live-user checks. Keep all decisions in project records and release path claims.

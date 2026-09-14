@@ -1,3 +1,13 @@
+## 2026-09-15 — 기술 피드 개선 운영 배포 완료
+
+- 완료: 자동 규칙 분류/기존 글 백필, Markdown 가독성, 자유 입력 중심 설정·접힌 동적 보기 필터, 전체 오늘 통계와 버튼형 AI 인사이트. 탭 복귀는 읽기 전용 갱신이며 추가 AI 호출 없음.
+- 코드6ea0d95182dcf50954aa5dc076f0c944376bac97 main 푸시. Actions34871802491 success, Vercel dpl_2Gpsv3NdJ7a2tZFCABKMM8RPnBHW READY, https://study-room-attendance.vercel.app HTTP200.
+- 실제 운영 assets/index-WOrXYlXe.js 및 TechFeedSection-BFR8zyll.js HTTP200, 새 오늘 패널/briefing_generate/source_key 포함 확인. DB20260914164719, Edge tech-feed20/worker22 적용.
+- 검증: 전체685/685(브라우저4 포함), Edge10/10·DB재확인14/14·build·mobile·README24참조,390/1440px 흐름. CI 기본4browser skip은 명시적 로컬 실행으로 보완.
+- 한계: 실제 로그인 사용자 계정에서 AI 인사이트 생성은 미검증(임의 계정 가장/쿼터 소비 없음). 출처 소개 부족 시 인사이트 생성 불가/보수적 분류 유지. 상세 근거 docs/tech-feed/daily-briefing-verification.md.
+- 기존 장애 복구 문서4개의 미커밋 변경은 이번 기능과 분리 보존. 이후 장애가 서버 때문인지 앱 때문인지 이번 피드 배포만으로 새로 단정하지 않는다.
+
+
 ## 2026-09-15 — 기술 피드 서버 적용·최종 리뷰 완료
 
 - 전체 변경 독립 리뷰 승인(중요 지적 없음), 로컬685/685·Edge10/10·build·mobile·README 검사 통과. 마이그레이션 파일명 동기화 후 DB14/14 재확인.

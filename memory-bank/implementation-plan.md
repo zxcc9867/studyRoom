@@ -7,7 +7,7 @@
 - 시간/근거: 서버 프로필 시간대의 discovered_at 반개구간, 전체 통계와 최대24개/소개160~2000자 표본 분리. 전체 메시지는32000자 안으로 조정하며 사용자 관심 문장을 AI에 전달하거나 공유 태그로 저장하지 않는다.
 - 권한/쿼터: owner RLS, 브리핑 본문 직접 SELECT 차단(무해한 소유자 메타데이터만 허용), 모든 분석 표본 권한을 읽기·예약·저장 시 재검증. 기존6회 실제 호출 공유,90초 lease/20초 provider/30초 request. 새 cron/유료 fallback 없음.
 - 확인 방법: 독립 리뷰 spec PASS/quality APPROVED, parent194/194 회귀. 로컬 PGlite1000/5000개 saved scale에서 list11/38ms, facets SQL47/197ms + JS28/120ms; 후보 JSON1.12/5.61MB. 실제 운영 네트워크/무한 기록 규모 보장은 아니며 후보 로드는 기록 수에 선형 증가한다.
-- 주의 사항: 운영 적용 후 grants/RLS/query plan/구버전 RPC 호출을 확인한다. 분류 worker 취소 신호의 RPC 전달은 기존10초 fetch 상한에 의존하는 Minor 잔여 항목이다.
+- 운영 확인 완료: RLS/grants·구버전5인자 RPC·실측 list11.915ms/facets4.358ms/daily cold836.367ms, 무인증 API401. 상세 배포 근거는 docs/tech-feed/daily-briefing-verification.md. 분류RPC 취소 전달은 기존10초fetch상한에 의존하는 Minor 잔여 항목이다.
 
 
 ## 2026-09-14 — 대시보드 조회와 회복 제출 대기 분리

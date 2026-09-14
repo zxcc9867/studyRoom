@@ -2,7 +2,7 @@
 
 ## Scope and status
 
-2026-09-15. Local implementation and independent reviews passed; DB and Edge are deployed, while web release is pending. The [design](daily-briefing-design.md) and [implementation plan](daily-briefing-implementation.md) define the feature. Attendance, recovery, authentication, study sessions, paid-routing policy and existing data are unchanged.
+2026-09-15. Local implementation and independent reviews passed; DB and Edge are deployed, and web production rollout is verified below. The [design](daily-briefing-design.md) and [implementation plan](daily-briefing-implementation.md) define the feature. Attendance, recovery, authentication, study sessions, paid-routing policy and existing data are unchanged.
 
 ## Verified before final integration
 
@@ -47,7 +47,7 @@ Same-day window/tab reactivation also performs a bounded read-only refresh, with
 
 ## Remaining gates
 
-- Scoped Git push and successful Vercel production verification.
+- No remaining release blocker; production verification is recorded below.
 - Real authenticated-owner/provider generation only if a genuine owner session is available. Synthetic results must not be represented as that live verification.
 - Minor deferred server item: classification RPCs rely on the existing 10-second fetch limit rather than forwarding worker cancellation; version/content leases still protect completion.
 
@@ -59,3 +59,11 @@ Same-day window/tab reactivation also performs a bounded read-only refresh, with
 - Live read-only outer EXPLAIN ANALYZE: legacy list11.915ms, saved facet candidates4.358ms, daily snapshot cold836.367ms. These are observed function execution times, not an assertion about every nested query plan or unlimited scale.
 - All65 current articles backfilled to rules_version1: deep_dive7/practice15/news1/unknown42. Unknowns remain conservative and their card badge is hidden. Existing scheduled runs completed; this does not claim AI generation.
 - Security advisor finding counts unchanged from preflight. Actual authenticated-owner/provider generation has not been performed.
+
+## Production web — verified 2026-09-15
+
+- Feature commit6ea0d95182dcf50954aa5dc076f0c944376bac97 pushed to main; GitHub Actions34871802491 completed successfully.
+- Vercel deployment dpl_2Gpsv3NdJ7a2tZFCABKMM8RPnBHW READY with matching commit and production alias. https://study-room-attendance.vercel.app returnsHTTP200.
+- Live index-WOrXYlXe.js references TechFeedSection-BFR8zyll.js; both fetched successfully and the feed chunk includes the daily panel, briefing_generate and source_key.
+- Implementation, scoped/final review, migration, server release, local/browser/CI checks and web rollout gates are complete. No genuine authenticated-owner AI generation was performed; this remains a clearly bounded live-user verification limitation.
+- Preexisting Supabase outage notes remain unstaged; no authentication, attendance, recovery, session, cron or paid fallback policy changes were bundled.

@@ -1,6 +1,6 @@
 # 기술 피드: 자동 분류·오늘의 브리핑·읽기 UX 설계
 
-작성일: 2026-09-14. 상태: 사용자 구현 승인, TDD 구현 진행 중. 운영에는 아직 반영되지 않았다. 실행 계획: `daily-briefing-implementation.md`.
+작성일: 2026-09-14. 상태: 구현·검증 및 2026-09-15 운영 배포 완료. 실행 계획: `daily-briefing-implementation.md`, 검증 근거: `daily-briefing-verification.md`.
 
 ## 1. 목표와 승인 범위
 
