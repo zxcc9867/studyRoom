@@ -4,6 +4,12 @@
 
 ## StudyRoom 2.0 — your interests, a technology feed
 
+The feed separates collection settings from reading filters: free-text interests decide what to collect, while collapsed topic/source filters narrow the articles already available in latest or saved views. Facets cover the complete visible collection, not just the current page. Short evidence-matched tags replace repeated interest sentences.
+
+Articles use AI categories when available and conservative rule-based fallback otherwise: technology news, practical tutorials, or case studies/deep dives. Unsupported classifications are not forced. Introductions have a clean preview; expanded text safely renders headings, lists and code without executing embedded HTML.
+
+`오늘 수집된 내 피드` automatically shows full-day counts using your stored time zone and each article's first collection time—not its publication date or the current page/filter. AI insights run only when you press the generation button, analyze up to 24 permission-eligible introductions, and cite original articles. At least two substantial introductions are required; video contents are not analyzed. Cached results are reused, new content is marked stale, and revoked source access invalidates affected results. Generation shares the existing six actual free AI calls per user/day; failures count and there is no paid fallback. [Design and limits](docs/tech-feed/daily-briefing-design.md) · [Delivery status](memory-bank/progress.md).
+
 Original-page thumbnails now appear inside feed cards without cropping diagrams. Attached YouTube/Vimeo players load only when clicked, with autoplay disabled and a close action. Missing, blocked or broken media keeps the text and source link. Metadata is shared and enriched up to three articles per manual/scheduled run, including older articles; not every post provides media. No unrelated image search, full-body storage or extra AI/paid API is added.
 
 The feed searches technical blogs, engineering case studies and practical guides for **any user-selected technology interest**; AWS and Claude Code are examples, not an allowlist. These intents rotate within the same one-call budget over a one-year search window. Known video/index pages are excluded from new search collection, and obvious promotion/chapter noise is cleaned without inventing article text. A readable Korean webfont and larger text accompany direct title and introduction-source links. Full articles remain on the publisher’s site.

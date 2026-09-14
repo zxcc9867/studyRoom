@@ -38,7 +38,7 @@ export function manualRefreshMessage(result){
 export const FEED_INTERESTS = [
   ['ai', 'AI'], ['frontend', '웹·프론트엔드'], ['backend', '백엔드'], ['cloud', '클라우드·인프라'], ['tools', '개발 도구'],
 ];
-export const FEED_CATEGORIES = { news: '새 소식', practice: '실무 활용', deep_dive: '깊이 읽기' };
+export const FEED_CATEGORIES = { news: '기술 소식', practice: '실무·튜토리얼', deep_dive: '사례·심층 분석' };
 
 const PRIVATE_TOPIC_PATTERN = /@|(?:https?|ftp):|www\.|\bAKIA[A-Z0-9]{16}\b|\b[a-z0-9-]+\.[a-z]{2,63}\/|\b[a-z0-9-]+\.(?:com|org|net|io|dev|ai|co|kr|uk)(?:\b|\/)|(?:sk|tvly|ghp|github_pat|AKIA)[-_][a-z0-9_-]{12,}|\bBearer\s|[a-zA-Z0-9_-]{40,}/i;
 
@@ -149,7 +149,7 @@ export function createTechFeedClient(supabase, userId) {
       response = await supabase.functions.invoke('tech-feed', {
         body: { ...payload, action },
         headers: { Authorization: `Bearer ${verifiedSession.access_token}` },
-        signal: signal ? AbortSignal.any([signal, AbortSignal.timeout(action==='refresh'?60000:20000)]) : AbortSignal.timeout(action==='refresh'?60000:20000),
+        signal: signal ? AbortSignal.any([signal, AbortSignal.timeout(action==='refresh'?60000:action==='briefing_generate'?35000:20000)]) : AbortSignal.timeout(action==='refresh'?60000:action==='briefing_generate'?35000:20000),
       });
     } catch {
       if (signal?.aborted) throw new DOMException('Aborted', 'AbortError');

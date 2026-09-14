@@ -8,6 +8,17 @@ function setup({env=enabled,auth=true,store={},transport=async()=>({status:200,h
  const writes=[];
  const handler=createTechFeedHandler({env:()=>env,authenticate:async()=>{if(!auth)throw Error('unauthorized');return{id:user,store:{state:async()=>({enabled:true,sources:[],interests:[],last_success_at:null}),saveTimezone:async zone=>writes.push(['zone',zone]),previewAllowed:async()=>true,mutate:async(action,data)=>{writes.push([action,data]);return{ok:true};},...store}};},transport});return{handler,writes};
 }
+test('briefing read retains paused statistics while no access denies; facets/list validate new filters',async()=>{
+ let calls=0,args;const store={briefingSnapshot:async()=>{calls++;return{local_date:'2026-09-14',time_zone:'Asia/Tokyo',articles:[],cache:null,receiving:true};},facets:async view=>({total:25,topics:[],sources:[],view}),list:async(...values)=>{args=values;return{items:[],next_cursor:null,total:0};}};
+ const paused=setup({env:{...enabled,TECH_FEED_ENABLED:'false'},store});
+ assert.equal((await(await paused.handler(req({action:'briefing'}))).json()).status,'paused');assert.equal(calls,1);
+ assert.equal((await paused.handler(req({action:'facets',view:'saved'}))).status,200);
+ assert.equal((await setup({env:{},store}).handler(req({action:'briefing'}))).status,403);assert.equal(calls,1);
+ assert.equal((await setup({store}).handler(req({action:'facets',view:'saved'}))).status,200);
+ const f=setup({store});assert.equal((await f.handler(req({action:'list',view:'saved',topic:'AWS',source_key:'host:Example.COM'}))).status,200);
+ assert.deepEqual(args,['saved',null,null,null,'AWS','host:example.com']);
+ for(const bad of [{topic:'x'.repeat(33)},{source_key:'https://evil.test'},{source_key:'host:user@host'},{source_key:'rss:bad'}])assert.equal((await f.handler(req({action:'list',...bad}))).status,400);
+});
 test('API authenticates, denies nonpilots, and timezone remains independent of feed flag',async()=>{
  assert.equal((await setup({auth:false}).handler(req({action:'state'}))).status,401);
  const f=setup({env:{}});assert.deepEqual(await(await f.handler(req({action:'state'}))).json(),{enabled:false,sources:[],interests:[],last_success_at:null,preferences:{prompt:'',receiving:false,revision:0},search_status:{state:'paused',last_success_at:null},service_available:false});

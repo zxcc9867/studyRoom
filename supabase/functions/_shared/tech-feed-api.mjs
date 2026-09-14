@@ -1,3 +1,4 @@
+import {runBriefing} from './tech-feed-briefing.mjs';
 import {createDeepLTranslation} from './tech-feed-translation.mjs';
 import {runManualRefresh} from './tech-feed-refresh.mjs';
 import {INTERESTS,normalizeUrl,fetchFeed,pilotEnabled} from './tech-feed-core.mjs';
@@ -32,10 +33,11 @@ const errorMessages={
  unsafe_address:[400,'허용되지 않는 피드 주소입니다.'],unsafe_connection:[400,'안전한 피드 연결을 확인할 수 없습니다.'],
  redirect_limit:[400,'피드 주소의 이동을 확인할 수 없습니다.'],source_timeout:[504,'피드 응답이 지연되고 있습니다.'],
 };
-export function createTechFeedHandler({authenticate,env,transport}){
+export function createTechFeedHandler({authenticate,env,transport,askBriefing}){
  return async request=>{
   if(request.method==='OPTIONS')return new Response(null,{status:204,headers:cors});
   if(request.method!=='POST')return reply({error:'POST 요청만 허용됩니다.'},405);
+  const requestSignal=AbortSignal.any([request.signal,AbortSignal.timeout(30000)]);
   try{
    const {id,store}=await authenticate(request),data=await readBody(request),action=data.action;
    if(action==='timezone'){
@@ -50,12 +52,17 @@ export function createTechFeedHandler({authenticate,env,transport}){
     const state=action==='topics_save'?await store.configure({...canonicalTopic(data.prompt),receiving:data.receiving,expected_revision:data.expected_revision}):await store.receiving({receiving:data.receiving,expected_revision:data.expected_revision});
     const result=withStatus(state);return reply({preferences:result.preferences,search_status:result.search_status});
    }
+   if(action==='briefing'||action==='briefing_generate'){
+    if(!feedAccess(id,config))throw Error('disabled');
+    return reply(await runBriefing({store,env:config,generate:action==='briefing_generate',signal:requestSignal,
+     ask:(messages,signal,reserve)=>askBriefing?askBriefing(id,messages,signal,config,reserve):Promise.resolve({deferred:true})}));
+   }
    if(!feedAccess(id,config)||(config.TECH_FEED_ACCESS_MODE!=='self_service'&&!pilotEnabled(id,config))){
     if(action==='state'){
      const state=await store.state();
      return reply({enabled:false,sources:[],interests:[],last_success_at:null,preferences:state.preferences||{prompt:'',receiving:false,revision:0},search_status:{...searchState(state,config),state:'paused'},service_available:false});
     }
-    if(!feedAccess(id,config)||!['list','save','add_todo'].includes(action)||action==='list'&&data.view!=='saved')throw Error('disabled');
+    if(!feedAccess(id,config)||!['list','facets','save','add_todo'].includes(action)||['list','facets'].includes(action)&&data.view!=='saved')throw Error('disabled');
    }
    if(action==='state'){
     const state=withStatus(await store.state());
@@ -69,11 +76,23 @@ export function createTechFeedHandler({authenticate,env,transport}){
     if(!Number.isSafeInteger(data.expected_revision)||data.expected_revision<0)invalid();
     return reply(await runManualRefresh({store,userId:id,expectedRevision:data.expected_revision,env:config,transport,signal:request.signal}));
    }
+   if(action==='facets'){
+    const view=data.view||'latest';if(!['latest','saved'].includes(view))invalid();return reply(await store.facets(view));
+   }
    if(action==='list'){
     const view=data.view||'latest';if(!['latest','saved'].includes(view)||data.interest!=null&&!INTERESTS.includes(data.interest))invalid();
     const source=data.source_id==null?null:uuid(data.source_id);
+    const topic=data.topic==null?null:data.topic;
+    if(topic!==null&&(typeof topic!=='string'||topic.length<1||topic.length>32||topic!==topic.trim()||/[\p{Cc}\p{Cf}]/u.test(topic)))invalid();
+    let sourceKey=data.source_key==null?null:data.source_key;
+    if(sourceKey!==null){
+     if(typeof sourceKey!=='string'||sourceKey.length>260)invalid();
+     if(sourceKey.startsWith('rss:'))sourceKey='rss:'+uuid(sourceKey.slice(4)).toLowerCase();
+     else if(/^host:[a-z0-9](?:[a-z0-9.-]*[a-z0-9])?$/i.test(sourceKey)&&!sourceKey.includes('..'))sourceKey=sourceKey.toLowerCase();
+     else invalid();
+    }
     if(data.cursor!=null&&(typeof data.cursor!=='string'||data.cursor.length>128||!/^[0-9T .:+Z-]+\|[0-9a-f-]{36}$/i.test(data.cursor)))invalid();
-    return reply(await store.list(view,data.interest||null,source,data.cursor||null));
+    return reply(await store.list(view,data.interest||null,source,data.cursor||null,topic,sourceKey));
    }
    if(action==='preview'||action==='add_source'){
     let url;try{url=normalizeUrl(data.url);}catch{throw Error('invalid_url');}

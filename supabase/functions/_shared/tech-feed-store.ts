@@ -1,5 +1,6 @@
 import {createClient,type SupabaseClient} from "jsr:@supabase/supabase-js@2.57.4";
 import {createOpenRouterClient,getOpenRouterConfig} from "./coach-openrouter.mjs";
+import {classifyListItem,feedFacets} from "./tech-feed-briefing.mjs";
 import {feedAccess} from "./tech-feed-topics.mjs";
 
 function checked(result:{data:any;error:any}):any {
@@ -16,8 +17,15 @@ export function feedAdmin(){
  });
 }
 export function createFeedStore(admin:SupabaseClient,owner:string|null){
- const rpc=async(name:string,args:Record<string,unknown>)=>checked(await admin.rpc(name,args));
+ const rpc=async(name:string,args:Record<string,unknown>,signal?:AbortSignal)=>{const query=admin.rpc(name,args);return checked(await(signal?query.abortSignal(signal):query));};
  return {
+  claimClassification:(version:number,limit=50)=>rpc("tech_feed_classification_claim",{p_version:version,p_limit:limit}),
+  finishClassificationBatch:(items:unknown[])=>rpc("tech_feed_classification_finish_batch",{p_items:items}),
+  briefingSnapshot:(version:number,signal?:AbortSignal)=>rpc("tech_feed_briefing_snapshot",{p_user_id:owner,p_version:version},signal),
+  claimBriefing:(version:number,hash:string,ids:string[],signal?:AbortSignal)=>rpc("tech_feed_briefing_claim",{p_user_id:owner,p_version:version,p_hash:hash,p_ids:ids},signal),
+  reserveBriefing:(lease:string,signal?:AbortSignal)=>rpc("tech_feed_briefing_reserve",{p_user_id:owner,p_lease:lease},signal),
+  finishBriefing:(lease:string,result:unknown,error:string|null,signal?:AbortSignal)=>rpc("tech_feed_briefing_finish",{p_user_id:owner,p_lease:lease,p_result:result,p_error:error},signal),
+  facets:async(view:string)=>feedFacets(await rpc("tech_feed_filter_candidates",{p_user_id:owner,p_view:view})),
   claimMedia:(recipients:string[],limit=3)=>rpc("tech_feed_media_claim",{p_recipients:recipients,p_limit:limit}),
   mediaAllowed:(id:string,lease:string)=>rpc("tech_feed_media_allowed",{p_id:id,p_lease:lease}),
   finishMedia:(id:string,lease:string,media:unknown,error:string|null)=>rpc("tech_feed_media_finish",{p_id:id,p_lease:lease,p_media:media,p_error:error}),
@@ -39,7 +47,16 @@ export function createFeedStore(admin:SupabaseClient,owner:string|null){
   reserveSearch:(id:string,lease:string,cap=900)=>rpc("tech_feed_search_reserve",{p_id:id,p_lease:lease,p_cap:cap}),
   finishSearch:(id:string,lease:string,items:unknown[],error:string|null)=>rpc("tech_feed_search_finish",{p_id:id,p_lease:lease,p_items:items,p_error:error}),
   state:()=>rpc("tech_feed_state",{p_user_id:owner}),
-  list:(view:string,interest:string|null,source:string|null,cursor:string|null)=>rpc("tech_feed_list",{p_user_id:owner,p_view:view,p_interest:interest,p_source_id:source,p_cursor:cursor}),
+  async list(view:string,interest:string|null,source:string|null,cursor:string|null,topic:string|null=null,sourceKey:string|null=null){
+   let ids:string[]|null=null;
+   if(topic){
+    const candidates=await rpc("tech_feed_filter_candidates",{p_user_id:owner,p_view:view});
+    ids=candidates.items.filter((item:any)=>classifyListItem(item,candidates.prompt).topics.includes(topic)).map((item:any)=>item.id);
+   }
+   const result=await rpc("tech_feed_list",{p_user_id:owner,p_view:view,p_interest:interest,p_source_id:source,p_cursor:cursor,p_source_key:sourceKey,p_article_ids:ids});
+   const{_prompt,...response}=result;
+   return{...response,...(Array.isArray(result.items)?{items:result.items.map((item:any)=>classifyListItem(item,_prompt||''))}:{})};
+  },
   mutate:(action:string,data:unknown)=>rpc("tech_feed_mutate",{p_user_id:owner,p_action:action,p_data:data}),
   previewAllowed:()=>rpc("tech_feed_preview_reserve",{p_user_id:owner}),
   async saveTimezone(zone:string){

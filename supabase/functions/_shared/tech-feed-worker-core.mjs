@@ -1,3 +1,4 @@
+import {runClassificationWorker} from './tech-feed-classification.mjs';
 import {runMediaWorker} from './tech-feed-media.mjs';
 import {runTranslationWorker} from './tech-feed-translation-worker.mjs';
 import {classifyArticle as classify} from './tech-feed-topics.mjs';
@@ -50,6 +51,9 @@ async function executeFeedWorker({store,pilotIds,transport,ask,signal,stats,sear
  if(search){
   try{result.search=await runSearchWorker({store,search,signal:AbortSignal.any([signal,AbortSignal.timeout(35000)])});}
   catch{result.search={state:'unavailable',attempted:0,collected:0,failed:1};}
+ }
+ if(store.claimClassification&&!signal.aborted){
+  try{result.classification=await runClassificationWorker({store,signal});}catch{result.classification={unavailable:true};}
  }
  await Promise.all([
   translator&&!signal.aborted?runTranslationWorker({store,pilotIds,translator,signal:AbortSignal.any([signal,AbortSignal.timeout(20000)])}).then(value=>{result.translation=value;}):null,

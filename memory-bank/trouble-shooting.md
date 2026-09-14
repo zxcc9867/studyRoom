@@ -1,3 +1,36 @@
+## 2026-09-15 — 브리핑 재조회 수명주기 회귀 수정
+
+### 상황과 원인
+새 글 확인 완료 후 revision 효과가 setData(null)을 실행해, 후속 통계조회 실패 시 이전 통계까지 사라졌다. 창 복귀 이벤트는 같은 날짜를 다시 설정하기만 해 같은 날 신규 수집 내용은 갱신하지 않았다.
+
+### 해결 방법
+owner/date/timezone 수명과 같은 범위 revision 읽기를 분리했다. 같은 범위 실패는 마지막 통계를 유지하고 미검증 인사이트를 숨긴다. 복귀 이벤트는150ms로 합쳐 읽기만 수행하며, 진행 중 생성에는 한 번의 후속 읽기만 예약한다. 계정/날짜 변경에는 낡은 내용을 버린다.
+
+### 검증
+실제 React mounted Chromium 회귀4개: RED3fail/1pass→GREEN4/4. Parent 전체685/685, 브라우저3복귀이벤트→1read·32→33건·실패후33유지·AI0 확인. 초기 helper/SSR 테스트만으로 놓쳤던 effect 경로를 재발 방지 대상으로 추가했다.
+
+### 관련 파일과 주의
+apps/web/src/FeedDailyBriefing.tsx, apps/web/test/feedBriefingLifecycle.test.mjs. FEED_BROWSER_MODULE/FEED_BROWSER_EXECUTABLE로 설치된 Playwright/Chromium을 지정해 실행한다. 기본CI에runtime이없으면 optional4skip이며 실행된 것으로 간주하지 않는다. 도구 출력 잘림으로 생성patch에 문자열이 섞인 빌드 오류도 수정했고, 이후 exactdiff와 전체TS/build로 확인했다.
+
+
+## 2026-09-15 — 기술 피드 분류·Markdown 표시 개선
+
+### 상황과 원인
+AI 요약이 없으면 category가 비어 미분류 배지가 반복되고, 소개 문자열을 그대로 출력해 ### 같은 Markdown 기호가 보였다. 수집 관심 문장을 카드 태그로 반복하고 고정5개 관심 필터를 별도로 표시해 수집 설정과 읽기 필터의 역할도 겹쳤다.
+
+### 해결 방법
+공용 보수적 분류/실제 문구 기반 태그와 안전한 Markdown AST·260자 미리보기를 추가했다. 분류 백필은50개 lease/version/content 검증으로 제한하고 AI provenance를 보존한다. 전체 가시성 facets와 별도 일일 통계/명시적 AI API를 구현했다. UI 연결과 운영 적용은 progress를 따른다.
+
+### 회귀와 재발 방지
+AST 상한 이후 꼬리 누락, preview의 raw 기호 잔존, 코드 리터럴 변조, inline code를 감싼 링크/강조 조합을 실패 테스트로 확인하고 수정했다. 코드 내용을 충돌 불가능한 토큰으로 보호한 뒤 외부 문법을 한 번 정리하고 복원한다. 최종 공통 모델19/19, 서버 포함194/194 통과, 독립 리뷰 중요 지적 없음.
+
+### 관련 파일
+packages/core/src/feedClassification.mjs, feedMarkdown.mjs 및 tests; supabase/functions/_shared/tech-feed-briefing.mjs, tech-feed-classification.mjs; migration20260914164719.
+
+### 남은 리스크
+현재 기록은 로컬 검증이다. 원격 권한/실계정/브라우저 검증은 별도 수행하며 기존 Supabase 장애의 최초 자원 원인이 확정됐다는 의미가 아니다.
+
+
 ## 2026-09-14 — 최종 리뷰 및 검증 완료
 
 - 독립 리뷰의 P2 2건(세션 시작 전 조회가 새 세션을 덮는 경합, 이전 계정 시작 실패가 새 계정 상태를 오염)을 수정. 시작 mutation 전 조회 취소/버전 무효화, RPC 중 조회 억제, 계정별 시작 요청 abort/결과 가드 적용.

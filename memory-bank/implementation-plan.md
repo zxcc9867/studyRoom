@@ -1,3 +1,15 @@
+## Supabase 변경 이력 — 2026-09-15 기술 피드 일일 브리핑 (DB·Edge 적용)
+
+- 변경 대상: tech_feed_articles 분류 provenance/version/topics/lease, 개인 tech_feed_briefings 캐시, service 전용 visibility/list/facets/snapshot/claim/reserve/finish RPC 및 기존 cleanup 경로.
+- 변경 이유: 요약 성공과 분류를 분리하고, 전체 가시성 기준 보기 필터·오늘 통계와 버튼형 AI 인사이트를 제공한다.
+- 마이그레이션 파일: supabase/migrations/20260914164719_tech_feed_daily_briefing.sql. MCP 운영 적용 완료. CLI 최초 생성번호20260914153404에서 MCP 기록번호로 파일명만 동기화했으며 SQL SHA256은5AE41C98F61C2A09824B8D100D8BB97A5D4D11EA2BA9919D5654CDFA4D1994E3으로 동일.
+- API: list에 topic/source_key 및 필터 적용 후 total 추가; facets는 latest/saved 전체 가시성의 주제·실제 출처별 count; briefing은 읽기 전용, briefing_generate만 AI 호출. 원래5개 RPC 인자는 유지하고 마지막2개 default 인자로 단일 함수 시그니처를 사용한다.
+- 시간/근거: 서버 프로필 시간대의 discovered_at 반개구간, 전체 통계와 최대24개/소개160~2000자 표본 분리. 전체 메시지는32000자 안으로 조정하며 사용자 관심 문장을 AI에 전달하거나 공유 태그로 저장하지 않는다.
+- 권한/쿼터: owner RLS, 브리핑 본문 직접 SELECT 차단(무해한 소유자 메타데이터만 허용), 모든 분석 표본 권한을 읽기·예약·저장 시 재검증. 기존6회 실제 호출 공유,90초 lease/20초 provider/30초 request. 새 cron/유료 fallback 없음.
+- 확인 방법: 독립 리뷰 spec PASS/quality APPROVED, parent194/194 회귀. 로컬 PGlite1000/5000개 saved scale에서 list11/38ms, facets SQL47/197ms + JS28/120ms; 후보 JSON1.12/5.61MB. 실제 운영 네트워크/무한 기록 규모 보장은 아니며 후보 로드는 기록 수에 선형 증가한다.
+- 주의 사항: 운영 적용 후 grants/RLS/query plan/구버전 RPC 호출을 확인한다. 분류 worker 취소 신호의 RPC 전달은 기존10초 fetch 상한에 의존하는 Minor 잔여 항목이다.
+
+
 ## 2026-09-14 — 대시보드 조회와 회복 제출 대기 분리
 
 - dashboardData.ts runBoundedRequest는 기본15초 전체 작업 deadline. AbortSignal을8종 PostgREST 쿼리와 페이지에 전달하며 signal을 보지 않는 auth/transport 대기도 race로 종료한다. RPC 회복 제출/세션 시작도 같은 경계 사용.

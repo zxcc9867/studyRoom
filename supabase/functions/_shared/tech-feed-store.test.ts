@@ -14,6 +14,20 @@ Deno.test('real SDK store binds owner to queries and timezone writes only profil
  assert.equal(calls[3].body.p_user_id,owner);assert.ok(calls.every(c=>!c.url.pathname.includes('coach_')));
  await store.finishSummary(owner,owner,owner,{technology:'기술',change:'변경',usage:'활용'},'ready','practice');assert.equal(calls[4].body.p_category,'practice');assert.deepEqual(Object.keys(calls[4].body.p_summary).sort(),['change','technology','usage']);
 });
+Deno.test('facets and filtered list share per-user tags, and only owner-bound briefing RPCs are sent',async()=>{
+ const calls:any[]=[];
+ const admin=client(async(input,init)=>{
+  const url=new URL(String(input)),body=JSON.parse(String(init?.body));calls.push({url,body});
+  const article={id:'00000000-0000-4000-8000-000000000111',title:'FluxDB tutorial',excerpt:'A neutral introduction.',summary_status:'pending',sources:[{value:'host:example.test',label:'example.test'}]};
+  const data=url.pathname.endsWith('/tech_feed_filter_candidates')?{prompt:'FluxDB',items:[article]}:url.pathname.endsWith('/tech_feed_list')?{items:[article],_prompt:'FluxDB',total:1,next_cursor:null}:{status:'claimed'};
+  return new Response(JSON.stringify(data),{headers:{'Content-Type':'application/json'}});
+ });
+ const store=createFeedStore(admin,owner),facets=await store.facets('saved');assert.equal(facets.topics[0].value,'FluxDB');
+ const list=await store.list('saved',null,null,null,'FluxDB','host:example.test');assert.deepEqual(list.items[0].topics,['FluxDB']);assert.equal('_prompt'in list,false);
+ assert.equal(calls[2].body.p_source_key,'host:example.test');assert.deepEqual(calls[2].body.p_article_ids,['00000000-0000-4000-8000-000000000111']);
+ await store.briefingSnapshot(1);await store.claimBriefing(1,'hash',[owner]);await store.reserveBriefing('lease');await store.finishBriefing('lease',null,'unavailable');
+ assert.ok(calls.every(c=>c.body.p_user_id===owner));assert.ok(calls.every(c=>!('p_now'in c.body)&&!('p_time_zone'in c.body)));
+});
 Deno.test('actual free client charges failed calls, honors quota rejection, and cannot route paid',async()=>{
  let reservations=0,providerCalls=0;
  const admin=client(async(input,init)=>{assert.equal(new URL(String(input)).pathname,'/rest/v1/rpc/coach_reserve_ai');assert.equal(JSON.parse(String(init?.body)).p_user_id,owner);return new Response(JSON.stringify(++reservations<=6),{headers:{'Content-Type':'application/json'}});});

@@ -1,3 +1,41 @@
+## 2026-09-15 — 기술 피드 서버 적용·최종 리뷰 완료
+
+- 전체 변경 독립 리뷰 승인(중요 지적 없음), 로컬685/685·Edge10/10·build·mobile·README 검사 통과. 마이그레이션 파일명 동기화 후 DB14/14 재확인.
+- Supabase migration20260914164719 적용, tech-feed v20 / tech-feed-worker v22 ACTIVE, JWT검증 유지. 새 cron이나 인증/출석/타이머 변경 없음.
+- 운영 RLS/직접 본문 SELECT 차단/service RPC 권한 및 기존5인자 list 호출 확인. 실제 읽기 실행 list11.915ms/saved facets4.358ms/daily cold836.367ms, 무인증 API401.
+- 기존65개 글 모두 rules_version1 백필 완료: 사례·심층7, 실무15, 소식1, 근거 부족42개는 억지 분류하지 않고 미분류 배지를 숨김. 수집 주기 정상 완료 확인.
+- 다음: 이 기능만 커밋·푸시하여 웹 배포 검증. 기존 장애 복구 미커밋 문서는 별도 보존. 실제 로그인 사용자 AI생성은 미검증.
+
+## 2026-09-15 — 기술 피드 개선 최종 로컬 검증
+
+### 완료한 작업
+- 공통 분류/Markdown 모델, 서버 facets/list.total·분류 백필·일일 통계와 AI 캐시, React3개 컴포넌트 및 기존 피드 연결. README3언어와 설계/검증 문서 반영.
+- UI 독립 리뷰2개 P2 수정: 같은 범위 재조회 실패 통계 소실, 같은 날 복귀 시 갱신 누락. mounted Chromium RED3fail/1pass→GREEN4/4, scoped 재리뷰 승인.
+- Parent 전체 npm test685/685(0skip), build1713modules, Edge10/10와entrypoint검사, mobile:check, docs:check24references 통과. 브라우저390/1440에서 전체필터/저장/페이지/인사이트근거/캐시/오류/계정경합/긴코드 확인.
+- 운영과 무관한 가상 API/AI로 검증했으며 실제 AIprovider를 호출하지 않았다. 기본CI의 optionalbrowser4skip과 로컬실행을 구분한다.
+
+### 남은 작업
+- 최종 전체리뷰, 새migration/grants/queryplan, tech-feedAPI/worker, GitHub Actions/Vercel 배포 확인.
+- 분류RPC 취소신호 전달은 기존10초fetch상한에 의존하는 Minor 관찰항목. 실제owner생성/대규모기록 성능은 검증범위를 명시한다.
+
+
+## 2026-09-15 — 기술 피드 브리핑 구현 1단계
+
+- 완료: feedClassification.mjs 및 feedMarkdown.mjs/declarations, 회귀 테스트. AI provenance/충돌/태그 개인정보 분리, safe AST, 코드 보호 미리보기와 cap tail 보존.
+- 검증: baseline626/626; 초기 core68/68; 검토 보완 후 최신 focused19/19, syntax 확인. 독립 재검토 중요 지적 없음.
+- 진행 중: 서버 migration/API/worker와 일일 브리핑. UI 연결·전체 테스트·Edge/빌드·모바일/README 검사·배포는 아직 남음.
+- output/playwright 격리 화면 모형의 기존 UI bootstrap 확인(20개 카드, 오류0, 실제 공급자 호출0). 새 기능 검증은 후속 단계에서 수행.
+
+
+## 2026-09-14 — 기술 피드 읽기·브리핑 설계
+
+- 완료: 승인 방향에 따라 상세 설계 작성, 현재 분류/표시/가시성/AI 연결 검토, PRD 갱신.
+- 문서: docs/tech-feed/daily-briefing-design.md, memory-bank/prd-tech-feed.md, active-context.md, progress.md.
+- 검증: 설계 요구사항4개와 실패/권한/표본/날짜/캐시/회귀 항목 자체 검토. 문서 차이 검사. 코드 변경이 없어 테스트/빌드/배포하지 않음.
+- 남음: 상세 문서 승인, 실행 계획, 실패 테스트부터 구현, 전체 검증 및 프로젝트 정책에 따른 운영 배포.
+- 제품 기능은 아직 미구현. 과거 장애 진단·재시작 문서 미커밋 변경은 그대로 보존.
+
+
 ## 2026-09-14 — 회복루틴 잠금 수정 운영 배포 완료
 
 - 코드9eff7ccd503a4f28181636108971c10e8f91a450 main 푸시, Actions34850127211 success. 서버 CI 테스트/모바일/README/Edge/빌드/배포 모두 성공.

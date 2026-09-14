@@ -2,12 +2,16 @@ import { useEffect, useId, useMemo, useRef, useState, type FormEvent } from 'rea
 import {manualRefreshMessage,refreshFeedNow} from './techFeed.mjs';
 import { Bookmark, BookOpen, ChevronLeft, ChevronRight, ExternalLink, Leaf, Plus, RefreshCw, Rss, Settings2 } from 'lucide-react';
 import type { SupabaseClient } from '@supabase/supabase-js';
-import { applyPreferenceResponse, createTechFeedClient, currentFeedState, feedSourceHost, FEED_CATEGORIES, FEED_INTERESTS, interestSavePayload, isCurrentFeedRequest, isRevisionConflict, mergeFeedPage, preferenceRefreshResult, receivingPayload, safeFeedUrl, summaryLabel } from './techFeed.mjs';
-import type { FeedArticle, FeedPage, FeedPreferenceResponse, FeedPreview, FeedState } from './techFeedTypes';
+import { applyPreferenceResponse, createTechFeedClient, currentFeedState, feedSourceHost, FEED_CATEGORIES, interestSavePayload, isCurrentFeedRequest, isRevisionConflict, mergeFeedPage, preferenceRefreshResult, receivingPayload, safeFeedUrl, summaryLabel } from './techFeed.mjs';
+import type { FeedArticle, FeedFacets, FeedPage, FeedPreferenceResponse, FeedPreview, FeedState } from './techFeedTypes';
 import { FeedInterestSettings } from './FeedInterestSettings';
-import { feedExcerptView, feedPageView } from './feedPresentation.mjs';
-import {cleanFeedIntroduction,feedContentKind} from '../../../packages/core/src/feedContent.mjs';
+import { feedExcerptView, feedPageView, feedStructuredIntroduction } from './feedPresentation.mjs';
+import {feedContentKind} from '../../../packages/core/src/feedContent.mjs';
 import {FeedArticleMedia} from './FeedArticleMedia';
+import {classifyFeedArticle,feedTopicTags} from '../../../packages/core/src/feedClassification.mjs';
+import {FeedArticleText} from './FeedArticleText';
+import {FeedDailyBriefing} from './FeedDailyBriefing';
+import {FeedViewFilters} from './FeedViewFilters';
 import './techFeed.css';
 
 type Props = {supabase:SupabaseClient;userId:string;timeZone:string;onPlan:(article:FeedArticle)=>void;linkedTodo?:{userId:string;articleId:string;todoId:string}|null};
@@ -23,14 +27,15 @@ export function FeedArticleCard({article,onSave,onPlan,busy,timeZone}:{article:F
   const time = date && Number.isFinite(Date.parse(date)) ? new Intl.DateTimeFormat('ko-KR', {timeZone,month:'short',day:'numeric',hour:'2-digit',minute:'2-digit'}).format(new Date(date)) : '날짜 미확인';
   const video = feedContentKind(article.url) === 'video';
   const hasSummary = !video && article.summary_status === 'ready' && Boolean(article.summary);
-  const excerpt = feedExcerptView(video ? '' : cleanFeedIntroduction(hasSummary ? article.summary!.technology : (translated ? article.excerpt_ko : article.excerpt)));
-  const tags = [...new Set([...(article.matched_topics || []),...article.interests.map(id=>FEED_INTERESTS.find(([key])=>key===id)?.[1] || '').filter(Boolean)])].slice(0,2);
+  const excerpt = feedExcerptView(video ? '' : feedStructuredIntroduction(hasSummary ? article.summary!.technology : (translated ? article.excerpt_ko : article.excerpt)));
+  const classification = classifyFeedArticle(article);
+  const tags = [...new Set([...(article.topics || []).filter(tag=>typeof tag==='string'&&tag.length<=32),...feedTopicTags(article.title,article.excerpt,(article.matched_topics || []).join(', '))])].slice(0,3);
   const sourceName = article.sources[0]?.name || host || '기술 소식';
   const expandable = excerpt.expandable || hasSummary;
   return <article className="feed-card">
     <header className="feed-author">
       <span className="feed-avatar" aria-hidden="true">{Array.from(sourceName.replace(/^www\./,'')).slice(0,2).join('').toUpperCase()}</span>
-      <div className="feed-author-info"><strong>{sourceName}</strong><div className="feed-card-meta"><time dateTime={date}>{article.published_at ? '' : '발견 '} {time}</time><span>{article.category ? FEED_CATEGORIES[article.category] : '미분류'}</span></div></div>
+      <div className="feed-author-info"><strong>{sourceName}</strong><div className="feed-card-meta"><time dateTime={date}>{article.published_at ? '' : '발견 '} {time}</time>{classification.category && <span>{FEED_CATEGORIES[classification.category]}</span>}</div></div>
       {article.saved && <Bookmark className="feed-saved-mark" size={17} aria-label="저장한 글" fill="currentColor"/>}
     </header>
     <div className="feed-card-body">
@@ -39,15 +44,15 @@ export function FeedArticleCard({article,onSave,onPlan,busy,timeZone}:{article:F
       <FeedArticleMedia key={article.id+JSON.stringify(article.media)} media={article.media} title={(translated?article.title_ko:article.title)||article.title} original={link}/>
       <div id={contentId}>
         {expanded && hasSummary ? <dl className="feed-summary">
-          <div><dt>어떤 기술인가요</dt><dd>{cleanFeedIntroduction(article.summary!.technology)}</dd></div>
-          <div><dt>핵심 변화</dt><dd>{cleanFeedIntroduction(article.summary!.change)}</dd></div>
-          <div><dt>이럴 때 살펴보세요</dt><dd>{cleanFeedIntroduction(article.summary!.usage)}</dd></div>
-        </dl> : <p className="feed-excerpt">{(expanded ? excerpt.full : excerpt.preview) || (video ? '영상 자료입니다. 시간표·출연자 목록은 소개에서 제외했어요. 내용은 원문에서 확인해 주세요.' : '충분한 글 소개가 없어 내용을 추측하지 않았어요. 원문에서 자세히 읽어 보세요.')}</p>}
+          <div><dt>어떤 기술인가요</dt><dd><FeedArticleText text={feedStructuredIntroduction(article.summary!.technology)}/></dd></div>
+          <div><dt>핵심 변화</dt><dd><FeedArticleText text={feedStructuredIntroduction(article.summary!.change)}/></dd></div>
+          <div><dt>이럴 때 살펴보세요</dt><dd><FeedArticleText text={feedStructuredIntroduction(article.summary!.usage)}/></dd></div>
+        </dl> : expanded && excerpt.full ? <FeedArticleText text={excerpt.full}/> : <p className="feed-excerpt">{excerpt.preview || (video ? '영상 자료입니다. 시간표·출연자 목록은 소개에서 제외했어요. 내용은 원문에서 확인해 주세요.' : '충분한 글 소개가 없어 내용을 추측하지 않았어요. 원문에서 자세히 읽어 보세요.')}</p>}
       </div>
       {expandable && <button type="button" className="feed-expand" aria-expanded={expanded} aria-controls={contentId} onClick={()=>setExpanded(value=>!value)}>{expanded?'내용 접기':hasSummary?'AI 요약 펼치기':'내용 더 보기'}<ChevronRight size={14}/></button>}
       {link && <div className="feed-citation"><span>{article.origin === 'web_search' ? '검색 소개 출처' : '발췌 출처'}</span><a href={link} target="_blank" rel="noopener noreferrer">{host || sourceName}<ExternalLink size={15}/></a></div>}
       <div className="feed-evidence"><p>{video ? '영상 원문 링크 · 본문 요약 없음' : summaryLabel(article)}</p><p>{translated ? 'DeepL 자동 번역 · 원문 확인 권장' : '한국어 번역 대기 · 원문 표시'}</p></div>
-      {translated && !video && <details className="feed-original-text"><summary>원문 텍스트 보기</summary><p>{article.title}</p><p>{cleanFeedIntroduction(article.excerpt)}</p></details>}
+      {translated && !video && <details className="feed-original-text"><summary>원문 텍스트 보기</summary><p>{article.title}</p><FeedArticleText text={feedStructuredIntroduction(article.excerpt)}/></details>}
       <p className="feed-sources">{sourceLine}</p>
       <div className="feed-card-actions">
         {link && <a href={link} target="_blank" rel="noopener noreferrer" className="feed-original"><ExternalLink size={17}/> 원문 읽기</a>}
@@ -72,7 +77,13 @@ export default function TechFeed({supabase,userId,timeZone,onPlan,linkedTodo=nul
   const [stateOwner,setStateOwner] = useState('');
   const [articles,setArticles] = useState<FeedArticle[]>([]);
   const [view,setView] = useState<'latest'|'saved'>('latest');
-  const [interest,setInterest] = useState('');
+  const [topic,setTopic] = useState('');
+  const [total,setTotal] = useState<number|null>(null);
+  const [facets,setFacets] = useState<FeedFacets|null>(null);
+  const [facetsLoading,setFacetsLoading] = useState(true);
+  const [facetsError,setFacetsError] = useState('');
+  const [facetsRevision,setFacetsRevision] = useState(0);
+  const [briefingRevision,setBriefingRevision] = useState(0);
   const [source,setSource] = useState('');
   const [cursor,setCursor] = useState<string|null>(null);
   const [pageNumber,setPageNumber] = useState(1);
@@ -104,7 +115,7 @@ export default function TechFeed({supabase,userId,timeZone,onPlan,linkedTodo=nul
     setPageNumber(1);
     setSettingsOpen(false);
     focusPage.current=false;
-    setView('latest');setInterest('');
+    setView('latest');setTopic('');setFacets(null);setTotal(null);
     setStateOwner('');
     setState(null);
     setArticles([]);
@@ -128,7 +139,7 @@ export default function TechFeed({supabase,userId,timeZone,onPlan,linkedTodo=nul
 
   useEffect(()=>{
     const controller = new AbortController(); const request = ++generation.current;
-    setLoading(true); setError(''); setCursor(null); setArticles([]); setPageNumber(1);
+    setLoading(true); setError(''); setCursor(null); setArticles([]); setPageNumber(1);setTotal(null);
     void (async()=>{
       try {
         const next:FeedState = await api('state',{},controller.signal);
@@ -137,14 +148,21 @@ export default function TechFeed({supabase,userId,timeZone,onPlan,linkedTodo=nul
         if(!next.preferences.prompt) setSettingsOpen(true);
         if (!interestDraftDirty.current) setInterestDraft(next.preferences.prompt);
         if (!next.enabled) return;
-        const page:FeedPage = await api('list',{view,interest:interest || undefined,source_id:source || undefined},controller.signal);
+        const page:FeedPage = await api('list',{view,topic:topic || undefined,source_key:source || undefined},controller.signal);
         if (request !== generation.current) return;
-        setArticles(page.items);setCursor(page.next_cursor);
+        setArticles(page.items);setCursor(page.next_cursor);setTotal(page.total);
       } catch(e) {if(!controller.signal.aborted && request===generation.current)setError(e instanceof Error?e.message:'피드를 불러오지 못했어요.');}
       finally {if(!controller.signal.aborted && request===generation.current)setLoading(false);}
     })();
     return ()=>{controller.abort();++generation.current;};
-  },[api,view,interest,source,revision]);
+  },[api,view,topic,source,revision]);
+
+  useEffect(()=>{
+    const controller=new AbortController();
+    setFacets(null);setFacetsLoading(true);setFacetsError('');
+    void api('facets',{view},controller.signal).then((next:FeedFacets)=>{if(!controller.signal.aborted)setFacets(next);}).catch(cause=>{if(!controller.signal.aborted)setFacetsError(cause instanceof Error?cause.message:'필터를 확인하지 못했어요.');}).finally(()=>{if(!controller.signal.aborted)setFacetsLoading(false);});
+    return()=>controller.abort();
+  },[api,view,revision,facetsRevision]);
 
   async function action(key:string, work:()=>Promise<void>) {
     if(actionLock.current) return;
@@ -166,7 +184,7 @@ export default function TechFeed({supabase,userId,timeZone,onPlan,linkedTodo=nul
     setArticles(refresh.articles);
     setCursor(refresh.cursor);
     setPreferenceConflict(true);
-    if(refresh.resetFeed)setRevision(value=>value+1);
+    if(refresh.resetFeed)setRevision(value=>value+1);setBriefingRevision(value=>value+1);
   }
   function changeInterestDraft(value:string) {
     interestDraftDirty.current=true;
@@ -186,7 +204,7 @@ export default function TechFeed({supabase,userId,timeZone,onPlan,linkedTodo=nul
         setPreferenceConflict(false);
         setNotice(state.preferences.prompt?'관심 내용을 변경했어요. 새 주제의 첫 결과를 기다려 주세요.':'관심 소식 받기를 시작했어요.');
         setCursor(null);
-        setRevision(value=>value+1);
+        setRevision(value=>value+1);setBriefingRevision(value=>value+1);
       } catch(nextError) {
         if(!isRevisionConflict(nextError))throw nextError;
         await latestPreferencesAfterConflict(request,state.preferences.prompt);
@@ -206,7 +224,7 @@ export default function TechFeed({supabase,userId,timeZone,onPlan,linkedTodo=nul
         setStateOwner(userId);
         setArticles(refresh.articles);
         setCursor(refresh.cursor);
-        if(refresh.resetFeed)setRevision(value=>value+1);
+        if(refresh.resetFeed)setRevision(value=>value+1);setBriefingRevision(value=>value+1);
         setPreferenceConflict(false);
         setNotice(receiving?'관심 소식 받기를 다시 시작했어요. 저장된 소식은 그대로 이어집니다.':'관심 소식 수신을 잠시 멈췄어요. 저장한 글과 공부할 일은 그대로예요.');
       } catch(nextError) {
@@ -227,7 +245,7 @@ export default function TechFeed({supabase,userId,timeZone,onPlan,linkedTodo=nul
         const result=await refreshFeedNow(api,state.preferences.revision,{signal});
         if(!isCurrentFeedRequest(request,settingsGeneration.current,signal))return;
         setNotice(manualRefreshMessage(result));
-        setRevision(value=>value+1);
+        setRevision(value=>value+1);setBriefingRevision(value=>value+1);
       }catch(nextError){
         if(!isRevisionConflict(nextError))throw nextError;
         await latestPreferencesAfterConflict(request,state.preferences.prompt);
@@ -242,11 +260,11 @@ export default function TechFeed({supabase,userId,timeZone,onPlan,linkedTodo=nul
     if(!cursor || target!==pageView.page+1)return;
     const request=generation.current;
     await action('page',async()=>{
-      const next:FeedPage=await api('list',{view,interest:interest||undefined,source_id:source||undefined,cursor},lifetime.current?.signal);
+      const next:FeedPage=await api('list',{view,topic:topic||undefined,source_key:source||undefined,cursor},lifetime.current?.signal);
       if(request!==generation.current)return;
       const merged=mergeFeedPage(articles,next.items);
       focusPage.current=true;
-      setArticles(merged);setCursor(next.next_cursor);
+      setArticles(merged);setCursor(next.next_cursor);setTotal(next.total);
       setPageNumber(feedPageView(merged,target,next.next_cursor,view==='saved').page);
     });
   }
@@ -257,6 +275,7 @@ export default function TechFeed({supabase,userId,timeZone,onPlan,linkedTodo=nul
       if(request!==settingsGeneration.current)return;
       setArticles(current=>current.map(item=>item.id===article.id?{...item,saved:!article.saved}:item));
       setNotice(article.saved?'저장을 해제했어요.':'다른 기기에서도 볼 수 있도록 저장했어요.');
+      setFacetsRevision(value=>value+1);if(view==='saved'&&article.saved)setTotal(value=>value===null?null:Math.max(0,value-1));
     });
   }
   async function inspect(event:FormEvent) {
@@ -285,14 +304,14 @@ export default function TechFeed({supabase,userId,timeZone,onPlan,linkedTodo=nul
         onRetry={retryInterest}
       />
       </details>
+      <FeedDailyBriefing key={userId+':'+timeZone} api={api} userId={userId} timeZone={timeZone} revision={briefingRevision}/>
       <div className="feed-toolbar"><div className="feed-tabs" aria-label="피드 보기">{(['latest','saved'] as const).map(tab=><button key={tab} type="button" aria-pressed={view===tab} disabled={Boolean(busy)} onClick={()=>setView(tab)}>{tab==='latest'?'최신':'저장'}</button>)}</div><button className="secondary" type="button" disabled={loading||Boolean(busy)} aria-busy={busy==='refresh'} onClick={refreshNow}><RefreshCw size={16}/>{busy==='refresh'?'새 소식 찾는 중…':'새 글 확인'}</button></div>
-      <div className="feed-filters"><label>관심 분야<select value={interest} onChange={e=>setInterest(e.target.value)} disabled={Boolean(busy)}><option value="">전체 분야</option>{FEED_INTERESTS.map(([id,label])=><option value={id} key={id}>{label}</option>)}</select></label><label>출처<select value={source} onChange={e=>setSource(e.target.value)} disabled={Boolean(busy)}><option value="">전체 출처</option>{state.sources.map(item=><option key={item.id} value={item.id}>{item.name}</option>)}</select></label></div>
+      <FeedViewFilters facets={facets} topic={topic} source={source} total={total} busy={Boolean(busy)} loading={facetsLoading} error={facetsError} onTopic={setTopic} onSource={setSource} onReset={()=>{setTopic('');setSource('');}} onRetry={()=>setFacetsRevision(value=>value+1)}/>
       <details className="feed-collection-status"><summary>수집·번역 상태와 출처 관리<ChevronRight size={15}/></summary>
       <details className="feed-subscriptions"><summary><Settings2 size={17}/>고급 설정: 수집 출처 <span>{state.sources.filter(item=>item.subscribed).length}개 구독</span></summary>
-        <fieldset disabled={Boolean(busy)}><legend>관심 분야를 골라 주세요</legend><div className="feed-interest-options">{FEED_INTERESTS.map(([id,label])=><label key={id}><input type="checkbox" checked={state.interests.includes(id)} onChange={()=>void action('interests',async()=>{const interests=state.interests.includes(id)?state.interests.filter(i=>i!==id):[...state.interests,id];await api('interests',{interests},lifetime.current?.signal);setState(s=>s?{...s,interests}:s);setRevision(n=>n+1);})}/>{label}</label>)}</div></fieldset>
-        <div className="feed-source-options">{state.sources.map(item=><label key={item.id}><input type="checkbox" checked={item.subscribed} disabled={Boolean(busy)||item.permission_status==='blocked'} onChange={()=>void action(item.id,async()=>{await api('subscribe',{source_id:item.id,subscribed:!item.subscribed},lifetime.current?.signal);setRevision(n=>n+1);})}/><span><strong>{item.name}</strong><small>{item.permission_status==='approved'?'공개 소스':item.permission_status==='pending'?'이용 조건 확인 중 · 자동 수집 대기':'수집 중지'}{item.last_error?' · 최근 수집 실패':''}</small></span></label>)}</div>
+        <div className="feed-source-options">{state.sources.map(item=><label key={item.id}><input type="checkbox" checked={item.subscribed} disabled={Boolean(busy)||item.permission_status==='blocked'} onChange={()=>void action(item.id,async()=>{await api('subscribe',{source_id:item.id,subscribed:!item.subscribed},lifetime.current?.signal);setRevision(n=>n+1);setBriefingRevision(n=>n+1);})}/><span><strong>{item.name}</strong><small>{item.permission_status==='approved'?'공개 소스':item.permission_status==='pending'?'이용 조건 확인 중 · 자동 수집 대기':'수집 중지'}{item.last_error?' · 최근 수집 실패':''}</small></span></label>)}</div>
         <form className="feed-add-source" onSubmit={inspect}><label htmlFor="feed-url">공개 RSS·Atom 주소 추가</label><div><input id="feed-url" type="url" required placeholder="https://example.com/feed.xml" value={feedUrl} onChange={e=>{setFeedUrl(e.target.value);setPreview(null);}} disabled={Boolean(busy)}/><button className="secondary" disabled={Boolean(busy)}><Rss size={16}/>미리 보기</button></div><small>로그인이 필요 없는 주소만 지원해요. 최대 10개 · 이용 조건 확인 후 자동 수집됩니다.</small></form>
-        {preview && <div className="feed-preview"><h3>{preview.name}</h3><ul>{preview.items.slice(0,3).map((item,i)=><li key={`${item.url}-${i}`}>{item.title}</li>)}</ul><button className="primary" type="button" disabled={Boolean(busy)} onClick={()=>void action('add',async()=>{await api('add_source',{url:preview.url},lifetime.current?.signal);setPreview(null);setFeedUrl('');setNotice('구독을 등록했어요. 이용 조건 확인 후 자동 수집이 시작됩니다.');setRevision(n=>n+1);})}><Plus size={16}/>이 소스 구독</button></div>}
+        {preview && <div className="feed-preview"><h3>{preview.name}</h3><ul>{preview.items.slice(0,3).map((item,i)=><li key={`${item.url}-${i}`}>{item.title}</li>)}</ul><button className="primary" type="button" disabled={Boolean(busy)} onClick={()=>void action('add',async()=>{await api('add_source',{url:preview.url},lifetime.current?.signal);setPreview(null);setFeedUrl('');setNotice('구독을 등록했어요. 이용 조건 확인 후 자동 수집이 시작됩니다.');setRevision(n=>n+1);setBriefingRevision(n=>n+1);})}><Plus size={16}/>이 소스 구독</button></div>}
       </details>
       <p className="feed-sync">{!state.service_available?'현재 새 소식 수집 중지':state.sources.filter(item=>item.subscribed&&item.permission_status==='approved').length>0?`승인된 RSS/API 출처 ${state.sources.filter(item=>item.subscribed&&item.permission_status==='approved').length}곳 설정됨`:'현재 수집 가능한 RSS/API 출처 없음'} · {state.last_success_at ? `마지막 RSS/API 성공 ${new Intl.DateTimeFormat('ko-KR',{timeZone,dateStyle:'short',timeStyle:'short'}).format(new Date(state.last_success_at))}` : 'RSS/API 성공 기록 없음'}{failures.length>0&&` · ${failures.length}개 소스 재시도 대기`}</p>
       <p className="feed-budget">{state.translation_service === 'not_configured' ? '한국어 번역 연결 준비 중 · 현재 원문으로 표시합니다.' : state.translation_service === 'quota_exhausted' ? '무료 번역 한도에 도달했어요. 기존 번역은 유지하고 새 번역은 대기합니다.' : state.translation_service === 'unavailable' ? '번역 연결을 확인하고 있어요. 원문을 먼저 읽어 주세요.' : state.translation_service === 'paused' ? '자동 번역이 일시 중지되어 있어요.' : '제목·소개는 무료 한도 내에서 순차적으로 한국어 번역해요. 번역과 AI 요약은 별도로 처리됩니다.'}</p>
