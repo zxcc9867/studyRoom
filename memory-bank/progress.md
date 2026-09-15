@@ -1,3 +1,38 @@
+### 2026-09-15 — 진단 로깅 추가로 OpenRouter 키 만료 확정
+
+#### 완료한 작업
+- CI 스모크 체크에 상태코드 로깅 영구 추가, Edge askFeedAi에 실패 code/status 로깅 추가.
+- 임시 A/B/C/D 프로브로 라우팅 제약을 하나씩 제거해 검증 → 4종 모두 401 "API key expired". 원인 확정 후 프로브 제거.
+
+#### 변경된 파일
+- scripts/check-free-coaching-live.mjs, supabase/functions/_shared/tech-feed-store.ts
+- memory-bank/trouble-shooting.md, active-context.md, progress.md
+
+#### 검증 방법
+- CI 34928890794 success. 프로브 출력으로 401·메시지 확보. npm test 693(689 pass/0 fail/4 skip), test:edge 11/11.
+- Edge 재배포 후 실제 클릭 2회 → function_logs에 feed_ai_failed 기록 확인. 환급 동작도 재확인(calls 12 / attempts 10).
+
+#### 남은 작업 / 다음 우선순위
+- 사용자가 새 OpenRouter 키를 Supabase Edge·GitHub Secret 양쪽에 등록. 이후 브리핑 1회로 재검증.
+- Edge 경로의 20초 타임아웃이 키 교체 후에도 남는지 확인.
+
+### 2026-09-15 — main 푸시·운영 배포 완료 (307ce05)
+
+#### 완료한 작업
+- 커밋 307ce05를 main에 푸시. Actions 34921744811 success, Vercel production 배포, 사이트 HTTP200.
+- CI 로그에서 OpenRouter 실패 코드 `upstream`(0.24초 응답) 확보. 모델 실재·엔드포인트 정상 확인으로 모델 원인 배제.
+
+#### 변경된 파일
+- 커밋 18개 파일(마이그레이션·Edge 코드 4·테스트 5·문서 3·memory-bank 5). 작업 트리에는 추적 제외 산출물(.playwright-cli/, 0, output/)만 남음.
+
+#### 검증 방법
+- CI: tests 693(689 pass/0 fail/4 skip), mobile·docs·test:edge·build 모두 통과 후 Vercel 배포
+- 운영 사이트 HTTP200, origin/main = 307ce05
+
+#### 남은 작업 / 다음 우선순위
+- OpenRouter `upstream` 오류의 실제 상태코드 확정(사용자 키 1회 호출 또는 진단 배포). 그 전에는 모델 고정·설정 변경을 처방하지 않는다.
+- 화면에 AI 요약이 뜨는 것은 아직 미달성. 기사 요약 3건만 존재.
+
 ### 2026-09-15 — AI 예산 개편 운영 적용 및 환급 결함 수정
 
 #### 완료한 작업

@@ -1,3 +1,22 @@
+## 2026-09-15 — 실패 원인 API 키 만료로 확정, 사용자 키 교체 대기
+
+- CI 프로브 4종 전부 `HTTP 401 "API key expired."`. 라우팅 제약(data_collection/max_price/provider)과 모델 선택은 모두 원인이 아님이 증명됐다. 상세: trouble-shooting.md.
+- 진단 로깅은 커밋 f7a684b로 배포했고, 원인 확정 후 임시 프로브만 제거했다. code+status 로깅과 Edge의 feed_ai_failed 로그는 영구 유지한다.
+- **다음 작업은 사용자 몫**: OpenRouter 새 키 발급 후 Supabase Edge 시크릿과 GitHub Secret 양쪽에 등록. 그 뒤 브리핑 1회 클릭으로 재검증한다.
+- 미확정 잔여 증상: Edge 경로는 401이 아니라 20초 타임아웃(`cancelled`)으로 끝난다(표본 2건). 키 교체 후 이 증상이 남는지 재측정해야 한다.
+- 예산 개편은 정상 동작 중: calls 12 / attempts 10 → 실패 2건이 환급됐다.
+
+
+## 2026-09-15 — 커밋·푸시 완료 및 OpenRouter 실패 원인 좁힘
+
+- 사용자 지시 "배포해줘"로 커밋 307ce05를 main에 푸시(4bd6bf4..307ce05). GitHub Actions 34921744811 success, Vercel production 배포 완료, 사이트 HTTP200. CI 테스트 693건(689 pass·0 fail·4 skip)로 로컬과 일치.
+- 커밋에는 이전부터 미커밋이던 Codex의 2026-09-14 Supabase 재시작 진단 기록도 함께 포함됐다. 같은 memory-bank 파일에 누적돼 분리 커밋이 불가능했다.
+- **CI 로그에서 그동안 못 보던 오류 코드를 확보했다**: `Free coaching live check: rules fallback required (upstream).` 응답까지 0.24초로, 모델 추론이 아니라 OpenRouter가 즉시 비 2xx를 반환한 것이다. `upstream`은 429가 아닌 HTTP 오류 또는 응답 본문의 error를 뜻한다.
+- 새로 확인한 사실: GitHub Variable `OPENROUTER_MODEL`은 `google/gemma-4-26b-a4b-it:free`로 **특정 모델 고정**이며, Supabase Edge 시크릿의 `openrouter/free`(무작위 라우터)와 다르다. 두 모델 모두 공개 목록에 실재하고 gemma 엔드포인트는 Google AI Studio·24시간 가동률 99.2%다. 따라서 **모델 선택은 원인이 아니다.**
+- 남은 후보: 401/403(키 상태), 402(크레딧), 404(`provider.max_price {0,0,0}` 또는 `data_collection:deny`가 모든 무료 공급자를 걸러냄). 01:17에 1회 성공한 이력이 있어 키 자체 무효는 가능성이 낮다. 공개 API는 엔드포인트별 데이터 정책을 노출하지 않아 외부에서 확정 불가.
+- 확정하려면 실제 HTTP 상태코드와 응답 본문이 필요하다: (a) 사용자가 본인 키로 1회 curl (b) 오류 코드를 last_error에 남기는 진단 배포.
+
+
 ## 2026-09-15 — AI 예산 개편 운영 적용 완료 (요약 생성은 여전히 미성공)
 
 - 사용자 지시 "운영에 적용해줘"로 마이그레이션·Edge 배포 수행. 마이그레이션 20260915020000 적용 및 이력 기록, cron `0 * * * *` 확인, Edge tech-feed v23/worker v25 ACTIVE, 무인증 401 유지.

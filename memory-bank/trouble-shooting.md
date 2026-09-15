@@ -1,3 +1,33 @@
+## 2026-09-15 — OpenRouter 호출 실패 원인 확정: API 키 만료 (401)
+
+### 상황
+기술 피드 AI 요약과 일일 브리핑이 계속 실패했다. 오류가 generateText→askFeedAi→runBriefing 3중 catch에 삼켜져 `unavailable`로만 보였고, 앞서 세운 가설(무작위 모델 품질, data_collection, max_price)은 모두 근거가 없었다.
+
+### 진단 방법
+CI의 `scripts/check-free-coaching-live.mjs`는 DB 예약 없이 공급자를 직접 호출하므로 할당량을 쓰지 않는다. 여기에 임시 A/B/C/D 프로브를 넣어 라우팅 제약을 하나씩 제거하며 상태코드와 응답 본문을 기록했다(키 형태 문자열은 출력 전 마스킹).
+
+### 확정된 원인
+```txt
+HTTP 401 :: {"error":{"message":"API key expired.","code":401}}
+```
+프로브 4종(A 현재 제약 / B data_collection 제거 / C max_price 제거 / D provider 블록 전체 제거) **모두 동일한 401**. 따라서 라우팅 제약·모델 선택은 원인이 아니며 **GitHub Secret의 OPENROUTER_API_KEY가 만료**됐다. 모델 `google/gemma-4-26b-a4b-it:free`와 `openrouter/free`는 둘 다 공개 목록에 실재하고 엔드포인트도 정상(24h 가동률 99.2%)이었다.
+
+### 아직 다른 증상 (미확정)
+Supabase Edge 경로는 같은 401이 아니라 **20초 타임아웃**으로 끝난다. 새로 추가한 로그에서 표본 2건 모두 `feed_ai_failed {"code":"cancelled","status":null}`. CI는 0.24초 만에 401을 받는데 Edge는 응답 자체가 20초 안에 오지 않는다. 2026-09-15 01:17 UTC에는 Edge에서 1회 성공한 이력이 있어 Edge→OpenRouter 도달 자체가 불가능한 것은 아니다. 키 교체 후 재측정이 필요하다.
+
+### 해결 방법 (사용자 작업)
+OpenRouter에서 새 키를 발급해 두 곳 모두에 등록한다. 값은 저장소·문서·로그에 기록하지 않는다.
+1. Supabase Edge 시크릿 `OPENROUTER_API_KEY`
+2. GitHub 리포지토리 Secret `OPENROUTER_API_KEY`
+
+### 관련 파일
+- scripts/check-free-coaching-live.mjs (code+status 로깅 영구화, 임시 프로브는 원인 확정 후 제거)
+- supabase/functions/_shared/tech-feed-store.ts (askFeedAi 실패 시 code/status 로깅)
+
+### 재발 방지
+공급자 호출 실패를 코드 없이 삼키지 않는다. 최소한 오류 코드와 HTTP 상태를 로그에 남겨 인증·한도·형식 문제를 구분한다. 키 만료일이 있는 자격증명은 만료 전 교체 알림을 둔다.
+
+
 ## 2026-09-15 — 배포 후 발견: 브리핑 환급이 항상 실패한 결함
 
 ### 상황
