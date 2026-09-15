@@ -93,5 +93,12 @@ export async function askFeedAi(admin:SupabaseClient,user:string,messages:unknow
  }catch{return{deferred:true};}
  try{
   return await createOpenRouterClient({env:{...env,OPENROUTER_TIMEOUT_MS:"20000",OPENROUTER_MAX_TOKENS:"2048"},fetchImpl}).generateText({messages,signal});
- }catch{return null;}
+ }catch(error){
+  // Without this the only trace of a reserved-but-wasted call is a generic
+  // unavailable status. The credential lives in a request header and is never
+  // part of the error, so code and status carry nothing secret.
+  const failure=error as {code?:string;status?:number};
+  console.error("feed_ai_failed",JSON.stringify({code:failure?.code??"unknown",status:failure?.status??null}));
+  return null;
+ }
 }
