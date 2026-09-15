@@ -1,5 +1,6 @@
 import {classifyFeedArticle,feedTopicTags} from '../../../packages/core/src/feedClassification.mjs';
 import {cleanFeedIntroduction,feedContentKind} from '../../../packages/core/src/feedContent.mjs';
+import {parseModelJson} from '../../../packages/core/src/feedModelJson.mjs';
 import {getOpenRouterConfig} from './coach-openrouter.mjs';
 
 export const BRIEFING_ANALYZER_VERSION=1;
@@ -47,13 +48,28 @@ export function buildBriefingInput(snapshot){
  }
  return result;
 }
+const CONTROL=/[\x00-\x08\x0b\x0c\x0e-\x1f]/;
+// Every rejection keeps its previous meaning but names the gate it failed, so a
+// merely verbose model can be told apart from one inventing a citation.
 function parseInsights(value,articles){
- if(!value||typeof value!=='object'||Array.isArray(value)||Object.keys(value).length!==1||!Array.isArray(value.insights)||value.insights.length<1||value.insights.length>3)throw Error('invalid_response');
+ if(!value||typeof value!=='object'||Array.isArray(value))throw Error('not_object');
+ if(Object.keys(value).length!==1)throw Error('root_keys:'+Object.keys(value).sort().join('|').slice(0,80));
+ if(!Array.isArray(value.insights))throw Error('insights_not_array');
+ if(value.insights.length<1||value.insights.length>3)throw Error('insights_count:'+value.insights.length);
  const ids=new Set(articles.map(a=>a.id));
  return value.insights.map(i=>{
-  if(!i||typeof i!=='object'||Array.isArray(i)||Object.keys(i).sort().join(',')!=='body,source_ids,study_angle,title')throw Error('invalid_response');
-  for(const[key,max]of [['title',100],['body',700],['study_angle',400]])if(typeof i[key]!=='string'||!i[key].trim()||i[key].length>max||/[\x00-\x08\x0b\x0c\x0e-\x1f]/.test(i[key]))throw Error('invalid_response');
-  if(!Array.isArray(i.source_ids)||i.source_ids.length<1||i.source_ids.length>3||new Set(i.source_ids).size!==i.source_ids.length||i.source_ids.some(id=>typeof id!=='string'||!ids.has(id)))throw Error('invalid_response');
+  if(!i||typeof i!=='object'||Array.isArray(i))throw Error('item_not_object');
+  const keys=Object.keys(i).sort().join(',');
+  if(keys!=='body,source_ids,study_angle,title')throw Error('item_keys:'+keys.slice(0,120));
+  for(const[key,max]of [['title',100],['body',700],['study_angle',400]]){
+   if(typeof i[key]!=='string'||!i[key].trim())throw Error('field_empty:'+key);
+   if(i[key].length>max)throw Error('field_long:'+key+'='+i[key].length);
+   if(CONTROL.test(i[key]))throw Error('field_control:'+key);
+  }
+  if(!Array.isArray(i.source_ids))throw Error('sources_not_array');
+  if(i.source_ids.length<1||i.source_ids.length>3)throw Error('sources_count:'+i.source_ids.length);
+  if(new Set(i.source_ids).size!==i.source_ids.length)throw Error('sources_duplicate');
+  if(i.source_ids.some(id=>typeof id!=='string'||!ids.has(id)))throw Error('sources_unknown');
   return{title:i.title.trim(),body:i.body.trim(),study_angle:i.study_angle.trim(),source_ids:[...i.source_ids]};
  });
 }
@@ -88,7 +104,7 @@ export async function runBriefing({store,ask,env,generate=false,signal:parentSig
  // instead of offering a button that can only fail. Cached, paused and insufficient views keep their status.
  if(view.status==='idle'&&!providerEnabled(env))return briefingView(snapshot,{status:'unavailable'});
  if(!generate||paused()||snapshot.generating||view.status==='insufficient'||view.insights.length&&!view.stale)return view;
- let failure='unavailable',reserved=false,wasted=false;
+ let failure='unavailable',reserved=false,charged=false;
  try{
   if(!getOpenRouterConfig(env).enabled)return briefingView(snapshot,{status:'unavailable'});
   const input=buildBriefingInput(snapshot);if(input.articles.length<2)return briefingView(snapshot,{status:'insufficient'});
@@ -105,18 +121,27 @@ export async function runBriefing({store,ask,env,generate=false,signal:parentSig
   signal.throwIfAborted();
   let answer=null;
   if(reserved&&response&&!response.deferred&&typeof response.text==='string'&&response.text.length<=12000){
-   try{answer=JSON.parse(response.text);}catch{answer=null;}
+   answer=parseModelJson(response.text);
   }
   // A reservation that bought no readable answer is returned to the owner; the
   // non-refundable call counter is what keeps a retry loop finite.
-  if(!reserved||answer===null){if(reserved)wasted=true;throw Error('invalid_response');}
-  const insights=parseInsights(answer,input.articles);
+  // The provider answered but the result was unusable. The named gate is enough to
+  // tell a verbose model from one inventing a citation, so the answer itself is not
+  // copied into the log.
+  const reject=why=>{try{console.error('feed_briefing_rejected',JSON.stringify({why}));}catch{/* a log must not mask the failure */}};
+  if(!reserved||answer===null){if(reserved)reject(response?'not_json':'no_response');throw Error('invalid_response');}
+  let insights;
+  try{insights=parseInsights(answer,input.articles);}catch(cause){reject('shape:'+String(cause?.message??'').slice(0,140));throw cause;}
   const result={insights,analyzed_count:input.articles.length};
   if(!await bounded(store.finishBriefing(lease,result,null,signal),signal))throw Error('stale_result');
+  charged=true;
   lease=null;snapshot=await bounded(store.briefingSnapshot(BRIEFING_ANALYZER_VERSION,signal),signal);
   return briefingView(snapshot,{status:paused()?'paused':snapshot.cache?'ready':'unavailable'});
  }catch{
-  if(wasted&&store.refundAiCall&&!signal.aborted)try{await bounded(store.refundAiCall(),signal);}catch{/* the ceiling still bounds retries */}
+  // Any reservation that did not end in a stored result is returned, including one
+  // lost to a timeout before the response was ever inspected. The non-refundable
+  // call counter is what keeps a retry loop finite.
+  if(reserved&&!charged&&store.refundAiCall&&!signal.aborted)try{await bounded(store.refundAiCall(),signal);}catch{/* the ceiling still bounds retries */}
   if(lease&&!signal.aborted)try{await bounded(store.finishBriefing(lease,null,failure,signal),signal);}catch{/* lease expiration permits an explicit retry */}
   if(!signal.aborted)try{snapshot=await bounded(store.briefingSnapshot(BRIEFING_ANALYZER_VERSION,signal),signal);}catch{snapshot={...snapshot,cache:null};}
   else snapshot={...snapshot,cache:null};

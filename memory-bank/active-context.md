@@ -1,3 +1,12 @@
+## 2026-09-15 — 기술 피드 AI 요약 정상 동작 확인 (종료)
+
+- 최종 원인은 두 가지였다: (1) OpenRouter API 키 만료 (2) 모델이 JSON을 마크다운 코드펜스로 감싸 반환해 `JSON.parse`가 실패. 사용자가 키를 교체하고 `parseModelJson()`을 추가해 해결했다.
+- 운영 검증 완료: 실제 소유자 계정에서 인사이트 3건 생성·표시, `전체 14건 중 13건 분석`, DB has_result=true·last_error=null.
+- 사용자 요청 (a) 모델 고정과 (b) 타이밍 계측을 모두 수행했다. (a)는 원인이 아니었으나 Supabase `OPENROUTER_MODEL`을 GitHub과 동일한 `google/gemma-4-26b-a4b-it:free`로 맞춰 두었다(무작위 라우터 대비 지연·변동 감소). (b)가 원인 규명의 결정적 수단이었다.
+- 함께 고친 것: 타임아웃 호출이 환급되지 않던 결함, `parseInsights` 거부 게이트 명명.
+- 남은 관찰 대상: 기사별 요약(`summarizeBatch`)에도 같은 수정을 적용했으나 워커는 매시간 실행이라 다음 주기에 확인한다. 현재 요약 완료 기사는 3건, pending 55건.
+
+
 ## 2026-09-15 — 실패 원인 API 키 만료로 확정, 사용자 키 교체 대기
 
 - CI 프로브 4종 전부 `HTTP 401 "API key expired."`. 라우팅 제약(data_collection/max_price/provider)과 모델 선택은 모두 원인이 아님이 증명됐다. 상세: trouble-shooting.md.

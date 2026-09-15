@@ -89,3 +89,16 @@ test('a briefing refunds the reserved call when the provider gives nothing usabl
  assert.equal((await runBriefing({...h,env,generate:true})).status,'ready');
  assert.deepEqual(charged,[]);
 });
+
+test('a reservation lost to a timeout or abort is refunded like any other wasted call',async()=>{
+ // bounded() rejects before the response is ever inspected, so a refund must not
+ // depend on reaching the answer check.
+ const f=fixture();const refunds=[];f.store.refundAiCall=async()=>{refunds.push(1);return true;};
+ f.ask=async(_m,_s,reserve)=>{assert.ok(await reserve());throw Error('cancelled');};
+ assert.equal((await runBriefing({...f,env,generate:true})).status,'unavailable');
+ assert.equal(refunds.length,1,'a timed-out call still charged the owner');
+ // A store failure after a usable answer was already persisted must not refund twice.
+ const g=fixture();const none=[];g.store.refundAiCall=async()=>{none.push(1);return true;};
+ assert.equal((await runBriefing({...g,env,generate:true})).status,'ready');
+ assert.deepEqual(none,[]);
+});

@@ -1,3 +1,23 @@
+### 2026-09-15 — AI 요약 최종 해결 (코드펜스 파싱)
+
+#### 완료한 작업
+- HTTP/전체 구간 분리 계측으로 호출은 성공(200, 1.1초)이고 실패는 그 뒤임을 확인.
+- 거부 사유 로깅으로 원인 확정: 모델이 JSON을 ```json 펜스로 감싸 반환 → JSON.parse 실패.
+- `parseModelJson()` 추가 후 브리핑·기사 요약 양쪽에 적용. 타임아웃 환급 누락 수정. parseInsights 거부 게이트 명명.
+- Supabase `OPENROUTER_MODEL`을 GitHub과 동일한 고정 모델로 통일.
+
+#### 변경된 파일
+- packages/core/src/feedModelJson.mjs, feedModelJson.d.mts, packages/core/test/feedModelJson.test.mjs (신규)
+- supabase/functions/_shared/tech-feed-briefing.mjs, tech-feed-core.mjs, tech-feed-store.ts, tech-feed-briefing.test.mjs
+
+#### 검증 방법
+- npm test 699건(695 pass·0 fail·4 optional skip), test:edge 11/11
+- 운영: 실제 소유자 계정에서 인사이트 3건 생성 확인, DB has_result=true·generated_at 기록, 환급 동작(calls만 증가) 확인
+
+#### 남은 작업 / 다음 우선순위
+- 워커의 기사별 요약은 다음 정시 실행에서 확인(pending 55건).
+- 커밋·푸시 완료 후 CI 결과 확인.
+
 ### 2026-09-15 — 진단 로깅 추가로 OpenRouter 키 만료 확정
 
 #### 완료한 작업

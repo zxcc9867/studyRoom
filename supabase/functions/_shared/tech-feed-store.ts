@@ -91,14 +91,29 @@ export async function askFeedAi(admin:SupabaseClient,user:string,messages:unknow
   const allowed=reserve?await reserve():checked(await admin.rpc("coach_reserve_ai",{p_user_id:user}));
   if(!allowed)return{deferred:true};
  }catch{return{deferred:true};}
+ // A reserved call that produces nothing leaves no other trace. Timing the HTTP
+ // leg separately from the whole attempt shows whether the provider never answered
+ // or answered fast and the result was rejected afterwards. The credential lives in
+ // a request header, so none of these fields can carry it.
+ const startedAt=Date.now();
+ const timed:typeof fetch=async(input,init)=>{
+  const sentAt=Date.now();
+  try{
+   const response=await fetchImpl(input,init);
+   console.log("feed_ai_http",JSON.stringify({ms:Date.now()-sentAt,status:response.status}));
+   return response;
+  }catch(cause){
+   console.error("feed_ai_http_failed",JSON.stringify({ms:Date.now()-sentAt,name:(cause as Error)?.name??"unknown"}));
+   throw cause;
+  }
+ };
  try{
-  return await createOpenRouterClient({env:{...env,OPENROUTER_TIMEOUT_MS:"20000",OPENROUTER_MAX_TOKENS:"2048"},fetchImpl}).generateText({messages,signal});
+  const result=await createOpenRouterClient({env:{...env,OPENROUTER_TIMEOUT_MS:"20000",OPENROUTER_MAX_TOKENS:"2048"},fetchImpl:timed}).generateText({messages,signal});
+  console.log("feed_ai_ok",JSON.stringify({ms:Date.now()-startedAt}));
+  return result;
  }catch(error){
-  // Without this the only trace of a reserved-but-wasted call is a generic
-  // unavailable status. The credential lives in a request header and is never
-  // part of the error, so code and status carry nothing secret.
   const failure=error as {code?:string;status?:number};
-  console.error("feed_ai_failed",JSON.stringify({code:failure?.code??"unknown",status:failure?.status??null}));
+  console.error("feed_ai_failed",JSON.stringify({code:failure?.code??"unknown",status:failure?.status??null,ms:Date.now()-startedAt}));
   return null;
  }
 }

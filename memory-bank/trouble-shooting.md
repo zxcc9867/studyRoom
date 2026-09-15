@@ -1,3 +1,44 @@
+## 2026-09-15 — AI 요약 최종 해결: 모델이 JSON을 마크다운 코드펜스로 감싸 반환
+
+### 상황
+만료 키를 교체한 뒤에도 브리핑이 계속 `unavailable`이었다. 앞서 기록한 키 만료(401)는 사실이지만 그것만으로는 해결되지 않았다.
+
+### 계측으로 드러난 사실
+`askFeedAi`에 HTTP 구간과 전체 구간을 분리 계측해 넣었더니:
+```txt
+feed_ai_http {"ms":1127,"status":200}   ← 응답 헤더까지 1.1초, HTTP 200
+feed_ai_ok   {"ms":14976}               ← 호출 자체는 성공(본문 스트리밍 포함 15초)
+```
+즉 20초 타임아웃(`cancelled`)은 만료 키 때문이었고, 키 교체 후에는 **호출이 정상 성공**하고 있었다. 실패 지점은 그 뒤였다.
+
+### 확정된 원인
+거부 사유 로깅을 추가하자 즉시 드러났다:
+```txt
+feed_briefing_rejected {"why":"not_json","head":"```json
+{
+  \"insights\": [...'
+```
+모델이 **올바른 JSON을 마크다운 코드펜스(```json ... ```)로 감싸서** 반환했다. `JSON.parse`가 펜스에서 실패해 멀쩡한 결과를 통째로 버리고 있었다. 시스템 프롬프트가 "JSON only"를 요구해도 작은 무료 모델은 흔히 펜스를 붙인다. **코드 결함이지 모델 품질 문제가 아니다.**
+
+### 해결 방법
+`packages/core/src/feedModelJson.mjs`의 `parseModelJson()`을 추가해 첫 코드펜스만 벗겨 낸 뒤 파싱한다. 펜스가 없으면 원문 그대로 파싱하고, 실패하면 null을 반환한다. 산문에서 값을 추측하거나 두 번째 블록을 이어 붙이지 않는다. 구조·길이·인용 검증(`parseInsights`)은 그대로라 허용 범위가 넓어지지 않는다.
+브리핑(`runBriefing`)과 기사 요약(`summarizeBatch`) 양쪽에 적용했다.
+
+### 검증
+운영에서 실제 소유자 계정으로 생성 성공. `전체 14건 중 소개가 충분한 13건 분석`, 인사이트 3건(제목·본문·공부 관점·출처 링크) 표시. DB `has_result=true`, `last_error=null`, `generated_at` 기록. 전체 테스트 699건(695 pass·0 fail·4 optional skip), test:edge 11/11.
+
+### 함께 고친 것
+- 타임아웃으로 끝난 호출이 환급되지 않던 결함: `bounded()`가 응답 검사 전에 예외를 던져 환급 플래그를 건너뛰었다. 조건을 `reserved && !charged`(결과를 실제로 저장했는지)로 바꿔 abort·타임아웃도 환급된다.
+- `parseInsights`의 모든 거부에 게이트 이름을 부여했다(not_object / root_keys / item_keys / field_long / sources_unknown 등). 의미는 동일하고 진단만 가능해졌다.
+
+### 관련 파일
+- packages/core/src/feedModelJson.mjs 및 test/feedModelJson.test.mjs (신규)
+- supabase/functions/_shared/tech-feed-briefing.mjs, tech-feed-core.mjs, tech-feed-store.ts
+
+### 재발 방지
+LLM에 JSON을 요구할 때 코드펜스 응답을 정상 경로로 간주한다. 공급자 호출은 HTTP 구간과 전체 구간을 나눠 계측하고, 검증 거부는 어느 게이트에서 걸렸는지 남긴다. "모델 품질" 같은 추정으로 끝내지 말고 계측으로 확인한다.
+
+
 ## 2026-09-15 — OpenRouter 호출 실패 원인 확정: API 키 만료 (401)
 
 ### 상황
