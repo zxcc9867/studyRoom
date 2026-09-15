@@ -11,7 +11,7 @@ test('combined pipeline still collects actual RSS when search preflight throws o
 test('search worker checks usage before reserving and attempts only one POST',async()=>{
  const {runSearchWorker}=await import('./tech-feed-search-worker.mjs');const calls=[];
  const store={claimSearch:async()=>({id:'topic',lease:'lease',canonical:'aws lambda'}),reserveSearch:async()=>{calls.push('reserve');return true;},finishSearch:async(_,__,items,error)=>{calls.push(error||'finish');return true;}};
- const result=await runSearchWorker({store,search:{availability:()=> 'waiting',checkUsage:async()=>{calls.push('usage');},search:async(query)=>{assert.equal(query,'aws lambda engineering blog 기술 블로그');calls.push('post');throw Error('unavailable');}}});
+ const result=await runSearchWorker({store,search:{availability:()=> 'waiting',checkUsage:async()=>{calls.push('usage');},search:async(query)=>{assert.equal(query,'aws lambda engineering deep dive internals 동작 원리');calls.push('post');throw Error('unavailable');}}});
  assert.deepEqual(calls,['usage','reserve','post','unavailable']);assert.equal(result.attempted,1);assert.equal(result.state,'unavailable');
 });
 test('missing key and reservation exhaustion make no search POST',async()=>{

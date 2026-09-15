@@ -1,3 +1,24 @@
+### 2026-09-15 — 피드 품질 2차 (검색 질의 + 블로그 메타 필터)
+
+#### 완료한 작업
+- 근본 원인 확정: 검색 의도 3종 중 1종이 '기술 블로그'를 문자 그대로 질의. 이를 'engineering deep dive internals 동작 원리'로 교체.
+- 블로그 메타 패턴 추가(개설 공지, 홈페이지 제목, list of ~ blogs, 블로그 N선, 제목이 블로그명뿐).
+- 영어 사이트명 접미사로 인한 오탐 수정(마지막 | 이후를 떼고 판정).
+
+#### 변경된 파일
+- supabase/functions/_shared/tech-feed-query.mjs
+- packages/core/src/feedContent.mjs, packages/core/test/feedContentRoundup.test.mjs
+- supabase/functions/_shared/tech-feed-content.test.mjs, tech-feed-immediate.test.mjs, tech-feed-search-worker.test.mjs
+
+#### 검증 방법
+- 운영 제목 76건 전수 대조: 9건 차단(전부 정당), CloudQuery 오탐 해소 확인
+- npm test 711건(707 pass, 0 fail, 4 optional skip), test:edge 11/11, build/docs/mobile 통과
+- Edge tech-feed/tech-feed-worker 배포 완료
+
+#### 남은 작업 / 다음 우선순위
+- 다음 정시 수집부터 새 질의 적용. 며칠 뒤 실제 수집 품질 재확인.
+- 커리어/마케팅 유입은 관심사 프롬프트 조정으로 대응 권고.
+
 ### 2026-09-15 — 목록형(roundup) 콘텐츠 규칙 필터
 
 #### 완료한 작업

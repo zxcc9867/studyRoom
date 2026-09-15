@@ -13,14 +13,40 @@ const ROUNDUP_PATTERNS=[
   new RegExp('\\b(?:top\\s*\\d+|best|\\d+)\\b[^.!?]{0,40}\\b(?:'+ROUNDUP_TARGETS+')\\b','i'),
   new RegExp('\\b(?:'+ROUNDUP_TARGETS+')\\b[^.!?]{0,30}\\bmust[- ]?(?:follow|read|know)\\b','i'),
   new RegExp('\\bmust[- ]?(?:follow|read|know)\\b[^.!?]{0,30}\\b(?:'+ROUNDUP_TARGETS+')\\b','i'),
+  new RegExp('\\blists? of\\b[^.!?]{0,30}\\b(?:'+ROUNDUP_TARGETS+')\\b','i'),
   /(?:블로그|뉴스레터|팟캐스트)\s*(?:모음|추천|리스트|목록)/u,
   /추천\s*(?:블로그|뉴스레터|팟캐스트)/u,
   /팔로우해야\s*할\s*(?:블로그|뉴스레터|팟캐스트|채널)/u,
   /구독해야\s*할\s*(?:블로그|뉴스레터|팟캐스트|채널)/u,
+  /블로그\s*\d+\s*선/u,
 ];
+
+// A blog announcing or describing itself is not a technology either: its launch
+// post, its homepage tagline. The trailing site name ("… | AWS 기술 블로그") is on
+// every post from that blog, good and bad alike, so it is never the signal —
+// these look at how the title opens or what it claims to be.
+const BLOG_META_PATTERNS=[
+  /블로그를?\s*(?:새로\s*)?(?:시작|오픈|개설|런칭|열며|열었|오픈했)/u,
+  /블로그\s*(?:소개|안내|개편|리뉴얼)/u,
+  /^(?:engineering|tech(?:nical)?|developer|dev)\s+blog\b/i,
+  /\bwelcome to\b[^.!?]{0,30}\bblog\b/i,
+  /\bintroducing\b[^.!?]{0,20}\b(?:our|the)\b[^.!?]{0,20}\bblog\b/i,
+];
+
+// "… | CloudQuery Blog" trails every post on that site. Judging the headline
+// without it keeps a real article ("Best Practices 2026") from being read as a
+// list of blogs, while a launch post or homepage still gives itself away in the
+// part that remains.
+const SITE_SUFFIX=/\s*[|｜]\s*[^|｜]{1,60}$/u;
+const BLOG_NAME_ONLY=/^.{0,25}(?:기술|개발|엔지니어링)?\s*블로그$/u;
+
 export function feedIsRoundupTitle(value) {
-  const text=typeof value==='string'?value:'';
-  return text.length>0&&ROUNDUP_PATTERNS.some(pattern=>pattern.test(text));
+  const text=typeof value==='string'?value.trim():'';
+  if(!text.length)return false;
+  const headline=text.replace(SITE_SUFFIX,'').trim()||text;
+  return ROUNDUP_PATTERNS.some(pattern=>pattern.test(headline))
+    ||BLOG_META_PATTERNS.some(pattern=>pattern.test(headline))
+    ||BLOG_NAME_ONLY.test(headline);
 }
 export function feedContentKind(value,title) {
   try {

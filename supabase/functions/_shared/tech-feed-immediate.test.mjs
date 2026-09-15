@@ -13,12 +13,12 @@ test('compound interests rotate focused queries without multiplying paid request
   },search:{availability:()=> 'waiting',checkUsage:async()=>{},search:async query=>{queries.push(query);return[];}}});
   assert.equal(result.attempted,1);
  }
- assert.deepEqual(queries,['ai engineering blog 기술 블로그','aws engineering blog 기술 블로그','클라우드 engineering blog 기술 블로그','fde engineering blog 기술 블로그','ai engineering case study architecture']);
+ assert.deepEqual(queries,['ai engineering deep dive internals 동작 원리','aws engineering deep dive internals 동작 원리','클라우드 engineering deep dive internals 동작 원리','fde engineering deep dive internals 동작 원리','ai engineering case study architecture']);
  assert.equal(reservations,5);
 });
 
 test('single topic identities stay intact and duplicate compound interests are skipped',async()=>{
- for(const [canonical,query_cursor,want] of [['aws lambda',7,'aws lambda engineering case study architecture'],['React, react, Rust',1,'Rust engineering blog 기술 블로그'],['C++ and C#',1,'C# engineering blog 기술 블로그']]){
+ for(const [canonical,query_cursor,want] of [['aws lambda',7,'aws lambda engineering case study architecture'],['React, react, Rust',1,'Rust engineering deep dive internals 동작 원리'],['C++ and C#',1,'C# engineering deep dive internals 동작 원리']]){
   let actual;
   await runSearchWorker({store:{claimSearch:async()=>({id:'t',lease:'l',canonical,query_cursor}),reserveSearch:async()=>true,finishSearch:async()=>true},search:{availability:()=> 'waiting',checkUsage:async()=>{},search:async query=>{actual=query;return[];}}});
   assert.equal(actual,want);

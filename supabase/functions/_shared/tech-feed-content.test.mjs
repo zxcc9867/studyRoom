@@ -3,13 +3,17 @@ import assert from 'node:assert/strict';
 import {focusedSearchQuery} from './tech-feed-query.mjs';
 import {createTavilySearch} from './tech-feed-search.mjs';
 
-test('arbitrary interests rotate through blogs, case studies and guides, not a fixed vendor list',()=>{
+test('arbitrary interests rotate through explanations, case studies and guides, never asking for blogs themselves',()=>{
  const queries=Array.from({length:6},(_,cursor)=>focusedSearchQuery('Rust, 네트워크',cursor));
  assert.deepEqual(queries,[
-  'Rust engineering blog 기술 블로그','네트워크 engineering blog 기술 블로그',
+  'Rust engineering deep dive internals 동작 원리','네트워크 engineering deep dive internals 동작 원리',
   'Rust engineering case study architecture','네트워크 engineering case study architecture',
   'Rust technical guide tutorial best practices','네트워크 technical guide tutorial best practices',
  ]);
+ // Asking a search engine for "기술 블로그" returns blog homepages, blog
+ // roundups and blog launch posts, which is what filled the feed with
+ // directories instead of technology to read about.
+ for(const query of queries)assert.doesNotMatch(query,/블로그|\bblogs?\b/i,query);
  assert.match(focusedSearchQuery('분산 시스템',3),/^분산 시스템 /);
  assert.ok(Array.from(focusedSearchQuery('가'.repeat(300),0)).length<=300);
 });

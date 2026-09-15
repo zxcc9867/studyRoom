@@ -13,7 +13,9 @@ export function focusedSearchQuery(value,cursor=0){
  if(!topics.length)return prompt;
  const step=Number.isSafeInteger(cursor)&&cursor>=0?cursor:0;
  const index=step%topics.length;
- const intents=['engineering blog 기술 블로그','engineering case study architecture','technical guide tutorial best practices'];
+ // Never ask for "blogs": a search engine answers that with blog homepages,
+ // blog roundups and blog launch posts. Ask for the technology instead.
+ const intents=['engineering deep dive internals 동작 원리','engineering case study architecture','technical guide tutorial best practices'];
  const query=topics[index]+' '+intents[Math.floor(step/topics.length)%intents.length];
  // Keep the original validation and 300-character cap at the provider boundary.
  return [...query].length<=300?query:topics[index];

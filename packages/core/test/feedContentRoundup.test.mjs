@@ -40,3 +40,53 @@ test('feedIsRoundupTitle leaves genuine technical titles alone, including ones t
   assert.equal(feedIsRoundupTitle(null), false);
   assert.equal(feedIsRoundupTitle(undefined), false);
 });
+
+test('blog meta pages are recognized too: a launch post, a blog homepage and a numbered list',()=>{
+  // All observed in the live feed. None is a roundup of other blogs, so the
+  // earlier title patterns missed them, yet none teaches any technology either.
+  for (const title of [
+    'AWS 기술 블로그를 시작합니다! | AWS 기술 블로그',
+    'Engineering blog – Insights for developers & builders | Eightfold AI',
+    'A List of Software Engineering Blogs: Tech Company Engineering Blogs',
+    '국내 유명 기업 기술 블로그 30선 (Tech Blog)',
+    '인프라·DevOps 기술 블로그 모음 - 클라우드·Kubernetes | Tech Blog Together',
+    'Welcome to our engineering blog',
+    '개발 블로그를 오픈했습니다',
+  ]) {
+    assert.equal(feedIsRoundupTitle(title), true, title);
+  }
+});
+
+test('a real article from the same blog keeps its site-name suffix and is still collected',()=>{
+  // The site name trails every post on that blog, good and bad alike, so it can
+  // never be the signal on its own.
+  for (const title of [
+    'AWS Glue로 SAP OData 데이터를 수집하는 방법 | AWS 기술 블로그',
+    'S3 성능 최적화 사례 | AWS 기술 블로그',
+    'Amazon Bedrock 기반 RAG 아키텍처 구성 | AWS 기술 블로그',
+  ]) {
+    assert.equal(feedIsRoundupTitle(title), false, title);
+  }
+});
+
+test('an English trailing site name never turns a real article into a roundup',()=>{
+  // Observed false positive: 'Best Practices ... | CloudQuery Blog' matched only
+  // because the site name that trails every post on that site ends in 'Blog'.
+  for (const title of [
+    'Cloud Governance: Best Practices 2026 | CloudQuery Blog',
+    'Top 5 Postgres Index Mistakes | Percona Blog',
+    '10 Kubernetes Anti-Patterns We Fixed | Datadog Blog',
+  ]) {
+    assert.equal(feedIsRoundupTitle(title), false, title);
+  }
+});
+
+test('a title that is only the blog name is still a homepage, in either language',()=>{
+  for (const title of [
+    '트웰브랩스 기술 블로그 | 영상 AI를 만드는 사람들의 이야기',
+    '카카오 기술 블로그',
+    'Engineering Blog',
+  ]) {
+    assert.equal(feedIsRoundupTitle(title), true, title);
+  }
+});

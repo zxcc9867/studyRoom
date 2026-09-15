@@ -1,3 +1,32 @@
+## 2026-09-15 — 피드가 기술 내용 대신 블로그 자체를 추천한 근본 원인: 검색 질의
+
+### 상황
+사용자가 두 사례를 제시했다. zencoder.ai의 블로그 목록 글과 aws.amazon.com의 'AWS 기술 블로그를 시작합니다!' 개설 인사글이다. 후자는 목록형이 아니라 블로그 자체의 개설 공지라 앞서 만든 roundup 필터로는 잡히지 않았다.
+
+### 관측
+최근 수집 15건 중 실제 기술 콘텐츠는 3건뿐이었다. 나머지는 블로그 모음·블로그 홈·블로그 개설글 8건, 커리어/마케팅 페이지 4건이었다. 수집된 76건 전부가 web_search 출처였다(RSS 출처는 권한 대기라 0건).
+
+### 원인
+`tech-feed-query.mjs`의 검색 의도 3종 중 첫 번째가 `'engineering blog 기술 블로그'`였다. 검색 엔진에 문자 그대로 '기술 블로그'를 물으면 블로그 홈페이지, 블로그 모음, 블로그 개설글이 반환된다. 주제 4개 × 의도 3종 로테이션이므로 **수집의 3분의 1이 구조적으로 블로그 메타를 찾고 있었다.** 필터 문제 이전에 질의가 잘못 묻고 있었다.
+
+### 해결 방법
+1. 질의 의도를 `'engineering deep dive internals 동작 원리'`로 교체했다. 세 의도 중 어디에도 'blog/블로그'가 남지 않도록 테스트로 고정했다.
+2. `feedIsRoundupTitle`에 블로그 메타 패턴을 추가했다: 개설/오픈/소개 공지, `^engineering blog`로 시작하는 홈페이지 제목, 'list of ~ blogs', '블로그 N선', 제목이 블로그 이름뿐인 경우.
+
+### 되돌린 오탐
+1차 구현에서 'Cloud Governance: Best Practices 2026 | CloudQuery Blog'가 차단됐다. 뒤에 붙는 사이트명 '| CloudQuery Blog'의 'Blog'가 'best ... blogs' 패턴에 걸린 것이다. 사이트명 접미사는 그 블로그의 모든 글에 붙으므로 판단 근거가 될 수 없다. 마지막 `|` 이후를 떼어낸 제목으로 검사하도록 고쳤다. 한국어 사례는 1차에서 이미 방어했으나 영어 접미사를 놓쳤다.
+
+### 검증
+운영 제목 76건 전체에 새 필터를 적용해 9건 차단을 확인했고, 9건 모두 실제 블로그 메타/목록이며 CloudQuery 오탐은 해소됐다. 전체 테스트 711건(707 pass·0 fail·4 optional skip), test:edge 11/11, build/docs/mobile 통과.
+
+### 관련 파일
+- supabase/functions/_shared/tech-feed-query.mjs 및 tech-feed-immediate/search-worker/content 테스트
+- packages/core/src/feedContent.mjs 및 test/feedContentRoundup.test.mjs
+
+### 남은 리스크
+커리어/채용/마케팅 페이지(커리어코치 광고, 면접 준비 서비스, FDE Program)는 여전히 통과한다. 사용자 관심사 프롬프트의 'fde'가 Forward Deployed Engineer 커리어 콘텐츠를 정당하게 끌어오는 측면이 있어 제목 패턴으로 막기엔 오탐 위험이 크다. 프롬프트를 구체화하는 편이 안전하다. 태그/카테고리 페이지('AWS Glue | AWS 기술 블로그')는 제목만으로 판별할 근거가 없어 미해결이다.
+
+
 ## 2026-09-15 — 목록형(roundup) 글이 practice로 오분류되어 피드에 노출
 
 ### 상황
