@@ -19,7 +19,7 @@ export function feedFacets({items=[],prompt=''}){
  sources:counts(items.flatMap(a=>[...new Map((a.sources||[]).map(s=>[s.value,s])).values()]))};
 }
 function eligibleArticles(snapshot){
- return(snapshot.articles||[]).filter(a=>a.eligible&&feedContentKind(a.url)!=='video')
+ return(snapshot.articles||[]).filter(a=>a.eligible&&!['video','listing'].includes(feedContentKind(a.url,a.title)))
  .map(a=>({...a,excerpt:cleanFeedIntroduction(a.excerpt).slice(0,2000)})).filter(a=>a.excerpt.length>=160);
 }
 function statistics(snapshot,prompt=snapshot.prompt||''){

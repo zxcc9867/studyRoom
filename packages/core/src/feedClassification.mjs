@@ -1,4 +1,6 @@
-export const FEED_CLASSIFICATION_RULES_VERSION = 1;
+import { feedIsRoundupTitle } from './feedContent.mjs';
+
+export const FEED_CLASSIFICATION_RULES_VERSION = 2;
 
 const VALID_CATEGORIES = new Set(['news', 'practice', 'deep_dive']);
 const MAX_TEXT_LENGTH = 10_000;
@@ -118,6 +120,14 @@ export function classifyFeedArticle(article, prompt = '') {
       rules_version: FEED_CLASSIFICATION_RULES_VERSION,
       tags,
     };
+  }
+
+  // A directory of other people's blogs/newsletters is never news, practice or a
+  // deep dive, no matter which signal word its own description happens to use
+  // (observed in production: an excerpt mentioning "tutorials" while describing
+  // GitHub Blog mislabeled the roundup itself as "practice").
+  if (feedIsRoundupTitle(value.title)) {
+    return { category: null, method: null, rules_version: FEED_CLASSIFICATION_RULES_VERSION, tags };
   }
 
   const text = `${boundedText(value.title)}\n${boundedText(value.excerpt)}`;

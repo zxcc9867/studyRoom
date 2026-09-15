@@ -1,3 +1,25 @@
+### 2026-09-15 — 목록형(roundup) 콘텐츠 규칙 필터
+
+#### 완료한 작업
+- 사용자 제보 링크로 재현·원인 확정(규칙 분류기 오탐), 규칙 기반 1단계 필터 구현·배포.
+- feedIsRoundupTitle 추가, 분류기/수집기/브리핑 자격 3곳 연동, rules_version 2로 상향.
+
+#### 변경된 파일
+- packages/core/src/feedContent.mjs, feedClassification.mjs
+- packages/core/test/feedContentRoundup.test.mjs(신규), feedClassification.test.mjs
+- supabase/functions/_shared/tech-feed-search.mjs, tech-feed-briefing.mjs 및 각 테스트
+- memory-bank/prd-tech-feed.md, trouble-shooting.md, active-context.md
+
+#### 검증 방법
+- npm test 707건(703 pass, 0 fail, 4 optional skip) — 이전 699건 대비 +8
+- npm run test:edge 11/11, build/docs/mobile 통과
+- Edge tech-feed/tech-feed-worker 배포 완료
+
+#### 남은 작업 / 다음 우선순위
+- 다음 정시 워커 실행에서 기존 zencoder.ai 글이 재분류되는지 확인.
+- 2단계(AI 장르 판단, 기존 요약 호출에 필드 추가)는 사용자 후속 요청 시 진행.
+- 커밋·푸시 대기.
+
 ### 2026-09-15 — AI 요약 최종 해결 (코드펜스 파싱)
 
 #### 완료한 작업

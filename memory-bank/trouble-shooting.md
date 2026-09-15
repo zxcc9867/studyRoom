@@ -1,3 +1,30 @@
+## 2026-09-15 — 목록형(roundup) 글이 practice로 오분류되어 피드에 노출
+
+### 상황
+사용자가 실제 링크(zencoder.ai/blog/ai-blogs-for-developers-engineers)를 제시. 제목이 'Top AI Blogs Every Software Developer Must Follow in 2026'인 다른 블로그 소개 글이 category='practice'로 분류되어 피드에 표시됐다.
+
+### 원인
+규칙 기반 분류기(`classifyFeedArticle`)의 practice 신호가 정규식 `/tutorial.../i`로 제목·발췌문 전체에서 단어 매칭한다. 이 글의 발췌문이 GitHub Blog를 소개하며 'tutorials'라는 단어를 썼을 뿐인데, '이 글 자체가 튜토리얼인지'와 '본문에 그 단어가 있는지'를 구분하지 못해 오분류됐다. 기존 `feedContentKind`의 'listing' 판정은 URL 모양(`/blog/`, `/tags/` 등 색인 페이지)만 보므로 `/blog/<slug>` 형태의 정상 글 URL은 걸러내지 못했다.
+
+### 해결 방법
+`packages/core/src/feedContent.mjs`에 제목 전용 목록형 판정 `feedIsRoundupTitle()` 추가(발췌문은 검사하지 않음 — 이번 버그의 재발을 원천 차단). `feedContentKind(url, title)`에 title 인자를 추가해 URL 모양이 정상이어도 제목이 목록형이면 'listing'을 반환한다.
+세 지점에 적용: `feedClassification.mjs`(목록형이면 category/method를 null로, AI가 이미 검증한 카테고리는 유지), `tech-feed-search.mjs`(수집 시점에 title을 함께 넘겨 목록형 글 자체를 수집하지 않음), `tech-feed-briefing.mjs`(브리핑 분석 표본에서도 제외).
+`FEED_CLASSIFICATION_RULES_VERSION`을 1→2로 올려 기존 오분류 글도 다음 정시 워커 실행에서 자동 재분류되도록 했다(이미 있던 버전 비교 재분류 메커니즘 재사용).
+
+### 삽질: Python 문자열 이스케이프가 정규식 ``를 백스페이스 문자로 만듦
+`python - <<'PY'` 힙닥으로 파일을 고쳐 쓰던 중, Python 비-raw 문자열 리터럴에서 ``를 이스케이프 없이 한 번만 적어 백스페이스(0x08) 바이트가 파일에 그대로 박혔다. 터미널에 cat/sed로 출력하면 백스페이스가 이전 문자를 지워 보여서 육안으로는 정상처럼 보였다. `od -c`로 바이트를 직접 찍어보고서야 발견했다. 이후 문자열 연결(`'\b'+X+'\b'`)로 바꾸거나 Write 도구로 파일 전체를 직접 써서 재발을 막았다.
+
+### 검증
+신규 테스트 8건 추가(전체 707건, 703 pass·0 fail·4 optional skip), test:edge 11/11, build/docs/mobile 통과.
+
+### 관련 파일
+- packages/core/src/feedContent.mjs, feedClassification.mjs 및 각 테스트
+- supabase/functions/_shared/tech-feed-search.mjs, tech-feed-briefing.mjs 및 각 테스트
+
+### 재발 방지
+정규식이 포함된 JS 소스를 Python 힙닥으로 생성/수정할 때는 문자열 연결 방식을 쓰거나, 완성한 뒤 반드시 `od -c`로 이스케이프 바이트를 확인한다. 규칙 분류기에 신호 단어를 추가할 때는 '이 글 자체의 장르'와 '본문이 언급하는 대상'을 구분하는 반례를 먼저 테스트로 작성한다.
+
+
 ## 2026-09-15 — AI 요약 최종 해결: 모델이 JSON을 마크다운 코드펜스로 감싸 반환
 
 ### 상황

@@ -77,3 +77,14 @@ test('collection preserves paragraph boundaries before removing promotional text
   assert.equal(item.excerpt,'Rust retries are bounded. Queues absorb short traffic bursts.');
  }
 });
+
+test('a roundup title is excluded even from a normal article-shaped URL',async()=>{
+ // Observed in production: zencoder.ai/blog/ai-blogs-for-developers-engineers is a
+ // normal permalink; only its title reveals it is a directory of other blogs.
+ const search=createTavilySearch({env:{TAVILY_API_KEY:'test'},fetchImpl:async()=>Response.json({results:[
+  {title:'Top AI Blogs Every Software Developer Must Follow in 2026',url:'https://zencoder.ai/blog/ai-blogs-for-developers-engineers',content:'The GitHub Blog offers a wealth of tutorials.'},
+  {title:'Rust service design',url:'https://engineering.example.com/blog/rust-service',content:'We describe how a Rust service handles retries.'},
+ ]})});
+ const items=await search.search('AI blogs');
+ assert.deepEqual(items.map(item=>item.title),['Rust service design']);
+});

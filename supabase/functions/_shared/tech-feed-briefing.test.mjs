@@ -102,3 +102,11 @@ test('a reservation lost to a timeout or abort is refunded like any other wasted
  assert.equal((await runBriefing({...g,env,generate:true})).status,'ready');
  assert.deepEqual(none,[]);
 });
+
+test('a roundup title keeps an article out of the briefing sample even with a normal article URL',()=>{
+ const roundup={id:'id-roundup',title:'Top AI Blogs Every Software Developer Must Follow in 2026',url:'https://example.test/blog/roundup',excerpt:'x'.repeat(200),eligible:true,discovered_at:'2026-09-14T03:00:00Z',category:null,category_method:null,summary_status:'pending',sources:[{value:'host:example.test',label:'example.test'}]};
+ const snapshot={local_date:'2026-09-14',time_zone:'Asia/Tokyo',prompt:'',articles:[article(0),article(1),roundup]};
+ const input=buildBriefingInput(snapshot);
+ assert.equal(input.articles.some(a=>a.id==='id-roundup'),false);
+ assert.equal(input.articles.length,2);
+});

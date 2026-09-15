@@ -2,10 +2,31 @@
 // generated facts: questionable text falls back to the original article link.
 export const FEED_VIDEO_DOMAINS = ['youtube.com','youtu.be','vimeo.com','tiktok.com','dailymotion.com'];
 
-export function feedContentKind(value) {
+// Roundups point at other people's blogs/newsletters/podcasts instead of explaining
+// a technology themselves. URL shape alone never reveals this — the observed case
+// (zencoder.ai/blog/ai-blogs-for-developers-engineers) is a perfectly normal article
+// permalink; only the title says it is a directory. Checked on the title only,
+// never the excerpt, so a real explainer that merely mentions 'follow our blog' in
+// passing is not caught by its own body text.
+const ROUNDUP_TARGETS='blogs?|newsletters?|podcasts?|websites?|influencers?|creators?|accounts?|channels?';
+const ROUNDUP_PATTERNS=[
+  new RegExp('\\b(?:top\\s*\\d+|best|\\d+)\\b[^.!?]{0,40}\\b(?:'+ROUNDUP_TARGETS+')\\b','i'),
+  new RegExp('\\b(?:'+ROUNDUP_TARGETS+')\\b[^.!?]{0,30}\\bmust[- ]?(?:follow|read|know)\\b','i'),
+  new RegExp('\\bmust[- ]?(?:follow|read|know)\\b[^.!?]{0,30}\\b(?:'+ROUNDUP_TARGETS+')\\b','i'),
+  /(?:블로그|뉴스레터|팟캐스트)\s*(?:모음|추천|리스트|목록)/u,
+  /추천\s*(?:블로그|뉴스레터|팟캐스트)/u,
+  /팔로우해야\s*할\s*(?:블로그|뉴스레터|팟캐스트|채널)/u,
+  /구독해야\s*할\s*(?:블로그|뉴스레터|팟캐스트|채널)/u,
+];
+export function feedIsRoundupTitle(value) {
+  const text=typeof value==='string'?value:'';
+  return text.length>0&&ROUNDUP_PATTERNS.some(pattern=>pattern.test(text));
+}
+export function feedContentKind(value,title) {
   try {
     const url=new URL(value),host=url.hostname.toLowerCase();
     if(FEED_VIDEO_DOMAINS.some(domain=>host===domain||host.endsWith('.'+domain)))return 'video';
+    if(feedIsRoundupTitle(title))return 'listing';
     // Query-based permalinks are common. Unknown document parameters are not
     // evidence of an index; preserve them rather than dropping a real article.
     if([...url.searchParams].some(([key,value])=>value&&!/^(?:utm_.+|fbclid|gclid|s|q|search|page|paged|lang)$/i.test(key)))return 'article';

@@ -44,7 +44,7 @@ export function createTavilySearch({env,fetchImpl=globalThis.fetch}){
    const items=[],seen=new Set();
    for(const row of data.results.slice(0,5))try{
     if(typeof row?.title!=='string'||typeof row.url!=='string')continue;
-    const url=normalizeUrl(row.url),title=plainText(row.title,300);if(!title||seen.has(url)||['video','listing'].includes(feedContentKind(url)))continue;
+    const url=normalizeUrl(row.url),title=plainText(row.title,300);if(!title||seen.has(url)||['video','listing'].includes(feedContentKind(url,title)))continue;
     const timestamp=typeof row.published_date==='string'?Date.parse(row.published_date):NaN;
     items.push({url,title,excerpt:typeof row.content==='string'?cleanFeedIntroduction(plainText(row.content,2000,true)):'',published_at:Number.isFinite(timestamp)&&timestamp<=Date.now()?new Date(timestamp).toISOString():null,origin:'web_search',excerpt_provenance:'search_snippet'});seen.add(url);
    }catch{/* Keep other safe public links; never retrieve result pages. */}
