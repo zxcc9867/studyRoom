@@ -1,3 +1,17 @@
+## Supabase 변경 이력 — 2026-09-15 AI 호출 예산 재조정 (운영 적용 완료)
+
+- 변경 대상: `public.coach_ai_usage`, `coaching_private.reserve_ai`, `coaching_private.refund_ai`(신규), `public.coach_reserve_ai`, `public.coach_refund_ai`(신규), `public.tech_feed_begin_summary_attempt`, cron `study-room-tech-feed-hourly`.
+- 변경 내용: attempts CHECK 6→15, 환급 불가 `calls` 칼럼(0~40) 추가, reserve에 `p_cap` 인자 추가(기본 15·워커 12), 실패 환급 함수 추가, cron 스케줄 `* * * * *`→`0 * * * *`.
+- 변경 이유: 공유 예산 6회를 매분 도는 수집 워커가 수 분 만에 소진해 사용자 브리핑이 호출을 얻지 못했고, 수집 30건/일을 요약 18건/일 역량으로 따라잡을 수 없었다.
+- 관련 기능: 기술 피드 기사 요약, 일일 브리핑, 재시작 코치(예산 공유).
+- 마이그레이션 파일: `supabase/migrations/20260915020000_tech_feed_ai_budget.sql`
+- 확인 방법: `node --test supabase/functions/_shared/tech-feed-ai-budget-db.test.mjs` (PGlite 5건). 운영 적용 후 `coach_ai_usage.calls` 증가와 cron 스케줄을 재확인한다.
+- 적용 결과(2026-09-15 02:06~02:22 UTC): Management API로 마이그레이션 실행, `supabase_migrations.schema_migrations`에 20260915020000 기록. attempts CHECK 0~15, calls 칼럼 생성, 기존 행 calls=attempts 백필(6). 함수 4개 재생성 확인, `tech_feed_begin_summary_attempt`에 cap 12 반영 확인. cron jobid 5 스케줄 `* * * * *`→`0 * * * *` 확인(02:06 이후 매분 실행 중단).
+- Edge 배포: tech-feed v23, tech-feed-worker v25 ACTIVE(중간 v22/v24는 환급 버그 수정 전 배포). 무인증 POST 401 유지.
+- 배포 후 발견·수정한 결함: `refundAiCall`이 store에 바인딩된 owner를 쓰지 않아 브리핑 경로에서 `p_user_id`가 undefined로 전달돼 환급이 항상 실패했다(운영에서 attempts 6→7로 확인). 기본값을 owner로 고치고 Deno store 테스트 1건 추가 후 재배포. 재검증에서 calls 7→8·attempts 7 유지로 환급 동작 확인.
+- 주의 사항: 기존 1인자 호출(`coaching-store.mjs` 빈 본문 RPC, `tech_feed_briefing_reserve`)은 기본값으로 해석된다. 운영 브리핑 클릭이 정상적으로 claim/reserve/finish까지 도달함을 확인했다.
+
+
 ## Supabase 변경 이력 — 2026-09-15 기술 피드 일일 브리핑 (DB·Edge 적용)
 
 - 변경 대상: tech_feed_articles 분류 provenance/version/topics/lease, 개인 tech_feed_briefings 캐시, service 전용 visibility/list/facets/snapshot/claim/reserve/finish RPC 및 기존 cleanup 경로.
@@ -8,6 +22,15 @@
 - 권한/쿼터: owner RLS, 브리핑 본문 직접 SELECT 차단(무해한 소유자 메타데이터만 허용), 모든 분석 표본 권한을 읽기·예약·저장 시 재검증. 기존6회 실제 호출 공유,90초 lease/20초 provider/30초 request. 새 cron/유료 fallback 없음.
 - 확인 방법: 독립 리뷰 spec PASS/quality APPROVED, parent194/194 회귀. 로컬 PGlite1000/5000개 saved scale에서 list11/38ms, facets SQL47/197ms + JS28/120ms; 후보 JSON1.12/5.61MB. 실제 운영 네트워크/무한 기록 규모 보장은 아니며 후보 로드는 기록 수에 선형 증가한다.
 - 운영 확인 완료: RLS/grants·구버전5인자 RPC·실측 list11.915ms/facets4.358ms/daily cold836.367ms, 무인증 API401. 상세 배포 근거는 docs/tech-feed/daily-briefing-verification.md. 분류RPC 취소 전달은 기존10초fetch상한에 의존하는 Minor 잔여 항목이다.
+
+
+## Supabase 변경 이력 — 2026-09-14 운영 재시작
+
+- 변경 대상: 독서실 프로젝트 next-js (bqohkdzvxbrokkmuhysx) 서비스 런타임.
+- 변경 내용/이유: 사용자 승인 후 Auth/REST/관리 지표 지연 복구 목적으로 공식 Management API restart1회. CLI/MCP에서 프로젝트 확인 및 SQL 전후 검사.
+- 마이그레이션 파일: 없음. 스키마/정책/함수/cron/키/과금 변경 없음.
+- 확인 방법:14:03:47UTC 요청200→RESTARTING→14:07:45UTC DB 실제 기동→14:08UTC Auth healthy 및 공개REST/SQL 성공, metrics/disk/util 조회 회복.
+- 주의 사항: 운영 재시작은 웹 재배포와 별개. 짧은 서비스 중단 발생; cron 재개는 확인했지만 재시작 중 개별 알림 전달과 실제 사용자 UI는 미검증. 정확한 최초 자원 원인은 미확정.
 
 
 ## 2026-09-14 — 대시보드 조회와 회복 제출 대기 분리

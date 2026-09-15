@@ -1,3 +1,42 @@
+## 2026-09-15 — AI 예산 개편 운영 적용 완료 (요약 생성은 여전히 미성공)
+
+- 사용자 지시 "운영에 적용해줘"로 마이그레이션·Edge 배포 수행. 마이그레이션 20260915020000 적용 및 이력 기록, cron `0 * * * *` 확인, Edge tech-feed v23/worker v25 ACTIVE, 무인증 401 유지.
+- 배포 후 환급 결함 1건 발견·수정·재배포(상세: trouble-shooting.md). 운영에서 환급 동작 확인(calls는 증가, attempts는 유지).
+- 현재 예산 상태: attempts 8/15, calls 10/40. 워커 cap 12, 사용자 여유 7회.
+- **남은 문제: `openrouter/free` 무작위 모델이 쓸 만한 출력을 거의 못 낸다.** 오늘 실제 호출 약 8회 중 성공 1회(01:17, 기사 3건 요약). 브리핑은 4회 시도 모두 실패했고 화면은 계속 "AI 요약 연결을 확인하지 못했어요"다.
+- 실패 원인은 여전히 미확정이다. OpenRouterError 코드가 askFeedAi→runBriefing 3중 catch에 삼켜져 401/404/429/형식오류를 구분할 수 없다. 다음 후보: (a) 사용자가 자기 키로 직접 1회 호출해 상태코드 확인 (b) 임시 진단 로깅 배포 (c) 특정 :free 모델 고정.
+- 커밋·푸시는 하지 않았다. 웹(apps/web) 변경이 없어 Vercel 배포는 불필요했다.
+
+
+## 2026-09-15 — AI 예산 15 + 워커 12 + 실패 환급 구현 완료 (운영 미적용)
+
+- 작업명: 기술 피드 AI 요약 미동작 해소. 관련 PRD: prd-tech-feed.md의 2026-09-15 승인 개정.
+- 사용자 결정 경위: (1) 시크릿 누락 아님이 확인됨 → (2) 할당량 경합이 원인 → (3) 6이 OpenRouter 제한이 아니라 자체 값이고 OpenRouter 무료 한도는 50/일임을 확인 → **한도 상향(6→15) + cron 정상화 + 실패 환급**으로 확정. 앞서 논의된 on-demand 요약안은 채택하지 않았다.
+- 구현: 마이그레이션 20260915020000_tech_feed_ai_budget.sql(attempts 6→15, 환급 불가 calls 0~40, reserve p_cap 인자, refund 함수, 워커 cap 12, cron `0 * * * *`), tech-feed-store.ts refundAiCall, tech-feed-core.mjs callFailed, tech-feed-worker-core.mjs·tech-feed-briefing.mjs 환급 호출.
+- 검증: 전체 693건(689 pass·0 fail·4 optional browser skip), test:edge 10/10, build, docs 24참조, mobile typecheck 통과. 신규 테스트 7건(예산 DB 5, 환급 2), 기존 6회 전제 테스트 1건을 새 동작으로 갱신.
+- **아직 운영에 적용하지 않았다.** 커밋·푸시·마이그레이션 적용·함수 배포 모두 안 함. 오늘 운영 할당량은 6/6 소진 상태이며, 적용 시 calls=attempts 백필로 today 행이 attempts 6·calls 6이 되어 사용자 몫 9회가 즉시 생긴다.
+- 주의: coach_reserve_ai/reserve_ai를 DROP 후 재생성하므로 배포 후 기존 1인자 호출 경로(coaching-store.mjs 빈 본문 RPC, tech_feed_briefing_reserve)를 실제로 확인해야 한다. db push는 원격 이력 37건이 로컬에 없어 실패하므로 Codex가 써온 Supabase MCP 경로가 필요하다(이 세션은 supabase MCP 미인증).
+- 별도 미조사 이슈: 내 페이지 학습 리포트 `리포트를 불러오지 못했어요`.
+
+
+## 2026-09-15 — [정정] AI 요약 원인: 시크릿 누락이 아니라 할당량 6회 고갈로 확정
+
+- 사용자가 01:12:22 UTC에 OPENROUTER_API_KEY/MODEL 등록 완료. **API는 정상 작동**하며 01:17 워커 실행에서 AI 요약 3건이 실제 생성됐다(`category_method='ai'`).
+- 실제 지속 원인 2가지: (1) 하루 6회 공유 할당량을 매분 도는 cron 워커가 5분 만에 독식(현재 6/6, 남은 0) (2) `openrouter/free` 무작위 모델 선택으로 5회 중 4회 출력 검증 실패, 실패도 할당량 차감.
+- 6의 출처: 2026-09-06 커리어 코치 마이그레이션(1376fc6). 기술 피드보다 6일 앞서며 근거 주석 없이 한 번도 개정되지 않았다.
+- 사용자 승인: 실패 시 환급 + 재시도. 할당량 경합 해결 방향은 확인 대기.
+- 아래 같은 날짜 `Edge 시크릿 누락` 항목은 등록 이전 관측으로 유효하되, 현재 블로커는 이 항목이다. 상세: trouble-shooting.md.
+
+
+## 2026-09-15 — 기술 피드 AI 요약 미동작 원인 확정 (Edge 시크릿 누락)
+
+- 현재 작업: 실제 소유자 AI 인사이트 검증 이어받기(Claude). 클릭 재현 결과 unavailable. 원인은 운영 Edge 시크릿에 OPENROUTER_API_KEY/OPENROUTER_MODEL 부재. 관련 PRD: prd-tech-feed.md.
+- 결정: 읽기 경로에서 provider 미설정을 unavailable로 보고(코드 4줄 + 회귀 테스트 1건). 사용자가 시크릿을 넣어야 실제 생성이 가능하며 키 값은 기록하지 않는다.
+- 완료: 코드·테스트·문서(daily-briefing-verification.md, trouble-shooting.md). 전체 686(682 pass·4 optional skip)·Edge 10/10. 미커밋, 배포 안 함.
+- 다음: 사용자가 시크릿 설정 → 브라우저에서 오늘 요약 보기 재클릭 → 인사이트·캐시 생성 확인 → 커밋/배포는 별도 지시.
+- 주의: 내 페이지 학습 리포트가 "리포트를 불러오지 못했어요"로 실패한 화면을 관찰(미조사, 별도 이슈). 기존 장애 복구 문서의 미커밋 변경은 계속 분리 보존.
+
+
 ## 2026-09-15 — 기술 피드 개선 운영 배포 완료
 
 - 완료: 자동 규칙 분류/기존 글 백필, Markdown 가독성, 자유 입력 중심 설정·접힌 동적 보기 필터, 전체 오늘 통계와 버튼형 AI 인사이트. 탭 복귀는 읽기 전용 갱신이며 추가 AI 호출 없음.
@@ -48,6 +87,25 @@
 - 통계 자동/AI버튼 생성, 개인 스냅샷 캐시와 공유6회 예산, 전체 통계와 최대24개 AI근거 표본 분리, dynamic태그/접힌필터, 기존 데이터 보존 설계.
 - 상태: 상세 설계 자체 검토 완료, 사용자 상세 문서 검토 후 실행 계획 및 TDD 구현. 브레인스토밍 architectural 경로의 문서 검토 단계에서 멈춤. 제품 코드/DB/운영 설정 변경·커밋·배포 없음.
 - 이전 Supabase 복구 진단4개 문서의 미커밋 기록과 output/.playwright-cli를 보존했다. 이번 문서와 이전 운영 기록을 혼동하지 않는다.
+
+
+## 2026-09-14 — 승인된 Supabase 재시작 및 응답 복구
+
+- 사용자 승인으로 공식 POST /v1/projects/bqohkdzvxbrokkmuhysx/restart 1회 실행. 2026-09-14T14:03:47Z HTTP200, RESTARTING 관측, DB 실제 기동14:07:45Z,14:08:02Z 프로젝트와Auth ACTIVE_HEALTHY.
+- 재시작 직전 SELECT now()/pg_postmaster_start_time도 connection timeout. 이후 SQL 성공(세션112/회복131건), 공개 Auth health200(0.929초), profiles/recovery/sessions limit0 REST 모두200(0.210/0.114/0.126초).
+- 공식 metrics와disk/util 조회도200으로 회복. 재시작 후 디스크 사용731873280/2077073408 bytes, 가용1345200128 bytes. 이 사후 값만으로 장애 당시 CPU/메모리/I/O 하위원인을 확정하지 않음.
+- 출석/기술피드 cron14:08UTC 실행 succeeded 확인(HTTP 전송 예약의 성공이며 실제 알림 전달 전체 성공을 뜻하지 않음). 비활성 커리어cron 유지.
+- 데이터 삭제/복원/스키마·RLS·키·요금제·cron 설정/제품 코드 변경 없음. 운영 재시작만 수행, 웹 재배포 없음. 실제 사용자 저장 로그인과 화면 E2E 및 장기 재발 여부는 미검증.
+- 다음: 웹의 학습 정보 다시 확인으로 실제 계정 화면 재확인. 재발 시 복구된 지표에서 장애 시간대 자원을 확보하고 원인 진단; 재시작 성공을 영구 원인 해결로 표현하지 않음.
+
+
+## 2026-09-14 — 학습 정보 timeout 운영 재진단 (미해결)
+
+- 사용자 화면의15초 timeout은 이전 패치의 안전장치이며 서버 가용성 복구가 아님. 최초 학습 정보 확인 실패로 시작 버튼이 안전하게 차단된 상태.
+- 운영 공개 Auth health200에도0.37~8.85초 편차, REST profiles limit0도1.25~7.53초 및12초 timeout. DNS/TCP/TLS는 빠르고 최초응답 지연이 관측됨. IPv4 원인으로 단정하지 않음.
+- Management health(auth) healthy=false/UNHEALTHY, 오류 Failed to retrieve project's auth service health. metrics 및 disk/util도 조회 실패. MCP 진단 요청1건504. 정확한 CPU/메모리/I/O 원인은 미확정.
+- DB 스냅샷에서 별도 장기 실행 쿼리/lock wait 없음. cron.job_run_details371MB/net._http_response110MB 및 누적 pg_net cleanup 비용은 정리 후보이지 현재 장애의 확정 원인이 아님.
+- 활성 cron은 출석/기술피드 각 매분, 과거 커리어2개는 비활성. 운영 데이터/설정/코드 변경, 삭제, 재시작, 유료 업그레이드 없음. 다음: 짧은 운영 중단을 수반하는 프로젝트 재시작 승인 후 상태/조회 재검증 또는 Supabase 지원 진단.
 
 
 ## 2026-09-14 — 회복루틴 잠금 수정 운영 배포 완료

@@ -63,3 +63,29 @@ test('facets use all visible articles and private exact evidence matches without
  assert.equal(classifyListItem(items[24],'FluxDB').category,'practice');assert.deepEqual(classifyListItem(items[24],'OtherPrivate').topics.includes('FluxDB'),false);
  const view=briefingView({...fixture().snapshot,articles:items});assert.equal(view.total,25);assert.equal(view.categories.reduce((n,x)=>n+x.count,0),25);
 });
+test('read without provider configuration reports unavailable before offering the button; cached, insufficient and paused keep their status',async()=>{
+ const missing={...env,OPENROUTER_API_KEY:''};
+ const f=fixture();assert.equal((await runBriefing({...f,env:missing})).status,'unavailable');assert.equal(f.calls,0);assert.equal(f.reservations,0);
+ const g=fixture();assert.equal((await runBriefing({...g,env,generate:true})).status,'ready');assert.equal((await runBriefing({...g,env:missing})).status,'ready');
+ assert.equal((await runBriefing({...fixture(1),env:missing})).status,'insufficient');
+ const h=fixture();h.snapshot.receiving=false;assert.equal((await runBriefing({...h,env:missing})).status,'paused');
+ // A malformed provider setting is a configuration problem, not a crash of the read path.
+ assert.equal((await runBriefing({...fixture(),env:{...env,OPENROUTER_MODEL:'bad model'}})).status,'unavailable');
+});
+
+test('a briefing refunds the reserved call when the provider gives nothing usable',async()=>{
+ const f=fixture();const refunds=[];f.store.refundAiCall=async()=>{refunds.push(1);return true;};
+ f.ask=async(_m,_s,reserve)=>{assert.ok(await reserve());return null;};
+ assert.equal((await runBriefing({...f,env,generate:true})).status,'unavailable');
+ assert.equal(refunds.length,1,'the wasted reservation is returned');
+ // A quota refusal never reserved anything, so refunding would create budget.
+ const g=fixture();const none=[];g.store.refundAiCall=async()=>{none.push(1);return true;};
+ g.store.reserveBriefing=async()=>({status:'quota_exhausted'});
+ g.ask=async(_m,_s,reserve)=>{await reserve();return null;};
+ assert.equal((await runBriefing({...g,env,generate:true})).status,'quota_exhausted');
+ assert.deepEqual(none,[]);
+ // A successful generation is charged.
+ const h=fixture();const charged=[];h.store.refundAiCall=async()=>{charged.push(1);return true;};
+ assert.equal((await runBriefing({...h,env,generate:true})).status,'ready');
+ assert.deepEqual(charged,[]);
+});

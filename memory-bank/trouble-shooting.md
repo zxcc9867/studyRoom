@@ -1,3 +1,77 @@
+## 2026-09-15 — 배포 후 발견: 브리핑 환급이 항상 실패한 결함
+
+### 상황
+예산 마이그레이션과 Edge 배포(v22/v24) 직후 운영에서 브리핑을 클릭하자 실제 OpenRouter 호출은 일어났으나(attempts 6→7, calls 6→7) 실패 후 환급이 되지 않았다.
+
+### 원인
+`tech-feed-store.ts`의 `refundAiCall:(user:string)=>rpc("coach_refund_ai",{p_user_id:user})`가 필수 인자를 받도록 돼 있었다. 워커는 owner를 명시해 호출하지만(워커 store는 owner=null로 생성), 브리핑은 owner가 바인딩된 store에서 인자 없이 호출한다. 그 결과 `p_user_id`가 undefined로 나가 RPC가 null을 받고 `unauthorized`로 거부됐으며, 예외는 3중 try/catch에 삼켜졌다.
+`.mjs` 호출부는 Deno 타입체크 대상이 아니라 `npm run test:edge`가 잡지 못했고, 단위 테스트의 store 목이 인자를 검증하지 않아 GREEN이었다.
+
+### 해결 방법
+`refundAiCall:(user:string|null=owner)=>...`로 기본값을 바인딩된 owner로 지정. `tech-feed-store.test.ts`에 owner 바인딩/명시 두 경로를 모두 검증하는 테스트 추가(타입체크에서 RED 재현됨). 재배포 후 운영에서 calls 7→8·attempts 7 유지로 환급 확인.
+
+### 관련 파일
+- supabase/functions/_shared/tech-feed-store.ts, tech-feed-store.test.ts
+
+### 재발 방지
+`.mjs`에서 `.ts` store의 메서드를 호출할 때는 인자 계약을 store 테스트로 고정한다. 목(mock)은 호출 여부만이 아니라 전달 인자도 검증한다.
+
+
+## 2026-09-15 — [정정 — 시크릿 등록 후 실제 원인] AI 요약: 일일 할당량 6회 고갈
+
+아래 같은 날짜의 `Edge OpenRouter 시크릿 누락` 항목은 시크릿 등록 이전 시점의 관측이며 그 자체는 사실이다. 사용자가 01:12:22 UTC에 시크릿을 등록한 뒤 확인한 실제 지속 원인은 다르므로 아래 내용으로 갱신한다.
+
+### 관측 (운영 tech_feed_runs, 분 단위)
+- 01:11·01:12 `deferred 3` (키 없음) → 01:12:22 시크릿 등록 → 01:13~01:16 `failed 3` ×4 → **01:17 `ok 3` 성공** → 이후 0.
+- 결과: `articles_with_ai_summary 3`, `summary_status ready 3 / failed 12 / pending 55`, `category_method='ai'` 실제 저장 확인. **OpenRouter 키·모델·네트워크는 정상.**
+- 시크릿은 함수 재배포 없이 즉시 반영됐다(등록 51초 뒤 첫 호출).
+
+### 원인 1 — 할당량 경합 (핵심)
+`coaching_private.reserve_ai`의 하루 6회를 백그라운드 수집 워커와 사용자의 `오늘 요약 보기`가 공유한다. cron `study-room-tech-feed-hourly`가 이름과 달리 `* * * * *`(매분)이라 키가 생기자마자 워커가 5분 만에 6/6을 소진했다. 오늘 82회 실행, deferred 219. 사용자 버튼이 할당량을 얻을 구조적 기회가 없다.
+
+### 원인 2 — 무료 라우터 변동성
+`openrouter/free`는 매 호출 무작위 free 모델을 고른다(유효한 모델 ID임은 공개 목록에서 확인). 뽑힌 모델 출력이 `validateSummary`(키 3개 정확일치·500자·`<>`/`http:` 불가)를 통과하지 못하면 실패하며, **실패해도 할당량은 차감되고 기사는 `failed`로 남는다.** 오늘 5회 중 1회 성공.
+
+### 6이라는 숫자의 출처
+`20260906083030_studyroom_v2_coach.sql`(커밋 1376fc6, 2026-09-06, 커리어 코치 시절). 기술 피드 도입(2026-09-12, 6d7ee57)보다 6일 앞선다. 근거 주석 없음, 이후 한 번도 개정되지 않음. 2층 구조다: 기능 한도는 `study_coaching_mutate`의 `used>=3`(코칭 기록 3건/일), 모델 예산은 `reserve_ai`의 `attempts<6`(실제 호출, 전 기능 공유). 즉 6은 `코칭 3건+재시도` 크기로 잡힌 값이며 매분 도는 워커를 상정하지 않았다. OpenRouter가 건 제한이 아니다(무료 모델 단가 0, `max_price {0,0,0}`로 유료 차단).
+
+### 화면이 계속 실패로 보이는 이유
+브리핑 행의 `last_error='unavailable'`이 01:13 실패 때 기록된 뒤 남아 있고, `briefingView`가 `snapshot.last_error||'idle'`을 상태로 쓴다.
+
+### 조치 상태
+사용자 승인: 실패 시 할당량 환급 + 재시도. 할당량 경합 해결 방향은 사용자 확인 대기 중. 아직 코드/운영 변경 없음.
+
+### 관련 파일
+- supabase/migrations/20260906083030_studyroom_v2_coach.sql, 20260906064942_study_restart_coaching.sql
+- supabase/functions/_shared/tech-feed-briefing.mjs, tech-feed-store.ts, tech-feed-worker-core.mjs, coach-openrouter.mjs
+
+### 재발 방지
+공유 AI 예산을 쓰는 기능을 추가할 때 호출 주체(사용자 클릭 vs 스케줄 워커)와 호출 빈도를 예산 크기와 함께 재검토한다. 실패가 예산을 차감하는지 명시한다.
+
+
+## 2026-09-15 — 운영 AI 요약 보기 미동작 (Edge OpenRouter 시크릿 누락)
+
+### 상황
+실제 소유자 계정(Asia/Tokyo)에서 기술 피드 `오늘 요약 보기`를 눌러도 인사이트가 생성되지 않았다. 서버는 200을 반환하고 상태만 idle→unavailable("AI 요약 연결을 확인하지 못했어요")로 바뀌었다.
+
+### 원인
+운영 Supabase Edge 시크릿에 OPENROUTER_API_KEY / OPENROUTER_MODEL이 없다(`supabase secrets list`, 이름만 확인). 기존 재시작 코치는 GitHub Secret→Vercel production env(api/study-coaching.mjs) 경로로 키를 받지만, 브리핑은 Edge `tech-feed`가 Deno.env를 읽는다. `getOpenRouterConfig(env).enabled=false` → `runBriefing`이 provider 호출 전에 unavailable을 반환한다. DB 스냅샷(오늘 10건 중 적격 9건, receiving true, 캐시/lease 없음)·접근 게이트·쿼터 함수(coaching_private.reserve_ai, coach_ai_usage)는 모두 정상이었다.
+
+### 해결 방법
+- 운영 조치(사용자 수행): `supabase secrets set OPENROUTER_API_KEY=<값> OPENROUTER_MODEL=openrouter/free --project-ref bqohkdzvxbrokkmuhysx`. 키 값은 문서·로그에 기록하지 않는다.
+- 코드: 읽기 경로도 provider 미설정을 보고하도록 `runBriefing`에 providerEnabled() 검사 추가. idle일 때만 unavailable로 대체하고 ready/insufficient/paused/캐시는 유지, 잘못된 설정은 예외 대신 unavailable. 실패 테스트 작성 후 GREEN.
+
+### 검증
+node --test 686건(682 pass, 0 fail, 4 optional browser skip), test:edge 10/10. 실제 소유자 브라우저에서 클릭 재현·응답 확인. 시크릿 설정 후 실제 생성은 재검증 필요.
+
+### 관련 파일
+- supabase/functions/_shared/tech-feed-briefing.mjs, tech-feed-briefing.test.mjs
+- docs/tech-feed/daily-briefing-verification.md
+
+### 재발 방지
+Edge에서 새로 AI를 호출하는 기능은 Vercel env와 별개로 `supabase secrets list`에 필요한 키 이름이 있는지 릴리즈 게이트로 확인한다. 운영 웹 검증에 "실제 소유자 생성 1회"를 필수 항목으로 둔다.
+
+
 ## 2026-09-15 — 브리핑 재조회 수명주기 회귀 수정
 
 ### 상황과 원인
@@ -29,6 +103,44 @@ packages/core/src/feedClassification.mjs, feedMarkdown.mjs 및 tests; supabase/f
 
 ### 남은 리스크
 현재 기록은 로컬 검증이다. 원격 권한/실계정/브라우저 검증은 별도 수행하며 기존 Supabase 장애의 최초 자원 원인이 확정됐다는 의미가 아니다.
+
+
+## 2026-09-14 — Supabase timeout 복구 조치 결과
+
+### 조치 및 검증
+- 사용자 승인으로 공식 POST /v1/projects/bqohkdzvxbrokkmuhysx/restart 1회 실행. 2026-09-14T14:03:47Z HTTP200, RESTARTING 관측, DB 실제 기동14:07:45Z,14:08:02Z 프로젝트와Auth ACTIVE_HEALTHY.
+- 재시작 직전 SELECT now()/pg_postmaster_start_time도 connection timeout. 이후 SQL 성공(세션112/회복131건), 공개 Auth health200(0.929초), profiles/recovery/sessions limit0 REST 모두200(0.210/0.114/0.126초).
+- 공식 metrics와disk/util 조회도200으로 회복. 재시작 후 디스크 사용731873280/2077073408 bytes, 가용1345200128 bytes. 이 사후 값만으로 장애 당시 CPU/메모리/I/O 하위원인을 확정하지 않음.
+- 출석/기술피드 cron14:08UTC 실행 succeeded 확인(HTTP 전송 예약의 성공이며 실제 알림 전달 전체 성공을 뜻하지 않음). 비활성 커리어cron 유지.
+- 데이터 삭제/복원/스키마·RLS·키·요금제·cron 설정/제품 코드 변경 없음. 운영 재시작만 수행, 웹 재배포 없음. 실제 사용자 저장 로그인과 화면 E2E 및 장기 재발 여부는 미검증.
+
+### 남은 리스크
+서버/인증 응답 장애는 재기동 후 해소됐지만 최초 장애의 자원 또는 서비스 하위원인은 미확정. 이전 UNHEALTHY와 metrics 실패, 재시작 전SQL timeout, 재시작 후 기동시각/정상응답을 구분해 기록. 실제 계정의 회복 저장 성공이나 시작 버튼 정상화를 대신 검증한 것은 아님.
+
+### 운영 경로
+CLI projects --help 및 현재 MCP 도구에 restart가 없어 공식 Management API의 /restart를 사용. 문서 URL은 https://supabase.com/docs/reference/api/v1-restart-a-project 이며 v1-restart-project는404. 토큰 출력/저장 없음.
+
+
+## 2026-09-14 — 학습 정보 timeout과 Supabase 서비스 상태 실패
+
+### 상황
+회복루틴 UI 대기 개선 배포 후에도 최초 학습 정보 로딩이15초 deadline에 도달하여 시작이 차단됨. UI 안전장치와 서버 가용성은 별개.
+
+### 관측 오류
+- 앱: 서버 응답을 기다리는 시간이 초과됐습니다.
+- 공식 health(auth): healthy=false, status=UNHEALTHY, Failed to retrieve project's auth service health.
+- metrics: Failed to fetch project's metrics (errorEventId815562944a9c480baa50e1e694fb4ec6).
+- disk/util: Failed to get disk utilization.
+- MCP 진단1건 HTTP504. 자체 진단 취소 조건에 일치하는 실행 쿼리 없음.
+
+### 원인 구분
+공개 Auth health 및 limit0 REST 조회도 지연되어 실제 사용자 회복루틴 상태만의 문제는 아님. TLS까지는 빠르고 최초응답 시간이 가변적. 서비스 응답 가용성 문제는 확인했으나 CPU/메모리/디스크 고갈·특정 쿼리 중 어느 것이 하위원인인지는 미확정. 스냅샷 장기 실행/lock wait 없음. cron 기록371MB와 pg_net 응답110MB 및 누적 cleanup 비용만으로 현재 I/O 고갈을 확정하지 않음.
+
+### 다음 조치 및 주의
+운영 재시작은 일시적인 로그인·공부 기록·알림 중단을 수반하므로 승인 후 실행 및 전후 검증. 원인 불명 상태에서 timeout 연장·기록 삭제·무료 플랜 유료 전환을 하지 않음. CPU/I/O 지표 조회가 계속 실패하면 해당 오류와 시각으로 Supabase 지원 요청. 현재는 진단만 수행했으며 해결 완료 아님.
+
+### 관련 경로
+apps/web/src/dashboardData.ts, apps/web/src/main.tsx. 운영 project ref bqohkdzvxbrokkmuhysx. 제품 및 운영 변경 없음.
 
 
 ## 2026-09-14 — 최종 리뷰 및 검증 완료

@@ -18,7 +18,7 @@ before(async()=>{
  grant all on profiles,study_todos,study_goals to service_role;
  insert into auth.users values('${owner}'),('${other}');insert into profiles values('${owner}','Asia/Tokyo'),('${other}','Asia/Tokyo');`);
  await db.exec(readFileSync('supabase/migrations/20260906083030_studyroom_v2_coach.sql','utf8'));
- for(const name of readdirSync('supabase/migrations').filter(n=>/_tech_feed(?:_web_search|_manual_refresh|_immediate_refresh|_korean_translation|_media|_daily_briefing)?\.sql$/.test(n)).sort())await db.exec(readFileSync('supabase/migrations/'+name,'utf8'));
+ for(const name of readdirSync('supabase/migrations').filter(n=>/_tech_feed(?:_web_search|_manual_refresh|_immediate_refresh|_korean_translation|_media|_daily_briefing|_ai_budget)?\.sql$/.test(n)).sort())await db.exec(readFileSync('supabase/migrations/'+name,'utf8'));
 });
 after(async()=>db?.close());
 async function tx(work){await db.exec(`begin;set local role service_role`);try{await work();}finally{await db.exec('rollback');}}
@@ -148,14 +148,22 @@ test('uncited sample permission loss hides a cached briefing; pausing alone pres
  assert.equal((await rpc('tech_feed_briefing_snapshot',owner,1)).cache,null);
  assert.equal((await db.query('select attempts from coach_ai_usage where user_id=$1',[owner])).rows[0].attempts,1);
 }));
-test('existing six-call quota caps briefing and expired/replaced leases cannot finish',()=>tx(async()=>{
- const{ids}=await todaySeed();for(let i=0;i<6;i++)assert.equal(await rpc('coach_reserve_ai',owner),true);
+test('the shared quota caps briefing and expired/replaced leases cannot finish',()=>tx(async()=>{
+ // The daily budget is 15 since 2026-09-15; the worker's own cap is lower so a
+ // user-initiated briefing still finds a call after the worker has taken its share.
+ const{ids}=await todaySeed();for(let i=0;i<12;i++)assert.equal(await rpc('coach_reserve_ai',owner,12),true);
+ assert.equal(await rpc('coach_reserve_ai',owner,12),false,'worker stops at its cap');
+ const spare=await rpc('tech_feed_briefing_snapshot',owner,1);
+ const early=await rpc('tech_feed_briefing_claim',owner,1,spare.input_hash,ids);
+ assert.equal((await rpc('tech_feed_briefing_reserve',owner,early.lease)).status,'reserved','user keeps the remainder');
+ assert.equal(await rpc('tech_feed_briefing_finish',owner,early.lease,null,'unavailable'),true);
+ for(let i=0;i<2;i++)assert.equal(await rpc('coach_reserve_ai',owner),true);
  const s=await rpc('tech_feed_briefing_snapshot',owner,1);const c=await rpc('tech_feed_briefing_claim',owner,1,s.input_hash,ids);
  assert.equal((await rpc('tech_feed_briefing_reserve',owner,c.lease)).status,'quota_exhausted');
  await db.query("update tech_feed_briefings set lease_until=now()-interval '1 second'where user_id=$1",[owner]);
  const newer=await rpc('tech_feed_briefing_claim',owner,1,s.input_hash,ids);assert.notEqual(newer.lease,c.lease);
  assert.equal(await rpc('tech_feed_briefing_finish',owner,c.lease,null,'unavailable'),false);
- assert.equal((await db.query('select attempts from coach_ai_usage where user_id=$1',[owner])).rows[0].attempts,6);
+ assert.equal((await db.query('select attempts from coach_ai_usage where user_id=$1',[owner])).rows[0].attempts,15);
 }));
 test('cache is stale on new content but hidden after access removal, and owner table has no client write grant',()=>tx(async()=>{
  const{source,ids}=await todaySeed();let s=await rpc('tech_feed_briefing_snapshot',owner,1);

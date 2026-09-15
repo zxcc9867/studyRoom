@@ -1,3 +1,62 @@
+### 2026-09-15 — AI 예산 개편 운영 적용 및 환급 결함 수정
+
+#### 완료한 작업
+- 마이그레이션 20260915020000 운영 적용 + 이력 기록. attempts 0~15, calls 칼럼(상한 40), 워커 cap 12, cron 매분→매시간.
+- Edge tech-feed/tech-feed-worker 배포. 배포 후 환급 결함(refundAiCall이 바인딩 owner 미사용) 발견·수정·재배포.
+
+#### 변경된 파일
+- supabase/functions/_shared/tech-feed-store.ts (환급 기본 owner), tech-feed-store.test.ts (+1 Deno 테스트)
+- memory-bank/active-context.md, progress.md, implementation-plan.md, trouble-shooting.md
+
+#### 검증 방법
+- npm test 693건(689 pass, 0 fail, 4 optional skip), npm run test:edge 11/11(+1), build·docs·mobile 통과
+- 운영: 스키마/함수/cron 조회로 적용 확인, 무인증 401 확인, 실제 소유자 브라우저 클릭으로 claim→reserve→finish 도달 확인, 환급 동작 확인(calls +1, attempts 유지)
+
+#### 남은 작업 / 다음 우선순위
+- `openrouter/free` 출력 실패 원인 확정(현재 3중 catch로 오류코드 소실). 그 뒤 모델 고정 여부 결정.
+- 실제 화면에 AI 요약이 뜨는 것은 아직 미달성. 기사 요약은 3건만 존재.
+- 커밋·푸시 미실행.
+
+### 2026-09-15 — AI 호출 예산 재조정·실패 환급·cron 정상화 (로컬 완료, 운영 미적용)
+
+#### 완료한 작업
+- 원인 확정: 시크릿은 정상이었고 실제 블로커는 공유 예산 6회를 매분 cron 워커가 독식한 것 + `openrouter/free` 무작위 모델의 출력 검증 실패(5회 중 4회)였다.
+- 6이 OpenRouter 제한이 아니라 2026-09-06 커리어 코치 시절의 자체 값임을 확인. OpenRouter 무료 한도는 50/일(크레딧 $10 시 1,000/일).
+- 예산 15, 워커 cap 12, 실패 시 attempts 환급(calls는 환급 불가·상한 40), cron `* * * * *`→`0 * * * *` 구현.
+
+#### 변경된 파일
+- supabase/migrations/20260915020000_tech_feed_ai_budget.sql (신규)
+- supabase/functions/_shared/: tech-feed-store.ts, tech-feed-core.mjs, tech-feed-worker-core.mjs, tech-feed-briefing.mjs
+- 테스트: tech-feed-ai-budget-db.test.mjs(신규 5건), tech-feed-worker-core.test.mjs(+1), tech-feed-briefing.test.mjs(+1), tech-feed-briefing-db.test.mjs(기존 6회 전제 1건 갱신 및 마이그레이션 로딩 범위 확장)
+- 문서: memory-bank/prd-tech-feed.md, implementation-plan.md, docs/tech-feed/daily-briefing-design.md, docs/tech-feed/korean-translation.md
+
+#### 검증 방법
+- npm test 693건(689 pass, 0 fail, 4 optional browser skip) — 이전 686건 대비 +7
+- npm run test:edge 10/10, npm run build 성공, docs:check 24참조, mobile:check 통과
+- 실패 테스트 선작성(RED) 후 구현(GREEN) 순서로 진행
+
+#### 남은 작업 / 다음 우선순위
+- 운영 적용(마이그레이션→Edge 배포→cron 확인)은 사용자 승인 후. db push가 원격 이력 불일치로 막혀 Supabase MCP 경로 필요.
+- 적용 후 실제 소유자 계정에서 `오늘 요약 보기` 1회 성공 확인(아직 미검증 항목).
+- `openrouter/free` 무작위 모델 성공률은 표본 5회뿐이므로 며칠 관찰 후 모델 고정 여부 재판단.
+
+### 2026-09-15 — 기술 피드 AI 요약 미동작: Edge 시크릿 누락 확정 및 읽기 경로 보강
+
+#### 완료한 작업
+- 실제 소유자 계정으로 `오늘 요약 보기` 재현: idle→unavailable, 200 응답, provider 미호출. 운영 Edge 시크릿에 OPENROUTER_API_KEY/OPENROUTER_MODEL 부재 확인(이름만 조회).
+- 읽기 경로가 provider 미설정을 unavailable로 보고하도록 runBriefing 보강. 잘못된 설정은 예외 대신 unavailable.
+
+#### 변경된 파일
+- supabase/functions/_shared/tech-feed-briefing.mjs, tech-feed-briefing.test.mjs
+- docs/tech-feed/daily-briefing-verification.md, memory-bank/active-context.md, progress.md, trouble-shooting.md
+
+#### 검증 방법
+- npm test 686건(682 pass, 0 fail, 4 optional browser skip), npm run test:edge 10/10. 운영 DB 읽기 전용 조회로 적격 9/10·receiving·쿼터 함수 존재 확인.
+
+#### 남은 작업 / 다음 우선순위
+- 사용자가 Edge 시크릿 2개 설정 후 실제 생성 1회 확인. 이후 커밋·배포는 별도 지시. 내 페이지 리포트 로드 실패는 별도 조사 후보.
+
+
 ## 2026-09-15 — 기술 피드 개선 운영 배포 완료
 
 - 완료: 자동 규칙 분류/기존 글 백필, Markdown 가독성, 자유 입력 중심 설정·접힌 동적 보기 필터, 전체 오늘 통계와 버튼형 AI 인사이트. 탭 복귀는 읽기 전용 갱신이며 추가 AI 호출 없음.
@@ -44,6 +103,24 @@
 - 검증: 설계 요구사항4개와 실패/권한/표본/날짜/캐시/회귀 항목 자체 검토. 문서 차이 검사. 코드 변경이 없어 테스트/빌드/배포하지 않음.
 - 남음: 상세 문서 승인, 실행 계획, 실패 테스트부터 구현, 전체 검증 및 프로젝트 정책에 따른 운영 배포.
 - 제품 기능은 아직 미구현. 과거 장애 진단·재시작 문서 미커밋 변경은 그대로 보존.
+
+
+## 2026-09-14 — 서버 재시작 복구 검증
+
+- 사용자 승인으로 공식 POST /v1/projects/bqohkdzvxbrokkmuhysx/restart 1회 실행. 2026-09-14T14:03:47Z HTTP200, RESTARTING 관측, DB 실제 기동14:07:45Z,14:08:02Z 프로젝트와Auth ACTIVE_HEALTHY.
+- 재시작 직전 SELECT now()/pg_postmaster_start_time도 connection timeout. 이후 SQL 성공(세션112/회복131건), 공개 Auth health200(0.929초), profiles/recovery/sessions limit0 REST 모두200(0.210/0.114/0.126초).
+- 공식 metrics와disk/util 조회도200으로 회복. 재시작 후 디스크 사용731873280/2077073408 bytes, 가용1345200128 bytes. 이 사후 값만으로 장애 당시 CPU/메모리/I/O 하위원인을 확정하지 않음.
+- 출석/기술피드 cron14:08UTC 실행 succeeded 확인(HTTP 전송 예약의 성공이며 실제 알림 전달 전체 성공을 뜻하지 않음). 비활성 커리어cron 유지.
+- 데이터 삭제/복원/스키마·RLS·키·요금제·cron 설정/제품 코드 변경 없음. 운영 재시작만 수행, 웹 재배포 없음. 실제 사용자 저장 로그인과 화면 E2E 및 장기 재발 여부는 미검증.
+- 문서 변경: active-context/progress/trouble-shooting/implementation-plan. 문서만 수정하여 코드 빌드/테스트는 수행하지 않음. 커밋/푸시 없음.
+
+
+## 2026-09-14 — 운영 서버 응답 지연 조사 (복구 미완료)
+
+- 완료: 앱 외부의 공개 Auth/빈 REST 조회 지연·timeout 재현. 공식 health(auth) UNHEALTHY 및 metrics/disk utilization 조회 실패 확인.
+- 검증: DB 스냅샷에서 다른 장기 실행/lock wait 없음, 일반 앱 테이블은 작음. 누적 cron/pg_net 시스템 기록과 유지관리 비용 확인. 현재 자원 사용률 확보 실패로 세부 원인 단정 불가.
+- 변경 파일: active-context.md, progress.md, trouble-shooting.md만 진단 기록. 제품 코드·운영 데이터·설정 변경 없음; 재배포/테스트 실행 대상 코드 변경 없음.
+- 남은 작업: 운영 재시작의 중단 영향 안내 및 승인, 정상화 전후 Auth/REST/실제 학습 조회 비교. 기록 삭제·유료 증설은 임의 실행하지 않음.
 
 
 ## 2026-09-14 — 회복루틴 잠금 수정 운영 배포 완료

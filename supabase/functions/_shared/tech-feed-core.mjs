@@ -91,11 +91,15 @@ export async function summarizeBatch(rows,ask) {
     if(result?.deferred){for(const row of candidates){row.summary_status='pending';row.deferred=true;}return results;}
     parsed=JSON.parse(result?.text||'');
   }catch{parsed=null;}
+  // A null parse means the one provider call produced nothing readable at all,
+  // which is distinct from a real answer whose shape a single row rejected.
+  const callFailed=parsed===null;
   for(const row of candidates) {
     const matches=Array.isArray(parsed?.items)?parsed.items.filter(x=>x!==null&&typeof x==='object'&&!Array.isArray(x)&&x.id===row.id):[];
     const {id:_id,category,...value}=matches.length===1?matches[0]:{};
     row.summary=validateSummary(value);row.summary_status=row.summary?'ready':'failed';
     row.category=row.summary&&['news','practice','deep_dive'].includes(category)?category:null;
+    if(callFailed)row.callFailed=true;
   }
   return results;
 }

@@ -78,13 +78,17 @@ function bounded(promise,signal){
   signal.addEventListener('abort',abort,{once:true});Promise.resolve(promise).then(value=>{cleanup();resolve(value);},error=>{cleanup();reject(error);});
  });
 }
+function providerEnabled(env){try{return getOpenRouterConfig(env).enabled;}catch{return false;}}
 export async function runBriefing({store,ask,env,generate=false,signal:parentSignal}){
  const signal=AbortSignal.any([AbortSignal.timeout(30000),...(parentSignal?[parentSignal]:[])]);
  let snapshot=await bounded(store.briefingSnapshot(BRIEFING_ANALYZER_VERSION,signal),signal),lease=null;
  const paused=()=>env.TECH_FEED_ENABLED!=='true'||snapshot.receiving===false;
  const view=briefingView(snapshot,{paused:paused()});
+ // A missing or malformed provider setting is a standing condition: report it on read
+ // instead of offering a button that can only fail. Cached, paused and insufficient views keep their status.
+ if(view.status==='idle'&&!providerEnabled(env))return briefingView(snapshot,{status:'unavailable'});
  if(!generate||paused()||snapshot.generating||view.status==='insufficient'||view.insights.length&&!view.stale)return view;
- let failure='unavailable';
+ let failure='unavailable',reserved=false,wasted=false;
  try{
   if(!getOpenRouterConfig(env).enabled)return briefingView(snapshot,{status:'unavailable'});
   const input=buildBriefingInput(snapshot);if(input.articles.length<2)return briefingView(snapshot,{status:'insufficient'});
@@ -92,20 +96,27 @@ export async function runBriefing({store,ask,env,generate=false,signal:parentSig
   if(claim.status!=='claimed'){
    snapshot=await bounded(store.briefingSnapshot(BRIEFING_ANALYZER_VERSION,signal),signal);return briefingView(snapshot,{status:claim.status});
   }
-  lease=claim.lease;let reserved=false;
+  lease=claim.lease;
   const aiSignal=AbortSignal.any([signal,AbortSignal.timeout(20000)]);
   const response=await bounded(ask(input.messages,aiSignal,async()=>{
    aiSignal.throwIfAborted();const reservation=await bounded(store.reserveBriefing(lease,aiSignal),aiSignal);
    reserved=reservation.status==='reserved';if(!reserved)failure=reservation.status;return reserved;
   }),aiSignal);
   signal.throwIfAborted();
-  if(!reserved||response?.deferred||!response||typeof response.text!=='string'||response.text.length>12000)throw Error('invalid_response');
-  const insights=parseInsights(JSON.parse(response.text),input.articles);
+  let answer=null;
+  if(reserved&&response&&!response.deferred&&typeof response.text==='string'&&response.text.length<=12000){
+   try{answer=JSON.parse(response.text);}catch{answer=null;}
+  }
+  // A reservation that bought no readable answer is returned to the owner; the
+  // non-refundable call counter is what keeps a retry loop finite.
+  if(!reserved||answer===null){if(reserved)wasted=true;throw Error('invalid_response');}
+  const insights=parseInsights(answer,input.articles);
   const result={insights,analyzed_count:input.articles.length};
   if(!await bounded(store.finishBriefing(lease,result,null,signal),signal))throw Error('stale_result');
   lease=null;snapshot=await bounded(store.briefingSnapshot(BRIEFING_ANALYZER_VERSION,signal),signal);
   return briefingView(snapshot,{status:paused()?'paused':snapshot.cache?'ready':'unavailable'});
  }catch{
+  if(wasted&&store.refundAiCall&&!signal.aborted)try{await bounded(store.refundAiCall(),signal);}catch{/* the ceiling still bounds retries */}
   if(lease&&!signal.aborted)try{await bounded(store.finishBriefing(lease,null,failure,signal),signal);}catch{/* lease expiration permits an explicit retry */}
   if(!signal.aborted)try{snapshot=await bounded(store.briefingSnapshot(BRIEFING_ANALYZER_VERSION,signal),signal);}catch{snapshot={...snapshot,cache:null};}
   else snapshot={...snapshot,cache:null};

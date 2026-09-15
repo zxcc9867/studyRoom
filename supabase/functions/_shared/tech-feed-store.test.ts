@@ -47,3 +47,16 @@ Deno.test('authentication validates token through Auth and rejects anonymous use
  await assert.rejects(authenticateFeed(req,admin),/unauthorized/);
  await assert.rejects(authenticateFeed(new Request('https://fixture.example/'),admin),/unauthorized/);
 });
+
+Deno.test('a refund always targets an owner: bound for a user store, explicit for the ownerless worker',async()=>{
+ const calls:any[]=[];
+ const admin=client(async(input,init)=>{calls.push({url:new URL(String(input)),body:JSON.parse(String(init?.body||'{}'))});
+  return new Response('true',{headers:{'Content-Type':'application/json'}});});
+ // The briefing runs on a store built for the signed-in owner and passes no argument.
+ await createFeedStore(admin,owner).refundAiCall();
+ assert.equal(calls[0].url.pathname,'/rest/v1/rpc/coach_refund_ai');
+ assert.equal(calls[0].body.p_user_id,owner,'an undefined owner would make the RPC reject as unauthorized');
+ // The scheduled worker has no bound owner and names the recipient per batch.
+ await createFeedStore(admin,null).refundAiCall(owner);
+ assert.equal(calls[1].body.p_user_id,owner);
+});

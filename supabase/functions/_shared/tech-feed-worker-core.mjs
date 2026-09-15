@@ -69,6 +69,8 @@ async function executeFeedWorker({store,pilotIds,transport,ask,signal,stats,sear
   for(const [owner,group]of groups){
    if(signal.aborted)break;
    const summaries=await summarizeBatch(group.map(x=>x.article),(messages)=>ask(owner,messages,signal,group));
+   // One reservation covers the whole batch, so a wasted call is refunded once.
+   if(store.refundAiCall&&summaries.some(x=>x.callFailed))try{await store.refundAiCall(owner);}catch{/* the ceiling still bounds retries */}
    for(const summary of summaries){
     const claim=group.find(x=>x.article.id===summary.id);
     if(!summary.deferred&&!['ready','failed','insufficient'].includes(summary.summary_status))continue;

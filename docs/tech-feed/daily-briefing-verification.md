@@ -67,3 +67,11 @@ Same-day window/tab reactivation also performs a bounded read-only refresh, with
 - Live index-WOrXYlXe.js references TechFeedSection-BFR8zyll.js; both fetched successfully and the feed chunk includes the daily panel, briefing_generate and source_key.
 - Implementation, scoped/final review, migration, server release, local/browser/CI checks and web rollout gates are complete. No genuine authenticated-owner AI generation was performed; this remains a clearly bounded live-user verification limitation.
 - Preexisting Supabase outage notes remain unstaged; no authentication, attendance, recovery, session, cron or paid fallback policy changes were bundled.
+
+## Live owner verification — 2026-09-15
+
+- The actual signed-in owner (Asia/Tokyo) opened the feed tab. Statistics loaded: 10 articles today, 9 eligible, receiving on, no cache or lease. Clicking `오늘 요약 보기` returned HTTP200 and the panel changed from `idle` to `unavailable`; no insight, no briefing row and no provider call.
+- Root cause: production Edge secrets contain no `OPENROUTER_API_KEY` / `OPENROUTER_MODEL` (checked with `supabase secrets list`, names only). OpenRouter provisioning targets Vercel (GitHub secret → `scripts/sync-openrouter-env.mjs`) for `api/study-coaching.mjs`; the Edge `tech-feed` function reads `Deno.env`. `getOpenRouterConfig(env).enabled` is therefore false and `runBriefing` returns before claiming a lease.
+- Access mode, receiving flag, eligibility, `coaching_private.reserve_ai` and `coach_ai_usage` were verified present, so the two secrets are the only missing gate identified.
+- Code hardening: a read now reports `unavailable` when the provider is not configured and the view would otherwise be `idle`; cached, insufficient and paused views keep their status and a malformed provider setting no longer throws on read. One regression test added. `npm test`: 686 tests, 682 passed, 0 failed, 4 optional browser cases skipped; `test:edge` 10/10.
+- Remaining: the owner sets the two Edge secrets (values are never recorded in this repository) and repeats the click. Actual insight generation stays unverified until then.

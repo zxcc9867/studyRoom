@@ -67,6 +67,10 @@ export function createFeedStore(admin:SupabaseClient,owner:string|null){
   stageHn:(id:string,lease:string,ids:number[],high:number)=>rpc("tech_feed_stage_hn",{p_id:id,p_lease:lease,p_ids:ids,p_high_water:high}),
   finishSource:(id:string,lease:string,items:unknown[],error:string|null,etag:string|null,modified:string|null,checkpoint:unknown=null)=>rpc("tech_feed_finish_source",{p_id:id,p_lease:lease,p_items:items,p_error:error,p_etag:etag,p_last_modified:modified,p_checkpoint:checkpoint}),
   reserveSummaryCall:(ids:string[],leases:string[],user:string)=>rpc("tech_feed_begin_summary_attempt",{p_ids:ids,p_leases:leases,p_user_id:user}),
+  // The briefing runs on an owner-bound store and names nobody; the ownerless
+  // worker names the recipient of the batch it just wasted. An undefined id would
+  // reach the RPC as null and be rejected as unauthorized.
+  refundAiCall:(user:string|null=owner)=>rpc("coach_refund_ai",{p_user_id:user}),
   claimSummaries:(pilots:string[])=>rpc("tech_feed_claim_summaries",{p_pilot_ids:pilots}),
   finishSummary:(id:string,lease:string,user:string,summary:unknown,status:string,category:string|null=null)=>rpc("tech_feed_finish_summary",{p_id:id,p_lease:lease,p_user_id:user,p_summary:summary,p_status:status,p_category:category}),
   cleanup:()=>rpc("tech_feed_cleanup",{}),

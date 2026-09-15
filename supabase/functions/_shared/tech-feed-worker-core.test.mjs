@@ -40,3 +40,26 @@ test('worker finalizes malformed AI response and continues mixed valid next owne
  assert.equal(result.summary_failed,1);assert.equal(result.summarized,1);assert.equal(cleaned,1);
  assert.equal(runs.length,1);assert.equal(runs[0][2],null);assert.deepEqual(runs[0][1],result);
 });
+
+test('a failed provider call refunds the shared budget once, a successful one never does',async()=>{
+ const article=i=>({id:'article-'+i,title:'AWS '+i,excerpt:'x'.repeat(200),permission_status:'approved'});
+ const run=async ask=>{
+  const refunds=[];
+  const store={claimSources:async()=>[],cleanup:async()=>0,refundAiCall:async owner=>{refunds.push(owner);return true;},
+   claimSummaries:async()=>[0,1,2].map(i=>({user_id:pilot,lease:'lease-'+i,article:article(i)})),
+   finishSummary:async()=>true};
+  const stats=await runFeedWorker({store,pilotIds:[pilot],transport:{},ask,signal:AbortSignal.timeout(5000)});
+  return {refunds,stats};
+ };
+ // The provider threw: askFeedAi maps that to null, so no article was really analysed.
+ const failed=await run(async()=>null);
+ assert.deepEqual(failed.refunds,[pilot],'one refund for the one wasted call, not one per article');
+ assert.equal(failed.stats.summary_failed,3);
+ const ok=JSON.stringify({items:[0,1,2].map(i=>({id:'article-'+i,technology:'t','change':'c',usage:'u',category:'news'}))});
+ const good=await run(async()=>({text:ok}));
+ assert.deepEqual(good.refunds,[],'a real answer is charged');
+ assert.equal(good.stats.summarized,3);
+ // A configuration gap defers without reserving, so there is nothing to refund.
+ const deferred=await run(async()=>({deferred:true}));
+ assert.deepEqual(deferred.refunds,[]);
+});
