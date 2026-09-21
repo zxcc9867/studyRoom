@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { test } from "node:test";
+import { actualStudyErrorMessage } from "../src/actualStudy.mjs";
 
 import { isValidSlackChannelId, normalizeSlackChannelId } from "../src/slackChannelId.mjs";
 import { buildSlackUserMention, isValidSlackUserId, normalizeSlackUserId } from "../src/slackUserId.mjs";
@@ -25,7 +26,7 @@ test("web app blocks study start for every pending recovery routine", () => {
   assert.doesNotMatch(appSource, /trigger_type !== "missed_attendance"/);
   assert.match(appSource, /recoveryAutoEndInFlightRef/);
   assert.match(appSource, /blockingRecoveryRequests\.length > 0/);
-  assert.match(appSource, /Recovery routine required/);
+  assert.match(actualStudyErrorMessage({message: "Recovery routine required"}), /회복 루틴/);
 });
 
 test("web app exposes editing controls for scheduled and recurring todos", () => {

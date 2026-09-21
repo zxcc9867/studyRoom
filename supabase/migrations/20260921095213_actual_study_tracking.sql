@@ -289,7 +289,7 @@ begin
  end if;
  select count(*)::integer into count_todos from public.study_todos d where d.user_id=u and d.id=any(ids) and not d.is_completed
  and (case when p_action='start' then d.local_date=(now() at time zone z)::date
-   else exists(select 1 from public.study_session_todos l where l.session_id=s.id and l.todo_id=d.id and l.user_id=u)end);
+   else d.local_date=(now() at time zone z)::date or exists(select 1 from public.study_session_todos l where l.session_id=s.id and l.todo_id=d.id and l.user_id=u)end);
  if count_todos<>cardinality(ids) then problem:=coalesce(problem,'INVALID_SELECTION'); end if;
  if p_action='start' then gross:=0; else
  gross:=greatest(0,floor(extract(epoch from least(now(),coalesce(s.paused_at,now()),coalesce(s.lease_expires_at,s.started_at+interval '1 hour'))-s.started_at))::integer-s.paused_seconds);
@@ -398,6 +398,10 @@ begin
    perform public.checkpoint_actual_study_exclusion(sid,counter);
    perform actual_study_private.close_segment(sid,least(now(),coalesce((select lease_expires_at from public.study_sessions where id=sid),now())));
  end if;
+ -- New selections join only after preview acceptance, inside the same transaction.
+ -- Preserve historical links and never allocate the session's unknown past to them.
+ insert into public.study_session_todos(session_id,todo_id,user_id)
+ select sid,x,u from unnest(ids)x on conflict(session_id,todo_id) do nothing;
  -- Set focus before legacy resume trigger opens the resumed interval.
  update public.study_actual_sessions set current_todo_id=focus where session_id=sid;
  if action='resume' then s:=public.resume_study_session(sid);

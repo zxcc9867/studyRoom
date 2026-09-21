@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { test } from 'node:test';
 import ts from 'typescript';
+import { actualStudyErrorMessage, createActualStudyFlow, resolveCurrentTodo } from '../src/actualStudy.mjs';
 
 // Execute the actual start handler; replace external RPC and already-passed UI gates only.
 const source = readFileSync('apps/web/src/main.tsx', 'utf8');
@@ -18,6 +19,11 @@ function fixture() {
   const noop = () => {};
   const env = {
     dashboardReady: true,
+    actualStudyErrorMessage, createActualStudyFlow, resolveCurrentTodo,
+    currentSessionTodoId: null,
+    actualTrackingRef: {current:null}, actualIntentRef:{current:null}, actualStateRevisionRef:{current:0}, actualReturnFocusRef:{current:null},
+    document: {activeElement:null}, HTMLElement: class {},
+    setActualError: noop, stopCameraMonitoring: noop,
     currentUserIdRef: { current: 'old-user' },
     session: { user: { id: 'old-user' } },
     sessionStartRequestRef: { current: null },

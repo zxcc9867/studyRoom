@@ -1,0 +1,25 @@
+import type { SupabaseClient } from '@supabase/supabase-js';
+export type ActualTodo = {
+  id: string; user_id: string; title: string; local_date: string; start_time: string | null; end_time: string | null;
+  is_completed: boolean; position: number; goal_id: string | null; repeat_group_id: string | null;
+  repeat_mode: 'single' | 'weekly'; repeat_weekdays: number[] | null; repeat_until: string | null; repeat_forever: boolean; created_at: string;
+  original_start_at: string | null; original_end_at: string | null; target_seconds: number | null;
+  first_started_at: string | null; first_tracked_at: string | null; known_seconds: number; open_started_at: string | null;
+  remaining_seconds: number | null; adjustment_count: number; evaluation_eligible: boolean; unknown_allocation: boolean;
+};
+export type ActualTracking = { session_id: string; current_todo_id: string | null; tracking_started_at: string | null; excluded_seconds: number; unknown_allocation: boolean; server_now: string; received_at_ms?: number; todos: ActualTodo[] };
+export type ActualInterval = { start_at: string; end_at: string; local_date: string; end_date: string; start_time: string; end_time: string };
+export type ActualPreview = { version: number; action: 'start' | 'resume' | 'switch'; session_id: string | null; todo_ids: string[]; current_todo_id: string; excluded_seconds: number; proposed_at: string; expires_at: string; time_zone: string; remaining_seconds: number | null; revision: string; changes: {todo_id: string; title: string; before: ActualInterval; after: ActualInterval}[]; cascade_complete: boolean; blocking_error: string | null };
+export type ActualInput = { action: 'start' | 'resume' | 'switch'; sessionId?: string | null; todoIds: string[]; currentTodoId: string; excludedSeconds: number };
+export type ActualIntent = { input: ActualInput; preview: ActualPreview; requestId: string; uncertain: boolean };
+export type ActualResult = { request_id: string; session: { id: string; local_date: string; started_at: string; ended_at: string | null; duration_seconds: number; status: 'active' | 'completed' | 'cancelled'; lease_expires_at: string | null; lease_warning_sent_at: string | null; paused_at: string | null; paused_seconds: number }; preview: ActualPreview; tracking: ActualTracking };
+export type PlanningReport = { scheduled_count: number; started_count: number; on_time_count: number; on_time_ratio: number | null; adjustment_count: number; unstarted_count: number; plans: {todo_id: string; title: string; original_start_at: string; first_started_at: string | null; delay_minutes: number | null; adjustment_count: number; is_unstarted: boolean}[] };
+export function firstStartDelayMinutes(todo: ActualTodo): number | null;
+export function formatActualDuration(seconds: number): string;
+export function formatActualInterval(interval: ActualInterval): string;
+export function resolveCurrentTodo(ids: string[], currentId: string | null): string | null;
+export function getActualProgress(todo: ActualTodo, tracking: ActualTracking, nowMs: number, cameraTotal?: number, leaseExpiresAt?: string | null): {known: number; remaining: number | null};
+export function reconcileCameraCounter(carried: number, localPresence: number, serverTotal: number, firstHydration?: boolean): number;
+export function actualStudyErrorMessage(error: unknown): string;
+export function createActualStudyFlow(options: {rpc: (name: string, args: Record<string, unknown>) => Promise<any>; now?: () => number; uuid?: () => string}): {prepare(input: ActualInput): Promise<ActualIntent>; confirm(intent: ActualIntent, cameraTotal: number): Promise<{kind: 'review'; intent: ActualIntent} | {kind: 'committed'; result: ActualResult}>};
+export function loadPlanningAdherence(client: SupabaseClient, range: {startDate: string; endDate: string}, signal?: AbortSignal): Promise<PlanningReport>;

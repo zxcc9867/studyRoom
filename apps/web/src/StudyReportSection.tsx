@@ -2,6 +2,8 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { ChevronLeft, ChevronRight, RotateCcw } from "lucide-react";
 import WeeklyReviewSection from "./WeeklyReviewSection";
+import PlanningAdherence from "./PlanningAdherence";
+import "./actualStudy.css";
 import { formatStudyDuration } from "./weeklyReview.mjs";
 import { buildStudyReport, getStudyReportPeriods, getStudyReportTodayDate } from "./studyReports.mjs";
 import type { StudyReportPeriods } from "./studyReports.mjs";
@@ -86,6 +88,7 @@ function StudyReportWithProfile(props: Props & { timeZone: string; todayDateKey:
         </div>
       </div>
       <StudyReportContent periods={periods} todayDateKey={props.todayDateKey} state={getStudyReportState(state, key)} onRetry={() => setRetry(value => value + 1)} onPlanAction={props.onPlanAction} onOpenPlannedTodo={props.onOpenPlannedTodo} />
+      <PlanningAdherence client={props.client} userId={props.userId} range={periods.currentRange} revision={key}/>
     </section>
   );
 }

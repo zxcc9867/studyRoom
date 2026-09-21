@@ -230,6 +230,10 @@ import {
   sortStudyGoals,
 } from "./studyGoals.mjs";
 import { AccessibleDialog } from "./AccessibleDialog";
+import ActualStudyPanel from "./ActualStudyPanel";
+import { ActualStudyConfirmation, CurrentTodoChoice } from "./ActualStudyDialogs";
+import { actualStudyErrorMessage, createActualStudyFlow, reconcileCameraCounter, resolveCurrentTodo, type ActualInput, type ActualIntent, type ActualResult, type ActualTracking } from "./actualStudy.mjs";
+import "./actualStudy.css";
 import type { SessionReflectionDraft } from "./SessionReflectionModal";
 import { isSupabaseConfigured, supabase, supabaseAnonKey, supabaseUrl } from "./supabase";
 import {
@@ -289,6 +293,8 @@ const AdaptiveReminderCard = lazy(() => import("./AdaptiveReminderCard"));
 type TodoRepeatMode = "single" | "weekly";
 type CameraSetupPrompt = {
   mode: "start" | "resume" | "break-resume";
+  todoIds?: string[];
+  focusId?: string;
 };
 type CameraDiagnosticReason = CameraHealth["reason"] | "permission-denied" | "unknown-error" | null;
 type SessionLeaseState = {
@@ -562,9 +568,20 @@ function DashboardApp() {
   const [planCopyTargetDates, setPlanCopyTargetDates] = useState<string[]>([]);
   const [planCopyBusy, setPlanCopyBusy] = useState(false);
   const [sessionTodoModalOpen, setSessionTodoModalOpen] = useState(false);
-  const [sessionTodoStartRequest, setSessionTodoStartRequest] = useState<{ cameraReadyOverride: boolean } | null>(null);
+  const [sessionTodoStartRequest, setSessionTodoStartRequest] = useState<{ cameraReadyOverride: boolean; action: "start" | "resume" | "switch" } | null>(null);
   const [selectedSessionTodoIds, setSelectedSessionTodoIds] = useState<string[]>([]);
   const [sessionTodoDraft, setSessionTodoDraft] = useState("");
+  const [sessionTodoTimeEnabled, setSessionTodoTimeEnabled] = useState(false);
+  const [currentSessionTodoId, setCurrentSessionTodoId] = useState<string | null>(null);
+  const [actualTracking, setActualTracking] = useState<ActualTracking | null>(null);
+  const actualTrackingRef = useRef<ActualTracking | null>(null);
+  const [actualIntent, setActualIntent] = useState<ActualIntent | null>(null);
+  const actualIntentRef = useRef<ActualIntent | null>(null);
+  const [actualNotice, setActualNotice] = useState("");
+  const [actualError, setActualError] = useState("");
+  const actualStateRevisionRef = useRef(0);
+  const actualReturnFocusRef = useRef<HTMLElement | null>(null);
+  const cameraCounterSessionRef = useRef<string | null>(null);
   const [sessionTodoStartTime, setSessionTodoStartTime] = useState("09:00");
   const [sessionTodoEndTime, setSessionTodoEndTime] = useState("10:00");
   const [sessionTodoAddBusy, setSessionTodoAddBusy] = useState(false);
@@ -705,6 +722,14 @@ function DashboardApp() {
   useEffect(() => {
     setFeedPlanArticle(null);
     setFeedLinkedTodo(null);
+    actualStateRevisionRef.current += 1;
+    actualIntentRef.current = null;
+    actualTrackingRef.current = null;
+    cameraCounterSessionRef.current = null;
+    carriedCameraExcludedSecondsRef.current = 0;
+    setActualIntent(null);
+    setActualTracking(null);
+    setSessionTodoModalOpen(false);
     setTodoModalOpen(false);
     setDashboardLoadedUserId(null);
     setDashboardError("");
@@ -785,7 +810,12 @@ function DashboardApp() {
   const activeSession = studySessions.find((item) => item.status === "active") ?? null;
   const activeSessionPaused = isStudySessionPaused(activeSession);
   useEffect(() => {
-    carriedCameraExcludedSecondsRef.current = 0;
+    if (cameraCounterSessionRef.current !== (activeSession?.id ?? null)) {
+      cameraCounterSessionRef.current = activeSession?.id ?? null;
+      carriedCameraExcludedSecondsRef.current = 0;
+      actualTrackingRef.current = null;
+      setActualTracking(null);
+    }
   }, [activeSession?.id]);
   const pendingRecoveryRequests = useMemo(
     () => studyRecoveryRequests.filter((item) => item.status === "pending").sort(compareRecoveryRequests),
@@ -1083,9 +1113,11 @@ function DashboardApp() {
       getSessionLinkedTodos({
         activeSessionId: activeSession?.id,
         links: studySessionTodoLinks,
-        todos: studyTodos,
+        todos: actualTracking && actualTracking.session_id === activeSession?.id
+          ? [...actualTracking.todos, ...studyTodos.filter(todo => !actualTracking.todos.some(linked => linked.id === todo.id))]
+          : studyTodos,
       }),
-    [activeSession?.id, studySessionTodoLinks, studyTodos],
+    [activeSession?.id, studySessionTodoLinks, studyTodos, actualTracking],
   );
   const endSessionCompletionCandidates = useMemo(
     () => getEndSessionCompletionCandidates({ activeSessionTodos, todayTodos }),
@@ -1201,33 +1233,36 @@ function DashboardApp() {
       return;
     }
 
+    let cancelled = false;
     async function refreshActiveSessionLease() {
-      if (!session?.user.id || !activeSession) {
-        return;
-      }
-
-      if (activeSessionLeaseRefreshInFlightRef.current) {
-        return;
-      }
-
+      if (!session?.user.id || !activeSession || cancelled || actualIntentRef.current || sessionStartRequestRef.current || activeSessionLeaseRefreshInFlightRef.current) return;
+      const owner = session.user.id;
+      const revision = actualStateRevisionRef.current;
+      const isCurrent = () => !cancelled && currentUserIdRef.current === owner && revision === actualStateRevisionRef.current && !actualIntentRef.current && !sessionStartRequestRef.current;
       activeSessionLeaseRefreshInFlightRef.current = true;
       try {
-        const { data, error } = await supabase
-          .from("study_sessions")
-          .select("id,local_date,started_at,ended_at,duration_seconds,status,lease_expires_at,lease_warning_sent_at,paused_at,paused_seconds")
-          .eq("user_id", session.user.id)
-          .eq("id", activeSession.id)
-          .maybeSingle();
-
-        if (error || !data) {
-          return;
-        }
-
-        const updatedSession = data as StudySession;
-        setStudySessions((current) => [
-          updatedSession,
-          ...current.filter((item) => item.id !== updatedSession.id),
-        ]);
+        const result = await runBoundedRequest(async signal => {
+          const sessionResult = await supabase.from("study_sessions")
+            .select("id,local_date,started_at,ended_at,duration_seconds,status,lease_expires_at,lease_warning_sent_at,paused_at,paused_seconds")
+            .eq("user_id", owner).eq("id", activeSession.id).abortSignal(signal).maybeSingle();
+          if (sessionResult.error) throw sessionResult.error;
+          if (!isCurrent()) return null;
+          const existing = actualTrackingRef.current;
+          const total = getActiveCameraExcludedSeconds();
+          if (existing?.session_id === activeSession.id && total > existing.excluded_seconds && sessionResult.data?.status === "active") {
+            const checkpoint = await supabase.rpc("checkpoint_actual_study_exclusion", { p_session_id: activeSession.id, p_excluded_seconds: total }).abortSignal(signal);
+            if (checkpoint.error) throw checkpoint.error;
+          }
+          if (!isCurrent()) return null;
+          const trackingResult = await supabase.rpc("get_actual_study_state", { p_session_id: activeSession.id }).abortSignal(signal);
+          if (trackingResult.error) throw trackingResult.error;
+          return { session: sessionResult.data, tracking: trackingResult.data };
+        });
+        if (!result || !isCurrent()) return;
+        if (result.tracking) hydrateActualTracking(result.tracking as ActualTracking);
+        if (result.session) setStudySessions(current => [result.session as StudySession, ...current.filter(item => item.id !== activeSession.id)]);
+      } catch (error) {
+        if (isCurrent()) setMessage(`공부 기록 동기화를 확인하지 못했어요. ${actualStudyErrorMessage(error)}`);
       } finally {
         activeSessionLeaseRefreshInFlightRef.current = false;
       }
@@ -1246,6 +1281,7 @@ function DashboardApp() {
     document.addEventListener("visibilitychange", refreshVisible);
 
     return () => {
+      cancelled = true;
       window.clearInterval(intervalId);
       window.removeEventListener("focus", refreshFocused);
       document.removeEventListener("visibilitychange", refreshVisible);
@@ -1771,7 +1807,7 @@ function DashboardApp() {
   }
 
   async function loadDashboard(userId: string) {
-    if (sessionStartRequestRef.current) return;
+    if (sessionStartRequestRef.current || actualIntentRef.current) return;
     dashboardAbortRef.current?.abort();
     const controller = new AbortController();
     dashboardAbortRef.current = controller;
@@ -2181,6 +2217,7 @@ function DashboardApp() {
   }
 
   function toggleSessionTodoSelection(todoId: string) {
+    setCurrentSessionTodoId(null);
     setSelectedSessionTodoIds((current) =>
       current.includes(todoId)
         ? current.filter((item) => item !== todoId)
@@ -2188,12 +2225,14 @@ function DashboardApp() {
     );
   }
 
-  function openSessionTodoSelection(cameraReadyOverride: boolean) {
+  function openSessionTodoSelection(cameraReadyOverride: boolean, action: "start" | "resume" | "switch" = "start") {
     const suggestedTodoTitle = normalizeHabitText(sessionTodoSuggestionRef.current);
     const matchingTodo = findMatchingNextActionTodo({ nextAction: suggestedTodoTitle, todos: incompleteTodayTodos });
     const suggestedSchedule = getSuggestedSessionTodoSchedule();
-    setSessionTodoStartRequest({ cameraReadyOverride });
+    setSessionTodoStartRequest({ cameraReadyOverride, action });
     setSelectedSessionTodoIds(matchingTodo ? [matchingTodo.id] : []);
+    setCurrentSessionTodoId(matchingTodo?.id ?? null);
+    setSessionTodoTimeEnabled(false);
     setSessionTodoDraft(suggestedTodoTitle && !matchingTodo ? suggestedTodoTitle : "");
     setSessionTodoStartTime(suggestedSchedule.startTime);
     setSessionTodoEndTime(suggestedSchedule.endTime);
@@ -2202,6 +2241,7 @@ function DashboardApp() {
   }
 
   function closeSessionTodoSelection() {
+    if (busy) return;
     if (sessionTodoStartRequest?.cameraReadyOverride && !activeSession) {
       stopCameraMonitoring({ recordEvent: false });
       cameraSessionStartingRef.current = false;
@@ -2220,10 +2260,19 @@ function DashboardApp() {
       return;
     }
 
+    const currentId = resolveCurrentTodo(selectedSessionTodoIds, currentSessionTodoId);
+    if (!currentId) { setMessage("먼저 집중할 일 하나를 선택하세요."); return; }
     const request = sessionTodoStartRequest;
+    setCurrentSessionTodoId(currentId);
     setSessionTodoModalOpen(false);
     setSessionTodoStartRequest(null);
-    await startTimer(request?.cameraReadyOverride ?? false, selectedSessionTodoIds);
+    if (request?.action === "resume") {
+      setCameraSetupPrompt({ mode: "break-resume", todoIds: selectedSessionTodoIds, focusId: currentId });
+    } else if (request?.action === "switch" && activeSession) {
+      await runActualAction({ action: "switch", sessionId: activeSession.id, todoIds: selectedSessionTodoIds, currentTodoId: currentId, excludedSeconds: getActiveCameraExcludedSeconds() });
+    } else {
+      await startTimer(request?.cameraReadyOverride ?? false, selectedSessionTodoIds, undefined, currentId);
+    }
   }
 
   function getNextTodoPositions(excludedTodoIds = new Set<string>()) {
@@ -2294,7 +2343,7 @@ function DashboardApp() {
     }
 
     const schedule = normalizeTodoSchedule({
-      enabled: true,
+      enabled: sessionTodoTimeEnabled,
       startTime: sessionTodoStartTime,
       endTime: sessionTodoEndTime,
     });
@@ -2331,6 +2380,7 @@ function DashboardApp() {
 
     if (data) {
       const insertedTodo = data as StudyTodo;
+      setCurrentSessionTodoId(null);
       setStudyTodos((current) => sortTodos([insertedTodo, ...current]));
       setSelectedSessionTodoIds((current) =>
         current.includes(insertedTodo.id) ? current : [...current, insertedTodo.id],
@@ -3347,7 +3397,7 @@ function DashboardApp() {
     setMessage("10분 시작을 완성했습니다. 부담 없으면 지금 흐름을 조금 더 이어가세요.");
   }
 
-  async function startTimer(cameraReadyOverride = false, selectedTodoIds?: string[], suggestedTodoTitle?: string) {
+  async function startTimer(cameraReadyOverride = false, selectedTodoIds?: string[], suggestedTodoTitle?: string, focusId?: string) {
     if (!dashboardReady) {
       setDashboardError("공부 시작 전에 회복루틴과 세션 상태를 확인해야 합니다. 학습 정보를 다시 불러와 주세요.");
       return;
@@ -3398,75 +3448,138 @@ function DashboardApp() {
       return;
     }
 
+    const currentId = resolveCurrentTodo(selectedTodoIds ?? [], focusId ?? currentSessionTodoId);
+    if (!currentId) { openSessionTodoSelection(cameraReadyOverride); return; }
+    await runActualAction({ action: "start", todoIds: selectedTodoIds ?? [], currentTodoId: currentId, excludedSeconds: 0 });
+
+  }
+
+  function hydrateActualTracking(tracking: ActualTracking) {
+    if (cameraCounterSessionRef.current !== tracking.session_id) {
+      cameraCounterSessionRef.current = tracking.session_id;
+      carriedCameraExcludedSecondsRef.current = 0;
+    }
+    carriedCameraExcludedSecondsRef.current = reconcileCameraCounter(
+      carriedCameraExcludedSecondsRef.current, getCurrentExcludedSeconds(presenceStateRef.current), tracking.excluded_seconds,
+      actualTrackingRef.current?.session_id !== tracking.session_id,
+    );
+    if (actualTrackingRef.current?.current_todo_id !== tracking.current_todo_id) setCurrentSessionTodoId(null);
+    const received = { ...tracking, received_at_ms: Date.now() };
+    actualTrackingRef.current = received;
+    setActualTracking(received);
+  }
+
+  function setPendingActualIntent(intent: ActualIntent | null) {
+    actualIntentRef.current = intent;
+    setActualIntent(intent);
+  }
+
+  function cancelActualAction() {
+    if (busy || actualIntentRef.current?.uncertain) return;
+    const action = actualIntentRef.current?.input.action;
+    setPendingActualIntent(null);
+    setActualNotice("");
+    setActualError("");
+    if (action === "start" || action === "resume") {
+      stopCameraMonitoring({ recordEvent: false, preserveExcludedSeconds: action === "resume" });
+      cameraSessionStartingRef.current = false;
+    }
+    setMessage("일정과 공부 상태를 변경하지 않았어요.");
+    window.requestAnimationFrame(() => actualReturnFocusRef.current?.focus());
+  }
+
+  function applyActualResult(result: ActualResult) {
+    const updated = result.session;
+    if (result.preview.action === "start") resetPresenceState();
+    hydrateActualTracking(result.tracking);
+    setStudySessions(current => [updated, ...current.filter(item => item.id !== updated.id)]);
+    setStudyTodos(current => sortTodos([...result.tracking.todos, ...current.filter(todo => !result.tracking.todos.some(linked => linked.id === todo.id))]));
+    setStudySessionTodoLinks(current => [
+      ...current.filter(link => link.session_id !== updated.id),
+      ...result.tracking.todos.map(todo => ({ id: `actual-${updated.id}-${todo.id}`, user_id: session!.user.id, session_id: updated.id, todo_id: todo.id, linked_at: result.tracking.tracking_started_at ?? updated.started_at, completed_during_session: false })),
+    ]);
+    const deadline = updated.lease_expires_at ? Date.parse(updated.lease_expires_at) : Number.NaN;
+    persistSessionLease(updated.id, Number.isFinite(deadline) ? deadline : createSessionLeaseDeadlineMs(Date.now()));
+    persistStudySessionActivity(updated.id);
+    clearBreakReturnPlan();
+    cameraSessionIdRef.current = updated.id;
+    rememberCameraMonitoringIntent(updated.id);
+    if (result.preview.action === "start" && session?.user.id) {
+      const owner = session.user.id;
+      void recordCameraPresenceEvent(owner, updated.id, "camera_started", { metadata: { source: "web-camera", requiredForAttendance: true } })
+        .catch(error => { if (currentUserIdRef.current === owner) setCameraMessage(formatNotificationError(error)); });
+    }
+    setCameraSetupPrompt(null);
+    sessionTodoSuggestionRef.current = null;
+    cameraSessionStartingRef.current = false;
+    setCurrentSessionTodoId(result.tracking.current_todo_id);
+    setNowMs(Date.now());
+    setMessage(result.preview.action === "start" ? "집중 세션을 시작했습니다." : result.preview.action === "resume" ? "공부를 다시 시작했습니다." : "현재 집중할 일을 전환했습니다.");
+  }
+
+  async function runActualAction(input?: ActualInput, retryIntent?: ActualIntent): Promise<boolean> {
     const userId = session?.user.id;
-    if (!userId || sessionStartRequestRef.current) return;
+    if (!userId || !dashboardReady || sessionStartRequestRef.current || (actualIntentRef.current && !retryIntent)) return false;
+    if (input?.action !== "start" && !retryIntent && !actualTrackingRef.current) return false;
     const controller = new AbortController();
     sessionStartRequestRef.current = controller;
-    const isCurrent = () => currentUserIdRef.current === userId && !controller.signal.aborted;
+    const revision = ++actualStateRevisionRef.current;
+    if (!retryIntent) actualReturnFocusRef.current = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+    const isCurrent = () => currentUserIdRef.current === userId && revision === actualStateRevisionRef.current && !controller.signal.aborted;
     // Invalidate any snapshot taken before the session-start mutation.
     dashboardAbortRef.current?.abort();
     dashboardAttemptRef.current += 1;
     setDashboardLoading(false);
     setBusy(true);
-    const { data, error } = await runBoundedRequest((signal) =>
-      supabase.rpc("start_study_session", { p_todo_ids: selectedTodoIds ?? [] }).abortSignal(signal),
-      { signal: controller.signal },
-    ).catch((error: unknown) => {
-      if (isCurrent()) {
-        setDashboardLoadedUserId(null);
-        setDashboardError("세션 시작 결과가 불확실합니다. 중복 시작을 방지하기 위해 학습 정보를 다시 확인해 주세요.");
-      }
-      return { data: null, error: { message: `세션 시작 결과를 확인하지 못했습니다. ${formatError(error)}` } };
-    }).finally(() => {
-      if (sessionStartRequestRef.current === controller) sessionStartRequestRef.current = null;
-      if (isCurrent()) setBusy(false);
-    });
-    if (!isCurrent()) return;
-    if (error) {
-      if (error.message.includes("Recovery routine required")) {
-        setMessage("회복 루틴 필요: Slack에서 회복 루틴을 제출한 뒤 다시 시작하세요.");
-        if (session?.user.id) {
-          await loadDashboard(session.user.id);
+    setActualError("");
+    let committed = false;
+    let intent = retryIntent;
+    const flow = createActualStudyFlow({ rpc: async (name, args) => {
+      const { data, error } = await runBoundedRequest(signal => supabase.rpc(name, args).abortSignal(signal), { signal: controller.signal });
+      if (error) throw error;
+      if (!isCurrent()) throw new DOMException("Stale account", "AbortError");
+      return data;
+    }});
+    try {
+      if (!intent && input) {
+        intent = await flow.prepare(input);
+        if (!isCurrent()) return false;
+        if (input.action === "switch" || intent.preview.changes.some(change => change.todo_id !== intent!.preview.current_todo_id)) {
+          setActualNotice("");
+          setPendingActualIntent(intent);
+          return false;
         }
+      }
+      if (!intent) return false;
+      const outcome = await flow.confirm(intent, intent.input.action === "start" ? 0 : getActiveCameraExcludedSeconds());
+      if (!isCurrent()) return false;
+      if (outcome.kind === "review") {
+        setActualNotice("공부 상태나 시간이 바뀌어 새 제안을 가져왔어요. 변경 내용을 다시 확인해 주세요.");
+        setPendingActualIntent(outcome.intent);
+        return false;
+      }
+      setPendingActualIntent(null);
+      applyActualResult(outcome.result);
+      committed = true;
+      return true;
+    } catch (error) {
+      if (!isCurrent()) return false;
+      const help = actualStudyErrorMessage(error);
+      setMessage(help);
+      if (intent) {
+        setPendingActualIntent({ ...intent });
+        setActualError(help);
       } else {
-        setMessage(error.message);
+        if (input?.action === "start" || input?.action === "resume") stopCameraMonitoring({ recordEvent: false, preserveExcludedSeconds: input.action === "resume" });
+        cameraSessionStartingRef.current = false;
       }
-      if (cameraSessionStartingRef.current && cameraEnabled && !activeSession) {
-        stopCameraMonitoring({ recordEvent: false });
+      return false;
+    } finally {
+      if (sessionStartRequestRef.current === controller) sessionStartRequestRef.current = null;
+      if (isCurrent()) {
+        setBusy(false);
+        if (committed) void loadDashboard(userId);
       }
-      cameraSessionStartingRef.current = false;
-    } else if (session?.user.id) {
-      const startMessage = `집중 세션을 시작했습니다. 이번 세션 할 일 ${(selectedTodoIds ?? []).length}개를 연결했습니다.`;
-      if (data) {
-        const startedSession = data as StudySession;
-        const parsedDeadlineMs = startedSession.lease_expires_at ? Date.parse(startedSession.lease_expires_at) : Number.NaN;
-        persistSessionLease(
-          startedSession.id,
-          Number.isFinite(parsedDeadlineMs) ? Math.floor(parsedDeadlineMs) : createSessionLeaseDeadlineMs(Date.now()),
-        );
-        persistStudySessionActivity(startedSession.id);
-        setStudySessions((current) => [
-          startedSession,
-          ...current.filter((item) => item.id !== startedSession.id),
-        ]);
-        setNowMs(Date.now());
-        if (cameraEnabled || cameraReadyOverride) {
-          cameraSessionIdRef.current = startedSession.id;
-          rememberCameraMonitoringIntent(startedSession.id);
-          await recordCameraPresenceEvent(session.user.id, startedSession.id, "camera_started", {
-            metadata: { source: "web-camera", requiredForAttendance: true },
-          }).catch((error) => {
-            if (isCurrent()) setCameraMessage(formatNotificationError(error));
-          });
-          if (!isCurrent()) return;
-          setCameraMessage("카메라 감시 중");
-        }
-      }
-      setMessage(startMessage);
-      setCameraSetupPrompt(null);
-      sessionTodoSuggestionRef.current = null;
-      cameraSessionStartingRef.current = false;
-      await loadDashboard(session.user.id);
     }
   }
 
@@ -3500,13 +3613,21 @@ function DashboardApp() {
   }
 
   async function pauseTimer() {
-    if (!activeSession || activeSessionPaused) return;
-
+    if (!activeSession || activeSessionPaused || busy || sessionStartRequestRef.current || actualIntentRef.current || !actualTrackingRef.current) return;
+    const userId = session?.user.id;
+    const controller = new AbortController();
+    sessionStartRequestRef.current = controller;
+    const revision = ++actualStateRevisionRef.current;
+    const isCurrent = () => currentUserIdRef.current === userId && revision === actualStateRevisionRef.current && !controller.signal.aborted;
+    dashboardAbortRef.current?.abort();
+    dashboardAttemptRef.current += 1;
     setBusy(true);
     try {
-      const { data, error } = await supabase.rpc("pause_study_session", {
+      const { data, error } = await runBoundedRequest(signal => supabase.rpc("pause_actual_study_session", {
         p_session_id: activeSession.id,
-      });
+        p_excluded_seconds: getActiveCameraExcludedSeconds(),
+      }).abortSignal(signal), { signal: controller.signal });
+      if (!isCurrent()) return;
       if (error) throw error;
 
       const pausedSession = data as StudySession;
@@ -3520,44 +3641,33 @@ function DashboardApp() {
       persistStudySessionActivity(pausedSession.id);
       setNowMs(Date.now());
       setMessage("휴식을 시작했습니다. 공부 시간은 멈추고 세션 유지 시간은 계속 흐릅니다.");
+      const { data: tracking, error: trackingError } = await runBoundedRequest(signal => supabase.rpc("get_actual_study_state", { p_session_id: pausedSession.id }).abortSignal(signal), { signal: controller.signal });
+      if (!trackingError && tracking && isCurrent()) hydrateActualTracking(tracking as ActualTracking);
     } catch (error) {
-      setMessage(formatError(error));
+      if (isCurrent()) setMessage(formatError(error));
     } finally {
-      setBusy(false);
+      if (sessionStartRequestRef.current === controller) sessionStartRequestRef.current = null;
+      if (isCurrent()) setBusy(false);
     }
   }
 
   function requestResumeTimer() {
-    if (!activeSession || !activeSessionPaused) return;
+    if (!activeSession || !activeSessionPaused || !actualTrackingRef.current || actualIntentRef.current) return;
+    if (!actualTrackingRef.current.todos.some(todo => !todo.is_completed)) {
+      openSessionTodoSelection(false, "resume");
+      return;
+    }
     setCameraSetupPrompt({ mode: "break-resume" });
   }
 
-  async function resumeTimer() {
-    if (!activeSession || !activeSessionPaused) return false;
-
-    setBusy(true);
-    try {
-      const { data, error } = await supabase.rpc("resume_study_session", {
-        p_session_id: activeSession.id,
-      });
-      if (error) throw error;
-
-      const resumedSession = data as StudySession;
-      setStudySessions((current) => [
-        resumedSession,
-        ...current.filter((item) => item.id !== resumedSession.id),
-      ]);
-      clearBreakReturnPlan();
-      persistStudySessionActivity(resumedSession.id);
-      setNowMs(Date.now());
-      setMessage("공부를 다시 시작했습니다.");
-      return true;
-    } catch (error) {
-      setMessage(formatError(error));
-      return false;
-    } finally {
-      setBusy(false);
-    }
+  async function resumeTimer(selectedIds?: string[], selectedFocus?: string) {
+    if (!activeSession || !activeSessionPaused || !actualTrackingRef.current) return false;
+    const linkedIds = actualTrackingRef.current.todos.filter(todo => !todo.is_completed).map(todo => todo.id);
+    // Only the empty-incomplete recovery path may add a newly selected today todo.
+    const ids = linkedIds.length ? linkedIds : selectedIds ?? [];
+    const currentId = resolveCurrentTodo(ids, selectedFocus ?? currentSessionTodoId ?? actualTrackingRef.current.current_todo_id);
+    if (!currentId) { setMessage("재개할 현재 할 일을 먼저 선택해 주세요."); return false; }
+    return runActualAction({ action: "resume", sessionId: activeSession.id, todoIds: ids, currentTodoId: currentId, excludedSeconds: getActiveCameraExcludedSeconds() });
   }
 
   async function endTimer(options: {
@@ -3566,7 +3676,7 @@ function DashboardApp() {
     completedTodoIds?: string[];
     reflection?: SessionReflectionDraft;
   } = {}) {
-    if (!activeSession) return;
+    if (!activeSession || !actualTrackingRef.current || actualIntentRef.current) return;
 
     const endingSession = activeSession;
     if (endSessionInFlightRef.current === endingSession.id) {
@@ -3903,7 +4013,8 @@ function DashboardApp() {
   async function confirmCameraSetupPrompt() {
     if (!cameraSetupPrompt) return;
 
-    const promptMode = cameraSetupPrompt.mode;
+    const prompt = cameraSetupPrompt;
+    const promptMode = prompt.mode;
     cameraSessionStartingRef.current = promptMode === "start";
     const cameraReady = await startCameraMonitoring({ allowWithoutSession: promptMode === "start" });
     if (!cameraReady) {
@@ -3915,9 +4026,9 @@ function DashboardApp() {
     if (promptMode === "start") {
       await startTimer(true);
     } else if (promptMode === "break-resume") {
-      const resumed = await resumeTimer();
-      if (!resumed) {
-        stopCameraMonitoring({ recordEvent: true });
+      const resumed = await resumeTimer(prompt.todoIds, prompt.focusId);
+      if (!resumed && !actualIntentRef.current) {
+        stopCameraMonitoring({ recordEvent: true, preserveExcludedSeconds: true });
       }
     } else {
       cameraSessionStartingRef.current = false;
@@ -4401,53 +4512,9 @@ function DashboardApp() {
   }
 
   function renderSessionTodoList() {
-    if (!activeSession) {
-      return null;
-    }
-
-    const summary = summarizeSessionTodos(activeSessionTodos);
-
-    return (
-      <div className="session-todo-panel" aria-label="이번 세션 할 일">
-        <div className="session-todo-head">
-          <div>
-            <p className="eyebrow">session tasks</p>
-            <h3>이번 세션 할 일</h3>
-          </div>
-          <strong>{summary.completed}/{summary.total} 완료</strong>
-        </div>
-        {activeSessionTodos.length === 0 ? (
-          <p className="todo-empty">이번 세션에 연결된 할 일이 없습니다.</p>
-        ) : (
-          <ul className="session-todo-list">
-            {activeSessionTodos.map((todo) => (
-              <li className={`todo-item ${todo.is_completed ? "todo-done" : ""}`} key={todo.id}>
-                <div className="todo-main">
-                  <label className="todo-check-row">
-                    <input
-                      type="checkbox"
-                      checked={todo.is_completed}
-                      disabled
-                      readOnly
-                    />
-                    <span className="todo-title">{todo.title}</span>
-                  </label>
-                  <div className="todo-meta-row" aria-label={`${todo.title} 설정`}>
-                    {formatTodoScheduleLabel(todo) && (
-                      <span className="todo-time-chip">{formatTodoScheduleLabel(todo)}</span>
-                    )}
-                    <span className="todo-meta-chip">{formatTodoRepeatLabel(todo)}</span>
-                    {todo.goal_id && goalTitleById.has(todo.goal_id) && (
-                      <span className="todo-goal-chip">{goalTitleById.get(todo.goal_id)}</span>
-                    )}
-                  </div>
-                </div>
-              </li>
-            ))}
-          </ul>
-        )}
-      </div>
-    );
+    if (!activeSession) return null;
+    return <ActualStudyPanel tracking={actualTracking?.session_id === activeSession.id ? actualTracking : null} paused={activeSessionPaused} nowMs={nowMs} leaseExpiresAt={activeSession.lease_expires_at} goalTitles={goalTitleById} cameraTotal={activeCameraExcludedSeconds} timeZone={timeZone} busy={busy || Boolean(actualIntent)} focusId={currentSessionTodoId ?? actualTracking?.current_todo_id ?? null} onFocus={setCurrentSessionTodoId} onChoose={() => openSessionTodoSelection(false, activeSessionPaused ? "resume" : "switch")}
+      onSwitch={id => { void runActualAction({ action: "switch", sessionId: activeSession.id, todoIds: (actualTrackingRef.current?.todos ?? []).filter(todo => !todo.is_completed).map(todo => todo.id), currentTodoId: id, excludedSeconds: getActiveCameraExcludedSeconds() }); }} />;
   }
 
   function getGoalView(goal: StudyGoal) {
@@ -4800,7 +4867,7 @@ function DashboardApp() {
                       void pauseTimer();
                     }
                   }}
-                  disabled={busy || !dashboardReady}
+                  disabled={busy || !dashboardReady || Boolean(actualIntent) || Boolean(activeSession && actualTracking?.session_id !== activeSession.id)}
                 >
                   {activeSession && !activeSessionPaused ? <Pause size={18} /> : <Play size={18} />}
                   {!dashboardReady ? (dashboardLoading ? "학습 정보 확인 중…" : "학습 정보 확인 필요") : !activeSession && blockingRecoveryRequests.length > 0 ? "회복루틴 작성 후 시작" : !activeSession ? studyStartAction.label : activeSessionPaused ? "공부 계속하기" : "잠시 쉬기"}
@@ -4810,7 +4877,7 @@ function DashboardApp() {
                   onClick={() => {
                     void openEndSessionCompletionModal();
                   }}
-                  disabled={busy || !activeSession}
+                  disabled={busy || !activeSession || Boolean(actualIntent) || actualTracking?.session_id !== activeSession?.id}
                 >
                   <Square size={18} />
                   종료
@@ -5450,6 +5517,8 @@ function DashboardApp() {
         )}
 
 
+        {actualIntent && <ActualStudyConfirmation intent={actualIntent} busy={busy} notice={actualNotice} error={actualError} onConfirm={() => { void runActualAction(undefined, actualIntent); }} onCancel={cancelActualAction} />}
+
         {sessionTodoModalOpen && (
           <AccessibleDialog
             className="todo-modal session-todo-modal"
@@ -5491,7 +5560,8 @@ function DashboardApp() {
                   placeholder="예: AWS 기출 1회 풀기"
                   disabled={busy || sessionTodoAddBusy}
                 />
-                <div className="session-todo-time-details" aria-label="새 할 일 시간 설정">
+                <label className="actual-time-toggle"><input type="checkbox" checked={sessionTodoTimeEnabled} onChange={event => setSessionTodoTimeEnabled(event.target.checked)} disabled={busy || sessionTodoAddBusy}/>시간 지정 (선택)</label>
+                {sessionTodoTimeEnabled && <div className="session-todo-time-details" aria-label="새 할 일 시간 설정">
                   <label>
                     시작
                     <input
@@ -5524,7 +5594,7 @@ function DashboardApp() {
                       disabled={busy || sessionTodoAddBusy}
                     />
                   </label>
-                </div>
+                </div>}
                 <button className="secondary" type="submit" disabled={busy || sessionTodoAddBusy}>
                   <Plus size={18} />
                   추가
@@ -5563,11 +5633,12 @@ function DashboardApp() {
                   );
                 })}
               </ul>
+              <CurrentTodoChoice todos={incompleteTodayTodos} selectedIds={selectedSessionTodoIds} currentId={resolveCurrentTodo(selectedSessionTodoIds, currentSessionTodoId)} disabled={busy || sessionTodoAddBusy} onChange={setCurrentSessionTodoId}/>
               <div className="reminder-actions">
                 <button
                   className="primary"
                   type="button"
-                  disabled={shouldDisableSessionTodoStart({
+                  disabled={!resolveCurrentTodo(selectedSessionTodoIds, currentSessionTodoId) || shouldDisableSessionTodoStart({
                     busy: busy || todoBusy,
                     addBusy: sessionTodoAddBusy,
                     selectedTodoIds: selectedSessionTodoIds,
@@ -5577,7 +5648,7 @@ function DashboardApp() {
                   }}
                 >
                   <Play size={18} />
-                  선택한 할 일로 시작
+                  {sessionTodoStartRequest?.action === "resume" ? "선택한 할 일로 재개" : sessionTodoStartRequest?.action === "switch" ? "선택한 할 일로 전환" : "선택한 할 일로 시작"}
                 </button>
                 <button className="secondary" type="button" onClick={closeSessionTodoSelection}>
                   <X size={18} />

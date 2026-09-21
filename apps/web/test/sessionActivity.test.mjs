@@ -67,7 +67,7 @@ test("web dashboard wires study session activity without changing auth session p
   assert.match(appSource, /STUDY_SESSION_ACTIVITY_HEARTBEAT_MS/);
   assert.match(appSource, /shouldEndStudySessionForInactivity/);
   assert.match(appSource, /getStudySessionActivityExcludedSeconds/);
-  assert.match(appSource, /persistStudySessionActivity\(startedSession\.id/);
+  // Committed-result activity persistence is exercised by actualStudyMounted.test.mjs.
   assert.match(appSource, /forgetStudySessionActivity\(endingSession\.id/);
   assert.match(appSource, /document\.addEventListener\("visibilitychange", persistVisibleActivity\)/);
   assert.match(appSource, /document\.removeEventListener\("visibilitychange", persistVisibleActivity\)/);

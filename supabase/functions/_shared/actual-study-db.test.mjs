@@ -82,6 +82,53 @@ before(async () => {
 });
 after(async () => db?.close());
 
+
+for (const completedLinks of [false,true]) test('legacy resume atomically adds today focus with '+(completedLinks?'all completed links':'empty links')+' and preserves unknown history',()=>fixture(async()=>{
+  await todo(todoA,null,null);await todo(todoB,null,null);
+  const s=await scalar('select to_jsonb(start_study_session($1::uuid[])) value',[[todoA]]);
+  if(completedLinks)await db.query('update study_todos set is_completed=true where id=$1',[todoA]);
+  else await db.query('delete from study_session_todos where session_id=$1',[s.id]);
+  await at('2026-09-21T09:10:00Z');await scalar('select pause_study_session($1) value',[s.id]);
+  await at('2026-09-21T09:20:00Z');
+  const p=await preview('resume',todoB,[todoB],s.id);
+  assert.equal(p.blocking_error,null);
+  // Cancelling the preview is simply not confirming: no links, tracking, or timing writes.
+  assert.equal(await scalar('select count(*)::int value from study_session_todos where session_id=$1',[s.id]),completedLinks?1:0);
+  assert.equal(await scalar('select count(*)::int value from study_todo_segments'),0);
+  assert.ok(await scalar('select paused_at value from study_sessions where id=$1',[s.id]));
+  const r=await confirm(p);await confirm(p);
+  assert.equal(r.session.paused_at,null);assert.equal(r.tracking.current_todo_id,todoB);
+  assert.equal(r.tracking.unknown_allocation,true);
+  const focused=r.tracking.todos.find(t=>t.id===todoB);
+  assert.equal(focused.first_started_at,null);assert.equal(focused.first_tracked_at,'2026-09-21T09:20:00+00:00');
+  assert.equal(focused.known_seconds,0);assert.equal(focused.evaluation_eligible,false);
+  assert.equal(await scalar('select count(*)::int value from study_session_todos where session_id=$1',[s.id]),completedLinks?2:1);
+  assert.equal(await scalar('select count(*)::int value from study_todo_segments'),1);
+}));
+
+test('resume rejects foreign IDs and unlinked non-today todos without mutation',()=>fixture(async()=>{
+  await todo(todoA,null,null);await todo(todoB,null,null,'2026-09-21',false,other);await todo(todoC,null,null,'2026-09-22');
+  const s=await scalar('select to_jsonb(start_study_session($1::uuid[])) value',[[todoA]]);
+  await at('2026-09-21T09:10:00Z');await scalar('select pause_study_session($1) value',[s.id]);
+  for(const id of [todoB,todoC]){
+    const p=await preview('resume',todoA,[todoA,id],s.id);
+    assert.equal(p.blocking_error,'INVALID_SELECTION');
+    await rejectedWithoutAborting(()=>confirm(p),/ACTUAL_STUDY_STALE_PREVIEW/);
+  }
+  assert.equal(await scalar('select count(*)::int value from study_session_todos'),1);
+  assert.equal(await scalar('select count(*)::int value from study_todo_segments'),0);
+}));
+
+test('active legacy empty focus adds a today link only when switch is confirmed',()=>fixture(async()=>{
+  await todo(todoA,null,null);await todo(todoB,null,null);
+  const s=await scalar('select to_jsonb(start_study_session($1::uuid[])) value',[[todoA]]);
+  await db.query('delete from study_session_todos where session_id=$1',[s.id]);
+  await at('2026-09-21T09:10:00Z');const p=await preview('switch',todoB,[todoB],s.id);
+  assert.equal(p.blocking_error,null);assert.equal(await scalar('select count(*)::int value from study_session_todos'),0);
+  const r=await confirm(p);assert.equal(r.tracking.todos[0].known_seconds,0);assert.equal(r.tracking.todos[0].first_started_at,null);
+  assert.equal(await scalar('select count(*)::int value from study_session_todos'),1);
+}));
+
 test('16-18 original becomes 18-20, preview is read-only and first delay is two hours', () => fixture(async () => {
   await todo(todoA);
   const p = await preview();
