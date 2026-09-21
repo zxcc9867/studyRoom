@@ -320,3 +320,56 @@ test('unknown legacy allocation exposes no fabricated first start', () => fixtur
   assert.equal(r.tracking.todos[0].first_started_at,null);
   assert.equal(r.tracking.todos[0].first_tracked_at,'2026-09-21T09:10:00+00:00');
 }));
+
+test('DST unrepresentable focused interval blocks the whole preview and leaves all rows unchanged', () => fixture(async()=>{
+  await admin(()=>db.query("update profiles set time_zone='America/New_York' where user_id=$1",[owner]));
+  await at('2026-11-01T08:00:00Z');await todo(todoA,'00:30','00:00','2026-11-01');
+  assert.equal(await scalar('select target_seconds value from study_todo_plans where todo_id=$1',[todoA]),88200);
+  const p=await preview();assert.equal(p.blocking_error,'UNREPRESENTABLE_SCHEDULE');assert.equal(p.cascade_complete,false);assert.deepEqual(p.changes,[]);
+  await rejectedWithoutAborting(()=>confirm(p),/ACTUAL_STUDY_STALE_PREVIEW/);
+  assert.equal(await scalar('select count(*)::int value from study_sessions'),0);
+  assert.equal(await scalar('select count(*)::int value from study_schedule_adjustments'),0);
+  assert.deepEqual((await rows('select local_date::text local_date,start_time,end_time from study_todos where id=$1',[todoA]))[0],
+    {local_date:'2026-11-01',start_time:'00:30:00',end_time:'00:00:00'});
+}));
+
+test('DST unrepresentable cascaded interval rejects the entire otherwise representable focus move', () => fixture(async()=>{
+  await admin(()=>db.query("update profiles set time_zone='America/New_York' where user_id=$1",[owner]));
+  await at('2026-11-01T08:00:00Z');await todo(todoA,'00:00','00:30','2026-11-01');await todo(todoB,'00:30','00:00','2026-11-01');
+  const p=await preview();assert.equal(p.remaining_seconds,1800);assert.equal(p.blocking_error,'UNREPRESENTABLE_SCHEDULE');
+  assert.equal(p.cascade_complete,false);assert.deepEqual(p.changes,[]);
+  await rejectedWithoutAborting(()=>confirm(p),/ACTUAL_STUDY_STALE_PREVIEW/);
+  assert.equal(await scalar('select count(*)::int value from study_sessions'),0);
+  assert.equal(await scalar('select count(*)::int value from study_schedule_adjustments'),0);
+}));
+
+test('missing-profile recovery uses Tokyo for original snapshot and start at the UTC date boundary', () => fixture(async()=>{
+  await admin(()=>db.query('delete from profiles where user_id=$1',[owner]));
+  await at('2026-09-21T15:30:00Z');await todo(todoA,'00:00','01:00','2026-09-22');
+  const original=(await rows('select original_start_at,time_zone from study_todo_plans where todo_id=$1',[todoA]))[0];
+  assert.equal(original.time_zone,'Asia/Tokyo');assert.equal(original.original_start_at.toISOString(),'2026-09-21T15:00:00.000Z');
+  const p=await preview();assert.equal(p.blocking_error,null);assert.equal(p.time_zone,'Asia/Tokyo');
+  assert.equal(p.changes[0].after.local_date,'2026-09-22');assert.equal(p.changes[0].after.start_time,'00:30:00');
+  const r=await confirm(p);assert.equal(r.session.local_date,'2026-09-22');
+  assert.equal(await scalar('select time_zone value from profiles where user_id=$1',[owner]),'Asia/Tokyo');
+  assert.equal(r.tracking.todos[0].original_start_at,'2026-09-21T15:00:00+00:00');
+}));
+
+for(const {excluded,remaining} of [{excluded:120,remaining:0},{excluded:420,remaining:120}]){
+  test('outgoing over-target focus applies pending camera exclusion before remaining clamp: '+excluded,()=>fixture(async()=>{
+    await todo(todoA,'18:00','18:10');await todo(todoB,'18:15','18:45');await todo(todoC,'18:45','19:15');
+    const r=await start(todoA,[todoA,todoB]);
+    await db.query("update study_todos set start_time='18:10',end_time='18:20' where id=$1",[todoA]);
+    await at('2026-09-21T09:15:00Z');
+    const p=await preview('switch',todoB,[todoA,todoB],r.session.id,excluded);
+    const outgoing=p.changes.find(c=>c.todo_id===todoA);
+    if(remaining===0){assert.deepEqual(p.changes,[]);}
+    else{
+      assert.ok(outgoing);assert.equal(outgoing.after.start_time,'18:45:00');assert.equal(outgoing.after.end_time,'18:47:00');
+      assert.equal(p.changes.find(c=>c.todo_id===todoC).after.start_time,'18:47:00');
+    }
+    const switched=await confirm(p,'00000000-0000-4000-8000-000000000302');
+    const tracked=switched.tracking.todos.find(t=>t.id===todoA);
+    assert.equal(tracked.known_seconds,900-excluded);assert.equal(tracked.remaining_seconds,remaining);
+  }));
+}

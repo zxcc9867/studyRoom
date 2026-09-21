@@ -86,8 +86,8 @@ create function actual_study_private.snapshot_todo()
 returns trigger language plpgsql security definer set search_path='' as $$
 declare z text; a timestamptz; b timestamptz;
 begin
- select coalesce(time_zone,'UTC') into z from public.profiles where user_id=new.user_id;
- z:=coalesce(z,'UTC');
+ select coalesce(time_zone,'Asia/Tokyo') into z from public.profiles where user_id=new.user_id;
+ z:=coalesce(z,'Asia/Tokyo');
  if new.start_time is not null and new.end_time is not null then
    a:=(new.local_date+new.start_time) at time zone z;
    b:=((new.local_date+case when new.end_time<=new.start_time then 1 else 0 end)+new.end_time) at time zone z;
@@ -111,7 +111,7 @@ insert into public.study_todo_plans(todo_id,user_id,original_local_date,original
 select t.id,t.user_id,t.local_date,x.a,x.b,extract(epoch from x.b-x.a)::integer,z.zone,
  t.local_date>=(now() at time zone z.zone)::date
 from public.study_todos t left join public.profiles p on p.user_id=t.user_id
-cross join lateral(select coalesce(p.time_zone,'UTC') zone)z
+cross join lateral(select coalesce(p.time_zone,'Asia/Tokyo') zone)z
 cross join lateral(select
  case when t.start_time is not null then (t.local_date+t.start_time) at time zone z.zone end a,
  case when t.end_time is not null then ((t.local_date+case when t.end_time<=t.start_time then 1 else 0 end)+t.end_time) at time zone z.zone end b)x;
@@ -270,7 +270,7 @@ declare
  count_todos integer; scan_count integer:=0;
 begin
  if u is null then raise exception 'Not authenticated'; end if;
- select coalesce(time_zone,'UTC') into z from public.profiles where user_id=u; z:=coalesce(z,'UTC');
+ select coalesce(time_zone,'Asia/Tokyo') into z from public.profiles where user_id=u; z:=coalesce(z,'Asia/Tokyo');
  select coalesce(array_agg(distinct x order by x),'{}'::uuid[])into ids from unnest(p_todo_ids)x where x is not null;
  select * into s from public.study_sessions where id=p_session_id and user_id=u;
  select * into st from public.study_actual_sessions where session_id=s.id;
@@ -318,9 +318,10 @@ begin
      -- Intervals wholly before the proposed focus are historical and stay put.
      if r.b<=p_minute then continue; end if;
      if r.a>=cursor_end then exit; end if;
+     known:=actual_study_private.known_seconds(r.id,p_minute);
+     if st.current_todo_id=r.id then known:=greatest(0,known-pending); end if;
      duration:=case when r.target_seconds is null then extract(epoch from r.b-r.a)::integer
-       else greatest(0,r.target_seconds-actual_study_private.known_seconds(r.id,p_minute)) end;
-     if st.current_todo_id=r.id then duration:=duration+pending; end if;
+       else greatest(0,r.target_seconds-known) end;
      if duration=0 then continue; end if;
      scan_count:=scan_count+1;
      if scan_count>2000 then problem:='CASCADE_LIMIT';exit;end if;
@@ -330,11 +331,30 @@ begin
      cursor_end:=new_end;
    end loop;
  end if;
+ -- The legacy planner stores one date and two clocks, not an end date.
+ -- Reject any DST/long interval that cannot round-trip through those exact
+ -- persisted fields; a complete preview must never silently lose a day.
+ if problem is null and exists(
+   select 1 from jsonb_array_elements(changes)c
+   cross join lateral(select
+     (c->'after'->>'local_date')::date d,
+     (c->'after'->>'start_time')::time a,
+     (c->'after'->>'end_time')::time b,
+     (c->'after'->>'start_at')::timestamptz expected_start,
+     (c->'after'->>'end_at')::timestamptz expected_end)x
+   where x.a=x.b
+     or ((x.d+x.a)at time zone z) is distinct from x.expected_start
+     or (((x.d+case when x.b<=x.a then 1 else 0 end)+x.b)at time zone z) is distinct from x.expected_end
+ ) then
+   problem:='UNREPRESENTABLE_SCHEDULE';
+   changes:='[]'::jsonb;
+ end if;
+
  result:=jsonb_build_object('version',1,'action',p_action,'session_id',p_session_id,'todo_ids',ids,
    'current_todo_id',p_current_todo_id,'excluded_seconds',p_excluded_seconds,'proposed_at',p_minute,
    'expires_at',p_minute+interval '1 minute','time_zone',z,'remaining_seconds',remaining,
    'revision',actual_study_private.revision(u,p_session_id),'changes',changes,
-   'cascade_complete',problem is distinct from 'CASCADE_LIMIT','blocking_error',problem);
+   'cascade_complete',problem is distinct from 'CASCADE_LIMIT' and problem is distinct from 'UNREPRESENTABLE_SCHEDULE','blocking_error',problem);
  return result;
 end $$;
 
