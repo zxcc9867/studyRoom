@@ -43,7 +43,7 @@ test('real SQL orchestration returns cited cache, no automatic calls, and one sh
  finishBriefing:(lease,result,error)=>rpc('tech_feed_briefing_finish',owner,lease,result,error)};
  const env={TECH_FEED_ENABLED:'true',OPENROUTER_API_KEY:'synthetic',OPENROUTER_MODEL:'openrouter/free'};
  const ask=async(messages,signal,reserve)=>{assert.equal(await reserve(),true);calls++;const input=JSON.parse(messages[1].content);
- return{text:JSON.stringify({insights:[{title:'릴리즈',body:'실제 소개의 공통 변경',study_angle:'구현 비교',source_ids:[input.articles[0].id]}]})};};
+ return{text:JSON.stringify({highlights:[],insights:[{title:'릴리즈',body:'실제 소개의 공통 변경',study_angle:'구현 비교',source_ids:[input.articles[0].id]}]})};};
  assert.equal((await runBriefing({store,ask,env})).status,'idle');assert.equal(calls,0);
  const result=await runBriefing({store,ask,env,generate:true});assert.equal(result.status,'ready');assert.equal(result.total,4);assert.equal(result.analyzed_count,4);assert.equal(result.insights[0].sources.length,1);
  assert.equal((await runBriefing({store,ask,env,generate:true})).status,'ready');assert.equal(calls,1);

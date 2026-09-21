@@ -41,6 +41,16 @@ export function FeedBriefingContent({data,busy,error,onGenerate,onReload}:{data:
     {data&&data.insights.length>0&&<>
       <p className="feed-briefing-sample">전체 {data.total}건 중 소개가 충분한 {data.analyzed_count}건 분석{generated&&<> · <time dateTime={data.generated_at!}>{generated} 생성</time></>}</p>
       <p className="feed-budget">일부 소개에서 확인한 경향이며 전체 업계의 추세를 뜻하지 않아요.</p>
+      <section className="feed-highlights" aria-label="오늘 꼭 볼 글">
+        <h4>오늘 꼭 볼 글</h4>
+        <p className="feed-budget">분석한 소개 중 AI가 고른 읽을거리예요. 원문 전체를 검토한 추천은 아니에요.</p>
+        {data.highlights?.length ? <ol>{data.highlights.map((pick,index)=>{const url=safeFeedUrl(pick.source.url);return <li key={pick.source.id} className={index===0?'feed-highlight-primary':''}>
+          <p className="feed-highlight-rank">{index===0?'오늘 하나만 읽는다면':`함께 읽을 글 ${index+1}`}</p>
+          <h5>{url?<a href={url} target="_blank" rel="noopener noreferrer">{pick.source.title} ↗</a>:pick.source.title}</h5>
+          <p><strong>추천 이유</strong> {pick.reason}</p><p><strong>읽을 포인트</strong> {pick.learning}</p>
+          {url&&<a className="feed-highlight-link" href={url} target="_blank" rel="noopener noreferrer">원문 읽기 ↗</a>}
+        </li>;})}</ol>:<p>추천할 만큼 근거가 충분한 글이 없어요. 아래 요약과 원문을 확인해 보세요.</p>}
+      </section>
       <ol className="feed-briefing-insights">{data.insights.map((insight,index)=><li key={index}><h4>{insight.title}</h4><p>{insight.body}</p><p className="feed-study-angle"><strong>공부 관점</strong> {insight.study_angle}</p><ul aria-label="근거 원문">{insight.sources.map(source=>{const url=safeFeedUrl(source.url);return <li key={source.id}>{url?<a href={url} target="_blank" rel="noopener noreferrer">{source.title} ↗</a>:<span>{source.title}</span>}</li>;})}</ul></li>)}</ol>
     </>}
     <div className="feed-briefing-actions">
@@ -52,7 +62,7 @@ export function FeedBriefingContent({data,busy,error,onGenerate,onReload}:{data:
 }
 
 export function feedBriefingAfterError(data:FeedBriefing|null):FeedBriefing|null {
-  return data ? {...data,insights:[],generated_at:null,analyzed_count:0,status:'unavailable'} : null;
+  return data ? {...data,insights:[],highlights:[],generated_at:null,analyzed_count:0,status:'unavailable'} : null;
 }
 
 export function FeedDailyBriefing({api,userId,timeZone,revision}:{api:FeedApi;userId:string;timeZone:string;revision:number}) {

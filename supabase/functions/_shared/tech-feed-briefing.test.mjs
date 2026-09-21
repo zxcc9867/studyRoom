@@ -9,7 +9,7 @@ function fixture(count=2){
  const store={briefingSnapshot:async()=>structuredClone(snapshot),claimBriefing:async(version,hash,ids)=>{assert.equal(hash,'hash');assert.ok(ids.length>=2);return{status:'claimed',lease:'lease'};},reserveBriefing:async()=>{reservations++;return{status:'reserved'};},finishBriefing:async(lease,result,error)=>{
   completions.push({lease,result,error});if(!error)snapshot.cache={result,generated_at:'2026-09-14T04:00:00Z',stale:false};return true;
  }};
- const ask=async(messages,signal,reserve)=>{assert.ok(await reserve());calls++;assert.equal(messages.some(m=>m.content.includes('SecretProject')),false);return{text:JSON.stringify({insights:[{title:'새로운 기능',body:'소개에서 확인한 흐름',study_angle:'구현 관점 비교',source_ids:['id-0','id-1']}]})};};
+ const ask=async(messages,signal,reserve)=>{assert.ok(await reserve());calls++;assert.equal(messages.some(m=>m.content.includes('SecretProject')),false);return{text:JSON.stringify({highlights:[],insights:[{title:'새로운 기능',body:'소개에서 확인한 흐름',study_angle:'구현 관점 비교',source_ids:['id-0','id-1']}]})};};
  return{snapshot,store,ask,completions,get calls(){return calls;},get reservations(){return reservations;}};
 }
 test('0/1 eligible articles, readonly, paused, cached and active lease never trigger provider or quota',async()=>{
@@ -21,11 +21,11 @@ test('0/1 eligible articles, readonly, paused, cached and active lease never tri
 test('successful response is cited using server URLs and cached with no second call; internal fields never leak',async()=>{
  const f=fixture();let result=await runBriefing({...f,env,generate:true});assert.equal(result.status,'ready');assert.equal(result.analyzed_count,2);
  assert.deepEqual(result.insights[0].sources.map(x=>x.url),['https://example.test/0','https://example.test/1']);
- assert.deepEqual(Object.keys(result).sort(),['analyzed_count','categories','eligible_count','generated_at','insights','local_date','source_count','stale','status','time_zone','topics','total'].sort());
+ assert.deepEqual(Object.keys(result).sort(),['analyzed_count','categories','eligible_count','generated_at','highlights','insights','local_date','source_count','stale','status','time_zone','topics','total'].sort());
  result=await runBriefing({...f,env,generate:true});assert.equal(result.status,'ready');assert.equal(f.calls,1);assert.equal(f.reservations,1);
 });
 test('malformed output, unknown citations, forged URLs and provider failure reject whole insight result',async()=>{
- const outputs=[null,{text:'not json'},{text:'{"insights":[]}'},{text:JSON.stringify({insights:[{title:'t',body:'b',study_angle:'s',source_ids:['forged']}]})},{text:JSON.stringify({insights:[{title:'t',body:'b',study_angle:'s',source_ids:['id-0'],url:'https://forged.test'}]})}];
+ const outputs=[null,{text:'not json'},{text:'{"insights":[]}'},{text:JSON.stringify({highlights:[],insights:[{title:'t',body:'b',study_angle:'s',source_ids:['forged']}]})},{text:JSON.stringify({highlights:[],insights:[{title:'t',body:'b',study_angle:'s',source_ids:['id-0'],url:'https://forged.test'}]})}];
  for(const output of outputs){const f=fixture();f.ask=async(_m,_s,reserve)=>{await reserve();return output;};const result=await runBriefing({...f,env,generate:true});assert.equal(result.status,'unavailable');assert.deepEqual(result.insights,[]);assert.equal(f.completions.at(-1).error,'unavailable');}
 });
 test('quota, provider configuration and changed receiving are distinct and cannot call provider',async()=>{

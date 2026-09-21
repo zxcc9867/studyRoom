@@ -31,5 +31,6 @@ export type FeedBriefing={
   local_date:string;time_zone:string;total:number;source_count:number;categories:FeedFacet[];topics:FeedFacet[];
   eligible_count:number;analyzed_count:number;generated_at:string|null;
   status:'idle'|'ready'|'generating'|'insufficient'|'quota_exhausted'|'unavailable'|'paused';stale:boolean;
+  highlights?:{reason:string;learning:string;source:{id:string;title:string;url:string}}[];
   insights:{title:string;body:string;study_angle:string;sources:{id:string;title:string;url:string}[]}[];
 };
