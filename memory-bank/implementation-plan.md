@@ -1,3 +1,16 @@
+## Supabase 변경 이력 — 2026-09-21 실제 공부/일정 연결 (로컬 검증 완료, 운영 미적용)
+
+- 변경 대상: study_todo_plans, study_actual_sessions, study_todo_segments, study_schedule_adjustments 및 private 요청 멱등성 기록. 세션 상태 전환 trigger와 preview/confirm/state/report/checkpoint/pause wrapper RPC.
+- 이유: 원래 계획을 보존하면서 현재 집중할 일별 실제 구간을 기록하고, 충돌 연쇄 변경과 세션 시작/재개/전환을 원자적으로 확정한다.
+- 마이그레이션: supabase/migrations/20260921095213_actual_study_tracking.sql. 상세 API 계약: docs/session-plan/session-api.md.
+- 보안: 소유자 SELECT RLS, 구간/이력 직접 수정 권한 없음, SECURITY DEFINER 고정 search_path/소유권 검증, 사용자당 열린 구간 유일성.
+- 호환: 기존 start/pause/resume/end/expiry 경로 유지. complete_study_session의 완료 대상은 원래 날짜 또는 세션 연결 항목으로 좁게 확장해 자정 이후 이동 항목도 완료할 수 있다.
+- 일관성: 요청 UUID 재사용, 전체 일정 revision 재검증, 사용자 advisory/세션 row/짧은 todo-link table lock,3초 lock timeout,실제 연쇄2,000건 guard. 비충돌 미래 반복 항목 수는 guard를 소모하지 않는다.
+- 정밀도: 제안 시각은 서버 분 단위, 실제 구간은 정확한 확정 시각. 기존 날짜/두 시각 표현으로 역변환되지 않는 DST 구간은 전체 차단한다.
+- 과거: 배분 미확인은 유지하고 최초 시작 지연 평가에서 제외. first_tracked_at을 진짜 최초 시작으로 간주하지 않는다. 제목만 있던 할 일은 최초 시간 입력 시 원래 계획을 캡처한다.
+- 검증: SQL34/34,초기구현전체748/748,리뷰3건수정후 재리뷰통과,수정 SQL에 실제 PostgreSQL18 별도연결 경합4/4통과.
+- 주의: 짧은 table lock은 다른 사용자 일정 쓰기도 잠깐 직렬화한다. 브라우저가 아직 전송하지 않은 카메라 부재 시간은 서버가 복구할 수 없으므로 웹이 경계/기존동기화주기에 checkpoint한다. 아직 운영 DB 적용 전이다.
+
 ## Supabase 변경 이력 — 2026-09-15 AI 호출 예산 재조정 (운영 적용 완료)
 
 - 변경 대상: `public.coach_ai_usage`, `coaching_private.reserve_ai`, `coaching_private.refund_ai`(신규), `public.coach_reserve_ai`, `public.coach_refund_ai`(신규), `public.tech_feed_begin_summary_attempt`, cron `study-room-tech-feed-hourly`.

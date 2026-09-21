@@ -1,3 +1,57 @@
+### 2026-09-21 — Codex 중단 작업 인수 및 전체 검증 완료
+
+#### 완료한 작업
+
+- Codex 세션이 Task 3 도중 크레딧 소진으로 중단된 작업을 인수했다. Task 1·2는 이미 커밋(3429c93, 9526b85, 9bb654c)되어 있었고 하이라이트만 미커밋 상태였다.
+- Task 3 마무리 및 커밋 ff026e5: 브리핑 프롬프트/파서의 highlights 계약, hero+보조 카드 렌더링, 타입·CSS, 집중 테스트 8건. `BRIEFING_ANALYZER_VERSION` 2로 상향.
+- techFeed.css 끝 빈 줄 제거로 `git diff --check` 통과. 마운트 브라우저 테스트가 조용히 skip되던 원인(`playwright/index.js`에 `chromium` named export 없음)을 찾아 `index.mjs`로 전환했다.
+- 웹 통합 집중 리뷰 수행. 동작을 바꾸는 결함 없음. 출시 순서 요구사항과 요청 테이블 보존 정책 2건을 관찰로 기록했다.
+
+#### 변경된 파일
+
+- `apps/web/src/FeedDailyBriefing.tsx`, `techFeed.css`, `techFeedTypes.ts`, `apps/web/test/feedHighlights.test.mjs`.
+- `supabase/functions/_shared/tech-feed-briefing.mjs`, `tech-feed-briefing.test.mjs`, `tech-feed-briefing-db.test.mjs`, `tech-feed-highlights.test.mjs`.
+- 문서: `docs/session-plan/verification.md`, `memory-bank/active-context.md`, `progress.md`.
+
+#### 검증 방법
+
+- 브라우저 마운트 포함 `npm.cmd test` 782/782 통과, skip 0. 브라우저 변수 없이는 765 통과 + 17 선택 skip.
+- `npm.cmd run build`, `test:edge`(타입 검사 + 런타임 11건), `mobile:check`, `docs:check`(24개 참조), `git diff --check` 모두 통과.
+
+#### 남은 작업
+
+- Supabase 인증 후 migration `20260921095213_actual_study_tracking` 적용 → 변경된 Edge Function 배포 → main 푸시 → GitHub Actions·Vercel READY·HTTP 200 검증.
+- `actual_study_private.requests` 보존/정리 정책은 별도 후속으로 분리한다.
+
+#### 다음 우선순위
+
+- DB/RPC를 웹보다 먼저 적용한다. 순서가 뒤바뀌면 활성 세션의 시작·휴식·종료 조작이 브라우저에서 모두 막힌다.
+
+### 2026-09-21 — 서버 구간 기록·원자 일정 확정 구현 및 리뷰 완료
+
+#### 완료한 작업
+
+- 로컬 커밋3429c93/9526b85: 새 서버 기록/RPC와 기존 lifecycle 연결, 원래 계획 보존, 연쇄 이동, 계획 준수 조회.
+- SQL34/34 통과. 최초 구현 전체748/748(브라우저 포함), 리뷰의 DST/누락프로필/카메라 차감3건 수정 후 독립 재리뷰 통과.
+- 실제 PostgreSQL18 별도 연결4/4검증: 동일UUID중복,다른UUID경합,legacy일정수정stale,잠금timeout rollback.
+
+#### 남은 작업
+
+- 현재 웹 세션 UX/리포트 연결 중. 이후 하이라이트 마무리/전체 검증/최종 리뷰/DB→Edge→웹 배포.
+- 운영 적용 없음. 상세 근거 docs/session-plan/verification.md.
+
+### 2026-09-21 — 세션 UX 실행 착수
+
+#### 완료한 작업
+
+- 사용자가 승인한 실제 공부/계획 분리 요구사항과 단계별 구현·검증 계획 문서화.
+- 기준 회귀: 전체 719/719 통과(선택 브라우저 테스트 4건도 활성화), 기존 하이라이트 포함 웹 빌드 통과.
+
+#### 진행 중 / 남은 작업
+
+- 서버 구간 기록·일정 미리보기/원자 확정 → 세션 UI/리포트 → 하이라이트 검증 → 독립 리뷰 → DB/Edge/웹 배포.
+- 아직 새 세션 기능을 운영에 적용하지 않았다.
+
 ### 2026-09-15 — 피드 품질 2차 (검색 질의 + 블로그 메타 필터)
 
 #### 완료한 작업

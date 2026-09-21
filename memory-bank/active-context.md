@@ -1,3 +1,50 @@
+## 2026-09-21 — Codex 중단 작업 인수, 검증 완료 (배포 대기)
+
+### 현재 작업
+
+- 작업명: 실제 공부와 계획을 연결하는 세션 UX — Codex 세션 크레딧 소진으로 Task 3 중간에 끊긴 작업의 인수·마무리.
+- 작업 목적: 남은 하이라이트 구현을 커밋 가능한 상태로 마무리하고, 현재 트리 전체 회귀로 출시 준비 상태를 확정한다.
+- 관련 PRD: prd-actual-study-plan.md, prd-tech-feed.md. 관련 문서: docs/session-plan/verification.md, session-api.md.
+
+### 최근 결정 사항
+
+- 사용자가 인수를 요청했다. 로컬 커밋은 승인, Supabase 인증 후 배포 재개를 선택했다.
+- 죽은 Codex 세션의 `codex-highlights-20260921` claim은 사용자가 종료를 확인해 준 뒤 해제하고 `claude-opus5-20260921`로 다시 claim했다.
+- 하이라이트의 엄격한 root 스키마(`insights`,`highlights` 정확히 2개)는 기존 insights 계약과 같은 수준이므로 그대로 유지했다. 모델이 `highlights`를 누락하면 요약 전체가 거절되고 예산이 환급된다.
+
+### 현재 상태
+
+- 완료: Task 1(3429c93, 9526b85), Task 2(9bb654c), Task 3(ff026e5 — 브리핑 프롬프트/파서, hero+보조 카드, 타입·CSS, 집중 테스트 8건).
+- 완료: 현재 트리 전체 게이트 — 브라우저 마운트 포함 782/782, build, test:edge 11건, mobile:check, docs:check, `git diff --check` 통과.
+- 완료: techFeed.css 끝 빈 줄 제거. 마운트 테스트가 조용히 skip되던 원인은 `playwright/index.js`에 `chromium` named export가 없는 것이었고 `index.mjs`로 해결했다.
+- 완료: 웹 통합 집중 리뷰. 동작을 바꾸는 결함은 없었고 출시 관련 관찰 2건을 verification.md에 기록했다.
+- 막힌 부분: 이 세션의 Supabase MCP가 미인증이고 worktree에 CLI 링크가 없어 migration을 적용할 수 없다.
+- 다음 작업: Supabase 인증 후 migration `20260921095213` 적용 → Edge → main 푸시 → Actions/Vercel 검증.
+
+### 주의할 점
+
+- DB/RPC를 웹보다 먼저 적용해야 한다. 활성 세션의 tracking 상태가 없으면 시작/휴식 버튼과 종료 버튼이 모두 비활성화되고 `endTimer`가 조기 반환한다. 순서가 뒤바뀌면 진행 중인 세션을 브라우저에서 종료할 수 없다.
+- `actual_study_private.requests`에 보존 정책이 없다. 확정 1건당 1행이 쌓이므로 별도 후속으로 정리 작업이 필요하다.
+- `BRIEFING_ANALYZER_VERSION`이 2로 올라가 기존 캐시 브리핑은 다음 명시적 요청에서 재생성된다.
+- 검증 부산물 `output/`, `.playwright-cli/`, `0`, `.superpowers/`는 .gitignore에 없으므로 출시 커밋에 절대 staged하지 않는다.
+- `origin/main`은 아직 `53cd701`이며 릴리스는 깨끗한 fast-forward다. 운영 스키마·Edge·배포·사용자 데이터는 이 세션에서 변경하지 않았다.
+
+## 2026-09-21 — 서버 리뷰 통과, 웹 세션 UX 연결 중
+
+- 완료: additive DB/RPC 로컬 구현3429c93 및 리뷰수정9526b85. SQL34/34,실제 PostgreSQL18 경합4/4 통과.
+- 진행 중: 기존 이번 세션 할 일 패널에서 하나의 현재 집중할 일, 누적/남은 분량, 조정/원래 일정 및 충돌 확인 연결. 계획 준수는 기존 리포트의 별도 항목.
+- 확정 계약: docs/session-plan/session-api.md. unknown 과거 최초시작은 평가 제외, 기존 시간표가 표현하지 못하는 DST 구간은 전체 차단.
+- 다음: 웹/하이라이트 리뷰→전체 회귀→Supabase DB/RPC→Edge→GitHub Actions/Vercel 배포. 아직 운영 미적용.
+
+## 2026-09-21 — 실제 공부와 계획을 연결하는 세션 UX 구현 중
+
+- 작업명: 원래 계획 보존 + 현재 집중할 일 + 실제 공부 구간 + 충돌 연쇄 이동 + 계획 준수 리포트.
+- 관련 PRD: prd-actual-study-plan.md. 사용자가 전체 구현과 검증 후 DB/RPC → 웹 배포를 승인했다.
+- 최근 결정: 지연은 최초 시작만 평가하고, 출석/공부시간/숲 보상 감점은 없다. 과거 시간 배분은 추정하지 않는다.
+- 현재 상태: 기준 전체 테스트 719/719(선택 브라우저 검사 포함), 기존 웹 빌드 통과. 서버 구현 시작. 새 기능의 운영 적용은 아직 하지 않았다.
+- 승인된 기술 피드 하이라이트 변경도 보존해 함께 검증/출시한다. 기존 요약 요청 1회에서 최대 3건을 선정한다.
+- 작업 위치: codex/recovery-consistency 격리 worktree. output/.playwright-cli/0 등 검증 부산물은 출시 커밋에서 제외한다.
+
 ## 2026-09-15 — 피드 품질 2차: 검색 질의 교체 + 블로그 메타 필터
 
 - 사용자가 AWS 블로그 개설글 사례를 추가 제시. 조사 결과 근본 원인은 필터가 아니라 검색 질의('engineering blog 기술 블로그')가 블로그 자체를 찾고 있던 것이었다. 수집의 1/3이 여기에 해당했다.

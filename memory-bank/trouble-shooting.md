@@ -1,3 +1,42 @@
+## 2026-09-21 — 세션 일정 서버 리뷰에서 발견한 경계 오류
+
+### 상황 / 원인
+
+- DST 종료일의 목표88,200초를 날짜+시각2개로 저장하면 종료 날짜를 잃고30분 구간으로 축약될 수 있었다.
+- 프로필 누락 시 새 snapshot/preview의 UTC fallback과 기존 start가 생성하는 Asia/Tokyo 프로필이 달랐다.
+- 목표600초/공부900초/미전송카메라120초에서 clamp 후120초를 더해 가짜 남은 분량이 생겼다.
+
+### 해결 / 검증
+
+- 모든 변경 구간의 저장 표현을 절대 시각으로 역변환해 일치하지 않으면 UNREPRESENTABLE_SCHEDULE로 전체 거절한다.
+- 프로필 복구 fallback을 Asia/Tokyo로 일치시킨다.
+- 남은 분량은 max(0,target-max(0,known-pending)) 순서로 계산한다.
+- 신규5건 모두 RED→GREEN,실제 SQL34/34 및 독립 재리뷰 통과. 관련 파일: 실제 공부 migration, actual-study-db.test.mjs, session-api.md.
+- 아래 migration selector 오탐도 실제 CREATE FUNCTION을 찾도록 수정 완료. 초기구현 전체748/748으로 검증했다.
+
+### 검증 환경 참고
+
+- 별도 PostgreSQL18 재검증 fixture는 role이 DB가 아닌 cluster 범위임을 고려해야 한다.
+- JavaScript String.replace의 문자열 치환값은 $$를 $로 해석한다. SQL 달러 구분자를 넣을 때 replacement callback을 사용한다. 이 두 fixture 오류 수정 후 실제 다중 연결4/4통과했으며 앱 오류는 아니었다.
+
+## 2026-09-21 — 신규 RPC wrapper에 기존 migration 검사 오탐
+
+### 상황 / 에러
+
+실제 공부 구간 RPC를 추가한 후 전체 Node 테스트의 기존 break migration 검사 1건이 실패했다.
+
+### 원인
+
+packages/core/test/sql-migrations.test.mjs가 pause_study_session 문자열을 포함한 최신 migration을 선택해, 함수 정의가 아니라 새 wrapper 내부의 호출이 포함된 파일을 기존 휴식 DDL로 오인했다.
+
+### 해결 / 검증 상태
+
+함수 호출이 아닌 CREATE FUNCTION 정의를 선택하도록 최소 수정 중이다. 신규 실제 SQL 테스트 29개는 통과했으며, 전체 회귀 재검증 결과는 작업 완료 시 progress/검증 기록에 반영한다.
+
+### 재발 방지
+
+migration에서 특정 계약을 찾는 검사는 정의와 사용 지점을 구분한다. 새 wrapper 파일에 기존 DDL을 복제해 테스트를 맞추지 않는다.
+
 ## 2026-09-15 — 피드가 기술 내용 대신 블로그 자체를 추천한 근본 원인: 검색 질의
 
 ### 상황
