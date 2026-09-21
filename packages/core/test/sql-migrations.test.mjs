@@ -620,7 +620,7 @@ test("attendance cron sends weekly recovery summaries through Slack without AI A
   assert.doesNotMatch(summarySource, /openai|chat\.completions|responses\.create|anthropic|gemini/i);
 });
 test("manual study session breaks persist and are excluded from final duration", () => {
-  const sql = readLatestMigrationContaining(/pause_study_session/);
+  const sql = readLatestMigrationContaining(/create or replace function public\.pause_study_session\(/i);
 
   assert.match(sql, /add column if not exists paused_at timestamptz/i);
   assert.match(sql, /add column if not exists paused_seconds integer not null default 0/i);
