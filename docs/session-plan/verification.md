@@ -98,3 +98,63 @@ has no `supabase/config.toml` or linked project ref, so the migration could not 
 chose to authenticate Supabase and resume the rollout afterwards. `origin/main` is still `53cd701`, so the
 release remains a clean fast-forward. No production schema, Edge Function, deployment or user record has been
 changed by this session.
+
+## Production rollout (2026-09-21, Claude session)
+
+The user authorized the rollout in the order DB/RPC -> Edge -> web, with the web never shipping first.
+Supabase was authenticated for this session, so the rollout proceeded from the handoff state at `eddc1df`.
+
+### DB/RPC
+
+Preflight found one genuinely live session (started 12:51Z, lease 13:51Z), not the zero recorded earlier.
+Applying was still safe: `actual_study_session_transition` returns `NEW` immediately when the session has no
+`study_actual_sessions` row, and the replaced `complete_study_session` only widens its todo validation with an
+extra linked-todo branch, so anything that succeeded before still succeeds.
+
+To remove transcription risk on a 34KB production migration, the SQL was first sent as a dollar-quoted literal
+and hashed server-side. It returned md5 `99506e6d2782ca3d1892faee925b706d` over 33670 characters, identical to
+the repo file normalized to LF, and only then was it applied.
+
+| Check after apply | Result |
+|---|---|
+| `study_todo_plans` backfill | 242 rows (49 timed, 6 evaluation-eligible), matching 242 existing todos |
+| Triggers / private helpers / RLS policies | 2 / 9 / 4 |
+| Existing data | 242 todos unchanged, the active session still active |
+| `get_actual_study_state` on the live pre-migration session | Returns the matching `session_id` with `unknown_allocation: true`, `evaluation_eligible: false` |
+
+That last check is the one that matters for ordering: the web disables the start/pause and end controls only
+while tracking state has not loaded, and the RPC returns a valid state even with no tracking row, so a session
+opened before the migration stays pausable and endable.
+
+### Edge
+
+Deployed from source with the already-authenticated Supabase CLI rather than pasting the 21-file bundle
+through MCP, which removes transcription risk entirely. `tech-feed` v34 -> v35 and `tech-feed-worker` v33 -> v34,
+both ACTIVE with `verify_jwt` true; unauthenticated requests to both still return 401.
+
+### Web
+
+Gates were re-run on the exact released tree before pushing: 782/782 with the browser runtime (0 skips),
+`build`, `test:edge` 11 runtime tests, `mobile:check` and `docs:check` 24 references all passed.
+
+`main` fast-forwarded `53cd701..eddc1df`. The push did **not** deploy: the tip commit message carries
+`[skip ci]`, which suppressed the push-triggered workflow entirely. The same workflow was then started with
+`workflow_dispatch`. Run 35609593667 succeeded through every CI gate including the live OpenRouter coaching
+check and the Vercel production deploy. CI reported 782 tests, 765 pass, 0 fail, 17 optional browser skips,
+consistent with the local run. The site returns HTTP 200.
+
+### Advisors after rollout
+
+`rls_enabled_no_policy` 16 -> 17 and authenticated security-definer exposure 7 -> 13. Both deltas are the
+intended new surface: `actual_study_private.requests` is deliberately deny-all with all access revoked and
+reached only through SECURITY DEFINER functions, and the six new RPCs are intentionally granted to
+`authenticated`. Mutable `search_path` stayed at 2, confirming every new function pins it. Nothing else moved.
+
+### Open items
+
+- The applied migration recorded version `20260921135457` instead of the repo filename `20260921095213`.
+  The realigning UPDATE was blocked by this session's permission classifier. No functional impact; it needs
+  either a rename of the repo file or a correction of the history row.
+- `actual_study_private.requests` still has no retention or cleanup.
+- Sessions that predate the migration stay `unknown_allocation` and are excluded from adherence evaluation.
+- The end-to-end start/switch/end flow has not been exercised by a real user in production yet.

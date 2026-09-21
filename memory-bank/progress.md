@@ -1,3 +1,34 @@
+### 2026-09-21 — 실제 공부/계획 연결 기능 운영 배포
+
+#### 완료한 작업
+
+- DB/RPC: migration `20260921095213_actual_study_tracking.sql` 운영 적용. 전송 본문 md5를 저장소 파일과 대조한 뒤 실행했다.
+- Edge: Supabase CLI로 `tech-feed`(v34→v35), `tech-feed-worker`(v33→v34) 소스 직접 배포. 둘 다 ACTIVE, verify_jwt true.
+- 웹: main을 `53cd701..eddc1df`로 fast-forward 푸시. tip 커밋의 `[skip ci]`로 자동 실행이 없어 `workflow_dispatch`로 배포 워크플로를 실행했다.
+
+#### 변경된 파일
+
+- 운영 스키마(신규 테이블 4, private 스키마 1, trigger 2, RPC 6, `complete_study_session` 치환).
+- 저장소 파일 변경 없음. 이 세션은 기존 커밋 eddc1df를 그대로 릴리스했다.
+
+#### 검증 방법
+
+- 배포 전 게이트: 브라우저 포함 `npm.cmd test` 782/782 skip 0, `build`, `test:edge` 11건, `mobile:check`, `docs:check` 24참조 통과.
+- 적용 후: study_todo_plans 242건 backfill(timed 49, eligible 6), trigger 2건, private 함수 9건, RLS 정책 4건, 기존 todos 242건 불변, 활성 세션 1건 유지.
+- 운영 호출 검증: `get_actual_study_state`가 tracking row 없는 활성 세션에 대해 정상 상태를 반환(session_id 일치, unknown_allocation true).
+- Edge 무인증 요청 401 유지. Actions 35609593667 success(CI 782건 중 765 pass·0 fail·17 선택 skip). 사이트 HTTP 200.
+- Advisors: rls_enabled_no_policy 16→17, security-definer 노출 7→13. 증가분 전부 의도된 신규 표면. mutable search_path 2건 불변.
+
+#### 남은 작업
+
+- migration 이력 version(`20260921135457`)과 저장소 파일명(`20260921095213`) 정합성 맞추기.
+- `actual_study_private.requests` 보존/정리 정책.
+- 실제 세션 시작→전환→종료 플로우의 사용자 육안 확인.
+
+#### 다음 우선순위
+
+- 이력 version 정리 방식 결정 후 반영.
+
 ### 2026-09-21 — Codex 중단 작업 인수 및 전체 검증 완료
 
 #### 완료한 작업

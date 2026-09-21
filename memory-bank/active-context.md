@@ -1,3 +1,33 @@
+## 2026-09-21 — 실제 공부/계획 연결 기능 운영 배포 완료 (DB → Edge → 웹)
+
+### 현재 작업
+
+- 작업명: 인수받은 실제 공부·계획 연결 기능의 운영 배포. 사용자가 지정한 DB/RPC → Edge → 웹 순서를 그대로 지켰다.
+- 작업 목적: 로컬 검증까지 끝난 릴리스를 운영에 반영하고 각 단계 결과를 증거와 함께 기록한다.
+- 관련 PRD: prd-actual-study-plan.md, prd-tech-feed.md. 관련 문서: docs/session-plan/verification.md.
+
+### 최근 결정 사항
+
+- 배포 직전 운영에 활성 세션 1건이 있었다(lease 13:51Z). migration은 tracking row가 없는 세션에 대해 trigger가 즉시 return하므로 무영향임을 확인하고 그대로 진행했다.
+- migration 본문을 손으로 옮겨 적는 위험을 없애기 위해, 먼저 `select md5(...)`로 전송된 본문의 md5가 저장소 파일(LF 기준 `99506e6d2782ca3d1892faee925b706d`, 33670자)과 일치하는지 검증한 뒤 적용했다.
+- Edge는 MCP로 21개 파일을 붙여넣는 대신, 이미 로그인되어 있던 Supabase CLI로 소스에서 직접 배포했다. 전사 오류 가능성이 사라졌다.
+- 웹은 tip 커밋의 `[skip ci]` 때문에 push만으로는 배포되지 않아 `workflow_dispatch`로 동일 워크플로를 실행했다. CI 게이트는 전부 통과 후 배포됐다.
+
+### 현재 상태
+
+- 완료: migration 적용(study_todo_plans 242건 backfill, trigger 2, private 함수 9, RLS 정책 4), Edge `tech-feed` v35 / `tech-feed-worker` v34 ACTIVE(verify_jwt true, 무인증 401 유지), main `53cd701..eddc1df` 푸시, Actions 35609593667 success, Vercel 운영 배포, 사이트 HTTP 200.
+- 완료: 배포 전 현재 트리 전체 게이트 재실행 — 브라우저 포함 782/782(skip 0), build, test:edge 11건, mobile:check, docs:check 통과. CI는 765 pass + 17 선택 브라우저 skip으로 로컬과 일치한다.
+- 완료: 운영 데이터로 `get_actual_study_state` 직접 호출 검증. tracking row가 없는 기존 활성 세션도 `session_id`를 그대로 반환해 웹의 시작/일시정지·종료 버튼이 활성 상태를 유지한다.
+- 막힌 부분: 적용된 migration 이력 version이 `20260921135457`로 기록됐고, 저장소 파일명 `20260921095213`과 맞추는 UPDATE는 권한 분류기에 막혔다. 기능 영향은 없다.
+
+### 주의할 점
+
+- 이력 version 불일치는 기록 정합성 문제다. 저장소 파일명을 적용된 값으로 바꾸거나 DB 이력 row를 수정하는 것 중 하나를 사용자가 선택해야 한다.
+- `[skip ci]`가 tip 커밋에 있으면 push로는 Vercel 배포가 실행되지 않는다. 문서 커밋을 마지막에 두는 릴리스에서 반복될 수 있다.
+- `actual_study_private.requests`는 여전히 보존 정책이 없다. 확정 1건당 1행이 쌓인다.
+- 배포 전부터 있던 활성 세션은 `unknown_allocation=true`, `evaluation_eligible=false`로 남는다. 의도된 보수적 동작이며 해당 세션은 준수 평가에서 제외된다.
+- Supabase advisors 증가분은 전부 의도된 신규 표면이다(private 테이블 1건 deny-all, 신규 RPC 6건 authenticated 노출). mutable search_path는 2건 그대로다.
+
 ## 2026-09-21 — Codex 중단 작업 인수, 검증 완료 (배포 대기)
 
 ### 현재 작업

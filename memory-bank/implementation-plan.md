@@ -1,4 +1,4 @@
-## Supabase 변경 이력 — 2026-09-21 실제 공부/일정 연결 (로컬 검증 완료, 운영 미적용)
+## Supabase 변경 이력 — 2026-09-21 실제 공부/일정 연결 (운영 적용 완료)
 
 - 변경 대상: study_todo_plans, study_actual_sessions, study_todo_segments, study_schedule_adjustments 및 private 요청 멱등성 기록. 세션 상태 전환 trigger와 preview/confirm/state/report/checkpoint/pause wrapper RPC.
 - 이유: 원래 계획을 보존하면서 현재 집중할 일별 실제 구간을 기록하고, 충돌 연쇄 변경과 세션 시작/재개/전환을 원자적으로 확정한다.
@@ -9,7 +9,7 @@
 - 정밀도: 제안 시각은 서버 분 단위, 실제 구간은 정확한 확정 시각. 기존 날짜/두 시각 표현으로 역변환되지 않는 DST 구간은 전체 차단한다.
 - 과거: 배분 미확인은 유지하고 최초 시작 지연 평가에서 제외. first_tracked_at을 진짜 최초 시작으로 간주하지 않는다. 제목만 있던 할 일은 최초 시간 입력 시 원래 계획을 캡처한다.
 - 검증: SQL34/34,초기구현전체748/748,리뷰3건수정후 재리뷰통과,수정 SQL에 실제 PostgreSQL18 별도연결 경합4/4통과.
-- 주의: 짧은 table lock은 다른 사용자 일정 쓰기도 잠깐 직렬화한다. 브라우저가 아직 전송하지 않은 카메라 부재 시간은 서버가 복구할 수 없으므로 웹이 경계/기존동기화주기에 checkpoint한다. 아직 운영 DB 적용 전이다.
+- 주의: 짧은 table lock은 다른 사용자 일정 쓰기도 잠깐 직렬화한다. 브라우저가 아직 전송하지 않은 카메라 부재 시간은 서버가 복구할 수 없으므로 웹이 경계/기존동기화주기에 checkpoint한다. 2026-09-21 운영 적용 완료. 적용 시 study_todo_plans 242건이 backfill됐고(timed 49, eligible 6) 기존 활성 세션은 tracking row가 없어 trigger가 즉시 return하므로 영향이 없다. 적용된 이력 version은 20260921135457로 기록돼 파일명 20260921095213과 다르다.
 
 ## Supabase 변경 이력 — 2026-09-15 AI 호출 예산 재조정 (운영 적용 완료)
 

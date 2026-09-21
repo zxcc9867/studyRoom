@@ -1,3 +1,28 @@
+## 2026-09-21 — 릴리스 배포에서 막힌 2가지
+
+### 상황 / 원인
+
+- main 푸시 후 Vercel 배포가 시작되지 않았다. tip 커밋 `eddc1df`의 메시지에 `[skip ci]`가 있어 push 트리거 워크플로 전체가 건너뛰어졌다. 문서 커밋을 릴리스 마지막에 두면 재발한다.
+- Supabase MCP `apply_migration`이 이력 version을 호출 시각(`20260921135457`)으로 기록했다. 저장소 파일명은 `20260921095213`이라 `supabase migration list` 기준으로 어긋난다.
+
+### 해결 / 검증
+
+- 배포는 같은 워크플로를 `gh workflow run "Deploy Web to Vercel" --ref main`으로 실행해 해결했다. 실행 35609593667이 테스트·빌드 게이트를 모두 거쳐 success, 사이트 HTTP 200.
+- version 정렬용 UPDATE는 권한 분류기에 차단돼 미해결로 남겼다. 기능 영향은 없고 기록 정합성 문제다.
+
+### 관련 파일
+
+- `.github/workflows/vercel-production.yml`, `supabase/migrations/20260921095213_actual_study_tracking.sql`.
+
+### 재발 방지
+
+- 릴리스 푸시 전 tip 커밋 메시지에 `[skip ci]`가 있는지 확인한다. 있으면 push 후 워크플로 실행 여부를 반드시 확인하고, 없으면 `workflow_dispatch`로 실행한다.
+- MCP로 migration을 적용할 때는 적용 후 기록된 version을 확인하고 저장소 파일명과 맞춘다.
+
+### 남은 리스크
+
+- 이력 불일치가 남아 있는 동안 `supabase db push`는 이 migration을 미적용으로 오인할 수 있다. (원격 이력이 이미 로컬과 갈라져 있어 db push는 현재 사용하지 않는다.)
+
 ## 2026-09-21 — 세션 일정 서버 리뷰에서 발견한 경계 오류
 
 ### 상황 / 원인
