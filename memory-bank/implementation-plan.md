@@ -1,3 +1,11 @@
+## Supabase 변경 이력 — 2026-09-23 기술 피드 추천 보완
+
+- 변경 대상: tech-feed Edge의 공유 tech-feed-briefing.mjs.
+- 변경 내용/이유: AI JSON 예시에 insights와 highlights를 함께 명시해 엄격한 응답 검증과 일치시켰다. 잘못된 falsy 캐시는 추천 없음으로 은폐하지 않고 거절한다. 구형 undefined highlights만 호환한다.
+- 관련 기능: 일일 브리핑과 최대 3개 하이라이트. 기존 한 번의 요청·유효 캐시 재사용·무료 예산 정책 유지.
+- 마이그레이션 파일: 없음. DB/RLS/cron/worker 변경 없음. tech-feed만 배포한다.
+- 확인 방법: 전체 787건 및 Edge 11건 통과, PC/390px 브라우저 검증. 운영 배포 결과는 progress에 기록한다.
+
 ## Supabase 변경 이력 — 2026-09-21 실제 공부/일정 연결 (운영 적용 완료)
 
 - 변경 대상: study_todo_plans, study_actual_sessions, study_todo_segments, study_schedule_adjustments 및 private 요청 멱등성 기록. 세션 상태 전환 trigger와 preview/confirm/state/report/checkpoint/pause wrapper RPC.

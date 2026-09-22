@@ -1,3 +1,16 @@
+## 2026-09-23 — 기술 피드 추천 생성 계약과 캐시 검증 보완
+
+### 상황 / 원인
+
+- 기존 AI 지시의 JSON 예시는 insights만 허용하면서 뒤에서는 highlights도 요구했다. 모델이 예시를 따르면 엄격한 응답 검증에서 invalid_response로 거절될 수 있었다(실제 운영 발생 빈도는 확인하지 않음).
+- 캐시 파싱의 `highlights || []`는 false/null/빈 문자열까지 정상적인 빈 추천으로 취급했다.
+
+### 해결 / 재발 방지
+
+- 완전한 insights/highlights JSON 예시로 통일. 예시를 그대로 따른 응답이 실제 validator를 통과하는 회귀 테스트 추가.
+- undefined에만 구형 호환 적용. 잘못된 캐시와 권한 상실한 추천 ID를 차단하는 테스트 추가(유효 글 2건 이상을 유지해 ID 검증 자체를 확인).
+- 전체 787/787, Edge 11건 통과. 관련 파일: supabase/functions/_shared/tech-feed-briefing.mjs 및 tech-feed-highlights.test.mjs.
+
 ## 2026-09-21 — 릴리스 배포에서 막힌 2가지
 
 ### 상황 / 원인

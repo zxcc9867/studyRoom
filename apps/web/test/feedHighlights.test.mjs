@@ -18,3 +18,8 @@ test('read failure clears highlights with insights rather than retaining unvalid
 test('empty picks explicitly avoid claiming an essential read',()=>{
  const html=render({...data,highlights:[]});assert.match(html,/추천할 만큼 근거가 충분한 글이 없어요/);assert.doesNotMatch(html,/오늘 하나만 읽는다면/);
 });
+
+test('generation action explains that the same request provides both summary and recommendations',()=>{
+ const html=render({...data,status:'idle',insights:[],highlights:[]});
+ assert.match(html,/오늘 요약·추천 보기/);assert.match(html,/최대 3개/);
+});

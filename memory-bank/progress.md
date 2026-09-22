@@ -1,3 +1,11 @@
+### 2026-09-23 — 기술 피드 오늘의 추천 신뢰성 개선
+
+- 완료: 모순된 AI 응답 예시를 insights/highlights 통합 스키마로 수정. false/null/빈 문자열 캐시 및 접근 불가능한 추천 글 차단. 요약·추천 버튼 문구 개선.
+- 변경: FeedDailyBriefing.tsx, tech-feed-briefing.mjs 및 관련 웹/서버 테스트 3개.
+- 검증: 전체 787 pass / 0 fail / 0 skip, Edge 11 pass, build/mobile:check/docs:check 통과. PC 1440px·모바일 390px에서 3개 추천·원문 링크·가로 넘침 없음·명시적 생성 요청 1회 검증.
+- 화면 증거: output/playwright/feed-highlights-1440.png, feed-highlights-390.png (합성 데이터, Git 제외).
+- 남은 작업: Edge 및 웹 배포 확인. 실제 사용자 계정의 유료/무료 AI 호출은 검증 목적으로 실행하지 않았다.
+
 ### 2026-09-21 — 실제 공부/계획 연결 기능 운영 배포
 
 #### 완료한 작업

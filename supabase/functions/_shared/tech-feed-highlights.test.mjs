@@ -36,3 +36,32 @@ test('interest affinity is a boolean based on evidence; private prompt is not se
  assert.equal(data.articles.find(a=>a.id==='b').interest_match,true);assert.equal(data.articles.find(a=>a.id==='a').interest_match,false);
  assert.doesNotMatch(JSON.stringify(input.messages),/SecretProject|https:\/\/example/);
 });
+
+test('the complete JSON example in the prompt is accepted by the actual response parser',async()=>{
+ const f=fixture();
+ const ask=async(messages,_signal,reserve)=>{
+  const example=messages[0].content.match(/Return JSON only: (.+)\n/);
+  assert.ok(example,'one complete JSON example must include both root fields');
+  const answer=JSON.parse(example[1]);
+  assert.deepEqual(Object.keys(answer).sort(),['highlights','insights']);
+  answer.insights[0].source_ids=['a'];answer.highlights[0].article_id='b';
+  assert.ok(await reserve());return{text:JSON.stringify(answer)};
+ };
+ const result=await runBriefing({...f,ask,env,generate:true});
+ assert.equal(result.status,'ready');assert.equal(result.highlights[0].source.id,'b');
+});
+
+test('malformed cached picks are rejected even when enough other eligible evidence remains',()=>{
+ for(const picks of [false,null,'',{bad:true},[{...highlight,article_id:'revoked'}],[highlight,highlight]]){
+  const f=fixture();f.snapshot.articles.push({...f.snapshot.articles[0],id:'c'});
+  f.snapshot.cache={result:{insights:[insight],highlights:picks,analyzed_count:2},generated_at:'2026-09-21T03:00:00Z'};
+  const result=briefingView(f.snapshot);assert.deepEqual(result.insights,[]);assert.deepEqual(result.highlights,[]);
+ }
+});
+
+test('revoked highlight ID is rejected independently of the cached sample-size guard',()=>{
+ const f=fixture();f.snapshot.articles.push({...f.snapshot.articles[0],id:'c'});
+ f.snapshot.articles[1].eligible=false;
+ f.snapshot.cache={result:{insights:[insight],highlights:[highlight],analyzed_count:2},generated_at:'2026-09-21T03:00:00Z'};
+ const result=briefingView(f.snapshot);assert.equal(result.eligible_count,2);assert.deepEqual(result.highlights,[]);assert.deepEqual(result.insights,[]);
+});

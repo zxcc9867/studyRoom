@@ -16,7 +16,7 @@ export function nextFeedDayDelay(now:Date,timeZone:string):number {
 }
 
 const statusText:Record<FeedBriefing['status'],string>={
-  idle:'통계는 자동으로 확인해요. AI 요약은 버튼을 누를 때만 생성해요.',
+  idle:'통계는 자동으로 확인해요. 버튼을 누르면 오늘의 요약과 꼭 읽을 글 최대 3개를 함께 골라드려요.',
   ready:'실제 소개를 바탕으로 정리한 오늘의 읽을거리예요.',
   generating:'같은 계정의 요약을 생성 중이에요. 잠시 후 상태를 확인해 주세요.',
   insufficient:'요약할 소개가 충분한 글이 2건 미만이에요. 아래 원문을 직접 읽어 보세요.',
@@ -54,7 +54,7 @@ export function FeedBriefingContent({data,busy,error,onGenerate,onReload}:{data:
       <ol className="feed-briefing-insights">{data.insights.map((insight,index)=><li key={index}><h4>{insight.title}</h4><p>{insight.body}</p><p className="feed-study-angle"><strong>공부 관점</strong> {insight.study_angle}</p><ul aria-label="근거 원문">{insight.sources.map(source=>{const url=safeFeedUrl(source.url);return <li key={source.id}>{url?<a href={url} target="_blank" rel="noopener noreferrer">{source.title} ↗</a>:<span>{source.title}</span>}</li>;})}</ul></li>)}</ol>
     </>}
     <div className="feed-briefing-actions">
-      {data&&<button className="primary" type="button" disabled={busy||status==='paused'||status==='generating'||status==='quota_exhausted'||status==='insufficient'} onClick={onGenerate}>{busy?'확인 중…':data.stale?'요약 갱신':status==='ready'?'오늘 요약 다시 보기':'오늘 요약 보기'}</button>}
+      {data&&<button className="primary" type="button" disabled={busy||status==='paused'||status==='generating'||status==='quota_exhausted'||status==='insufficient'} onClick={onGenerate}>{busy?'확인 중…':data.stale?'요약·추천 갱신':status==='ready'?'오늘 요약·추천 다시 보기':'오늘 요약·추천 보기'}</button>}
       {(error||status==='generating'||status==='paused'||status==='quota_exhausted'||status==='insufficient')&&<button className="secondary" type="button" disabled={busy} onClick={onReload}>브리핑 상태 다시 확인</button>}
     </div>
     <p className="feed-budget">요약 생성은 코칭과 하루 무료 AI 호출 한도를 공유해요. 같은 결과 재사용에는 새 AI 호출이 없어요.</p>
