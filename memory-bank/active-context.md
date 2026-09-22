@@ -1,3 +1,11 @@
+## 2026-09-23 — 기술 피드 후속 배포 완료
+
+- 코드 커밋: c6209da (main). Actions 35792468850 success.
+- Supabase tech-feed v36 ACTIVE, verify_jwt true, 무인증 HTTP 401. worker/DB/cron 변경 없음.
+- Vercel: dpl_wXNvMV53X7qWAKGPBk9EgcMGmbPq READY, production https://study-room-attendance.vercel.app HTTP 200 확인.
+- 로컬 전체 787/787(skip 0), Edge 11건, build/mobile/docs 통과. 합성 데이터 PC/390px 브라우저 확인; 실제 사용자 AI 추천 내용은 계정에서 확인 필요.
+- 아래 배포 대기 기록은 이 완료 기록으로 대체한다.
+
 ## 2026-09-23 — 기술 피드 추천 후속 보완
 
 - 현재 작업: 기존 배포된 하이라이트를 보존하고 생성 프롬프트와 캐시 검증을 보완했다. 관련 PRD: prd-tech-feed.md.
