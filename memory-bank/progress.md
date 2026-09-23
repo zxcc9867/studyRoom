@@ -3,7 +3,7 @@
 - 완료: 카드 보조 문구·상태·진행도·조정/원래 일정·다음 할 일·반복/목표 배지의 글자 크기와 녹색 대비를 높였다. 375px 일정은 라벨/값을 세로 배치했다. 기능·API·DB 변경 없음.
 - 변경: `apps/web/src/actualStudy.css`, `apps/web/test/actualStudyMounted.test.mjs`.
 - 검증: 신규 브라우저 테스트가 변경 전 13px 문구, 139px 모바일 일정값, 12px 배지에서 각각 실패한 뒤 통과했다. 전체 799/799, 웹 빌드, 모바일 호환성/타입, README 자산, Edge 11/11 통과. lint 스크립트 없음.
-- 배포: 사용자 승인 및 저장소 웹 배포 규칙에 따라 GitHub Actions/Vercel production 적용 후 별도 확인.
+- 배포: 코드 b08989b(main), GitHub Actions 35870497767 성공, Vercel dpl_27T4F3BPKQRQNbLPGKu96cChyrYR production READY. 운영 URL HTTP 200 및 index-OWFgonCD.css 확인.
 
 ### 2026-09-23 — 세션 할 일 모달 UI와 체크박스 개선
 
