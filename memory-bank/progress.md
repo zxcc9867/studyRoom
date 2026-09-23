@@ -3,8 +3,8 @@
 - 완료: 세션 모달 전용 토큰 CSS로 녹색/크림 UI, 22px 시간 체크박스, 할 일 행·버튼·상태·반응형을 정리했다. 기존 중복 세션 CSS만 이관하고 세션 동작·서버/API는 변경하지 않았다.
 - 변경: apps/web/src/main.tsx, sessionTodoModal.css, styles.css, actualStudy.css, apps/web/test/actualStudyMounted.test.mjs.
 - 검증: 변경 전 체크박스 375px에서 212.875×54px, 1440px에서 160.5×54px로 재현. 동일 뷰포트 전후 스크린샷 및 브라우저 회귀 테스트를 추가했고, 전체 796/796·웹 빌드 통과. npm run lint는 스크립트 부재로 실행되지 않았다.
-- 남은 작업: GitHub Actions 결과, Vercel READY 상태와 운영 화면을 배포 단계에서 확인한다.
-- 배포 상태: 사용자가 명시적으로 배포를 요청했으며 검증 후 운영 배포를 진행한다.
+- 남은 작업: 인증된 사용자의 실제 세션 선택은 운영 브라우저에서 추가 확인할 수 있다. 이번 배포에서는 자동 브라우저 회귀와 운영 정적 응답을 확인했다.
+- 배포 상태: UI 커밋 5e66c3f를 main에 푸시. GitHub Actions 35863397517 전체 검증·배포 성공, Vercel dpl_5ekJ5cdTaJMZnKs1N8bUgoDf4iqC production READY, 운영 URL HTTP 200 및 새 CSS 자산 확인.
 
 ### 2026-09-23 — 원문 언어 태그와 한국어 피드 개선
 
