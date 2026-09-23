@@ -241,3 +241,36 @@ for (const width of [375, 1440]) browserTest(`mounted session plan: readable, ac
  assert.equal(await dialog.locator('input[type="time"][aria-label="새 할 일 시작 시간 선택"]').count(),1);
  assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),true);
 } ,'start'));
+
+for (const width of [375, 1440]) browserTest(`mounted actual study panel: secondary text stays readable at ${width}px`, () => withApp(width, async page => {
+ const panel=page.locator('.session-todo-panel.actual-study-panel');
+ await panel.getByRole('heading',{name:'집중 독서',exact:true}).waitFor();
+ await mkdir('output/playwright',{recursive:true});
+ await panel.screenshot({path:`output/playwright/actual-study-readability-after-${width}.png`});
+ const metrics=await panel.evaluate(root=>{
+  const rgb=value=>value.match(/[\d.]+/g).slice(0,3).map(Number);
+  const luminance=value=>rgb(value).map(channel=>{const v=channel/255;return v<=0.04045?v/12.92:((v+0.055)/1.055)**2.4;}).reduce((sum,v,index)=>sum+v*[0.2126,0.7152,0.0722][index],0);
+  const background=luminance(getComputedStyle(root).backgroundColor);
+  return ['.actual-start','.actual-progress span','.actual-schedule dt','.actual-schedule dd','.actual-state','.actual-next summary','.todo-meta-chip','.todo-goal-chip'].map(selector=>{
+   const element=root.querySelector(selector),style=getComputedStyle(element),foreground=luminance(style.color);
+   const channels=style.backgroundColor.match(/[\d.]+/g).map(Number),surface=channels.length===4&&channels[3]===0?background:luminance(style.backgroundColor);
+   return {selector,fontSize:parseFloat(style.fontSize),contrast:(Math.max(foreground,surface)+0.05)/(Math.min(foreground,surface)+0.05)};
+  });
+ });
+ for(const metric of metrics){
+  assert.ok(metric.fontSize>=(metric.selector.includes('chip')?14:15),`${metric.selector} font ${metric.fontSize}px at ${width}px`);
+  assert.ok(metric.contrast>=7,`${metric.selector} contrast ${metric.contrast.toFixed(2)} at ${width}px`);
+ }
+ assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),true);
+}));
+
+browserTest('mounted actual study panel: mobile schedule uses the full card width', () => withApp(375, async page => {
+ const panel=page.locator('.session-todo-panel.actual-study-panel');
+ await panel.getByRole('heading',{name:'집중 독서',exact:true}).waitFor();
+ const panelBox=await panel.boundingBox();
+ const labelBox=await panel.locator('.actual-schedule dt').first().boundingBox();
+ const valueBox=await panel.locator('.actual-schedule dd').first().boundingBox();
+ assert.ok(panelBox && labelBox && valueBox);
+ assert.ok(valueBox.width>=panelBox.width-50,`schedule value width ${valueBox.width}px within ${panelBox.width}px panel`);
+ assert.ok(valueBox.y>=labelBox.y+labelBox.height,'schedule time appears below its label');
+}));

@@ -36,3 +36,147 @@
 .planning-adherence dd { margin: 8px 0 0; font-size: 22px; }
 .planning-adherence li { margin: 8px 0; font-size: 13px; }
 @media(max-width: 480px) { .actual-progress { gap: 10px; }.actual-progress strong { font-size: 16px; }.actual-confirmation .reminder-actions { display: grid; }.actual-changes dl div { grid-template-columns: 55px 1fr; }.planning-adherence dl { gap: 8px; } }
+/* Keep study progress readable against the warm session surface. */
+.session-todo-panel.actual-study-panel {
+  --actual-ink: #244634;
+  --actual-muted: #405646;
+  --actual-soft-surface: #fffdf4;
+  --actual-soft-border: #d5dfd0;
+  color: var(--actual-ink);
+}
+
+.actual-study-panel .eyebrow {
+  color: var(--actual-muted);
+  font-size: 15px;
+}
+
+.actual-study-panel .actual-state {
+  color: var(--actual-ink);
+  background: #e7f0df;
+  border: 1px solid var(--actual-soft-border);
+  font-size: 15px;
+  font-weight: 700;
+  line-height: 1.4;
+}
+
+.actual-study-panel .actual-current h4 {
+  color: var(--actual-ink);
+  font-size: clamp(25px, 3vw, 32px);
+  line-height: 1.3;
+}
+
+.actual-study-panel .actual-start,
+.actual-study-panel .actual-unknown {
+  color: var(--actual-muted);
+  font-size: 15px;
+  line-height: 1.65;
+}
+
+.actual-study-panel .actual-progress {
+  gap: 12px;
+  padding: 18px 0;
+}
+
+.actual-study-panel .actual-progress > div {
+  min-width: 0;
+  padding: 15px 17px;
+  border: 1px solid var(--actual-soft-border);
+  border-radius: 12px;
+  background: var(--actual-soft-surface);
+}
+
+.actual-study-panel .actual-progress span {
+  color: var(--actual-muted);
+  font-size: 15px;
+  font-weight: 650;
+  line-height: 1.45;
+}
+
+.actual-study-panel .actual-progress strong {
+  color: var(--actual-ink);
+  font-size: clamp(20px, 2.5vw, 26px);
+  line-height: 1.35;
+}
+
+.actual-study-panel .actual-current progress {
+  height: 10px;
+  accent-color: #2f6b52;
+}
+
+.actual-study-panel .actual-schedule {
+  display: grid;
+  gap: 8px;
+  margin: 18px 0 0;
+  padding-top: 15px;
+  border-top: 1px solid var(--actual-soft-border);
+  color: var(--actual-ink);
+  font-size: 15px;
+  line-height: 1.55;
+  font-variant-numeric: tabular-nums;
+}
+
+.actual-study-panel .actual-schedule div {
+  grid-template-columns: 88px minmax(0, 1fr);
+  gap: 10px;
+}
+
+.actual-study-panel .actual-schedule dt {
+  color: var(--actual-muted);
+  font-weight: 650;
+}
+
+.actual-study-panel .actual-schedule dd {
+  color: var(--actual-ink);
+  font-weight: 650;
+}
+
+.actual-study-panel .actual-next {
+  border-top-color: var(--actual-soft-border);
+}
+
+.actual-study-panel .actual-next summary {
+  display: flex;
+  align-items: center;
+  min-height: 44px;
+  color: var(--actual-ink);
+  font-size: 16px;
+  font-weight: 700;
+}
+
+.actual-study-panel .actual-next summary:focus-visible {
+  outline: 3px solid #2f6b52;
+  outline-offset: 3px;
+  border-radius: 4px;
+}
+
+.actual-study-panel .actual-next small {
+  color: var(--actual-muted);
+  font-size: 15px;
+  line-height: 1.5;
+}
+
+.actual-study-panel .todo-meta-chip,
+.actual-study-panel .todo-goal-chip {
+  font-size: 14px;
+  font-weight: 700;
+  line-height: 1.35;
+}
+
+.actual-study-panel .todo-meta-chip {
+  color: #5a421b;
+}
+
+.actual-study-panel .todo-goal-chip {
+  color: var(--actual-ink);
+}
+
+@media (max-width: 600px) {
+  .actual-study-panel .actual-progress {
+    grid-template-columns: 1fr;
+  }
+
+  .actual-study-panel .actual-schedule div {
+    grid-template-columns: 1fr;
+    gap: 2px;
+  }
+}
