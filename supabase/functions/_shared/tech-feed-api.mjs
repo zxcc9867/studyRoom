@@ -33,7 +33,7 @@ const errorMessages={
  unsafe_address:[400,'허용되지 않는 피드 주소입니다.'],unsafe_connection:[400,'안전한 피드 연결을 확인할 수 없습니다.'],
  redirect_limit:[400,'피드 주소의 이동을 확인할 수 없습니다.'],source_timeout:[504,'피드 응답이 지연되고 있습니다.'],
 };
-export function createTechFeedHandler({authenticate,env,transport,askBriefing}){
+export function createTechFeedHandler({authenticate,env,transport,askBriefing,scheduleEnrichment}){
  return async request=>{
   if(request.method==='OPTIONS')return new Response(null,{status:204,headers:cors});
   if(request.method!=='POST')return reply({error:'POST 요청만 허용됩니다.'},405);
@@ -74,7 +74,7 @@ export function createTechFeedHandler({authenticate,env,transport,askBriefing}){
    if(action==='refresh_status')return reply({...await store.refreshStatus(),search:searchState(await store.state(),config)});
    if(action==='refresh'){
     if(!Number.isSafeInteger(data.expected_revision)||data.expected_revision<0)invalid();
-    return reply(await runManualRefresh({store,userId:id,expectedRevision:data.expected_revision,env:config,transport,signal:request.signal}));
+    return reply(await runManualRefresh({store,userId:id,expectedRevision:data.expected_revision,env:config,transport,signal:request.signal,scheduleEnrichment}));
    }
    if(action==='facets'){
     const view=data.view||'latest';if(!['latest','saved'].includes(view))invalid();return reply(await store.facets(view));

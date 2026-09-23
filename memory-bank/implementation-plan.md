@@ -1,3 +1,12 @@
+## Supabase 변경 이력 — 2026-09-24 기술 피드 발견순 목록과 부가 작업 분리
+
+- 변경 대상: `public.tech_feed_list` RPC, tech-feed/tech-feed-worker Edge 진입점과 공유 수집 파이프라인, 웹 기사 카드.
+- 변경 내용/이유: 목록과 커서의 정렬 기준을 `discovered_at DESC,id DESC`로 통일한다. 원문 발행일은 별도 메타데이터로 유지한다. 원문이 오래된 신규 발견 글이 발행일순으로 뒤에 묻히던 문제를 해결한다.
+- 마이그레이션 파일: `supabase/migrations/20260923160433_tech_feed_discovery_order.sql` (추가형 함수 교체; 기존 `tech_feed_article_discovered` 인덱스 사용). 운영 Supabase에 20260923160433 버전으로 적용했고 함수 정의에서 발견순 정렬을 확인했다.
+- 수집 완료: 정시 실행과 수동 새 글 확인은 발견·저장 결과와 run/refresh lease를 먼저 확정한다. 번역·미디어는 EdgeRuntime.waitUntil에 등록한 선택적 부가 작업으로 분리하며 각각 20초·12초 제한을 둔다. 수집 성공은 번역·미디어 성공을 보장하지 않는다.
+- 확인 방법: PGlite의 20건 커서/저장 목록·오래된 발행일 신규 발견, 수동·정시 미디어 지연 격리, 백그라운드 번역, 카드의 두 날짜, 전체 테스트/Edge 검사/웹 빌드. 운영에서 RPC 정렬·run 종료·무인증 함수 응답을 재검증한다.
+- 주의 사항: 원문 링크의 재조회는 별도 신규 발견으로 만들지 않고 최초 `discovered_at`을 유지한다. 기존 보존 정책·RLS·무료 사용량 한도·RSS 승인 상태는 유지한다.
+
 ## 2026-09-23 — 세션 할 일 모달의 로컬 디자인 토큰
 
 - 웹은 기존 Vite/React 구조를 유지한다. 세션 모달에만 영향을 주도록 sessionTodoModal.css를 styles.css와 improvements.css 뒤에 import한다.
@@ -284,7 +293,7 @@
 - 검증/출시/복구: `docs/tech-feed/implementation.md`, `release.md`, `verification.md` 참조. DB → 함수 → 웹 → 승인 소스/Cron 순, 기존 Cron 불변.
 
 - 예약기는 매분 due 작업을 분배하고 각 소스는 시간별 run_after/백오프/lease로 제한한다. HN snapshot/tail 체크포인트로 50개 묶음을 이어 처리하며 초기50개 제한을 증분 RSS에 적용하지 않는다.
-- 피드는 published_at 또는 discovered_at + id 순서의 인덱스/커서를 사용한다. 수집·요약·보류 실행 기록은 서버 전용으로30일 보관한다.
+- 피드는 최초 discovered_at + id 순서의 인덱스/커서를 사용한다. 원문 published_at은 별도 표시용 메타데이터다. 수집·요약·보류 실행 기록은 서버 전용으로30일 보관한다.
 - source 조회는 safe-column grant로 제한해 created_by/내부 컬럼을 숨긴다. 무료 AI는 실제 호출 직전 공유 쿼터와 시도 횟수를 원자적으로 예약하고 한도 보류는 실패 시도로 세지 않는다.
 - AI category는 성공한 요약에만 엄격한 enum을 적용한다. 비정상 배열 요소는 무시하며 피드 상대 링크는 검증된 최종 redirect URL을 기준으로 해석한다.
 

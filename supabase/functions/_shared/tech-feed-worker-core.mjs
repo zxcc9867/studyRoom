@@ -31,7 +31,7 @@ async function hnFeed(source,transport,signal,store){
  if(failures||signal.aborted)throw Error('source_failed');
  return{items:items.sort((a,b)=>String(b.published_at).localeCompare(String(a.published_at))),etag:null,last_modified:null,checkpoint:{pending_ids:pending.slice(selected.length)}};
 }
-async function executeFeedWorker({store,pilotIds,transport,ask,signal,stats,search,translator}){
+async function executeFeedWorker({store,pilotIds,transport,ask,signal,stats,search}){
  const result=stats;
  if(!pilotIds.length)return result;
  const sources=await store.claimSources(pilotIds,2);
@@ -55,10 +55,6 @@ async function executeFeedWorker({store,pilotIds,transport,ask,signal,stats,sear
  if(store.claimClassification&&!signal.aborted){
   try{result.classification=await runClassificationWorker({store,signal});}catch{result.classification={unavailable:true};}
  }
- await Promise.all([
-  translator&&!signal.aborted?runTranslationWorker({store,pilotIds,translator,signal:AbortSignal.any([signal,AbortSignal.timeout(20000)])}).then(value=>{result.translation=value;}):null,
-  store.claimMedia&&!signal.aborted?runMediaWorker({store,pilotIds,transport,signal:AbortSignal.any([signal,AbortSignal.timeout(12000)])}).then(value=>{result.media=value;}):null,
- ]);
  if(!signal.aborted){
   const claims=await store.claimSummaries(pilotIds),groups=new Map();
   for(const claim of claims){
@@ -94,5 +90,16 @@ export async function runFeedWorker(options){
   if(signal.aborted)error='worker_timeout';
   return stats;
  }catch(cause){error='worker_failed';throw cause;}
- finally{if(runId)await options.store.finishRun(runId,stats,error);}
+ finally{
+  if(runId)await options.store.finishRun(runId,stats,error);
+  // Enrichment must not keep the discovery run open. The Edge entrypoint
+  // registers this promise with waitUntil so it can continue after response.
+  if(!error&&!signal.aborted&&options.scheduleEnrichment){
+   const tasks=[
+    options.translator?runTranslationWorker({store:options.store,pilotIds:options.pilotIds,translator:options.translator,signal:AbortSignal.timeout(20000)}):null,
+    options.store.claimMedia?runMediaWorker({store:options.store,pilotIds:options.pilotIds,transport:options.transport,signal:AbortSignal.timeout(12000)}):null,
+   ].filter(Boolean);
+   if(tasks.length)try{options.scheduleEnrichment(Promise.allSettled(tasks));}catch{/* discovery has already been finalized */}
+  }
+ }
 }

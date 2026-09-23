@@ -13,13 +13,22 @@ function fixture(){
  return{store,translator,calls,pilotIds:['owner'],transport:async()=>{throw Error('no RSS');},ask:async()=>null};
 }
 test('scheduled collector translates using independent character reservation even without AI summaries',async()=>{
- const f=fixture();const result=await runFeedWorker(f);
- assert.equal(result.translation?.translated,1);assert.deepEqual(f.calls[1],['reserve',['a'],'lease',450000]);
+ const f=fixture();let enrichment;
+ const result=await runFeedWorker({...f,scheduleEnrichment:work=>{enrichment=work;}});
+ assert.equal(result.translation,undefined);
+ const completed=await enrichment;
+ assert.equal(completed[0].status,'fulfilled');
+ assert.equal(completed[0].value.translated,1);
+ assert.deepEqual(f.calls[1],['reserve',['a'],'lease',450000]);
  assert.deepEqual(f.calls[2],['translate',['AI update','A public update 😀']]);
 });
 test('manual collection also translates existing backlog without making AI calls',async()=>{
  const f=fixture();Object.assign(f.store,{state:async()=>({preferences:{prompt:'ai news',receiving:true}}),beginRefresh:async()=>({state:'started',lease:'r'}),
  claimManualSearch:async()=>null,finishRefresh:async()=>true,refreshStatus:async()=>({state:'idle'})});
- const result=await runManualRefresh({...f,userId:'owner',expectedRevision:1,env:{TECH_FEED_ENABLED:'true',TAVILY_API_KEY:'test'},search:{availability:()=> 'waiting'}});
- assert.equal(result.translation?.translated,1);
+ let enrichment;
+ const result=await runManualRefresh({...f,userId:'owner',expectedRevision:1,env:{TECH_FEED_ENABLED:'true',TAVILY_API_KEY:'test'},search:{availability:()=> 'waiting'},scheduleEnrichment:work=>{enrichment=work;}});
+ assert.equal(result.translation,undefined);
+ const completed=await enrichment;
+ assert.equal(completed[0].status,'fulfilled');
+ assert.equal(completed[0].value.translated,1);
 });

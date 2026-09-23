@@ -22,6 +22,21 @@ test('provider mutex contention retries the claim without consuming a search att
  const result=await runManualRefresh(f);assert.equal(result.state,'ready');assert.equal(claims,2);assert.equal(f.events.filter(x=>x[0]==='reserve').length,1);
 });
 const env={TECH_FEED_ENABLED:'true',TAVILY_API_KEY:'test-only',TECH_FEED_SEARCH_MONTHLY_CAP:'900'};
+test('manual search result and request finalization do not wait for optional media',async()=>{
+ const {runManualRefresh}=await import('./tech-feed-refresh.mjs');
+ const f=fixture();
+ f.store.claimMedia=async()=>new Promise(()=>{});
+ f.store.mediaAllowed=async()=>true;
+ f.store.finishMedia=async()=>true;
+ let scheduled=0;
+ const result=await Promise.race([
+  runManualRefresh({...f,scheduleEnrichment:promise=>{scheduled++;void promise;}}),
+  new Promise((_,reject)=>setTimeout(()=>reject(Error('refresh blocked by media')),200)),
+ ]);
+ assert.equal(result.state,'ready');
+ assert.equal(f.events.filter(x=>x[0]==='finish').length,1);
+ assert.equal(scheduled,1);
+});
 function fixture(){
  const events=[];const source={id:'source',url:'https://example.com/rss',kind:'rss',permission_status:'approved',lease:'source-lease'};
  const store={state:async()=>({preferences:{prompt:'AWS Lambda',receiving:true},sources:[{subscribed:true,permission_status:'approved'}]}),

@@ -13,7 +13,7 @@ function waitForProvider(signal){
   signal.addEventListener('abort',cancel,{once:true});
  });
 }
-export async function runManualRefresh({store,userId,expectedRevision,env,transport,signal,search=createTavilySearch({env}),translator=createDeepLTranslation({env})}){
+export async function runManualRefresh({store,userId,expectedRevision,env,transport,signal,search=createTavilySearch({env}),translator=createDeepLTranslation({env}),scheduleEnrichment}){
  const state=await store.state();
  if(env.TECH_FEED_ENABLED!=='true'||state.preferences?.prompt&&!state.preferences.receiving)return{state:'paused'};
  const rssAvailable=state.sources?.some(s=>s.subscribed&&s.permission_status==='approved');
@@ -50,18 +50,23 @@ export async function runManualRefresh({store,userId,expectedRevision,env,transp
    const latest=(await store.state()).search_status;
    if(['quota_exhausted','unavailable','paused','not_configured'].includes(latest?.state))web.state=latest.state;
   }
-  const [translation,media]=await Promise.all([
-   runTranslationWorker({store,pilotIds:[userId],translator,signal:bounded}),
-   store.claimMedia?runMediaWorker({store,pilotIds:[userId],transport,signal:AbortSignal.any([bounded,AbortSignal.timeout(12000)])}):null,
-  ]);
   const checked=rss.collected>0||web.attempted>0&&web.state==='ready';
   const failed=Boolean(rss.failed||web.failed||['quota_exhausted','unavailable'].includes(web.state)||bounded.aborted);
-  result={state:checked?(failed?'partial':'ready'):failed?'unavailable':'deferred',rss,search:web,translation,...(media?{media}: {})};
+  result={state:checked?(failed?'partial':'ready'):failed?'unavailable':'deferred',rss,search:web};
  }finally{
   // A failed request cannot remove a newer lease or refund a search attempt.
   const finished=await store.finishRefresh(gate.lease,result);
   if(!finished)result={...result,state:'unavailable'};
   if(runId)await store.finishRun(runId,{...(result.rss||{}),search:result.search||{}},result.state==='unavailable'?'worker_failed':null);
+ }
+ // Article previews cannot hold the refresh lease or its run open.
+ // Deadlines are independent of the now-completed request.
+ if(scheduleEnrichment&&!bounded.aborted&&['ready','partial','deferred'].includes(result.state)){
+  const tasks=[
+   runTranslationWorker({store,pilotIds:[userId],translator,signal:AbortSignal.timeout(20000)}),
+   store.claimMedia?runMediaWorker({store,pilotIds:[userId],transport,signal:AbortSignal.timeout(12000)}):null,
+  ].filter(Boolean);
+  try{scheduleEnrichment(Promise.allSettled(tasks));}catch{/* discovery has already been finalized */}
  }
  // Another subscriber/cron can own the same work; clients only poll status.
  if((await store.refreshStatus()).state==='running')return{...result,state:'running'};

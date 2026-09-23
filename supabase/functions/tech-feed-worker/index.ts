@@ -5,6 +5,7 @@ import {createTavilySearch} from '../_shared/tech-feed-search.mjs';
 import {reply} from '../_shared/tech-feed-api.mjs';
 import {runFeedWorker,workerAuthorized} from '../_shared/tech-feed-worker-core.mjs';
 
+declare const EdgeRuntime:{waitUntil(work:Promise<unknown>):void};
 export async function handler(request:Request){
  if(request.method!=='POST')return reply({error:'POST 요청만 허용됩니다.'},405);
  if(!workerAuthorized(request.headers.get('x-tech-feed-secret'),Deno.env.get('TECH_FEED_WORKER_SECRET')))return reply({error:'인증이 필요합니다.'},401);
@@ -21,7 +22,8 @@ export async function handler(request:Request){
   const searchStore={...store,claimSearch:()=>store.claimSearch(pilotIds),reserveSearch:(id:string,lease:string)=>store.reserveSearch(id,lease,cap)};
   const result=await runFeedWorker({store:searchStore,pilotIds,transport:publicTransport,search:createTavilySearch({env}),translator:createDeepLTranslation({env}),
    ask:(owner:string,messages:unknown[],signal:AbortSignal,claims:any[])=>askFeedAi(admin,owner,messages,signal,Deno.env.toObject(),globalThis.fetch,()=>store.reserveSummaryCall(claims.map(x=>x.article.id),claims.map(x=>x.lease),owner)),
-   signal:AbortSignal.any([request.signal,AbortSignal.timeout(50000)])});
+   signal:AbortSignal.any([request.signal,AbortSignal.timeout(50000)]),
+   scheduleEnrichment:(work:Promise<unknown>)=>EdgeRuntime.waitUntil(work)});
   return reply({ok:true,...result});
  }catch{return reply({error:'기술 피드 작업을 완료하지 못했습니다.'},500);}
 }

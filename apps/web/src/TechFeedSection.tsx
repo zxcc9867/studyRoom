@@ -25,8 +25,8 @@ export function FeedArticleCard({article,onSave,onPlan,busy,timeZone}:{article:F
   const host = feedSourceHost(article.url);
   const sourceNames = article.origin === 'web_search' ? ['웹 검색',host] : [...article.sources.map(source=>source.name),host];
   const sourceLine = [...new Set(sourceNames.filter(Boolean))].join(' · ');
-  const date = article.published_at || article.discovered_at;
-  const time = date && Number.isFinite(Date.parse(date)) ? new Intl.DateTimeFormat('ko-KR', {timeZone,month:'short',day:'numeric',hour:'2-digit',minute:'2-digit'}).format(new Date(date)) : '날짜 미확인';
+  const formatTime = (value:string|null) => value && Number.isFinite(Date.parse(value)) ? new Intl.DateTimeFormat('ko-KR', {timeZone,month:'short',day:'numeric',hour:'2-digit',minute:'2-digit'}).format(new Date(value)) : '날짜 미확인';
+  const published = article.published_at && Number.isFinite(Date.parse(article.published_at));
   const video = feedContentKind(article.url) === 'video';
   const hasSummary = !video && article.summary_status === 'ready' && Boolean(article.summary);
   const excerpt = feedExcerptView(video ? '' : feedStructuredIntroduction(hasSummary ? article.summary!.technology : (translated ? article.excerpt_ko : article.excerpt)));
@@ -37,7 +37,7 @@ export function FeedArticleCard({article,onSave,onPlan,busy,timeZone}:{article:F
   return <article className="feed-card">
     <header className="feed-author">
       <span className="feed-avatar" aria-hidden="true">{Array.from(sourceName.replace(/^www\./,'')).slice(0,2).join('').toUpperCase()}</span>
-      <div className="feed-author-info"><strong>{sourceName}</strong><div className="feed-card-meta"><time dateTime={date}>{article.published_at ? '' : '발견 '} {time}</time>{classification.category && <span>{FEED_CATEGORIES[classification.category]}</span>}</div></div>
+      <div className="feed-author-info"><strong>{sourceName}</strong><div className="feed-card-meta"><time dateTime={article.discovered_at}>발견 {formatTime(article.discovered_at)}</time>{published && <time dateTime={article.published_at!}>원문 발행 {formatTime(article.published_at)}</time>}{classification.category && <span>{FEED_CATEGORIES[classification.category]}</span>}</div></div>
       {article.saved && <Bookmark className="feed-saved-mark" size={17} aria-label="저장한 글" fill="currentColor"/>}
     </header>
     <div className="feed-card-body">

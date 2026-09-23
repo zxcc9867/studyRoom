@@ -2,6 +2,21 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {runFeedWorker,workerAuthorized} from './tech-feed-worker-core.mjs';
 const pilot='00000000-0000-4000-8000-000000000101';
+test('scheduled discovery finalizes before stalled optional media',async()=>{
+ const events=[];
+ const store={startRun:async()=> 'run',finishRun:async()=>events.push('finished'),
+  claimSources:async()=>[],claimSummaries:async()=>[],cleanup:async()=>events.push('cleanup'),
+  claimMedia:async()=>new Promise(()=>{})};
+ let scheduled=0;
+ const result=await Promise.race([
+  runFeedWorker({store,pilotIds:[pilot],transport:async()=>{throw Error('unexpected');},
+   scheduleEnrichment:promise=>{scheduled++;void promise;},signal:AbortSignal.timeout(5000)}),
+  new Promise((_,reject)=>setTimeout(()=>reject(Error('discovery blocked by media')),200)),
+ ]);
+ assert.equal(result.failed,0);
+ assert.deepEqual(events,['cleanup','finished']);
+ assert.equal(scheduled,1);
+});
 test('worker isolates failures, honors permission and finalizes with actual lease',async()=>{
  const finished=[];let calls=0;
  const store={claimSources:async()=>[{id:'bad',lease:'l1',permission_status:'approved',url:'https://example.com/bad'},{id:'good',lease:'l2',permission_status:'approved',url:'https://example.com/good',last_success_at:'2026-09-11'}],finishSource:async(...args)=>{finished.push(args);return true;},claimSummaries:async()=>[],cleanup:async()=>0};

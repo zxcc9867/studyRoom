@@ -18,7 +18,7 @@ before(async()=>{
  grant all on profiles,study_todos,study_goals to service_role;
  insert into auth.users values('${owner}'),('${other}');insert into profiles values('${owner}','Asia/Tokyo'),('${other}','Asia/Tokyo');`);
  await db.exec(readFileSync('supabase/migrations/20260906083030_studyroom_v2_coach.sql','utf8'));
- for(const name of readdirSync('supabase/migrations').filter(n=>/_tech_feed(?:_web_search|_manual_refresh|_immediate_refresh|_korean_translation|_media|_daily_briefing|_ai_budget)?\.sql$/.test(n)).sort())await db.exec(readFileSync('supabase/migrations/'+name,'utf8'));
+ for(const name of readdirSync('supabase/migrations').filter(n=>/_tech_feed(?:_web_search|_manual_refresh|_immediate_refresh|_korean_translation|_media|_daily_briefing|_ai_budget|_discovery_order)?\.sql$/.test(n)).sort())await db.exec(readFileSync('supabase/migrations/'+name,'utf8'));
 });
 after(async()=>db?.close());
 async function tx(work){await db.exec(`begin;set local role service_role`);try{await work();}finally{await db.exec('rollback');}}
@@ -81,6 +81,21 @@ test('daily interval uses owner timezone and discovered_at, excludes boundaries 
  const first=await rpc('tech_feed_list',owner);assert.equal(first.items.length,20);
  const page=await rpc('tech_feed_list',owner,'latest',null,null,first.next_cursor);assert.equal(page.items.length,3);
  assert.equal((await rpc('tech_feed_filter_candidates',owner,'latest')).items.length,23);
+}));
+test('latest and saved pages order by first discovery, not old publication, with a stable cursor',()=>tx(async()=>{
+ const {ids}=await seed(21);
+ await db.query("update tech_feed_articles set discovered_at='2026-09-23T15:00:00Z',published_at='2020-01-01T00:00:00Z' where id=$1",[ids[0]]);
+ await db.query("update tech_feed_articles set discovered_at='2026-09-12T15:00:00Z',published_at='2026-09-24T00:00:00Z' where id=$1",[ids[1]]);
+ await db.query('insert into tech_feed_bookmarks(user_id,article_id) select $1,unnest($2::uuid[])',[owner,ids]);
+ for(const view of ['latest','saved']){
+  const first=await rpc('tech_feed_list',owner,view);
+  assert.equal(first.items.length,20);
+  assert.equal(first.items[0].id,ids[0]);
+  assert.match(first.items[0].published_at,/^2020-01-01/);
+  const second=await rpc('tech_feed_list',owner,view,null,null,first.next_cursor);
+  assert.equal(second.items.length,1);
+  assert.equal(second.items[0].id,ids[1]);
+ }
 }));
 test('saved legacy and new source/id filters match latest while retaining media/translation mapping',()=>tx(async()=>{
  const {source,ids}=await seed(2);await db.query('insert into tech_feed_bookmarks(user_id,article_id)select $1,unnest($2::uuid[])',[owner,ids]);
