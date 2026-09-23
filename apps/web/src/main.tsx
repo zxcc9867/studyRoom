@@ -4826,7 +4826,7 @@ function DashboardApp() {
         </button>
       </aside>
 
-      <section className="workspace">
+      <section className={activeSection === "feed" ? "workspace feed-workspace" : "workspace"}>
         {(dashboardLoading || dashboardError) && (
           <section className="recovery-blocker" role={dashboardError ? "alert" : "status"} style={{ order: -1 }}>
             <div>

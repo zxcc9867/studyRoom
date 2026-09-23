@@ -180,3 +180,37 @@
 .feed-language-help{margin:0 0 12px;color:var(--feed-muted);font-size:13px;line-height:1.5}
 .feed-topic-tags .feed-language-tag{background:#e6edd7;border:1px solid #c9d9b5;color:#315d47;font-weight:800}
 @media(max-width:680px){.feed-language-filter>span{flex-basis:100%}.tech-feed .feed-language-filter button{min-height:44px;padding:9px 12px}}
+
+/* Feed-only reading canvas: wide screens use space without stretching a paragraph. */
+.workspace.feed-workspace{width:100%;min-width:0;max-width:none;padding:clamp(16px,2vw,40px)}
+.workspace.feed-workspace>.tech-feed{width:min(100%,1800px);max-width:none;margin-inline:auto}
+.feed-daily-briefing header h3{font-size:clamp(23px,2vw,30px)}
+.feed-briefing-overview{display:grid;grid-template-columns:minmax(180px,auto) minmax(0,1fr);align-items:center;gap:28px;margin:20px 0 12px;padding:18px 20px;background:#fffdf0;border:1px solid #d4dfc3;border-radius:14px}
+.feed-briefing-overview .feed-briefing-totals{margin:0;gap:28px}
+.feed-briefing-overview .feed-briefing-totals strong{font-size:32px}
+.feed-briefing-topics{min-width:0;border-left:1px solid #d4dfc3;padding-left:24px}
+.feed-briefing-topics h4{margin:0 0 9px;font-size:14px;color:#315d47}
+.feed-briefing-topics ul{display:flex;flex-wrap:wrap;gap:7px;list-style:none;margin:0;padding:0}
+.feed-briefing-topics li{padding:6px 10px;border:1px solid #c8d6b6;border-radius:999px;background:#eff4e6;color:#315544;font-size:14px}
+.feed-briefing-topics li strong{font-variant-numeric:tabular-nums}
+.feed-briefing-detail{border-top:1px solid #d0dabe}
+.feed-briefing-detail>summary{display:flex;align-items:center;justify-content:space-between;gap:10px;min-height:48px;list-style:none;cursor:pointer;color:#315b48;font-size:15px;font-weight:800}
+.feed-briefing-detail>summary::-webkit-details-marker{display:none}
+.feed-briefing-detail>summary::after{content:"⌄";font-size:23px;line-height:1;transition:transform .18s ease}
+.feed-briefing-detail[open]>summary::after{transform:rotate(180deg)}
+.feed-briefing-detail .feed-briefing-breakdown{border-top:0;padding:8px 0 12px}
+.feed-briefing-detail .feed-briefing-insights{margin:8px 0 12px}
+.feed-briefing-detail .feed-briefing-insights>li:last-child{padding-bottom:0}
+@media(min-width:1400px){
+ .tech-feed .feed-list{grid-template-columns:repeat(2,minmax(0,1fr));gap:20px}
+ .tech-feed .feed-card{display:flex;flex-direction:column}
+ .tech-feed .feed-card-body{display:flex;flex:1;flex-direction:column;padding-left:0}
+ .tech-feed .feed-card-actions{margin-top:auto}
+}
+@media(max-width:680px){
+ .feed-briefing-overview{grid-template-columns:1fr;gap:14px;padding:15px}
+ .feed-briefing-topics{border-left:0;border-top:1px solid #d4dfc3;padding:14px 0 0}
+ .feed-briefing-overview .feed-briefing-totals{gap:24px}
+ .feed-briefing-detail .feed-briefing-breakdown{grid-template-columns:1fr}
+ .feed-briefing-detail>summary{font-size:14px}
+}

@@ -31,9 +31,14 @@ export function FeedBriefingContent({data,busy,error,onGenerate,onReload}:{data:
   return <section className="feed-daily-briefing" aria-label="오늘의 기술 브리핑" aria-busy={busy}>
     <header><p className="feed-kicker">DAILY READING NOTE</p><h3>오늘 수집된 내 피드</h3><p>최초 수집 시각 기준 · {data ? `${data.local_date} · ${data.time_zone}` : '날짜와 통계 확인 중'}</p></header>
     {data && <>
-      <div className="feed-briefing-totals"><div><strong>{data.total}</strong><span>수집된 글</span></div><div><strong>{data.source_count}</strong><span>출처</span></div></div>
-      <div className="feed-briefing-breakdown"><div><h4>콘텐츠 유형</h4><ul>{data.categories.map(item=><li key={item.value}><span>{item.label}</span><strong>{item.count}건</strong></li>)}</ul></div><div><h4>오늘의 주제</h4><ul>{data.topics.map(item=><li key={item.value}><span>{item.label}</span><strong>{item.count}건</strong></li>)}</ul></div></div>
-      <p className="feed-budget">한 글이 여러 주제에 포함될 수 있어요. 저장함·목록 필터와 무관한 전체 통계예요.</p>
+      <div className="feed-briefing-overview">
+        <div className="feed-briefing-totals"><div><strong>{data.total}</strong><span>수집된 글</span></div><div><strong>{data.source_count}</strong><span>출처</span></div></div>
+        <div className="feed-briefing-topics"><h4>오늘의 주제</h4><ul>{data.topics.length ? data.topics.slice(0,3).map(item=><li key={item.value}>{item.label} <strong>{item.count}건</strong></li>) : <li>집계된 주제가 없어요</li>}</ul></div>
+      </div>
+      <details className="feed-briefing-detail"><summary>콘텐츠 유형과 주제 전체 보기</summary>
+        <div className="feed-briefing-breakdown"><div><h4>콘텐츠 유형</h4><ul>{data.categories.map(item=><li key={item.value}><span>{item.label}</span><strong>{item.count}건</strong></li>)}</ul></div><div><h4>오늘의 주제</h4><ul>{data.topics.map(item=><li key={item.value}><span>{item.label}</span><strong>{item.count}건</strong></li>)}</ul></div></div>
+        <p className="feed-budget">한 글이 여러 주제에 포함될 수 있어요. 저장함·목록 필터와 무관한 전체 통계예요.</p>
+      </details>
     </>}
     <p className="feed-briefing-status" role="status">{busy?'오늘의 브리핑을 확인하고 있어요…':data?statusText[status]:error?'통계를 확인하지 못했어요.':'통계를 불러오고 있어요…'}</p>
     {error&&<p className="feed-notice feed-error" role="alert">{error}</p>}
@@ -51,7 +56,9 @@ export function FeedBriefingContent({data,busy,error,onGenerate,onReload}:{data:
           {url&&<a className="feed-highlight-link" href={url} target="_blank" rel="noopener noreferrer">원문 읽기 ↗</a>}
         </li>;})}</ol>:<p>추천할 만큼 근거가 충분한 글이 없어요. 아래 요약과 원문을 확인해 보세요.</p>}
       </section>
-      <ol className="feed-briefing-insights">{data.insights.map((insight,index)=><li key={index}><h4>{insight.title}</h4><p>{insight.body}</p><p className="feed-study-angle"><strong>공부 관점</strong> {insight.study_angle}</p><ul aria-label="근거 원문">{insight.sources.map(source=>{const url=safeFeedUrl(source.url);return <li key={source.id}>{url?<a href={url} target="_blank" rel="noopener noreferrer">{source.title} ↗</a>:<span>{source.title}</span>}</li>;})}</ul></li>)}</ol>
+      <details className="feed-briefing-detail"><summary>오늘의 인사이트 자세히 보기</summary>
+        <ol className="feed-briefing-insights">{data.insights.map((insight,index)=><li key={index}><h4>{insight.title}</h4><p>{insight.body}</p><p className="feed-study-angle"><strong>공부 관점</strong> {insight.study_angle}</p><ul aria-label="근거 원문">{insight.sources.map(source=>{const url=safeFeedUrl(source.url);return <li key={source.id}>{url?<a href={url} target="_blank" rel="noopener noreferrer">{source.title} ↗</a>:<span>{source.title}</span>}</li>;})}</ul></li>)}</ol>
+      </details>
     </>}
     <div className="feed-briefing-actions">
       {data&&<button className="primary" type="button" disabled={busy||status==='paused'||status==='generating'||status==='quota_exhausted'||status==='insufficient'} onClick={onGenerate}>{busy?'확인 중…':data.stale?'요약·추천 갱신':status==='ready'?'오늘 요약·추천 다시 보기':'오늘 요약·추천 보기'}</button>}

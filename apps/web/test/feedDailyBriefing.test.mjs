@@ -56,3 +56,10 @@ test('failed initial stats announce failure rather than a permanent loading stat
  assert.match(html,/통계를 확인하지 못했어요/);assert.match(html,/브리핑 상태 다시 확인/);
  assert.doesNotMatch(html,/통계를 불러오고 있어요/);
 });
+test('daily briefing surfaces quick topics while leaving detailed counts and insights in disclosures',()=>{
+ const html=renderToStaticMarkup(React.createElement(mod.exports.FeedBriefingContent,{data,busy:false,error:'',onGenerate(){},onReload(){}}));
+ assert.match(html,/<h4>오늘의 주제<\/h4>/);
+ assert.match(html,/<details class="feed-briefing-detail"/);
+ assert.match(html,/<summary>콘텐츠 유형과 주제 전체 보기<\/summary>/);
+ assert.match(html,/<summary>오늘의 인사이트 자세히 보기<\/summary>/);
+});
