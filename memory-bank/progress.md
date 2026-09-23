@@ -2,8 +2,8 @@
 
 - 완료: 목록 RPC를 최초 발견 시각/id 정렬과 동일 커서로 변경하는 추가형 마이그레이션 작성. 카드에서 발견/원문 발행일 분리. 수동·정시 수집의 run/refresh 확정을 번역·미디어보다 먼저 수행하도록 변경.
 - 변경: `TechFeedSection.tsx`, 피드 공유 worker/API/refresh와 Edge 진입점, `20260923160433_tech_feed_discovery_order.sql`, 관련 회귀 테스트.
-- 검증: 새 SQL/카드/느린 미디어 테스트 RED→GREEN, 전체 805건 중 780 통과·25 브라우저 환경 미설정으로 건너뜀·실패 0. Edge 11/11, 웹 빌드, 모바일 호환성·타입, README 자산 검사 통과. 운영 RPC의 최초 항목은 9월 23일 발견/2월 25일 원문 발행으로 정렬 변경이 확인됐다.
-- 운영 적용: DB migration 20260923160433, tech-feed v38 및 tech-feed-worker v36 ACTIVE·verify_jwt true. 남은 작업은 웹 배포와 배포 후 정시/수동 수집 완료 확인이다. 승인 대기 RSS나 기존 계정 데이터는 변경하지 않는다.
+- 검증: 새 SQL/카드/느린 미디어 테스트 RED→GREEN, 전체 805건 중 780 통과·25 브라우저 환경 미설정으로 건너뜀·실패 0. Edge 11/11, 웹 빌드, 모바일 호환성·타입, README 자산 검사 통과. 운영 RPC의 첫 항목은 9월 23일 발견/2월 25일 원문 발행으로 정렬 변경 확인. 새 Edge 버전의 다음 정시 실행과 실사용자 수동 요청 완료는 아직 미검증이다.
+- 운영 적용: DB migration 20260923160433, tech-feed v38·tech-feed-worker v36 ACTIVE/verify_jwt true. 코드 003b097(main), Actions 35886787846 성공, Vercel dpl_6EB1PrAvPbWUZCePzBEdqNVJS8RK production READY, 운영 URL HTTP 200. 실제 `TechFeedSection-Du0KUN_9.js`에서 새 날짜 라벨 확인, 무인증 Edge POST 401, Vercel 신규 배포 오류 로그 0건.
 
 ### 2026-09-24 — 기술 피드 새 글 확인·정기 수집 진단
 
