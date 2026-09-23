@@ -2873,93 +2873,6 @@ label {
   white-space: nowrap;
 }
 
-.session-todo-quick-add {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(240px, 0.6fr) auto;
-  gap: 10px;
-  align-items: stretch;
-  margin: 0 0 14px;
-}
-
-.session-todo-quick-add input {
-  width: 100%;
-  min-height: 54px;
-  border: 2px solid #d2b56f;
-  border-radius: 8px;
-  background: #fff9df;
-  color: #2f2a1f;
-  padding: 0 14px;
-  font: inherit;
-  font-weight: 850;
-}
-
-.session-todo-quick-add button {
-  min-width: 104px;
-}
-
-.session-todo-schedule-note {
-  margin: -4px 0 12px;
-  color: #5a513d;
-  font-size: 14px;
-  font-weight: 750;
-  line-height: 1.45;
-}
-
-.session-todo-time-details {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 8px;
-}
-
-.session-todo-time-details label {
-  display: grid;
-  gap: 5px;
-  color: #5a513d;
-  font-size: 12px;
-  font-weight: 850;
-}
-
-.session-todo-time-details input {
-  min-height: 54px;
-  cursor: pointer;
-}
-
-.session-todo-empty {
-  margin: 0 0 14px;
-}
-
-.session-todo-choice-list {
-  list-style: none;
-  display: grid;
-  gap: 10px;
-  margin: 0 0 18px;
-  padding: 0;
-}
-
-.session-todo-choice-list label {
-  display: grid;
-  grid-template-columns: auto 1fr;
-  align-items: center;
-  gap: 12px;
-  border: 2px solid rgba(210, 181, 111, 0.72);
-  border-radius: 8px;
-  background: #fff9df;
-  padding: 12px;
-  color: #2f2a1f;
-  font-weight: 900;
-  cursor: pointer;
-}
-
-.session-todo-choice-list label.selected {
-  border-color: #4f916f;
-  background: #dff4cd;
-}
-
-.session-todo-choice-list input {
-  width: 20px;
-  min-height: 20px;
-  accent-color: #4f916f;
-}
 
 .reminder-backdrop {
   background: rgba(37, 51, 43, 0.38);
@@ -3623,7 +3536,6 @@ button:active:not(:disabled) {
 
   .todo-header,
   .todo-entry-row,
-  .session-todo-quick-add,
   .todo-repeat-details,
   .todo-time-details {
     grid-template-columns: 1fr;
@@ -5737,8 +5649,3 @@ button:active:not(:disabled) {
     align-items: flex-start;
   }
 }
-
-.session-todo-choice-list li { display: flex; align-items: stretch; gap: 8px; }
-.session-todo-choice-list li > label { flex: 1; min-width: 0; }
-.session-todo-choice-list label span { overflow-wrap: anywhere; }
-.session-todo-choice-list .todo-delete { flex-shrink: 0; width: auto; min-width: 64px; min-height: 44px; }

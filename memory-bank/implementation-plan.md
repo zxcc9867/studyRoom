@@ -1,3 +1,10 @@
+## 2026-09-23 — 세션 할 일 모달의 로컬 디자인 토큰
+
+- 웹은 기존 Vite/React 구조를 유지한다. 세션 모달에만 영향을 주도록 sessionTodoModal.css를 styles.css와 improvements.css 뒤에 import한다.
+- 모달 내부에 primary·표면·텍스트·상태 색, 타이포그래피·간격·모서리·그림자·모션 변수를 정의한다. 앱 전체 전역 테마나 API는 변경하지 않는다.
+- 세션 할 일 JSX는 기존 저장/선택 핸들러를 그대로 두고 제목 입력 라벨, 시간 fieldset, dialog 설명 연결을 보완한다.
+- 검증은 실제 main.tsx를 마운트한 합성 로그인 브라우저 테스트를 375px·1440px에서 실행하고, 전체 테스트·TypeScript/Vite 빌드를 확인한다. 저장소에 lint 스크립트가 없어 린트 실행은 별도 스크립트 도입 전까지 불가하다.
+
 ## Supabase 변경 이력 — 2026-09-23 기술 피드 원문 언어
 
 - 변경 대상: tech-feed/tech-feed-worker Edge 공유 코드와 웹 화면. DB 테이블·RLS·RPC·cron 변경 없음; 마이그레이션 파일 없음.

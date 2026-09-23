@@ -279,6 +279,7 @@ import { isTimeInputPickerKey, openTimeInputPicker } from "./timeInputPicker.mjs
 import { getWebPushStatus, registerWebPushTarget, showLocalTestNotification, type WebPushStatus } from "./webPush";
 import "./styles.css";
 import "./improvements.css";
+import "./sessionTodoModal.css";
 
 const resendCooldownKey = "study-room-auth-resend-available-at";
 const emailOtpLength = EMAIL_OTP_LENGTH;
@@ -5522,14 +5523,15 @@ function DashboardApp() {
         {sessionTodoModalOpen && (
           <AccessibleDialog
             className="todo-modal session-todo-modal"
-            ariaLabel={"\uC774\uBC88 \uC138\uC158\uC5D0\uC11C \uD560 \uC77C \uC120\uD0DD"}
+            labelledBy="session-todo-title"
+            describedBy="session-todo-intro session-todo-schedule-note"
             closeOnBackdrop
             onClose={closeSessionTodoSelection}
           >
               <div className="todo-header">
                 <div>
                   <p className="eyebrow">session plan</p>
-                  <h3>이번 세션에서 할 일</h3>
+                  <h3 id="session-todo-title">이번 세션에서 할 일<span className="session-todo-visually-hidden"> 선택</span></h3>
                 </div>
                 <button
                   className="modal-close"
@@ -5540,28 +5542,36 @@ function DashboardApp() {
                   <X size={18} />
                 </button>
               </div>
-              <p className="reminder-copy">
+              <p className="reminder-copy" id="session-todo-intro">
                 오늘 미완료 할 일 중 이번 집중 세션에서 처리할 일을 1개 이상 선택하세요.
               </p>
-              <p className="session-todo-schedule-note">
+              <p className="session-todo-schedule-note" id="session-todo-schedule-note">
                 새 할 일은 시간까지 입력하면 오늘의 타임 스케줄에 바로 표시됩니다. 숫자를 직접 입력하거나 시계 아이콘으로 선택하세요.
               </p>
               <form
                 className="session-todo-quick-add"
+                aria-busy={sessionTodoAddBusy}
                 onSubmit={(event: FormEvent<HTMLFormElement>) => {
                   event.preventDefault();
                   void addSessionTodo();
                 }}
               >
-                <input
-                  type="text"
-                  value={sessionTodoDraft}
-                  onChange={(event) => setSessionTodoDraft(event.target.value)}
-                  placeholder="예: AWS 기출 1회 풀기"
-                  disabled={busy || sessionTodoAddBusy}
-                />
-                <label className="actual-time-toggle"><input type="checkbox" checked={sessionTodoTimeEnabled} onChange={event => setSessionTodoTimeEnabled(event.target.checked)} disabled={busy || sessionTodoAddBusy}/>시간 지정 (선택)</label>
-                {sessionTodoTimeEnabled && <div className="session-todo-time-details" aria-label="새 할 일 시간 설정">
+                <label className="session-todo-title-field">
+                  새 할 일
+                  <input
+                    type="text"
+                    value={sessionTodoDraft}
+                    onChange={(event) => setSessionTodoDraft(event.target.value)}
+                    placeholder="예: AWS 기출 1회 풀기"
+                    disabled={busy || sessionTodoAddBusy}
+                  />
+                </label>
+                <label className="actual-time-toggle">
+                  <input type="checkbox" checked={sessionTodoTimeEnabled} onChange={event => setSessionTodoTimeEnabled(event.target.checked)} disabled={busy || sessionTodoAddBusy}/>
+                  <span>시간 지정 <small>선택 사항</small></span>
+                </label>
+                {sessionTodoTimeEnabled && <fieldset className="session-todo-time-details">
+                  <legend>새 할 일 시간 설정</legend>
                   <label>
                     시작
                     <input
@@ -5594,7 +5604,7 @@ function DashboardApp() {
                       disabled={busy || sessionTodoAddBusy}
                     />
                   </label>
-                </div>}
+                </fieldset>}
                 <button className="secondary" type="submit" disabled={busy || sessionTodoAddBusy}>
                   <Plus size={18} />
                   추가
@@ -5605,7 +5615,7 @@ function DashboardApp() {
                   미리 등록한 할 일이 없습니다. 위에서 바로 추가하면 이번 세션 할 일로 선택됩니다.
                 </p>
               )}
-              <ul className="session-todo-choice-list">
+              <ul className="session-todo-choice-list" aria-label="오늘 미완료 할 일">
                 {incompleteTodayTodos.map((todo) => {
                   const selected = selectedSessionTodoIds.includes(todo.id);
                   return (

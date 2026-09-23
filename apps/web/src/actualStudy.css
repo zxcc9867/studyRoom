@@ -20,8 +20,7 @@
 .actual-next button { flex-shrink: 0; }
 .actual-focus-choice { margin: 16px 0; border: 1px solid #dfe5d9; border-radius: 12px; padding: 14px; }
 .actual-focus-choice label { display: flex; gap: 10px; padding: 8px 0; align-items: center; }
-.actual-focus-choice input, .actual-time-toggle input { width: auto; }
-.actual-time-toggle { display: flex; gap: 8px; align-items: center; font-size: 13px; }
+.actual-focus-choice input { width: auto; }
 .actual-confirmation { max-height: 90dvh; overflow: auto; width: min(680px, calc(100vw - 32px)); box-sizing: border-box; }
 .actual-confirmation > p { line-height: 1.7; }
 .actual-changes { padding: 0; list-style: none; counter-reset: changes; }

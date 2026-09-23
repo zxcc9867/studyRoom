@@ -216,3 +216,28 @@ browserTest('mounted main: pause checkpoints hydrated total and freezes known pr
  assert.equal(await page.evaluate(()=>fixture.calls.find(c=>c.name==='pause_actual_study_session').args.p_excluded_seconds),60);
  const before=await page.locator('.actual-progress').textContent();await page.clock.fastForward(5000);assert.equal(await page.locator('.actual-progress').textContent(),before);
 }));
+
+for (const width of [375, 1440]) browserTest(`mounted session plan: readable, accessible time checkbox at ${width}px`, () => withApp(width, async page => {
+ await page.locator('.topbar-actions button').first().click();
+ await page.getByRole('button', {name:'카메라 켜고 시작',exact:true}).click();
+ const dialog=page.getByRole('dialog',{name:'이번 세션에서 할 일'});
+ await dialog.waitFor();
+ await mkdir('output/playwright',{recursive:true});
+ const phase=process.env.SESSION_PLAN_SNAPSHOT_PHASE==='before'?'before':'after';
+ await page.screenshot({path:`output/playwright/session-plan-${phase}-${width}.png`,fullPage:false});
+ const headingBox=await dialog.getByRole('heading',{name:'이번 세션에서 할 일 선택'}).boundingBox();
+ const closeBox=await dialog.getByRole('button',{name:'세션 할 일 선택 닫기'}).boundingBox();
+ assert.ok(headingBox && closeBox && closeBox.y < headingBox.y+headingBox.height,'close button stays beside the heading');
+ const checkbox=dialog.getByRole('checkbox',{name:/시간 지정/});
+ const box=await checkbox.boundingBox();
+ assert.ok(box && box.width>=18 && box.width<=24 && box.height>=18 && box.height<=24,`time checkbox size ${JSON.stringify(box)}`);
+ assert.equal(await dialog.getByRole('textbox',{name:'새 할 일'}).count(),1);
+ assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),true);
+ await dialog.getByRole('textbox',{name:'새 할 일'}).focus();
+ await page.keyboard.press('Tab');
+ assert.equal(await checkbox.evaluate(el=>el===document.activeElement),true);
+ assert.equal(await checkbox.evaluate(el=>getComputedStyle(el.closest('.actual-time-toggle')).outlineStyle!=='none'),true);
+ await checkbox.check();
+ assert.equal(await dialog.locator('input[type="time"][aria-label="새 할 일 시작 시간 선택"]').count(),1);
+ assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),true);
+} ,'start'));
