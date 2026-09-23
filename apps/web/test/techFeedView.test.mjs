@@ -14,3 +14,14 @@ test('feed route is recognized without replacing default Today',()=>{assert.equa
 test('article renders safe original link and escapes source markup',()=>{const html=render(article);assert.match(html,/noopener noreferrer/);assert.match(html,/href="https:\/\/example.com\/post"/);assert.doesNotMatch(html,/<script>/);assert.match(html,/출처 소개/);assert.doesNotMatch(render({...article,url:'javascript:alert(1)'}),/href=/);});
 test('saved and linked cards convey persistent state without relying on color',()=>{const html=render({...article,saved:true,todo_id:'todo'});assert.match(html,/aria-pressed="true"/);assert.match(html,/할 일에 추가됨/);assert.match(html,/disabled=""/);});
 test('ready summary previews the technology and offers expansion without showing the source excerpt',()=>{const html=render({...article,summary_status:'ready',summary:{technology:'기술 설명',change:'변화 설명',usage:'활용 설명'}});assert.match(html,/기술 설명/);assert.match(html,/AI 요약 펼치기/);assert.match(html,/aria-expanded="false"/);assert.doesNotMatch(html,/이것은 출처 소개입니다/);});
+
+test('article hashtag distinguishes original language from a Korean translation',()=>{
+ const english=render({...article,title:'AWS architecture guide',excerpt:'This article explains the architecture in production.',title_ko:'AWS 아키텍처 가이드',excerpt_ko:'운영 사례입니다.',translation_status:'ready'});
+ assert.match(english,/# 영어 원문/);
+ assert.match(english,/AWS 아키텍처 가이드/);
+ assert.match(english,/DeepL 자동 번역/);
+ const korean=render({...article,title:'AWS를 적용한 한국어 사례',excerpt:'실제 운영 사례와 구현 방법을 자세히 설명합니다.',title_ko:'다른 번역 제목',excerpt_ko:'다른 번역 소개',translation_status:'ready'});
+ assert.match(korean,/# 한국어 원문/);
+ assert.match(korean,/AWS를 적용한 한국어 사례/);
+ assert.doesNotMatch(korean,/다른 번역 제목|DeepL 자동 번역|한국어 번역 대기/);
+});

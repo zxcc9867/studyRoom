@@ -1,6 +1,7 @@
 import {classifyFeedArticle,feedTopicTags} from '../../../packages/core/src/feedClassification.mjs';
 import {cleanFeedIntroduction,feedContentKind} from '../../../packages/core/src/feedContent.mjs';
 import {parseModelJson} from '../../../packages/core/src/feedModelJson.mjs';
+import {feedOriginalLanguage,FEED_LANGUAGE_LABELS} from '../../../packages/core/src/feedLanguage.mjs';
 import {getOpenRouterConfig} from './coach-openrouter.mjs';
 
 export const BRIEFING_ANALYZER_VERSION=2;
@@ -8,7 +9,10 @@ const labels={news:'기술 소식',practice:'실무·튜토리얼',deep_dive:'�
 const compare=(a,b)=>a<b?-1:a>b?1:0;
 export function classifyListItem(item,prompt=''){
  const result=classifyFeedArticle(item);
- return{...item,category:result.category,category_method:result.method,rules_version:result.rules_version,topics:feedTopicTags(item.title,item.excerpt,prompt)};
+ return{...item,original_language:feedOriginalLanguage(item.title,item.excerpt),category:result.category,category_method:result.method,rules_version:result.rules_version,topics:feedTopicTags(item.title,item.excerpt,prompt)};
+}
+export function matchingFeedArticleIds({items=[],prompt=''},topic,language){
+ return items.filter(item=>(!topic||feedTopicTags(item.title,item.excerpt,prompt).includes(topic))&&(!language||feedOriginalLanguage(item.title,item.excerpt)===language)).map(item=>item.id);
 }
 function counts(values){
  const map=new Map();for(const {value,label}of values){const row=map.get(value)||{value,label,count:0};row.count++;map.set(value,row);}
@@ -16,7 +20,8 @@ function counts(values){
 }
 export function feedFacets({items=[],prompt=''}){
  return{total:items.length,topics:counts(items.flatMap(a=>feedTopicTags(a.title,a.excerpt,prompt).map(value=>({value,label:value})))),
- sources:counts(items.flatMap(a=>[...new Map((a.sources||[]).map(s=>[s.value,s])).values()]))};
+ sources:counts(items.flatMap(a=>[...new Map((a.sources||[]).map(s=>[s.value,s])).values()])),
+ languages:counts(items.map(a=>{const value=feedOriginalLanguage(a.title,a.excerpt);return{value,label:FEED_LANGUAGE_LABELS[value]};}))};
 }
 function eligibleArticles(snapshot){
  return(snapshot.articles||[]).filter(a=>a.eligible&&!['video','listing'].includes(feedContentKind(a.url,a.title)))

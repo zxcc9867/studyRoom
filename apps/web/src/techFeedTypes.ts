@@ -5,7 +5,7 @@ export type FeedSource = {
 export type FeedArticle = {
   media?:null|{image_url:string|null;video:null|{provider:'youtube'|'vimeo';id:string}};
   title_ko?:string|null; excerpt_ko?:string|null; translation_status?:'pending'|'ready'|'failed';
-  id:string; title:string; url:string; published_at:string|null; discovered_at:string; excerpt:string;
+  id:string; title:string; url:string; published_at:string|null; discovered_at:string; excerpt:string; original_language?:'ko'|'en'|'unknown';
   summary:null|{technology:string;change:string;usage:string}; summary_status:'pending'|'ready'|'insufficient'|'failed';
   topics?:string[];category_method?:'ai'|'rules'|null;rules_version?:number;
   category:null|'news'|'practice'|'deep_dive'; interests:string[]; sources:{id:string;name:string}[]; saved:boolean; todo_id:string|null;
@@ -26,7 +26,7 @@ export type FeedTodoDraft = {article_id:string;title:string;local_date:string;st
 
 export type FeedApi=(action:string,payload?:Record<string,unknown>,signal?:AbortSignal)=>Promise<any>;
 export type FeedFacet={value:string;label:string;count:number};
-export type FeedFacets={total:number;topics:FeedFacet[];sources:FeedFacet[]};
+export type FeedFacets={total:number;topics:FeedFacet[];sources:FeedFacet[];languages?:FeedFacet[]};
 export type FeedBriefing={
   local_date:string;time_zone:string;total:number;source_count:number;categories:FeedFacet[];topics:FeedFacet[];
   eligible_count:number;analyzed_count:number;generated_at:string|null;

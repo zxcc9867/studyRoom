@@ -1,3 +1,10 @@
+### 2026-09-23 — 원문 언어 태그와 한국어 피드 개선
+
+- 완료: 원문 제목·소개 언어 판별(한국어/영어/미확인), 기사 해시 태그, 한국어·영어 필터와 언어별 개수, 한국어 원문 표시 문구, 한국어 기술 사례 검색 순환 추가.
+- 변경: core feedLanguage 모듈, 웹 피드 카드/필터/타입/CSS, Edge API/스토어/브리핑/검색어, 관련 테스트.
+- 검증: 전체 794/794(skip 0), Edge 11/11, 웹 build, mobile:check, docs:check 통과. PC 1440px·390px 실제 Chromium에서 한국어 필터/태그/가로 넘침 없음 확인. Supabase tech-feed v37·tech-feed-worker v35 ACTIVE, verify_jwt true.
+- 운영 조사: RSS 추천 8곳은 모두 이용 조건 확인 대기, 원문 한글 제목 19/135건. 추가 검색은 결과 언어를 보장하지 않는다. 웹 production 배포 검증은 후속 기록.
+
 ## 2026-09-23 — 기술 피드 후속 배포 완료
 
 - 코드 커밋: c6209da (main). Actions 35792468850 success.

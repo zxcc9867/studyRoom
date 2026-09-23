@@ -1,3 +1,11 @@
+## 2026-09-23 — 기술 피드 원문 언어 표시와 한국어 글 보기
+
+- 현재 작업: 기사 원문 언어 해시 태그, 한국어/영어 원문 필터, 관심 주제의 한국어 기술 글 검색 순환.
+- 관련 PRD: prd-tech-feed.md. 관련 파일: packages/core/src/feedLanguage.mjs, TechFeedSection.tsx, FeedViewFilters.tsx, tech-feed-briefing.mjs, tech-feed-store.ts, tech-feed-api.mjs, tech-feed-query.mjs.
+- 결정: 번역 여부와 무관한 원문 제목·소개를 보수적으로 판별한다. 페이지 앞부분만 거르지 않고 서버의 전체 가시 후보 ID를 기존 목록 RPC에 전달한다. 별도 DB 컬럼/마이그레이션 없음.
+- 운영 조사: 현재 기사 135건 중 제목 한글 19건, 한글은 소개에만 있는 글 6건; 추천 RSS 8곳 모두 permission_status pending이며 각 수집 0건. 한국어 수집은 현재 웹 검색에 의존한다. 소스 승인 상태는 변경하지 않는다.
+- 상태: 전체 794/794 테스트, Edge 11/11, 웹 빌드·모바일·문서 검사, PC/390px 브라우저 검증 완료. Supabase tech-feed v37·tech-feed-worker v35 ACTIVE/verify_jwt true 배포. 웹 production 배포 확인 진행 중.
+
 ## 2026-09-23 — 기술 피드 후속 배포 완료
 
 - 코드 커밋: c6209da (main). Actions 35792468850 success.

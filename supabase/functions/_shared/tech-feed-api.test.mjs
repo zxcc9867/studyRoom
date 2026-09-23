@@ -16,8 +16,10 @@ test('briefing read retains paused statistics while no access denies; facets/lis
  assert.equal((await setup({env:{},store}).handler(req({action:'briefing'}))).status,403);assert.equal(calls,1);
  assert.equal((await setup({store}).handler(req({action:'facets',view:'saved'}))).status,200);
  const f=setup({store});assert.equal((await f.handler(req({action:'list',view:'saved',topic:'AWS',source_key:'host:Example.COM'}))).status,200);
- assert.deepEqual(args,['saved',null,null,null,'AWS','host:example.com']);
- for(const bad of [{topic:'x'.repeat(33)},{source_key:'https://evil.test'},{source_key:'host:user@host'},{source_key:'rss:bad'}])assert.equal((await f.handler(req({action:'list',...bad}))).status,400);
+ assert.deepEqual(args,['saved',null,null,null,'AWS','host:example.com',null]);
+ assert.equal((await f.handler(req({action:'list',language:'ko'}))).status,200);
+ assert.deepEqual(args,['latest',null,null,null,null,null,'ko']);
+ for(const bad of [{topic:'x'.repeat(33)},{source_key:'https://evil.test'},{source_key:'host:user@host'},{source_key:'rss:bad'},{language:'ja'},{language:3}])assert.equal((await f.handler(req({action:'list',...bad}))).status,400);
 });
 test('API authenticates, denies nonpilots, and timezone remains independent of feed flag',async()=>{
  assert.equal((await setup({auth:false}).handler(req({action:'state'}))).status,401);

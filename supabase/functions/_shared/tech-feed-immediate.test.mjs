@@ -13,7 +13,7 @@ test('compound interests rotate focused queries without multiplying paid request
   },search:{availability:()=> 'waiting',checkUsage:async()=>{},search:async query=>{queries.push(query);return[];}}});
   assert.equal(result.attempted,1);
  }
- assert.deepEqual(queries,['ai engineering deep dive internals 동작 원리','aws engineering deep dive internals 동작 원리','클라우드 engineering deep dive internals 동작 원리','fde engineering deep dive internals 동작 원리','ai engineering case study architecture']);
+ assert.deepEqual(queries,['ai engineering deep dive internals 동작 원리','aws engineering deep dive internals 동작 원리','클라우드 engineering deep dive internals 동작 원리','fde engineering deep dive internals 동작 원리','ai 실서비스 기술 구현 사례 아키텍처 설계']);
  assert.equal(reservations,5);
 });
 

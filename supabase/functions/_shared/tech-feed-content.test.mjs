@@ -7,8 +7,8 @@ test('arbitrary interests rotate through explanations, case studies and guides, 
  const queries=Array.from({length:6},(_,cursor)=>focusedSearchQuery('Rust, 네트워크',cursor));
  assert.deepEqual(queries,[
   'Rust engineering deep dive internals 동작 원리','네트워크 engineering deep dive internals 동작 원리',
+  'Rust 실서비스 기술 구현 사례 아키텍처 설계','네트워크 실서비스 기술 구현 사례 아키텍처 설계',
   'Rust engineering case study architecture','네트워크 engineering case study architecture',
-  'Rust technical guide tutorial best practices','네트워크 technical guide tutorial best practices',
  ]);
  // Asking a search engine for "기술 블로그" returns blog homepages, blog
  // roundups and blog launch posts, which is what filled the feed with

@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {buildBriefingInput,briefingView,feedFacets,classifyListItem,runBriefing} from './tech-feed-briefing.mjs';
+import {buildBriefingInput,briefingView,feedFacets,classifyListItem,matchingFeedArticleIds,runBriefing} from './tech-feed-briefing.mjs';
 const env={TECH_FEED_ENABLED:'true',TECH_FEED_ACCESS_MODE:'self_service',OPENROUTER_API_KEY:'synthetic',OPENROUTER_MODEL:'openrouter/free'};
 function article(i,source='host:example.test') {return{id:'id-'+i,title:'AWS release '+i,url:'https://example.test/'+i,excerpt:'AWS release implementation details. '.repeat(20),eligible:true,discovered_at:'2026-09-14T03:00:00Z',category:null,category_method:null,summary_status:'pending',sources:[{value:source,label:source.replace('host:','')} ]};}
 function fixture(count=2){
@@ -109,4 +109,17 @@ test('a roundup title keeps an article out of the briefing sample even with a no
  const input=buildBriefingInput(snapshot);
  assert.equal(input.articles.some(a=>a.id==='id-roundup'),false);
  assert.equal(input.articles.length,2);
+});
+
+test('language counts and filters use every visible original before the 20-item page',()=>{
+ const english=Array.from({length:30},(_,i)=>({...article(i),title:'AWS architecture case study '+i,excerpt:'This article explains the architecture and implementation in production.'}));
+ const korean=[{...article(30),title:'AWS 아키텍처를 개선한 사례',excerpt:'실제 서비스에서 적용한 구조와 장애 대응 방법을 설명합니다.'},{...article(31),title:'Claude Code로 개발 자동화하기',excerpt:'팀의 실무 구현 방법과 변경 사항을 소개합니다.'}];
+ const candidates={items:[...english,...korean],prompt:'AWS'};
+ const ids=matchingFeedArticleIds(candidates,null,'ko');
+ assert.deepEqual(ids,['id-30','id-31']);
+ assert.equal(matchingFeedArticleIds(candidates,'AWS','ko').length,1);
+ const facets=feedFacets(candidates);
+ assert.equal(facets.languages.find(x=>x.value==='ko').count,2);
+ assert.equal(facets.languages.find(x=>x.value==='en').count,30);
+ assert.equal(classifyListItem(korean[0]).original_language,'ko');
 });

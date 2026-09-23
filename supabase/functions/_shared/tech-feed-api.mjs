@@ -92,7 +92,9 @@ export function createTechFeedHandler({authenticate,env,transport,askBriefing}){
      else invalid();
     }
     if(data.cursor!=null&&(typeof data.cursor!=='string'||data.cursor.length>128||!/^[0-9T .:+Z-]+\|[0-9a-f-]{36}$/i.test(data.cursor)))invalid();
-    return reply(await store.list(view,data.interest||null,source,data.cursor||null,topic,sourceKey));
+    const language=data.language==null?null:data.language;
+    if(language!==null&&!['ko','en'].includes(language))invalid();
+    return reply(await store.list(view,data.interest||null,source,data.cursor||null,topic,sourceKey,language));
    }
    if(action==='preview'||action==='add_source'){
     let url;try{url=normalizeUrl(data.url);}catch{throw Error('invalid_url');}

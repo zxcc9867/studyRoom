@@ -16,7 +16,9 @@ export function focusedSearchQuery(value,cursor=0){
  // Never ask for "blogs": a search engine answers that with blog homepages,
  // blog roundups and blog launch posts. Ask for the technology instead.
  const intents=['engineering deep dive internals 동작 원리','engineering case study architecture','technical guide tutorial best practices'];
- const query=topics[index]+' '+intents[Math.floor(step/topics.length)%intents.length];
+ const intentIndex=Math.floor(step/topics.length)%5;
+ const intent=intentIndex===1?'실서비스 기술 구현 사례 아키텍처 설계':intentIndex===3?'한국어 실무 기술 튜토리얼 구현 방법':intents[intentIndex===0?0:intentIndex===2?1:2];
+ const query=topics[index]+' '+intent;
  // Keep the original validation and 300-character cap at the provider boundary.
  return [...query].length<=300?query:topics[index];
 }

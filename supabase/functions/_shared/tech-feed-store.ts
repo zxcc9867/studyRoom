@@ -1,6 +1,6 @@
 import {createClient,type SupabaseClient} from "jsr:@supabase/supabase-js@2.57.4";
 import {createOpenRouterClient,getOpenRouterConfig} from "./coach-openrouter.mjs";
-import {classifyListItem,feedFacets} from "./tech-feed-briefing.mjs";
+import {classifyListItem,feedFacets,matchingFeedArticleIds} from "./tech-feed-briefing.mjs";
 import {feedAccess} from "./tech-feed-topics.mjs";
 
 function checked(result:{data:any;error:any}):any {
@@ -47,11 +47,11 @@ export function createFeedStore(admin:SupabaseClient,owner:string|null){
   reserveSearch:(id:string,lease:string,cap=900)=>rpc("tech_feed_search_reserve",{p_id:id,p_lease:lease,p_cap:cap}),
   finishSearch:(id:string,lease:string,items:unknown[],error:string|null)=>rpc("tech_feed_search_finish",{p_id:id,p_lease:lease,p_items:items,p_error:error}),
   state:()=>rpc("tech_feed_state",{p_user_id:owner}),
-  async list(view:string,interest:string|null,source:string|null,cursor:string|null,topic:string|null=null,sourceKey:string|null=null){
+  async list(view:string,interest:string|null,source:string|null,cursor:string|null,topic:string|null=null,sourceKey:string|null=null,language:string|null=null){
    let ids:string[]|null=null;
-   if(topic){
+   if(topic||language){
     const candidates=await rpc("tech_feed_filter_candidates",{p_user_id:owner,p_view:view});
-    ids=candidates.items.filter((item:any)=>classifyListItem(item,candidates.prompt).topics.includes(topic)).map((item:any)=>item.id);
+    ids=matchingFeedArticleIds(candidates,topic,language);
    }
    const result=await rpc("tech_feed_list",{p_user_id:owner,p_view:view,p_interest:interest,p_source_id:source,p_cursor:cursor,p_source_key:sourceKey,p_article_ids:ids});
    const{_prompt,...response}=result;

@@ -12,13 +12,15 @@ import {classifyFeedArticle,feedTopicTags} from '../../../packages/core/src/feed
 import {FeedArticleText} from './FeedArticleText';
 import {FeedDailyBriefing} from './FeedDailyBriefing';
 import {FeedViewFilters} from './FeedViewFilters';
+import {feedOriginalLanguage,FEED_LANGUAGE_LABELS} from '../../../packages/core/src/feedLanguage.mjs';
 import './techFeed.css';
 
 type Props = {supabase:SupabaseClient;userId:string;timeZone:string;onPlan:(article:FeedArticle)=>void;linkedTodo?:{userId:string;articleId:string;todoId:string}|null};
 export function FeedArticleCard({article,onSave,onPlan,busy,timeZone}:{article:FeedArticle;onSave:()=>void;onPlan:()=>void;busy:boolean;timeZone:string}) {
   const [expanded,setExpanded] = useState(false);
   const contentId = useId();
-  const translated = article.translation_status === 'ready' && Boolean(article.title_ko?.trim()) && typeof article.excerpt_ko === 'string';
+  const originalLanguage = feedOriginalLanguage(article.title,article.excerpt);
+  const translated = originalLanguage !== 'ko' && article.translation_status === 'ready' && Boolean(article.title_ko?.trim()) && typeof article.excerpt_ko === 'string';
   const link = safeFeedUrl(article.url);
   const host = feedSourceHost(article.url);
   const sourceNames = article.origin === 'web_search' ? ['웹 검색',host] : [...article.sources.map(source=>source.name),host];
@@ -39,7 +41,7 @@ export function FeedArticleCard({article,onSave,onPlan,busy,timeZone}:{article:F
       {article.saved && <Bookmark className="feed-saved-mark" size={17} aria-label="저장한 글" fill="currentColor"/>}
     </header>
     <div className="feed-card-body">
-      {tags.length>0 && <div className="feed-topic-tags">{tags.map(tag=><span key={tag}># {tag}</span>)}</div>}
+      <div className="feed-topic-tags"><span className="feed-language-tag"># {FEED_LANGUAGE_LABELS[originalLanguage]}</span>{tags.map(tag=><span key={tag}># {tag}</span>)}</div>
       <h3>{link ? <a href={link} target="_blank" rel="noopener noreferrer">{translated ? article.title_ko : article.title}</a> : (translated ? article.title_ko : article.title)}</h3>
       <FeedArticleMedia key={article.id+JSON.stringify(article.media)} media={article.media} title={(translated?article.title_ko:article.title)||article.title} original={link}/>
       <div id={contentId}>
@@ -51,7 +53,7 @@ export function FeedArticleCard({article,onSave,onPlan,busy,timeZone}:{article:F
       </div>
       {expandable && <button type="button" className="feed-expand" aria-expanded={expanded} aria-controls={contentId} onClick={()=>setExpanded(value=>!value)}>{expanded?'내용 접기':hasSummary?'AI 요약 펼치기':'내용 더 보기'}<ChevronRight size={14}/></button>}
       {link && <div className="feed-citation"><span>{article.origin === 'web_search' ? '검색 소개 출처' : '발췌 출처'}</span><a href={link} target="_blank" rel="noopener noreferrer">{host || sourceName}<ExternalLink size={15}/></a></div>}
-      <div className="feed-evidence"><p>{video ? '영상 원문 링크 · 본문 요약 없음' : summaryLabel(article)}</p><p>{translated ? 'DeepL 자동 번역 · 원문 확인 권장' : '한국어 번역 대기 · 원문 표시'}</p></div>
+      <div className="feed-evidence"><p>{video ? '영상 원문 링크 · 본문 요약 없음' : summaryLabel(article)}</p><p>{originalLanguage==='ko' ? '한국어로 작성된 원문' : translated ? 'DeepL 자동 번역 · 원문 확인 권장' : originalLanguage==='en' ? '한국어 번역 대기 · 영어 원문 표시' : '원문 언어 확인 필요 · 번역 대기'}</p></div>
       {translated && !video && <details className="feed-original-text"><summary>원문 텍스트 보기</summary><p>{article.title}</p><FeedArticleText text={feedStructuredIntroduction(article.excerpt)}/></details>}
       <p className="feed-sources">{sourceLine}</p>
       <div className="feed-card-actions">
@@ -78,6 +80,7 @@ export default function TechFeed({supabase,userId,timeZone,onPlan,linkedTodo=nul
   const [articles,setArticles] = useState<FeedArticle[]>([]);
   const [view,setView] = useState<'latest'|'saved'>('latest');
   const [topic,setTopic] = useState('');
+  const [language,setLanguage] = useState('');
   const [total,setTotal] = useState<number|null>(null);
   const [facets,setFacets] = useState<FeedFacets|null>(null);
   const [facetsLoading,setFacetsLoading] = useState(true);
@@ -115,7 +118,7 @@ export default function TechFeed({supabase,userId,timeZone,onPlan,linkedTodo=nul
     setPageNumber(1);
     setSettingsOpen(false);
     focusPage.current=false;
-    setView('latest');setTopic('');setFacets(null);setTotal(null);
+    setView('latest');setTopic('');setLanguage('');setFacets(null);setTotal(null);
     setStateOwner('');
     setState(null);
     setArticles([]);
@@ -148,14 +151,14 @@ export default function TechFeed({supabase,userId,timeZone,onPlan,linkedTodo=nul
         if(!next.preferences.prompt) setSettingsOpen(true);
         if (!interestDraftDirty.current) setInterestDraft(next.preferences.prompt);
         if (!next.enabled) return;
-        const page:FeedPage = await api('list',{view,topic:topic || undefined,source_key:source || undefined},controller.signal);
+        const page:FeedPage = await api('list',{view,topic:topic || undefined,source_key:source || undefined,language:language || undefined},controller.signal);
         if (request !== generation.current) return;
         setArticles(page.items);setCursor(page.next_cursor);setTotal(page.total);
       } catch(e) {if(!controller.signal.aborted && request===generation.current)setError(e instanceof Error?e.message:'피드를 불러오지 못했어요.');}
       finally {if(!controller.signal.aborted && request===generation.current)setLoading(false);}
     })();
     return ()=>{controller.abort();++generation.current;};
-  },[api,view,topic,source,revision]);
+  },[api,view,topic,source,language,revision]);
 
   useEffect(()=>{
     const controller=new AbortController();
@@ -260,7 +263,7 @@ export default function TechFeed({supabase,userId,timeZone,onPlan,linkedTodo=nul
     if(!cursor || target!==pageView.page+1)return;
     const request=generation.current;
     await action('page',async()=>{
-      const next:FeedPage=await api('list',{view,topic:topic||undefined,source_key:source||undefined,cursor},lifetime.current?.signal);
+      const next:FeedPage=await api('list',{view,topic:topic||undefined,source_key:source||undefined,language:language||undefined,cursor},lifetime.current?.signal);
       if(request!==generation.current)return;
       const merged=mergeFeedPage(articles,next.items);
       focusPage.current=true;
@@ -306,7 +309,7 @@ export default function TechFeed({supabase,userId,timeZone,onPlan,linkedTodo=nul
       </details>
       <FeedDailyBriefing key={userId+':'+timeZone} api={api} userId={userId} timeZone={timeZone} revision={briefingRevision}/>
       <div className="feed-toolbar"><div className="feed-tabs" aria-label="피드 보기">{(['latest','saved'] as const).map(tab=><button key={tab} type="button" aria-pressed={view===tab} disabled={Boolean(busy)} onClick={()=>setView(tab)}>{tab==='latest'?'최신':'저장'}</button>)}</div><button className="secondary" type="button" disabled={loading||Boolean(busy)} aria-busy={busy==='refresh'} onClick={refreshNow}><RefreshCw size={16}/>{busy==='refresh'?'새 소식 찾는 중…':'새 글 확인'}</button></div>
-      <FeedViewFilters facets={facets} topic={topic} source={source} total={total} busy={Boolean(busy)} loading={facetsLoading} error={facetsError} onTopic={setTopic} onSource={setSource} onReset={()=>{setTopic('');setSource('');}} onRetry={()=>setFacetsRevision(value=>value+1)}/>
+      <FeedViewFilters facets={facets} topic={topic} source={source} language={language} total={total} busy={Boolean(busy)} loading={facetsLoading} error={facetsError} onTopic={setTopic} onSource={setSource} onLanguage={setLanguage} onReset={()=>{setTopic('');setSource('');setLanguage('');}} onRetry={()=>setFacetsRevision(value=>value+1)}/>
       <details className="feed-collection-status"><summary>수집·번역 상태와 출처 관리<ChevronRight size={15}/></summary>
       <details className="feed-subscriptions"><summary><Settings2 size={17}/>고급 설정: 수집 출처 <span>{state.sources.filter(item=>item.subscribed).length}개 구독</span></summary>
         <div className="feed-source-options">{state.sources.map(item=><label key={item.id}><input type="checkbox" checked={item.subscribed} disabled={Boolean(busy)||item.permission_status==='blocked'} onChange={()=>void action(item.id,async()=>{await api('subscribe',{source_id:item.id,subscribed:!item.subscribed},lifetime.current?.signal);setRevision(n=>n+1);setBriefingRevision(n=>n+1);})}/><span><strong>{item.name}</strong><small>{item.permission_status==='approved'?'공개 소스':item.permission_status==='pending'?'이용 조건 확인 중 · 자동 수집 대기':'수집 중지'}{item.last_error?' · 최근 수집 실패':''}</small></span></label>)}</div>
@@ -319,7 +322,7 @@ export default function TechFeed({supabase,userId,timeZone,onPlan,linkedTodo=nul
       </details>
     </>}
     {state?.enabled && !loading && <div className="feed-page-heading"><h3 ref={pageHeading} tabIndex={-1}>{view==='saved'?'저장한 발견':'새로운 발견'} <span>{pageView.page}페이지</span></h3><p>한 페이지에 20개씩</p></div>}
-    {loading ? <p className="feed-empty" role="status">새로운 배움을 불러오고 있어요…</p> : state?.enabled && pageView.items.length===0 && !error ? <div className="feed-empty"><BookOpen size={32}/><h3>{view==='saved'?(cursor?'이 페이지의 저장한 글을 모두 읽었어요':'나중에 읽을 글을 모아 보세요'):'아직 도착한 소식이 없어요'}</h3><p>{view==='saved'?(cursor?'다음 페이지에서 저장한 글을 이어서 확인해 주세요.':'관심 있는 글의 저장 버튼을 눌러 주세요.'):'구독과 수집 상태를 확인하거나 다른 필터를 선택해 주세요.'}</p></div> : <div className="feed-list" aria-busy={busy==='page'}>{(state?.enabled?pageView.items:[]).map(article=><FeedArticleCard key={article.id} article={article} timeZone={timeZone} busy={Boolean(busy)} onSave={()=>save(article)} onPlan={()=>onPlan(article)}/>)}</div>}
+    {loading ? <p className="feed-empty" role="status">새로운 배움을 불러오고 있어요…</p> : state?.enabled && pageView.items.length===0 && !error ? <div className="feed-empty"><BookOpen size={32}/><h3>{view==='saved'?(cursor?'이 페이지의 저장한 글을 모두 읽었어요':'나중에 읽을 글을 모아 보세요'):language==='ko'?'한국어 원문이 아직 없어요':language==='en'?'영어 원문이 아직 없어요':'아직 도착한 소식이 없어요'}</h3><p>{view==='saved'?(cursor?'다음 페이지에서 저장한 글을 이어서 확인해 주세요.':'관심 있는 글의 저장 버튼을 눌러 주세요.'):language==='ko'?'새 글 확인으로 한국어 기술 글을 찾아보거나 다른 필터를 선택해 주세요.':'구독과 수집 상태를 확인하거나 다른 필터를 선택해 주세요.'}</p></div> : <div className="feed-list" aria-busy={busy==='page'}>{(state?.enabled?pageView.items:[]).map(article=><FeedArticleCard key={article.id} article={article} timeZone={timeZone} busy={Boolean(busy)} onSave={()=>save(article)} onPlan={()=>onPlan(article)}/>)}</div>}
     {state?.enabled && (articles.length>0 || cursor) && !loading && <><FeedPagination page={pageView.page} numbers={pageView.numbers} hasNext={pageView.hasNext} busy={Boolean(busy)} onPage={number=>void goToPage(number)}/><p className="feed-page-status" role="status">{busy==='page'?'다음 페이지를 불러오는 중…':pageView.hasNext?'다음 페이지에서 더 많은 소식을 읽어 보세요.':'마지막 페이지예요. 새 글 확인으로 소식을 찾아보세요.'}</p></>}
     </>}
   </section>;

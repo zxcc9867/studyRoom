@@ -171,3 +171,12 @@
 .tech-feed .feed-highlights a{display:inline;color:#254e3a;min-height:0;font:inherit;overflow-wrap:anywhere;text-underline-offset:4px}
 .tech-feed .feed-highlights .feed-highlight-link{display:inline-flex;align-items:center;min-height:44px;font-weight:700}
 @media(max-width:680px){.feed-highlights>ol{grid-template-columns:minmax(0,1fr)}.feed-highlights li,.feed-highlights li.feed-highlight-primary{padding:16px}.feed-highlight-primary h5{font-size:20px}}
+.feed-language-filter{display:flex;flex-wrap:wrap;align-items:center;gap:8px;margin:0 0 4px}
+.feed-language-filter>span{font-size:13px;font-weight:800;color:var(--feed-muted);margin-right:3px}
+.tech-feed .feed-language-filter button{min-height:42px;padding:8px 13px;border:1px solid #c9d6ba;border-radius:999px;background:#fffef8;color:#345943;box-shadow:none;font-size:13px;font-weight:750}
+.tech-feed .feed-language-filter button[aria-pressed=true]{background:#315b48;border-color:#315b48;color:#fff}
+.tech-feed .feed-language-filter button:focus-visible{outline:3px solid #e3bd62;outline-offset:2px}
+.feed-language-filter button small{margin-left:6px;font-size:12px;font-variant-numeric:tabular-nums;opacity:.85}
+.feed-language-help{margin:0 0 12px;color:var(--feed-muted);font-size:13px;line-height:1.5}
+.feed-topic-tags .feed-language-tag{background:#e6edd7;border:1px solid #c9d9b5;color:#315d47;font-weight:800}
+@media(max-width:680px){.feed-language-filter>span{flex-basis:100%}.tech-feed .feed-language-filter button{min-height:44px;padding:9px 12px}}

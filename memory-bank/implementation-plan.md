@@ -1,3 +1,10 @@
+## Supabase 변경 이력 — 2026-09-23 기술 피드 원문 언어
+
+- 변경 대상: tech-feed/tech-feed-worker Edge 공유 코드와 웹 화면. DB 테이블·RLS·RPC·cron 변경 없음; 마이그레이션 파일 없음.
+- 변경 내용/이유: 원문 제목·소개에서 언어를 판별하고 기존 tech_feed_filter_candidates의 사용자 가시 항목을 언어·주제로 거른 뒤 tech_feed_list(p_article_ids)에 전달한다. 기존 페이지 20개·total·cursor가 필터 전체에서 일치한다.
+- 수집: focusedSearchQuery의 한 주제 순환 5단계 중 2단계에 한국어 기술 사례/실무 구현 검색어를 사용한다. 검색 호출 수와 비용 경계는 그대로다. RSS 이용조건 대기 상태는 변경하지 않는다.
+- 확인 방법: core 언어 판별, API 입력 제한, 20건 초과 후보 필터, 검색어 순환, 웹 카드·모바일 검증, 배포 후 Edge 버전/인증 상태 확인.
+
 ## Supabase 변경 이력 — 2026-09-23 기술 피드 추천 보완
 
 - 변경 대상: tech-feed Edge의 공유 tech-feed-briefing.mjs.
