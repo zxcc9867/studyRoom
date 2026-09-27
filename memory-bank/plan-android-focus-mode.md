@@ -1,6 +1,6 @@
 # Android 집중 모드 APK 구현 계획 (2026-09-27)
 
-> 2026-09-28 진행: 서버·Android·웹 구현과 운영 DB/Edge 적용 완료. 최종 소스의 preview APK 빌드 `2f66ac03-6500-45a3-a39e-940e0dd908ba` 성공. 웹 production 반영, 실기기 방해금지/푸시 검증은 남음.
+> 2026-09-28 진행: 서버·Android·웹 구현과 운영 DB/Edge 및 Vercel production 적용 완료. 최종 소스의 preview APK 빌드 `2f66ac03-6500-45a3-a39e-940e0dd908ba` 성공. 실기기 방해금지/푸시 검증은 남음.
 
 ## 범위와 완료 조건
 

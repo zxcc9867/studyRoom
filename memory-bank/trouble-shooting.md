@@ -16,7 +16,7 @@ SQL 파일명과 memory-bank 참조는 갱신했지만 PGlite 회귀 테스트�
 
 ### 해결 방법
 
-`study_focus_db.test.mjs`가 운영 이력과 동일한 `20260927150154_android_focus_mode.sql`을 읽도록 바꾸고 전체 테스트를 다시 실행한다. 실패한 Actions 실행은 배포 단계까지 진행하지 못했으므로 기존 production을 유지한다.
+`study_focus_db.test.mjs`가 운영 이력과 동일한 `20260927150154_android_focus_mode.sql`을 읽도록 바꾸고 전체 테스트를 다시 실행해 790 통과·25 환경 건너뜀·실패 0을 확인했다. 실패한 Actions 실행은 배포 단계까지 진행하지 않아 당시 기존 production을 유지했고, 수정 후 Actions `36331480546` 성공과 production 배포 `dpl_9dJjShEmkEqKngDzML5bMUJ3mbty` READY를 확인했다.
 
 ### 관련 파일
 
