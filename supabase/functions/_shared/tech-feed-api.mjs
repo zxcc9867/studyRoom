@@ -77,10 +77,10 @@ export function createTechFeedHandler({authenticate,env,transport,askBriefing,sc
     return reply(await runManualRefresh({store,userId:id,expectedRevision:data.expected_revision,env:config,transport,signal:request.signal,scheduleEnrichment}));
    }
    if(action==='facets'){
-    const view=data.view||'latest';if(!['latest','saved'].includes(view))invalid();return reply(await store.facets(view));
+    const view=data.view||'latest';if(!['latest','deep_read','saved'].includes(view))invalid();return reply(await store.facets(view));
    }
    if(action==='list'){
-    const view=data.view||'latest';if(!['latest','saved'].includes(view)||data.interest!=null&&!INTERESTS.includes(data.interest))invalid();
+    const view=data.view||'latest';if(!['latest','deep_read','saved'].includes(view)||data.interest!=null&&!INTERESTS.includes(data.interest))invalid();
     const source=data.source_id==null?null:uuid(data.source_id);
     const topic=data.topic==null?null:data.topic;
     if(topic!==null&&(typeof topic!=='string'||topic.length<1||topic.length>32||topic!==topic.trim()||/[\p{Cc}\p{Cf}]/u.test(topic)))invalid();

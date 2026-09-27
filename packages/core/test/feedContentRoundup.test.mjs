@@ -12,6 +12,12 @@ test('a roundup title makes an ordinary article URL a listing, matching the real
   assert.equal(feedContentKind('https://zencoder.ai/blog/ai-blogs-for-developers-engineers'), 'article', 'without a title, URL shape still governs');
 });
 
+test('AWS Startups build catalog is not a technology article, while a child guide is', () => {
+  assert.equal(feedContentKind('https://startups.aws.com/build?lang=ko', 'AWS Startups'), 'listing');
+  assert.equal(feedContentKind('https://startups.aws.com/ko/build?lang=ko', '스타트업 구축 솔루션'), 'listing');
+  assert.equal(feedContentKind('https://startups.aws.com/ko/build/architecture-guide?lang=ko', 'Architecture guide'), 'article');
+});
+
 test('feedIsRoundupTitle recognizes a directory of other sources, in English and Korean', () => {
   for (const title of [
     'Top AI Blogs Every Software Developer Must Follow in 2026',

@@ -27,7 +27,7 @@ test('web-search card identifies search-result evidence and the original host',(
   assert.match(html,/웹 검색/);
   assert.match(html,/engineering\.example\.com/);
   assert.match(html,/검색 결과 소개/);
-  assert.match(html,/발견/);
+  assert.match(html,/찾은 날짜/);
   assert.doesNotMatch(html,/원문 발췌/);
 });
 

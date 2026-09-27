@@ -1,5 +1,8 @@
 import {cleanFeedIntroduction} from '../../../packages/core/src/feedContent.mjs';
 import {feedMarkdownPreview} from '../../../packages/core/src/feedMarkdown.mjs';
+export function feedContinuousView(articles,cursor,savedOnly=false) {
+  return {items:savedOnly?articles.filter(item=>item.saved):articles,hasNext:Boolean(cursor)};
+}
 export function feedPageView(articles,requestedPage,cursor,savedOnly=false) {
   const size=20;
   // Retain unsaved entries as page slots; removing them would skip unseen cursor results.
@@ -36,8 +39,11 @@ export function feedStructuredIntroduction(value) {
 
 export function feedExcerptView(value) {
   const full=typeof value==='string'?value.trim():'';
-  const plain=feedMarkdownPreview(full,2000);
-  const preview=feedMarkdownPreview(full,260)+(Array.from(plain).length>260?'…':'');
+  // Search snippets sometimes flatten Markdown headings into one paragraph.
+  // Clean card text only; keep the original unchanged for expanded reading.
+  const cardText=full.replace(/(^|\s)#{1,6}\s+/gu,'$1');
+  const plain=feedMarkdownPreview(cardText,2000);
+  const preview=feedMarkdownPreview(cardText,260)+(Array.from(plain).length>260?'…':'');
   const expandable=Array.from(plain).length>260 || /\n|\*\*|\x60|^#{1,6} |\[[^\]]+\]\(/m.test(full);
   return {full,preview,expandable};
 }

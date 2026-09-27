@@ -57,7 +57,8 @@ export function feedContentKind(value,title) {
     // evidence of an index; preserve them rather than dropping a real article.
     if([...url.searchParams].some(([key,value])=>value&&!/^(?:utm_.+|fbclid|gclid|s|q|search|page|paged|lang)$/i.test(key)))return 'article';
     const path=url.pathname.replace(/\/+$/,'');
-    if(!path||/^\/(?:[a-z]{2}\/)?(?:blogs?|tags?|categories|search|posts|articles)(?:\/(?:tags?|categories)\/[^/]+)?$/i.test(path))return 'listing';
+    if(host==='startups.aws.com'&&/^\/(?:[a-z]{2}\/)?build$/i.test(path))return 'listing';
+    if(!path||/^\/(?:[a-z]{2}\/)?(?:blogs?|tags?|categories|search|posts|articles|tutorials)(?:\/(?:tags?|categories)\/[^/]+)?$/i.test(path))return 'listing';
     return 'article';
   } catch { return 'unknown'; }
 }

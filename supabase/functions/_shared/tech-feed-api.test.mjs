@@ -19,6 +19,10 @@ test('briefing read retains paused statistics while no access denies; facets/lis
  assert.deepEqual(args,['saved',null,null,null,'AWS','host:example.com',null]);
  assert.equal((await f.handler(req({action:'list',language:'ko'}))).status,200);
  assert.deepEqual(args,['latest',null,null,null,null,null,'ko']);
+ assert.equal((await f.handler(req({action:'facets',view:'deep_read'}))).status,200);
+ assert.equal((await f.handler(req({action:'list',view:'deep_read'}))).status,200);
+ assert.equal(args[0],'deep_read');
+ assert.equal((await f.handler(req({action:'list',view:'unrecognized'}))).status,400);
  for(const bad of [{topic:'x'.repeat(33)},{source_key:'https://evil.test'},{source_key:'host:user@host'},{source_key:'rss:bad'},{language:'ja'},{language:3}])assert.equal((await f.handler(req({action:'list',...bad}))).status,400);
 });
 test('API authenticates, denies nonpilots, and timezone remains independent of feed flag',async()=>{

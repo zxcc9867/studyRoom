@@ -5,7 +5,7 @@ import type { SupabaseClient } from '@supabase/supabase-js';
 import { applyPreferenceResponse, createTechFeedClient, currentFeedState, feedSourceHost, FEED_CATEGORIES, interestSavePayload, isCurrentFeedRequest, isRevisionConflict, mergeFeedPage, preferenceRefreshResult, receivingPayload, safeFeedUrl, summaryLabel } from './techFeed.mjs';
 import type { FeedArticle, FeedFacets, FeedPage, FeedPreferenceResponse, FeedPreview, FeedState } from './techFeedTypes';
 import { FeedInterestSettings } from './FeedInterestSettings';
-import { feedExcerptView, feedPageView, feedStructuredIntroduction } from './feedPresentation.mjs';
+import { feedContinuousView, feedExcerptView, feedStructuredIntroduction } from './feedPresentation.mjs';
 import {feedContentKind} from '../../../packages/core/src/feedContent.mjs';
 import {FeedArticleMedia} from './FeedArticleMedia';
 import {classifyFeedArticle,feedTopicTags} from '../../../packages/core/src/feedClassification.mjs';
@@ -25,7 +25,7 @@ export function FeedArticleCard({article,onSave,onPlan,busy,timeZone}:{article:F
   const host = feedSourceHost(article.url);
   const sourceNames = article.origin === 'web_search' ? ['웹 검색',host] : [...article.sources.map(source=>source.name),host];
   const sourceLine = [...new Set(sourceNames.filter(Boolean))].join(' · ');
-  const formatTime = (value:string|null) => value && Number.isFinite(Date.parse(value)) ? new Intl.DateTimeFormat('ko-KR', {timeZone,month:'short',day:'numeric',hour:'2-digit',minute:'2-digit'}).format(new Date(value)) : '날짜 미확인';
+  const formatTime = (value:string|null) => value && Number.isFinite(Date.parse(value)) ? new Intl.DateTimeFormat('ko-KR', {timeZone,year:'numeric',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit'}).format(new Date(value)) : '날짜 미확인';
   const published = article.published_at && Number.isFinite(Date.parse(article.published_at));
   const video = feedContentKind(article.url) === 'video';
   const hasSummary = !video && article.summary_status === 'ready' && Boolean(article.summary);
@@ -37,7 +37,7 @@ export function FeedArticleCard({article,onSave,onPlan,busy,timeZone}:{article:F
   return <article className="feed-card">
     <header className="feed-author">
       <span className="feed-avatar" aria-hidden="true">{Array.from(sourceName.replace(/^www\./,'')).slice(0,2).join('').toUpperCase()}</span>
-      <div className="feed-author-info"><strong>{sourceName}</strong><div className="feed-card-meta"><time dateTime={article.discovered_at}>발견 {formatTime(article.discovered_at)}</time>{published && <time dateTime={article.published_at!}>원문 발행 {formatTime(article.published_at)}</time>}{classification.category && <span>{FEED_CATEGORIES[classification.category]}</span>}</div></div>
+      <div className="feed-author-info"><strong>{sourceName}</strong><div className="feed-card-meta">{published ? <time dateTime={article.published_at!}>{article.origin==='web_search'?'검색 제공 날짜':'발행일'} {formatTime(article.published_at)}</time> : <span>날짜 미확인</span>}<time dateTime={article.discovered_at}>찾은 날짜 {formatTime(article.discovered_at)}</time>{classification.category && <span>{FEED_CATEGORIES[classification.category]}</span>}</div></div>
       {article.saved && <Bookmark className="feed-saved-mark" size={17} aria-label="저장한 글" fill="currentColor"/>}
     </header>
     <div className="feed-card-body">
@@ -78,7 +78,7 @@ export default function TechFeed({supabase,userId,timeZone,onPlan,linkedTodo=nul
   const [loadedState,setState] = useState<FeedState|null>(null);
   const [stateOwner,setStateOwner] = useState('');
   const [articles,setArticles] = useState<FeedArticle[]>([]);
-  const [view,setView] = useState<'latest'|'saved'>('latest');
+  const [view,setView] = useState<'latest'|'deep_read'|'saved'>('latest');
   const [topic,setTopic] = useState('');
   const [language,setLanguage] = useState('');
   const [total,setTotal] = useState<number|null>(null);
@@ -89,14 +89,14 @@ export default function TechFeed({supabase,userId,timeZone,onPlan,linkedTodo=nul
   const [briefingRevision,setBriefingRevision] = useState(0);
   const [source,setSource] = useState('');
   const [cursor,setCursor] = useState<string|null>(null);
-  const [pageNumber,setPageNumber] = useState(1);
   const [settingsOpen,setSettingsOpen] = useState(false);
   const pageHeading = useRef<HTMLHeadingElement|null>(null);
-  const focusPage = useRef(false);
-  const pageView = feedPageView(articles,pageNumber,cursor,view==='saved');
-  useEffect(()=>{
-    if(focusPage.current){focusPage.current=false;pageHeading.current?.focus({preventScroll:true});pageHeading.current?.scrollIntoView({block:'start'});}
-  },[pageView.page,articles]);
+  const bottomSentinel = useRef<HTMLDivElement|null>(null);
+  const loadMoreLock = useRef(false);
+  const loadMoreRequest = useRef(0);
+  const [loadingMore,setLoadingMore] = useState(false);
+  const [newAvailable,setNewAvailable] = useState(false);
+  const continuousView = feedContinuousView(articles,cursor,view==='saved');
   const [interestDraft,setInterestDraft] = useState('');
   const [preferenceConflict,setPreferenceConflict] = useState(false);
   const [loading,setLoading] = useState(true);
@@ -115,9 +115,8 @@ export default function TechFeed({supabase,userId,timeZone,onPlan,linkedTodo=nul
     const controller=new AbortController();
     lifetime.current=controller;
     ++settingsGeneration.current;
-    setPageNumber(1);
     setSettingsOpen(false);
-    focusPage.current=false;
+    setNewAvailable(false);
     setView('latest');setTopic('');setLanguage('');setFacets(null);setTotal(null);
     setStateOwner('');
     setState(null);
@@ -142,7 +141,8 @@ export default function TechFeed({supabase,userId,timeZone,onPlan,linkedTodo=nul
 
   useEffect(()=>{
     const controller = new AbortController(); const request = ++generation.current;
-    setLoading(true); setError(''); setCursor(null); setArticles([]); setPageNumber(1);setTotal(null);
+    ++loadMoreRequest.current;loadMoreLock.current=false;setLoadingMore(false);
+    setLoading(true); setError(''); setCursor(null); setArticles([]);setTotal(null);setNewAvailable(false);
     void (async()=>{
       try {
         const next:FeedState = await api('state',{},controller.signal);
@@ -248,29 +248,50 @@ export default function TechFeed({supabase,userId,timeZone,onPlan,linkedTodo=nul
         const result=await refreshFeedNow(api,state.preferences.revision,{signal});
         if(!isCurrentFeedRequest(request,settingsGeneration.current,signal))return;
         setNotice(manualRefreshMessage(result));
-        setRevision(value=>value+1);setBriefingRevision(value=>value+1);
+        if(view==='latest'){
+          if(articles.length)await checkForNewArticles();
+          else setRevision(value=>value+1);
+        }
+        setBriefingRevision(value=>value+1);
       }catch(nextError){
         if(!isRevisionConflict(nextError))throw nextError;
         await latestPreferencesAfterConflict(request,state.preferences.prompt);
       }
     });
   }
-  async function goToPage(target:number) {
-    if(loading || actionLock.current || target<1 || target===pageView.page)return;
-    if(target<=pageView.loadedPages){
-      focusPage.current=true;setPageNumber(target);return;
-    }
-    if(!cursor || target!==pageView.page+1)return;
+  async function checkForNewArticles() {
+    if(view!=='latest'||!articles.length)return;
     const request=generation.current;
-    await action('page',async()=>{
+    try{
+      const head:FeedPage=await api('list',{view,topic:topic||undefined,source_key:source||undefined,language:language||undefined},lifetime.current?.signal);
+      if(request===generation.current&&head.items.some(item=>!articles.some(loaded=>loaded.id===item.id)))setNewAvailable(true);
+    }catch{/* Keep the current reading position; the explicit refresh reports errors. */}
+  }
+  async function loadMore() {
+    if(loading || loadMoreLock.current || actionLock.current || !cursor)return;
+    const request=generation.current;
+    const token=++loadMoreRequest.current;
+    loadMoreLock.current=true;setLoadingMore(true);
+    try{
       const next:FeedPage=await api('list',{view,topic:topic||undefined,source_key:source||undefined,language:language||undefined,cursor},lifetime.current?.signal);
       if(request!==generation.current)return;
-      const merged=mergeFeedPage(articles,next.items);
-      focusPage.current=true;
-      setArticles(merged);setCursor(next.next_cursor);setTotal(next.total);
-      setPageNumber(feedPageView(merged,target,next.next_cursor,view==='saved').page);
-    });
+      setArticles(current=>mergeFeedPage(current,next.items));setCursor(next.next_cursor);setTotal(next.total);
+    }catch(cause){if(request===generation.current)setError(cause instanceof Error?cause.message:'이어서 불러오지 못했어요.');}
+    finally{if(token===loadMoreRequest.current){loadMoreLock.current=false;setLoadingMore(false);}}
   }
+  useEffect(()=>{
+    if(!cursor||loading||!bottomSentinel.current||typeof IntersectionObserver==='undefined')return;
+    const observer=new IntersectionObserver(entries=>{if(entries[0]?.isIntersecting)void loadMore();},{rootMargin:'480px'});
+    observer.observe(bottomSentinel.current);
+    return()=>observer.disconnect();
+  },[cursor,loading,articles.length,view,topic,source,language]);
+  useEffect(()=>{
+    if(view!=='latest'||loading||!articles.length)return;
+    const onFocus=()=>{if(document.visibilityState==='visible')void checkForNewArticles();};
+    const timer=window.setInterval(onFocus,300000);
+    window.addEventListener('focus',onFocus);
+    return()=>{window.clearInterval(timer);window.removeEventListener('focus',onFocus);};
+  },[view,loading,articles,topic,source,language]);
   function save(article:FeedArticle) {
     const request=settingsGeneration.current;
     void action(article.id,async()=>{
@@ -308,7 +329,7 @@ export default function TechFeed({supabase,userId,timeZone,onPlan,linkedTodo=nul
       />
       </details>
       <FeedDailyBriefing key={userId+':'+timeZone} api={api} userId={userId} timeZone={timeZone} revision={briefingRevision}/>
-      <div className="feed-toolbar"><div className="feed-tabs" aria-label="피드 보기">{(['latest','saved'] as const).map(tab=><button key={tab} type="button" aria-pressed={view===tab} disabled={Boolean(busy)} onClick={()=>setView(tab)}>{tab==='latest'?'최신':'저장'}</button>)}</div><button className="secondary" type="button" disabled={loading||Boolean(busy)} aria-busy={busy==='refresh'} onClick={refreshNow}><RefreshCw size={16}/>{busy==='refresh'?'새 소식 찾는 중…':'새 글 확인'}</button></div>
+      <div className="feed-toolbar"><div className="feed-tabs" aria-label="피드 보기">{(['latest','deep_read','saved'] as const).map(tab=><button key={tab} type="button" aria-pressed={view===tab} disabled={Boolean(busy)} onClick={()=>setView(tab)}>{tab==='latest'?'최신':tab==='deep_read'?'깊이 읽기':'저장'}</button>)}</div><button className="secondary" type="button" disabled={loading||Boolean(busy)} aria-busy={busy==='refresh'} onClick={refreshNow}><RefreshCw size={16}/>{busy==='refresh'?'새 소식 찾는 중…':'새 글 확인'}</button></div>
       <FeedViewFilters facets={facets} topic={topic} source={source} language={language} total={total} busy={Boolean(busy)} loading={facetsLoading} error={facetsError} onTopic={setTopic} onSource={setSource} onLanguage={setLanguage} onReset={()=>{setTopic('');setSource('');setLanguage('');}} onRetry={()=>setFacetsRevision(value=>value+1)}/>
       <details className="feed-collection-status"><summary>수집·번역 상태와 출처 관리<ChevronRight size={15}/></summary>
       <details className="feed-subscriptions"><summary><Settings2 size={17}/>고급 설정: 수집 출처 <span>{state.sources.filter(item=>item.subscribed).length}개 구독</span></summary>
@@ -321,9 +342,10 @@ export default function TechFeed({supabase,userId,timeZone,onPlan,linkedTodo=nul
       <p className="feed-budget">무료 AI 한도 내에서 요약해요. 요약이 없는 글도 출처 소개와 원문으로 읽을 수 있어요.</p>
       </details>
     </>}
-    {state?.enabled && !loading && <div className="feed-page-heading"><h3 ref={pageHeading} tabIndex={-1}>{view==='saved'?'저장한 발견':'새로운 발견'} <span>{pageView.page}페이지</span></h3><p>한 페이지에 20개씩</p></div>}
-    {loading ? <p className="feed-empty" role="status">새로운 배움을 불러오고 있어요…</p> : state?.enabled && pageView.items.length===0 && !error ? <div className="feed-empty"><BookOpen size={32}/><h3>{view==='saved'?(cursor?'이 페이지의 저장한 글을 모두 읽었어요':'나중에 읽을 글을 모아 보세요'):language==='ko'?'한국어 원문이 아직 없어요':language==='en'?'영어 원문이 아직 없어요':'아직 도착한 소식이 없어요'}</h3><p>{view==='saved'?(cursor?'다음 페이지에서 저장한 글을 이어서 확인해 주세요.':'관심 있는 글의 저장 버튼을 눌러 주세요.'):language==='ko'?'새 글 확인으로 한국어 기술 글을 찾아보거나 다른 필터를 선택해 주세요.':'구독과 수집 상태를 확인하거나 다른 필터를 선택해 주세요.'}</p></div> : <div className="feed-list" aria-busy={busy==='page'}>{(state?.enabled?pageView.items:[]).map(article=><FeedArticleCard key={article.id} article={article} timeZone={timeZone} busy={Boolean(busy)} onSave={()=>save(article)} onPlan={()=>onPlan(article)}/>)}</div>}
-    {state?.enabled && (articles.length>0 || cursor) && !loading && <><FeedPagination page={pageView.page} numbers={pageView.numbers} hasNext={pageView.hasNext} busy={Boolean(busy)} onPage={number=>void goToPage(number)}/><p className="feed-page-status" role="status">{busy==='page'?'다음 페이지를 불러오는 중…':pageView.hasNext?'다음 페이지에서 더 많은 소식을 읽어 보세요.':'마지막 페이지예요. 새 글 확인으로 소식을 찾아보세요.'}</p></>}
+    {state?.enabled && !loading && <div className="feed-page-heading"><h3 ref={pageHeading} tabIndex={-1}>{view==='saved'?'저장한 글':view==='deep_read'?'깊이 읽기':'최신 기술 소식'}</h3><p>{view==='latest'?'최근 30일 이내 원문 날짜가 확인된 글이에요.':'차례대로 아래로 읽어 보세요.'}</p></div>}
+    {newAvailable && view==='latest' && !loading && <button type="button" className="feed-new-banner" onClick={()=>{setNewAvailable(false);setRevision(value=>value+1);pageHeading.current?.scrollIntoView({block:'start'});}}>새 글이 도착했어요 · 위에서 보기</button>}
+    {loading ? <p className="feed-empty" role="status">새로운 배움을 불러오고 있어요…</p> : state?.enabled && continuousView.items.length===0 && !cursor && !error ? <div className="feed-empty"><BookOpen size={32}/><h3>{view==='saved'?'나중에 읽을 글을 모아 보세요':view==='deep_read'?'이전 자료가 아직 없어요':language==='ko'?'한국어 원문이 아직 없어요':language==='en'?'영어 원문이 아직 없어요':'최근 글이 아직 없어요'}</h3><p>{view==='saved'?'관심 있는 글의 저장 버튼을 눌러 주세요.':view==='latest'?'새 글 확인으로 다시 찾아보거나 깊이 읽기에서 이전 자료를 살펴보세요.':'다른 필터를 선택해 주세요.'}</p></div> : <div className="feed-list" aria-busy={loadingMore}>{(state?.enabled?continuousView.items:[]).map(article=><FeedArticleCard key={article.id} article={article} timeZone={timeZone} busy={Boolean(busy)} onSave={()=>save(article)} onPlan={()=>onPlan(article)}/>)}</div>}
+    {state?.enabled && cursor && !loading && <div className="feed-more" ref={bottomSentinel}><button className="secondary" type="button" disabled={loadingMore||Boolean(busy)} onClick={()=>void loadMore()}>{loadingMore?'이전 글 불러오는 중…':'이전 글 더 보기'}</button></div>}
     </>}
   </section>;
 }

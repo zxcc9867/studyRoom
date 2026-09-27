@@ -36,7 +36,7 @@ test('a skipped claim is reported as deferred rather than an invented five-minut
  assert.doesNotMatch(manualRefreshMessage(result),/5분|최신 소식 확인을 마쳤/);
 });
 test('empty successful search is not presented as new articles arriving',()=>{
- assert.match(manualRefreshMessage({state:'ready',search:{attempted:1,collected:0},rss:{collected:0}}),/검색.*새 글.*없/);
+ assert.match(manualRefreshMessage({state:'ready',search:{attempted:1,collected:0},rss:{collected:0}}),/표시할 새 글은 없/);
 });
 test('failed manual runs record a database-supported error code',async()=>{
  const f=fixture();let code;

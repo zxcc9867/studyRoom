@@ -6,6 +6,7 @@ import {createTechFeedHandler} from './tech-feed-api.mjs';
 import {createTavilySearch} from './tech-feed-search.mjs';
 import {runSearchWorker} from './tech-feed-search-worker.mjs';
 const owner='00000000-0000-4000-8000-000000000101',other='00000000-0000-4000-8000-000000000102';
+const recentDate=new Date(Date.now()-86400000).toISOString();
 let db;
 before(async()=>{
  db=new PGlite();await db.exec(`create role anon;create role authenticated;create role service_role bypassrls;
@@ -143,12 +144,12 @@ async function ingestProviderResults(results){
 }
 async function dueAgain(){await db.exec("update tech_feed_search_topics set run_after=now()");}
 test('provider result through search worker persists interests and appears in cloud-filtered list',async()=>tx(async()=>{
- await config(owner,'Python database');const result=await ingestProviderResults([{title:'AWS Lambda release',url:'https://example.com/classified',content:'AWS cloud release details.'}]);
+ await config(owner,'Python database');const result=await ingestProviderResults([{title:'AWS Lambda release',url:'https://example.com/classified',content:'AWS cloud release details.',published_date:recentDate}]);
  assert.equal(result.state,'ready');const page=await rpc('tech_feed_list',owner,'latest','cloud',null,null);
  assert.equal(page.items.length,1);assert.equal(page.items[0].url,'https://example.com/classified');assert.deepEqual(page.items[0].interests,['cloud']);
 }));
 test('same URL short-to-substantive refresh updates list and AI eligibility without redating',async()=>tx(async()=>{
- await config();const initial={title:'AWS Lambda release',url:'https://example.com/refresh',content:'Brief'};
+ await config();const initial={title:'AWS Lambda release',url:'https://example.com/refresh',content:'Brief',published_date:recentDate};
  assert.equal((await ingestProviderResults([initial])).state,'ready');
  const before=(await rpc('tech_feed_list',owner,'latest',null,null,null)).items[0];assert.equal(before.summary_status,'insufficient');
  const evidence='AWS Lambda now supports the new public feature described in this search result. '.repeat(4);
@@ -160,7 +161,7 @@ test('same URL short-to-substantive refresh updates list and AI eligibility with
  assert.equal(claims.length,1);assert.equal(claims[0].article.excerpt,evidence.trim());
 }));
 test('changed search evidence invalidates in-flight and cached summaries while unchanged evidence preserves cache',async()=>tx(async()=>{
- await config();const initial={title:'AWS Lambda release',url:'https://example.com/evidence',content:'AWS Lambda public feature description. '.repeat(8)};
+ await config();const initial={title:'AWS Lambda release',url:'https://example.com/evidence',content:'AWS Lambda public feature description. '.repeat(8),published_date:recentDate};
  await ingestProviderResults([initial]);await db.exec('set local role service_role');
  let claim=(await db.query('select * from tech_feed_claim_summaries($1)',[[owner]])).rows[0];
  assert.equal(await rpc('tech_feed_begin_summary_attempt',[claim.article.id],[claim.lease],owner),true);
@@ -180,7 +181,7 @@ async function attachRssEvidence(url,excerpt){
  const source=(await db.query("insert into tech_feed_sources(name,url,permission_status,summary_allowed)values('Hybrid RSS','https://example.com/hybrid-rss','approved',true)returning *")).rows[0];
  await db.query('insert into tech_feed_subscriptions(user_id,source_id)values($1,$2)',[owner,source.id]);
  const lease=(await db.query('select * from tech_feed_claim_sources($1,2)',[[owner]])).rows.find(x=>x.id===source.id);
- assert.ok(lease);assert.equal(await rpc('tech_feed_finish_source',source.id,lease.lease,[{guid:'hybrid-entry',url,title:'RSS article attribution',excerpt,published_at:'2020-01-01T00:00:00Z',interests:['cloud']}],null,null,null),true);
+ assert.ok(lease);assert.equal(await rpc('tech_feed_finish_source',source.id,lease.lease,[{guid:'hybrid-entry',url,title:'RSS article attribution',excerpt,published_at:recentDate,interests:['cloud']}],null,null,null),true);
  return source;
 }
 async function publishCurrentSummary(){
@@ -190,7 +191,7 @@ async function publishCurrentSummary(){
  assert.equal(await rpc('tech_feed_finish_summary',claim.article.id,claim.lease,owner,summary,'ready','news'),true);return summary;
 }
 test('RSS attribution without excerpt adoption does not prevent refreshing search-owned evidence',async()=>tx(async()=>{
- await config();const item={title:'AWS release',url:'https://example.com/hybrid-search',content:'Search-owned AWS evidence for a public feature. '.repeat(7)};
+ await config();const item={title:'AWS release',url:'https://example.com/hybrid-search',content:'Search-owned AWS evidence for a public feature. '.repeat(7),published_date:recentDate};
  await ingestProviderResults([item]);await db.exec('set local role service_role');const summary=await publishCurrentSummary();
  const before=(await db.query('select * from tech_feed_articles where url=$1',[item.url])).rows[0];
  const source=await attachRssEvidence(item.url,'RSS attribution has another excerpt. '.repeat(10));
@@ -201,10 +202,10 @@ test('RSS attribution without excerpt adoption does not prevent refreshing searc
  await dueAgain();assert.equal((await ingestProviderResults([changed])).state,'ready');
  row=(await db.query('select * from tech_feed_articles where id=$1',[before.id])).rows[0];
  assert.equal(row.excerpt,changed.content.trim());assert.equal(row.excerpt_source_id,null);assert.equal(row.origin,'web_search');
- assert.equal(row.summary,null);assert.equal(row.summary_status,'pending');assert.equal(row.published_at,before.published_at);assert.equal(row.discovered_at.toISOString(),before.discovered_at.toISOString());
+ assert.equal(row.summary,null);assert.equal(row.summary_status,'pending');assert.equal(row.published_at.toISOString(),before.published_at.toISOString());assert.equal(row.discovered_at.toISOString(),before.discovered_at.toISOString());
 }));
 test('actual RSS excerpt adoption protects RSS evidence dates and summaries from later search refresh',async()=>tx(async()=>{
- await config();const item={title:'AWS release',url:'https://example.com/hybrid-rss-owned',content:'Brief search snippet'};
+ await config();const item={title:'AWS release',url:'https://example.com/hybrid-rss-owned',content:'Brief search snippet',published_date:recentDate};
  await ingestProviderResults([item]);await db.exec('set local role service_role');
  const rssExcerpt='Actual RSS public evidence adopted from an approved source. '.repeat(7);const source=await attachRssEvidence(item.url,rssExcerpt);
  const summary=await publishCurrentSummary();const before=(await db.query('select * from tech_feed_articles where url=$1',[item.url])).rows[0];
@@ -212,6 +213,6 @@ test('actual RSS excerpt adoption protects RSS evidence dates and summaries from
  await dueAgain();assert.equal((await ingestProviderResults([{...item,content:'Different later search snippet. '.repeat(10)}])).state,'ready');
  const after=(await db.query('select * from tech_feed_articles where id=$1',[before.id])).rows[0];
  assert.equal(after.excerpt,rssExcerpt);assert.equal(after.excerpt_source_id,source.id);assert.deepEqual(after.summary,summary);assert.equal(after.summary_status,'ready');assert.equal(after.category,'news');
- assert.equal(after.published_at,before.published_at);assert.equal(after.discovered_at.toISOString(),before.discovered_at.toISOString());
+ assert.equal(after.published_at.toISOString(),before.published_at.toISOString());assert.equal(after.discovered_at.toISOString(),before.discovered_at.toISOString());
  const listed=(await rpc('tech_feed_list',owner,'latest',null,null,null)).items[0];assert.equal(listed.origin,'rss');assert.equal(listed.excerpt_provenance,'source_excerpt');
 }));

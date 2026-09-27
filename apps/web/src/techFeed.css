@@ -62,6 +62,10 @@
 .feed-page-heading h3 span{font-size:13px;font-weight:600;color:var(--feed-muted);margin-left:7px}
 .feed-page-heading p{font-size:13px;color:var(--feed-muted);margin:0}
 .feed-list{display:grid;grid-template-columns:minmax(0,1fr);gap:16px;margin-top:14px}
+.feed-new-banner{display:block;width:100%;margin:14px 0 0;padding:13px 18px;border:1px solid #91b48e;border-radius:12px;background:#e8f4dc;color:#214a39;font-weight:750;cursor:pointer;min-height:44px}
+.feed-new-banner:hover{background:#d9ebc9}
+.feed-new-banner:focus-visible{outline:3px solid #265d4b;outline-offset:3px}
+.feed-more{display:flex;justify-content:center;margin:22px 0 8px;min-height:52px}
 .feed-card{background:#fffef8;border:1px solid var(--feed-line);border-radius:18px;padding:24px;min-width:0;box-shadow:0 3px 12px #32482d04}
 .feed-author{display:flex;align-items:center;gap:11px}
 .feed-avatar{display:flex;align-items:center;justify-content:center;width:42px;height:42px;flex:none;border-radius:15px;background:#e4edce;color:#355943;border:1px solid #cfdbb5;font-weight:850;font-size:13px;letter-spacing:-.03em}
@@ -70,6 +74,8 @@
 .feed-author-info{min-width:0;flex:1}
 .feed-author-info>strong{display:block;font-size:13px;overflow-wrap:anywhere;line-height:1.5}
 .feed-card-meta{display:flex;flex-wrap:wrap;gap:5px 10px;font-size:13px;color:var(--feed-muted);margin-top:3px}
+.feed-card-meta time:first-child{font-weight:750;color:#355943}
+.feed-card-meta time+time{color:#576954}
 .feed-card-meta span{color:#955f38}
 .feed-saved-mark{flex:none;color:#627f4d}
 .feed-card-body{padding-left:53px}

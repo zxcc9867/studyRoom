@@ -33,3 +33,8 @@ test('refresh notices distinguish free quota, missing key, and actual checked re
  assert.match(feed.manualRefreshMessage({state:'cooldown',retry_after:121}),/3분/);
  assert.doesNotMatch(feed.manualRefreshMessage({state:'running'}),/완료/);
 });
+test('reader refresh notice does not claim provider hits are new articles',()=>{
+ const notice=feed.manualRefreshMessage({state:'ready',search:{collected:5,attempted:1},rss:{collected:0}});
+ assert.doesNotMatch(notice,/5건|중복|공유 수집/);
+ assert.match(notice,/새 글|확인/);
+});

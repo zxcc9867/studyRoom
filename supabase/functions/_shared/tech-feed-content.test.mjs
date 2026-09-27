@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {focusedSearchQuery} from './tech-feed-query.mjs';
 import {createTavilySearch} from './tech-feed-search.mjs';
+const recent=new Date(Date.now()-86400000).toISOString();
 
 test('arbitrary interests rotate through explanations, case studies and guides, never asking for blogs themselves',()=>{
  const queries=Array.from({length:6},(_,cursor)=>focusedSearchQuery('Rust, 네트워크',cursor));
@@ -18,24 +19,24 @@ test('arbitrary interests rotate through explanations, case studies and guides, 
  assert.ok(Array.from(focusedSearchQuery('가'.repeat(300),0)).length<=300);
 });
 
-test('search excludes video and listing pages and keeps dated evergreen blog text without extra calls',async()=>{
+test('search excludes video and listing pages and keeps recent article text without extra calls',async()=>{
  let calls=0,body;
  const search=createTavilySearch({env:{TAVILY_API_KEY:'test'},fetchImpl:async(url,options)=>{
   calls++;body=JSON.parse(options.body);
   return Response.json({results:[
    {title:'Video',url:'https://www.youtube.com/watch?v=abc',content:'00:00:00 Intro 00:01:04 Guest'},
    {title:'All posts',url:'https://engineering.example.com/blog/',content:'Our latest posts'},
-   {title:'Rust service design',url:'https://engineering.example.com/blog/rust-service',published_date:'2025-11-10',content:'Subscribe to our newsletter. We describe how a Rust service handles retries. Follow us on social media.'},
-   {title:'Networking guide',url:'https://example.org/networking/timeouts',content:'Set the deadline to 00:00:30 when testing the timeout.'},
+   {title:'Rust service design',url:'https://engineering.example.com/blog/rust-service',published_date:recent,content:'Subscribe to our newsletter. We describe how a Rust service handles retries. Follow us on social media.'},
+   {title:'Networking guide',url:'https://example.org/networking/timeouts',published_date:recent,content:'Set the deadline to 00:00:30 when testing the timeout.'},
   ]});
  }});
  const items=await search.search('Rust engineering blog');
  assert.equal(calls,1);
  assert.deepEqual(items.map(item=>item.title),['Rust service design','Networking guide']);
  assert.equal(items[0].excerpt,'We describe how a Rust service handles retries.');
- assert.equal(items[0].published_at,'2025-11-10T00:00:00.000Z');
+ assert.equal(items[0].published_at,recent);
  assert.equal(items[1].excerpt,'Set the deadline to 00:00:30 when testing the timeout.');
- assert.equal(body.time_range,'year');
+ assert.equal(body.time_range,'month');
  assert.equal(body.include_published_date,true);
  assert.ok(body.exclude_domains.includes('youtube.com'));
  assert.equal(body.search_depth,'basic');assert.equal(body.auto_parameters,false);
@@ -44,8 +45,8 @@ test('search excludes video and listing pages and keeps dated evergreen blog tex
 
 test('timestamp chapter lists are not presented as article content; useful surrounding paragraphs survive',async()=>{
  const search=createTavilySearch({env:{TAVILY_API_KEY:'test'},fetchImpl:async()=>Response.json({results:[
-  {title:'Notes',url:'https://example.org/notes/service',content:'This article explains backpressure. 00:00:00 - Introduction 00:01:04 - Guest speaker 00:03:54 - Demo [...] Queues absorb short traffic bursts.'},
-  {title:'Chapters only',url:'https://example.org/notes/video',content:'00:00:00 - Intro 00:01:04 - Guest'},
+  {title:'Notes',url:'https://example.org/notes/service',published_date:recent,content:'This article explains backpressure. 00:00:00 - Introduction 00:01:04 - Guest speaker 00:03:54 - Demo [...] Queues absorb short traffic bursts.'},
+  {title:'Chapters only',url:'https://example.org/notes/video',published_date:recent,content:'00:00:00 - Intro 00:01:04 - Guest'},
  ]})});
  const items=await search.search('backpressure');
  assert.equal(items[0].excerpt,'This article explains backpressure. Queues absorb short traffic bursts.');
@@ -54,7 +55,7 @@ test('timestamp chapter lists are not presented as article content; useful surro
 
 test('query permalinks remain articles, but a bare blog homepage is not collected',async()=>{
  const search=createTavilySearch({env:{TAVILY_API_KEY:'test'},fetchImpl:async()=>Response.json({results:[
-  {title:'Company incident analysis',url:'https://blog.example.com/?p=123',content:'Connection pools caused the incident.'},
+  {title:'Company incident analysis',url:'https://blog.example.com/?p=123',published_date:recent,content:'Connection pools caused the incident.'},
   {title:'Home',url:'https://blog.example.com/',content:'All posts'},
  ]})});
  const items=await search.search('connection pools');
@@ -76,7 +77,7 @@ test('collection preserves paragraph boundaries before removing promotional text
   'Subscribe to our newsletter\n\nRust retries are bounded. Queues absorb short traffic bursts.',
   '<script>bad\ncontent()</script><p>Subscribe to our newsletter</p><p>Rust retries are bounded. Queues absorb short traffic bursts.</p>',
  ]){
-  const search=createTavilySearch({env:{TAVILY_API_KEY:'test'},fetchImpl:async()=>Response.json({results:[{title:'Retries',url:'https://example.com/retries',content}]})});
+  const search=createTavilySearch({env:{TAVILY_API_KEY:'test'},fetchImpl:async()=>Response.json({results:[{title:'Retries',url:'https://example.com/retries',published_date:recent,content}]})});
   const [item]=await search.search('Rust');
   assert.equal(item.excerpt,'Rust retries are bounded. Queues absorb short traffic bursts.');
  }
@@ -87,7 +88,7 @@ test('a roundup title is excluded even from a normal article-shaped URL',async()
  // normal permalink; only its title reveals it is a directory of other blogs.
  const search=createTavilySearch({env:{TAVILY_API_KEY:'test'},fetchImpl:async()=>Response.json({results:[
   {title:'Top AI Blogs Every Software Developer Must Follow in 2026',url:'https://zencoder.ai/blog/ai-blogs-for-developers-engineers',content:'The GitHub Blog offers a wealth of tutorials.'},
-  {title:'Rust service design',url:'https://engineering.example.com/blog/rust-service',content:'We describe how a Rust service handles retries.'},
+  {title:'Rust service design',url:'https://engineering.example.com/blog/rust-service',published_date:recent,content:'We describe how a Rust service handles retries.'},
  ]})});
  const items=await search.search('AI blogs');
  assert.deepEqual(items.map(item=>item.title),['Rust service design']);

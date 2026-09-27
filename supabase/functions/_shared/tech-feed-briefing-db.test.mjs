@@ -18,7 +18,7 @@ before(async()=>{
  grant all on profiles,study_todos,study_goals to service_role;
  insert into auth.users values('${owner}'),('${other}');insert into profiles values('${owner}','Asia/Tokyo'),('${other}','Asia/Tokyo');`);
  await db.exec(readFileSync('supabase/migrations/20260906083030_studyroom_v2_coach.sql','utf8'));
- for(const name of readdirSync('supabase/migrations').filter(n=>/_tech_feed(?:_web_search|_manual_refresh|_immediate_refresh|_korean_translation|_media|_daily_briefing|_ai_budget|_discovery_order)?\.sql$/.test(n)).sort())await db.exec(readFileSync('supabase/migrations/'+name,'utf8'));
+ for(const name of readdirSync('supabase/migrations').filter(n=>/_tech_feed(?:_web_search|_manual_refresh|_immediate_refresh|_korean_translation|_media|_daily_briefing|_ai_budget|_discovery_order|_fresh_views)?\.sql$/.test(n)).sort())await db.exec(readFileSync('supabase/migrations/'+name,'utf8'));
 });
 after(async()=>db?.close());
 async function tx(work){await db.exec(`begin;set local role service_role`);try{await work();}finally{await db.exec('rollback');}}
@@ -28,7 +28,7 @@ async function seed(count=21){
  await db.query('insert into tech_feed_subscriptions(user_id,source_id)values($1,$2)',[owner,source]);
  const ids=[];for(let i=0;i<count;i++){
   const id=(await db.query(`insert into tech_feed_articles(url,title,excerpt,excerpt_source_id,discovered_at,published_at,interests)
-   values($1,$2,$3,$4,'2026-09-13T15:00:00Z','2020-01-01',array['cloud'])returning id`,['https://fixture.test/a'+i,'AWS release '+i,'AWS infrastructure release. '.repeat(10),source])).rows[0].id;
+   values($1,$2,$3,$4,'2026-09-13T15:00:00Z',now()-interval '1 day',array['cloud'])returning id`,['https://fixture.test/a'+i,'AWS release '+i,'AWS infrastructure release. '.repeat(10),source])).rows[0].id;
   await db.query('insert into tech_feed_article_sources values($1,$2,$3)',[id,source,String(i)]);ids.push(id);
  }
  return{source,ids};
@@ -50,11 +50,27 @@ test('real SQL orchestration returns cited cache, no automatic calls, and one sh
 }));
 test('web-search source facets expose normalized host and saved/latest source filters agree',()=>tx(async()=>{
  await rpc('tech_feed_configure',owner,'AWS Lambda','aws lambda',true,0);const search=await rpc('tech_feed_search_claim',[owner]);await rpc('tech_feed_search_reserve',search.id,search.lease,900);
- await rpc('tech_feed_search_finish',search.id,search.lease,[{title:'AWS release',url:'https://Example.COM/blog/article',excerpt:'A substantive public introduction. '.repeat(10),interests:['cloud']}],null);
+ await rpc('tech_feed_search_finish',search.id,search.lease,[{title:'AWS release',url:'https://Example.COM/blog/article',excerpt:'A substantive public introduction. '.repeat(10),interests:['cloud'],published_at:new Date(Date.now()-86400000).toISOString()}],null);
  const all=await rpc('tech_feed_filter_candidates',owner,'latest');assert.deepEqual(all.items[0].sources,[{value:'host:example.com',label:'example.com'}]);
  const id=all.items[0].id;await db.query('insert into tech_feed_bookmarks(user_id,article_id)values($1,$2)',[owner,id]);
  for(const view of ['saved','latest'])assert.equal((await rpc('tech_feed_list',owner,view,'cloud',null,null,'host:example.com',null)).total,1);
  assert.equal((await rpc('tech_feed_filter_candidates',other,'latest')).items.length,0);
+}));
+test('latest excludes old and undated material while deep reading preserves it and saved keeps bookmarks',()=>tx(async()=>{
+ const {source}=await seed(0);
+ const fixtures=[['recent',"now()-interval '2 days'"],['old',"now()-interval '300 days'"],['unknown','null'],['future',"now()+interval '1 day'"]];
+ const ids={};
+ for(const [title,date] of fixtures){
+  ids[title]=(await db.query(`insert into tech_feed_articles(title,url,published_at,discovered_at)values($1,$2,${date},now())returning id`,[title,'https://fixture.test/fresh-'+title])).rows[0].id;
+  await db.query('insert into tech_feed_article_sources values($1,$2,$3)',[ids[title],source,title]);
+ }
+ await db.query('insert into tech_feed_bookmarks(user_id,article_id)values($1,$2)',[owner,ids.old]);
+ assert.deepEqual((await rpc('tech_feed_list',owner,'latest')).items.map(x=>x.title),['recent']);
+ assert.deepEqual((await rpc('tech_feed_filter_candidates',owner,'latest')).items.map(x=>x.title),['recent']);
+ assert.deepEqual(new Set((await rpc('tech_feed_list',owner,'deep_read')).items.map(x=>x.title)),new Set(['old','unknown','future']));
+ assert.deepEqual(new Set((await rpc('tech_feed_filter_candidates',owner,'deep_read')).items.map(x=>x.title)),new Set(['old','unknown','future']));
+ assert.deepEqual((await rpc('tech_feed_list',owner,'saved')).items.map(x=>x.title),['old']);
+ assert.equal((await rpc('tech_feed_list',other,'deep_read')).items.length,0);
 }));
 test('cleanup removes only a bounded hundred old briefing snapshots and retains recent rows',()=>tx(async()=>{
  await db.query("insert into tech_feed_briefings(user_id,local_date,time_zone,analyzer_version,updated_at)select $1,current_date-i,'Asia/Tokyo',1,now()-interval '91 days'from generate_series(1,105)i",[owner]);
@@ -79,23 +95,27 @@ test('daily interval uses owner timezone and discovered_at, excludes boundaries 
  const s=await snapshot();assert.equal(s.local_date,'2026-09-14');assert.equal(s.time_zone,'Asia/Tokyo');assert.equal(s.articles.length,21);
  assert.equal((await snapshot(other)).articles.length,0);
  const first=await rpc('tech_feed_list',owner);assert.equal(first.items.length,20);
- const page=await rpc('tech_feed_list',owner,'latest',null,null,first.next_cursor);assert.equal(page.items.length,3);
- assert.equal((await rpc('tech_feed_filter_candidates',owner,'latest')).items.length,23);
+ const page=await rpc('tech_feed_list',owner,'latest',null,null,first.next_cursor);assert.equal(page.items.length,1);
+ assert.equal((await rpc('tech_feed_filter_candidates',owner,'latest')).items.length,21);
 }));
 test('latest and saved pages order by first discovery, not old publication, with a stable cursor',()=>tx(async()=>{
  const {ids}=await seed(21);
  await db.query("update tech_feed_articles set discovered_at='2026-09-23T15:00:00Z',published_at='2020-01-01T00:00:00Z' where id=$1",[ids[0]]);
  await db.query("update tech_feed_articles set discovered_at='2026-09-12T15:00:00Z',published_at='2026-09-24T00:00:00Z' where id=$1",[ids[1]]);
  await db.query('insert into tech_feed_bookmarks(user_id,article_id) select $1,unnest($2::uuid[])',[owner,ids]);
- for(const view of ['latest','saved']){
-  const first=await rpc('tech_feed_list',owner,view);
-  assert.equal(first.items.length,20);
-  assert.equal(first.items[0].id,ids[0]);
-  assert.match(first.items[0].published_at,/^2020-01-01/);
-  const second=await rpc('tech_feed_list',owner,view,null,null,first.next_cursor);
-  assert.equal(second.items.length,1);
-  assert.equal(second.items[0].id,ids[1]);
- }
+ const latest=await rpc('tech_feed_list',owner,'latest');
+ assert.equal(latest.items.length,20);
+ assert.equal(latest.items.some(item=>item.id===ids[0]),false);
+ assert.equal(latest.next_cursor,null);
+ const deep=await rpc('tech_feed_list',owner,'deep_read');
+ assert.deepEqual(deep.items.map(item=>item.id),[ids[0]]);
+ const saved=await rpc('tech_feed_list',owner,'saved');
+ assert.equal(saved.items.length,20);
+ assert.equal(saved.items[0].id,ids[0]);
+ assert.match(saved.items[0].published_at,/^2020-01-01/);
+ const second=await rpc('tech_feed_list',owner,'saved',null,null,saved.next_cursor);
+ assert.equal(second.items.length,1);
+ assert.equal(second.items[0].id,ids[1]);
 }));
 test('saved legacy and new source/id filters match latest while retaining media/translation mapping',()=>tx(async()=>{
  const {source,ids}=await seed(2);await db.query('insert into tech_feed_bookmarks(user_id,article_id)select $1,unnest($2::uuid[])',[owner,ids]);

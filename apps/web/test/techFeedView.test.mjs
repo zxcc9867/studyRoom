@@ -26,9 +26,14 @@ test('article hashtag distinguishes original language from a Korean translation'
  assert.doesNotMatch(korean,/다른 번역 제목|DeepL 자동 번역|한국어 번역 대기/);
 });
 test('an old publication newly discovered in the feed labels both dates',()=>{
- const html=render({...article,published_at:'2020-01-01T00:00:00Z',discovered_at:'2026-09-23T15:00:00Z'});
- assert.match(html,/발견/);
- assert.match(html,/원문 발행/);
- assert.match(html,/dateTime="2026-09-23T15:00:00Z"/);
- assert.match(html,/dateTime="2020-01-01T00:00:00Z"/);
+ const html=render({...article,origin:'web_search',published_at:'2025-12-19T00:00:00Z',discovered_at:'2026-09-27T15:00:00Z'});
+ assert.match(html,/검색 제공 날짜/);
+ assert.match(html,/2025/);
+ assert.match(html,/2026/);
+ assert.match(html,/dateTime="2026-09-27T15:00:00Z"/);
+ assert.match(html,/dateTime="2025-12-19T00:00:00Z"/);
+});
+test('source dates are attributed and unknown dates do not masquerade as new publication',()=>{
+ assert.match(render({...article,origin:'rss'}),/발행일/);
+ assert.match(render({...article,published_at:null}),/날짜 미확인/);
 });

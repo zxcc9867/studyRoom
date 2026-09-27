@@ -17,11 +17,23 @@ test('free account validation fails closed for unknown, missing, paid, paygo and
 test('search payload is fixed basic and results are sanitized without fetching pages',async()=>{
  const {createTavilySearch}=await import('./tech-feed-search.mjs');const requests=[];
  const search=createTavilySearch({env:{TAVILY_API_KEY:'synthetic',TAVILY_SEARCH_DEPTH:'advanced',TAVILY_BASE_URL:'https://bad.invalid'},fetchImpl:async(url,init)=>{
-  requests.push({url,init});return response({results:[{title:'<b>AWS</b>',url:'https://example.com/a?utm_source=x',content:'<script>bad()</script>Real snippet',published_date:'2999-01-01'},{title:'Duplicate',url:'https://example.com/a',content:'x'},{title:'Private',url:'https://127.0.0.1/a'},{title:{bad:true},url:'https://example.org/a'}]});
+  requests.push({url,init});return response({results:[{title:'<b>AWS</b>',url:'https://example.com/a?utm_source=x',content:'<script>bad()</script>Real snippet',published_date:new Date(Date.now()-86400000).toISOString()},{title:'Duplicate',url:'https://example.com/a',content:'x'},{title:'Private',url:'https://127.0.0.1/a'},{title:{bad:true},url:'https://example.org/a'}]});
  }});
- const items=await search.search('AWS Lambda');assert.equal(items.length,1);assert.equal(items[0].url,'https://example.com/a');assert.equal(items[0].excerpt,'Real snippet');assert.equal(items[0].published_at,null);assert.equal(items[0].excerpt_provenance,'search_snippet');
+ const items=await search.search('AWS Lambda');assert.equal(items.length,1);assert.equal(items[0].url,'https://example.com/a');assert.equal(items[0].excerpt,'Real snippet');assert.ok(items[0].published_at);assert.equal(items[0].excerpt_provenance,'search_snippet');
  assert.equal(requests.length,1);assert.equal(requests[0].url,'https://api.tavily.com/search');assert.equal(requests[0].init.redirect,'error');
- assert.deepEqual(JSON.parse(requests[0].init.body),{query:'AWS Lambda',search_depth:'basic',auto_parameters:false,include_answer:false,include_raw_content:false,include_images:false,include_usage:true,max_results:5,topic:'general',time_range:'year',include_published_date:true,exclude_domains:['youtube.com','youtu.be','vimeo.com','tiktok.com','dailymotion.com']});
+ assert.deepEqual(JSON.parse(requests[0].init.body),{query:'AWS Lambda',search_depth:'basic',auto_parameters:false,include_answer:false,include_raw_content:false,include_images:false,include_usage:true,max_results:5,topic:'general',time_range:'month',include_published_date:true,exclude_domains:['youtube.com','youtu.be','vimeo.com','tiktok.com','dailymotion.com']});
+});
+test('fresh search keeps only recently dated individual articles, not old, undated, future or catalog pages',async()=>{
+ const {createTavilySearch}=await import('./tech-feed-search.mjs');
+ const date=days=>new Date(Date.now()+days*86400000).toISOString();
+ const search=createTavilySearch({env:{TAVILY_API_KEY:'synthetic'},fetchImpl:async()=>response({results:[
+  {title:'Fresh implementation',url:'https://example.com/blog/fresh',content:'Technical detail',published_date:date(-2)},
+  {title:'Last year',url:'https://example.com/blog/old',content:'Old detail',published_date:date(-300)},
+  {title:'No date',url:'https://example.com/blog/unknown',content:'Unknown detail'},
+  {title:'Future',url:'https://example.com/blog/future',content:'Future detail',published_date:date(2)},
+  {title:'Claude Academy tutorials',url:'https://academy.claude.com/tutorials',content:'Catalog',published_date:date(-1)},
+ ]})});
+ assert.deepEqual((await search.search('Claude Code')).map(item=>item.title),['Fresh implementation']);
 });
 test('usage and search reject rate limits, malformed/oversized bodies and aborts',async()=>{
  const {createTavilySearch}=await import('./tech-feed-search.mjs');

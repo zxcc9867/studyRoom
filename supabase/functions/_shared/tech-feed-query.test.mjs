@@ -8,7 +8,7 @@ test('interest search alternates technical English and Korean reading intents',(
  assert.match(queries[1],/AWS Lambda 실서비스 기술 구현 사례 아키텍처 설계/);
  assert.match(queries[3],/AWS Lambda 한국어 실무 기술 튜토리얼 구현 방법/);
  assert.match(queries[2],/engineering case study architecture/);
- assert.match(queries[4],/technical guide tutorial best practices/);
+ assert.match(queries[4],/recent release changelog technical changes/);
  assert.ok(queries.every(query=>[...query].length<=300));
 });
 

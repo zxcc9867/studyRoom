@@ -35,3 +35,16 @@ test('long excerpts have a short honest preview and retain the full original tex
   assert.equal(result.expandable,true);assert.ok(result.preview.endsWith('…'));
   assert.deepEqual(presentation.feedExcerptView('짧은 소개'),{preview:'짧은 소개',full:'짧은 소개',expandable:false});
 });
+test('flattened catalog headings do not appear as raw hash markers in a card preview',()=>{
+ const original='Claude Academy # 튜토리얼 ## Claude 시작하기 ### 프로젝트 소개 실제 설명입니다.';
+ const view=presentation.feedExcerptView(original);
+ assert.doesNotMatch(view.preview,/#|#{2,}/);
+ assert.match(view.preview,/실제 설명입니다/);
+ assert.equal(view.full,original);
+});
+test('continuous view keeps every loaded article in order without skipping earlier chunks',()=>{
+ const rows=Array.from({length:43},(_,id)=>({id:String(id),saved:id!==0}));
+ assert.deepEqual(presentation.feedContinuousView(rows,null).items.map(row=>row.id),rows.map(row=>row.id));
+ assert.deepEqual(presentation.feedContinuousView(rows,null,true).items.map(row=>row.id),rows.slice(1).map(row=>row.id));
+ assert.equal(presentation.feedContinuousView(rows,'next').hasNext,true);
+});
