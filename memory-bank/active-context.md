@@ -1,3 +1,11 @@
+## 2026-09-28 — Android 집중 모드 APK 출시 준비
+
+- 현재 작업: 웹 공부 시작·재개/휴식·종료와 Android 방해금지 앱 소유 규칙을 서버 세션 상태로 연결한다. 관련 PRD: `prd-android-focus-mode.md`, 계획: `plan-android-focus-mode.md`.
+- 완료: 무료 Firebase 프로젝트 `study-room-focus-9867`와 최소 권한 FCM 발송 계정, Expo EAS preview 푸시 자격 증명, 운영 Supabase 추가형 DB 마이그레이션 및 `focus-sync`/`attendance-cron` Edge 배포, Android 네이티브·백그라운드 동기화·웹 상태 UI 구현, 첫 직접 설치 APK 빌드. FCM 비밀키는 저장소/문서 밖에 둔다.
+- 검증: 전체 Node 815건 중 790 통과·25 브라우저 환경 건너뜀·실패 0, Edge 12/12, SQL/PGlite 3/3, Android EAS 네이티브 빌드 및 웹 빌드 통과. 실기기의 권한 승인·방해금지·푸시 수신은 아직 검증하지 못했다.
+- 진행 중: Vercel 웹 production 적용 및 운영 스모크. 최종 모바일 수정분 포함 EAS APK `2f66ac03-6500-45a3-a39e-940e0dd908ba` 빌드 성공, 문서 검사 통과. Vercel GitHub CLI 로그인은 안내 글로 잘못 연결됐지만 현재 Vercel 커넥터에서 대상 프로젝트 조회는 정상이다. 현재 production은 기존 커밋 `827b148`이며 집중 모드 웹 UI는 아직 반영되지 않았다.
+- 주의: Android 15+ 우선, 푸시는 즉시 전달 보장이 없고 상태 변경은 서버 최신 세션을 다시 읽는다. 연결 기기 0대는 APK 설치/연결 전 정상이다. 사용자의 수동 방해금지는 변경하지 않는다. 커밋·푸시는 별도 요청 전까지 하지 않는다.
+
 ## 2026-09-24 — 기술 피드 신규 발견 가시화 수정
 
 - 현재 작업: 원문 발행일이 오래된 신규 발견 글이 목록에서 묻히고 수동/정시 수집 완료가 선택적 미디어 확인에 지연되는 문제를 수정한다. 관련 PRD: prd-tech-feed.md.
@@ -1121,3 +1129,26 @@
 - 검증: 전체 812/812 테스트(브라우저 25건 포함, skip 0), 웹 빌드, Edge 11/11, 모바일·문서 검사. 운영 피드 계정 RPC 총계 최신 18건/깊이 읽기 177건. 2025-12-19 Claude Academy와 2026-06-19 AWS Startups 예시 모두 최신에서 제외.
 - 미확인: 로그인 계정에서 직접 누르는 `새 글 확인` 결과와 새 Edge 버전의 다음 정시 수집 완료. 무료 제공자 한도와 RSS 승인 대기로 매일 신규 기사 도착을 보장하지 않는다.
 - 주의: 이전 원격 migration 이력 불일치로 일반 `db push` 드라이런이 실패했다. 이번 마이그레이션만 적용했고 무관한 이력은 수정하지 않았다.
+
+## 2026-09-27 — Android 집중 모드 APK 설계 검토
+
+- 현재 작업: 기존 Expo 앱을 웹 중심 공부 세션과 연결해 Android 방해금지를 제어하는 기능을 설계한다. 관련 PRD: `prd-android-focus-mode.md`(초안).
+- 사용자 결정: 첫 검증은 본인 Android 휴대폰에 직접 설치하는 APK; Google Play 공개는 후속 단계. `잠시 쉬기`에서는 앱이 켠 집중 규칙을 해제한다.
+- 확인: 앱에는 세션 RPC/조회 및 Expo 푸시 토큰 등록이 있으나 Android DND 네이티브 모듈·APK 빌드 설정은 없다. 로컬 `adb`/`eas`/Android SDK도 확인되지 않았다. 운영 DB/함수/기기 상태는 이번 설계 단계에서 변경·검증하지 않았다.
+- 설계 결정 초안: 서버 세션을 기준으로 기기에 변경 신호를 보내고, 기기는 최신 상태를 재조회해 앱 소유 `AutomaticZenRule`만 전환한다. 전달/적용 확인 전에는 웹에 성공으로 표시하지 않는다. Android 백그라운드 전달은 보장되지 않는다.
+- 상태: 설계 초안 작성, 사용자 검토 대기. 코드·마이그레이션·APK·배포 없음. 승인 후 구현 계획과 실제 환경/기기 확인이 다음 작업이다.
+
+## 2026-09-27 — Android 집중 모드 APK 준비 상태
+
+- 현재 작업: 사용자의 APK 우선 배포 요청에 맞춰 `plan-android-focus-mode.md`에 서버→Android→웹→출시 순서와 검증 기준을 작성했다. 관련 PRD 상태를 설계 검토 대기에서 구현 계획 작성으로 갱신했다.
+- 확인: 이 PC에는 Android SDK/adb/EAS 로그인이 없고 D: 드라이브가 보이지 않는다. E:에는 여유 공간이 있다. 사용자는 Expo 계정이 없다고 답했다. `apps/mobile/src/notifications.ts`는 Expo Push 프로젝트 ID가 없으면 토큰 등록에 실패한다.
+- 결정: 사용자 승인 전에는 E:에 SDK를 설치하거나 계정을 생성하지 않는다. 설치형 APK와 웹→휴대폰 백그라운드 동기화는 각각 별도로 검증한다.
+- 상태: 계획/PRD만 변경. 앱 코드, 운영 DB, Edge, 웹 배포, APK는 미변경·미생성. 다음 단계는 E: 설치 승인과 무료 Expo 프로젝트 준비 방법을 사용자와 확정하는 것이다.
+
+## 2026-09-27 — Android SDK 설치와 Expo 계정 연결
+
+- 현재 작업: 사용자의 E: 설치 승인과 Android SDK 라이선스 동의를 받아 APK 빌드 도구를 준비하고, 새 Expo 계정을 독서실 모바일 앱에 연결했다.
+- 완료: `E:\Android\Sdk`에 명령줄 도구(공식 SHA-256 검증), Android API 35, Build Tools 35.0.0, Platform Tools/ADB 37.0.1, NDK 27.1.12297006 설치. 에뮬레이터는 설치하지 않았다. 사용자 환경의 `ANDROID_HOME=E:\Android\Sdk`, `GRADLE_USER_HOME=E:\Android\Gradle` 설정. EAS CLI 브라우저 로그인과 독서실 프로젝트 생성/연결을 확인했다.
+- 결정: 앱 설정의 가짜 `$EXPO_PUBLIC_EAS_PROJECT_ID` 문자열을 실제 공개 프로젝트 ID로 교체하고 계정 소유자를 설정했다. 기존 Supabase URL/anon 키 자리표시는 그대로 두었다. Google TV/XR 등 무관한 SDK 라이선스는 수락하지 않았다.
+- 현재 상태: `npm.cmd run mobile:check` 통과, EAS `project:info`와 SDK 파일/패키지 목록 확인. Android 집중 규칙·서버 동기화·FCM 자격 증명·APK 생성·실기기 검증은 아직 남았다. 운영 DB/Edge/웹은 변경하지 않았다.
+- 다음 작업: PRD 계획에 따라 서버 상태/RLS, Android 네이티브 규칙/푸시, 웹 확인 상태를 구현하고 FCM 설정을 완료한 뒤 APK를 빌드한다.

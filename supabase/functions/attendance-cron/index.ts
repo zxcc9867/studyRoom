@@ -8,6 +8,7 @@ import {
   sendRecoveryRequestSlackMessage,
 } from "../_shared/recovery.ts";
 import { sendWeeklyRecoverySummaries } from "../_shared/recovery_summary.ts";
+import { sendStudyFocusSignals } from "../_shared/study_focus.ts";
 
 type DueReminder = {
   user_id: string;
@@ -133,6 +134,10 @@ Deno.serve(async (request) => {
   // sendPendingRecoveryFollowups updates study_recovery_requests.followup_sent_at to avoid repeated nudges.
   const recoveryFollowupResults = await sendPendingRecoveryFollowups(admin, now);
   const recoveryWeeklySummaryResults = await sendWeeklyRecoverySummaries(admin, now);
+  const focusSignalResults = await sendStudyFocusSignals(admin).catch((error) => {
+    console.warn("Focus signal retry failed", error instanceof Error ? error.message : String(error));
+    return { attempted: 0, sent: 0, failed: 1 };
+  });
 
   return new Response(
     JSON.stringify({
@@ -147,6 +152,7 @@ Deno.serve(async (request) => {
       missedRecoveryResults,
       recoveryFollowupResults,
       recoveryWeeklySummaryResults,
+      focusSignalResults,
     }),
     { status: 200, headers: jsonHeaders },
   );

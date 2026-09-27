@@ -1,3 +1,13 @@
+## Supabase 변경 이력 — 2026-09-28 Android 집중 모드
+
+- 변경 대상: `public.study_focus_state`, `public.study_focus_devices`, `study_sessions` 상태 전이 트리거, 기기 등록·확인·해제·상태 조회 RPC, `focus-sync` Edge, `attendance-cron` Edge.
+- 변경 내용: 소유자별 서버 revision과 앱 적용 확인을 분리하고, 활성·비휴식·lease 내 세션일 때만 집중을 요청한다. 출석 Cron은 데이터 전용 Expo 신호를 보내며 기기는 수신 신호가 아닌 서버 최신 상태를 재조회한다. 기기 직접 변경은 RLS/권한으로 금지하고 본인 RPC만 허용한다.
+- 변경 이유: 웹 중심 공부 상태를 Android 앱의 전용 방해금지 규칙에 안전하게 반영하고, 푸시 미전달·권한 거부 시에도 공부 기록을 유지하기 위해서다.
+- 관련 기능: `memory-bank/prd-android-focus-mode.md`; Expo preview APK/Android 15+ 앱 소유 AutomaticZenRule.
+- 마이그레이션 파일: `supabase/migrations/20260927150154_android_focus_mode.sql`, 운영 프로젝트 `bqohkdzvxbrokkmuhysx`에 같은 버전으로 추가형 적용. 기존 데이터 삭제 없음.
+- 확인 방법: PGlite 상태/RLS 테스트 3건, Edge 테스트 12건, 전체 Node 815건 중 790 통과/25 환경 건너뜀/실패 0, live 트리거 1·소유자 정책 2·인증 사용자 직접 UPDATE 차단·상태 RPC 실행 확인. `focus-sync` CORS preflight 204, 무인증 POST 401.
+- 주의 사항: FCM 서비스 계정 개인 키는 저장소·문서에 넣지 않는다. Android 푸시/알람은 즉시 실행이 보장되지 않아 실기기 확인 전 성공으로 표시하지 않는다. 새 기기 연결 전 운영 기기 수 0은 정상이다.
+
 ## Supabase 변경 이력 — 2026-09-24 기술 피드 발견순 목록과 부가 작업 분리
 
 - 변경 대상: `public.tech_feed_list` RPC, tech-feed/tech-feed-worker Edge 진입점과 공유 수집 파이프라인, 웹 기사 카드.
@@ -1507,6 +1517,12 @@ docs/images/study-room-thumbnail.png
 - Expo 53.0.27 uses mobile-local React 19.0.0, a single RN 0.79.6 anchored by root devDependency, and AsyncStorage 2.1.2. Web React/DOM stay 19.2.7.
 - Android/iOS-only Metro aliases keep hoisted Expo imports on native React/JSX/RN; other imports/platform resolution are unchanged. Mobile-local index.js registers App.
 - mobile:check executes installed compatibility guards/Metro resolution and TypeScript; CI includes it. Android/iOS export is distinct from device/native-toolchain validation.
+
+## 2026-09-27 — Android 집중 모드 APK 도구 및 Expo 프로젝트
+
+- 사용자 동의에 따라 Android SDK API 35, Build Tools 35.0.0, ADB 37.0.1, NDK 27.1.12297006을 `E:\Android\Sdk`에 설치했다. 사용자 `ANDROID_HOME`은 이 SDK를, `GRADLE_USER_HOME`은 `E:\Android\Gradle`을 가리킨다. 에뮬레이터는 설치하지 않았다.
+- `apps/mobile/app.json`의 `extra.eas.projectId`는 가입한 개인 계정의 실제 독서실 EAS 프로젝트 ID로 연결됐다. 이는 푸시 토큰을 프로젝트에 귀속시키는 공개 식별자이며 비밀 키가 아니다.
+- 계정 연결은 FCM V1 자격 증명 설정, 앱의 방해금지 권한, 네이티브 모듈, APK 빌드/서명/설치 성공을 뜻하지 않는다. 이 단계들은 `plan-android-focus-mode.md` 순서로 따로 검증한다.
 - Report tests exercise real Supabase query construction with synthetic fetch, period arithmetic, canonical validation, request races and actual React rendering. Run node scripts/serve-study-report-fixture.mjs for a local no-credentials browser fixture at 127.0.0.1:4179.
 
 ### Database / Deployment / Security Notes

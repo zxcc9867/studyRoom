@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
+  AppState,
   Modal,
   Pressable,
   SafeAreaView,
@@ -15,6 +16,14 @@ import {
 import type { Session } from "@supabase/supabase-js";
 
 import { registerExpoPushTarget } from "./src/notifications";
+import {
+  connectStudyFocus,
+  disconnectStudyFocus,
+  getLocalFocusStatus,
+  openFocusPolicySettings,
+  reconcileStudyFocus,
+  type FocusSnapshot,
+} from "./src/focus";
 import { supabase } from "./src/supabase";
 
 const retryCooldownMs = 15 * 60 * 1000;
@@ -109,6 +118,8 @@ export default function App() {
   const [reminderTime, setReminderTime] = useState("20:30");
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
+  const [focusSnapshot, setFocusSnapshot] = useState<FocusSnapshot | null>(null);
+  const [focusError, setFocusError] = useState("");
 
   useEffect(() => {
     let cancelled = false;
@@ -138,8 +149,24 @@ export default function App() {
 
   useEffect(() => {
     if (session?.user.id) {
+      setFocusSnapshot(null);
+      setFocusError("");
       void refreshData(session.user.id);
+      void refreshFocus(session.user.id);
+    } else {
+      setFocusSnapshot(null);
+      setFocusError("");
     }
+  }, [session?.user.id]);
+
+  useEffect(() => {
+    const listener = AppState.addEventListener("change", (state) => {
+      if (state === "active" && session?.user.id) {
+        void refreshFocus(session.user.id);
+        void refreshData(session.user.id);
+      }
+    });
+    return () => listener.remove();
   }, [session?.user.id]);
 
   useEffect(() => {
@@ -176,6 +203,70 @@ export default function App() {
     : 0;
   const currentBreakSeconds = getCurrentBreakSeconds(activeSession?.paused_at, nowMs);
   const resendSeconds = Math.max(0, Math.ceil((resendAvailableAt - nowMs) / 1000));
+
+  async function refreshFocus(userId: string) {
+    try {
+      const snapshot = await reconcileStudyFocus(userId);
+      if (snapshot) setFocusSnapshot(snapshot);
+      setFocusError("");
+    } catch (error) {
+      setFocusError(formatError(error));
+    }
+  }
+
+  async function signalFocusChange(userId: string) {
+    try {
+      const { error } = await supabase.functions.invoke("focus-sync", { body: {} });
+      if (error) throw error;
+      await refreshFocus(userId);
+    } catch (error) {
+      setFocusError(`휴대폰 집중 모드 동기화를 확인하지 못했습니다: ${formatError(error)}`);
+    }
+  }
+
+  async function connectFocus() {
+    if (!session?.user.id) return;
+    try {
+      const status = getLocalFocusStatus();
+      if (!status.supported) throw new Error("Android 15 이상에서 지원합니다.");
+      if (!status.hasAccess) {
+        openFocusPolicySettings();
+        setFocusError("Android 설정에서 독서실의 방해금지 접근을 허용한 뒤 연결 버튼을 다시 눌러 주세요.");
+        return;
+      }
+      setBusy(true);
+      const snapshot = await connectStudyFocus(session.user.id);
+      if (snapshot) setFocusSnapshot(snapshot);
+      setFocusError("");
+      await signalFocusChange(session.user.id);
+    } catch (error) {
+      setFocusError(formatError(error));
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function disconnectFocus() {
+    if (!session?.user.id) return;
+    try {
+      setBusy(true);
+      await disconnectStudyFocus(session.user.id);
+      setFocusSnapshot(null);
+      setFocusError("");
+    } catch (error) {
+      setFocusError(formatError(error));
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function logout() {
+    if (session?.user.id) {
+      try { await disconnectStudyFocus(session.user.id); }
+      catch (error) { Alert.alert("집중 모드 해제 확인 필요", formatError(error)); }
+    }
+    await supabase.auth.signOut();
+  }
 
   async function requestCode() {
     const nextEmail = email.trim();
@@ -387,6 +478,7 @@ export default function App() {
       });
       if (error) throw error;
       await refreshData(session.user.id);
+      void signalFocusChange(session.user.id);
     } catch (error) {
       Alert.alert("시작 실패", formatError(error));
     } finally {
@@ -403,6 +495,7 @@ export default function App() {
       });
       if (error) throw error;
       await refreshData(session.user.id);
+      void signalFocusChange(session.user.id);
     } catch (error) {
       Alert.alert("휴식 시작 실패", formatError(error));
     } finally {
@@ -419,6 +512,7 @@ export default function App() {
       });
       if (error) throw error;
       await refreshData(session.user.id);
+      void signalFocusChange(session.user.id);
     } catch (error) {
       Alert.alert("공부 재개 실패", formatError(error));
     } finally {
@@ -460,6 +554,7 @@ export default function App() {
       if (error) throw error;
       await refreshData(session.user.id);
       setReflectionOpen(false);
+      void signalFocusChange(session.user.id);
     } catch (error) {
       Alert.alert("종료 실패", formatError(error));
     } finally {
@@ -477,6 +572,7 @@ export default function App() {
       });
       if (error) throw error;
       await refreshData(session.user.id);
+      void signalFocusChange(session.user.id);
     } catch (error) {
       Alert.alert("세션 유지 실패", formatError(error));
     } finally {
@@ -546,7 +642,7 @@ export default function App() {
             <Text style={styles.kicker}>study room</Text>
             <Text style={styles.title}>강제 출석 독서실</Text>
           </View>
-          <Pressable onPress={() => supabase.auth.signOut()} style={styles.ghostButton}>
+          <Pressable onPress={() => void logout()} style={styles.ghostButton}>
             <Text style={styles.ghostButtonText}>로그아웃</Text>
           </Pressable>
         </View>
@@ -569,6 +665,21 @@ export default function App() {
             <Text style={styles.metricValue}>{activeSessionPaused ? "휴식 중" : activeSession ? "진행 중" : "대기"}</Text>
             <Text style={styles.metricLabel}>타이머</Text>
           </View>
+        </View>
+
+        <View style={styles.statusPanel}>
+          <Text style={styles.statusLabel}>휴대폰 집중 모드</Text>
+          <Text style={styles.sectionTitle}>{focusStatusLabel(focusSnapshot)}</Text>
+          <Text style={styles.copy}>공부 시작·재개 때 앱 전용 방해금지를 켜고 잠시 쉬기·종료 때 끕니다. 전화·메신저 예외는 Android 설정에서 직접 정하세요.</Text>
+          {focusSnapshot?.last_ack_at && <Text style={styles.copy}>마지막 적용 확인: {new Date(focusSnapshot.last_ack_at).toLocaleString()}</Text>}
+          {focusError ? <Text style={styles.focusError}>{focusError}</Text> : null}
+          {focusSnapshot?.last_error ? <Text style={styles.focusError}>{focusSnapshot.last_error}</Text> : null}
+          <Pressable style={styles.secondaryButton} onPress={() => void connectFocus()} disabled={busy}>
+            <Text style={styles.secondaryButtonText}>{focusSnapshot?.device_connected ? "연결·상태 다시 확인" : "이 휴대폰 연결"}</Text>
+          </Pressable>
+          {focusSnapshot?.device_connected && <Pressable style={styles.ghostButton} onPress={() => void disconnectFocus()} disabled={busy}>
+            <Text style={styles.ghostButtonText}>집중 모드 연결 해제</Text>
+          </Pressable>}
         </View>
 
         <View style={styles.todoPanel}>
@@ -771,6 +882,16 @@ function getLocalDateKey(date: Date, timeZone: string) {
 function formatError(error: unknown) {
   return error instanceof Error ? error.message : String(error);
 }
+
+function focusStatusLabel(snapshot: FocusSnapshot | null) {
+  if (!snapshot?.device_connected) return "미연결";
+  if (!snapshot.opted_in || !snapshot.permission_granted) return "권한 확인 필요";
+  if (snapshot.applied_revision !== snapshot.revision) {
+    return "휴대폰 적용 확인 중";
+  }
+  if (snapshot.last_error || snapshot.applied_focus !== snapshot.desired_focus) return "적용 확인 실패";
+  return snapshot.applied_focus ? "방해금지 켜짐" : "방해금지 꺼짐";
+}
 function attendanceLabel(status?: AttendanceDay["status"]) {
   if (status === "present") return "출석";
   if (status === "missed") return "결석";
@@ -876,6 +997,12 @@ const styles = StyleSheet.create({
     fontSize: 15,
     lineHeight: 22,
     fontWeight: "600",
+  },
+  focusError: {
+    color: mobilePalette.coral,
+    fontSize: 14,
+    lineHeight: 21,
+    fontWeight: "700",
   },
   statusPanel: {
     borderWidth: 3,

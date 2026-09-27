@@ -13,6 +13,8 @@
       "supportsTablet": true
     },
     "android": {
+      "package": "com.jini9867.studyroomattendance",
+      "googleServicesFile": "./google-services.json",
       "adaptiveIcon": {
         "backgroundColor": "#d9f0e3"
       }
@@ -21,8 +23,9 @@
       "supabaseUrl": "$EXPO_PUBLIC_SUPABASE_URL",
       "supabaseAnonKey": "$EXPO_PUBLIC_SUPABASE_ANON_KEY",
       "eas": {
-        "projectId": "$EXPO_PUBLIC_EAS_PROJECT_ID"
+        "projectId": "5f890c4e-9f18-48cb-9808-a2005041ff16"
       }
-    }
+    },
+    "owner": "jini9867"
   }
 }

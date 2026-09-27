@@ -1,3 +1,12 @@
+### 2026-09-28 — Android 집중 모드 첫 구현 및 운영 서버 적용
+
+- 완료: Android 앱 소유 AutomaticZenRule 네이티브 모듈, Expo 백그라운드 푸시 신호/최신 세션 재조회, 앱 연결·상태 UI, 웹 연결/적용 확인 UI, Supabase 상태·기기 RLS/등록·확인 RPC, 출석 Cron 신호 재시도, 첫 preview APK 빌드.
+- 운영: Supabase `bqohkdzvxbrokkmuhysx`에 `20260927150154_android_focus_mode.sql`과 같은 SQL을 적용하고 운영 이력 버전 `20260927150154` 확인, `focus-sync` 및 `attendance-cron` 배포. Firebase `study-room-focus-9867`는 결제 계정 없음과 `BillingEnabled=false` 확인. FCM 발송 전용 계정은 `roles/firebasecloudmessaging.admin`만 부여했고 개인 키는 저장소 밖에서 EAS preview로 등록했다.
+- 변경: `apps/mobile/App.tsx`, `app.json`, `index.js`, `package.json`, `eas.json`, `google-services.json`, `modules/my-module/`, `src/focus.ts`, `src/focusBackground.ts`; `apps/web/src/main.tsx`, `styles.css`; `supabase/migrations/20260927150154_android_focus_mode.sql`, `supabase/functions/focus-sync/`, `attendance-cron/index.ts`, `_shared/study_focus*`; `package.json`, `package-lock.json`, `scripts/mobile-compatibility.test.mjs` 및 Android 집중 모드 문서.
+- 검증: 전체 테스트 815건 중 790 통과·25 브라우저 환경 건너뜀·0 실패, Edge 12건, SQL/PGlite 3건, Android 네이티브 EAS preview APK 빌드와 웹 빌드 통과. CORS OPTIONS 204 및 무인증 POST 401 확인. 앱 설치·권한·푸시·방해금지 실제 동작은 미검증.
+- 추가 확인: 최종 소스 포함 EAS preview APK `2f66ac03-6500-45a3-a39e-940e0dd908ba` FINISHED, 설치 페이지 `https://expo.dev/accounts/jini9867/projects/study-room-attendance/builds/2f66ac03-6500-45a3-a39e-940e0dd908ba`. 전체 테스트 재실행 790 통과/25 건너뜀/실패 0, 웹 빌드, mobile:check, Edge 12/12, docs:check, `git diff --check` 통과. Supabase 운영 `focus-sync` v2 ACTIVE/JWT true, `attendance-cron` v45 ACTIVE/cron 인증 유지.
+- 남은 작업: 웹 production 배포/스모크, APK 실기기 설치·방해금지·푸시 검증. 현재 Vercel production은 기존 커밋 `827b148`, 집중 모드 웹 UI는 아직 미반영. 커밋·푸시 없음.
+
 ### 2026-09-24 — 기술 피드 새로 발견한 글과 수집 완료 수정
 
 - 완료: 목록 RPC를 최초 발견 시각/id 정렬과 동일 커서로 변경하는 추가형 마이그레이션 작성. 카드에서 발견/원문 발행일 분리. 수동·정시 수집의 run/refresh 확정을 번역·미디어보다 먼저 수행하도록 변경.
@@ -6957,3 +6966,24 @@
 #### 다음 우선순위
 
 - 다음 정시 수집 뒤 완료 기록과 실제 로그인 계정 화면을 확인한다. 신규 글이 계속 0건이면 공급자 응답·무료 한도·주제 질의를 구분해 진단한다.
+
+### 2026-09-27 — Android 집중 모드 APK 설계 초안
+
+- 완료: 기존 Expo 세션/푸시 경로와 Android DND·Expo 백그라운드 전달 제약을 검토하고 `prd-android-focus-mode.md` 초안을 작성했다. 첫 출시는 Play 공개가 아닌 본인 기기 직접 설치 APK로 정했다.
+- 변경: `memory-bank/prd-android-focus-mode.md`, `memory-bank/active-context.md`, `memory-bank/progress.md`만 수정했다.
+- 검증: 문서/기존 코드와 공식 Android·Expo·Google Play 문서 대조. 코드·DB·운영 설정 변경이 없으므로 빌드·기기 실행은 미실시.
+- 남은 작업: 사용자 설계 검토, 구현 계획, 서버/Android/웹 구현 및 테스트, APK 빌드·실기기 검증. Google Play 공개는 별도 단계.
+
+### 2026-09-27 — Android APK 구현 계획 작성
+
+- 완료: 사용자 APK 우선 배포 요청에 맞춰 `memory-bank/plan-android-focus-mode.md`를 작성하고 PRD 상태를 갱신했다. 기존 앱의 Expo Push 토큰 등록이 프로젝트 ID 없이는 실패하는 점과 Android SDK/adb/EAS 미설치, D: 미존재·E: 여유 공간을 확인했다.
+- 변경: Android 집중 모드 계획/PRD 및 이 진행 문서·active-context만 수정했다. 코드·DB·운영 설정은 건드리지 않았다.
+- 검증: 변경 전 전체 `npm.cmd test`는 812건 중 787 pass, 25 browser skip, 0 fail. APK 빌드·기기 동작은 아직 검증되지 않았다.
+- 남은 작업: E: 빌드 도구 설치 승인과 무료 Expo 프로젝트 준비, 서버/Android/웹 구현 및 검증, 운영 반영, APK 생성·실기기 확인. Play 공개는 별도 요청이 필요하다.
+
+### 2026-09-27 — E: Android 빌드 도구 설치 및 Expo 프로젝트 연결
+
+- 완료: 사용자 약관 동의 후 공식 Android CLI Windows zip을 내려받아 공개 SHA-256을 확인했다. E:에 API 35, Build Tools 35.0.0, Platform Tools/ADB 37.0.1, NDK 27.1.12297006을 설치하고 사용자 `ANDROID_HOME`·`GRADLE_USER_HOME`을 E:로 지정했다. 에뮬레이터는 설치하지 않았다. Expo 브라우저 로그인과 `@jini9867/study-room-attendance` EAS 프로젝트 생성·연결을 확인했다.
+- 변경: `apps/mobile/app.json`의 가짜 프로젝트 ID를 실제 EAS 프로젝트 ID로 바꾸고 owner를 설정했다. Android SDK는 저장소 밖 E:에 설치했으며 운영 Supabase/웹 배포는 변경하지 않았다. 공유 환경 `ai.ps1 sync`는 첫 실행 1건 적용, 재실행 0건으로 수렴했다.
+- 검증: 명령줄 도구 zip SHA-256 일치, 필수 SDK 파일 5개 존재, `adb version` 37.0.1, `sdkmanager --list_installed` 네 패키지 확인, EAS `project:info` 연결 성공, `npm.cmd run mobile:check` 통과.
+- 남은 작업: 집중 모드 코드·서버 상태/RLS·푸시/FCM 자격 증명·웹 상태 UI, APK 생성 및 실기기 설치/행동 검증. EAS 프로젝트 연결만으로 백그라운드 푸시가 동작하거나 APK가 만들어진 것은 아니다.

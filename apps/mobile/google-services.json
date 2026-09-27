@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "493396139258",
+    "project_id": "study-room-focus-9867",
+    "storage_bucket": "study-room-focus-9867.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:493396139258:android:ba192bf7c556329c53fd43",
+        "android_client_info": {
+          "package_name": "com.jini9867.studyroomattendance"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCfBiTfGi32SxSBnMbCu4mdReuLplnabcE"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

@@ -428,6 +428,26 @@ label {
   font-variant-numeric: tabular-nums;
 }
 
+.phone-focus-status {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 12px;
+  border: 2px solid #d2b56f;
+  border-radius: 8px;
+  background: #fffdf2;
+  padding: 14px;
+  color: #2f2a1f;
+}
+
+.phone-focus-status div { display: grid; gap: 5px; min-width: 0; }
+.phone-focus-status strong { color: #2f6b52; font-size: 16px; }
+.phone-focus-status p { margin: 0; font-size: 13px; line-height: 1.5; }
+.phone-focus-status small { font-size: 12px; }
+.phone-focus-status .phone-focus-error { color: #a44331; font-weight: 800; }
+.phone-focus-status button { min-height: 44px; }
+
 .daily-habit-card {
   position: relative;
   isolation: isolate;

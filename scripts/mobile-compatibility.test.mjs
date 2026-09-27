@@ -56,11 +56,20 @@ for (const platform of ['android', 'ios']) {
     // boundary while executing the real entry and Metro-resolving its App import.
     const App = function NativeApp() {};
     const registrations = [];
-    const registerRootComponent = (component) => registrations.push(component);
+    let backgroundRegistered = false;
+    const registerRootComponent = (component) => {
+      assert.equal(backgroundRegistered, true, 'focus background task must load before the app mounts');
+      registrations.push(component);
+    };
     const entryRequire = (name) => {
       if (name === 'expo') return { registerRootComponent };
       if (name === 'expo/src/launch/registerRootComponent') return { __esModule: true, default: registerRootComponent };
       const resolved = resolveMobileImport(root, entryPath, name, platform);
+      if (name === './src/focusBackground') {
+        assert.equal(resolved.filePath, path.join(root, 'apps/mobile/src/focusBackground.ts'));
+        backgroundRegistered = true;
+        return {};
+      }
       assert.equal(resolved.filePath, path.join(root, 'apps/mobile/App.tsx'));
       return { __esModule: true, default: App };
     };

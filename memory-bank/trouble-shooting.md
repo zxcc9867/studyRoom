@@ -1,3 +1,32 @@
+## 2026-09-28 — Vercel CLI 로그인 안내 글로 잘못 이동
+
+### 상황
+
+웹 production 배포를 위해 GitHub 로그인 경로를 안내했으나 사용자 브라우저에는 로그인 폼 대신 `New Vercel CLI login flow` 안내 글이 열렸다.
+
+### 에러 메시지
+
+```txt
+Vercel CLI 60.1.3: TypeError: Cannot convert argument to a ByteString because character at index 0 has value 51648
+Vercel CLI 46.1.0: Waiting for GitHub authentication to be completed
+```
+
+### 원인
+
+구형 GitHub 전용 로그인 경로가 현재 로그인 흐름과 맞지 않았고, 사용자에게 잘못된 URL을 전달했다. 최신 CLI는 이 Windows/Korean 환경에서 별도 ByteString 오류로 시작하지 못했다. 운영 프로젝트 접근 자체는 Vercel 커넥터의 프로젝트 목록 조회로 확인됐다.
+
+### 해결 방법
+
+대기 중인 CLI 로그인을 중단하고 사용자에게 해당 화면은 로그인 화면이 아니라고 알렸다. 커넥터로 `study-room-attendance` 프로젝트와 ID를 확인했다. 웹 배포는 인증된 경로를 다시 확인하기 전까지 성공으로 표시하지 않는다.
+
+### 관련 파일
+
+- `vercel.json`
+
+### 재발 방지
+
+CLI가 출력한 현재 기기 인증 URL/코드 또는 이미 인증된 커넥터를 직접 확인한다. 블로그/안내 URL을 로그인 URL로 공유하지 않고, 빌드 성공과 production 배포 성공을 구분한다.
+
 ## 2026-09-24 — 신규 발견 글이 오래된 발행일에 묻히고 수집 run이 열려 있음
 
 ### 상황
@@ -5085,3 +5114,32 @@ Ship DB migrations, shared Edge function code, and consuming UI in the same revi
 - 2026-09-27 원격 DB/Edge/웹에 단계적으로 적용했다. 추가로 AWS Startups의 `/build?lang=ko` 자료 모음 페이지가 URL 판별에서 기사로 통과하던 문제를 재현하는 테스트를 먼저 실패시킨 뒤, 목록으로 분류해 새 수집에서 제외했다. 기존 자료는 삭제하지 않고 오래된 날짜에 따라 `깊이 읽기`에 남는다.
 - 일반 `supabase db push --dry-run`은 과거 원격 마이그레이션 이력과 로컬 파일 불일치로 중단됐다(`DbPushMissingLocalError`). 과거 이력을 임의로 repair하지 않고 이번 SQL만 MCP로 적용한 뒤 실제 버전에 파일명을 맞췄다. 향후 전체 `db push`를 쓰기 전에는 과거 이력 정합성을 별도로 해결해야 한다.
 - 30일 조건과 무료 검색 한도상 매일 새 글을 보장할 수 없다. 검색 제공 날짜는 원문 검증 날짜가 아니다. 실계정 수동·정시 수집은 이번 배포에서 검증하지 못했다.
+
+## 2026-09-27 - EAS 프로젝트 정보 조회에서 Invalid UUID appId
+
+### 상황
+
+신규 Expo 계정 로그인 뒤 독서실 앱의 EAS 프로젝트 연결 여부를 조회했다.
+
+### 에러 메시지
+
+```txt
+Invalid UUID appId
+Error: GraphQL request failed.
+```
+
+### 원인
+
+`apps/mobile/app.json`의 `extra.eas.projectId`가 실제 UUID가 아닌 `$EXPO_PUBLIC_EAS_PROJECT_ID` 자리표시 문자열이었다. EAS CLI가 이를 기존 프로젝트 ID로 해석했다.
+
+### 해결 방법
+
+자리표시 ID를 제거한 뒤 EAS CLI `init`으로 사용자 개인 계정에 프로젝트를 생성·연결했다. `project:info`가 실제 UUID와 프로젝트 이름을 반환하는 것을 확인했다.
+
+### 관련 파일
+
+* `apps/mobile/app.json`
+
+### 재발 방지
+
+프로젝트 조회·푸시 토큰 등록 전 `extra.eas.projectId`가 실제 UUID인지 검증한다. Expo 로그인/프로젝트 연결과 FCM 푸시 자격 증명 설정은 별개로 확인한다.

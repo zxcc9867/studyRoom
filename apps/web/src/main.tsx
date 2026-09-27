@@ -335,6 +335,28 @@ type StudySession = {
   paused_seconds: number;
 };
 
+type FocusSnapshot = {
+  revision: number;
+  desired_focus: boolean;
+  device_connected: boolean;
+  opted_in: boolean;
+  permission_granted: boolean;
+  applied_revision: number | null;
+  applied_focus: boolean | null;
+  last_ack_at: string | null;
+  last_error: string | null;
+};
+
+function focusStatusLabel(snapshot: FocusSnapshot | null) {
+  if (!snapshot?.device_connected) return "미연결";
+  if (!snapshot.opted_in || !snapshot.permission_granted) return "권한 확인 필요";
+  if (snapshot.applied_revision !== snapshot.revision) {
+    return "적용 확인 중";
+  }
+  if (snapshot.last_error || snapshot.applied_focus !== snapshot.desired_focus) return "적용 확인 실패";
+  return snapshot.applied_focus ? "켜짐" : "꺼짐";
+}
+
 type StudyTodo = {
   id: string;
   user_id: string;
@@ -509,6 +531,8 @@ function DashboardApp() {
   const feedTodoSaving = useRef(false);
   const [attendanceDays, setAttendanceDays] = useState<AttendanceDay[]>([]);
   const [studySessions, setStudySessions] = useState<StudySession[]>([]);
+  const [focusSnapshot, setFocusSnapshot] = useState<FocusSnapshot | null>(null);
+  const [focusStatusError, setFocusStatusError] = useState("");
   const [studyTodos, setStudyTodos] = useState<StudyTodo[]>([]);
   const [studySessionTodoLinks, setStudySessionTodoLinks] = useState<StudySessionTodoLink[]>([]);
   const [studyGoals, setStudyGoals] = useState<StudyGoal[]>([]);
@@ -739,6 +763,8 @@ function DashboardApp() {
     setRecoveryModalRequest(null);
     setStudyRecoveryRequests([]);
     setStudySessions([]);
+    setFocusSnapshot(null);
+    setFocusStatusError("");
     setStudyTodos([]);
     setStudySessionTodoLinks([]);
     setStudyGoals([]);
@@ -810,6 +836,38 @@ function DashboardApp() {
   const timeZone = profile?.time_zone ?? Intl.DateTimeFormat().resolvedOptions().timeZone;
   const activeSession = studySessions.find((item) => item.status === "active") ?? null;
   const activeSessionPaused = isStudySessionPaused(activeSession);
+
+  async function refreshFocusStatus(userId: string) {
+    const { data, error } = await supabase.rpc("get_study_focus_snapshot");
+    if (currentUserIdRef.current !== userId) return;
+    if (error) {
+      setFocusStatusError("휴대폰 적용 상태를 확인하지 못했습니다.");
+    } else {
+      setFocusSnapshot(data as FocusSnapshot | null);
+      setFocusStatusError("");
+    }
+  }
+
+  useEffect(() => {
+    const userId = session?.user.id;
+    if (!userId) return;
+    void refreshFocusStatus(userId);
+    const interval = window.setInterval(() => {
+      if (!document.hidden) void refreshFocusStatus(userId);
+    }, 15_000);
+    return () => window.clearInterval(interval);
+  }, [session?.user.id]);
+
+  useEffect(() => {
+    const userId = session?.user.id;
+    if (!userId || !dashboardReady || !focusSnapshot?.device_connected) return;
+    void supabase.functions.invoke("focus-sync", { body: {} })
+      .then(({ error }) => {
+        if (error) throw error;
+        return refreshFocusStatus(userId);
+      })
+      .catch(() => setFocusStatusError("휴대폰에 상태 변경 신호를 보내지 못했습니다. 앱을 열어 다시 확인해 주세요."));
+  }, [session?.user.id, dashboardReady, focusSnapshot?.device_connected, activeSession?.id, activeSession?.paused_at, activeSession?.lease_expires_at]);
   useEffect(() => {
     if (cameraCounterSessionRef.current !== (activeSession?.id ?? null)) {
       cameraCounterSessionRef.current = activeSession?.id ?? null;
@@ -4895,6 +4953,19 @@ function DashboardApp() {
                 <strong>{dashboardReady ? formatTimerClock(monthSeconds) : "확인 필요"}</strong>
               </div>
             </div>
+            <section className="phone-focus-status" aria-label="휴대폰 집중 모드 상태" aria-live="polite">
+              <div>
+                <strong>휴대폰 집중 모드 · {focusStatusLabel(focusSnapshot)}</strong>
+                <p>{focusSnapshot?.device_connected
+                  ? "Android 앱에서 방해금지 적용을 확인한 상태만 표시합니다. 지연되면 앱을 열어 동기화해 주세요."
+                  : "Android APK에서 같은 계정으로 로그인한 뒤 휴대폰 집중 모드를 연결할 수 있어요."}</p>
+                {focusSnapshot?.last_ack_at && <small>마지막 휴대폰 확인: {new Date(focusSnapshot.last_ack_at).toLocaleString("ko-KR")}</small>}
+                {(focusSnapshot?.last_error || focusStatusError) && <small className="phone-focus-error">{focusSnapshot?.last_error || focusStatusError}</small>}
+              </div>
+              <button type="button" className="secondary" onClick={() => void refreshFocusStatus(session.user.id)}>
+                상태 다시 확인
+              </button>
+            </section>
             {activeSessionPaused && (
               <div className="session-break" role="status" aria-live="polite">
                 <span className="session-break-icon" aria-hidden="true"><Pause size={20} /></span>
