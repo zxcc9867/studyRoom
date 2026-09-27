@@ -1,3 +1,32 @@
+## 2026-09-28 — 운영 마이그레이션 버전 정렬 후 CI 테스트 파일 경로 누락
+
+### 상황
+
+운영 Supabase 이력 버전 `20260927150154`에 맞춰 신규 SQL 파일명을 바꾼 뒤, main 자동 배포의 Node 테스트 3건이 실패해 Vercel 배포가 시작되지 않았다.
+
+### 에러 메시지
+
+```txt
+ENOENT: no such file or directory, open 'supabase/migrations/20260927150000_android_focus_mode.sql'
+```
+
+### 원인
+
+SQL 파일명과 memory-bank 참조는 갱신했지만 PGlite 회귀 테스트의 고정된 파일 경로를 놓쳤다. 파일명 변경 후 전체 테스트를 다시 실행하지 않은 것이 CI에서만 실패한 직접 원인이다.
+
+### 해결 방법
+
+`study_focus_db.test.mjs`가 운영 이력과 동일한 `20260927150154_android_focus_mode.sql`을 읽도록 바꾸고 전체 테스트를 다시 실행한다. 실패한 Actions 실행은 배포 단계까지 진행하지 못했으므로 기존 production을 유지한다.
+
+### 관련 파일
+
+- `supabase/functions/_shared/study_focus_db.test.mjs`
+- `supabase/migrations/20260927150154_android_focus_mode.sql`
+
+### 재발 방지
+
+마이그레이션 파일명 변경 시 저장소 전체 참조를 검색하고, 커밋 직전 전체 테스트를 새로 실행한다.
+
 ## 2026-09-28 — Vercel CLI 로그인 안내 글로 잘못 이동
 
 ### 상황

@@ -5,7 +5,8 @@
 - 변경: `apps/mobile/App.tsx`, `app.json`, `index.js`, `package.json`, `eas.json`, `google-services.json`, `modules/my-module/`, `src/focus.ts`, `src/focusBackground.ts`; `apps/web/src/main.tsx`, `styles.css`; `supabase/migrations/20260927150154_android_focus_mode.sql`, `supabase/functions/focus-sync/`, `attendance-cron/index.ts`, `_shared/study_focus*`; `package.json`, `package-lock.json`, `scripts/mobile-compatibility.test.mjs` 및 Android 집중 모드 문서.
 - 검증: 전체 테스트 815건 중 790 통과·25 브라우저 환경 건너뜀·0 실패, Edge 12건, SQL/PGlite 3건, Android 네이티브 EAS preview APK 빌드와 웹 빌드 통과. CORS OPTIONS 204 및 무인증 POST 401 확인. 앱 설치·권한·푸시·방해금지 실제 동작은 미검증.
 - 추가 확인: 최종 소스 포함 EAS preview APK `2f66ac03-6500-45a3-a39e-940e0dd908ba` FINISHED, 설치 페이지 `https://expo.dev/accounts/jini9867/projects/study-room-attendance/builds/2f66ac03-6500-45a3-a39e-940e0dd908ba`. 전체 테스트 재실행 790 통과/25 건너뜀/실패 0, 웹 빌드, mobile:check, Edge 12/12, docs:check, `git diff --check` 통과. Supabase 운영 `focus-sync` v2 ACTIVE/JWT true, `attendance-cron` v45 ACTIVE/cron 인증 유지.
-- 남은 작업: 웹 production 배포/스모크, APK 실기기 설치·방해금지·푸시 검증. 현재 Vercel production은 기존 커밋 `827b148`, 집중 모드 웹 UI는 아직 미반영. 커밋·푸시 없음.
+- 배포 진행: 사용자 승인으로 `e9df151`을 main에 푸시했다. Actions `36331256223`은 테스트 3건의 이전 SQL 파일명 참조로 실패했고 production은 기존 커밋 `827b148`을 유지했다. 경로 수정 후 전체 테스트와 자동 배포를 재시도한다.
+- 남은 작업: 웹 production 배포/스모크, APK 실기기 설치·방해금지·푸시 검증. 집중 모드 웹 UI는 아직 production 미반영.
 
 ### 2026-09-24 — 기술 피드 새로 발견한 글과 수집 완료 수정
 

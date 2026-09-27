@@ -3,7 +3,7 @@
 - 현재 작업: 웹 공부 시작·재개/휴식·종료와 Android 방해금지 앱 소유 규칙을 서버 세션 상태로 연결한다. 관련 PRD: `prd-android-focus-mode.md`, 계획: `plan-android-focus-mode.md`.
 - 완료: 무료 Firebase 프로젝트 `study-room-focus-9867`와 최소 권한 FCM 발송 계정, Expo EAS preview 푸시 자격 증명, 운영 Supabase 추가형 DB 마이그레이션 및 `focus-sync`/`attendance-cron` Edge 배포, Android 네이티브·백그라운드 동기화·웹 상태 UI 구현, 첫 직접 설치 APK 빌드. FCM 비밀키는 저장소/문서 밖에 둔다.
 - 검증: 전체 Node 815건 중 790 통과·25 브라우저 환경 건너뜀·실패 0, Edge 12/12, SQL/PGlite 3/3, Android EAS 네이티브 빌드 및 웹 빌드 통과. 실기기의 권한 승인·방해금지·푸시 수신은 아직 검증하지 못했다.
-- 진행 중: Vercel 웹 production 적용 및 운영 스모크. 최종 모바일 수정분 포함 EAS APK `2f66ac03-6500-45a3-a39e-940e0dd908ba` 빌드 성공, 문서 검사 통과. Vercel GitHub CLI 로그인은 안내 글로 잘못 연결됐지만 현재 Vercel 커넥터에서 대상 프로젝트 조회는 정상이다. 현재 production은 기존 커밋 `827b148`이며 집중 모드 웹 UI는 아직 반영되지 않았다.
+- 진행 중: Vercel 웹 production 적용 및 운영 스모크. 최종 모바일 수정분 포함 EAS APK `2f66ac03-6500-45a3-a39e-940e0dd908ba` 빌드 성공, 문서 검사 통과. GitHub main에 `e9df151` 푸시 후 Actions `36331256223`의 PGlite 테스트 3건이 이전 SQL 파일명 참조로 실패해 production은 기존 `827b148`을 유지했다. 테스트 경로를 수정하고 재검증·재배포 중이다. Vercel 커넥터에서 대상 프로젝트 조회는 정상이다.
 - 주의: Android 15+ 우선, 푸시는 즉시 전달 보장이 없고 상태 변경은 서버 최신 세션을 다시 읽는다. 연결 기기 0대는 APK 설치/연결 전 정상이다. 사용자의 수동 방해금지는 변경하지 않는다. 커밋·푸시는 별도 요청 전까지 하지 않는다.
 
 ## 2026-09-24 — 기술 피드 신규 발견 가시화 수정

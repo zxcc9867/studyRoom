@@ -28,7 +28,7 @@ before(async () => {
     grant select, insert, update on public.study_sessions to authenticated;
     insert into auth.users values ('${owner}'), ('${other}');
   `);
-  await db.exec(readFileSync('supabase/migrations/20260927150000_android_focus_mode.sql', 'utf8'));
+  await db.exec(readFileSync('supabase/migrations/20260927150154_android_focus_mode.sql', 'utf8'));
 });
 after(async () => await db?.close());
 
