@@ -1515,3 +1515,24 @@ docs/images/study-room-thumbnail.png
 - The existing authenticated RPC and RLS remain authoritative. No new secret, AI request or scheduled notification.
 - npm audit findings remain documented, not automatically fixed. No forced/major dependency upgrade.
 - Latest shared instructions require explicit commit/push/deploy requests; this implementation remains local.
+
+## 2026-09-27 - 기술 피드 최신성 및 연속 읽기 (운영 적용)
+
+### Supabase 변경 이력
+
+- 변경 대상: `tech_feed_visible`, `tech_feed_list`, `tech_feed_filter_candidates`, `tech_feed_briefing_excerpt_allowed`.
+- 변경 내용: `deep_read` 보기 추가. 소유자별 가시성은 유지하고 목록/필터 후보에서만 서버 시각 기준 최근 30일의 날짜가 확인된 글을 `latest`로 분리한다. 저장 목록은 날짜 제한이 없다. 오늘 발견 통계의 가시성 함수는 그대로 유지하고 브리핑 AI 후보만 최신 글로 제한한다.
+- 변경 이유: 오래된/발행일 불명 자료가 발견 시각만으로 최신 뉴스로 보이던 문제.
+- 관련 기능: 기술 피드, 오늘 브리핑.
+- 마이그레이션 파일: `supabase/migrations/20260927092206_tech_feed_fresh_views.sql` (운영 적용 이력 버전에 파일명을 맞춤).
+- 확인 방법: PGlite `tech-feed-briefing-db.test.mjs`의 보기·필터 후보·저장·소유권·커서 검증, 전체 Node 테스트, Edge 검사. 운영 적용 후 피드 계정 목록 RPC에서 최신 18건·깊이 읽기 177건을 확인했고 두 예시 목록 URL은 최신에서 제외됐다.
+- 주의 사항: 웹/Edge는 마이그레이션 적용 뒤 전환한다. 기존 `tech_feed_visible('latest')`는 일일 발견 통계 용도여서 날짜로 걸러내지 않는다. 새 RPC도 `security invoker`, service_role 전용 실행 권한을 유지한다.
+
+### API / Web / Collection
+
+- `list`와 `facets`의 `view` 입력은 `latest | deep_read | saved`다. 응답의 JSON 구조와 20개 커서 단위는 유지한다.
+- Tavily 검색은 기본 검색 `time_range=month`이고 제공 날짜가 없거나 미래·30일 초과면 신규 기사로 수집하지 않는다. 무료 계정/호출 제한 및 안전한 URL 검증은 기존대로 유지한다.
+- 웹은 20개 청크를 누적하며 하단 관찰자와 접근 가능한 버튼으로 다음 커서를 읽는다. 백그라운드 목록 확인은 수집/검색 API를 호출하지 않고 새 글 배너만 표시한다.
+- 날짜 레이블은 RSS/API `발행일`, 웹 검색 `검색 제공 날짜`로 구분한다. 카드에는 연도를 포함한다.
+- 검색 결과 분류는 `startups.aws.com/(언어/)?build` 자료 모음 경로를 목록으로 처리하며 하위 개별 가이드 경로는 유지한다. Supabase CLI의 일반 `db push` 드라이런은 과거 원격 이력 불일치로 중단되어 이번 DDL만 MCP 마이그레이션으로 적용했고, 저장소 SQL 파일명은 실제 적용된 버전 `20260927092206`과 일치시켰다. 무관한 과거 이력은 수정하지 않았다.
+- 배포 순서: 해당 DB 마이그레이션 → JWT 검증을 유지한 `tech-feed`/`tech-feed-worker` Edge → main 푸시로 Vercel 웹 배포. 출석/타이머/다른 함수·비밀값·RSS 승인 상태는 변경하지 않았다.

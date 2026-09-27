@@ -1078,3 +1078,46 @@
 - Both coach cron jobs are active and latest SQL scheduler runs succeeded; scheduler success alone is not proof of HTTP/provider success. Edge AI secret configuration, actual AI response quality and signed-in recommendation acceptance were not verified.
 - Focused synthetic tests: 76 passed, 0 failed. Next user steps: enable coaching with study windows, receive/review/confirm roadmap, then inspect recommendations and actual model provenance. Optional provider connections and real AI verification remain separate.
 - Only local active-context/progress notes changed. No app code, production settings/data, commit, push or deployment changes.
+## 2026-09-27 — 기술 피드 최신성·연속 읽기 설계 검토
+
+- 현재 작업: 오래된 글을 최신 뉴스처럼 보여주지 않고 관심 분야의 최근 글을 연속해서 읽도록 피드를 개정한다. 관련 PRD: `prd-tech-feed.md`의 2026-09-27 설계 검토안.
+- 확인: 운영 DB의 Claude Academy 튜토리얼 목록은 검색 제공 날짜 2025-12-19, 최초 발견 2026-09-27 JST다. 원문 페이지에는 직접 확인 가능한 발행일이 없다. 현재 코드는 웹 검색 날짜를 `원문 발행`으로 표시하고 연도를 생략한다.
+- 결정 검토: 기본 최신=최근 30일 개별 글, 오래되거나 날짜 불명 자료=깊이 읽기, 저장 글 전부 보존, 커서 기반 자동 추가, 새 글 도착은 위치를 바꾸지 않는 안내. 수집 계수는 사용자 UI에 노출하지 않는다.
+- 현재 상태: 관련 PRD에 상세 설계 검토안을 작성했다. 코드/DB/운영 변경·배포는 아직 없고, 문서 리뷰 후 구현 계획과 검증에 착수한다.
+
+## 2026-09-27 — 기술 피드 최신성·연속 읽기 로컬 구현
+
+### 현재 작업
+
+- 작업명: 최신 기술 글과 이전 자료 분리, 날짜 출처 표기, 피드 연속 읽기.
+- 작업 목적: 오래된 검색 결과를 신규 기사로 오인하지 않고 관심 분야의 최근 글을 읽기 쉽게 제공한다.
+- 관련 PRD: `prd-tech-feed.md`의 2026-09-27 승인 개정.
+- 관련 파일: `supabase/migrations/20260927092206_tech_feed_fresh_views.sql`, feed Edge 공유 모듈, `apps/web/src/TechFeedSection.tsx` 및 테스트.
+
+### 최근 결정 사항
+
+- 결정: `최신`은 서버 기준 최근 30일 제공 날짜가 있는 글, 오래되거나 날짜 불명·미래 글은 `깊이 읽기`, 저장 글은 전체 보존.
+- 이유: 검색 제공 날짜가 오래되거나 미확인인 목록 페이지를 발견순 최신 뉴스로 보여주던 문제.
+- 대안: 발견순 전부 노출은 이전 자료를 최신으로 오해하게 하므로 별도 보기로 분리.
+- 영향 범위: 피드 목록/필터 후보, 오늘 브리핑 AI 후보, 검색 수집, 웹 카드와 연속 스크롤. 출석·타이머·저장 데이터는 변경하지 않음.
+
+### 현재 상태
+
+- 완료: 로컬 마이그레이션·검색 정책·카드 날짜·연속 스크롤·새 글 배너, 회귀 테스트와 문서화.
+- 진행 중: 원격 적용과 실제 로그인 계정에서의 피드 확인은 미수행.
+- 막힌 부분: 코드/DB 및 375px·1440px 브라우저 검증은 통과. 원격 적용은 아래 지침 충돌로 보류.
+- 다음 작업: 원격 DB→Edge→웹 단계적 적용 후 Supabase/Vercel 및 실제 피드 확인.
+
+### 주의할 점
+
+- 브라우저를 닫은 상태의 정시 수집은 기존 작업 경로이며 이번 로컬 코드 검증만으로 운영 실행 성공을 뜻하지 않는다.
+- 사용자 공유 AGENTS.md의 커밋·푸시 별도 요청 원칙을 따르므로 원격 변경은 아직 수행하지 않았다. 웹 대상 프로젝트 AGENTS.md의 자동 배포 예외와 지침이 충돌하므로 배포 승인 방향을 명확히 할 필요가 있다.
+
+## 2026-09-27 — 기술 피드 최신성·연속 읽기 운영 배포
+
+- 현재 작업: 사용자의 명시적 배포 요청에 따라 위 로컬 구현을 DB → Edge → 웹 순으로 적용했다. 이 항목이 바로 위 로컬 배포 대기 상태를 대체한다.
+- 결정: 원문에서 발행일을 직접 확인하지 못한 웹 검색 날짜는 `검색 제공 날짜`로 표기하고 연도를 항상 표시한다. 최근 30일 밖 자료는 `깊이 읽기`로 분리한다. AWS Startups `/build` 자료 모음은 새 기사 수집에서 제외하되 기존 저장 자료는 보존한다.
+- 완료: 마이그레이션 `20260927092206`, `tech-feed` v39 및 `tech-feed-worker` v37 ACTIVE/JWT 유지, 웹 커밋 `827b148` → Actions `36309417955` 성공 → Vercel `dpl_8nDELXLQbzQ7F1rMr2G8q14FV7Ax` READY. 운영 URL과 새 JS 자산 HTTP 200, 신규 문구 확인.
+- 검증: 전체 812/812 테스트(브라우저 25건 포함, skip 0), 웹 빌드, Edge 11/11, 모바일·문서 검사. 운영 피드 계정 RPC 총계 최신 18건/깊이 읽기 177건. 2025-12-19 Claude Academy와 2026-06-19 AWS Startups 예시 모두 최신에서 제외.
+- 미확인: 로그인 계정에서 직접 누르는 `새 글 확인` 결과와 새 Edge 버전의 다음 정시 수집 완료. 무료 제공자 한도와 RSS 승인 대기로 매일 신규 기사 도착을 보장하지 않는다.
+- 주의: 이전 원격 migration 이력 불일치로 일반 `db push` 드라이런이 실패했다. 이번 마이그레이션만 적용했고 무관한 이력은 수정하지 않았다.

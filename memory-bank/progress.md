@@ -6892,3 +6892,68 @@
 - Ran 76 focused domain/database/integration/UI-helper synthetic tests successfully; no live AI calls, OAuth flow, real notification delivery or account mutations performed.
 - Remaining: user opt-in/study windows/roadmap confirmation, runtime AI configuration and real recommendation validation, optional account connections; assess career-first ranking separately if requested.
 - Updated only active-context.md and progress.md locally. No code changes, commit/push or deployment.
+### 2026-09-27 — 기술 피드 최신성·연속 읽기 설계 검토
+
+- 완료: 사용자 사진의 Claude Academy 목록 저장 날짜(검색 제공 2025-12-19, 발견 2026-09-27 JST)를 운영 DB로 확인하고 원문에 명시적 발행일이 없음을 확인했다. 기존 PRD의 발견순 최신과 1년 검색 정책이 최신 소식 기대와 충돌함을 확인했다.
+- 변경: `memory-bank/prd-tech-feed.md`에 최근 글/깊이 읽기 분리, 자동 이어 읽기, 날짜 출처와 연도 표시, 수집 결과의 사용자용 문구에 관한 상세 설계 검토안을 추가했다. `active-context.md`, `progress.md`에 현재 단계 기록.
+- 검증: 운영 DB 읽기 전용 조회, 원문 페이지 확인, 현재 웹/Edge 코드·관련 PRD 대조. 테스트·빌드·배포는 코드가 아직 변경되지 않아 미실행.
+- 남은 작업: 사용자의 상세 설계 리뷰 후 구현 계획, 테스트, DB/RPC→Edge→웹 적용과 운영 검증. 기존 저장·할 일 연결 및 RSS 승인 상태는 보존한다.
+
+### 2026-09-27 — 기술 피드 최신성·연속 읽기 로컬 구현
+
+#### 완료한 작업
+
+- 기존 발견순 `최신`을 최근 30일 제공 날짜가 확인된 글로 제한하고 `깊이 읽기`를 추가했다. 저장 목록과 오늘 발견 통계는 보존한다.
+- Tavily 한 달 검색·서버 날짜 재검증, 튜토리얼 목록 제외, 최근 변경 소식 검색 의도를 적용했다.
+- 웹에 연도/날짜 출처, 읽기 쉬운 미리보기, 커서 기반 연속 읽기, 새 글 배너와 결과 건수를 과장하지 않는 문구를 적용했다.
+
+#### 변경된 파일
+
+- DB: `20260927092206_tech_feed_fresh_views.sql`.
+- Edge/공통: `tech-feed-api.mjs`, `tech-feed-search.mjs`, `tech-feed-query.mjs`, `feedContent.mjs` 및 테스트.
+- 웹: `TechFeedSection.tsx`, `feedPresentation.mjs/.d.mts`, `techFeed.mjs`, `techFeed.css` 및 테스트.
+- 문서: 기술 피드 PRD, active-context, implementation-plan, trouble-shooting, 진행 기록 및 구현 계획.
+
+#### 검증 방법
+
+- TDD로 최신/깊이 읽기 DB·API, 30일 검색 차단, 연도/출처 표기, 해시 기호 제거, 연속 목록, 새 글 안내의 사전 실패를 확인한 뒤 통과.
+- `npm.cmd test`: 설치된 Chromium 실행 파일을 지정한 최종 실행에서 811/811 통과, 실패·건너뜀 0. 375px·1440px 피드 반응형 검사 포함.
+- `npm.cmd run build`, `npm.cmd run test:edge`(11/11), `npm.cmd run mobile:check`, `npm.cmd run docs:check` 통과.
+
+#### 남은 작업
+
+- 원격 Supabase 마이그레이션과 Edge 함수, 웹 배포는 아직 수행하지 않았다. 운영 데이터·키·RSS 승인 상태는 변경하지 않았다.
+- 실제 로그인 계정의 새 글 확인·정시 수집은 배포 후 검증이 필요하다. 합성 데이터 브라우저의 375px·1440px 흐름은 통과했다.
+
+#### 다음 우선순위
+
+- 사용자의 원격 적용 승인 여부를 확인하고 DB→Edge→웹 순으로 적용·운영 검증한다. 무료 한도와 RSS 이용 조건 때문에 빈 날은 정직한 빈 상태로 유지한다.
+
+### 2026-09-27 — 기술 피드 최신성 변경 운영 배포
+
+#### 완료한 작업
+
+- 사용자 요청으로 위 로컬 변경을 출시했다. 추가로 AWS Startups `/build` 자료 모음이 기사로 분류되던 사례를 테스트 우선으로 수정하고 하위 가이드 링크는 유지했다.
+- Supabase 마이그레이션 `20260927092206_tech_feed_fresh_views.sql` 적용, Edge `tech-feed` v39·`tech-feed-worker` v37 ACTIVE/JWT 확인, 웹 `827b148`을 main으로 푸시했다.
+- GitHub Actions [36309417955](https://github.com/zxcc9867/studyRoom/actions/runs/36309417955) 성공, Vercel production `dpl_8nDELXLQbzQ7F1rMr2G8q14FV7Ax` READY(커밋·alias 일치). 운영 URL과 새 JS 자산 HTTP 200.
+
+#### 변경된 파일
+
+- 앞선 로컬 구현의 웹·Edge 공유 모듈·공통 분류 및 테스트, DB 마이그레이션 파일. 자료 모음 회귀 테스트 `packages/core/test/feedContentRoundup.test.mjs` 추가.
+- 기술 피드 PRD, active-context, implementation-plan, trouble-shooting, 이 진행 문서 및 배포 계획의 실제 상태를 갱신했다.
+
+#### 검증 방법
+
+- 전체 `npm.cmd test` 812 pass/0 fail/0 skip(설치된 Chromium 지정), `npm.cmd run build`, `npm.cmd run test:edge` 11 pass, `mobile:check`, `docs:check` 통과. CI의 모든 게이트와 Vercel 배포 단계 성공.
+- 운영 피드 계정 목록 RPC에서 최신 18건·깊이 읽기 177건. Claude Academy 튜토리얼 목록(2025-12-19)과 AWS Startups 자료 모음(2026-06-19)은 최신에서 제외되고 깊이 읽기에는 남아 데이터가 삭제되지 않았다.
+- 새 Edge의 무인증 GET은 HTTP 401, 운영 웹 HTML·새 기술 피드 JS는 HTTP 200. 자산에는 `깊이 읽기`, `검색 제공 날짜`, `최근 30일` 문구가 포함돼 있다.
+
+#### 남은 작업
+
+- 로그인 계정의 실제 수동 새 글 확인과 다음 정시 작업의 완료 여부는 미검증. 검색·번역 무료 한도나 승인 대기 RSS 때문에 빈 날에는 새 기사가 없을 수 있다.
+- 오래된 자료 모음 행은 삭제하지 않았으므로 `깊이 읽기`에서 보일 수 있다. 사용자가 원하면 기존 비저장/비연결 목록 행의 정리 정책을 별도로 설계한다.
+- 과거 원격 마이그레이션 이력 불일치(`DbPushMissingLocalError`)는 이번 릴리스 범위 밖이며 일반 `db push`를 막는다. 임의의 migration repair는 하지 않았다.
+
+#### 다음 우선순위
+
+- 다음 정시 수집 뒤 완료 기록과 실제 로그인 계정 화면을 확인한다. 신규 글이 계속 0건이면 공급자 응답·무료 한도·주제 질의를 구분해 진단한다.
