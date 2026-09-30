@@ -132,7 +132,8 @@ test("web and mobile source wire the sustainable session policy and lazy feature
   assert.match(mobile, /function addQuickTodo\(\)/);
   assert.match(mobile, /function toggleSessionTodo\(todoId: string\)/);
   assert.match(mobile, /Alert\.alert\([^\n]+formatError\(error\)/);
-  assert.equal((mobile.match(/<StatusBar barStyle="dark-content"/g) ?? []).length, 3);
+  assert.equal((mobile.match(/<StatusBar barStyle="dark-content"/g) ?? []).length, 4);
+  assert.doesNotMatch(mobile, /<StatusBar barStyle="light-content"/);
 
   assert.match(vite, /manualChunks\(id\)/);
   assert.match(vite, /chunkSizeWarningLimit: 550/);

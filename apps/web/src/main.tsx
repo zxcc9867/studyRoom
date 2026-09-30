@@ -51,6 +51,8 @@ import {
   UserRound,
 } from "lucide-react";
 import type { Session } from "@supabase/supabase-js";
+import EmbeddedAuthGate from "./EmbeddedAuthGate";
+import { isEmbeddedStudyApp, postEmbeddedMessage } from "./embeddedAuth.mjs";
 
 import { EMAIL_OTP_LENGTH, extractEmailOtpCandidate, isValidEmailOtp, sanitizeEmailOtp } from "./authCode.mjs";
 import { SUCCESS_MESSAGE_AUTO_DISMISS_MS, shouldAutoDismissMessage } from "./appMessage.mjs";
@@ -836,6 +838,11 @@ function DashboardApp() {
   const timeZone = profile?.time_zone ?? Intl.DateTimeFormat().resolvedOptions().timeZone;
   const activeSession = studySessions.find((item) => item.status === "active") ?? null;
   const activeSessionPaused = isStudySessionPaused(activeSession);
+
+  useEffect(() => {
+    if (!session?.user.id || !dashboardReady) return;
+    postEmbeddedMessage(window, { type: "STUDY_WEB_STUDY_STATE_CHANGED" });
+  }, [session?.user.id, dashboardReady, activeSession?.id, activeSession?.paused_at, activeSession?.lease_expires_at]);
 
   async function refreshFocusStatus(userId: string) {
     const { data, error } = await supabase.rpc("get_study_focus_snapshot");
@@ -4878,7 +4885,11 @@ function DashboardApp() {
             알림
           </a>
         </nav>
-        <button className="plain" onClick={() => supabase.auth.signOut()}>
+        <button className="plain" onClick={() => {
+          if (!postEmbeddedMessage(window, { type: "STUDY_WEB_SIGN_OUT" })) {
+            void supabase.auth.signOut();
+          }
+        }}>
           <LogOut size={17} />
           로그아웃
         </button>
@@ -6863,7 +6874,7 @@ function slackNotificationStatusClass(status: SlackNotificationStatus | null) {
 }
 
 createRoot(document.getElementById("root")!).render(
-  <StrictMode>
-    <App />
-  </StrictMode>,
+  isEmbeddedStudyApp(window)
+    ? <EmbeddedAuthGate><App /></EmbeddedAuthGate>
+    : <StrictMode><App /></StrictMode>,
 );

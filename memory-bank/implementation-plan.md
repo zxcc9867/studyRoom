@@ -1,3 +1,29 @@
+## Supabase 변경 이력 — 2026-10-01 Android 앱·웹 단일 로그인 운영 반영
+
+- 변경 대상/이유: 앱과 웹 로그인 저장소 차이를 안전한 일회용 티켓으로 연결하는 기존 로컬 설계를 운영에 적용했다. 기존 출석·타이머·회복 데이터/정책 변경 없음.
+- 마이그레이션 파일: `supabase/migrations/20260930152103_mobile_web_auth_limit.sql`; Supabase MCP 적용 버전과 파일명 일치. 함수는 `service_role`만 실행 가능, 테이블 RLS 활성화와 인증 사용자 읽기/실행 금지 확인.
+- 서버: `mobile-web-auth` v1 ACTIVE, `verify_jwt=true`, SHA256 `ca73a33a9c58584e24e9f56ab4f952b99cb7f3634026cd1fd3634a70411ea705`.
+- Android 검사: `expo-device.isDevice`가 false인 에뮬레이터에서만 WebView 원격 검사를 허용한다. 실기기 APK는 검사 비활성화. 검사용 프로퍼티는 로그인·카메라 권한 정책을 우회하지 않는다.
+- 주의: 웹·APK 배포 및 운영 Auth 교환/에뮬레이터 동작은 별도로 확인한다. 티켓·키·개인 기록은 로그에 출력하지 않는다.
+
+## Supabase 변경 이력 — 2026-09-30 Android 앱·웹 단일 로그인 (당시 로컬 구현)
+
+- 변경 대상: `public.mobile_web_auth_limits`, `public.try_issue_mobile_web_auth_ticket(uuid)`, `mobile-web-auth` Edge Function.
+- 변경 내용/이유: 네이티브 사용자 access token을 `auth.getUser`로 재검증하고 동일 계정의 `magiclink` 일회용 해시를 발급한다. 사용자별 5분 창에서 10회까지만 발급한다. 웹은 앱 WebView의 연결 nonce와 사용자 ID를 확인한 뒤 `verifyOtp(type='magiclink')`로 세션을 만든다. 장기 네이티브 토큰은 웹/URL에 전달하지 않는다.
+- 마이그레이션 파일: `supabase/migrations/20260930000000_mobile_web_auth_limit.sql`. 소유자 기준 RLS가 켜져 있고 일반 `anon`/`authenticated` 테이블 접근과 함수 실행은 철회했으며 함수는 `service_role` 전용이다. 새 스키마는 아직 운영에 적용하지 않았다.
+- API 요청/응답: `POST /functions/v1/mobile-web-auth` + 네이티브 `Authorization: Bearer <access token>` → `{token_hash,user_id,verification_type:'magiclink'}`. 401/429/503 오류와 모든 응답에 `Cache-Control: no-store`; 브라우저 CORS는 열지 않는다. Edge의 서비스 역할 키는 서버에만 둔다.
+- 앱 구조: Android는 로그인 후 `https://study-room-attendance.vercel.app/#today` 한 WebView에서 웹 6개 섹션을 사용한다. 웹 임베드 게이트는 이전 웹 세션을 로컬에서 지우고 티켓 교환 전 보호 화면을 숨긴다. 웹 공부 상태 알림은 권위 있는 명령이 아니라 네이티브가 서버 세션·집중 상태를 재조회하는 힌트다. 연결 오류에는 네이티브 공부방 fallback을 제공한다.
+- 카메라: `CAMERA`만 선언한다. `patch-package`가 `react-native-webview@13.13.5`의 Android `onPermissionRequest`에 정확한 첫 번째 HTTPS 출처와 단일 `RESOURCE_VIDEO_CAPTURE` 검사/거부를 적용한다. 오디오와 외부 프레임 카메라를 허용하지 않는다.
+- 확인 방법: 신규 Edge/Deno·PGlite·웹·모바일 테스트, 전체 Node/웹 빌드/모바일 타입 검사, Android debug APK 컴파일·Java bytecode의 guard 확인. 운영 DB/Edge/웹/Auth 통합 및 Android 16 사용 흐름은 배포 전이므로 미검증이다.
+- 주의 사항: 기존 운영 및 서명된 앱은 아직 이 코드가 아니다. 서비스 키·티켓 해시를 로그/문서에 기록하지 않으며, EAS 설치 앱을 다른 서명의 로컬 debug APK로 덮어쓰지 않는다.
+
+## 2026-09-29 — Android 회복루틴·웹 기능 재사용
+
+- Android 앱은 기존 Supabase Auth/세션·집중 모드 경로를 유지한다. 로그인/화면 복귀 및 시작 직전에 소유자의 `study_recovery_requests` 미제출 항목을 조회하고 기존 `submit_study_recovery_request` RPC로 제출한다. 서버 시작 RPC의 회복 요구와 화면 상태가 경합하면 목록을 다시 조회한다. 모든 요청이 해소된 뒤에만 선택한 할 일로 `start_study_session`을 다시 호출한다.
+- 기술 피드·공부의 숲은 별도 네이티브 복제 대신 앱 안의 `react-native-webview`로 Vercel HTTPS `#feed`/`#forest`를 연다. 같은 출처만 WebView에 남기고 외부 HTTPS 원문은 OS 브라우저로 보낸다. 앱의 AsyncStorage 인증 토큰을 URL/스크립트로 전달하지 않으므로 웹 화면은 같은 계정으로 별도 로그인이 필요할 수 있다. 웹 화면에서 공부방으로 돌아올 때 서버 세션·기기 집중 상태를 다시 조회한다.
+- 변경 위치: `apps/mobile/App.tsx`, `apps/mobile/src/WebFeatureScreen.tsx`, 모바일 의존성 및 Node 회귀 테스트. DB 스키마·RLS·RPC·Edge·웹 번들 변경 없음. EAS `preview` Android APK를 다시 빌드하여 배포한다.
+- 확인: `scripts/mobile-otp.test.mjs`, `scripts/mobile-recovery.test.mjs`, `scripts/mobile-web-features.test.mjs`, `mobile:check`, 전체 `npm test`, 웹 빌드, 문서 검사. APK 컴파일 성공과 실제 휴대폰 로그인·회복 제출·3D 렌더링 확인은 구분한다.
+
 ## Supabase 변경 이력 — 2026-09-28 Android 집중 모드
 
 - 변경 대상: `public.study_focus_state`, `public.study_focus_devices`, `study_sessions` 상태 전이 트리거, 기기 등록·확인·해제·상태 조회 RPC, `focus-sync` Edge, `attendance-cron` Edge.

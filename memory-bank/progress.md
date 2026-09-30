@@ -1,3 +1,96 @@
+### 2026-10-01 — Android 웹 동등성 운영 반영과 에뮬레이터 검증 준비
+
+- 완료: 운영 인증 발급 제한 마이그레이션 `20260930152103`, `mobile-web-auth` v1 ACTIVE·verify_jwt=true, RLS true·authenticated 조회/실행 금지·service_role 실행 허용 확인. 로컬 마이그레이션 파일명을 운영 버전과 일치시켰다.
+- 검증: 웹 빌드, 모바일 타입/호환성, README 자산 검사, Edge 21/21 통과. 에뮬레이터 검사 허용/실기기 검사 비활성화의 테스트 실패를 먼저 확인하고 최소 구현 후 2/2 통과했다. 기존 전체 Node 843건(818 통과·25 환경 건너뜀·0 실패)도 이번 실행에서 확인했다.
+- 진행: 동일 서명 EAS preview `8dbcafb8-1d3c-4cbe-91d7-378453c00769` 빌드를 요청했다. 아직 새 APK 설치·웹 배포·실사용 성공은 미확인이다.
+- 다음: GitHub Actions 웹 배포 확인, APK 설치 후 실제 Android 16 단일 로그인·6개 메뉴·타이머·카메라·휴식/재개 검증과 서버 기록 대조.
+
+### 2026-09-30 — Android 단일 로그인·웹 기능 동등성 로컬 구현
+
+- 완료한 작업: `mobile-web-auth` 일회용 magiclink 해시 발급/계정 검증과 5분당 10회 제한, 웹 임베드 인증 게이트, Android 단일 WebView 웹 6개 섹션 연결, 네이티브 집중 모드 재조회 및 fallback, 신뢰 출처의 비디오 카메라만 허용하는 Android WebView 패치를 구현했다. 계정별 데이터 원천·기존 회복루틴/출석 RPC는 바꾸지 않았다.
+- 변경된 파일: `supabase/migrations/20260930000000_mobile_web_auth_limit.sql`, `supabase/functions/mobile-web-auth/`, `supabase/functions/_shared/mobile_web_auth*`, `apps/web/src/EmbeddedAuthGate.tsx`, `apps/web/src/embeddedAuth.*`, `apps/web/src/main.tsx`, `apps/mobile/App.tsx`, `apps/mobile/app.json`, `apps/mobile/src/WebFeatureScreen.tsx`, `apps/mobile/src/mobileWebBridge.ts`, `patches/react-native-webview+13.13.5.patch`, 패키지 메타데이터 및 관련 회귀 테스트.
+- 검증 방법: 전체 Node 843건(818 통과, 환경 의존 브라우저 25 건너뜀, 실패 0), Edge 21/21, 웹 빌드, 모바일 타입·호환성, README 검사 통과. Android `:app:assembleDebug` 성공; 컴파일된 `RNCWebChromeClient.class`에서 정확한 HTTPS 출처·비디오 단일 리소스 조건과 그 외 `deny()` 분기 확인. Supabase CLI 연결 오류 대신 connector로 운영 프로젝트/마이그레이션 목록을 읽어 새 버전 미적용을 확인했다.
+- 남은 작업: 운영 DB 마이그레이션·Edge 함수·웹 배포 및 실제 Auth 일회성 교환 확인, 동일 서명 EAS APK 빌드/설치와 Android 16 에뮬레이터의 6개 섹션·재로그인 없음·카메라·타이머·회복루틴 검증, 실기기 방해금지 확인. 현재 로컬 debug APK는 설치된 EAS 앱을 덮어쓰지 않았고 커밋·푸시·배포도 하지 않았다.
+- 다음 우선순위: 배포 승인 후 서버 → 웹 → APK 순으로 검증하고 실패 시 네이티브 fallback을 유지한다.
+
+### 2026-09-30 — Android 단일 로그인·웹 동등성 구현 계획
+
+- 완료: 승인된 PRD를 기준으로 서버 인증 티켓, 웹 임베드 로그인 게이트, Android 단일 WebView/방해금지 동기화, 카메라 출처 제한, 에뮬레이터 검증의 작업 순서를 `docs/superpowers/plans/2026-09-30-android-web-parity.md`에 정리했다.
+- 변경된 파일: 계획 문서, `memory-bank/active-context.md`, `memory-bank/progress.md`.
+- 검증 방법: PRD 요구사항 대조, 계획의 미정 표현 검사, `git diff --check`.
+- 남은 작업: 계획의 1~5단계를 테스트 우선으로 구현·검증한다. 운영 배포와 APK 배포는 아직 수행하지 않았다.
+
+### 2026-09-30 — Android 단일 로그인·웹 동등성 설계 초안
+
+- 완료: 사용자가 통합 설계 진행을 승인했다. `memory-bank/prd-android-web-parity.md`에 네이티브 인증 유지 + 일회용 웹 세션 연결, 웹 6개 섹션 재사용, 카메라 출처 제한, 방해금지 보존, 실패·경합·에뮬레이터 검증 기준을 작성했다.
+- 변경 파일: `memory-bank/prd-android-web-parity.md`, `memory-bank/active-context.md`, `memory-bank/progress.md`.
+- 검증 방법: 기존 Android 16 에뮬레이터 재현·코드 경로와 문서 요구사항 대조; 문서 diff 검사. 제품 코드 테스트는 설계 단계이므로 해당하지 않는다.
+- 남은 작업: 작성한 설계를 사용자에게 검토받고 파일·테스트별 구현 계획을 세운 뒤 Edge→웹→앱을 구현·검증한다. APK 및 운영 배포는 하지 않았다.
+
+### 2026-09-30 — Android 피드·숲 단일 로그인 요구 정정
+
+- 사용자 지시에 따라 Android PRD의 ‘웹 화면에서 한 번 더 로그인할 수 있음’을 폐기하고, 앱 로그인만으로 동일 계정의 피드·숲에 진입해야 한다는 요구를 기록했다.
+- 인증 저장소 분리와 에뮬레이터 재현은 기존 진단으로 확인됐다. 구현·테스트·새 APK 빌드·운영 배포는 아직 수행하지 않았다.
+- 같은 날 실행 중인 Android 16 `emulator-5554`에서 피드·숲을 각각 다시 열어 로그인 UI를 확인했다. 앱은 이미 로그인된 상태였고 확인 후 공부방 탭으로 되돌렸다.
+- 웹 동등성 범위 점검: 앱은 3개 탭, 웹은 6개 섹션이다. 웹의 카메라는 `getUserMedia`를 쓰지만 Android 앱에는 카메라 권한·구현이 없다. 기존 모바일 웹 기능 테스트는 WebView URL/외부 링크 분기만 확인하고 로그인 공유는 다루지 않는다.
+- 다음 우선순위: 안전한 앱↔웹 인증 연결 설계를 확정한 다음 코드와 서버를 수정하고 에뮬레이터에서 계정 전환·재실행·재로그인 없는 화면을 검증한다.
+
+### 2026-09-29 — Android 웹 동등성 설계 사전 확인
+
+- 확인: 네이티브 인증을 사용하는 방해금지 백그라운드 동기화와 별도 WebView 저장소, 외부 브라우저로 분기되는 Google OAuth 경로를 코드에서 대조했다. 기존 APK의 타이머 동작은 에뮬레이터에서 이미 검증했으나 카메라·단일 로그인·전체 메뉴 동등성은 미구현·미검증이다.
+- 변경: 진단 맥락을 `active-context.md`, `progress.md`, `trouble-shooting.md`에 보존했다. 제품 코드·DB·서버·APK·배포 변경 없음.
+- 다음 우선순위: 기존 모바일 PRD와 충돌하는 범위 변경을 사용자에게 확인받은 뒤 인증 세션 경계, 카메라 권한, 웹 메뉴 재사용, 방해금지 보존을 함께 설계·구현하고 Android 16 에뮬레이터에서 다시 검증한다.
+
+### 2026-09-29 — Android 16 에뮬레이터에서 최신 APK 흐름 검증
+
+- 완료: EAS preview 빌드 `5fdeccac-4011-447f-b112-1c3e65904f44`가 `FINISHED`로 완료됐다. Android 16 `StudyRoom_Android16` 에뮬레이터에 설치하고 사용자가 로그인했다.
+- 실제 화면: 공부 시작 시 `현재 세션 공부 00:01:27 → 00:01:56`, 휴식 중 약 20초 동안 `00:03:10~00:03:11`, 재개 후 `00:03:39 · 진행 중`을 확인했다. 회고에서 기존 두 할 일의 완료 체크를 해제한 다음 테스트 세션을 종료했고, 앱 강제 종료·재실행 후 네이티브 로그인과 `현재 세션 공부 00:00:00 · 대기`가 유지됐다. 테스트 세션이 오늘 완료 공부에 약 7분 반영됐다.
+- 발견: 기술 피드와 공부의 숲은 각각 WebView의 별도 웹 로그인 화면을 표시한다. 네이티브 탭은 공부방·기술 피드·공부의 숲 3개다. 집중 모드는 미연결 상태여서 실제 방해금지 제어는 확인하지 않았다.
+- 검증: 타이머 회귀 3/3과 `npm.cmd run mobile:check` 통과. 로컬 디버그 빌드의 AVD 이름 지정과 서명 충돌은 별도 trouble-shooting에 기록했다. 앱 소스·서버·DB 변경, 커밋·푸시·Vercel 배포 없음.
+- 남은 작업: WebView 단일 로그인, 카메라, 웹 전체 메뉴, 실제 Android 기기에서 방해금지 권한·토글 검증. 이번 요청의 에뮬레이터 테스트는 해당 기능들의 동작을 증명하지 않는다.
+
+### 2026-09-29 — Android 활성 세션 타이머 가시화
+
+- 완료: `apps/mobile/App.tsx`의 두 번째 지표에 진행 중 세션 시계와 진행/휴식/대기 상태를 표시했다. 초 단위 시계는 서버 시작 시각에서 완료/현재 휴식 시간을 차감하고 lease 시각을 넘지 않는다.
+- 변경: `apps/mobile/App.tsx`, 신규 `scripts/mobile-timer.test.mjs`, `memory-bank/active-context.md`, `memory-bank/progress.md`, `memory-bank/trouble-shooting.md`.
+- 검증: 타이머 테스트 3건은 기존 화면에서 실패한 뒤 수정 후 통과. 기존 모바일 10건 포함 전체 828건 중 803 통과·25 브라우저 환경 건너뜀·실패 0. `npm.cmd run mobile:check`, `npm.cmd run build`, Android `expo export` 통과. 실제 APK/기기 검증은 미실행.
+- 남은 작업: 현재 작업 트리의 회복루틴·WebView 및 타이머 변경을 포함한 새 APK 빌드/설치·인증 계정 실기기 검증. 카메라·웹 전체 메뉴·네이티브와 WebView 단일 로그인은 기존 PRD 범위 밖이라 설계/요구사항 합의가 필요하다. 커밋·푸시·배포 없음.
+
+### 2026-09-29 — 에뮬레이터에서 확인한 웹·Android 기능 차이
+
+- 시작 RPC는 성공했다(진단 시점 운영 활성·비휴식 세션 1건). Android `0h 0m`은 완료 시간만 표시하고 활성 세션의 실시간 경과 시간은 표시하지 않는다.
+- Android APK에 카메라 권한·촬영 기능이 없음을 소스·설치 패키지에서 확인했다. WebView는 별도 웹 인증 저장소를 사용하고 Google OAuth 외부 도메인을 OS 브라우저로 보내므로 앱 내 웹 로그인 연속성이 없다.
+- Android 탭 3개와 웹의 오늘·목표·피드·숲·내 페이지·알림 내비게이션 차이를 확인했다. Android PRD의 당시 범위 제한과 일치한다.
+- 이번 턴은 코드·DB·설정·배포 변경 없는 진단이다. 사용자가 원하면 웹 기능과 모바일 세션 UX 통합 범위를 새로 확정해 구현해야 한다.
+
+### 2026-09-29 — Android 16 PC 에뮬레이터 검증 환경
+
+- 공용 `E:/Android/Sdk`에 Android 에뮬레이터 37.1.11 및 API 36 Google Play x86_64 이미지를 설치하고 `StudyRoom_Android16` AVD 데이터를 E:에 구성했다.
+- WHPX 가속 및 `adb` Android 16/API 36 부팅을 확인했다. 최종 preview APK `054ebed5-8b3c-4101-af48-b8b663d7f4b4` 설치·실행과 로그인 화면 표시를 확인했다.
+- 남은 작업: 로그인 후 앱 핵심 흐름과 실기기 방해 금지 권한 검증. 이번 작업에서 앱 소스·운영 서버·배포·Git 커밋은 변경하지 않았다.
+
+### 2026-09-29 — Android 회복루틴·기술 피드·공부의 숲 APK
+
+- 완료: 모바일의 `[object Object]` 오류를 서버 `message`로 표시하고, 보류 회복 요청을 로그인/복귀 및 시작 직전에 확인한다. 앱에서 사유·보충 과제·다음 약속을 제출하고 마지막 보류 요청이 해소되면 기존에 선택한 할 일로 공부를 시작한다. 취소는 시작하지 않는다.
+- 화면: 공부방/기술 피드/공부의 숲 탭을 추가했다. 두 웹 화면은 HTTPS WebView로 재사용하고 외부 원문은 OS 브라우저로 연다. 웹 로그인 저장소는 네이티브와 독립이며 토큰 주입은 하지 않는다. 웹 화면에서 공부방으로 복귀하면 네이티브 세션·집중 상태를 다시 조회한다.
+- 변경: `apps/mobile/App.tsx`, `apps/mobile/src/WebFeatureScreen.tsx`, `apps/mobile/package.json`, `package-lock.json`, `scripts/mobile-recovery.test.mjs`, `scripts/mobile-web-features.test.mjs`, `scripts/mobile-otp.test.mjs`, Android PRD 및 memory-bank. 서버·DB·웹 구현·운영 데이터는 변경하지 않았다.
+- 검증: 모바일 신규/기존 회귀 테스트 10건 통과, `mobile:check`, 전체 Node 825건 중 800 통과/25 환경 건너뜀/0 실패, 웹 빌드와 `docs:check` 통과. 재사용 웹 URL HTTP 200. 복귀 재조회가 빠진 첫 EAS 빌드 `32641fe5-f337-4332-87c8-b86f8e66103a`는 취소했다. 최종 preview APK `054ebed5-8b3c-4101-af48-b8b663d7f4b4` FINISHED, `.apk` HEAD 200/61,461,715바이트. 설치 페이지 `https://expo.dev/accounts/jini9867/projects/study-room-attendance/builds/054ebed5-8b3c-4101-af48-b8b663d7f4b4`.
+- 남은 작업: Android 16 실기기에서 같은 계정 로그인·회복 루틴·시작·일시중지·피드/숲 WebView 확인. 웹 화면에서 별도 로그인할 수 있다는 점을 사용자에게 안내한다. 서버/DB/웹 코드 변경, 커밋·푸시·Vercel 재배포 없음.
+
+### 2026-09-29 — Android 실기기 타이머 시작·메뉴 진단
+
+- 운영 Supabase와 모바일 소스를 읽기 전용으로 대조했다. 연결·옵트인된 휴대폰 계정에 미제출 회복루틴 1건이 있으며 운영 시작 RPC는 이를 모든 세션 시작보다 먼저 차단한다. 앱은 회복루틴 화면 없이 일반 객체 오류를 `[object Object]`로 표시한다.
+- 기술 피드·공부의 숲은 현재 Android APK 구현 범위에 없으며 로그인/공부 시작 후에도 새 메뉴로 나타나지 않는다. 웹에는 두 화면이 있다.
+- 변경: 진단 문서만 갱신했다. 코드·운영 데이터·APK·배포 변경 없음. 다음 우선순위는 모바일 회복루틴 처리 및 오류 표시 보완 범위 결정과 실기기 재검증이다.
+
+### 2026-09-29 — Android 이메일 OTP 로그인 차단 수정
+
+- 확인: 사용자에게 이메일 임시 코드 8자리가 도착했지만 현재 Android APK의 `apps/mobile/App.tsx`는 6자리 입력 제한·검증·안내를 사용한다. 웹과 공통 인증 코드는 8자리다.
+- 변경: `apps/mobile/App.tsx`의 OTP 입력 자르기·검증·안내·예시를 8자리로 통일하고 `scripts/mobile-otp.test.mjs`에 실제 로그인 컴포넌트 입력/인증 API 전달 회귀 테스트를 추가했다. 운영 Auth·DB·웹 변경은 없다.
+- 검증: 기존 코드의 6자리 잘림과 예시 불일치를 테스트 RED로 재현한 뒤 GREEN 확인. 최종 소스 전체 Node 816건 중 791 통과·25 브라우저 환경 건너뜀·실패 0, `mobile:check`, 웹 빌드 통과. 최종 EAS 업로드 아카이브의 네 가지 8자리 변경점을 확인했다. 실기기 로그인·집중 모드 동작은 아직 미검증.
+- APK: 예시 수정 전 시작한 빌드 `07f6dcdf-5504-41ba-84df-c251a332e8ca`는 취소했다. 최종 preview 빌드 `b9ddeb31-146e-4615-b898-119afa6b9479` FINISHED, `.apk` 아티팩트 HEAD 200/60,540,210바이트 확인. 설치 페이지: `https://expo.dev/accounts/jini9867/projects/study-room-attendance/builds/b9ddeb31-146e-4615-b898-119afa6b9479`. 커밋·푸시·Vercel 배포 대상 아님.
+- 다음 우선순위: 사용자 휴대폰에 새 APK를 설치하고 같은 계정의 8자리 로그인·집중 모드 연결을 실기기에서 검증한다.
+
 ### 2026-09-28 — Android 집중 모드 첫 구현 및 운영 서버 적용
 
 - 완료: Android 앱 소유 AutomaticZenRule 네이티브 모듈, Expo 백그라운드 푸시 신호/최신 세션 재조회, 앱 연결·상태 UI, 웹 연결/적용 확인 UI, Supabase 상태·기기 RLS/등록·확인 RPC, 출석 Cron 신호 재시도, 첫 preview APK 빌드.

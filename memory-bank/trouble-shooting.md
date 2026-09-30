@@ -1,3 +1,295 @@
+## 2026-09-30 — Android 단일 로그인 로컬 구현과 운영 검증 경계
+
+### 상황
+
+앱 로그인 후 기술 피드·공부의 숲이 재로그인을 요구하는 문제를 해결하기 위해 DB·Edge·웹·Android를 함께 수정했다.
+
+### 원인
+
+네이티브 AsyncStorage 세션과 WebView 브라우저 세션이 서로 분리돼 있었다. 두 독립 WebView는 웹의 다른 메뉴·카메라 흐름도 제공하지 못했다.
+
+### 해결 방법
+
+네이티브 계정을 서버에서 재검증해 동일 계정의 1회용 `magiclink` 해시를 발급하고, 신뢰된 단일 WebView에서 교환하도록 했다. 웹 인증 완료 전 보호 화면을 숨기고, 앱 공부 상태 신호는 서버 재조회로 확인한다. Android 카메라는 정확한 첫 번째 출처의 비디오 단일 요청만 허용한다. 전체 Node 818 통과/25 환경 건너뜀, Edge 21 통과, 웹·Android debug 빌드 통과.
+
+### 관련 파일
+
+- `supabase/functions/mobile-web-auth/index.ts`, `supabase/migrations/20260930000000_mobile_web_auth_limit.sql`
+- `apps/web/src/EmbeddedAuthGate.tsx`, `apps/mobile/src/WebFeatureScreen.tsx`, `apps/mobile/src/mobileWebBridge.ts`
+- `patches/react-native-webview+13.13.5.patch`
+
+### 재발 방지 / 남은 리스크
+
+로컬 컴파일은 운영 동작을 증명하지 않는다. 새 DB/Edge/웹은 운영 미적용이며 동일 서명 APK도 아직 없다. 서버 → 웹 → APK 적용 후 실제 Supabase Auth 교환, 에뮬레이터 재로그인 없음·카메라 허용/거부·계정 전환을 검증한다. 기존 서명 앱을 로컬 debug APK로 덮어쓰거나 로그인 데이터를 지우지 않는다.
+
+## 2026-09-30 — Supabase CLI 링크와 Windows WebView 패치 생성 오류
+
+### 상황
+
+Android 로그인 티켓의 새 DB 마이그레이션 상태를 확인하고 `react-native-webview` 패치를 생성하던 중 도구 오류가 났다.
+
+### 에러 메시지
+
+```txt
+ProjectRefNotLinkedError
+corrupt patch at line 21
+```
+
+### 원인
+
+이 작업 트리의 Supabase CLI가 운영 프로젝트에 링크돼 있지 않았다. `patch-package` 자동 생성은 Windows의 긴 `android/build/.transforms` 경로를 처리하지 못했다. 수동 작성한 첫 패치는 hunk 줄 수가 맞지 않았다.
+
+### 해결 방법
+
+Supabase connector로 운영 프로젝트 `bqohkdzvxbrokkmuhysx`와 마이그레이션 목록을 읽어 새 버전 미적용을 확인했다. WebView 패치는 필요한 Java 소스 hunk만 `patches/react-native-webview+13.13.5.patch`에 기록하고 hunk 길이를 수정했다. `git apply --check --reverse`, 루트 `postinstall`의 `patch-package`, Android `:app:assembleDebug` 및 컴파일된 클래스의 출처·비디오 분기를 확인했다. 운영 마이그레이션은 적용하지 않았다.
+
+### 관련 파일
+
+- `supabase/migrations/20260930000000_mobile_web_auth_limit.sql`
+- `patches/react-native-webview+13.13.5.patch`
+- `package.json`, `package-lock.json`
+
+### 재발 방지
+
+운영 적용 전 프로젝트 ref/마이그레이션 상태를 다시 확인한다. Windows에서 패치 생성 시 빌드 산출물 전체를 포함하지 말고 원본 소스만 patch에 넣고 실제 설치·네이티브 빌드로 적용을 확인한다.
+
+## 2026-09-29 — Android WebView Google 로그인 연속성 및 방해금지 인증 경계
+
+### 상황
+
+네이티브 앱에 로그인해도 기술 피드·공부의 숲은 로그인 화면을 다시 표시한다. 웹과 같은 메뉴·카메라를 앱에 제공하려는 요청이 있다.
+
+### 원인
+
+`apps/mobile/src/supabase.ts`는 AsyncStorage에 네이티브 세션을 저장하지만 WebView는 별도 브라우저 저장소를 사용한다. `WebFeatureScreen.tsx`는 다른 HTTPS 출처를 OS 브라우저로 열므로 Google OAuth가 WebView 내부 세션으로 복귀하지 않는다. 한편 `focusBackground.ts`는 푸시 후 네이티브 세션으로 `focus.ts`의 서버 재조정을 실행한다. 따라서 단순 웹 화면 확대나 동일 refresh token 복사만으로 단일 로그인과 기존 방해금지 동작을 보장할 수 없다.
+
+### 해결 상태
+
+원인을 코드·에뮬레이터 결과와 대조했다. 2026-09-30에도 Android 16 `emulator-5554`에서 이미 앱에 로그인한 상태로 피드·숲을 각각 열었을 때 두 WebView 모두 이메일 코드·Google 로그인 UI를 표시했다. 사용자는 재로그인 금지를 명시했고 관련 PRD에 반영했다. 안전한 앱↔웹 인증 연결의 설계 확인 전으로 제품 코드·서버·APK 수정은 아직 없다. 인증 키나 운영 설정도 변경하지 않았다.
+
+### 재발 방지
+
+인증 저장소 경계와 OAuth 콜백 위치, 백그라운드 푸시의 인증 소스를 통합 설계에서 함께 검증한다. 완료 판정에는 동일 계정의 단일 로그인, 웹 주요 메뉴, 카메라 시작, 휴식·재개·종료 및 방해금지 유지의 Android 에뮬레이터 확인이 필요하다.
+
+## 2026-09-29 — Android 로컬 디버그 설치 실패와 EAS APK 대체 검증
+
+### 상황
+
+최신 타이머 APK가 EAS 대기열에 있는 동안 Android 16 에뮬레이터에 로컬 `expo run:android` 빌드를 설치하려 했다.
+
+### 에러 메시지
+
+```txt
+Could not find device with name: emulator-5554
+INSTALL_FAILED_UPDATE_INCOMPATIBLE
+```
+
+### 원인
+
+Expo의 `-d` 인자는 ADB 직렬번호 `emulator-5554`가 아닌 AVD 이름 `StudyRoom_Android16`을 기대했다. AVD 이름으로 다시 빌드한 뒤에는 기존 EAS APK와 로컬 디버그 APK의 서명이 달라 데이터 보존 업데이트가 거부됐다.
+
+### 해결 방법
+
+기존 앱을 제거하거나 로그인 데이터를 지우지 않았다. EAS preview 빌드 `5fdeccac-4011-447f-b112-1c3e65904f44`가 완료된 뒤 동일 서명의 APK를 `eas build:run`으로 설치했다. 에뮬레이터에서 시작·휴식·재개·회고 종료·앱 재실행을 확인했다. 로컬 prebuild가 생성한 Android 폴더와 임시 빌드 출력만 대상 경로를 확인한 후 정리하고, `package.json`의 자동 변경된 실행 스크립트를 원래대로 복구했다.
+
+### 관련 파일
+
+- `apps/mobile/package.json`
+- `apps/mobile/App.tsx`
+- `apps/mobile/src/WebFeatureScreen.tsx`
+
+### 재발 방지
+
+에뮬레이터 지정은 `adb emu avd name`으로 얻은 AVD 이름을 사용한다. 설치된 EAS 앱의 데이터가 필요한 테스트에서는 서명이 다른 로컬 디버그 APK로 덮어쓰지 말고 동일 서명 EAS APK를 설치한다. 활성 타이머 때문에 UIAutomator가 idle 상태를 기다리지 못할 수 있어 `adb screencap`으로 실시간 화면을 확인한다. 이번 APK의 피드·숲 WebView는 네이티브 인증을 공유하지 않아 별도 로그인 화면이 나오는 것도 실기기 전에 별도로 검증해야 한다.
+
+## 2026-09-29 — Android 세션 시작 후 타이머가 정지된 듯 표시됨
+
+### 상황
+
+서버에 활성 세션이 있어도 Android 화면은 완료 공부 `0h 0m`과 `진행 중` 상태만 보였고 경과 시간이 증가하지 않았다.
+
+### 원인
+
+모바일은 `get_study_period_summary.completed_seconds`를 완료된 시간 지표에만 연결했고, 기존 1초 `nowMs` 갱신을 활성 세션 공부시간 계산에 사용하지 않았다. 서버의 세션 시작 실패나 Android 시계 중단은 아니었다.
+
+### 해결 방법
+
+활성 세션의 `started_at`부터 현재 시각까지를 초 단위로 계산하고 완료된 휴식과 진행 중 휴식을 뺀 뒤 `lease_expires_at`에서 멈추는 `현재 세션 공부` 시계를 추가했다. 테스트에서 진행·휴식·lease 경계를 각각 기존 코드 실패→수정 후 성공으로 확인했다.
+
+### 관련 파일
+
+- `apps/mobile/App.tsx`
+- `scripts/mobile-timer.test.mjs`
+
+### 재발 방지
+
+완료 세션 합계와 진행 중 세션 경과시간을 별도 지표로 유지하고, 시작·휴식·lease 및 새 APK에서 실제 표시를 함께 확인한다. 이 문서 작성 당시에는 APK 재빌드와 기기 확인 전이었으나, 위 EAS APK를 Android 16 에뮬레이터에 설치해 시작·휴식·재개 표시를 후속 검증했다. 실제 제조사 기기의 방해금지·카메라 동작은 여전히 미검증이다.
+
+### 검증 도구 참고
+
+Expo Android export의 `--output-dir`은 앱 프로젝트 하위여야 한다. 외부 임시 경로를 지정한 첫 검증 명령은 도구 제약으로 실패했고, 앱 하위의 검증 전용 경로로 재실행해 번들 생성에 성공한 뒤 해당 임시 출력만 정리했다.
+
+## 2026-09-29 — Android 앱의 정지된 공부 숫자·미실행 카메라·WebView 재로그인
+
+### 상황
+
+에뮬레이터에서 공부를 시작해도 `0h 0m`이 증가하지 않고 카메라가 켜지지 않았다. 피드·숲을 열면 웹 로그인을 다시 요구하며 웹의 다른 메뉴도 보이지 않았다.
+
+### 관측
+
+- 운영 `study_sessions` 조회 시 활성·비휴식 세션 1건이 있어 시작 자체는 성공했다.
+- Android 화면의 시간은 `get_study_period_summary.completed_seconds`에서 받은 완료 시간만 출력한다. 진행 중인 세션 경과 시간은 계산·표시하지 않는다.
+- `apps/mobile`에 카메라 촬영 구현이 없고 설치된 APK의 CAMERA 권한 선언도 없다.
+- 네이티브 Supabase 세션은 AsyncStorage, 웹 WebView는 브라우저 저장소를 사용한다. WebView 내 다른 HTTPS 출처는 OS 브라우저로 열기 때문에 Google OAuth 과정이 웹뷰 밖으로 나간다.
+- Android 탭은 3개만 정의돼 있고 관련 PRD에서 나머지 웹 화면 이식을 제외했다.
+
+### 원인
+
+서버 시작 실패나 에뮬레이터 카메라 고장이 아니라 웹과 Android의 기능·인증 구현 범위 차이다. 특히 실시간 타이머 부재와 OAuth 이동 정책은 현재 Android UI/내장 웹 흐름의 한계다.
+
+### 해결 방법
+
+이번 요청은 원인 진단이므로 앱 코드·운영 설정을 변경하지 않았다. 웹 수준의 실시간 경과 시간, 카메라, 전체 메뉴 및 안전한 단일 로그인 흐름은 별도 요구 범위를 확정해 구현해야 한다. 이미 시작된 세션은 자동 종료하지 않았다.
+
+### 관련 파일
+
+- `apps/mobile/App.tsx`
+- `apps/mobile/src/supabase.ts`
+- `apps/mobile/src/WebFeatureScreen.tsx`
+- `apps/web/src/authSession.mjs`
+- `apps/web/src/main.tsx`
+- `memory-bank/prd-android-focus-mode.md`
+
+### 재발 방지
+
+APK 출시 전 활성 세션의 진행 숫자, 카메라 권한·작동, Google OAuth 후 내장 웹 복귀, 웹/앱 메뉴 차이를 에뮬레이터와 실기기에서 각각 검증한다. 미구현 기능을 웹과 동일하다고 안내하지 않는다.
+
+## 2026-09-29 — Expo 의존성 권장 버전 검사 경고
+
+### 상황
+
+WebView 추가 후 `npx expo install --check`를 실행했다. 모바일 타입 검사와 전체 테스트는 통과했지만 이 권장 버전 검사는 실패했다.
+
+### 에러 메시지
+
+```txt
+@types/react@19.2.16 - expected version: ~19.0.10
+typescript@5.9.3 - expected version: ~5.8.3
+Found outdated dependencies
+```
+
+### 원인
+
+새 `react-native-webview`는 설치 버전과 SDK 53 권장 버전이 모두 `13.13.5`로 일치한다. 경고는 기존 루트 개발 의존성의 권장 범위 차이이며 이번 WebView 버전 불일치는 아니다.
+
+### 해결 방법
+
+요청 범위 밖의 React 타입·TypeScript 전체 버전 변경은 하지 않았다. 실제 `mobile:check` 타입 검사와 최종 EAS Android preview APK `054ebed5-8b3c-4101-af48-b8b663d7f4b4` 빌드가 통과했다. SDK 권장 개발 의존성 범위 경고는 남아 있다.
+
+### 관련 파일
+
+- `apps/mobile/package.json`
+- `package-lock.json`
+
+### 재발 방지
+
+Expo SDK 업그레이드나 별도 의존성 정리 작업 때 두 개발 의존성을 SDK 권장 버전으로 맞추고 웹/Android 타입·빌드를 함께 재검증한다.
+
+## 2026-09-29 — Android 회복 요청이 보이지 않아 타이머가 시작되지 않음: 구현 후속
+
+### 상황
+
+앞선 진단의 보류 회복 요청 때문에 앱에서 타이머 시작이 거부되고, 일반 객체 오류가 `[object Object]`로만 보였다. 웹의 기술 피드·공부의 숲도 기존 APK에 없었다.
+
+### 에러 메시지
+
+```txt
+Recovery routine required
+[object Object]
+```
+
+### 원인
+
+운영 `start_study_session`의 회복루틴 선행 조건과 Android UI의 회복 조회·제출 부재가 충돌했다. `formatError`가 Supabase 오류 객체의 `message`를 읽지 않고 문자열화했다. 앱 메뉴는 공부방 단일 화면만 구현돼 있었다.
+
+### 해결 방법
+
+앱의 초기/복귀 조회와 시작 직전 재검사에 보류 회복 요청을 포함하고, 기존 제출 RPC로 사유·보충·약속을 저장한다. 마지막 요청 후 선택한 할 일로 시작을 이어 간다. 시작 RPC 직전 새로 보류 요청이 생성된 경합도 재조회한다. 오류 객체의 `message`를 표시한다. 피드·숲은 앱 내 HTTPS WebView로 제공한다. 서버·DB·기존 웹 코드는 수정하지 않았다.
+
+최종 EAS preview APK `054ebed5-8b3c-4101-af48-b8b663d7f4b4` 빌드가 완료되고 아티팩트 HTTP 200을 확인했다. 실제 휴대폰에서 회복 제출과 세션 시작이 성공했는지는 설치 후 확인해야 한다.
+
+### 관련 파일
+
+- `apps/mobile/App.tsx`
+- `apps/mobile/src/WebFeatureScreen.tsx`
+- `scripts/mobile-recovery.test.mjs`
+- `scripts/mobile-web-features.test.mjs`
+
+### 재발 방지
+
+보류 요청 1건·여러 건·시작과 서버 상태 경합·취소·오류 객체를 실제 앱 컴포넌트 회귀 테스트에 포함한다. APK 빌드 성공과 실기기 동작은 별도로 판정한다.
+
+## 2026-09-29 — Android 타이머 시작 시 `[object Object]` 표시
+
+### 상황
+
+실기기에서 집중 모드 연결 후 오늘 할 일을 선택하고 `입장하고 타이머 시작`을 누르면 시작되지 않으며 오류가 `[object Object]`로 보인다. 기술 피드·공부의 숲 메뉴도 보이지 않는다.
+
+### 에러 메시지
+
+```txt
+[object Object]
+```
+
+### 원인
+
+모바일 시작 경로는 운영 `start_study_session(uuid[])` RPC를 호출한다. 이 함수는 `study_recovery_requests.status='pending'`가 하나라도 있으면 `Recovery routine required`로 세션 생성 전에 거부한다. 운영 조회에서 현재 연결·옵트인된 휴대폰 계정에는 2026-06-16~2026-09-28을 덮는 pending 요청 1건이 확인됐다. 모바일은 회복 요청을 조회·제출하는 화면이 없고 `formatError()`가 일반 객체를 `String(error)`로 변환해 `[object Object]`로 표시한다. 해당 오류의 실제 모바일 요청 로그는 확보하지 못했으나 현재 서버 상태와 시작 함수의 선행 조건으로 이 계정의 시작 차단이 재현 가능하다. 기술 피드·공부의 숲은 Android APK에 구현되지 않은 웹 화면이며 로그인 이후 숨겨진 메뉴가 아니다.
+
+### 해결 방법
+
+이번 요청에서는 진단만 수행하고 코드·운영 데이터는 수정하지 않았다. 같은 계정으로 웹에 접속해 보류 중인 회복루틴을 정상 제출한 후 시작을 재시도할 수 있다. 모바일 단독 사용을 지원하려면 회복루틴 상태 조회·제출/안내와 구조화된 서버 오류 표시를 추가해야 한다. 두 웹 화면의 Android 이식은 별도 범위 결정이 필요하다.
+
+### 관련 파일
+
+- `apps/mobile/App.tsx`
+- `supabase/migrations/20260712142233_sustainable_study_loop.sql`
+- `memory-bank/prd-android-focus-mode.md`
+
+### 재발 방지
+
+실기기 세션 시작 테스트에 보류 중인 회복루틴 계정을 포함하고, 서버가 거부할 때 사용자에게 실제 차단 이유와 웹/앱 해결 경로를 표시한다. 기능 범위가 다른 웹·APK 메뉴를 동일하게 보일 것으로 안내하지 않는다.
+
+## 2026-09-29 — Android 앱에서 8자리 이메일 OTP를 입력할 수 없음
+
+### 상황
+
+사용자가 설치형 Android 앱에 로그인하려고 했으나 이메일로 받은 임시 코드는 8자리이고 앱 입력은 6자리까지만 허용했다.
+
+### 에러 메시지
+
+```txt
+이메일과 6자리 숫자 코드를 확인하세요.
+```
+
+### 원인
+
+프로젝트 웹과 공통 인증 코드는 이메일 OTP를 8자리로 정의한다. 모바일 `apps/mobile/App.tsx`의 입력 `slice(0, 6)`, `^\d{6}$` 검사, 안내 문구는 초기 6자리 계약에 남아 있다. 코드가 잘리고 서버 `verifyOtp` 호출 전에 거부된다. 사용자가 받은 실제 OTP 값이나 운영 Auth 설정 자체는 열람하지 않았다.
+
+### 해결 방법
+
+사용자 수정 승인 후 모바일 입력·검증·안내·예시를 8자리로 통일했다. 실제 모바일 로그인 컴포넌트 테스트에서 기존 6자리 잘림과 예시 불일치를 각각 RED로 확인하고 수정 후 GREEN을 확인했다. 서버 설정이나 운영 데이터는 변경하지 않았다. 예시 수정 전 빌드는 취소했으며 최종 APK 빌드 `b9ddeb31-146e-4615-b898-119afa6b9479`는 FINISHED, 아티팩트 HEAD 200이다. 실기기 로그인 성공은 새 APK 설치 후 별도 확인이 필요하다.
+
+### 관련 파일
+
+- `apps/mobile/App.tsx`
+- `scripts/mobile-otp.test.mjs`
+- `apps/web/src/authCode.mjs`
+- `packages/core/src/index.mjs`
+
+### 재발 방지
+
+모바일 OTP 자리수와 안내를 한 값으로 묶고, 실제 입력이 8자리(앞자리 0 포함)를 보존해 인증 API로 전달하는지 회귀 테스트한다. 최종 소스 전체 테스트는 791 통과·25 환경 건너뜀·실패 0이었다.
+
 ## 2026-09-28 — 운영 마이그레이션 버전 정렬 후 CI 테스트 파일 경로 누락
 
 ### 상황

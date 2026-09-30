@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
@@ -25,8 +25,10 @@ import {
   type FocusSnapshot,
 } from "./src/focus";
 import { supabase } from "./src/supabase";
+import { WebFeatureScreen } from "./src/WebFeatureScreen";
 
 const retryCooldownMs = 15 * 60 * 1000;
+const emailOtpLength = 8;
 
 const mobilePalette = {
   canvas: "#d9f0e3",
@@ -82,6 +84,16 @@ type StudySessionTodoLink = {
   todo_id: string;
 };
 
+type RecoveryRequest = {
+  id: string;
+  local_date: string;
+  covered_start_date: string | null;
+  covered_end_date: string | null;
+  covered_missed_days: number | null;
+  trigger_type: string;
+  status: "pending";
+};
+
 type InterruptionReason = "none" | "phone" | "environment" | "fatigue" | "schedule" | "other";
 
 const interruptionOptions: Array<{ value: InterruptionReason; label: string }> = [
@@ -120,6 +132,14 @@ export default function App() {
   const [busy, setBusy] = useState(false);
   const [focusSnapshot, setFocusSnapshot] = useState<FocusSnapshot | null>(null);
   const [focusError, setFocusError] = useState("");
+  const [pendingRecoveryRequests, setPendingRecoveryRequests] = useState<RecoveryRequest[]>([]);
+  const [recoveryOpen, setRecoveryOpen] = useState(false);
+  const [recoveryReason, setRecoveryReason] = useState("");
+  const [recoveryMakeupTitle, setRecoveryMakeupTitle] = useState("");
+  const [recoveryPledge, setRecoveryPledge] = useState("");
+  const [resumeStartAfterRecovery, setResumeStartAfterRecovery] = useState(false);
+  const dismissedRecoveryIdRef = useRef<string | null>(null);
+  const [webFallback, setWebFallback] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -148,6 +168,7 @@ export default function App() {
   }, []);
 
   useEffect(() => {
+    setWebFallback(false);
     if (session?.user.id) {
       setFocusSnapshot(null);
       setFocusError("");
@@ -156,6 +177,10 @@ export default function App() {
     } else {
       setFocusSnapshot(null);
       setFocusError("");
+      setPendingRecoveryRequests([]);
+      setRecoveryOpen(false);
+      setResumeStartAfterRecovery(false);
+      dismissedRecoveryIdRef.current = null;
     }
   }, [session?.user.id]);
 
@@ -202,6 +227,7 @@ export default function App() {
     ? Math.max(0, Math.ceil((new Date(activeSession.lease_expires_at).getTime() - nowMs) / 1000))
     : 0;
   const currentBreakSeconds = getCurrentBreakSeconds(activeSession?.paused_at, nowMs);
+  const activeStudySeconds = getActiveStudySeconds(activeSession, nowMs);
   const resendSeconds = Math.max(0, Math.ceil((resendAvailableAt - nowMs) / 1000));
 
   async function refreshFocus(userId: string) {
@@ -288,7 +314,7 @@ export default function App() {
       if (error) throw error;
       setCodeSent(true);
       setResendAvailableAt(Date.now() + 60_000);
-      Alert.alert("코드를 보냈습니다", "이메일로 받은 6자리 코드를 입력하세요.");
+      Alert.alert("코드를 보냈습니다", `이메일로 받은 ${emailOtpLength}자리 코드를 입력하세요.`);
     } catch (error) {
       const message = formatError(error);
       if (isRateLimitError(message)) setResendAvailableAt(Date.now() + retryCooldownMs);
@@ -301,8 +327,8 @@ export default function App() {
   async function verifyCode() {
     const nextEmail = email.trim();
     const token = otp.replace(/\s+/g, "");
-    if (!nextEmail || !/^\d{6}$/.test(token)) {
-      Alert.alert("입력 확인", "이메일과 6자리 숫자 코드를 확인하세요.");
+    if (!nextEmail || token.length !== emailOtpLength || !/^\d+$/.test(token)) {
+      Alert.alert("입력 확인", `이메일과 ${emailOtpLength}자리 숫자 코드를 확인하세요.`);
       return;
     }
 
@@ -329,7 +355,7 @@ export default function App() {
 
       const resolvedTimeZone = profileData?.time_zone ?? Intl.DateTimeFormat().resolvedOptions().timeZone;
       const localDate = getLocalDateKey(new Date(), resolvedTimeZone);
-      const [attendanceResult, sessionsResult, todosResult, sessionTodoResult, studySummaryResult] = await Promise.all([
+      const [attendanceResult, sessionsResult, todosResult, sessionTodoResult, studySummaryResult, recoveryResult] = await Promise.all([
         supabase
           .from("attendance_days")
           .select("*")
@@ -359,12 +385,19 @@ export default function App() {
           p_start_date: localDate,
           p_end_date: localDate,
         }),
+        supabase
+          .from("study_recovery_requests")
+          .select("id,local_date,covered_start_date,covered_end_date,covered_missed_days,trigger_type,status")
+          .eq("user_id", userId)
+          .eq("status", "pending")
+          .order("local_date", { ascending: true }),
       ]);
       const queryError = attendanceResult.error
         ?? sessionsResult.error
         ?? todosResult.error
         ?? sessionTodoResult.error
-        ?? studySummaryResult.error;
+        ?? studySummaryResult.error
+        ?? recoveryResult.error;
       if (queryError) throw queryError;
 
       if (profileData) {
@@ -374,6 +407,11 @@ export default function App() {
       setAttendance((attendanceResult.data ?? null) as AttendanceDay | null);
       setSessions((sessionsResult.data ?? []) as StudySession[]);
       setStudySessionTodoLinks((sessionTodoResult.data ?? []) as StudySessionTodoLink[]);
+      const nextRecovery = (recoveryResult.data ?? []) as RecoveryRequest[];
+      setPendingRecoveryRequests(nextRecovery);
+      if (nextRecovery[0] && nextRecovery[0].id !== dismissedRecoveryIdRef.current) {
+        setRecoveryOpen(true);
+      }
       const summaryRow = Array.isArray(studySummaryResult.data) ? studySummaryResult.data[0] : studySummaryResult.data;
       setTodayStudySeconds(Math.max(0, Number(summaryRow?.completed_seconds) || 0));
       const nextTodos = (todosResult.data ?? []) as StudyTodo[];
@@ -473,6 +511,20 @@ export default function App() {
 
     setBusy(true);
     try {
+      const { data: recoveryData, error: recoveryError } = await supabase
+        .from("study_recovery_requests")
+        .select("id,local_date,covered_start_date,covered_end_date,covered_missed_days,trigger_type,status")
+        .eq("user_id", session.user.id)
+        .eq("status", "pending")
+        .order("local_date", { ascending: true });
+      if (recoveryError) throw recoveryError;
+      if (recoveryData?.length) {
+        setPendingRecoveryRequests(recoveryData as RecoveryRequest[]);
+        setResumeStartAfterRecovery(true);
+        dismissedRecoveryIdRef.current = null;
+        setRecoveryOpen(true);
+        return;
+      }
       const { error } = await supabase.rpc("start_study_session", {
         p_todo_ids: selectedSessionTodoIds,
       });
@@ -480,7 +532,76 @@ export default function App() {
       await refreshData(session.user.id);
       void signalFocusChange(session.user.id);
     } catch (error) {
-      Alert.alert("시작 실패", formatError(error));
+      if (formatError(error).includes("Recovery routine required")) {
+        const { data: recoveryData, error: reloadError } = await supabase
+          .from("study_recovery_requests")
+          .select("id,local_date,covered_start_date,covered_end_date,covered_missed_days,trigger_type,status")
+          .eq("user_id", session.user.id)
+          .eq("status", "pending")
+          .order("local_date", { ascending: true });
+        if (!reloadError && recoveryData?.length) {
+          setPendingRecoveryRequests(recoveryData as RecoveryRequest[]);
+          setResumeStartAfterRecovery(true);
+          dismissedRecoveryIdRef.current = null;
+          setRecoveryOpen(true);
+        } else {
+          Alert.alert("회복 루틴 확인 필요", "서버에서 회복 루틴을 요청했습니다. 잠시 후 다시 확인해 주세요.");
+        }
+      } else {
+        Alert.alert("시작 실패", formatError(error));
+      }
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  function closeRecoveryRoutine() {
+    dismissedRecoveryIdRef.current = pendingRecoveryRequests[0]?.id ?? null;
+    setResumeStartAfterRecovery(false);
+    setRecoveryOpen(false);
+  }
+
+  async function submitRecoveryRoutine() {
+    const request = pendingRecoveryRequests[0];
+    if (!session?.user.id || !request) return;
+    const reason = recoveryReason.trim();
+    const makeupTitle = recoveryMakeupTitle.trim();
+    const pledge = recoveryPledge.trim();
+    if (!reason || !makeupTitle || !pledge) {
+      Alert.alert("입력 확인", "사유, 오늘 보충 과제, 내일 재도전 약속을 모두 입력해 주세요.");
+      return;
+    }
+
+    setBusy(true);
+    try {
+      const { error } = await supabase.rpc("submit_study_recovery_request", {
+        p_request_id: request.id,
+        p_reason: reason,
+        p_makeup_todo_title: makeupTitle,
+        p_pledge_todo_title: pledge,
+      });
+      if (error) throw error;
+      const { data: nextRequests, error: reloadError } = await supabase
+        .from("study_recovery_requests")
+        .select("id,local_date,covered_start_date,covered_end_date,covered_missed_days,trigger_type,status")
+        .eq("user_id", session.user.id)
+        .eq("status", "pending")
+        .order("local_date", { ascending: true });
+      if (reloadError) throw reloadError;
+      setPendingRecoveryRequests((nextRequests ?? []) as RecoveryRequest[]);
+      dismissedRecoveryIdRef.current = null;
+      setRecoveryReason("");
+      setRecoveryMakeupTitle("");
+      setRecoveryPledge("");
+      if (!nextRequests?.length) {
+        setRecoveryOpen(false);
+        if (resumeStartAfterRecovery) {
+          setResumeStartAfterRecovery(false);
+          await startTimer();
+        }
+      }
+    } catch (error) {
+      Alert.alert("회복 루틴 저장 확인 필요", formatError(error));
     } finally {
       setBusy(false);
     }
@@ -596,7 +717,7 @@ export default function App() {
           <Text style={styles.kicker}>forced attendance</Text>
           <Text style={styles.title}>오늘도 독서실에 들어갈 시간</Text>
           <Text style={styles.copy}>
-            이메일로 받은 6자리 코드를 입력해 로그인하세요. 매일 정한 시간에 출석을 기록합니다.
+            이메일로 받은 {emailOtpLength}자리 코드를 입력해 로그인하세요. 매일 정한 시간에 출석을 기록합니다.
           </Text>
           <TextInput
             value={email}
@@ -610,10 +731,10 @@ export default function App() {
           {codeSent && (
             <TextInput
               value={otp}
-              onChangeText={(value) => setOtp(value.replace(/\D/g, "").slice(0, 6))}
+              onChangeText={(value) => setOtp(value.replace(/\D/g, "").slice(0, emailOtpLength))}
               keyboardType="number-pad"
               textContentType="oneTimeCode"
-              placeholder="123456"
+              placeholder="12345678"
               placeholderTextColor={mobilePalette.muted}
               style={styles.input}
             />
@@ -633,9 +754,47 @@ export default function App() {
     );
   }
 
+  if (!webFallback) {
+    return (
+      <SafeAreaView style={styles.screen}>
+        <StatusBar barStyle="dark-content" backgroundColor={mobilePalette.canvas} />
+        <View style={styles.webNativeBar}>
+          <Text style={styles.webNativeStatus}>휴대폰 집중 모드 · {focusStatusLabel(focusSnapshot)}</Text>
+          <Pressable accessibilityRole="button" style={styles.webNativeAction} onPress={() => void connectFocus()} disabled={busy}>
+            <Text style={styles.webNativeActionText}>{focusSnapshot?.device_connected ? "집중 모드 다시 연결·확인" : "집중 모드 연결"}</Text>
+          </Pressable>
+          <Pressable accessibilityRole="button" style={styles.webNativeAction} onPress={() => void logout()}>
+            <Text style={styles.webNativeActionText}>로그아웃</Text>
+          </Pressable>
+        </View>
+        {focusError ? <Text style={styles.focusError}>{focusError}</Text> : null}
+        <WebFeatureScreen
+          key={session.user.id}
+          sessionUserId={session.user.id}
+          onStudyStateChanged={() => {
+            void refreshData(session.user.id);
+            void refreshFocus(session.user.id);
+          }}
+          onNativeSignOut={() => { void logout(); }}
+          onFallback={() => {
+            setWebFallback(true);
+            void refreshData(session.user.id);
+            void refreshFocus(session.user.id);
+          }}
+        />
+      </SafeAreaView>
+    );
+  }
+
   return (
     <SafeAreaView style={styles.screen}>
       <StatusBar barStyle="dark-content" backgroundColor={mobilePalette.canvas} />
+      <View style={styles.webNativeBar}>
+        <Text style={styles.webNativeStatus}>네이티브 공부방 · 웹 화면을 열 수 없을 때 사용</Text>
+        <Pressable accessibilityRole="button" style={styles.webNativeAction} onPress={() => setWebFallback(false)}>
+          <Text style={styles.webNativeActionText}>웹 화면 다시 열기</Text>
+        </Pressable>
+      </View>
       <ScrollView contentContainerStyle={styles.content}>
         <View style={styles.header}>
           <View>
@@ -662,8 +821,8 @@ export default function App() {
             <Text style={styles.metricLabel}>오늘 완료 공부</Text>
           </View>
           <View style={styles.metric}>
-            <Text style={styles.metricValue}>{activeSessionPaused ? "휴식 중" : activeSession ? "진행 중" : "대기"}</Text>
-            <Text style={styles.metricLabel}>타이머</Text>
+            <Text style={styles.metricValue}>{formatTimerClock(activeStudySeconds)}</Text>
+            <Text style={styles.metricLabel}>현재 세션 공부 · {activeSessionPaused ? "휴식 중" : activeSession ? "진행 중" : "대기"}</Text>
           </View>
         </View>
 
@@ -789,6 +948,33 @@ export default function App() {
           </Pressable>
         </View>
       </ScrollView>
+      <Modal visible={recoveryOpen} transparent animationType="fade" onRequestClose={closeRecoveryRoutine}>
+        <View style={styles.modalBackdrop}>
+          <View style={styles.reflectionModal}>
+            <ScrollView contentContainerStyle={styles.reflectionContent}>
+              <Text style={styles.sectionTitle}>회복 루틴</Text>
+              <Text style={styles.copy}>
+                {pendingRecoveryRequests[0]?.covered_missed_days && pendingRecoveryRequests[0].covered_missed_days > 1
+                  ? `${pendingRecoveryRequests[0].covered_start_date}~${pendingRecoveryRequests[0].covered_end_date} 누적 ${pendingRecoveryRequests[0].covered_missed_days}일`
+                  : pendingRecoveryRequests[0]?.local_date}{" "}
+                미제출 회복 루틴을 작성해야 공부를 시작할 수 있어요.
+              </Text>
+              <Text style={styles.fieldLabel}>결석/이탈 사유</Text>
+              <TextInput value={recoveryReason} onChangeText={setRecoveryReason} placeholder="결석/이탈 사유" placeholderTextColor={mobilePalette.muted} maxLength={400} multiline style={styles.input} />
+              <Text style={styles.fieldLabel}>오늘 보충 과제</Text>
+              <TextInput value={recoveryMakeupTitle} onChangeText={setRecoveryMakeupTitle} placeholder="오늘 보충 과제" placeholderTextColor={mobilePalette.muted} maxLength={120} style={styles.input} />
+              <Text style={styles.fieldLabel}>내일 재도전 약속</Text>
+              <TextInput value={recoveryPledge} onChangeText={setRecoveryPledge} placeholder="내일 재도전 약속" placeholderTextColor={mobilePalette.muted} maxLength={120} style={styles.input} />
+              <Pressable style={styles.primaryButton} onPress={submitRecoveryRoutine} disabled={busy}>
+                <Text style={styles.primaryButtonText}>제출하고 {resumeStartAfterRecovery ? "시작" : "잠금 해제"}</Text>
+              </Pressable>
+            </ScrollView>
+            <Pressable style={styles.secondaryButton} onPress={closeRecoveryRoutine} disabled={busy}>
+              <Text style={styles.secondaryButtonText}>나중에</Text>
+            </Pressable>
+          </View>
+        </View>
+      </Modal>
       <Modal
         visible={reflectionOpen}
         transparent
@@ -880,7 +1066,11 @@ function getLocalDateKey(date: Date, timeZone: string) {
 }
 
 function formatError(error: unknown) {
-  return error instanceof Error ? error.message : String(error);
+  if (error instanceof Error) return error.message;
+  if (error && typeof error === "object" && "message" in error && typeof error.message === "string") {
+    return error.message;
+  }
+  return typeof error === "string" ? error : "오류 내용을 확인하지 못했습니다. 잠시 후 다시 시도해 주세요.";
 }
 
 function focusStatusLabel(snapshot: FocusSnapshot | null) {
@@ -904,6 +1094,17 @@ function getCurrentBreakSeconds(pausedAt: string | null | undefined, nowMs: numb
   const pausedAtMs = Date.parse(pausedAt);
   if (!Number.isFinite(pausedAtMs) || !Number.isFinite(nowMs)) return 0;
   return Math.max(0, Math.floor((nowMs - pausedAtMs) / 1000));
+}
+
+function getActiveStudySeconds(studySession: StudySession | null, nowMs: number) {
+  if (!studySession || !Number.isFinite(nowMs)) return 0;
+  const startedAtMs = Date.parse(studySession.started_at);
+  if (!Number.isFinite(startedAtMs)) return 0;
+  const leaseDeadlineMs = studySession.lease_expires_at ? Date.parse(studySession.lease_expires_at) : NaN;
+  const clockNowMs = Number.isFinite(leaseDeadlineMs) ? Math.min(nowMs, leaseDeadlineMs) : nowMs;
+  const elapsedSeconds = Math.max(0, Math.floor((clockNowMs - startedAtMs) / 1000));
+  const pastBreakSeconds = Math.max(0, Math.floor(Number(studySession.paused_seconds) || 0));
+  return Math.max(0, elapsedSeconds - pastBreakSeconds - getCurrentBreakSeconds(studySession.paused_at, clockNowMs));
 }
 
 function formatTimerClock(seconds: number) {
@@ -932,6 +1133,27 @@ function isRateLimitError(message: string) {
 }
 
 const styles = StyleSheet.create({
+  webNativeBar: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    alignItems: "center",
+    gap: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    backgroundColor: mobilePalette.surface,
+    borderBottomWidth: 1,
+    borderBottomColor: mobilePalette.border,
+  },
+  webNativeStatus: { width: "100%", color: mobilePalette.primary, fontSize: 12, fontWeight: "700" },
+  webNativeAction: {
+    minHeight: 44,
+    justifyContent: "center",
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: mobilePalette.border,
+    paddingHorizontal: 12,
+  },
+  webNativeActionText: { color: mobilePalette.primary, fontWeight: "800", fontSize: 13 },
   screen: {
     flex: 1,
     backgroundColor: mobilePalette.canvas,
