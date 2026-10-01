@@ -20,7 +20,8 @@
 #### 남은 작업 / 다음 우선순위
 
 - 최초 운영 배포 d509001/Actions 36894508072 success/Vercel dpl_VzEUjbs1k2MBKbxnZiRG9V5rWz2H READY/HTTP200 확인. Android 16 412px 새 디자인, 로그인 유지, 6개 메뉴 및 계획/기록/더 보기, 넘침 없음 확인.
-- 실제 운영 회복 카드가 높아 추가 토큰 정리. 375px 카드 높이 282.55px 실패 재현 → 경고/날짜/작성 버튼을 그대로 유지한 compact 스타일 → 신규 3건 포함 Chromium 34/34 통과. Node 844/0 fail(34 browser skip), 타입/빌드·mobile/docs 통과. 후속 배포 진행 중.
+- 실제 운영 회복 카드가 높아 추가 토큰 정리. 375px 카드 높이 282.55px 실패 재현 → 경고/날짜/작성 버튼을 그대로 유지한 compact 스타일 → 신규 3건 포함 Chromium 34/34 통과. Node 844/0 fail(34 browser skip), 타입/빌드·mobile/docs 통과.
+- 최종 운영 b1232a0, Actions 36897046602 success(2m29s)/Edge 21 pass, Vercel dpl_FQUxWhLThe6SAJeYeDh4RQBTTXZy READY, HTTP200 및 index-BR3EwjNd.css 확인. Android 16 운영 재조회 후 로그인·6개 메뉴·계획/기록·더 보기·412px 넘침 없음, 회복 카드 163.22px와 실제 캡처 확인. APK 변경/재설치 없이 공통 웹 반영.
 - 브라우저 fake media live 트랙과 video 노드의 상세 접기 유지/끄기 해제 확인. Android 비활성 세션에서 감시 거부는 정책이며 이번에는 사용자 회복 제출/새 공부 시작을 하지 않았다. 실제 계정 피드는 0건/수신 중지 상태이므로 기사 데이터 동기화까지 검증했다고 보고하지 않는다.
 - 기존 모바일 최초 Google 인증/실기기 방해금지·푸시 검증은 유지한다.
 

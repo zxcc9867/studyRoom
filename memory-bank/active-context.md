@@ -16,7 +16,8 @@
 
 - 완료: 최초 디자인 d509001 main 푸시, Actions 36894508072 success/Vercel dpl_VzEUjbs1k2MBKbxnZiRG9V5rWz2H READY, 운영 HTTP200/CSS 확인. Android 16 412px에서 공통 새 화면·로그인 유지·피드/숲/목표/내 페이지/알림 및 계획/기록 이동, 가로 넘침 없음 확인.
 - 추가 보완: 회복 경고의 기존 굵은 문구/3D 버튼/넓은 간격을 공통 토큰으로 정리한다. 경고·대상 날짜·작성 버튼은 접거나 숨기지 않는다. 새 회귀 3건 포함 Chromium 34/34, Node 844 pass/34 선택적 browser skip/0 fail, 타입/빌드·모바일·README 통과. Edge는 최초 변경 21/21이며 후속 CI에서도 검사한다.
-- 진행 중: 회복 경고 보완 재배포 및 운영 WebView 최종 캡처.
+- 완료 배포: 최종 제품 b1232a0, Actions 36897046602 success(2m29s), Vercel dpl_FQUxWhLThe6SAJeYeDh4RQBTTXZy READY/main, production HTTP200. CSS /assets/index-BR3EwjNd.css의 공통 shell/mobile navigation/compact recovery 확인. 후속 CI Edge 21 pass/0 fail, Node 844 pass/34 browser skip/0 fail.
+- 운영 앱 재확인: Android 16에서 새 CSS를 다시 읽고 로그인·6개 메뉴·계획/기록·더 보기 유지, width/scrollWidth 412 일치, 회복 카드 163.22px. output/playwright/android-dashboard-after.png는 실제 운영 WebView 캡처다. 최종 상태 오늘/비활성 세션/카메라 꺼짐, 사용자 기록 변경 없음.
 - 검증 경계: 실제 계정의 미작성 회복을 제출하거나 새 공부 기록을 만들지 않았다. 비활성 세션에서 카메라 감시가 켜지지 않는 것은 기존 startCameraMonitoring 정책이다. 실제 Chromium의 fake media live 트랙/같은 video 노드가 상세를 접어도 유지되고 끄면 ended 되는 것은 별도 검증했다. Android 활성 세션의 live 카메라는 이번 UI 검증에서 새로 재현하지 않았다.
 - 남은 검증: 실제 휴대폰 확대 글꼴/안전 영역. 이전 Google 인증·기기 방해금지/푸시 등 미완료 항목은 이번 디자인 변경으로 완료 처리하지 않는다.
 
