@@ -50,6 +50,8 @@ function renderStudyRoom(session, nowMs) {
   const context = {
     exports: {},
     require(name) {
+      if (name === 'expo-web-browser') return { maybeCompleteAuthSession() {} };
+      if (name === './src/mobileOAuth') return mobileRequire('./src/mobileOAuth.ts');
       const imports = {
         react,
         'react/jsx-runtime': { jsx: element, jsxs: element },

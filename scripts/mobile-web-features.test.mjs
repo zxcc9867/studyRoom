@@ -23,6 +23,9 @@ function compile(relativePath, imports) {
     ],
   }).code;
   const context = { exports: {}, URL, require(name) {
+    if (name === 'expo-web-browser') return { maybeCompleteAuthSession() {} };
+    if (name === './src/mobileOAuth') return mobileRequire('./src/mobileOAuth.ts');
+    if (name === './cameraPermission') return mobileRequire('./src/cameraPermission.ts');
     assert.ok(name in imports, `Unexpected import: ${name}`);
     return imports[name];
   } };

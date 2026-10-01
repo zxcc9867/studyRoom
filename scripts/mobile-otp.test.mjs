@@ -59,6 +59,8 @@ test('mobile login keeps all eight OTP digits and verifies that exact code', asy
   const context = {
     exports: {},
     require(name) {
+      if (name === 'expo-web-browser') return { maybeCompleteAuthSession() {} };
+      if (name === './src/mobileOAuth') return mobileRequire('./src/mobileOAuth.ts');
       if (name === 'react') return react;
       if (name === 'react/jsx-runtime') return { jsx: element, jsxs: element };
       if (name === 'react-native') return native;

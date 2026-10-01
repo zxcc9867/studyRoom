@@ -1,3 +1,16 @@
+### 2026-10-01 — Google 로그인·카메라 권한 복구 구현
+
+- 사용자 승인 범위: 네이티브 Google 첫 로그인과 카메라 목적 안내/거부/설정 복구, 웹 및 APK 재배포. 기존 OTP 8자리·출석·공부 기록/영상 전용 보안 유지.
+- 변경 파일: 모바일 App/supabase/OAuth/permission/WebFeature/bridge, Expo WebBrowser 의존성 및 plugin/lockfile, 웹 main/cameraDiagnostics/nativeCameraPermission, 신규 동작 회귀 테스트, 관련 PRD/설계/맥락.
+- 테스트: 신규 11건 실패를 먼저 확인한 뒤 11/11 통과, mobile:check/웹 build 통과. 전체/Edge/브라우저/README·운영 웹/새 APK 검증은 진행 중.
+- 운영 인증: Supabase CLI diff→push에서 추가 redirect 하나만 업데이트했다. 기존 6개 주소 및 13개 미선언 원격 설정 유지. DB/계정/서비스 비밀 변경 없음.
+
+### 2026-10-01 — 첫 권한·로그인·웹 데이터 공유 진단
+
+- 확인: Android CAMERA 런타임 요청은 WebView 라이브러리에서 수행, 에뮬레이터 현재 일회성 허용 상태. 앱 설정 바로 열기 및 모바일 전용 거부 안내는 미구현. 처음 앱 로그인은 OTP만 있고 웹 Google OAuth와 UI가 다르다.
+- 연동 근거: 실제 WebView가 운영 웹과 같은 Supabase 호스트를 호출하고 tech-feed 인증 사용자에 고정된 공통 RPC/소유자 RLS를 사용한다. 기술 피드 별도 모바일 DB 없음. PC와 앱의 계정 일치 여부는 질문 대기이며 기사 0건 화면만으로 동기화 결함을 단정하지 않는다.
+- 검증: 모바일 카메라/인증 7/7, 에뮬레이터 피드 재로그인 없음·기사 0·수신 중지, 마지막 오늘 화면 복귀. 제품 코드/DB/설정 변경·배포 없음. active-context/progress/trouble-shooting만 로컬 기록한다.
+
 ### 2026-10-01 — 최신 EAS APK 및 실제 리포트 재검증
 
 - 배포: 코드 `7c1208e` + CI `ec17195` main 푸시. 최초 patch_failed 후 클린 Actions `36808413604` success / Vercel `dpl_HpYa1T4FtNBQ6kxti6Se3QH3bz84` READY·HTTP 200. DB/Edge 변경 없음.
@@ -18,21 +31,42 @@
 - 변경된 파일: `supabase/functions/camera-presence-warning/index.ts`, `_shared/recovery.ts`, `_shared/camera-presence-warning.test.mjs`, `packages/core/test/sql-migrations.test.mjs`, 회복 PRD 및 active-context/implementation-plan/trouble-shooting/progress.
 - 검증 방법: 실제 handler/shared 코드를 실행하고 외부 DB/Auth/Slack I/O만 대체한 신규 6건 RED→GREEN; 카메라 포함 19/19, 전체 831 통과·25 건너뜀·0 실패, Edge 21/21, 웹 빌드·모바일·README 통과. lint 스크립트는 없다.
 - 운영 서버: Supabase MCP `camera-presence-warning` v22 ACTIVE, 파일 내용 일치·무인증 POST 401 확인. DB 스키마/RLS/RPC 변경 없음. 기존 사용자 요청·기록 삭제 없음.
-- 남은 작업: scoped commit/main 푸시와 Vercel READY·HTTP 확인. PC 화면의 계정/새로고침 후 요청 확인, 실제 상반신 감지/방해금지/피드·리포트 등 앞선 미검증 항목은 별개다.
+- 운영 배포 완료: scoped commit `bb71337`·main 푸시, Actions `36805843763` success, Vercel `dpl_AQtP1m6v5aSM8JDhGShpNEh4gsbp` READY·commit SHA 일치·production HTTP 200. 배포 후 상세 결과만 로컬 문서에 추가했다. 기존 카메라 패치/생성 파일은 보존·배포 제외했다.
+- 남은 작업: PC 화면의 계정/새로고침 후 요청 확인, 실제 상반신 감지/방해금지/피드·리포트 등 앞선 미검증 항목은 별개다. 에뮬레이터에 다시 연결해 로그인 유지·오늘/10월 모두 `00:02:24`·모달 없음·종료 비활성을 확인했다. 서버 조건 변경이므로 APK 재설치 필요 없음.
+
+### 2026-10-01 — 예정 시각 전 자리 비움 회복루틴 진단
+
+- 확인: 자리 비움 회복 요청은 알람/출석 실패가 아니라 당일 카메라 absence_warning 2건 기준이다. 연속 부재의 재경고도 건수에 포함되며 수동 휴식과 camera_required_warning은 해당 트리거가 아니다. 관련 PRD·서버·상태 머신을 대조했다.
+- 서버 검증: 정확한 에뮬레이터 검증용 회고로 계정을 제한한 읽기 전용 MCP 조회에서 오늘 카메라 회복/출석 행과 pending 요청 없음. 해당 계정의 오늘 이벤트는 camera_required_warning 1건뿐이다. 첨부 화면과 현재 확인한 계정의 기록이 달라 PC/Android·동일 계정 여부를 질문했다. 원인을 에뮬레이터 검증이나 예정 시각 전 결석 처리로 단정하지 않는다.
+- 검사: `node --test apps/web/test/cameraPresence.test.mjs` 13/13. 제품 코드·DB·요청 상태·PRD 정책은 변경하지 않았고 커밋/푸시/배포 없음. 조사 내용만 로컬 문서에 기록한다.
+- 남은 확인: 첨부 화면 계정의 실제 recovery 생성 시각과 연결된 경고/세션. 정책 완화는 사용자 승인 후 관련 PRD를 개정해 별도 구현한다.
 
 ### 2026-10-01 — 프로필 시간대 기준 공부 집계 수정
 
 - 완료한 작업: 진행 중 오늘·월 누적을 프로필 시간대로 계산하고 기본 월도 같은 지역의 현재 월로 표시한다. 직접 선택한 과거 월은 자동으로 현재 월에 되돌리지 않는다. 기존 저장 세션과 휴식/카메라/만료 인정 시간 정책은 유지한다.
 - 변경된 파일: `apps/web/src/main.tsx`, `studyTimeSummary.mjs`/`.d.mts`, `weeklyHabit.mjs`/`.d.mts`, `apps/web/test/studyTimeSummary.test.mjs`, 관련 memory-bank 문서.
 - 검증 방법: 신규 시간대 회귀 7건 RED→GREEN, 관련 집계 24/24, 전체 Node 825 통과·25 브라우저 환경 건너뜀·0 실패, 웹 타입/빌드·모바일 타입/호환성·README·Edge 21/21 통과. 전용 lint 스크립트 없음.
-- 남은 작업/다음 우선순위: 기존 GitHub Actions 운영 배포, Vercel READY/HTTP 200 및 실제 Android 에뮬레이터 표시를 확인한다. 코드 변경 없는 DB·Edge 재배포/새 APK 제작은 하지 않는다. 앞선 카메라 패치 미커밋 변경은 이번 시간대 수정 커밋에서 제외한다.
+- 운영 배포: main `a89ea0f`, Actions `36795944346` 성공, Vercel `dpl_8R7NbpUa2jBsmuWZV5a2cFR9v3ua` READY, production HTTP 200. 카메라 패치/테스트·APK/생성 파일과 앞선 미커밋 문서 내용을 제외하고 이번 수정과 문서 새 절만 부분 스테이징했다. 배포 후 상세 결과는 로컬 memory-bank에 추가했다.
+- 실제 검증: UTC Android 16 WebView에서 최신 번들 확인, 오늘/10월 누적 함께 증가·휴식 중 안정화 후 고정, 수동 9월 선택 유지 및 9월 누적 변화 없음. 할 일 완료 없이 검증용 회고로 종료했고 재실행 후 오늘/10월 모두 `00:02:24`, 종료 비활성·카메라 해제·로그인 유지. 테스트 기록은 22초 추가됐고 삭제하지 않았다. 증거: `output/emulator-timezone-active.png`, `output/emulator-timezone-finished.png`.
+- 남은 작업: 이번 시간대 표시 수정은 완료. 리포트 API 오류·실제 기사 피드·계정 전환/티켓 만료·실기기 상반신 감지/방해금지와 EAS 배포 링크는 별도 항목이다. DB·Edge·APK 재배포 없음.
 
-### 2026-10-01 — Android 웹 동등성 운영 반영과 에뮬레이터 검증 준비
+### 2026-10-01 — 회복 제출 후 에뮬레이터 세션 통합 검증
+
+- 완료한 작업: 사용자 회복 제출 후 제품 UI로 카메라 준비·기존 할 일 선택·시작·휴식·재개·휴식 중 앱 재실행·회고 저장/종료를 검증했다. 메뉴/재실행에서 재로그인 없이 동일 세션을 유지했고 휴식 중 카메라는 해제됐다.
+- 검증 결과: 월 누적 `01:07:02` → 공부 중 증가, 첫 휴식 `01:08:11`은 약 85초간 정지, 재개 후 증가, 두 번째 휴식/앱 재실행 `01:09:04` 유지. 종료 후 오늘 공부 `00:02:02`와 월 기존 값 `01:07:02`, 카메라 해제/종료 비활성 확인. 기본 회고 점수는 검증용임을 메모에 명시하고 기존 할 일은 완료하지 않았다.
+- 변경된 파일: `memory-bank/active-context.md`, `memory-bank/progress.md`, `memory-bank/trouble-shooting.md`, `memory-bank/prd-android-web-parity.md`. 제품 코드·마이그레이션·APK·배포는 이번 턴에서 변경하지 않았다. 테스트 세션 122초는 서버에 저장됐고 임의 삭제하지 않았다.
+- 발견한 문제: 프로필/기기 시간대가 다른 경우 실시간 일·월 공부 표시가 다른 날짜를 사용한다. UTC 기기/도쿄 프로필 입력에서 오늘 0·9월 122초, 도쿄 기기에서는 오늘 122·9월 0으로 순수 함수 재현. 종료 후 서버 집계는 오늘 122초로 표시된다.
+- 남은 작업/다음 우선순위: 프로필 시간대를 일·월 실시간 경계와 초기 표시 월에 일관되게 적용하는 수정. 내 페이지 리포트 불러오기 오류의 별도 조사, 실기기 상반신 감지/방해금지·실제 기사 피드·계정 전환/티켓 재사용·만료 검증. 사진은 `output/emulator-session-start-check.png`, `output/emulator-session-ended-check.png`.
+
+### 2026-10-01 — Android 웹 동등성 운영 반영과 에뮬레이터 부분 검증
 
 - 완료: 운영 인증 발급 제한 마이그레이션 `20260930152103`, `mobile-web-auth` v1 ACTIVE·verify_jwt=true, RLS true·authenticated 조회/실행 금지·service_role 실행 허용 확인. 로컬 마이그레이션 파일명을 운영 버전과 일치시켰다.
 - 검증: 웹 빌드, 모바일 타입/호환성, README 자산 검사, Edge 21/21 통과. 에뮬레이터 검사 허용/실기기 검사 비활성화의 테스트 실패를 먼저 확인하고 최소 구현 후 2/2 통과했다. 기존 전체 Node 843건(818 통과·25 환경 건너뜀·0 실패)도 이번 실행에서 확인했다.
-- 진행: 동일 서명 EAS preview `8dbcafb8-1d3c-4cbe-91d7-378453c00769` 빌드를 요청했다. 아직 새 APK 설치·웹 배포·실사용 성공은 미확인이다.
-- 다음: GitHub Actions 웹 배포 확인, APK 설치 후 실제 Android 16 단일 로그인·6개 메뉴·타이머·카메라·휴식/재개 검증과 서버 기록 대조.
+- APK 완료: 사용자 승인 후 수정 전 EAS 빌드 취소, 기본 Android 서명키 읽기 전용 다운로드, 공개 앱 설정으로 로컬 release 빌드 성공(319 tasks). 기존 인증서 SHA256 일치 후 `adb install -r` 성공, 로그인 데이터 삭제 없음. APK는 `output/study-room-android-parity-20261001.apk`이며 원격 서명키 변경 없음.
+- 실제 검증: Android 16에서 6개 웹 메뉴 재로그인 없음, 앱 재실행 로그인 유지, 회복 필요 시 시작→작성 모달, 계획 화면/체크리스트·기록 진입, 3D 숲/캐릭터 이동. 실제 OS 카메라 허용→진단용 WebView 영상 480×640/live→종료 ended 확인. 가로 overflow 없음(412 CSS px).
+- 남은 작업: 개인 회복루틴 미제출로 이번 APK의 타이머 시작·휴식·재개·종료/집중 감지 미검증. 피드 관심 설정 없음/기사 0건으로 실제 카드·저장·원문 동작 미검증. 방해금지 설정 진입만 확인했으며 푸시/실제 자동 전환은 실기기에서 확인한다. 계정 전환·로그아웃, 실서버 티켓 재사용/만료 검증 및 최신 EAS 배포 링크 갱신이 남았다.
+- 웹 배포 확인: main `c10fef3`, Actions `36736547903` success, Vercel `dpl_8292a1TifTucbRKikib3GsQBx7GQ` READY, production HTTP 200.
+- 추가 수정: 카메라 정상 origin의 trailing slash 비교 오류를 Java guard 실행 테스트로 재현하고 수정했다. 신뢰 출처 두 표기 허용·외부/HTTP/오디오/복합/빈 리소스/누락 origin 거부 2/2, patch-package 재적용, 모바일 검사 통과. 로컬 설치 APK에는 포함됐고 아직 이 추가 패치는 커밋/푸시하지 않았다.
 
 ### 2026-09-30 — Android 단일 로그인·웹 기능 동등성 로컬 구현
 

@@ -1,3 +1,19 @@
+## 2026-10-01 — Android OAuth 및 카메라 권한 브리지
+
+- 네이티브 Auth는 AsyncStorage에 PKCE verifier/session을 보존하고 expo-web-browser SDK53 호환 모듈로 외부 Google 인증을 연다. exact `studyroom://auth/callback` 단일 code만 교환하고 URL access/refresh token을 받지 않는다. 재시작 초기 URL은 로그인 세션이 없을 때만 처리하며 중복 code 교환은 한 번으로 합친다. OTP 8자리와 동일 사용자 WebView 티켓은 유지한다.
+- 카메라 사전 확인은 기존 exact-origin 웹 브리지에 요청 ID가 있는 두 메시지(permission/settings)만 추가한다. native check→설명→request, granted/denied/blocked/cancelled 응답. 웹은 상태를 확인한 후 video-only getUserMedia를 실행한다. timeout/구 APK는 기존 OS 경로로 복구한다. 앱 설정은 고정 OS 앱 설정만 열고 임의 URL을 받지 않는다.
+- Expo plugin/의존성 변경은 새 APK가 필요하다. 웹 버튼만 배포해서 네이티브 Google/권한 개선이 적용됐다고 보고하지 않는다.
+
+## Supabase 변경 이력
+
+### 2026-10-01 — 모바일 Google OAuth redirect
+
+- 변경 대상: 프로젝트 bqohkdzvxbrokkmuhysx Auth `additional_redirect_urls`.
+- 변경 내용/이유: 기존 6개 웹/개발 주소를 보존하고 `studyroom://auth/callback` 하나 추가, 시스템 브라우저에서 앱으로 복귀.
+- 관련 기능: Android Google PKCE. 마이그레이션 파일 없음(DB/RLS/RPC 변경 없음).
+- 확인 방법: Supabase CLI config pull/diff/push, 실제 push 1 property와 13 remote-only unchanged 확인, 적용 후 diff 재검증.
+- 주의 사항: Google provider/client/secret·OTP 길이·site URL 변경 없음. 사용자 데이터나 기존 계정을 병합하지 않는다.
+
 ## 2026-10-01 — 선택적 클린 배포와 APK 업데이트
 
 - CI의 boolean `workflow_dispatch.inputs.clean_build`는 기본 false다. 정상 push는 캐시를 유지하고 true 수동 실행만 `vercel deploy --force`로 이전 캐시 없이 재설치한다. 입력은 환경 변수로 전달하며 셸 명령 문자열에 직접 삽입하지 않는다. YAML 파싱/실제 수동 CI 성공 확인.
@@ -30,7 +46,16 @@
 - 마이그레이션 파일: `supabase/migrations/20260930152103_mobile_web_auth_limit.sql`; Supabase MCP 적용 버전과 파일명 일치. 함수는 `service_role`만 실행 가능, 테이블 RLS 활성화와 인증 사용자 읽기/실행 금지 확인.
 - 서버: `mobile-web-auth` v1 ACTIVE, `verify_jwt=true`, SHA256 `ca73a33a9c58584e24e9f56ab4f952b99cb7f3634026cd1fd3634a70411ea705`.
 - Android 검사: `expo-device.isDevice`가 false인 에뮬레이터에서만 WebView 원격 검사를 허용한다. 실기기 APK는 검사 비활성화. 검사용 프로퍼티는 로그인·카메라 권한 정책을 우회하지 않는다.
-- 주의: 웹·APK 배포 및 운영 Auth 교환/에뮬레이터 동작은 별도로 확인한다. 티켓·키·개인 기록은 로그에 출력하지 않는다.
+- 카메라 origin: Android canonical URI의 끝 `/` 유무 두 정확한 표기를 허용한다. `startsWith`나 하위 도메인 허용으로 넓히지 않고, 비디오 단일 리소스만 기존 조건대로 허용한다. 설치된 Java guard를 컴파일/실행하는 회귀 테스트로 검증한다.
+- 확인: 웹 운영 배포와 실제 에뮬레이터 6개 메뉴/앱 재실행의 동일 계정 Auth 교환을 확인했다. 카메라 권한과 진단용 영상 스트림도 확인했다. 세션 전 과정·계정 전환·티켓 재사용/만료·실기기 방해금지는 별도 검증이 남아 있다. 티켓·키·개인 기록은 로그에 출력하지 않는다.
+
+## 2026-10-01 — 승인된 동일 서명 로컬 APK 검증
+
+- 기존 기본 Keystore는 사용자 승인 후 EAS 프로젝트/패키지/기본 자격증명 이름을 제한한 읽기 전용 조회로만 다운로드한다. 키·비밀번호는 저장소 밖 ACL 제한 비공개 경로에 두고 Gradle에는 프로세스 환경변수로만 전달한다. 원격 키 생성·변경·삭제는 하지 않는다.
+- 로컬 공개 Supabase 연결 설정은 배포된 클라이언트 번들의 anon/publishable 설정만 사용하며 서비스 키나 사용자 세션을 내려받지 않는다.
+- Windows 모노레포 release 번들링은 생성된 Gradle `react.root`를 앱 폴더로 명시하고 로컬 빌드 프로세스에 `EXPO_NO_METRO_WORKSPACE_ROOT=1`, `NODE_ENV=production`을 적용했다. x86_64/arm64-v8a APK를 생성했고 설치 전 기존 인증서 일치를 검사한다. `adb install -r`만 사용하며 앱 데이터 삭제/재설치는 하지 않는다.
+- WebGL 장면은 CDP `Page.captureScreenshot`에서 빠질 수 있으므로 ADB 전체 화면 캡처로 렌더링·이동을 검증한다. 카메라 진단은 로컬 임시 영상만 생성하고 스트림을 명시적으로 종료한다.
+- 생성 Android 폴더·output·키 경로는 제품 커밋이나 EAS 업로드에 포함하지 않는다. 테스트 APK 설치 성공과 공개 EAS 배포 링크 갱신은 구분한다.
 
 ## Supabase 변경 이력 — 2026-09-30 Android 앱·웹 단일 로그인 (당시 로컬 구현)
 

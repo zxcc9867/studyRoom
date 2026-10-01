@@ -3,6 +3,7 @@ import {
   ActivityIndicator,
   Alert,
   AppState,
+  Linking,
   Modal,
   Pressable,
   SafeAreaView,
@@ -14,6 +15,8 @@ import {
   View,
 } from "react-native";
 import type { Session } from "@supabase/supabase-js";
+import * as WebBrowser from "expo-web-browser";
+import { completeMobileOAuthCallback, signInWithMobileGoogle } from "./src/mobileOAuth";
 
 import { registerExpoPushTarget } from "./src/notifications";
 import {
@@ -29,6 +32,7 @@ import { WebFeatureScreen } from "./src/WebFeatureScreen";
 
 const retryCooldownMs = 15 * 60 * 1000;
 const emailOtpLength = 8;
+WebBrowser.maybeCompleteAuthSession();
 
 const mobilePalette = {
   canvas: "#d9f0e3",
@@ -139,7 +143,23 @@ export default function App() {
   const [recoveryPledge, setRecoveryPledge] = useState("");
   const [resumeStartAfterRecovery, setResumeStartAfterRecovery] = useState(false);
   const dismissedRecoveryIdRef = useRef<string | null>(null);
+  const [googleBusy, setGoogleBusy] = useState(false);
+  const googleBusyRef = useRef(false);
   const [webFallback, setWebFallback] = useState(false);
+
+  async function loginWithGoogle() {
+    if (googleBusyRef.current || busy) return;
+    googleBusyRef.current = true;
+    setGoogleBusy(true);
+    try {
+      await signInWithMobileGoogle(supabase, WebBrowser.openAuthSessionAsync, process.env.EXPO_PUBLIC_SUPABASE_URL!);
+    } catch (error) {
+      Alert.alert("Google 로그인 실패", formatError(error));
+    } finally {
+      googleBusyRef.current = false;
+      setGoogleBusy(false);
+    }
+  }
 
   useEffect(() => {
     let cancelled = false;
@@ -148,7 +168,14 @@ export default function App() {
       try {
         const { data, error } = await supabase.auth.getSession();
         if (error) throw error;
-        if (!cancelled) setSession(data.session);
+        if (!data.session) {
+          const initialUrl = await Linking.getInitialURL();
+          if (initialUrl?.startsWith("studyroom://auth/callback")) {
+            await completeMobileOAuthCallback(supabase, initialUrl);
+            const restored = await supabase.auth.getSession();
+            if (!cancelled) setSession(restored.data.session);
+          } else if (!cancelled) setSession(null);
+        } else if (!cancelled) setSession(data.session);
       } catch (error) {
         if (!cancelled) Alert.alert("세션 확인 실패", formatError(error));
       } finally {
@@ -717,8 +744,12 @@ export default function App() {
           <Text style={styles.kicker}>forced attendance</Text>
           <Text style={styles.title}>오늘도 독서실에 들어갈 시간</Text>
           <Text style={styles.copy}>
-            이메일로 받은 {emailOtpLength}자리 코드를 입력해 로그인하세요. 매일 정한 시간에 출석을 기록합니다.
+            웹에서 쓰던 같은 Google 계정 또는 이메일로 로그인하세요. 공부 기록과 기술 피드가 함께 연결됩니다.
           </Text>
+          <Pressable accessibilityRole="button" style={styles.secondaryButton} onPress={() => void loginWithGoogle()} disabled={busy || googleBusy} accessibilityState={{ disabled: busy || googleBusy, busy: googleBusy }}>
+            <Text style={styles.secondaryButtonText}>{googleBusy ? "Google 로그인 연결 중…" : "Google로 계속하기"}</Text>
+          </Pressable>
+          <Text style={styles.copy}>또는 이메일로 {emailOtpLength}자리 코드 받기</Text>
           <TextInput
             value={email}
             onChangeText={setEmail}
@@ -739,13 +770,13 @@ export default function App() {
               style={styles.input}
             />
           )}
-          <Pressable style={styles.primaryButton} onPress={requestCode} disabled={busy}>
+          <Pressable accessibilityRole="button" style={styles.primaryButton} onPress={requestCode} disabled={busy || googleBusy}>
             <Text style={styles.primaryButtonText}>
               {busy ? "전송 중..." : resendSeconds > 0 ? `${resendSeconds}초 후 재전송` : codeSent ? "코드 다시 받기" : "코드 받기"}
             </Text>
           </Pressable>
           {codeSent && (
-            <Pressable style={styles.secondaryButton} onPress={verifyCode} disabled={busy}>
+            <Pressable accessibilityRole="button" style={styles.secondaryButton} onPress={verifyCode} disabled={busy || googleBusy}>
               <Text style={styles.secondaryButtonText}>코드로 로그인</Text>
             </Pressable>
           )}

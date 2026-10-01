@@ -1,3 +1,20 @@
+## 2026-10-01 — 첫 로그인/카메라 권한 구현 중 검증
+
+- 원인/해결: 네이티브 Google 경로가 없어 OTP만 보였고 권한 실패 안내는 브라우저용이었다. PKCE 시스템 브라우저 로그인과 사용자 주도 Android 권한 설명/설정 복구를 추가한다. 같은 서버/소유자 데이터는 그대로 유지한다.
+- 빌드 오류: 웹 main.tsx에 이미 있던 isEmbeddedStudyApp import를 중복 추가해 TS2300 발생. 새 중복 import를 제거한 후 웹 build 및 모바일 타입 통과.
+- 전체 테스트 첫 실행에서 기존 App VM harness가 expo-web-browser/새 helper import를 허용하지 않아 13건 실패했다. 외부 브라우저 IO만 대체하고 실제 OAuth/권한 helper를 로드하도록 갱신해 전체 843 pass/25 browser skip/0 fail, 별도 mounted browser 25/25 확인했다.
+- auth-js는 WebCrypto가 없으면 Math.random 또는 plain PKCE로 대체하므로 기존 expo-crypto의 native random/SHA256 adapter를 추가하고 S256 authorize URL만 허용한다. Hermes TextEncoder 제공을 Expo runtime 소스로 확인하고 실제 SDK authorize URL의 S256/verifier 보존을 테스트한다. 보완 전 대기 APK는 취소하고 다시 빌드한다.
+- CLI: config pull은 로컬 config가 필요하고 새 untracked config 덮어쓰기에는 --force가 필요하다. output의 격리 진단 config에만 적용했다. push는 별도의 최소 config에 추가 redirect만 선언하고 diff를 확인했으며 다른 속성/비밀을 변경하지 않았다. 운영 config 전체를 저장소에 복사하지 않는다.
+- 검증 경계: 신규 테스트 11/11, 현재 전체/운영 웹/새 APK 검증 중. 실제 Google 로그인은 사용자 브라우저 인증 완료 전 성공으로 보고하지 않는다.
+
+## 2026-10-01 — 모바일 첫 권한·로그인 UX 차이와 피드 동기화 의문
+
+- 상황: 사용자가 카메라 첫 권한 안내/앱 설정 유도, OTP만 있는 로그인, PC 웹의 기술 피드가 앱에 공유되는지 질문했다.
+- 확인 원인: 처음 로그인은 별도 네이티브 OTP 화면이며 Google OAuth는 웹에만 있다. 카메라 권한 요청은 Android OS 기본 흐름을 사용하지만 앱 설정 복구 UI는 없고 권한 실패 문구가 브라우저를 안내한다. 에뮬레이터는 이미 CAMERA granted=true/ONE_TIME이어서 최초 요청 팝업 재검증과 구분한다.
+- 데이터 경로: WebFeatureScreen은 운영 웹 단일 화면을 사용한다. 실제 Supabase 호스트 일치, auth.getUser로 개인 RPC 소유자 고정, 관련 서버 RLS 확인. 일반 관심/저장/회복 데이터는 서버 공유이며 모바일 전용 사본이 아니다. 앱 검증 계정은 기사 0·수신 중지 상태이고 PC 계정과 같은지는 미확인이다. 로그인 방법 차이만으로 계정 불일치를 단정하지 않는다.
+- 관련 파일: apps/mobile/App.tsx, src/WebFeatureScreen.tsx, src/mobileWebBridge.ts, app.json, react-native-webview RNCWebChromeClient.java, apps/web/src/main.tsx/cameraDiagnostics.mjs/techFeed.mjs/TechFeedSection.tsx, supabase/functions/_shared/tech-feed-store.ts.
+- 검증/다음: 카메라/모바일 인증 7/7, 실제 피드 화면 재로그인 없음. PC와 앱의 내 페이지 이메일 일치 여부 질문 대기. 첫 권한/거부/영구 거부/앱 복귀 및 Google OAuth 개선은 다음 승인된 구현에서 테스트한다. 이번에는 제품/DB/기기 권한/관심 설정 변경 없음.
+
 ## 2026-10-01 — Android 패치 갱신 후 Vercel 설치 실패
 
 - 상황/에러: Actions `36807900300` 테스트는 통과했으나 Vercel `dpl_BCFsrpqDqzq55TcuFjGQ9b2Gn5Ld`는 `patch_failed` / `Command "npm install" exited with 1`이었다. 기존 운영은 유지됐다.
@@ -38,11 +55,27 @@
 
 - `camera-presence-warning/index.ts` 조건을 3회 이상으로 변경하고 `_shared/recovery.ts` 안내를 통일했다. 회복 PRD를 개정했다.
 - `camera-presence-warning.test.mjs`는 실제 TS handler/shared 모듈을 실행하며 DB/Auth/Slack 경계만 대체한다. 1·2회 없음, 3회 생성/후속 재사용, 소유자/날짜 격리, 설정 경고 제외, 중복 Slack 제외, 무인증 차단을 검증한다.
-- 전체 831 통과·25 환경 건너뜀·0 실패, Edge/빌드/모바일/README 통과. Supabase v22 ACTIVE, 배포 소스 일치와 무인증 401 확인. 기본 출석 및 카메라 5분/10분 정책은 불변이다.
+- 전체 831 통과·25 환경 건너뜀·0 실패, Edge/빌드/모바일/README 통과. Supabase v22 ACTIVE, 배포 소스 일치와 무인증 401 확인. 기본 출석 및 카메라 5분/10분 정책은 불변이다. main `bb71337`, Actions `36805843763` success, Vercel `dpl_AQtP1m6v5aSM8JDhGShpNEh4gsbp` READY·HTTP 200를 확인했다.
 
 ### 재발 방지 / 남은 리스크
 
 소스 문자열 검사만으로 문턱을 검증하지 않고 실제 처리 결과를 확인한다. 이미 생성된 pending을 정책 변경으로 지우지 않는다. 사용자 PC 계정과 에뮬레이터 계정 일치 및 요청 생성 경위는 아직 미확정이다. 가상 카메라에서 실제 사람의 부재 감지 정확도를 검증했다고 주장하지 않는다.
+
+## 2026-10-01 — 예정 공부 시각 전 자리 비움 회복루틴 표시 조사
+
+### 상황 / 확인된 동작
+
+사용자가 오전 9시에 10월 1일 `자리 비움 반복` 회복루틴 화면을 제시했다. 이 제목은 `camera_absence_repeat`이며 출석 기한 초과 사유 `missed_attendance`와 다르다. 현재 서버는 세션 local_date의 absence_warning 2건부터 회복 요청을 생성하며 예정 알람 시각을 비교하지 않는다. 연속 부재에서 10분 쿨다운 후 재경고도 '반복'으로 센다.
+
+### 실제 데이터와 미확정 원인
+
+정확한 에뮬레이터 테스트 회고 문구로 식별한 계정 1개만 읽기 전용 조회했다. 오늘 회복/출석 행과 pending 요청은 없고 camera_required_warning 1건만 존재했다. 이 이벤트는 코드상 회복 생성 기준이 아니다. 첨부 화면의 생성 원인을 테스트 또는 결석 오판이라고 단정할 근거가 없으며, 사용자에게 PC/Android 여부와 같은 계정인지 확인을 요청했다. 다른 사용자 데이터는 조회하지 않았다.
+
+### 검증 / 다음 단계
+
+- 카메라 상태 머신 13/13 통과. `main.tsx`, `cameraPresence.mjs`, `camera-presence-warning/index.ts`, `_shared/recovery.ts`, `prd-camera-presence.md`, `prd-slack-recovery-routines.md` 대조.
+- 정책/코드/DB 변경, 요청 삭제 또는 임의 회복 제출 없음. 카메라 회복 강제 해제는 PRD 정책 변경이므로 사용자 승인 후 진행한다.
+- PC 브라우저 검사 도구는 `windows sandbox failed: helper_unknown_error: apply deny-read ACLs`로 두 번 종료됐다. 도구 오류로 기록하고 반복 호출하지 않는다.
 
 ## 2026-10-01 — 프로필 시간대 기준 공부 집계 수정
 
@@ -54,11 +87,70 @@
 
 - `studyTimeSummary.mjs`에 프로필 시간대를 전달하고 `weeklyHabit.mjs`의 기존 실제 자정 경계 함수를 공유한다. `main.tsx`의 기본 월도 프로필 기준으로 계산하되 사용자의 과거 월 선택은 유지한다. 타입 선언을 함께 갱신했다.
 - 새로운 회귀 테스트 7건은 수정 전 실제로 실패했다. 수정 후 관련 집계 24/24, 전체 825 통과·25 환경 건너뜀·0 실패, 웹 빌드·Edge 21/21·모바일/README 검사 통과.
-- DB·저장된 학습 기록·휴식/카메라/lease 정책은 바꾸지 않았다. 운영 배포 및 에뮬레이터 실시간 화면 검증은 다음 단계다.
+- DB·저장된 학습 기록·휴식/카메라/lease 정책은 바꾸지 않았다. main `a89ea0f`, Actions `36795944346` success, Vercel `dpl_8R7NbpUa2jBsmuWZV5a2cFR9v3ua` READY·HTTP 200를 확인했다. 기존 WebView 앱을 재실행해 최신 번들 `index-By_keXMf.js`로 검증했다.
+- Android 16 기기 +00:00에서 기본 월이 10월로 표시되고 오늘/10월 공부가 함께 증가했다. 휴식 중 안정화 후 두 번 조회한 `00:02:23`은 유지됐고 명시적으로 선택한 9월 누적에는 현재 공부가 더해지지 않았다. 테스트 회고로 종료한 뒤 오늘/10월 서버 집계와 재실행 표시가 모두 `00:02:24`로 일치했다. 실제 테스트 기록 22초는 남겼고 개인 할 일은 완료하지 않았다. 증거: `output/emulator-timezone-active.png`, `output/emulator-timezone-finished.png`.
 
 ### 재발 방지 / 남은 리스크
 
 기기 지역과 프로필 지역을 다르게 둔 테스트와 자정·월 경계, 비정수 시차, DST 23/25시간을 유지한다. 이번 수정은 내 페이지 리포트 API 불러오기 오류, 실제 상반신 감지와 방해금지, 계정 전환 검증을 대신하지 않는다.
+
+## 2026-10-01 — 프로필과 기기 시간대 차이로 실시간 공부 집계 날짜 불일치
+
+### 상황 / 표시
+
+Android 16 에뮬레이터에서 프로필 시간대는 `Asia/Tokyo`, WebView 기기 시간대는 `+00:00`였다. 도쿄 기준 10월 1일에 시작·휴식·재개는 성공했지만 공부 중 오늘 공부는 0, 월 표시는 9월이며 그 누적만 증가했다. 종료 후 서버 집계는 오늘 공부 122초, 9월 누적은 기존 값으로 돌아왔다.
+
+### 원인 / 재현
+
+`main.tsx`의 `todayDateKey`는 프로필 시간대로 계산한다. 그러나 `studyTimeSummary.mjs`의 `getLocalDateStartMs`/`getLocalMonthStartMs`와 `main.tsx`의 초기 `getMonthKey`는 기기 지역의 Date 경계를 사용한다. `2026-09-30T16:54:16Z`부터 122초, dateKey `2026-10-01`인 동일 입력에서 프로세스 TZ가 UTC일 때 오늘 0·9월 122, Asia/Tokyo일 때 오늘 122·9월 0으로 재현됐다.
+
+### 해결 상태 / 관련 파일
+
+- 미수정: 이번 요청은 에뮬레이터 검증 재개였으므로 제품 코드를 바꾸지 않고 원인을 기록했다. 프로필 시간대를 실시간 일·월 경계와 월 초기값에 일관되게 전달하는 후속 수정이 필요하다. 프로필 자체를 UTC로 바꿔 증상을 숨기지 않는다.
+- 관련 파일: `apps/web/src/main.tsx` (todayDateKey·getMonthKey·activeTodaySeconds/activeMonthSeconds), `apps/web/src/studyTimeSummary.mjs`.
+- 재발 방지: 기기와 프로필 지역이 다른 경우, 일/월 자정 경계, 휴식·제외 시간, 종료 후 서버 집계 일치를 회귀 테스트한다. 서버로부터 저장된 기록을 재작성하거나 과거 공부시간을 임의 배분하지 않는다.
+- 별도 관측: 내 페이지의 리포트 불러오기 오류가 표시됐으나 이 턴에는 원인 조사를 수행하지 않았다. 날짜 표시 오류의 원인이라고 단정하지 않는다.
+- 검증 도구의 앱 재시작 직후 `pidof`가 일시적으로 빈 값을 반환해 `.Trim()` 호출이 실패했다. 앱 기동 후 PID를 다시 읽고 문자열/숫자 확인을 거쳐 CDP forward를 갱신했다. 제품 크래시로 오인하지 않는다.
+
+## 2026-10-01 — WebView 카메라 정상 출처가 trailing slash로 거부됨
+
+### 상황 / 원인
+
+Android 16 에뮬레이터 검증 준비 중 설치된 WebView 133의 Chromium 소스에서 `AwPermissionRequest`가 `GetOrigin().spec()`을 Java URI로 전달하는 경로를 확인했다. 기존 Java guard는 `https://study-room-attendance.vercel.app`만 일치시켰고 정상 canonical URL의 `/` 표기를 거부했다. 기존 테스트는 소스 문자열만 확인해 이 동작을 잡지 못했다.
+
+### 에러 메시지
+
+```txt
+canonical first-party video request: actual denied=true, expected denied=false
+```
+
+### 해결 방법 / 검증
+
+정확한 신뢰 origin의 `/` 유무 두 표기만 허용한다. 외부·HTTP·누락 origin 및 비디오 외 리소스는 계속 거부한다. 설치된 Java 메서드 guard를 실제 Java 프로세스로 실행하는 테스트를 추가해 수정 전 실패를 확인한 후 2/2 통과했다. patch-package 재적용과 모바일 타입/호환성 검사도 통과했다. 수정 전 EAS 빌드는 사용자 승인 후 취소했고 동일 서명 로컬 release APK에 수정본을 넣었다. Android 16에서 OS 허용 후 진단용 `getUserMedia` 480×640/live 영상과 종료 시 ended를 확인했다. 회복 제출 전 공부 세션 감지 흐름까지 통과했다고 주장하지 않는다.
+
+### 관련 파일 / 재발 방지
+
+- `patches/react-native-webview+13.13.5.patch`, `scripts/mobile-camera-permission.test.mjs`
+- 출처 검사는 실제 Android canonical URI를 fixture로 사용하고 소스 문자열 존재만으로 권한 동작을 통과시키지 않는다.
+- 참고: Chromium `refs/tags/133.0.6943.137/android_webview/browser/permission/aw_permission_request.cc` 및 `media_access_permission_request.cc`.
+
+## 2026-10-01 — Windows 로컬 release의 Expo 모노레포 진입 경로 오류
+
+### 상황 / 에러
+
+동일 서명 release APK의 번들 단계에서 `Unable to resolve module ./index.js from C:\\jini-dev\\worktrees\\study-room-recovery-audit/.`로 실패했다. 앱 진입 파일은 `apps/mobile/index.js`다.
+
+### 원인 / 해결
+
+Expo/Metro의 workspace server root와 Gradle의 상대 진입 경로가 맞지 않았다. 생성된 로컬 Gradle의 `react.root`를 앱 폴더로 지정하고, 빌드 프로세스에 `EXPO_NO_METRO_WORKSPACE_ROOT=1` 및 `NODE_ENV=production`을 적용했다. 번들 773 modules 및 `:app:assembleRelease` 319 tasks가 성공했다. 제품 소스의 웹/모바일 번들 설정을 전역으로 바꾸지는 않았다.
+
+### 재발 방지 / 검증 제한
+
+- 로컬 빌드에서 Expo 프로젝트와 Metro server root를 확인하고 공개 설정/서명 비밀번호를 출력하지 않는다.
+- 에뮬레이터의 CDP 캡처에는 WebGL 장면이 빠졌지만 ADB 화면 캡처에서는 장면·이동이 정상이다. 캡처 도구 결과만으로 3D 실패를 단정하지 않는다.
+- 세션 없는 카메라 감시 버튼은 기존 정책대로 `공부 세션을 시작한 뒤 카메라 감시를 켤 수 있습니다.`를 표시한다. 권한/영상 자체와 공부 세션 감지의 검증을 분리한다.
+- 생성 Android 폴더를 보관 경로로 이동할 때 Gradle daemon 잠금으로 일부 파일 이동이 실패했다. 마지막 빌드 cwd가 이번 작업 경로인 daemon PID를 확인해 해당 프로세스만 종료한 뒤 남은 생성 파일도 `output`으로 보존했다. `apps/mobile/android` 부재를 다시 확인했으며 파일 삭제/앱 데이터 삭제는 하지 않았다.
+- 완료 주장 교차 검증용 Jev 호출은 프로젝트 실행 정보를 외부 MCP로 보내는 안전 검토에서 거부됐다. 우회/재시도하지 않고 실제 도구 출력과 화면을 직접 대조했다. Jev가 완료를 승인했다고 보고하지 않는다.
 
 ## 2026-09-30 — Android 단일 로그인 로컬 구현과 운영 검증 경계
 

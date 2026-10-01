@@ -1,16 +1,18 @@
 import { useEffect, useRef, useState } from "react";
-import { ActivityIndicator, Linking, Pressable, StyleSheet, Text, View } from "react-native";
+import { ActivityIndicator, Alert, Linking, PermissionsAndroid, Platform, Pressable, StyleSheet, Text, View } from "react-native";
 import WebView from "react-native-webview";
 import * as Device from "expo-device";
 
 import {
   buildTicketInjection,
+  buildCameraPermissionInjection,
   isTrustedWebUrl,
   parseNativeBridgeMessage,
   requestMobileWebTicket,
   studyWebOrigin,
 } from "./mobileWebBridge";
 import { supabase } from "./supabase";
+import { prepareCameraPermission } from "./cameraPermission";
 
 type Props = {
   sessionUserId: string;
@@ -28,6 +30,7 @@ export function WebFeatureScreen({ sessionUserId, onStudyStateChanged, onNativeS
   const pendingRequestIdRef = useRef<string | null>(null);
   const issuedRequestIdRef = useRef<string | null>(null);
   const activeRef = useRef(true);
+  const cameraPermissionBusyRef = useRef(false);
 
   useEffect(() => {
     activeRef.current = true;
@@ -52,6 +55,37 @@ export function WebFeatureScreen({ sessionUserId, onStudyStateChanged, onNativeS
     if (!isTrustedWebUrl(event.nativeEvent.url)) return;
     const message = parseNativeBridgeMessage(event.nativeEvent.data);
     if (!message) return;
+
+    if (message.type === "STUDY_WEB_CAMERA_PERMISSION") {
+      if (cameraPermissionBusyRef.current) return;
+      cameraPermissionBusyRef.current = true;
+      try {
+        const status = Platform.OS !== "android" ? "unavailable" : await prepareCameraPermission({
+          check: () => PermissionsAndroid.check(PermissionsAndroid.PERMISSIONS.CAMERA),
+          explain: () => new Promise<boolean>((resolve) => Alert.alert(
+            "카메라를 켤까요?",
+            "공부 중 자리 비움을 확인하기 위해 카메라 권한이 필요합니다. 영상은 기기 안에서만 처리하며 서버로 보내지 않습니다. 마이크는 사용하지 않습니다.",
+            [{ text: "나중에", style: "cancel", onPress: () => resolve(false) },
+              { text: "권한 요청", onPress: () => resolve(true) }],
+            { cancelable: true, onDismiss: () => resolve(false) },
+          )),
+          request: () => PermissionsAndroid.request(PermissionsAndroid.PERMISSIONS.CAMERA),
+        });
+        if (activeRef.current && isTrustedWebUrl(currentUrlRef.current)) {
+          webViewRef.current?.injectJavaScript(buildCameraPermissionInjection(message.requestId, status));
+        }
+      } catch {
+        if (activeRef.current && isTrustedWebUrl(currentUrlRef.current)) {
+          webViewRef.current?.injectJavaScript(buildCameraPermissionInjection(message.requestId, "denied"));
+        }
+      } finally { cameraPermissionBusyRef.current = false; }
+      return;
+    }
+    if (message.type === "STUDY_WEB_OPEN_APP_SETTINGS") {
+      // Only the user's settings button in the trusted top-level study page can request this action.
+      await Linking.openSettings().catch(() => Alert.alert("설정 열기 실패", "휴대폰 설정 → 앱 → 독서실 → 권한 → 카메라에서 허용해 주세요."));
+      return;
+    }
 
     if (message.type === "STUDY_WEB_READY") {
       if (pendingRequestIdRef.current === message.requestId || issuedRequestIdRef.current === message.requestId) return;
@@ -124,6 +158,8 @@ export function WebFeatureScreen({ sessionUserId, onStudyStateChanged, onNativeS
           key={retryKey}
           ref={webViewRef}
           source={{ uri: `${studyWebOrigin}/#today` }}
+          injectedJavaScriptBeforeContentLoaded={"window.studyRoomNativeCameraPermission = true; true;"}
+          injectedJavaScript={"window.studyRoomNativeCameraPermission = true; true;"}
           originWhitelist={[studyWebOrigin]}
           onShouldStartLoadWithRequest={allowNavigation}
           onNavigationStateChange={(state) => { currentUrlRef.current = state.url; }}

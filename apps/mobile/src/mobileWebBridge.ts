@@ -48,6 +48,8 @@ export function buildTicketInjection(ticket: MobileWebTicket) {
 }
 
 export type NativeBridgeMessage =
+  | { type: "STUDY_WEB_CAMERA_PERMISSION"; requestId: string }
+  | { type: "STUDY_WEB_OPEN_APP_SETTINGS"; requestId: string }
   | { type: "STUDY_WEB_READY"; requestId: string }
   | { type: "STUDY_WEB_AUTH_OK"; requestId: string; userId: string }
   | { type: "STUDY_WEB_AUTH_FAILED"; requestId: string }
@@ -60,6 +62,10 @@ export function parseNativeBridgeMessage(raw: string): NativeBridgeMessage | nul
   if (!value || typeof value !== "object") return null;
   const message = value as Record<string, unknown>;
   const validId = (id: unknown) => typeof id === "string" && id.length > 0 && id.length <= 128;
+  if (["STUDY_WEB_CAMERA_PERMISSION", "STUDY_WEB_OPEN_APP_SETTINGS"].includes(message.type as string)
+    && validId(message.requestId) && Object.keys(message).length === 2) {
+    return { type: message.type as "STUDY_WEB_CAMERA_PERMISSION" | "STUDY_WEB_OPEN_APP_SETTINGS", requestId: message.requestId as string };
+  }
   if (message.type === "STUDY_WEB_READY" && validId(message.requestId)) {
     return { type: message.type, requestId: message.requestId as string };
   }
@@ -76,4 +82,9 @@ export function parseNativeBridgeMessage(raw: string): NativeBridgeMessage | nul
     return { type: message.type };
   }
   return null;
+}
+
+export function buildCameraPermissionInjection(requestId: string, status: string) {
+  const message = JSON.stringify({ type: "STUDY_NATIVE_CAMERA_PERMISSION", requestId, status });
+  return `window.dispatchEvent(new CustomEvent("study-room-native-message", { detail: ${message} })); true;`;
 }

@@ -103,6 +103,7 @@ import {
   type CameraFrameRecoveryState,
 } from "./cameraFrameRecovery.mjs";
 import { getCameraDiagnostic, type CameraDiagnostic } from "./cameraDiagnostics.mjs";
+import { requestNativeCameraPermission, openNativeAppSettings } from "./nativeCameraPermission.mjs";
 import {
   isCameraStartTimeoutError,
   requestCameraStreamWithTimeout,
@@ -646,6 +647,7 @@ function DashboardApp() {
   const [recoveryHistoryPage, setRecoveryHistoryPage] = useState(1);
   const [cameraEnabled, setCameraEnabled] = useState(false);
   const [cameraStatus, setCameraStatus] = useState<PresenceStatus>("idle");
+  const [nativeCameraPermissionDenied, setNativeCameraPermissionDenied] = useState(false);
   const [cameraMessage, setCameraMessage] = useState("");
   const [cameraDiagnosticReason, setCameraDiagnosticReason] = useState<CameraDiagnosticReason>(null);
   const [presenceState, setPresenceState] = useState<PresenceState>(() => createPresenceState(Date.now()));
@@ -900,6 +902,7 @@ function DashboardApp() {
         healthReason: cameraDiagnosticReason,
         absenceSeconds: presenceState.absenceSeconds,
         timerPaused: presenceState.timerPaused,
+        embeddedAndroid: isEmbeddedStudyApp(window),
       }),
     [
       activeSession,
@@ -3980,6 +3983,18 @@ function DashboardApp() {
     setCameraDiagnosticReason(null);
 
     try {
+      const permission = await requestNativeCameraPermission(window);
+      if (cameraStartAttemptRef.current !== startAttempt) return false;
+      if (["denied", "blocked", "cancelled"].includes(permission)) {
+        setCameraStatus("error");
+        setNativeCameraPermissionDenied(permission !== "cancelled");
+        setCameraDiagnosticReason(permission === "cancelled" ? null : "permission-denied");
+        setCameraMessage(permission === "cancelled"
+          ? "카메라 권한 요청을 취소했어요. 준비되면 다시 눌러 주세요."
+          : "카메라 권한이 없어요. 다시 요청하거나 앱 설정 → 권한 → 카메라에서 허용한 뒤 다시 눌러 주세요.");
+        return false;
+      }
+      setNativeCameraPermissionDenied(false);
       if (restart) {
         cleanupCameraResources();
       }
@@ -4050,6 +4065,7 @@ function DashboardApp() {
       );
 
       const denied = error instanceof DOMException && ["NotAllowedError", "PermissionDeniedError"].includes(error.name);
+      setNativeCameraPermissionDenied(denied && isEmbeddedStudyApp(window));
       if (denied && activeSession) {
         await recordCameraPresenceEvent(session.user.id, activeSession.id, "camera_permission_denied", {
           metadata: { source: "web-camera" },
@@ -6028,11 +6044,15 @@ function DashboardApp() {
                       ? "카메라 켜고 공부 계속하기"
                       : "카메라 켜기"}
                 </button>
+                {nativeCameraPermissionDenied && (
+                  <button className="secondary" type="button" onClick={() => openNativeAppSettings(window)}>앱 설정 열기</button>
+                )}
                 <button className="secondary" type="button" onClick={closeCameraSetupPrompt}>
                   <X size={18} />
                   나중에
                 </button>
               </div>
+              {cameraStatus === "error" && cameraMessage && <p role="alert" className="reminder-copy">{cameraMessage}</p>}
           </AccessibleDialog>
         )}
 
@@ -6142,6 +6162,9 @@ function DashboardApp() {
                       <li key={check}>{check}</li>
                     ))}
                   </ul>
+                  {nativeCameraPermissionDenied && (
+                    <button className="secondary" type="button" onClick={() => openNativeAppSettings(window)}>앱 설정 열기</button>
+                  )}
                 </div>
               )}
             </div>

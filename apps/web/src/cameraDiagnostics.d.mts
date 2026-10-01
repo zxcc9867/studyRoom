@@ -18,6 +18,7 @@ export type CameraDiagnosticInput = {
   healthReason?: CameraHealth["reason"] | "permission-denied" | "unknown-error" | null;
   absenceSeconds?: number;
   timerPaused?: boolean;
+  embeddedAndroid?: boolean;
 };
 
 export function getCameraDiagnostic(input: CameraDiagnosticInput): CameraDiagnostic;

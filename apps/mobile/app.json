@@ -14,7 +14,9 @@
     },
     "android": {
       "package": "com.jini9867.studyroomattendance",
-      "permissions": ["CAMERA"],
+      "permissions": [
+        "CAMERA"
+      ],
       "googleServicesFile": "./google-services.json",
       "adaptiveIcon": {
         "backgroundColor": "#d9f0e3"
@@ -27,6 +29,9 @@
         "projectId": "5f890c4e-9f18-48cb-9808-a2005041ff16"
       }
     },
-    "owner": "jini9867"
+    "owner": "jini9867",
+    "plugins": [
+      "expo-web-browser"
+    ]
   }
 }

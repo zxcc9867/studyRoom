@@ -8,6 +8,7 @@ export function getCameraDiagnostic({
   healthReason = null,
   absenceSeconds = 0,
   timerPaused = false,
+  embeddedAndroid = false,
 }) {
   if (supportReason === "secure-context-required") {
     return {
@@ -28,6 +29,11 @@ export function getCameraDiagnostic({
   }
 
   if (healthReason === "permission-denied") {
+    if (embeddedAndroid) return {
+      tone: "error", title: "앱 카메라 권한이 필요해요",
+      detail: "Android에서 독서실의 카메라 사용이 허용되지 않았어요. 영상은 기기 안에서만 처리합니다.",
+      checks: ["앱 설정 열기 → 권한 → 카메라에서 사용 중 허용을 선택하세요.", "앱으로 돌아와 카메라 켜기를 다시 눌러 주세요. 설정만 바꿔도 공부가 자동 시작되지는 않습니다."],
+    };
     return {
       tone: "error",
       title: "카메라 권한 차단",
