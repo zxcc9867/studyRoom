@@ -5118,7 +5118,7 @@ function DashboardApp() {
             <div>
               <p className="eyebrow">recovery required</p>
               <h3>회복 루틴 필요</h3>
-              <p>누적 결석은 하나의 회복 루틴으로 정리합니다. 사유와 오늘의 보충 계획을 제출한 뒤 다시 시작하세요.</p>
+              <p>사유와 오늘의 보충 계획을 작성하고 다시 시작해요.</p>
             </div>
             <ul>
               {blockingRecoveryRequests.map((request) => (

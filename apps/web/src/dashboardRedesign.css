@@ -132,8 +132,19 @@ html:has(.dashboard-redesign), body:has(.dashboard-redesign), body:has(.dashboar
 .focus-status-warning > div { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px; }
 .focus-coach { border-top: 1px solid var(--study-border); color: var(--study-muted); font-size: 13px; }
 .focus-coach > summary { min-height: 48px; cursor: pointer; display: flex; align-items: center; }
-.dashboard-redesign .recovery-blocker { border-width: 1px; border-radius: 12px; box-shadow: none; font-size: 14px; padding: 20px; }
-.dashboard-redesign .recovery-blocker h3 { font-size: 20px; }
+.dashboard-redesign .recovery-blocker { grid-template-columns: minmax(0, 1fr) auto; grid-template-areas: "message action" "coverage coverage"; gap: var(--study-space-2) var(--study-space-4); border: 1px solid #d8bd80; border-radius: 12px; background: var(--study-warning-bg); box-shadow: none; font-size: 14px; padding: var(--study-space-4); }
+.dashboard-redesign .recovery-blocker > div:first-child { grid-area: message; }
+.dashboard-redesign .recovery-blocker .eyebrow { display: none; }
+.dashboard-redesign .recovery-blocker h3 { font-size: 18px; line-height: 1.4; color: var(--study-warning); }
+.dashboard-redesign .recovery-blocker p { margin: var(--study-space-1) 0 0; font-size: 14px; line-height: 1.5; font-weight: 500; color: var(--study-warning); }
+.dashboard-redesign .recovery-blocker ul { grid-area: coverage; display: flex; flex-wrap: wrap; gap: var(--study-space-2) var(--study-space-4); }
+.dashboard-redesign .recovery-blocker li { display: flex; flex-wrap: wrap; gap: var(--study-space-2); border: 0; background: transparent; padding: 0; }
+.dashboard-redesign .recovery-blocker li :is(span, strong) { color: var(--study-warning); font-size: 13px; line-height: 1.5; }
+.dashboard-redesign .recovery-blocker li span { font-weight: 500; }
+.dashboard-redesign .recovery-blocker .recovery-actions { grid-area: action; }
+.dashboard-redesign .recovery-blocker > button { grid-area: action; }
+.dashboard-redesign .recovery-blocker button { min-height: 44px; padding: var(--study-space-2) var(--study-space-4); border: 1px solid #d8bd80; border-radius: var(--study-control-radius); background: var(--study-surface); color: var(--study-warning); box-shadow: none; font-size: 14px; }
+.dashboard-redesign .recovery-blocker button:hover:not(:disabled) { background: #fff8e8; }
 .dashboard-redesign .session-break { border-width: 1px; box-shadow: none; border-radius: 12px; }
 .dashboard-record-overview { display: grid; gap: 20px; }
 .dashboard-redesign .dashboard-record-overview :is(.daily-habit-card, .goal-hero-card) { border: 1px solid var(--study-border); border-radius: var(--study-radius); box-shadow: none; }
@@ -169,6 +180,8 @@ html:has(.dashboard-redesign), body:has(.dashboard-redesign), body:has(.dashboar
   .dashboard-redesign .focus-tools { padding: 0 14px; }
   .dashboard-redesign .focus-tools .phone-focus-status { display: flex; flex-direction: column; align-items: flex-start; gap: 12px; }
   .dashboard-redesign .focus-card .ten-minute-checkpoint-head { gap: 8px; }
+  .dashboard-redesign .recovery-blocker { grid-template-columns: minmax(0, 1fr); grid-template-areas: "message" "coverage" "action"; }
+  .dashboard-redesign .recovery-blocker .recovery-actions button { width: 100%; }
 }
 @media (prefers-reduced-motion: reduce) {
   .dashboard-redesign *, .dashboard-redesign *::before, .dashboard-redesign *::after { animation: none !important; transition: none !important; scroll-behavior: auto !important; }

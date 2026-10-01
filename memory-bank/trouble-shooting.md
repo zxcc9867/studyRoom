@@ -1,5 +1,8 @@
 ## 2026-10-02 — 메인 리디자인 회귀 검사
 
+- Android 운영 회복 경고에 기존 굵기/3D 버튼/간격이 남아 집중 카드가 아래로 밀렸다. 375px mounted 카드 282.55px 실패 → 공통 warning/spacing/control 토큰으로 정리, 안내/대상/버튼은 항상 표시 → 220px 이하 회귀 검사 및 작성 모달 접근 통과.
+- 에뮬레이터의 카메라 직접 켜기 검사에서 stream=false였지만 권한은 granted=true, 활성 세션은 없었다. main.startCameraMonitoring의 세션 전제 조건 때문에 정상 거부다. 디자인 때문에 카메라가 고장났다는 판단은 하지 않는다. 실제 Chromium fake media로 접기 전/후 동일 노드/동일 live 트랙, 끄기 후 ended 검증을 추가했다.
+- 최종 보완 검증: 전체 Node 844 pass/34 선택적 browser skip/0 fail, 별도 Chromium 34/34. helper CDP의 15초 timeout은 30초 bounded 진단으로 재시도했고 실제 메뉴 점검이 완료됐다. 제품 서버 오류로 분류하지 않는다.
 - 새 UI를 실제 앱에 적용한 후 기존 가독성 검사에서 .actual-state 12px 및 .actual-next 13px가 실패했다. 두 항목을 15px/짙은 녹색으로 보완해 기존 7:1 대비와 크기 기준을 통과했다.
 - 전체 테스트의 예전 `<section className="daily-visual">` 소스 문자열 2건은 상세 details 재배치 때문에 실패했다. 단순 새 태그 문자열로 바꾸지 않고 main mounted 테스트에서 timer 1개/video 1개/카메라 진단과 동작 버튼의 실제 가시성을 검증하도록 대체했다.
 - lease 설명 문자열을 축약하면서 기존 계약 검사가 실패했다. 최대 2시간의 기존 문구를 상세에 보존해 해결했으며 연장 정책은 변경하지 않았다.

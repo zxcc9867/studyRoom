@@ -72,6 +72,32 @@ browserTest('dashboard redesign: one timer and one camera diagnostic remain reac
  assert.equal(await tools.getByRole('button',{name:'카메라 감시 켜기',exact:true}).isVisible(),true);
 }));
 
+for(const width of [375,1440])browserTest(`dashboard redesign: recovery warning stays visible and compact at ${width}px`,()=>withApp(width,async page=>{
+ const warning=page.locator('.recovery-blocker').filter({hasText:'회복 루틴 필요'});
+ await warning.waitFor();
+ const dialog=page.getByRole('dialog');if(await dialog.count())await page.keyboard.press('Escape');
+ assert.equal(await warning.isVisible(),true);
+ assert.equal(await warning.evaluate(el=>Boolean(el.closest('details'))),false);
+ assert.equal(await warning.getByRole('button',{name:'회복 루틴 작성',exact:true}).isVisible(),true);
+ assert.match(await warning.textContent(),/출석 실패/);
+ const box=await warning.boundingBox();assert.ok(box.height<=220,`recovery card height ${box.height}`);
+ assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),true);
+ await warning.getByRole('button',{name:'회복 루틴 작성',exact:true}).click();
+ assert.equal(await page.getByRole('dialog').isVisible(),true);
+ assert.equal(await page.evaluate(()=>fixture.sessions.length),0);
+},'recovery'));
+
+browserTest('dashboard redesign: collapsing camera settings preserves the live track and video node',()=>withApp(375,async page=>{
+ const tools=page.locator('.focus-tools');await tools.locator('summary').first().click();
+ await tools.getByRole('button',{name:'카메라 감시 켜기',exact:true}).click();
+ await page.waitForFunction(()=>document.querySelector('video')?.srcObject?.getVideoTracks()[0]?.readyState==='live');
+ await page.evaluate(()=>{window.cameraTestNode=document.querySelector('video');window.cameraTestTrack=window.cameraTestNode.srcObject.getVideoTracks()[0];});
+ await tools.locator('summary').first().click();await page.clock.runFor(1000);
+ assert.equal(await page.evaluate(()=>document.querySelector('video')===window.cameraTestNode&&document.querySelector('video').srcObject.getVideoTracks()[0]===window.cameraTestTrack&&window.cameraTestTrack.readyState==='live'),true);
+ await tools.locator('summary').first().click();await tools.getByRole('button',{name:'카메라 감시 끄기',exact:true}).click();
+ assert.equal(await page.evaluate(()=>window.cameraTestTrack.readyState),'ended');
+}));
+
 const backend = `
 const now='2026-09-21T14:30:00Z';
 const todo=(id,title,date='2026-09-21')=>({id,user_id:'owner',title,local_date:date,start_time:'23:00:00',end_time:'01:00:00',is_completed:false,position:0,goal_id:'goal',repeat_group_id:'repeat',repeat_mode:'weekly',repeat_weekdays:[1],repeat_until:null,repeat_forever:true,created_at:now,original_start_at:'2026-09-21T14:00:00Z',original_end_at:'2026-09-21T16:00:00Z',target_seconds:7200,first_started_at:'2026-09-21T14:00:00Z',first_tracked_at:'2026-09-21T14:00:00Z',known_seconds:1800,open_started_at:'2026-09-21T14:00:00Z',remaining_seconds:5400,adjustment_count:1,evaluation_eligible:true,unknown_allocation:false});
@@ -80,7 +106,8 @@ const state=window.fixture={calls:[],todos:[todo('a','집중 독서'),todo('b','
 state.links=['a','b'];
 const mode=new URLSearchParams(location.search).get('mode');
 if(['empty-links','completed-links','active-empty'].includes(mode)){state.links=mode==='completed-links'?['a']:[];state.current=null;state.sessions[0].paused_at=mode==='active-empty'?null:now;state.todos[0].is_completed=mode==='completed-links';state.todos[1].local_date='2026-09-21';state.todos.forEach(t=>{t.first_started_at=null;t.unknown_allocation=true;t.evaluation_eligible=false;});}
-if(mode==='start'){state.sessions=[];state.todos.forEach(t=>t.local_date='2026-09-21');}
+if(mode==='start'||mode==='recovery'){state.sessions=[];state.todos.forEach(t=>t.local_date='2026-09-21');}
+state.recoveries=mode==='recovery'?[{id:'recovery',local_date:'2026-09-20',covered_start_date:'2026-09-20',covered_end_date:'2026-09-20',covered_missed_days:1,trigger_type:'missed_attendance',status:'pending',reason:null,makeup_todo_title:null,pledge_todo_title:null,created_at:now}]:[];
 if(mode==='lease')state.sessions[0].lease_expires_at='2026-09-21T14:34:00Z';
 if(mode==='unknown'){state.current=null;state.sessions[0].paused_at=now;state.todos.forEach(t=>{t.first_started_at=null;t.unknown_allocation=true;t.evaluation_eligible=false;});}
 const authSession={access_token:'test-only',user:{id:'owner',email:'fixture@example.test',user_metadata:{}}};
@@ -102,7 +129,7 @@ function result(name,args){state.calls.push({name,args});
  if(name==='get_study_period_summary')return {data:{completed_seconds:3600,completed_session_count:1,anomaly_session_count:0,cross_date_session_count:0},error:null};
  return {data:[],error:null};
 }
-function query(table){let single=false,insert=null;const q=new Proxy({}, {get(_,key){if(key==='then')return (resolve,reject)=>Promise.resolve().then(()=>{if(insert && table==='study_todos'){const added={...todo('new',''),...insert[0],id:'new'};state.todos.push(added);return {data:added,error:null};}let data=table==='profiles'?{user_id:'owner',time_zone:'Asia/Tokyo',reminder_time:'09:00',email_reminders_enabled:false}:table==='study_goals'?[{id:'goal',title:'자격증 목표',target_date:'2026-12-31',target_study_seconds:0,status:'active',created_at:now,updated_at:now}]:table==='study_sessions'?state.sessions:table==='study_todos'?state.todos:table==='study_session_todos'?state.todos.filter(t=>state.links.includes(t.id)).map(t=>({id:t.id,session_id:'session',todo_id:t.id,user_id:'owner',linked_at:now,completed_during_session:false})):[];return {data:single?(Array.isArray(data)?data[0]??null:data):data,error:null};}).then(resolve,reject);return (...args)=>{if(key==='maybeSingle'||key==='single')single=true;if(key==='insert')insert=args[0];return q;};}});return q;}
+function query(table){let single=false,insert=null;const q=new Proxy({}, {get(_,key){if(key==='then')return (resolve,reject)=>Promise.resolve().then(()=>{if(insert && table==='study_todos'){const added={...todo('new',''),...insert[0],id:'new'};state.todos.push(added);return {data:added,error:null};}let data=table==='profiles'?{user_id:'owner',time_zone:'Asia/Tokyo',reminder_time:'09:00',email_reminders_enabled:false}:table==='study_goals'?[{id:'goal',title:'자격증 목표',target_date:'2026-12-31',target_study_seconds:0,status:'active',created_at:now,updated_at:now}]:table==='study_sessions'?state.sessions:table==='study_todos'?state.todos:table==='study_recovery_requests'?state.recoveries:table==='study_session_todos'?state.todos.filter(t=>state.links.includes(t.id)).map(t=>({id:t.id,session_id:'session',todo_id:t.id,user_id:'owner',linked_at:now,completed_during_session:false})):[];return {data:single?(Array.isArray(data)?data[0]??null:data):data,error:null};}).then(resolve,reject);return (...args)=>{if(key==='maybeSingle'||key==='single')single=true;if(key==='insert')insert=args[0];return q;};}});return q;}
 export const isSupabaseConfigured=true,supabaseUrl='https://fixture.invalid',supabaseAnonKey='test';
 export const supabase={from:query,rpc(name,args){const q={then(resolve,reject){return Promise.resolve().then(()=>result(name,args)).then(resolve,reject);},abortSignal(){return q;}};return q;},auth:{getSession:async()=>({data:{session:authSession},error:null}),onAuthStateChange:callback=>{state.changeOwner=()=>{state.sessions=[];state.todos=[];state.reportFail=true;callback('SIGNED_IN',{...authSession,user:{...authSession.user,id:'other'}});};return {data:{subscription:{unsubscribe(){}}}};},getUser:async()=>({data:{user:authSession.user},error:null})},functions:{invoke:async()=>({data:{},error:null})}};
 `;
