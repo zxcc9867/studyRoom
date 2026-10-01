@@ -8,6 +8,70 @@ let chromium;
 try { ({chromium} = await import(process.env.FEED_BROWSER_MODULE ? pathToFileURL(process.env.FEED_BROWSER_MODULE).href : 'playwright')); } catch {}
 const browserTest = (name, run) => test(name, {skip: !chromium && 'Set FEED_BROWSER_MODULE and FEED_BROWSER_EXECUTABLE for mounted main application tests'}, run);
 
+for (const width of [375, 1440]) browserTest(`dashboard redesign: shared focus hierarchy and navigation at ${width}px`, () => withApp(width, async page => {
+ await page.getByRole('heading',{name:'집중 독서',exact:true}).waitFor();
+ await mkdir('output/playwright',{recursive:true});
+ const phase=process.env.DASHBOARD_SNAPSHOT_PHASE==='before'?'before':'after';
+ await page.screenshot({path:`output/playwright/dashboard-${phase}-${width}.png`,fullPage:true});
+ const card=page.getByRole('region',{name:'집중 공부'});
+ assert.equal(await card.getByRole('heading',{name:'집중 독서',exact:true}).count(),1);
+ const timer=card.getByRole('timer',{name:'이번 세션 공부시간'});
+ assert.match(await timer.textContent(),/^\d{2}:\d{2}:\d{2}$/);
+ assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),true);
+ const timerBox=await timer.boundingBox();assert.ok(timerBox.y<700,'timer is on the first screen');
+ assert.equal(await page.locator('.focus-tools').getAttribute('open'),null);
+ if(width===375){
+  const more=page.getByRole('button',{name:'더 보기',exact:true});await more.click();
+  const dialog=page.getByRole('dialog',{name:'더 보기'});await dialog.waitFor();
+  await page.clock.runFor(32);
+  assert.equal(await dialog.getByRole('link',{name:'내 페이지',exact:true}).isVisible(),true);
+  assert.equal(await dialog.getByRole('link',{name:'알림 설정',exact:true}).isVisible(),true);
+  assert.equal(await dialog.getByRole('button',{name:'화면 구성',exact:true}).isVisible(),true);
+  await page.keyboard.press('Escape');await dialog.waitFor({state:'detached'});await page.clock.runFor(32);
+  assert.equal(await more.evaluate(el=>document.activeElement===el),true);
+ }
+ await page.getByRole('button',{name:'잠시 쉬기',exact:true}).click();
+ await page.getByRole('button',{name:'공부 계속하기',exact:true}).waitFor();
+ const frozen=await timer.textContent();await page.clock.fastForward(5000);assert.equal(await timer.textContent(),frozen);
+ await page.getByRole('button',{name:'계획',exact:true}).click();
+ assert.equal(await page.getByRole('region',{name:'오늘 할 일',exact:true}).isVisible(),true);
+ await page.getByRole('button',{name:'기록',exact:true}).click();
+ assert.equal(await page.getByText('9월 누적',{exact:true}).isVisible(),true);
+}));
+
+browserTest('dashboard redesign: idle hides end and preserves preparation flow',()=>withApp(375,async page=>{
+ assert.equal(await page.locator('.topbar-actions').getByRole('button',{name:'종료',exact:true}).count(),0);
+ assert.equal(await page.getByRole('timer',{name:'이번 세션 공부시간'}).textContent(),'00:00:00');
+},'start'));
+
+browserTest('dashboard redesign: connection error is visible while controls remain collapsed',()=>withApp(375,async page=>{
+ await page.evaluate(()=>fixture.focusError=true);await page.clock.fastForward(15001);
+ const warning=page.locator('.focus-status-warning');await warning.getByText(/휴대폰 연결 테스트 오류/).waitFor();
+ assert.equal(await warning.isVisible(),true);
+ assert.equal(await warning.evaluate(el=>Boolean(el.closest('details'))),false);
+ assert.equal(await page.locator('.focus-tools').getAttribute('open'),null);
+ await page.locator('.focus-tools > summary').click();
+ assert.equal(await page.getByRole('button',{name:'카메라 감시 켜기',exact:true}).isVisible(),true);
+}));
+
+browserTest('dashboard redesign: expiring lease is visible without opening settings',()=>withApp(375,async page=>{
+ const warning=page.locator('.focus-status-warning');await warning.getByText(/세션 유지 시간이/).waitFor();
+ assert.equal(await warning.isVisible(),true);
+ assert.equal(await warning.getByRole('button',{name:'+1시간 연장',exact:true}).isVisible(),true);
+ assert.equal(await page.locator('.focus-tools').getAttribute('open'),null);
+},'lease'));
+
+browserTest('dashboard redesign: one timer and one camera diagnostic remain reachable in settings',()=>withApp(375,async page=>{
+ assert.equal(await page.getByRole('timer',{name:'이번 세션 공부시간'}).count(),1);
+ const tools=page.locator('.focus-tools');await tools.locator('summary').first().click();
+ assert.equal(await tools.locator('video').count(),1);
+ assert.equal(await tools.getByRole('timer').count(),0);
+ assert.equal(await tools.locator('.camera-monitor').count(),1);
+ assert.equal(await tools.locator('.camera-diagnostic strong').isVisible(),true);
+ assert.ok(await tools.locator('.camera-diagnostic li').count()>0,'diagnostic provides actionable checks');
+ assert.equal(await tools.getByRole('button',{name:'카메라 감시 켜기',exact:true}).isVisible(),true);
+}));
+
 const backend = `
 const now='2026-09-21T14:30:00Z';
 const todo=(id,title,date='2026-09-21')=>({id,user_id:'owner',title,local_date:date,start_time:'23:00:00',end_time:'01:00:00',is_completed:false,position:0,goal_id:'goal',repeat_group_id:'repeat',repeat_mode:'weekly',repeat_weekdays:[1],repeat_until:null,repeat_forever:true,created_at:now,original_start_at:'2026-09-21T14:00:00Z',original_end_at:'2026-09-21T16:00:00Z',target_seconds:7200,first_started_at:'2026-09-21T14:00:00Z',first_tracked_at:'2026-09-21T14:00:00Z',known_seconds:1800,open_started_at:'2026-09-21T14:00:00Z',remaining_seconds:5400,adjustment_count:1,evaluation_eligible:true,unknown_allocation:false});
@@ -17,10 +81,12 @@ state.links=['a','b'];
 const mode=new URLSearchParams(location.search).get('mode');
 if(['empty-links','completed-links','active-empty'].includes(mode)){state.links=mode==='completed-links'?['a']:[];state.current=null;state.sessions[0].paused_at=mode==='active-empty'?null:now;state.todos[0].is_completed=mode==='completed-links';state.todos[1].local_date='2026-09-21';state.todos.forEach(t=>{t.first_started_at=null;t.unknown_allocation=true;t.evaluation_eligible=false;});}
 if(mode==='start'){state.sessions=[];state.todos.forEach(t=>t.local_date='2026-09-21');}
+if(mode==='lease')state.sessions[0].lease_expires_at='2026-09-21T14:34:00Z';
 if(mode==='unknown'){state.current=null;state.sessions[0].paused_at=now;state.todos.forEach(t=>{t.first_started_at=null;t.unknown_allocation=true;t.evaluation_eligible=false;});}
 const authSession={access_token:'test-only',user:{id:'owner',email:'fixture@example.test',user_metadata:{}}};
 const track=()=>({session_id:'session',current_todo_id:state.current,tracking_started_at:row.started_at,excluded_seconds:state.excluded,unknown_allocation:false,server_now:now,todos:state.todos.filter(t=>state.links.includes(t.id)).map(t=>({...t,open_started_at:state.sessions[0]?.paused_at||t.id!==state.current?null:row.started_at}))});
 function result(name,args){state.calls.push({name,args});
+ if(name==='get_study_focus_snapshot')return {data:state.focusError?{device_connected:true,opted_in:true,permission_granted:true,last_error:'휴대폰 연결 테스트 오류'}:null,error:null};
  if(name==='get_actual_study_state')return {data:track(),error:null};
  if(name==='checkpoint_actual_study_exclusion'){state.excluded=Math.max(state.excluded,args.p_excluded_seconds);return {data:track(),error:null};}
  if(name==='pause_actual_study_session' && state.holdPause)return new Promise(resolve=>{state.releasePause=()=>{state.sessions[0]={...state.sessions[0],paused_at:now};resolve({data:state.sessions[0],error:null});};});

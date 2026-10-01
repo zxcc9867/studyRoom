@@ -1,3 +1,43 @@
+## 2026-10-02 — 승인 목업의 웹·Android 공통 화면 구현
+
+### 현재 작업
+
+- 작업명/목적: 승인된 메인 목업 적용. 관련 PRD: prd-main-dashboard-redesign.md, daily-planner-dashboard, session-todo-links, android-web-parity. 이전 목업 미적용 기록은 아래에 역사로 보존한다.
+- 관련 파일: 웹 main/ActualStudyPanel/TodayDomainTabs, 새 DashboardNavigation와 dashboardRedesign.css, 실제 mounted 테스트 및 목업 문서.
+
+### 최근 결정 사항
+
+- 웹과 앱 로그인 이후 화면은 동일 production WebView를 사용한다. 네이티브 복제나 APK 변경 없이 공통 웹 컴포넌트/CSS를 적용한다. 네이티브 최초 로그인/오류 fallback 화면은 이번 메인 목업 범위 밖이다.
+- PC 상단/모바일 하단 메뉴 + 더 보기, 집중 카드의 현재 할 일/이번 세션 타이머/주 행동 통합, 월 누적/습관/대표 목표는 기록, 오늘 짧은 계획/숲 미리보기는 보조 영역.
+- 원래/조정 일정과 실제 구간은 상세로 보존한다. 카메라 video DOM은 상세를 접어도 유지한다. 오류/회복/만료 5분 경고는 접지 않는다. 화면 구성에서 기존 선호 순서를 유지하며 저장 규칙/DB를 변경하지 않는다.
+- 새로운 세션 숫자는 기존 공부시간 window 계산을 재사용해 카메라 제외/휴식/lease 제한을 적용한다. 시작·휴식·재개·전환·회고 RPC와 출석 정책은 그대로다.
+
+### 현재 상태
+
+- 완료: Node 844 pass/31 선택적 browser skip/0 fail, 별도 실제 Chromium 31/31(새 UI 6건 포함), Edge 21/21, 모바일 호환성/타입·웹 타입/빌드·README 24개 참조 통과. 기존 가독성 최소 15px/대비 7:1 조건도 통과.
+- 진행 중: main 푸시/production READY·HTTP200, Android 16 WebView 반영·기능 접근 확인. 배포 전 412px 앱은 이전 UI/로그인 유지·비활성 공부·카메라 꺼짐을 확인했다.
+- 남은 검증: 운영 새 UI 및 실제 휴대폰 확대 글꼴/안전 영역. 이전 Google 인증·기기 방해금지/푸시 등 미완료 항목은 이번 디자인 변경으로 완료 처리하지 않는다.
+
+## 2026-10-02 — 메인 UI 단순화 목업 제안 (미적용)
+
+### 현재 작업
+
+- 작업명/목적: 사용자의 ‘복잡한 메인 UI를 한눈에 이해할 수 있도록 개선 목업 먼저 제시’ 요청. ECC 설치 상태를 작업 전 읽기 전용 확인했다. 관련 PRD: prd-daily-planner-dashboard.md, prd-session-todo-links.md, prd-user-profile.md.
+- 관련 파일: docs/mockups/main-dashboard-20261002/index.html, README.md, capture.mjs 및 상태별 스크린샷. apps/web·apps/mobile·서버·설정은 수정하지 않는다.
+
+### 최근 결정 사항
+
+- 제안: 현재 할 일·이번 세션 타이머·주 액션을 한 카드로 묶고, PC 우측/모바일 아래에 짧은 오늘 계획을 둔다. 집중/계획/기록을 유지하고 월간 통계는 기록으로, 카메라/휴대폰/lease는 펼칠 수 있는 상태 요약으로 정리한다. 회복 필요·조회 실패는 항상 경고로 노출한다.
+- PC 상단/모바일 하단 메뉴와 숲 보조 미리보기는 사용자 검토안이지 승인된 제품 요구사항 개정이 아니다. 종료/회복/카메라/출석/알림 계약은 보존할 예정이다.
+- ECC 이름의 전용 플러그인 등록은 확인되지 않았으나 metadata.origin ECC 스킬 13개를 확인했다. verification-loop를 범위·빌드·브라우저·보안 검증에 사용하며 플러그인/스킬은 새로 설치하지 않았다.
+
+### 현재 상태
+
+- 완료: 1440px·375px Chromium 렌더링, 목업 assertion 41/41, 가로 넘침 없음·JS 오류 0·HTTP 외부 요청 0. 주요 명도 대비 12.30/7.02/6.28/6.07:1. 기존 웹 tsc/Vite 빌드 통과.
+- 미적용: 제품 코드 수정·DB 작업·실제 카메라/타이머·사용자 기록 저장·커밋/푸시/배포 없음. 예시 데이터를 사용하고 앱 기능 검증 완료로 계산하지 않는다.
+- 다음 작업: 목업 승인/수정 의견을 받은 뒤 실제 적용 범위를 확정한다. 모바일 로그인·실기기 방해금지 등 이전 미확인 항목은 기존 기록을 유지한다.
+- 검증 도구: Jev 요청은 외부 전송 정책으로 차단됐다. 승인 우회/재전송 없이 실제 스크린샷·41 assertion·빌드·diff를 직접 확인했다.
+
 ## 2026-10-01 — 첫 로그인·카메라 권한 개선 재배포/에뮬레이터 확인
 
 - 제품 커밋 5401aeb + 권한 timeout 보완 9394a1e main 푸시. Actions 36831624815 success, Vercel dpl_HKm53qLtGHEFWSmSNMUqhijXwqyZ READY/main 9394a1e, production HTTP 200 확인. CI 846 pass/25 선택적 browser skip/0 fail, 별도 browser 25/25, Edge 21/21, 타입/빌드/README 통과.

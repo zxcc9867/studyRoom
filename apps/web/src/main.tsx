@@ -147,6 +147,7 @@ import TenMinuteCheckpoint from "./TenMinuteCheckpoint";
 import BreakReturnPlan from "./BreakReturnPlan";
 import { getWeeklyHabitRhythm } from "./weeklyHabit.mjs";
 import TodayDomainTabs, { type TodayDomain } from "./TodayDomainTabs";
+import DashboardNavigation from "./DashboardNavigation";
 import WeeklyHabitRhythmPanel from "./WeeklyHabitRhythmPanel";
 import { getPendingReflectionSessions } from "./reflectionInbox.mjs";
 import ReflectionInbox from "./ReflectionInboxCard";
@@ -189,6 +190,7 @@ import {
 } from "./sessionLease.mjs";
 import {
   getActiveStudySecondsForDate,
+  getActiveStudySecondsInWindow,
   getActiveStudySecondsForMonth,
   getStudyMonthKey,
 } from "./studyTimeSummary.mjs";
@@ -284,6 +286,7 @@ import { getWebPushStatus, registerWebPushTarget, showLocalTestNotification, typ
 import "./styles.css";
 import "./improvements.css";
 import "./sessionTodoModal.css";
+import "./dashboardRedesign.css";
 
 const resendCooldownKey = "study-room-auth-resend-available-at";
 const emailOtpLength = EMAIL_OTP_LENGTH;
@@ -959,6 +962,11 @@ function DashboardApp() {
     );
   }, [activeSessionPaused, breakReturnStorageKey]);
   const activeExcludedSeconds = activeCameraExcludedSeconds + activeBreakSeconds;
+  const currentSessionSeconds = activeSessionStartedAtMs === null ? 0 : getActiveStudySecondsInWindow({
+    startedAtMs: activeSessionStartedAtMs, nowMs: activeSessionClockNowMs,
+    windowStartMs: activeSessionStartedAtMs, windowEndMs: activeSessionClockNowMs,
+    excludedSeconds: activeExcludedSeconds,
+  });
   const todayDateKey = getLocalDateKey(new Date(nowMs), timeZone);
   const tenMinuteCheckpointStorageKey = getTenMinuteCheckpointStorageKey({
     userId: session?.user.id,
@@ -4599,7 +4607,7 @@ function DashboardApp() {
 
   function renderSessionTodoList() {
     if (!activeSession) return null;
-    return <ActualStudyPanel tracking={actualTracking?.session_id === activeSession.id ? actualTracking : null} paused={activeSessionPaused} nowMs={nowMs} leaseExpiresAt={activeSession.lease_expires_at} goalTitles={goalTitleById} cameraTotal={activeCameraExcludedSeconds} timeZone={timeZone} busy={busy || Boolean(actualIntent)} focusId={currentSessionTodoId ?? actualTracking?.current_todo_id ?? null} onFocus={setCurrentSessionTodoId} onChoose={() => openSessionTodoSelection(false, activeSessionPaused ? "resume" : "switch")}
+    return <ActualStudyPanel compact tracking={actualTracking?.session_id === activeSession.id ? actualTracking : null} paused={activeSessionPaused} nowMs={nowMs} leaseExpiresAt={activeSession.lease_expires_at} goalTitles={goalTitleById} cameraTotal={activeCameraExcludedSeconds} timeZone={timeZone} busy={busy || Boolean(actualIntent)} focusId={currentSessionTodoId ?? actualTracking?.current_todo_id ?? null} onFocus={setCurrentSessionTodoId} onChoose={() => openSessionTodoSelection(false, activeSessionPaused ? "resume" : "switch")}
       onSwitch={id => { void runActualAction({ action: "switch", sessionId: activeSession.id, todoIds: (actualTrackingRef.current?.todos ?? []).filter(todo => !todo.is_completed).map(todo => todo.id), currentTodoId: id, excludedSeconds: getActiveCameraExcludedSeconds() }); }} />;
   }
 
@@ -4876,44 +4884,16 @@ function DashboardApp() {
   }
 
   return (
-    <main className="dashboard-shell">
-      <aside className="sidebar">
-        <div>
-          <p className="eyebrow">study room</p>
-          <h1>강제 출석 독서실</h1>
-        </div>
-        <nav aria-label="대시보드 섹션">
-          <a className={activeSection === "today" ? "active" : ""} href="#today">
-            오늘
-          </a>
-          <a className={activeSection === "goals" ? "active" : ""} href="#goals">
-            <Target size={17} />
-            목표
-          </a>
-          <a className={activeSection === "feed" ? "active" : ""} href="#feed">
-            <Rss size={17} />기술 피드
-          </a>
-          <a className={activeSection === "forest" ? "active" : ""} href="#forest">
-            <TreePine size={17} />
-            {"\uACF5\uBD80 \uC232"}
-          </a>
-          <a className={activeSection === "me" ? "active" : ""} href="#me">
-            <UserRound size={17} />
-            내 페이지
-          </a>
-          <a className={activeSection === "settings" ? "active" : ""} href="#settings">
-            알림
-          </a>
-        </nav>
-        <button className="plain" onClick={() => {
+    <main className="dashboard-shell dashboard-redesign">
+      <DashboardNavigation activeSection={activeSection} onLayout={() => {
+        window.location.hash = "today";
+        setDraftTodaySectionOrder(todaySectionOrder);
+        setSectionOrderEditing(true);
+      }} onSignOut={() => {
           if (!postEmbeddedMessage(window, { type: "STUDY_WEB_SIGN_OUT" })) {
             void supabase.auth.signOut();
           }
-        }}>
-          <LogOut size={17} />
-          로그아웃
-        </button>
-      </aside>
+      }} />
 
       <section className={activeSection === "feed" ? "workspace feed-workspace" : "workspace"}>
         {(dashboardLoading || dashboardError) && (
@@ -4934,16 +4914,20 @@ function DashboardApp() {
           </Suspense>
         )}
         {activeSection === "today" && (
-          <TodayDomainTabs activeDomain={todayDomain} onChange={setTodayDomain} />
+          <>
+            <div className="dashboard-page-heading"><div><p>{new Intl.DateTimeFormat("ko-KR", { timeZone, month: "long", day: "numeric", weekday: "long" }).format(new Date(nowMs))}</p><h1>오늘의 공부</h1></div><span className="dashboard-attendance">{dashboardReady ? attendanceDays.find(day => day.local_date === todayDateKey)?.status === "present" ? "출석 완료" : activeSession ? "공부 중" : "시작 준비" : "기록 확인 중"}</span></div>
+            <TodayDomainTabs activeDomain={todayDomain} onChange={setTodayDomain} />
+            {sectionOrderEditing && renderTodaySectionOrderEditor()}
+          </>
         )}
 
         {activeSection === "today" && todayDomain === "focus" && (
-          <header className="topbar today-ordered-section" style={{ order: getTodaySectionSortOrder("topbar") }}>
+          <div className="focus-overview today-ordered-section" style={{ order: getTodaySectionSortOrder("topbar") }}>
+          <section className="topbar focus-card daily-visual" aria-label="집중 공부">
             <div className="topbar-head">
-              <div>
-                <p className="eyebrow">deadline rule</p>
-                <h2>{todayAttendanceRuleLabel}</h2>
-              </div>
+              {activeSession ? renderSessionTodoList() : <div className="focus-ready"><p className="eyebrow">오늘, 한 걸음부터</p><h2>{blockingRecoveryRequests.length > 0 ? "회복하고 다시 시작해요" : "어떤 공부를 시작할까요?"}</h2><p>{latestNextAction ? `이어서 할 일 · ${latestNextAction}` : "할 일을 고르고 지금부터 집중해 보세요."}</p></div>}
+            </div>
+            <div className="session-clock"><span>{activeSessionPaused ? "휴식 중 · 공부시간은 멈춰 있어요" : activeSession && presenceState.timerPaused ? "자리 비움 · 공부시간은 멈춰 있어요" : "이번 세션 공부시간"}</span><strong role="timer" aria-label="이번 세션 공부시간">{dashboardReady ? formatTimerClock(currentSessionSeconds) : "확인 필요"}</strong></div>
               <div className="topbar-actions" aria-label="집중 세션 조작">
                 <button
                   className={activeSession && !activeSessionPaused ? "break-action" : "primary"}
@@ -4962,7 +4946,7 @@ function DashboardApp() {
                   {activeSession && !activeSessionPaused ? <Pause size={18} /> : <Play size={18} />}
                   {!dashboardReady ? (dashboardLoading ? "학습 정보 확인 중…" : "학습 정보 확인 필요") : !activeSession && blockingRecoveryRequests.length > 0 ? "회복루틴 작성 후 시작" : !activeSession ? studyStartAction.label : activeSessionPaused ? "공부 계속하기" : "잠시 쉬기"}
                 </button>
-                <button
+                {activeSession && <button
                   className="danger"
                   onClick={() => {
                     void openEndSessionCompletionModal();
@@ -4971,33 +4955,32 @@ function DashboardApp() {
                 >
                   <Square size={18} />
                   종료
-                </button>
+                </button>}
               </div>
-            </div>
             <div className="study-summary" aria-label="공부 시간 요약">
               <div>
                 <span>오늘 공부</span>
-                <strong>{dashboardReady ? formatTimerClock(todaySeconds) : "확인 필요"}</strong>
+                <strong>{dashboardReady ? `${Math.floor(todaySeconds / 3600)}시간 ${Math.floor(todaySeconds % 3600 / 60)}분` : "확인 필요"}</strong>
               </div>
               <div>
-                <span>{formatMonthLabel(calendarMonth)} 누적</span>
-                <strong>{dashboardReady ? formatTimerClock(monthSeconds) : "확인 필요"}</strong>
+                <span>오늘 목표</span>
+                <strong>{todayGoalLabel}</strong>
               </div>
             </div>
-            <section className="phone-focus-status" aria-label="휴대폰 집중 모드 상태" aria-live="polite">
-              <div>
-                <strong>휴대폰 집중 모드 · {focusStatusLabel(focusSnapshot)}</strong>
-                <p>{focusSnapshot?.device_connected
-                  ? "Android 앱에서 방해금지 적용을 확인한 상태만 표시합니다. 지연되면 앱을 열어 동기화해 주세요."
-                  : "Android APK에서 같은 계정으로 로그인한 뒤 휴대폰 집중 모드를 연결할 수 있어요."}</p>
-                {focusSnapshot?.last_ack_at && <small>마지막 휴대폰 확인: {new Date(focusSnapshot.last_ack_at).toLocaleString("ko-KR")}</small>}
-                {(focusSnapshot?.last_error || focusStatusError) && <small className="phone-focus-error">{focusSnapshot?.last_error || focusStatusError}</small>}
-              </div>
-              <button type="button" className="secondary" onClick={() => void refreshFocusStatus(session.user.id)}>
-                상태 다시 확인
-              </button>
+            <progress className="today-focus-progress" aria-label="오늘 공부 목표 진행도" value={todayProgress} max={100} />
+            <p className="focus-attendance-rule">{todayAttendanceRuleLabel}</p>
+            {activeSession && <TenMinuteCheckpoint state={tenMinuteCheckpoint} paused={activeSessionPaused} busy={busy} onContinue={acknowledgeTenMinuteCheckpoint} onFinish={() => void openEndSessionCompletionModal()} />}
             </section>
-            {activeSessionPaused && (
+            <aside className="focus-side" aria-label="오늘의 간략 계획">
+              <section className="focus-plan-card"><div className="focus-side-heading"><h2>오늘의 할 일</h2><button type="button" onClick={() => setTodayDomain("plan")}>전체 보기</button></div><p>{completedTodayTodoCount}/{todayTodos.length} 완료</p><ul>{todayTodos.slice(0, 4).map(todo => <li key={todo.id} className={todo.is_completed ? "completed" : ""}><CheckCircle2 size={18} aria-hidden="true" /><div><strong>{todo.title}</strong><small>{formatTodoScheduleLabel(todo) || "시간 미지정"}</small></div></li>)}</ul>{todayTodos.length === 0 && <p>아직 할 일이 없어요. 계획에서 추가하거나 시작할 때 바로 입력하세요.</p>}</section>
+              <section className="focus-forest-preview"><TreePine size={65} aria-hidden="true" /><p className="eyebrow">공부의 숲</p><h2>{dailyHabitState.title}</h2><p>{dailyHabitState.description}</p><a href="#forest">내 숲 둘러보기 →</a></section>
+              <button type="button" className="focus-record-link" onClick={() => setTodayDomain("record")}>월 누적·습관 기록 보기 →</button>
+            </aside>
+          </div>
+        )}
+        {activeSection === "today" && (
+          <>
+            {todayDomain === "focus" && activeSessionPaused && (
               <div className="session-break" role="status" aria-live="polite">
                 <span className="session-break-icon" aria-hidden="true"><Pause size={20} /></span>
                 <div>
@@ -5017,6 +5000,8 @@ function DashboardApp() {
                 />
               </div>
             )}
+            {todayDomain === "record" && <section className="dashboard-record-overview">
+            <div className="study-summary" aria-label="공부 시간 요약"><div><span>오늘 공부</span><strong>{dashboardReady ? formatTimerClock(todaySeconds) : "확인 필요"}</strong></div><div><span>{formatMonthLabel(calendarMonth)} 누적</span><strong>{dashboardReady ? formatTimerClock(monthSeconds) : "확인 필요"}</strong></div></div>
             <section
               className={`daily-habit-card daily-habit-${dailyHabitState.stage}`}
               aria-labelledby="daily-habit-title"
@@ -5052,15 +5037,6 @@ function DashboardApp() {
                   );
                 })}
               </ol>
-              {activeSession && (
-                <TenMinuteCheckpoint
-                  state={tenMinuteCheckpoint}
-                  paused={activeSessionPaused}
-                  busy={busy}
-                  onContinue={acknowledgeTenMinuteCheckpoint}
-                  onFinish={() => void openEndSessionCompletionModal()}
-                />
-              )}
               {latestNextAction && !activeSession && (
                 <aside className="daily-habit-next-action" aria-label="지난 세션 이어가기 안내">
                   <span className="daily-habit-next-action-cue" aria-hidden="true">
@@ -5069,7 +5045,7 @@ function DashboardApp() {
                   <div>
                     <span>지난 세션에서 이어하기</span>
                     <strong>{latestNextAction}</strong>
-                    <small>위 시작 버튼을 누르면 오늘 할 일 선택에 바로 이어져요.</small>
+                    <small>집중 화면의 시작 버튼을 누르면 오늘 할 일 선택에 바로 이어져요.</small>
                   </div>
                 </aside>
               )}
@@ -5128,31 +5104,14 @@ function DashboardApp() {
                 </>
               )}
             </section>
-            {activeSession && activeSessionLeaseDeadlineMs !== null && (
-              <div
-                className={`session-lease ${
-                  sessionLeaseRemainingSeconds <= 5 * 60 ? "session-lease-warning" : ""
-                }`}
-                aria-live="polite"
-              >
-                <div>
-                  <span>세션 유지 남은 시간</span>
-                  <strong>{formatTimerClock(sessionLeaseRemainingSeconds)}</strong>
-                  <small>누를 때마다 1시간 연장됩니다. 남은 시간은 현재 시각 기준 최대 2시간입니다.</small>
-                </div>
-                <button className="secondary" type="button" onClick={extendSessionLease} disabled={busy}>
-                  <Clock3 size={18} />
-                  +1시간 연장
-                </button>
-              </div>
-            )}
-          </header>
+            </section>}
+          </>
         )}
 
         {activeSection === "today" && todayDomain === "focus" && blockingRecoveryRequests.length > 0 && (
           <section
             className="recovery-blocker today-ordered-section"
-            style={{ order: getTodaySectionSortOrder("topbar") + 1 }}
+            style={{ order: -1 }}
             role="status"
             aria-live="polite"
           >
@@ -5197,7 +5156,8 @@ function DashboardApp() {
           </section>
         )}
         {activeSection === "today" && (
-          <section hidden={todayDomain !== "focus"} className="today-ordered-section" style={{ order: getTodaySectionSortOrder("topbar") + 1 }}>
+          <details hidden={todayDomain !== "focus"} className="focus-coach today-ordered-section" style={{ order: getTodaySectionSortOrder("topbar") + 1 }}>
+            <summary>시작이 막막할 때 · 10분 재시작 코치</summary>
             <StudyRestartCoach
               key={session.user.id}
               userId={session.user.id}
@@ -5206,7 +5166,7 @@ function DashboardApp() {
               onPlanAction={openWeeklyReviewActionPlan}
               onAddTodo={() => { resetTodoDraftForDate(todayDateKey); setTodoModalOpen(true); }}
             />
-          </section>
+          </details>
         )}
         {message && (
           <p
@@ -6097,18 +6057,22 @@ function DashboardApp() {
         )}
 
         {activeSection === "today" && todayDomain === "focus" && (
-        <section className="daily-visual"
+        <>
+        {(focusSnapshot?.last_error || focusStatusError || (!activeSessionPaused && cameraMessage && cameraStatus !== "watching") || (activeSession && sessionLeaseRemainingSeconds <= 300)) && <section className="focus-status-warning" role="status" style={{ order: -1 }}>
+          {(!activeSessionPaused && cameraMessage && cameraStatus !== "watching") && <p>{cameraMessage}</p>}
+          {(focusSnapshot?.last_error || focusStatusError) && <p>휴대폰 집중 모드 · {focusSnapshot?.last_error || focusStatusError}</p>}
+          {activeSession && sessionLeaseRemainingSeconds <= 300 && <div><p>세션 유지 시간이 {formatTimerClock(sessionLeaseRemainingSeconds)} 남았어요.</p><button type="button" className="secondary" disabled={busy} onClick={extendSessionLease}>+1시간 연장</button></div>}
+        </section>}
+        <details className="focus-tools today-ordered-section"
           style={{ order: getTodaySectionSortOrder("focus") }}
           aria-label="집중 세션 카메라 감시와 목표 진행률"
         >
+          <summary><span><Camera size={17} aria-hidden="true" />{activeSessionPaused ? "휴식 중" : cameraEnabled ? "카메라 켜짐" : "카메라 꺼짐"}</span><span>휴대폰 · {focusStatusLabel(focusSnapshot)}</span>{activeSession && <span>유지 {formatTimerClock(sessionLeaseRemainingSeconds)}</span>}<span className="focus-tools-label">상태·설정 보기</span></summary>
+          <section className="phone-focus-status" aria-label="휴대폰 집중 모드 상태" aria-live="polite">
+            <div><strong>휴대폰 집중 모드 · {focusStatusLabel(focusSnapshot)}</strong><p>{focusSnapshot?.device_connected ? "Android 앱에서 확인한 방해금지 상태예요. 지연되면 앱을 열어 동기화하세요." : "Android 앱에서 같은 계정으로 로그인하고 휴대폰 집중 모드를 연결하세요."}</p>{focusSnapshot?.last_ack_at && <small>마지막 휴대폰 확인: {new Date(focusSnapshot.last_ack_at).toLocaleString("ko-KR")}</small>}</div>
+            <button type="button" className="secondary" onClick={() => void refreshFocusStatus(session.user.id)}>상태 다시 확인</button>
+          </section>
           <div className="focus-control">
-            <div className="progress-block">
-              <div className="progress-track">
-                <span className="progress-fill" style={{ width: `${todayProgress}%` }} />
-              </div>
-              <span>{todayProgress}% / {todayGoalLabel}</span>
-            </div>
-            {renderSessionTodoList()}
             <div className={`camera-monitor camera-monitor-${cameraStatus}${activeSessionPaused ? " camera-monitor-break" : ""}`}>
               <div className="camera-monitor-head">
                 <strong>
@@ -6169,7 +6133,9 @@ function DashboardApp() {
               )}
             </div>
           </div>
-        </section>
+          {activeSession && activeSessionLeaseDeadlineMs !== null && <div className="session-lease"><div><span>세션 유지 남은 시간</span><strong>{formatTimerClock(sessionLeaseRemainingSeconds)}</strong><small>누를 때마다 1시간 연장됩니다. 남은 시간은 현재 시각 기준 최대 2시간입니다.</small></div><button className="secondary" type="button" onClick={extendSessionLease} disabled={busy}><Clock3 size={18} />+1시간 연장</button></div>}
+        </details>
+        </>
         )}
 
         {activeSection === "today" && todayDomain === "plan" && (

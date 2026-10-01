@@ -238,31 +238,3 @@ test("web app wires upper body camera monitoring to active sessions and warning 
   assert.match(warningSource, /\/functions\/v1\/camera-presence-warning/);
   assert.match(warningSource, /authorization: `Bearer \$\{session\.access_token\}`/);
 });
-
-test("today focus layout keeps one study timer and one camera status copy", () => {
-  const appSource = readFileSync("apps/web/src/main.tsx", "utf8");
-  const sectionStart = appSource.indexOf('<section className="daily-visual"');
-  const sectionEnd = appSource.indexOf('<section className="today-task-panel"', sectionStart);
-  const dailyVisualSource = appSource.slice(sectionStart, sectionEnd);
-
-  assert.ok(sectionStart > 0);
-  assert.ok(sectionEnd > sectionStart);
-  assert.doesNotMatch(dailyVisualSource, /formatTimerClock\(todaySeconds\)/);
-  assert.doesNotMatch(dailyVisualSource, /formatTimerClock\(activeElapsedSeconds\)/);
-  assert.doesNotMatch(dailyVisualSource, /session-caption/);
-  assert.match(dailyVisualSource, /cameraStatus !== "watching"/);
-});
-
-test("today focus layout renders camera diagnostic UI from diagnostic helper", () => {
-  const appSource = readFileSync("apps/web/src/main.tsx", "utf8");
-  const styleSource = readFileSync("apps/web/src/styles.css", "utf8");
-  const sectionStart = appSource.indexOf('<section className="daily-visual"');
-  const sectionEnd = appSource.indexOf('<section className="today-task-panel"', sectionStart);
-  const dailyVisualSource = appSource.slice(sectionStart, sectionEnd);
-
-  assert.match(appSource, /getCameraDiagnostic/);
-  assert.match(appSource, /cameraDiagnosticReason/);
-  assert.match(dailyVisualSource, /camera-diagnostic/);
-  assert.match(dailyVisualSource, /cameraDiagnostic\.checks\.map/);
-  assert.match(styleSource, /\.camera-diagnostic/);
-});

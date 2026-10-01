@@ -1,3 +1,50 @@
+### 2026-10-02 — 메인 목업 공통 웹/Android 적용
+
+#### 완료한 작업
+
+- 사용자 승인 목업에 따라 집중 카드 통합, PC 2열/375px 1열, 상단/하단 메뉴, 더 보기, 기존 일정/공부 기록 상세, 카메라/휴대폰/lease 상세와 항상 보이는 오류/만료 경고.
+- 월 누적/습관/대표 목표를 기록으로 정리하고 계획/숲/회복/단일 시작 흐름을 유지했다. 실제 WebView는 동일 운영 웹을 읽으므로 별도 네이티브 화면이나 새 APK를 만들지 않는다.
+
+#### 변경된 파일
+
+- apps/web/src/{main.tsx,ActualStudyPanel.tsx,TodayDomainTabs.tsx,DashboardNavigation.tsx,dashboardRedesign.css}.
+- actualStudyMounted.test.mjs에 실제 UI 6건 추가. cameraPresence.test.mjs의 예전 section 태그 2개 검사는 실제 렌더링의 타이머/카메라/진단 검사로 대체했다.
+- memory-bank/{prd-main-dashboard-redesign.md,active-context.md,progress.md,implementation-plan.md,trouble-shooting.md}, 승인 목업 README.
+
+#### 검증 방법
+
+- TDD 수정 전 3건 실패/수정 전 PC·모바일 캡처 → 구현 → 새 UI 및 기존 실브라우저 31/31. 1440px/375px 넘침 없음, 휴식 시간 고정/모달 취소/오류 경고/계획·기록 접근/더 보기 ESC·포커스 복귀 확인.
+- 전체 Node 844 pass, 31 선택적 browser skip, fail 0. Edge 21/21, 웹 tsc/Vite, mobile 호환성/tsc, README 24개 이미지 참조 통과. 별도 lint 명령은 없다.
+- 캡처 output/playwright/dashboard-{before,after}-{375,1440}.png는 실제 제품 컴포넌트에 예시 백엔드를 연결한 테스트이며 운영 사용자 기록이나 실기기 동작 증거로 혼동하지 않는다.
+
+#### 남은 작업 / 다음 우선순위
+
+- production 배포와 Android 16 같은 UI/로그인·메뉴 확인. 기존 모바일 최초 Google 인증/실기기 방해금지·푸시 검증은 유지한다.
+
+### 2026-10-02 — 메인 UI 개선 PC·모바일 목업 (제품 미적용)
+
+#### 완료한 작업
+
+- ECC 설치 확인: origin ECC 스킬 13개, 전용 플러그인 등록 미확인. 설정/설치 변경 없음.
+- 예시 데이터 기반 독립 HTML 목업: 현재 할 일/타이머 통합, PC 2열·375px 1열, 주 메뉴 크기 분리, 상태 상세 펼치기, 집중/계획/기록, 회복·오류 경고, 휴식·재개·할 일 선택 시각 예시.
+
+#### 변경된 파일
+
+- docs/mockups/main-dashboard-20261002/{index.html,README.md,capture.mjs} 및 PC/모바일 상태 스크린샷.
+- memory-bank/{active-context.md,progress.md,trouble-shooting.md}. 제품 소스 변경 없음.
+
+#### 검증 방법
+
+- capture.mjs 41/41 assertions. Chromium 1440px/375px 가로 넘침·JS 오류·HTTP 외부 요청 0, 탭 방향키/ESC dialog/모바일 메뉴/회복·오류·휴식 상태 확인.
+- 주요 색 대비 12.30:1,7.02:1,6.28:1,6.07:1. 전면 접근성 인증은 아님.
+- npm.cmd run build (tsc -b/Vite) 통과. 별도 lint 스크립트 없으며 제품 전체 테스트/coverage는 독립 디자인 목업 작업에서 재실행하지 않았다.
+- Jev 외부 검증은 전송 정책으로 차단되어 직접 근거 검토로 확인했다.
+
+#### 남은 작업 / 다음 우선순위
+
+- 사용자 디자인 의견/승인 후 실제 구현·개인화 순서·경고 우선순위·장문/확대글자·실제 WebView 회귀 범위를 확정한다.
+- 커밋/푸시/운영 배포 없음. 원래 공부 기록과 기존 미완료 Android 검증은 유지한다.
+
 ### 2026-10-01 — Google/권한 개선 배포 및 Android 16 실동작 확인
 
 - 배포: main 5401aeb/9394a1e, CI 36831624815 success / Vercel dpl_HKm53qLtGHEFWSmSNMUqhijXwqyZ READY/HTTP 200. EAS 59483759 FINISHED, 61,567,990 bytes, 동일 서명으로 앱/로그인 데이터 유지 업데이트. APK 다운로드는 active-context에 기록했다.

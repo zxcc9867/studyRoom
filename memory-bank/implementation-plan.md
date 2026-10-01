@@ -1,3 +1,11 @@
+## 2026-10-02 — 공통 대시보드 디자인
+
+- DashboardNavigation와 dashboardRedesign.css는 로그인 후 웹 셸에서만 사용한다. PC 800px 초과는 상단 메뉴/2열 집중, 800px 이하는 하단 메뉴/1열이며 safe-area 여백을 적용한다. 네이티브 단일 WebView는 같은 배포를 재사용하고 별도 토큰/데이터를 복제하지 않는다.
+- 실제 공부 패널 compact 옵션은 현재 제목/누적/남은 분량을 먼저 표시하고 상세 구간/원래 계획/반복/연결 목표를 details에 보존한다. timer 역할은 기존 window helper로 계산한 세션 인정 시간이며 오늘/월 누적과 구분한다.
+- 카메라 DOM을 접힌 details 안에도 유지하고 오류/만료/회복 차단을 밖에 배치한다. 상태 정책과 서버 API는 변경하지 않는다. 기존 dashboard section order 선호를 카드에 재사용한다.
+- UI 검증은 main을 esbuild로 렌더링하고 백엔드 transport만 fixture로 대체한다. FEED_BROWSER_MODULE/FEED_BROWSER_EXECUTABLE로 별도 Chromium 테스트를 실행한다. 375/1440 스크린샷·가독성·탐색·휴식·카메라 단일 표시·lease 경고를 확인한다.
+- DB/RLS/RPC/마이그레이션/네이티브 번들 변경 없음. main production 배포 후 앱 WebView 재조회로 디자인 반영을 확인한다.
+
 ## 2026-10-01 — Android OAuth 및 카메라 권한 브리지
 
 - 네이티브 Auth는 AsyncStorage에 PKCE verifier/session을 보존하고 expo-web-browser SDK53 호환 모듈로 외부 Google 인증을 연다. exact `studyroom://auth/callback` 단일 code만 교환하고 URL access/refresh token을 받지 않는다. 재시작 초기 URL은 로그인 세션이 없을 때만 처리하며 중복 code 교환은 한 번으로 합친다. OTP 8자리와 동일 사용자 WebView 티켓은 유지한다.

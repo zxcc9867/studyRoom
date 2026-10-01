@@ -1,3 +1,19 @@
+## 2026-10-02 — 메인 리디자인 회귀 검사
+
+- 새 UI를 실제 앱에 적용한 후 기존 가독성 검사에서 .actual-state 12px 및 .actual-next 13px가 실패했다. 두 항목을 15px/짙은 녹색으로 보완해 기존 7:1 대비와 크기 기준을 통과했다.
+- 전체 테스트의 예전 `<section className="daily-visual">` 소스 문자열 2건은 상세 details 재배치 때문에 실패했다. 단순 새 태그 문자열로 바꾸지 않고 main mounted 테스트에서 timer 1개/video 1개/카메라 진단과 동작 버튼의 실제 가시성을 검증하도록 대체했다.
+- lease 설명 문자열을 축약하면서 기존 계약 검사가 실패했다. 최대 2시간의 기존 문구를 상세에 보존해 해결했으며 연장 정책은 변경하지 않았다.
+- 최종 Node 844/0 fail(31 browser skip), 별도 실브라우저 31/31, Edge 21/21, 타입/빌드 통과. 스크린샷의 fixture 외부 호출 오류는 실제 운영 장애로 분류하지 않는다.
+- 관련 파일: apps/web/src/dashboardRedesign.css, main.tsx, apps/web/test/{actualStudyMounted.test.mjs,cameraPresence.test.mjs}. 운영 DB/API 변경 없음.
+
+## 2026-10-02 — 독립 UI 목업 검증 도구 경로
+
+- 상황: 실제 제품을 수정하지 않고 목업 스크린샷을 만들었다. Python 런타임에는 playwright가 없었고 Windows 절대 경로를 ESM import에 직접 쓰면 ERR_UNSUPPORTED_ESM_URL_SCHEME / Received protocol c:가 발생했다.
+- 해결: 새 라이브러리 설치 대신 기존 Node Playwright/Chrome을 사용하고 pathToFileURL을 통한 import로 보정했다. capture.mjs는 모듈·브라우저 경로 env override를 제공한다. 보정 후 목업 41/41, 제품 웹 빌드 통과.
+- 환경: 일반 exec sandbox의 helper_unknown_error: apply deny-read ACLs는 읽기/로컬 검증 명령의 승인 실행으로 대응했다. 제품 앱 오류로 분류하지 않는다.
+- Jev: 완료 주장의 외부 검증 요청은 프로젝트 검증 정보 전송 정책으로 차단됐다. 우회하지 않았고 스크린샷·실제 assertion/빌드/diff를 직접 확인했다. Jev 검증 성공으로 보고하지 않는다.
+- 관련 파일: docs/mockups/main-dashboard-20261002/capture.mjs. 운영 API·DB·권한 설정 변경 없음.
+
 ## 2026-10-01 — 첫 로그인/카메라 권한 구현 중 검증
 
 - 원인/해결: 네이티브 Google 경로가 없어 OTP만 보였고 권한 실패 안내는 브라우저용이었다. PKCE 시스템 브라우저 로그인과 사용자 주도 Android 권한 설명/설정 복구를 추가한다. 같은 서버/소유자 데이터는 그대로 유지한다.

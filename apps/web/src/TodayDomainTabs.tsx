@@ -26,6 +26,7 @@ export default function TodayDomainTabs({ activeDomain, onChange }: TodayDomainT
             type="button"
             key={tab.id}
             aria-pressed={selected}
+            aria-label={tab.label}
             onClick={() => onChange(tab.id)}
           >
             <Icon size={18} aria-hidden="true" />
