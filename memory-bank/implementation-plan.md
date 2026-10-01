@@ -3,6 +3,8 @@
 - 네이티브 Auth는 AsyncStorage에 PKCE verifier/session을 보존하고 expo-web-browser SDK53 호환 모듈로 외부 Google 인증을 연다. exact `studyroom://auth/callback` 단일 code만 교환하고 URL access/refresh token을 받지 않는다. 재시작 초기 URL은 로그인 세션이 없을 때만 처리하며 중복 code 교환은 한 번으로 합친다. OTP 8자리와 동일 사용자 WebView 티켓은 유지한다.
 - 카메라 사전 확인은 기존 exact-origin 웹 브리지에 요청 ID가 있는 두 메시지(permission/settings)만 추가한다. native check→설명→request, granted/denied/blocked/cancelled 응답. 웹은 상태를 확인한 후 video-only getUserMedia를 실행한다. timeout/구 APK는 기존 OS 경로로 복구한다. 앱 설정은 고정 OS 앱 설정만 열고 임의 URL을 받지 않는다.
 - Expo plugin/의존성 변경은 새 APK가 필요하다. 웹 버튼만 배포해서 네이티브 Google/권한 개선이 적용됐다고 보고하지 않는다.
+- native WebCrypto는 기존 expo-crypto random/SHA256 adapter로 보완한다. authorize URL은 s256만 허용하고 Hermes TextEncoder를 사용한다. 새 APK 권한 응답 timeout은 cancelled로 중단하며 구 APK의 브리지 부재만 기존 OS 경로로 복구한다.
+- 운영 확인: config 재조회에서 선언한 redirect 변경 0건·미선언 13개 보존, Google authorize 302→accounts.google.com. 실제 사용자 인증 완료와 이 읽기 전용 진입 확인을 구분한다.
 
 ## Supabase 변경 이력
 

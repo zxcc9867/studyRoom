@@ -1,3 +1,10 @@
+### 2026-10-01 — Google/권한 개선 배포 및 Android 16 실동작 확인
+
+- 배포: main 5401aeb/9394a1e, CI 36831624815 success / Vercel dpl_HKm53qLtGHEFWSmSNMUqhijXwqyZ READY/HTTP 200. EAS 59483759 FINISHED, 61,567,990 bytes, 동일 서명으로 앱/로그인 데이터 유지 업데이트. APK 다운로드는 active-context에 기록했다.
+- 실제 권한 검증: 최초 상태 설명·취소·OS 팝업·거부·앱 설정 이동·사용 중 허용·앱 복귀(자동 시작 없음)·재요청 영상 480×640/live·할 일 취소 후 영상 해제. 새 공부 기록 없음. 6개 메뉴/피드/숲 재로그인 없음·412px 넘침 없음. 증거 output/onboarding-rationale.png, onboarding-permission.png, onboarding-denied.png, onboarding-camera-restored.png는 Git/EAS에서 제외.
+- 테스트: CI Node 846/0 fail(선택적 browser 25 skip), 별도 browser 25/25, Edge 21/21, 신규/보안 focused 21/21, 타입/빌드/README 통과. 별도 lint 명령 없음. Jev는 공급자 키 미설정으로 실행 불가, 실제 테스트/코드/운영 증거 직접 검토.
+- 남은 검증: Google 계정 실제 인증 마지막 단계는 사용자 확인 대기(302 인증 페이지 진입은 확인), 영구 거부 분기는 단위 테스트만 확인. 기사 0건·수신 중지인 검증 계정과 PC 계정 일치, 실기기 방해금지/푸시/상반신 감지는 이전 미완료 상태 유지.
+
 ### 2026-10-01 — Google 로그인·카메라 권한 복구 구현
 
 - 사용자 승인 범위: 네이티브 Google 첫 로그인과 카메라 목적 안내/거부/설정 복구, 웹 및 APK 재배포. 기존 OTP 8자리·출석·공부 기록/영상 전용 보안 유지.

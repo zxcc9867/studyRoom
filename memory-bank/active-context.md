@@ -1,3 +1,11 @@
+## 2026-10-01 — 첫 로그인·카메라 권한 개선 재배포/에뮬레이터 확인
+
+- 제품 커밋 5401aeb + 권한 timeout 보완 9394a1e main 푸시. Actions 36831624815 success, Vercel dpl_HKm53qLtGHEFWSmSNMUqhijXwqyZ READY/main 9394a1e, production HTTP 200 확인. CI 846 pass/25 선택적 browser skip/0 fail, 별도 browser 25/25, Edge 21/21, 타입/빌드/README 통과.
+- EAS 59483759-37ec-44e6-958e-bfae183fa3be FINISHED. 새 APK: https://expo.dev/artifacts/eas/i4zi0bVm65cZv3O5PvD3wzMc6IGxaS_Np1XXV49wj_k.apk (61,567,990 bytes). 이전 인증서 SHA256 일치 후 adb install -r로 데이터 유지 업데이트. APK는 최신 네이티브 로그인/암호화/권한 코드이며 최신 웹 timeout 보완은 운영 웹에서 로드한다.
+- Android 16 실동작: 기존 로그인·6개 메뉴 유지/412px 넘침 없음. CAMERA만 철회/flags 초기화해 앱 설명→나중에 취소(시작 안 됨)→설명→OS 권한 팝업→거부→안내/앱 설정 버튼→Android 앱 권한 화면→카메라 사용 중 허용→복귀 시 자동 시작/영상 없음→사용자 재요청 시 480×640/live→할 일 선택 취소 후 영상 해제 확인. 앱 데이터/로그인/학습 기록 삭제 없음, 새 공부 세션은 시작하지 않았다.
+- 기술 피드·숲 재로그인 없음. 피드 기사 0건/검증 관심사 수신 중지 상태 유지하므로 실제 PC 계정 기사 동기화는 여전히 미확인. Google Auth 시작은 운영 302→accounts.google.com 확인, PKCE는 실제 SDK S256 URL 및 native crypto 테스트 통과. 사용자 실제 Google 인증/콜백, 영구 거부 실기기·USB 방해금지/푸시는 완료로 표시하지 않는다.
+- 마지막 에뮬레이터는 오늘 화면·로그인 유지·카메라 해제·활성 공부 없음. Google 직접 로그인 가능 여부 질문은 답변 대기다.
+
 ## 2026-10-01 — 첫 로그인·카메라 권한 개선 구현/배포 진행
 
 - 사용자 승인: 카메라 목적 안내/앱 설정 복구, Google 로그인 추가 후 웹/Android APK 재배포. 기존 데이터/출석 정책 유지.
