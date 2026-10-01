@@ -5,6 +5,11 @@ on:
     branches:
       - main
   workflow_dispatch:
+    inputs:
+      clean_build:
+        description: Rebuild without Vercel's previous dependency cache
+        type: boolean
+        default: false
 
 concurrency:
   group: vercel-production-${{ github.ref }}
@@ -74,4 +79,9 @@ jobs:
         run: node scripts/check-free-coaching-live.mjs
 
       - name: Deploy to Vercel production
-        run: vercel deploy --prod --yes --token="$VERCEL_TOKEN"
+        env:
+          CLEAN_BUILD: ${{ inputs.clean_build }}
+        run: |
+          flags=()
+          if [ "$CLEAN_BUILD" = "true" ]; then flags+=(--force); fi
+          vercel deploy --prod --yes "${flags[@]}" --token="$VERCEL_TOKEN"
