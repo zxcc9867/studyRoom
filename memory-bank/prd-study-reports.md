@@ -64,7 +64,12 @@ User approved the proposed scope with `진행해` on 2026-09-10. Implement test-
 
 None blocking this approved scope. Snapshot exports and automatic report notifications remain separate future decisions.
 
-## 2026-09-10 Verification / Release Status
+## 2026-10-01 Runtime correction
+
+- Actual signed-in Android WebView testing found `attendance_days.id` HTTP 400 / PostgreSQL 42703. This table has the composite primary key `(user_id, local_date)`; report attendance selects only `local_date,status` and paginates in date order. No schema or historical records are changed.
+- The real SDK fixture now rejects nonexistent attendance id selection/order. A 601-day two-page test verifies ownership, date range, stable ordering and no duplicate rows. Red/green and the full suite (832 pass, 25 environment-dependent skips) passed; production and actual week/month recheck are pending.
+
+### Historical 2026-09-10 result
 
 - Report tests 14/14; full suite 501/501; web build, mobile:check and README assets passed.
 - Synthetic browser checks cover saved-profile delay, timezone week boundaries, week/month navigation, archived periods, leap February, keyboard month input, error/retry, plan callback and 390px light palette under dark preference.

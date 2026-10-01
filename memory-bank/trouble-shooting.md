@@ -1,3 +1,22 @@
+## 2026-10-01 — 내 페이지 리포트의 attendance_days.id 오류
+
+### 상황 / 에러 메시지
+
+로그인된 Android 16 앱에서 내 페이지의 리포트가 실패했다. CDP 네트워크 진단으로 출석 조회 HTTP 400과 `42703: column attendance_days.id does not exist`를 확인했다. 인증/쿼리 헤더나 개인 기록은 진단 로그에 남기지 않았다.
+
+### 원인
+
+`loadStudyReportData`의 공통 dated builder가 모든 테이블에 `id` 선택/정렬을 적용했다. 실제 `attendance_days`에는 id 없이 `(user_id, local_date)` 기본 키가 있다. 테스트 fixture가 가짜 id를 포함하고 날짜 정렬을 검사하지 않아 차이를 숨겼다.
+
+### 해결 / 재발 방지
+
+출석만 `local_date,status`를 선택하고 소유자·날짜 범위 필터 후 `local_date.asc`로 페이지 조회한다. 다른 테이블의 id 정렬은 유지한다. 실제 SDK fixture는 출석 id 요청을 42703으로 거절하며 601일/두 페이지에서 소유권·날짜 범위·중복 없음을 검사한다. 수정 전 실패를 확인했고 관련 14/14와 전체 832 통과·25 환경 건너뜀·0 실패를 확인했다. DB를 테스트에 맞춰 변경하지 않는다.
+
+### 관련 파일 / 남은 검증
+
+- `apps/web/src/studyReportData.mjs`, `apps/web/test/studyReportData.test.mjs`.
+- 로컬 수정이며 production 배포 후 실제 앱의 주/월 리포트 성공을 확인해야 한다.
+
 ## 2026-10-01 — 자리 비움 2회 기준을 사용자 요청의 3회로 변경
 
 ### 상황 / 원인

@@ -48,7 +48,7 @@ export async function loadStudyReportData(client, userId, periods, signal) {
     summaryFor(client, periods.previousRange, signal),
     allPages(() => dated("study_sessions", "id,local_date,status,duration_seconds")().eq("status", "completed"), signal),
     allPages(dated("study_todos", "id,title,local_date,is_completed"), signal),
-    allPages(dated("attendance_days", "id,local_date,status"), signal),
+    allPages(() => client.from("attendance_days").select("local_date,status").eq("user_id", userId).gte("local_date", start).lte("local_date", end).order("local_date", { ascending: true }), signal),
     allPages(() => client.from("study_todos").select("id,title,local_date,is_completed").eq("user_id", userId).eq("is_completed", false).order("local_date", { ascending: true }).order("id", { ascending: true }), signal),
   ]);
   const reflections = [];

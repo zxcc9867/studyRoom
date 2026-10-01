@@ -1,3 +1,8 @@
+## 2026-10-01 — 리포트 출석 복합 키와 APK 아카이브
+
+- 출석 리포트 조회는 소유자/기간 필터와 `local_date.asc` 정렬을 사용한다. `attendance_days` PK `(user_id, local_date)`에는 id가 없으므로 다른 테이블의 id 기반 pagination builder를 사용하지 않는다. DB/RLS/RPC/마이그레이션 변경 없음.
+- `.easignore`는 기존 Git 제외 규칙을 유지하고 `output`, 로컬 테스트 캡처, 서명키/credentials, 생성 빌드 및 환경 비밀 파일을 EAS 아카이브에서 제외한다. `google-services.json`의 공개 앱 구성, 로컬 Expo 모듈 소스, 카메라 patch-package 파일은 포함한다. 아카이브 확인 후 기존 서명을 동결한 preview APK를 만든다.
+
 ## Supabase 변경 이력 — 2026-10-01 자리 비움 회복 경고 3회 기준
 
 - 변경 대상: `camera-presence-warning` Edge Function 및 함께 번들되는 `_shared/recovery.ts`의 Slack 설명. 기존 사용자/세션 날짜 필터는 유지한다.

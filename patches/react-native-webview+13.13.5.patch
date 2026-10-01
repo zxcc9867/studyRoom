@@ -1,14 +1,15 @@
 diff --git a/node_modules/react-native-webview/android/src/main/java/com/reactnativecommunity/webview/RNCWebChromeClient.java b/node_modules/react-native-webview/android/src/main/java/com/reactnativecommunity/webview/RNCWebChromeClient.java
 --- a/node_modules/react-native-webview/android/src/main/java/com/reactnativecommunity/webview/RNCWebChromeClient.java
 +++ b/node_modules/react-native-webview/android/src/main/java/com/reactnativecommunity/webview/RNCWebChromeClient.java
-@@ -145,6 +145,16 @@ public class RNCWebChromeClient extends WebChromeClient implements LifecycleEv
+@@ -145,6 +145,17 @@ public class RNCWebChromeClient extends WebChromeClient implements LifecycleEv
      @Override
      public void onPermissionRequest(final PermissionRequest request) {
  
 +        // Only the first-party study dashboard may use video capture.
 +        String origin = request.getOrigin() == null ? "" : request.getOrigin().toString();
 +        String[] resources = request.getResources();
-+        if (!"https://study-room-attendance.vercel.app".equals(origin)
++        if ((!"https://study-room-attendance.vercel.app".equals(origin)
++                && !"https://study-room-attendance.vercel.app/".equals(origin))
 +                || resources.length != 1
 +                || !PermissionRequest.RESOURCE_VIDEO_CAPTURE.equals(resources[0])) {
 +            request.deny();

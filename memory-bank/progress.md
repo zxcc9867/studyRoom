@@ -1,3 +1,10 @@
+### 2026-10-01 — Android 마무리: 실제 리포트 42703 수정
+
+- 완료한 작업: 로그인된 Android 16 내 페이지에서 출석 쿼리의 존재하지 않는 `id` 조회/정렬을 재현하고 날짜 복합 키 기준으로 수정. 기존 데이터/DB/RLS 변경 없음. 실제 SDK 외부 응답만 대체한 테스트와 601일 페이지 테스트를 수정 전 실패→수정 후 통과로 확인했다.
+- 변경 파일: `apps/web/src/studyReportData.mjs`, `apps/web/test/studyReportData.test.mjs`, 기존 `patches/react-native-webview+13.13.5.patch`와 Java 카메라 검증 테스트, `.easignore`, 관련 memory-bank.
+- 검증: Node 832 통과·25 환경 의존 건너뜀·0 실패, Edge 21/21, 웹 빌드·mobile:check·docs:check 통과. EAS 업로드 아카이브의 개인 진단 자료/서명키/환경 비밀 제외 및 수정 패치 포함 확인.
+- 남은 작업: production 배포/실제 보고서 재검증, 기사 저장·원문·할 일 연결, 로그아웃/재연결, 최종 EAS APK 완료, 실기기 카메라/방해금지/푸시. PC 특정 회복 요청은 계정 확인 전 원인 확정하지 않는다.
+
 ### 2026-10-01 — 자리 비움 회복루틴 3회 기준
 
 - 완료한 작업: 사용자 승인으로 당일 `absence_warning` 3회 이상에 카메라 회복 요청 생성, 1·2회는 미생성, 3회 이후 기존 pending 재사용, Slack 문구 변경. 출석/타이머/수동 휴식 정책과 기존 요청은 보존했다.

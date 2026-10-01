@@ -1,0 +1,36 @@
+# Preserve the repository's Git exclusions when preparing the EAS archive.
+node_modules/
+dist/
+*.log
+*.err
+*.tsbuildinfo
+.expo/
+.npm-cache/
+.codex-logs/
+.venv-speckit/
+.env
+.env.local
+.env.*
+!.env.example
+apps/web/dist/
+infra/aws-cdk/cdk.out/
+infra/aws-cdk/dist/
+supabase/.temp/
+.vercel
+
+# Local verification artifacts and private signing files are never uploaded.
+/output/
+/.playwright-cli/
+/.ai/
+/0
+/app.json
+**/android/build/
+**/android/.gradle/
+**/android/local.properties
+**/ios/build/
+*.apk
+*.aab
+*.jks
+*.keystore
+credentials.json
+signing.json
