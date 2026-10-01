@@ -79,7 +79,7 @@ function getDateKeyAtTimestamp(timestampMs, timeZone) {
   ].join("-");
 }
 
-function getZonedDateBoundaryMs(dateKey, timeZone) {
+export function getZonedDateBoundaryMs(dateKey, timeZone) {
   const { year, month, day } = parseDateKey(dateKey);
   const targetAsUtc = Date.UTC(year, month - 1, day, 0, 0, 0, 0);
   let utcMs = targetAsUtc;

@@ -1,24 +1,28 @@
-const DAY_MS = 24 * 60 * 60 * 1000;
+import { getZonedDateBoundaryMs, shiftHabitDateKey } from "./weeklyHabit.mjs";
 
 function toFiniteMs(value) {
   return Number.isFinite(value) ? value : null;
 }
 
-function getLocalDateStartMs(dateKey) {
-  const timestamp = Date.parse(`${dateKey}T00:00:00`);
-  return toFiniteMs(timestamp);
+function resolveTimeZone(timeZone) {
+  return timeZone ?? Intl.DateTimeFormat().resolvedOptions().timeZone;
 }
 
-function getLocalMonthStartMs(monthKey) {
-  const [yearText, monthText] = String(monthKey).split("-");
-  const year = Number.parseInt(yearText, 10);
-  const month = Number.parseInt(monthText, 10);
+function getDateWindow(dateKey, nextDateKey, timeZone) {
+  try {
+    const zone = resolveTimeZone(timeZone);
+    return {
+      windowStartMs: getZonedDateBoundaryMs(dateKey, zone),
+      windowEndMs: getZonedDateBoundaryMs(nextDateKey, zone),
+    };
+  } catch { return null; }
+}
 
-  if (!Number.isInteger(year) || !Number.isInteger(month) || month < 1 || month > 12) {
-    return null;
-  }
-
-  return new Date(year, month - 1, 1, 0, 0, 0, 0).getTime();
+export function getStudyMonthKey(date, timeZone) {
+  const parts = new Intl.DateTimeFormat("en-US", {
+    timeZone: resolveTimeZone(timeZone), year: "numeric", month: "2-digit",
+  }).formatToParts(date);
+  return `${parts.find((part) => part.type === "year").value}-${parts.find((part) => part.type === "month").value}`;
 }
 
 export function getActiveStudySecondsInWindow({
@@ -48,39 +52,31 @@ export function getActiveStudySecondsInWindow({
   return Math.max(0, elapsedSeconds - Math.max(0, Math.floor(excludedSeconds)));
 }
 
-export function getActiveStudySecondsForDate({ startedAtMs, nowMs, dateKey, excludedSeconds = 0 }) {
-  const dayStartMs = getLocalDateStartMs(dateKey);
-
-  if (dayStartMs === null) {
-    return 0;
-  }
+export function getActiveStudySecondsForDate({ startedAtMs, nowMs, dateKey, timeZone, excludedSeconds = 0 }) {
+  let nextDateKey;
+  try { nextDateKey = shiftHabitDateKey(dateKey, 1); } catch { return 0; }
+  const window = getDateWindow(dateKey, nextDateKey, timeZone);
+  if (!window) return 0;
 
   return getActiveStudySecondsInWindow({
     startedAtMs,
     nowMs,
-    windowStartMs: dayStartMs,
-    windowEndMs: dayStartMs + DAY_MS,
+    ...window,
     excludedSeconds,
   });
 }
 
-export function getActiveStudySecondsForMonth({ startedAtMs, nowMs, monthKey, excludedSeconds = 0 }) {
-  const monthStartMs = getLocalMonthStartMs(monthKey);
-
-  if (monthStartMs === null) {
-    return 0;
-  }
-
-  const [yearText, monthText] = String(monthKey).split("-");
-  const year = Number.parseInt(yearText, 10);
-  const month = Number.parseInt(monthText, 10);
-  const monthEndMs = new Date(year, month, 1, 0, 0, 0, 0).getTime();
+export function getActiveStudySecondsForMonth({ startedAtMs, nowMs, monthKey, timeZone, excludedSeconds = 0 }) {
+  if (!/^\d{4}-(0[1-9]|1[0-2])$/.test(String(monthKey))) return 0;
+  const [year, month] = monthKey.split("-").map(Number);
+  const nextDateKey = new Date(Date.UTC(year, month, 1)).toISOString().slice(0, 10);
+  const window = getDateWindow(`${monthKey}-01`, nextDateKey, timeZone);
+  if (!window) return 0;
 
   return getActiveStudySecondsInWindow({
     startedAtMs,
     nowMs,
-    windowStartMs: monthStartMs,
-    windowEndMs: monthEndMs,
+    ...window,
     excludedSeconds,
   });
 }

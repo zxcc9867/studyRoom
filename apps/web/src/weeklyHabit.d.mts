@@ -77,6 +77,7 @@ export function getWeeklyHabitRewardHistory(input: {
   sessions?: WeeklyHabitSession[];
 }): WeeklyHabitRewardHistory;
 export function shiftHabitDateKey(dateKey: string, offsetDays: number): string;
+export function getZonedDateBoundaryMs(dateKey: string, timeZone: string): number;
 export function getRollingHabitDateKeys(todayDateKey: string, dayCount?: number): string[];
 export function allocateCompletedStudySecondsByDate(input: {
   sessions?: WeeklyHabitSession[];

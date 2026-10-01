@@ -189,6 +189,7 @@ import {
 import {
   getActiveStudySecondsForDate,
   getActiveStudySecondsForMonth,
+  getStudyMonthKey,
 } from "./studyTimeSummary.mjs";
 import {
   fetchStudyPeriodSummary,
@@ -640,7 +641,7 @@ function DashboardApp() {
     getDashboardSectionFromHash(window.location.hash),
   );
   const [todayDomain, setTodayDomain] = useState<TodayDomain>("focus");
-  const [calendarMonth, setCalendarMonth] = useState(() => getMonthKey(new Date()));
+  const [selectedCalendarMonth, setCalendarMonth] = useState<string | null>(null);
   const [todoHistoryPage, setTodoHistoryPage] = useState(1);
   const [recoveryHistoryPage, setRecoveryHistoryPage] = useState(1);
   const [cameraEnabled, setCameraEnabled] = useState(false);
@@ -836,6 +837,7 @@ function DashboardApp() {
   }, [activeSection, session?.user.id]);
 
   const timeZone = profile?.time_zone ?? Intl.DateTimeFormat().resolvedOptions().timeZone;
+  const calendarMonth = selectedCalendarMonth ?? getStudyMonthKey(new Date(nowMs), timeZone);
   const activeSession = studySessions.find((item) => item.status === "active") ?? null;
   const activeSessionPaused = isStudySessionPaused(activeSession);
 
@@ -1069,6 +1071,7 @@ function DashboardApp() {
         startedAtMs: activeSessionStartedAtMs,
         nowMs: activeSessionClockNowMs,
         dateKey: todayDateKey,
+        timeZone,
         excludedSeconds: activeExcludedSeconds,
       })
     : 0;
@@ -1089,6 +1092,7 @@ function DashboardApp() {
         startedAtMs: activeSessionStartedAtMs,
         nowMs: activeSessionClockNowMs,
         monthKey: calendarMonth,
+        timeZone,
         excludedSeconds: activeExcludedSeconds,
       })
     : 0;

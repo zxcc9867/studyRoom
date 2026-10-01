@@ -1,3 +1,5 @@
+export function getStudyMonthKey(date: Date, timeZone?: string): string;
+
 export function getActiveStudySecondsInWindow(input: {
   startedAtMs: number | null;
   nowMs: number;
@@ -10,6 +12,7 @@ export function getActiveStudySecondsForDate(input: {
   startedAtMs: number | null;
   nowMs: number;
   dateKey: string;
+  timeZone?: string;
   excludedSeconds?: number;
 }): number;
 
@@ -17,5 +20,6 @@ export function getActiveStudySecondsForMonth(input: {
   startedAtMs: number | null;
   nowMs: number;
   monthKey: string;
+  timeZone?: string;
   excludedSeconds?: number;
 }): number;

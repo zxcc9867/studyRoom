@@ -1,3 +1,10 @@
+### 2026-10-01 — 프로필 시간대 기준 공부 집계 수정
+
+- 완료한 작업: 진행 중 오늘·월 누적을 프로필 시간대로 계산하고 기본 월도 같은 지역의 현재 월로 표시한다. 직접 선택한 과거 월은 자동으로 현재 월에 되돌리지 않는다. 기존 저장 세션과 휴식/카메라/만료 인정 시간 정책은 유지한다.
+- 변경된 파일: `apps/web/src/main.tsx`, `studyTimeSummary.mjs`/`.d.mts`, `weeklyHabit.mjs`/`.d.mts`, `apps/web/test/studyTimeSummary.test.mjs`, 관련 memory-bank 문서.
+- 검증 방법: 신규 시간대 회귀 7건 RED→GREEN, 관련 집계 24/24, 전체 Node 825 통과·25 브라우저 환경 건너뜀·0 실패, 웹 타입/빌드·모바일 타입/호환성·README·Edge 21/21 통과. 전용 lint 스크립트 없음.
+- 남은 작업/다음 우선순위: 기존 GitHub Actions 운영 배포, Vercel READY/HTTP 200 및 실제 Android 에뮬레이터 표시를 확인한다. 코드 변경 없는 DB·Edge 재배포/새 APK 제작은 하지 않는다. 앞선 카메라 패치 미커밋 변경은 이번 시간대 수정 커밋에서 제외한다.
+
 ### 2026-10-01 — Android 웹 동등성 운영 반영과 에뮬레이터 검증 준비
 
 - 완료: 운영 인증 발급 제한 마이그레이션 `20260930152103`, `mobile-web-auth` v1 ACTIVE·verify_jwt=true, RLS true·authenticated 조회/실행 금지·service_role 실행 허용 확인. 로컬 마이그레이션 파일명을 운영 버전과 일치시켰다.
