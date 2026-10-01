@@ -1,3 +1,11 @@
+### 2026-10-01 — 자리 비움 회복루틴 3회 기준
+
+- 완료한 작업: 사용자 승인으로 당일 `absence_warning` 3회 이상에 카메라 회복 요청 생성, 1·2회는 미생성, 3회 이후 기존 pending 재사용, Slack 문구 변경. 출석/타이머/수동 휴식 정책과 기존 요청은 보존했다.
+- 변경된 파일: `supabase/functions/camera-presence-warning/index.ts`, `_shared/recovery.ts`, `_shared/camera-presence-warning.test.mjs`, `packages/core/test/sql-migrations.test.mjs`, 회복 PRD 및 active-context/implementation-plan/trouble-shooting/progress.
+- 검증 방법: 실제 handler/shared 코드를 실행하고 외부 DB/Auth/Slack I/O만 대체한 신규 6건 RED→GREEN; 카메라 포함 19/19, 전체 831 통과·25 건너뜀·0 실패, Edge 21/21, 웹 빌드·모바일·README 통과. lint 스크립트는 없다.
+- 운영 서버: Supabase MCP `camera-presence-warning` v22 ACTIVE, 파일 내용 일치·무인증 POST 401 확인. DB 스키마/RLS/RPC 변경 없음. 기존 사용자 요청·기록 삭제 없음.
+- 남은 작업: scoped commit/main 푸시와 Vercel READY·HTTP 확인. PC 화면의 계정/새로고침 후 요청 확인, 실제 상반신 감지/방해금지/피드·리포트 등 앞선 미검증 항목은 별개다.
+
 ### 2026-10-01 — 프로필 시간대 기준 공부 집계 수정
 
 - 완료한 작업: 진행 중 오늘·월 누적을 프로필 시간대로 계산하고 기본 월도 같은 지역의 현재 월로 표시한다. 직접 선택한 과거 월은 자동으로 현재 월에 되돌리지 않는다. 기존 저장 세션과 휴식/카메라/만료 인정 시간 정책은 유지한다.

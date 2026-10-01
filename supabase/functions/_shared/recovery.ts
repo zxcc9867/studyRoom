@@ -326,7 +326,7 @@ function buildRecoveryBlocks(
     ? "사유와 보충 계획을 제출해야 다음 공부 세션을 시작할 수 있습니다."
     : request.trigger_type === "missed_attendance"
       ? "사유와 보충 계획을 제출해야 다음 공부 세션을 시작할 수 있습니다."
-      : "오늘 카메라 자리 비움 경고가 2회 발생했습니다. 회복 루틴을 작성해야 다음 세션을 시작할 수 있습니다.";
+      : "오늘 카메라 자리 비움 경고가 3회 이상 발생했습니다. 회복 루틴을 작성해야 다음 세션을 시작할 수 있습니다.";
 
   const attendanceCoverage = request.trigger_type === "missed_attendance" && request.covered_missed_days > 1
     ? ` 누적 결석 ${request.covered_missed_days}일(${request.covered_start_date} ~ ${request.covered_end_date})을 한 번에 정리합니다.`

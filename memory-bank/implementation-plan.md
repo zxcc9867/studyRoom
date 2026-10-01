@@ -1,3 +1,12 @@
+## Supabase 변경 이력 — 2026-10-01 자리 비움 회복 경고 3회 기준
+
+- 변경 대상: `camera-presence-warning` Edge Function 및 함께 번들되는 `_shared/recovery.ts`의 Slack 설명. 기존 사용자/세션 날짜 필터는 유지한다.
+- 변경 내용/이유: 사용자 명시 지시로 생성 조건을 `absence_warning && absenceWarningCount >= 3`으로 변경하고 문구를 `3회 이상`으로 통일한다. 카메라 설정 경고는 계속 제외하며 같은 날짜 pending은 기존 helper로 재사용한다.
+- 마이그레이션 파일: 없음. DB/RLS/인덱스/RPC/기존 데이터 변경 없음. API 요청/응답 구조와 카메라 제외 시간 정책은 바꾸지 않는다.
+- 서버 인증: 기존 `verify_jwt=false`와 함수 내부 Bearer `auth.getUser`/세션 소유권 검증을 그대로 유지한다. 문턱 변경에 인증 설정 변경을 섞지 않는다.
+- 확인 방법: MCP 배포 v22 ACTIVE와 원격 파일 일치, 무인증 POST 401, 실제 handler의 1·2회 미생성/3회 생성/4회 재사용/타계정·타날짜 제외/Slack 안내 회귀 테스트. SDK·runtime 버전 변경 없음.
+- 주의 사항: 예정 알람 시각과 무관한 실제 세션 부재 경고 정책이다. 기존 2회 기준에서 만들어진 pending은 자동 해제하지 않는다. 개인 계정에 인위적 경고를 보내 배포 테스트하지 않는다.
+
 ## 2026-10-01 — 프로필 시간대 기준 공부 집계 수정
 
 - 일·월 실시간 공부량의 경계는 `weeklyHabit.mjs`의 기존 `getZonedDateBoundaryMs(dateKey, timeZone)`를 공유한다. 다음 날짜의 실제 자정을 별도로 구하여 DST 날짜를 고정 24시간으로 가정하지 않는다.

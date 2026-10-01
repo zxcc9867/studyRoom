@@ -65,7 +65,7 @@ Deno.serve(async (request) => {
       ? await countAbsenceWarningsForDate(admin, studySession.user_id, studySession.local_date)
       : 0;
   const recoveryResult =
-    eventType === "absence_warning" && absenceWarningCount >= 2
+    eventType === "absence_warning" && absenceWarningCount >= 3
       ? await sendRepeatedAbsenceRecoveryRequest(admin, studySession, target)
       : null;
 
