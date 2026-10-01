@@ -6,6 +6,8 @@
 - auth-js는 WebCrypto가 없으면 Math.random 또는 plain PKCE로 대체하므로 기존 expo-crypto의 native random/SHA256 adapter를 추가하고 S256 authorize URL만 허용한다. Hermes TextEncoder 제공을 Expo runtime 소스로 확인하고 실제 SDK authorize URL의 S256/verifier 보존을 테스트한다. 보완 전 대기 APK는 취소하고 다시 빌드한다.
 - CLI: config pull은 로컬 config가 필요하고 새 untracked config 덮어쓰기에는 --force가 필요하다. output의 격리 진단 config에만 적용했다. push는 별도의 최소 config에 추가 redirect만 선언하고 diff를 확인했으며 다른 속성/비밀을 변경하지 않았다. 운영 config 전체를 저장소에 복사하지 않는다.
 - 검증 경계: 신규 테스트 11/11, 현재 전체/운영 웹/새 APK 검증 중. 실제 Google 로그인은 사용자 브라우저 인증 완료 전 성공으로 보고하지 않는다.
+- 권한 응답 시간 초과: 새 APK는 응답이 없을 때 카메라 접근을 중단한다(cancelled). 구 APK의 브리지 미지원만 기존 WebView 요청으로 복구한다. 새 APK 시간 초과가 권한 안내를 건너뛰는 것을 막는 테스트를 실패→통과로 추가했다.
+- Jev gate 호출은 공급자 API 키 미설정으로 실행되지 않았다. 새 키/유료 공급자를 자동 설정하지 않았고 실제 테스트·SDK 및 운영 증거를 직접 검토한다.
 
 ## 2026-10-01 — 모바일 첫 권한·로그인 UX 차이와 피드 동기화 의문
 

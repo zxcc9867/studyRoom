@@ -17,7 +17,7 @@ export function requestNativeCameraPermission(host, timeoutMs = 120000) {
     };
     // Older installed APKs have no preflight bridge; retain their existing OS prompt path.
     const supported = host.studyRoomNativeCameraPermission === true;
-    const timer = setTimeout(() => finish('unavailable'), supported ? timeoutMs : Math.min(timeoutMs, 800));
+    const timer = setTimeout(() => finish(supported ? 'cancelled' : 'unavailable'), supported ? timeoutMs : Math.min(timeoutMs, 800));
     host.addEventListener('study-room-native-message', receive);
     postEmbeddedMessage(host, { type: 'STUDY_WEB_CAMERA_PERMISSION', requestId });
   });

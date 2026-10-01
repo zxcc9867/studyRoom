@@ -31,6 +31,11 @@ test('old APK without new bridge times out to WebView OS permission fallback', a
   assert.equal(await requestNativeCameraPermission(h, 5), 'unavailable');
   assert.equal(h.listeners.size, 0);
 });
+test('new APK permission timeout never falls through to automatic camera access', async () => {
+  const h = host(); h.studyRoomNativeCameraPermission = true;
+  assert.equal(await requestNativeCameraPermission(h, 5), 'cancelled');
+  assert.equal(h.listeners.size, 0);
+});
 test('embedded permission diagnostics guide to app settings, desktop keeps site permissions', () => {
   const input = { activeSession: false, cameraEnabled: false, cameraStatus: 'error', healthReason: 'permission-denied' };
   assert.match(getCameraDiagnostic({ ...input, embeddedAndroid: true }).checks.join(' '), /앱 설정/);
