@@ -1,3 +1,10 @@
+### 2026-10-01 — 최신 EAS APK 및 실제 리포트 재검증
+
+- 배포: 코드 `7c1208e` + CI `ec17195` main 푸시. 최초 patch_failed 후 클린 Actions `36808413604` success / Vercel `dpl_HpYa1T4FtNBQ6kxti6Se3QH3bz84` READY·HTTP 200. DB/Edge 변경 없음.
+- APK: EAS `36d44618-4202-4af4-8c66-639e729f24a2` FINISHED·61,467,047 bytes·기존 서명 일치. 앱 데이터 유지 업데이트 후 6개 메뉴/재실행 로그인 유지, 주/이번 달/지난달 리포트 정상, 카메라 480×640/live와 취소 후 해제 확인. 새 공부 기록은 생성하지 않았다. 다운로드는 active-context에 기록했다.
+- 검증: 기본 Node 832/0 fail 후 건너뛴 mounted browser 25건 별도 실행 25/25. Edge 21/21, 타입·웹 빌드·모바일/README 검사 통과. 로컬 증거 `output/emulator-final-month-report.png`, `output/emulator-final-camera.png`는 Git/EAS에 넣지 않았다.
+- 경계: 실제 피드 기사 0건으로 원문/저장/할 일 연결 미검증(검증 관심사 수신 중지), 인증 오류/재연결은 확인했으나 CDP 만료/티켓 재사용 probe 미포착. 실제 로그아웃/두 계정 전환, USB 실기기 방해금지/푸시/상반신 감지, PC 특정 회복 요청의 계정 확인은 남아 있다.
+
 ### 2026-10-01 — Android 마무리: 실제 리포트 42703 수정
 
 - 완료한 작업: 로그인된 Android 16 내 페이지에서 출석 쿼리의 존재하지 않는 `id` 조회/정렬을 재현하고 날짜 복합 키 기준으로 수정. 기존 데이터/DB/RLS 변경 없음. 실제 SDK 외부 응답만 대체한 테스트와 601일 페이지 테스트를 수정 전 실패→수정 후 통과로 확인했다.

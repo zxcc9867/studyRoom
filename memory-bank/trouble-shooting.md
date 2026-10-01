@@ -1,3 +1,10 @@
+## 2026-10-01 — Android 패치 갱신 후 Vercel 설치 실패
+
+- 상황/에러: Actions `36807900300` 테스트는 통과했으나 Vercel `dpl_BCFsrpqDqzq55TcuFjGQ9b2Gn5Ld`는 `patch_failed` / `Command "npm install" exited with 1`이었다. 기존 운영은 유지됐다.
+- 원인 판단: 기존 patch-package 카메라 패치 변경과 이미 패치된 의존성 캐시의 충돌을 의심했다. build-log MCP가 실제 서버에서 지원되지 않고 로컬 Vercel CLI도 인증되지 않아 상세 설치 로그는 확인하지 못했다. 이 추정을 확정된 내부 패치 오류로 단정하지 않는다.
+- 해결: `.github/workflows/vercel-production.yml`에 선택적 clean_build 수동 입력을 추가하고 캐시 없이 재실행했다. Actions `36808413604` success / Vercel READY / HTTP 200 확인. 정상 push 캐시는 유지한다.
+- 도구 검증 경계: CDP의 Auth 교환 주입/티켓 재사용 진단은 목표 교환을 포착하지 못해 실제 만료/재사용 근거로 사용하지 않는다. 실제 연결 실패 화면에서 보호 콘텐츠 숨김, 수동 재연결, APK 재실행 로그인 유지는 확인했다. 제품 실패와 진단 도구의 미검증 조건을 구분한다.
+
 ## 2026-10-01 — 내 페이지 리포트의 attendance_days.id 오류
 
 ### 상황 / 에러 메시지
@@ -15,7 +22,7 @@
 ### 관련 파일 / 남은 검증
 
 - `apps/web/src/studyReportData.mjs`, `apps/web/test/studyReportData.test.mjs`.
-- 로컬 수정이며 production 배포 후 실제 앱의 주/월 리포트 성공을 확인해야 한다.
+- 운영 배포 후 새 EAS APK의 주간·2026년 10월·지난 9월 리포트 ready / Supabase 오류 0을 확인했다. READY·HTTP 200 확인은 별도로 기록했다.
 
 ## 2026-10-01 — 자리 비움 2회 기준을 사용자 요청의 3회로 변경
 

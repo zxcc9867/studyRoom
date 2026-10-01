@@ -1,3 +1,8 @@
+## 2026-10-01 — 선택적 클린 배포와 APK 업데이트
+
+- CI의 boolean `workflow_dispatch.inputs.clean_build`는 기본 false다. 정상 push는 캐시를 유지하고 true 수동 실행만 `vercel deploy --force`로 이전 캐시 없이 재설치한다. 입력은 환경 변수로 전달하며 셸 명령 문자열에 직접 삽입하지 않는다. YAML 파싱/실제 수동 CI 성공 확인.
+- preview APK는 기존 EAS keystore를 `--freeze-credentials`로 유지한다. 수정 카메라 패치 포함/로컬 비밀 제외를 확인하고 최종 APK와 이전 APK의 인증서 일치 후 `adb install -r`로 데이터 유지 업데이트했다. Play Store 제출/결제/새 키 생성 없음.
+
 ## 2026-10-01 — 리포트 출석 복합 키와 APK 아카이브
 
 - 출석 리포트 조회는 소유자/기간 필터와 `local_date.asc` 정렬을 사용한다. `attendance_days` PK `(user_id, local_date)`에는 id가 없으므로 다른 테이블의 id 기반 pagination builder를 사용하지 않는다. DB/RLS/RPC/마이그레이션 변경 없음.

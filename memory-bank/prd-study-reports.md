@@ -67,7 +67,8 @@ None blocking this approved scope. Snapshot exports and automatic report notific
 ## 2026-10-01 Runtime correction
 
 - Actual signed-in Android WebView testing found `attendance_days.id` HTTP 400 / PostgreSQL 42703. This table has the composite primary key `(user_id, local_date)`; report attendance selects only `local_date,status` and paginates in date order. No schema or historical records are changed.
-- The real SDK fixture now rejects nonexistent attendance id selection/order. A 601-day two-page test verifies ownership, date range, stable ordering and no duplicate rows. Red/green and the full suite (832 pass, 25 environment-dependent skips) passed; production and actual week/month recheck are pending.
+- The real SDK fixture now rejects nonexistent attendance id selection/order. A 601-day two-page test verifies ownership, date range, stable ordering and no duplicate rows. Red/green and the full suite (832 pass, 25 environment-dependent skips) passed; all 25 skipped mounted browser tests subsequently passed in a separate run.
+- Production ec17195 is READY (dpl_HpYa1T4FtNBQ6kxti6Se3QH3bz84), HTTP 200. The updated APK retains login and shows weekly, October 2026 and September 2026 reports with no Supabase errors or overflow at 412px. This report fix did not modify stored study/attendance records.
 
 ### Historical 2026-09-10 result
 
