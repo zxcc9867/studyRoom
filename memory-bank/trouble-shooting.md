@@ -13,6 +13,7 @@
 - 독립 리뷰에서 공통 primary/input 규칙이 기존 disabled 색을 덮는 회귀를 발견했다. 공통 disabled 토큰과 모달 input specificity를 보강하고 즉시 전환(transition:none)하여 회색 배경/텍스트 4.74:1을 유지한다. 실제 선택·해제 및 입력 CSS probe를 375/1440 회귀 검사에 추가했다.
 - 공통 버튼 padding이 기존 36px 수정/삭제 아이콘 버튼을 압축했다. 아이콘 전용 버튼은 44px/padding0/SVG20px로, 모달의 텍스트 있는 삭제 버튼은 width:auto로 분리한다. 알림 diagnostic-item span의 12px/4.22:1도 14px/muted로 교정한다.
 - Android 시작 직후 CDP socket이 아직 열리지 않아 fetch failed가 한 번 발생했다. 기존 앱/사용자 데이터를 그대로 두고 boot 완료와 실제 webview socket 준비 후 재연결하니 로그인된 공통 화면이 열렸다. 제품 인증 장애로 분류하지 않는다.
+- Android 실제 화면 검사의 border===1px는 fractional DPR 물리 픽셀 반올림으로 computed 0.761905px여서 실패했다. 실제 선언1px/44px 닫기/7.02:1 텍스트를 확인하고 Android 진단 helper만 0<border<=1.1px 범위로 보정했다. 제품 CSS를 변경하지 않았으며 재검증에서 공통 표면/가독성/로그인·탭 유지가 통과했다.
 
 ### 관련 파일 / 재발 방지
 

@@ -15,9 +15,10 @@
 
 - 완료: 공통 테마/회복 폼/카메라 대비/숲 UI 구현, 수정 전 6건 실패 재현과 PC/모바일 캡처. 웹 빌드·모바일 타입·README 통과.
 - 검증: 최종 전체 Node 844 pass/42 선택적 browser skip/0 fail, 별도 Chromium 42/42, Edge 21/21. 웹 tsc/Vite build, 모바일 타입/README 통과. 독립 최종 리뷰 Ready, 잔여 지적 없음. disabled 4.74:1/알림 진단 약7.02:1 확인.
-- 진행 중: main production 배포 및 운영 Android 재조회.
+- 운영 완료: 제품 7426cb9 main 푸시, Actions 36971565720 success(2m38s), Vercel dpl_8hUgXoigXZTM8EdfE6E8c76udkVW READY, production HTTP200. CSS /assets/index-fBZ2lfih.css의 공통 테마/disabled/forest details 확인.
+- 앱 확인: Android16 412px 실제 운영 WebView에서 동일 테마, 로그인 유지, 피드/숲/목표/오늘/내 페이지/알림·계획/기록·더 보기 이동, 가로 넘침 없음. 회복 문구7.02:1/닫기44px, 카메라 idle 진단5.56~7.02:1/14px, 방향 pad 없음/성장 details 유지. APK 변경 없음.
 - 막힌 부분: 없음. 테스트용 잘못된 피드 응답과 자동 회복 모달 대기 경합은 fixture를 실제 API 스키마/자동 열기 시점으로 보정했다.
-- 다음 작업: 전체 검증 후 운영 READY·HTTP200, Android 재조회 확인.
+- 다음 작업: 실휴대폰의 확대 글꼴/화면 안전 영역 사용자 확인. 이번 요청 구현·운영 배포는 완료이며, 기존 Google 인증/방해금지/푸시 미확인 항목은 완료 처리하지 않는다.
 
 ### 주의할 점
 

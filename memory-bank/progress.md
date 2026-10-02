@@ -17,7 +17,9 @@
 
 #### 남은 작업 / 다음 우선순위
 
-- main production READY/HTTP200 및 실제 Android 재조회. 현재는 로컬 검증 완료이며 운영 확인을 별도 기록한다.
+- 배포 완료: 제품 7426cb9, Actions 36971565720 success(2m38s), Vercel dpl_8hUgXoigXZTM8EdfE6E8c76udkVW READY/main, https://study-room-attendance.vercel.app HTTP200. CSS /assets/index-fBZ2lfih.css 신규 공통 토큰/disabled/forest details 확인.
+- 실제 Android16 412px: 로그인 유지 및 모든 메뉴/계획/기록 이동, 가로 넘침 없음. 회복 문구7.02:1/닫기44px, 카메라 idle 진단5.56~7.02:1/14px, 숲 pad 제거/성장 details 확인. output/playwright/android-recovery-theme-after.png는 실제 운영 WebView 캡처다.
+- 검증 경계: 실제 계정의 회복 제출/새 공부 세션/관심 설정을 만들지 않았다. 카메라 normal/live·휴식·재개·전환은 Chromium fixture로 별도 검증했다. 실제 Android는 비활성 세션/camera off로 종료했으며 APK 재설치 없이 웹 재조회로 반영됐다. 실휴대폰 확대 글꼴/안전 영역은 사용자 확인 대상이다.
 
 ### 2026-10-02 — 메인 목업 공통 웹/Android 적용
 
