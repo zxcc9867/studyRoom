@@ -19,7 +19,8 @@ test("study forest page lazy loads its feature section and keeps accessible move
   assert.match(sectionSource, /onMoveTarget=\{moveAvatarTo\}/);
   assert.match(sectionSource, /aria-label="[^"]+"/);
   assert.match(mainSource, /weeklyHabitTarget=\{weeklyHabitRhythm\.target\}/);
-  assert.match(sectionSource, /moveAvatar\("ArrowUp"\)/);
+  assert.match(sectionSource, /onKeyDown=\{handleKeyDown\}/);
+  assert.doesNotMatch(sectionSource, /className="forest-controls"/);
 });
 
 test("Three.js scene uses a responsive WebGL renderer with an isometric camera and mobile limits", () => {

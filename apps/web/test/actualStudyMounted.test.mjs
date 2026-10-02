@@ -8,6 +8,128 @@ let chromium;
 try { ({chromium} = await import(process.env.FEED_BROWSER_MODULE ? pathToFileURL(process.env.FEED_BROWSER_MODULE).href : 'playwright')); } catch {}
 const browserTest = (name, run) => test(name, {skip: !chromium && 'Set FEED_BROWSER_MODULE and FEED_BROWSER_EXECUTABLE for mounted main application tests'}, run);
 
+async function readableText(locator) {
+ return locator.evaluate(element=>{
+  const channels=value=>value.match(/[\d.]+/g).map(Number);
+  const luminance=rgb=>rgb.slice(0,3).map(v=>{v/=255;return v<=.04045?v/12.92:((v+.055)/1.055)**2.4;}).reduce((sum,v,i)=>sum+v*[.2126,.7152,.0722][i],0);
+  let background=[255,255,255];const ancestors=[];
+  for(let node=element;node;node=node.parentElement)ancestors.unshift(node);
+  for(const node of ancestors){const c=channels(getComputedStyle(node).backgroundColor),a=c[3]??1;background=c.slice(0,3).map((v,i)=>v*a+background[i]*(1-a));}
+  const style=getComputedStyle(element),foreground=luminance(channels(style.color)),surface=luminance(background);
+  return {contrast:(Math.max(foreground,surface)+.05)/(Math.min(foreground,surface)+.05),fontSize:parseFloat(style.fontSize)};
+ });
+}
+
+async function designSnapshot(page,name,width) {
+ await mkdir('output/playwright',{recursive:true});
+ const phase=process.env.APP_THEME_SNAPSHOT_PHASE==='before'?'before':'after';
+ await page.screenshot({path:`output/playwright/app-theme-${name}-${phase}-${width}.png`,fullPage:true});
+}
+
+for(const width of [375,1440]) {
+ browserTest(`app theme: recovery dialog is readable, contained and keyboard accessible at ${width}px`,()=>withApp(width,async page=>{
+  await page.getByRole('dialog',{name:'회복 루틴 작성'}).waitFor();
+  await page.keyboard.press('Escape');
+  await page.getByRole('dialog',{name:'회복 루틴 작성'}).waitFor({state:'detached'});
+  await page.getByRole('button',{name:'회복 루틴 작성',exact:true}).click();
+  const dialog=page.getByRole('dialog',{name:'회복 루틴 작성'});await dialog.waitFor();
+  await designSnapshot(page,'recovery',width);
+  const heading=await dialog.getByRole('heading').boundingBox(),close=await dialog.getByRole('button',{name:'회복 루틴 모달 닫기'}).boundingBox();
+  const copy=await readableText(dialog.locator('.reminder-copy'));
+  assert.ok(copy.contrast>=4.5 && copy.fontSize>=15 && copy.fontSize<=18,JSON.stringify(copy));
+  assert.ok(close.y<heading.y+heading.height && close.width>=44 && close.height>=44,'close stays beside heading');
+  assert.equal(await dialog.evaluate(el=>getComputedStyle(el).borderTopWidth),'1px');
+  assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),true);
+  await dialog.getByRole('textbox',{name:'결석/이탈 사유'}).fill('디자인 검증용 입력');
+  await page.keyboard.press('Escape');await dialog.waitFor({state:'detached'});
+  assert.equal(await page.evaluate(()=>fixture.calls.some(c=>c.name==='submit_study_recovery')),false);
+ },'recovery'));
+
+ browserTest(`app theme: camera diagnosis keeps AA contrast for normal and idle status at ${width}px`,()=>withApp(width,async page=>{
+  const tools=page.locator('.focus-tools');await tools.locator('summary').first().click();
+  for(const state of ['idle','normal']){
+   if(state==='normal'){
+    await tools.getByRole('button',{name:'카메라 감시 켜기',exact:true}).click();
+    await page.waitForFunction(()=>document.querySelector('video')?.srcObject?.getVideoTracks()[0]?.readyState==='live');
+    await page.clock.runFor(1000);
+   }
+   await designSnapshot(page,`camera-${state}`,width);
+   const texts=tools.locator('.camera-diagnostic').locator('span,strong,p,li');
+   for(let i=0;i<await texts.count();i++){
+    const metric=await readableText(texts.nth(i));
+    assert.ok(metric.contrast>=4.5,`${state}: ${await texts.nth(i).textContent()} contrast ${metric.contrast}`);
+    assert.ok(metric.fontSize>=14,`${state}: font ${metric.fontSize}`);
+   }
+  }
+ }));
+
+ browserTest(`app theme: all pages share surfaces, readable hierarchy and no direction pad at ${width}px`,()=>withApp(width,async page=>{
+  const metrics=[];
+  for(const [route,selector] of [['goals','.goals-panel'],['forest','.study-forest-panel'],['feed','.tech-feed'],['me','.my-page-panel'],['settings','.settings-panel']]){
+   if(width===375 && ['me','settings'].includes(route)){
+    await page.getByRole('button',{name:'더 보기',exact:true}).click();
+    await page.getByRole('dialog',{name:'더 보기'}).locator(`a[href="#${route}"]`).click();
+   }else await page.locator(`a[href="#${route}"]:visible`).first().click();
+   await page.waitForTimeout(50);await page.clock.runFor(500);
+   const panel=page.locator(selector);await panel.waitFor();
+   await designSnapshot(page,route,width);
+   metrics.push(await panel.evaluate(el=>({route:location.hash,border:getComputedStyle(el).borderTopWidth,background:getComputedStyle(el).backgroundColor,radius:getComputedStyle(el).borderTopLeftRadius,overflow:document.documentElement.scrollWidth>innerWidth})));
+   if(route==='forest'){
+    assert.equal(await page.getByRole('button',{name:'위로 이동',exact:true}).count(),0);
+    await panel.focus();await page.keyboard.press('ArrowRight');
+    assert.equal(await panel.getAttribute('tabindex'),'0');
+    assert.match(await panel.locator('.forest-movement-hint').textContent(),/터치.*키보드/);
+    await panel.locator('.forest-growth-details > summary').click();
+    const roadmap=panel.getByRole('list',{name:'나무 성장 단계'});
+    assert.equal(await roadmap.isVisible(),true);
+    for(const label of await roadmap.locator('small').all())assert.ok((await readableText(label)).contrast>=4.5);
+   }
+  }
+  await page.locator('a[href="#today"]:visible').first().click();
+  for(const [domain,label] of [['plan','계획'],['record','기록']]){
+   await page.getByRole('button',{name:label,exact:true}).click();await page.clock.runFor(32);
+   await designSnapshot(page,domain,width);
+   assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),true,domain);
+   if(domain==='plan'){
+    const button=page.locator('.todo-edit').first(),icon=button.locator('svg');
+    const control=await button.boundingBox(),glyph=await icon.boundingBox();
+    assert.ok(control.width>=44&&control.height>=44&&glyph.width>=16&&glyph.height>=16,'todo edit icon retains its 44px target and visible glyph');
+   }
+  }
+  for(const metric of metrics){
+   assert.equal(metric.border,'1px',metric.route);
+   assert.equal(metric.background,'rgb(255, 253, 245)',metric.route);
+   assert.equal(metric.radius,'16px',metric.route);
+   assert.equal(metric.overflow,false,metric.route);
+  }
+ }));
+
+ browserTest(`app theme: disabled session selection is distinct and readable at ${width}px`,()=>withApp(width,async page=>{
+  await page.locator('.topbar-actions button').first().click();
+  await page.getByRole('button',{name:'카메라 켜고 시작',exact:true}).click();
+  const dialog=page.getByRole('dialog',{name:'이번 세션에서 할 일'});
+  await dialog.waitFor();
+  const start=dialog.getByRole('button',{name:'선택한 할 일로 시작'});
+  const choices=dialog.locator('.session-todo-choice-list input[type=checkbox]');
+  await choices.first().waitFor();
+  for(const choice of await choices.all())await choice.uncheck();
+  assert.equal(await start.isDisabled(),true);
+  await page.clock.runFor(200);
+  const disabled=await start.evaluate(el=>getComputedStyle(el).backgroundColor);
+  const metric=await readableText(start);
+  assert.ok(metric.contrast>=4.5,JSON.stringify({disabled,...metric}));
+  await choices.first().check();assert.equal(await start.isEnabled(),true);
+  await page.clock.runFor(200);
+  const enabled=await start.evaluate(el=>getComputedStyle(el).backgroundColor);
+  assert.notEqual(disabled,enabled,'inactive action differs without relying on hover or cursor');
+  const input=dialog.locator('.session-todo-title-field input');
+  const editable=await input.evaluate(el=>getComputedStyle(el).backgroundColor);
+  await input.evaluate(el=>{el.disabled=true;});
+  assert.notEqual(await input.evaluate(el=>getComputedStyle(el).backgroundColor),editable,'disabled input preserves the common muted surface');
+  assert.ok((await readableText(input)).contrast>=4.5);
+ },'start'));
+}
+
 for (const width of [375, 1440]) browserTest(`dashboard redesign: shared focus hierarchy and navigation at ${width}px`, () => withApp(width, async page => {
  await page.getByRole('heading',{name:'집중 독서',exact:true}).waitFor();
  await mkdir('output/playwright',{recursive:true});
@@ -131,7 +253,9 @@ function result(name,args){state.calls.push({name,args});
 }
 function query(table){let single=false,insert=null;const q=new Proxy({}, {get(_,key){if(key==='then')return (resolve,reject)=>Promise.resolve().then(()=>{if(insert && table==='study_todos'){const added={...todo('new',''),...insert[0],id:'new'};state.todos.push(added);return {data:added,error:null};}let data=table==='profiles'?{user_id:'owner',time_zone:'Asia/Tokyo',reminder_time:'09:00',email_reminders_enabled:false}:table==='study_goals'?[{id:'goal',title:'자격증 목표',target_date:'2026-12-31',target_study_seconds:0,status:'active',created_at:now,updated_at:now}]:table==='study_sessions'?state.sessions:table==='study_todos'?state.todos:table==='study_recovery_requests'?state.recoveries:table==='study_session_todos'?state.todos.filter(t=>state.links.includes(t.id)).map(t=>({id:t.id,session_id:'session',todo_id:t.id,user_id:'owner',linked_at:now,completed_during_session:false})):[];return {data:single?(Array.isArray(data)?data[0]??null:data):data,error:null};}).then(resolve,reject);return (...args)=>{if(key==='maybeSingle'||key==='single')single=true;if(key==='insert')insert=args[0];return q;};}});return q;}
 export const isSupabaseConfigured=true,supabaseUrl='https://fixture.invalid',supabaseAnonKey='test';
-export const supabase={from:query,rpc(name,args){const q={then(resolve,reject){return Promise.resolve().then(()=>result(name,args)).then(resolve,reject);},abortSignal(){return q;}};return q;},auth:{getSession:async()=>({data:{session:authSession},error:null}),onAuthStateChange:callback=>{state.changeOwner=()=>{state.sessions=[];state.todos=[];state.reportFail=true;callback('SIGNED_IN',{...authSession,user:{...authSession.user,id:'other'}});};return {data:{subscription:{unsubscribe(){}}}};},getUser:async()=>({data:{user:authSession.user},error:null})},functions:{invoke:async()=>({data:{},error:null})}};
+const feedArticles=Array.from({length:4},(_,index)=>({id:'article-'+index,title:['실무에서 살펴보는 백엔드 아키텍처','클라우드 운영과 관측 가능성','AI 개발 도구를 안전하게 활용하는 방법','새로운 웹 기술을 작은 프로젝트로 익히기'][index],excerpt:'공개 기술 블로그의 소개를 바탕으로 구현 과정과 실제 적용 시 고려할 점을 살펴봅니다. 원문에서 구체적인 예제와 설계의 근거를 확인할 수 있어요.',url:'https://example.test/article/'+index,published_at:now,discovered_at:now,summary:null,summary_status:'pending',category:'practice',interests:['backend'],topics:['백엔드'],sources:[{id:'source',name:'기술 블로그'}],saved:false,todo_id:null,origin:'rss',matched_topics:[],excerpt_provenance:'source_excerpt'}));
+const feedResponse=action=>action==='state'?{enabled:true,service_available:true,sources:[],interests:[],last_success_at:now,preferences:{prompt:'AI와 백엔드 기술',receiving:true,revision:1},search_status:{state:'ready',last_success_at:now}}:action==='list'?{items:feedArticles,next_cursor:null,total:4}:action==='facets'?{total:4,topics:[],sources:[],languages:[{value:'ko',label:'한국어 원문',count:4}]}:action==='briefing'?{local_date:'2026-09-21',time_zone:'Asia/Tokyo',total:4,source_count:1,categories:[],topics:[{value:'backend',label:'백엔드',count:4}],eligible_count:4,analyzed_count:0,generated_at:null,status:'idle',stale:false,insights:[],highlights:[]}:{};
+export const supabase={from:query,rpc(name,args){const q={then(resolve,reject){return Promise.resolve().then(()=>result(name,args)).then(resolve,reject);},abortSignal(){return q;}};return q;},auth:{getSession:async()=>({data:{session:authSession},error:null}),onAuthStateChange:callback=>{state.changeOwner=()=>{state.sessions=[];state.todos=[];state.reportFail=true;callback('SIGNED_IN',{...authSession,user:{...authSession.user,id:'other'}});};return {data:{subscription:{unsubscribe(){}}}};},getUser:async()=>({data:{user:authSession.user},error:null})},functions:{invoke:async(name,{body}={})=>({data:name==='tech-feed'?feedResponse(body.action):{},error:null})}};
 `;
 
 async function withApp(width, run, mode='active') {

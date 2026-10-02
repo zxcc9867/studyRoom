@@ -1,3 +1,24 @@
+## 2026-10-02 — 공통 테마에 남은 legacy 가독성 문제
+
+### 상황 / 원인
+
+- 회복 모달과 각 페이지는 기존 굵은 테두리·3D 그림자·큰 글자를 유지했고, 카메라 진단은 dark 전용 #fff9df/밝은 상태 색이 새 light 카메라 표면에 남았다. 실제 computed 대비 1.04:1로 실패.
+- 공통 앱 테마가 모든 페이지/모달의 범위 선택자와 상태별 진단 색을 지정하도록 수정한다. 카메라/회복 정책이나 서버 상태 문제는 아니다.
+
+### 검증 중 오류 / 해결
+
+- 전체 Node의 studyForestUi.test.mjs가 제거된 moveAvatar("ArrowUp") 버튼 마크업을 찾았다. 키보드 handler 및 pad 부재 계약으로 갱신하고 기존 core 이동/충돌 및 실제 mounted 키 입력을 유지한다.
+- 피드 테스트 transport가 {}를 반환해 sources/preferences 읽기 렌더링 오류가 났다. 제품 코드를 우회하지 않고 실제 state/list/facets/briefing 스키마의 예시 응답으로 고쳤다.
+- 병렬 browser 검사에서 회복 자동 모달이 늦게 열리면서 배경 작성 버튼 click을 가로막았다. 새 테스트는 자동 모달 visible → ESC → detached → 작성 버튼을 기다린다. 이는 fixture 경합이며 운영 모달 차단 오류로 분류하지 않는다.
+- 독립 리뷰에서 공통 primary/input 규칙이 기존 disabled 색을 덮는 회귀를 발견했다. 공통 disabled 토큰과 모달 input specificity를 보강하고 즉시 전환(transition:none)하여 회색 배경/텍스트 4.74:1을 유지한다. 실제 선택·해제 및 입력 CSS probe를 375/1440 회귀 검사에 추가했다.
+- 공통 버튼 padding이 기존 36px 수정/삭제 아이콘 버튼을 압축했다. 아이콘 전용 버튼은 44px/padding0/SVG20px로, 모달의 텍스트 있는 삭제 버튼은 width:auto로 분리한다. 알림 diagnostic-item span의 12px/4.22:1도 14px/muted로 교정한다.
+- Android 시작 직후 CDP socket이 아직 열리지 않아 fetch failed가 한 번 발생했다. 기존 앱/사용자 데이터를 그대로 두고 boot 완료와 실제 webview socket 준비 후 재연결하니 로그인된 공통 화면이 열렸다. 제품 인증 장애로 분류하지 않는다.
+
+### 관련 파일 / 재발 방지
+
+- apps/web/src/{appTheme.css,main.tsx,StudyForestSection.tsx}, apps/web/test/{actualStudyMounted.test.mjs,studyForestUi.test.mjs}.
+- CSS는 배경만 바꾸지 말고 명시적 자식 텍스트·semantic badge·opacity를 함께 검사한다. 새 페이지/모달은 공통 토큰을 쓰고 375/1440 실제 DOM 대비/넘침을 확인한다. 전체 검증/운영 확인은 완료 후 progress에 별도 기록한다.
+
 ## 2026-10-02 — 메인 리디자인 회귀 검사
 
 - Android 운영 회복 경고에 기존 굵기/3D 버튼/간격이 남아 집중 카드가 아래로 밀렸다. 375px mounted 카드 282.55px 실패 → 공통 warning/spacing/control 토큰으로 정리, 안내/대상/버튼은 항상 표시 → 220px 이하 회귀 검사 및 작성 모달 접근 통과.

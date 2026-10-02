@@ -1,3 +1,24 @@
+### 2026-10-02 — 모든 탭·모달 디자인 통일
+
+#### 완료한 작업
+
+- 공통 앱 테마로 피드/숲/목표/계획/기록/개인/알림 카드·폼·글자·상태·모달을 통일. 회복 폼/닫기 정렬, 카메라 light-on-light 대비 교정.
+- 숲 화면 방향 패드 제거, 기존 키보드·장면 터치/클릭 유지. 성장 단계는 펼쳐 보기로 보존하고 현재/다음 보상부터 표시.
+
+#### 변경된 파일
+
+- apps/web/src/{main.tsx,appTheme.css,StudyForestSection.tsx}, apps/web/test/{actualStudyMounted.test.mjs,studyForestUi.test.mjs}, 관련 PRD/맥락/구현/오류 문서.
+
+#### 검증 방법
+
+- 수정 전 Chromium 신규 6건 실패: 카메라 대비 1.04:1, 회복 닫기 정렬/두꺼운 테두리, 방향 패드. 동일 PC1440/모바일375 캡처 후 회귀 검증 진행.
+- 웹 tsc/Vite build, mobile compatibility/tsc, README 이미지 24개/3언어 통과. 별도 lint 스크립트 없음.
+- 최종 Node 886 중 844 pass/42 선택적 browser skip/0 fail; 별도 실제 Chromium 42/42, Edge 21/21. 독립 리뷰에서 disabled 버튼/입력 cascade와 알림 진단 보조문자 누락을 발견해 토큰/specificity/14px를 보완하고 회귀 검사를 추가했다. 마지막 보완 후 browser/build 통과, 독립 리뷰 Ready/잔여 사항 없음.
+
+#### 남은 작업 / 다음 우선순위
+
+- main production READY/HTTP200 및 실제 Android 재조회. 현재는 로컬 검증 완료이며 운영 확인을 별도 기록한다.
+
 ### 2026-10-02 — 메인 목업 공통 웹/Android 적용
 
 #### 완료한 작업

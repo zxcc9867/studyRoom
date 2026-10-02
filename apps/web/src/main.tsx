@@ -287,6 +287,7 @@ import "./styles.css";
 import "./improvements.css";
 import "./sessionTodoModal.css";
 import "./dashboardRedesign.css";
+import "./appTheme.css";
 
 const resendCooldownKey = "study-room-auth-resend-available-at";
 const emailOtpLength = EMAIL_OTP_LENGTH;

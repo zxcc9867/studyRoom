@@ -82,7 +82,7 @@ Personal MVP users who want a softer Animal Crossing-style reward for sustained 
 - [x] Add deterministic study forest helper logic with unit tests.
 - [x] Render a Three.js WebGL scene with low-poly land, path, river, bridge, cottage, trees, flowers/stones, and a clearly visible detailed avatar.
 - [x] Render richer 3D island details including garden beds, lanterns, fireflies, layered terrain, shadows, and ambient motion.
-- [x] Support keyboard movement and touch button movement.
+- [x] Support keyboard/WASD and scene click/touch movement. The large directional button pad is removed per the 2026-10-02 UI instruction; movement logic and collision rules are unchanged.
 - [x] Resume automatic avatar walking when manual control is idle.
 - [x] Support click/touch-to-walk inside the meadow.
 - [x] Render a friendly smiling low-poly avatar with real scene depth and smooth target movement.
@@ -97,6 +97,7 @@ Personal MVP users who want a softer Animal Crossing-style reward for sustained 
 - [x] Keep the avatar facing the actual movement direction.
 - [x] Unlock non-tree interior props at the 1/3/5/7-day milestones and preserve them after a completed cycle.
 - [x] Render morning, afternoon, sunset, and night environment variants from local time.
+- [x] Match the common warm-paper/green dashboard theme for page, status, rewards and customization; show current/next growth first with the full roadmap in accessible details (2026-10-02).
 
 - [x] Persist user-scoped forest customization with RLS.
 - [x] Add locked/unlocked theme, accent, and outdoor reward selectors.

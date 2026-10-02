@@ -197,6 +197,7 @@ export default function StudyForestSection({
       tabIndex={0}
       onKeyDown={handleKeyDown}
       aria-label="공부의 숲 탐험"
+      aria-describedby="forest-movement-hint"
       data-forest-theme={preferences.islandTheme}
     >
       <div className="section-heading">
@@ -242,15 +243,9 @@ export default function StudyForestSection({
               if (mode === "interior") enterCottage();
             }}
           />
-          <div className="forest-controls" aria-label="캐릭터 이동">
-            <button type="button" onClick={() => moveAvatar("ArrowUp")} aria-label="위로 이동">↑</button>
-            <div>
-              <button type="button" onClick={() => moveAvatar("ArrowLeft")} aria-label="왼쪽 이동">←</button>
-              <button type="button" onClick={() => moveAvatar("ArrowDown")} aria-label="아래로 이동">↓</button>
-              <button type="button" onClick={() => moveAvatar("ArrowRight")} aria-label="오른쪽 이동">→</button>
-            </div>
-            <p>방향키·WASD, 화면 터치, 위 버튼으로 섬과 집 안을 걸어보세요.</p>
-          </div>
+          <p id="forest-movement-hint" className="forest-movement-hint">
+            장면을 클릭하거나 터치해 이동해요. 키보드는 방향키·WASD를 사용하세요.
+          </p>
         </div>
 
         <div className="forest-status-card">
@@ -309,18 +304,21 @@ export default function StudyForestSection({
             <p>{nextLevel.description}</p>
             <small className="forest-interior-unlock">집 안 보상 · {nextLevel.interiorUnlock}</small>
           </div>
-          <ol className="forest-level-roadmap" aria-label="나무 성장 단계">
-            {forestLevelMilestones.map((milestone) => {
-              const progressDays = forestState.currentTree.progressDays;
-              const state = progressDays >= milestone.days ? "complete" : nextLevel.targetDays === milestone.days ? "next" : "locked";
-              return (
-                <li key={milestone.days} data-state={state}>
-                  <span>{milestone.days}일</span>
-                  <div><strong>{milestone.label}</strong><small>{milestone.update}</small><small className="forest-interior-unlock">{milestone.interiorUnlock}</small></div>
-                </li>
-              );
-            })}
-          </ol>
+          <details className="forest-growth-details">
+            <summary>성장 단계 전체 보기</summary>
+            <ol className="forest-level-roadmap" aria-label="나무 성장 단계">
+              {forestLevelMilestones.map((milestone) => {
+                const progressDays = forestState.currentTree.progressDays;
+                const state = progressDays >= milestone.days ? "complete" : nextLevel.targetDays === milestone.days ? "next" : "locked";
+                return (
+                  <li key={milestone.days} data-state={state}>
+                    <span>{milestone.days}일</span>
+                    <div><strong>{milestone.label}</strong><small>{milestone.update}</small><small className="forest-interior-unlock">{milestone.interiorUnlock}</small></div>
+                  </li>
+                );
+              })}
+            </ol>
+          </details>
         </div>
       </div>
 

@@ -1,3 +1,11 @@
+## 2026-10-02 — 전체 페이지 공통 테마
+
+- main.tsx의 마지막 appTheme.css가 기존 CSS 위에 로그인 후 페이지/모달을 .dashboard-redesign 범위로 통일한다. 기존 primary/surface/ink/muted/border/semantic/spacing/radius 토큰에 글자 크기 14/15/16/20/24/30px, line 1.65, motion 160ms를 더한다. lazy 피드/리포트 CSS보다 범위 선택자 우선순위를 높여 테마 재혼합을 막는다.
+- 기능 컴포넌트를 복제하지 않고 카드/폼/페이지 헤더·상태 배지의 표시만 변경한다. AccessibleDialog의 focus trap/ESC/포커스 복귀는 그대로다.
+- StudyForestSection은 방향 패드 마크업만 제거하고 기존 handler·3D target callbacks를 유지한다. 작은 입력 안내/aria-describedby 및 성장 단계 details를 사용한다. 실제 환경 색과 보상 아이템을 지우지 않는다.
+- Chromium은 main 실제 컴포넌트와 API 스키마를 따르는 transport fixture를 사용한다. 회복 모달·카메라 대비·각 탭/계획/기록·PC1440/모바일375·기존 세션 행동을 확인한다. 실제 Android 운영 확인은 별도다.
+- DB/RPC/API/권한/모바일 번들 변경 없음. 웹 production 배포 후 기존 Android WebView 재조회로 적용한다.
+
 ## 2026-10-02 — 공통 대시보드 디자인
 
 - DashboardNavigation와 dashboardRedesign.css는 로그인 후 웹 셸에서만 사용한다. PC 800px 초과는 상단 메뉴/2열 집중, 800px 이하는 하단 메뉴/1열이며 safe-area 여백을 적용한다. 네이티브 단일 WebView는 같은 배포를 재사용하고 별도 토큰/데이터를 복제하지 않는다.

@@ -1,4 +1,4 @@
-# PRD: 웹·Android 공통 오늘 화면 리디자인
+# PRD: 웹·Android 공통 대시보드 리디자인
 
 ## 1. Problem
 
@@ -11,6 +11,8 @@ PC 웹과 Android 단일 WebView에서 같은 계정으로 공부하는 사용�
 ## 3. Goals
 
 2026-10-02 승인된 `docs/mockups/main-dashboard-20261002`의 차분한 녹색/따뜻한 표면과 정보 위계를 운영 화면에 적용한다. 현재 할 일·세션 타이머·주 행동을 하나의 집중 카드에 모은다. PC는 집중/짧은 계획 2열, 모바일은 1열과 하단 메뉴다.
+
+2026-10-02 후속 지시에 따라 공통 테마를 로그인 후 기술 피드·공부 숲·목표·계획·기록·내 페이지·알림과 관련 모달에 확장한다. 회복 폼은 대상/입력/제출 순서로 정리하고, 카메라 진단의 밝은 배경 위 밝은 글자 오류를 해결한다. 숲의 큰 방향 버튼은 제거하고 장면 터치/클릭과 키보드 이동을 유지한다.
 
 ## 4. Non-goals
 
@@ -35,6 +37,10 @@ PC 웹과 Android 단일 WebView에서 같은 계정으로 공부하는 사용�
 - [x] 카메라 실제 video DOM은 유지하며 상세 접기만으로 스트림을 중단/재시작하지 않음 (Chromium fake media 확인, 실제 Android 활성 세션은 별도).
 - [x] Android 로그인 후 동일 운영 웹 CSS/컴포넌트 재사용.
 - [x] 회복 안내·대상 날짜·작성 버튼은 항상 표시하고 compact 경고 스타일로 정보 과밀 방지.
+- [x] 공통 appTheme.css에서 카드·폼·본문·보조문자·상태·모달 토큰을 적용하고 페이지별 기존 장식을 정리한다.
+- [x] 회복 모달 제목 옆 44px 닫기, AA 대비 입력 폼, 모바일 세로 스크롤·키보드 닫기를 유지한다.
+- [x] 카메라 정상/대기/경고/오류는 짙은 글자와 의미 배지로 구분하며 진단 본문을 숨기지 않는다.
+- [x] 숲 방향 버튼 제거, 키보드/WASD·장면 터치/클릭 유지, 현재/다음 보상 우선 및 성장 단계 details 제공.
 
 ## 8. Non-functional Requirements
 
@@ -42,7 +48,7 @@ PC 웹과 Android 단일 WebView에서 같은 계정으로 공부하는 사용�
 
 ## 9. Dependencies
 
-기존 main.tsx, 실제 공부 패널, AccessibleDialog, 앱의 WebFeatureScreen. Supabase 변경 없음.
+기존 main.tsx, 실제 공부 패널, AccessibleDialog, StudyForestSection, appTheme.css, 앱의 WebFeatureScreen. Supabase 변경 없음. 네이티브 최초 로그인 화면은 별도이며 이번 공통 웹 테마 범위가 아니다.
 
 ## 10. Success Metrics
 
