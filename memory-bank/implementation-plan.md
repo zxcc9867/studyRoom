@@ -1,3 +1,11 @@
+## 2026-10-04 — 전체 페이지·인증 전/네이티브 디자인 누락 보완
+
+- 기존 색상/간격/크기 토큰을 :root에 선언해 dashboard와 login-shell이 재사용한다. 레이아웃/페이지 스타일은 .dashboard-redesign/.login-shell 범위로 유지하고 lazy CSS보다 명시적 컴포넌트 선택자를 우선한다.
+- 조건부 휴식/복귀/시작 전 카드와 편집·회고·기록·피드/숲 보조 문자도 외곽과 동일한 토큰을 사용한다. 주요 버튼44px, 보조14px, AA 대비를 실제 computed style로 검사한다. 작은 checkbox/radio 그림과 label 조작 영역은 구분한다.
+- 네이티브 최초 로그인/연결/fallback은 별도 화면 구현을 유지하며 mobilePalette/StyleSheet를 같은 semantic 값에 맞춘다. 로그인 ScrollView/입력 이름/disabled 색/회고 선택 최소44px는 표시·접근성 변경이다. 인증/API/권한/카메라/DND 이벤트는 바꾸지 않는다.
+- actualStudyMounted의 실제 entrypoint/예시 transport로1440/375px와 기존 세션 동작을 검증하고, native actual component 렌더 트리 및 팔레트 비교로 디자인 계약을 검사한다. OS 실기기 검증과 혼동하지 않는다.
+- 배포 경계:웹 CSS는 운영 웹 배포 후 기존 APK WebView에 적용된다. 네이티브 스타일은 새 APK가 필요하다. 이번 변경은 로컬 수정만이며 커밋/푸시/운영 배포/새 APK 설치는 별도 요청 후 진행한다. Supabase/DB/RLS/RPC/Edge/인증 설정 변경 없음.
+
 ## 2026-10-02 — 전체 페이지 공통 테마
 
 - main.tsx의 마지막 appTheme.css가 기존 CSS 위에 로그인 후 페이지/모달을 .dashboard-redesign 범위로 통일한다. 기존 primary/surface/ink/muted/border/semantic/spacing/radius 토큰에 글자 크기 14/15/16/20/24/30px, line 1.65, motion 160ms를 더한다. lazy 피드/리포트 CSS보다 범위 선택자 우선순위를 높여 테마 재혼합을 막는다.

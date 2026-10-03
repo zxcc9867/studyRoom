@@ -1,6 +1,6 @@
 /* One visual contract for all authenticated pages and their dialogs.
    Data, study policies and the forest's rendered environment stay unchanged. */
-.dashboard-redesign {
+:root {
   --study-text-xs: 14px;
   --study-text-sm: 15px;
   --study-text-base: 16px;
@@ -15,6 +15,119 @@
   --study-disabled-text: #5e695f;
   color-scheme: light;
 }
+
+/* Authentication uses the same tokens before the dashboard is mounted. */
+.login-shell {
+  min-height: 100dvh;
+  padding: var(--study-space-6);
+  background: var(--study-bg);
+  color: var(--study-ink);
+  font-family: "Pretendard Variable", "Apple SD Gothic Neo", "Malgun Gothic", sans-serif;
+  font-size: var(--study-text-base);
+  line-height: var(--study-line);
+}
+.login-shell .login-panel {
+  width: min(560px, 100%);
+  padding: var(--study-space-8);
+  border: 1px solid var(--study-border);
+  border-radius: var(--study-radius);
+  background: var(--study-surface);
+  box-shadow: var(--study-shadow);
+}
+.login-shell .login-panel h1 { max-width: none; margin: var(--study-space-2) 0 var(--study-space-4); font-size: var(--study-text-2xl); line-height: 1.35; color: var(--study-ink); letter-spacing: -.035em; word-break: keep-all; }
+.login-shell :is(.eyebrow, .login-divider span) { font-size: var(--study-text-xs); color: var(--study-muted); font-weight: 600; }
+.login-shell .login-copy { color: var(--study-muted); font-size: var(--study-text-sm); font-weight: 400; line-height: var(--study-line); }
+.login-shell .login-form { gap: var(--study-space-4); }
+.login-shell label { display: grid; gap: var(--study-space-2); color: var(--study-ink); font-size: var(--study-text-sm); font-weight: 650; }
+.login-shell :is(input, button) { min-height: 48px; padding: var(--study-space-3) var(--study-space-4); border: 1px solid var(--study-border); border-radius: var(--study-control-radius); background: var(--study-surface); color: var(--study-ink); font: inherit; box-shadow: none; transform: none; }
+.login-shell input { width: 100%; min-width: 0; }
+.login-shell input::placeholder { color: var(--study-muted); opacity: 1; }
+.login-shell :is(button, input):focus-visible { outline: 3px solid var(--study-primary); outline-offset: 3px; }
+.login-shell button { font-weight: 650; cursor: pointer; transition: background var(--study-motion), border-color var(--study-motion); }
+.login-shell .primary { background: var(--study-primary); border-color: var(--study-primary); color: var(--study-surface); }
+.login-shell :is(.google-login, .secondary) { color: var(--study-primary); }
+.login-shell :is(button, input):disabled { opacity: 1; background: var(--study-disabled-bg); color: var(--study-disabled-text); border-color: var(--study-border); cursor: not-allowed; }
+.login-shell .login-divider::before, .login-shell .login-divider::after { background: var(--study-border); }
+.login-shell .auth-recovery-notice { padding: var(--study-space-4); border: 1px solid var(--study-border); border-radius: var(--study-control-radius); color: var(--study-danger); background: var(--study-danger-bg); box-shadow: none; font-size: var(--study-text-sm); }
+.login-shell .auth-recovery-notice p { font-size: var(--study-text-sm); font-weight: 400; line-height: var(--study-line); }
+
+/* State-specific cards and inner controls share the outer page contract. */
+.dashboard-redesign .workspace .session-break {
+  display: grid;
+  grid-template-columns: 44px minmax(0, 1fr);
+  gap: var(--study-space-4);
+  padding: var(--study-space-6);
+  border: 1px solid var(--study-border);
+  border-radius: var(--study-radius);
+  background: var(--study-warning-bg);
+  color: var(--study-warning);
+  box-shadow: none;
+}
+.dashboard-redesign .session-break .session-break-icon { width: 44px; height: 44px; border: 1px solid var(--study-border); background: var(--study-surface); color: var(--study-warning); box-shadow: none; }
+.dashboard-redesign .session-break > div > span { color: var(--study-warning); font-size: var(--study-text-xs); font-weight: 600; }
+.dashboard-redesign .session-break > div > strong { color: var(--study-warning); font-size: var(--study-text-xl); line-height: 1.4; }
+.dashboard-redesign .session-break small { color: var(--study-muted); font-size: var(--study-text-xs); line-height: var(--study-line); font-weight: 500; }
+.dashboard-redesign .focus-tools .session-lease :is(span, small) { color: var(--study-muted); font-size: var(--study-text-xs); line-height: var(--study-line); }
+.dashboard-redesign .session-break .break-return-plan { grid-column: 1 / -1; width: 100%; padding: var(--study-space-4); gap: var(--study-space-4); border: 1px solid var(--study-border); border-radius: var(--study-control-radius); background: var(--study-surface); box-shadow: none; animation: none; }
+.dashboard-redesign .break-return-plan::after { display: none; }
+.dashboard-redesign .break-return-copy .eyebrow { color: var(--study-muted); font-size: var(--study-text-xs); }
+.dashboard-redesign .break-return-copy strong { color: var(--study-ink); font-size: var(--study-text-lg); line-height: 1.5; }
+.dashboard-redesign .break-return-plan.due { border-color: var(--study-primary); background: var(--study-soft); }
+.dashboard-redesign .break-return-copy .break-return-lease-warning { color: var(--study-warning); background: var(--study-warning-bg); border: 1px solid var(--study-border); border-radius: var(--study-control-radius); padding: var(--study-space-3); }
+.dashboard-redesign .workspace :is(.break-return-actions, .todo-mode-toggle, .weekday-picker, .reflection-score-field) button {
+  min-width: 44px;
+  min-height: 44px;
+  border: 1px solid var(--study-border);
+  border-radius: var(--study-control-radius);
+  padding: var(--study-space-2) var(--study-space-3);
+  background: var(--study-surface);
+  color: var(--study-primary);
+  font-size: var(--study-text-xs);
+  font-weight: 650;
+  line-height: 1.5;
+  box-shadow: none;
+  transform: none;
+  transition: background var(--study-motion), border-color var(--study-motion);
+}
+.dashboard-redesign .workspace :is(.todo-mode-toggle, .weekday-picker, .reflection-score-field) button.selected { color: var(--study-surface); background: var(--study-primary); border-color: var(--study-primary); }
+.dashboard-redesign .workspace :is(.break-return-actions, .todo-mode-toggle, .weekday-picker, .reflection-score-field) button:disabled { opacity: 1; color: var(--study-disabled-text); background: var(--study-disabled-bg); cursor: not-allowed; }
+.dashboard-redesign .workspace .recovery-precheck { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: var(--study-space-4); padding: var(--study-space-6); border: 1px solid var(--study-border); border-radius: var(--study-radius); background: var(--study-soft); box-shadow: none; }
+.dashboard-redesign .recovery-precheck h3 { margin: var(--study-space-2) 0; font-size: var(--study-text-xl); line-height: 1.4; color: var(--study-ink); }
+.dashboard-redesign .recovery-precheck :is(p, strong) { color: var(--study-muted); font-size: var(--study-text-sm); line-height: var(--study-line); font-weight: 500; }
+.dashboard-redesign .recovery-precheck > strong { padding: var(--study-space-4); border: 1px solid var(--study-border); border-radius: var(--study-control-radius); background: var(--study-surface); }
+.dashboard-redesign .focus-tools :is(.camera-monitor-head, .camera-message, .camera-warning-note) { font-size: var(--study-text-xs); color: var(--study-muted); font-weight: 500; line-height: var(--study-line); }
+.dashboard-redesign .focus-tools .camera-warning-note { color: var(--study-warning); background: var(--study-warning-bg); border-radius: var(--study-control-radius); padding: var(--study-space-3); }
+.dashboard-redesign .workspace :is(.goal-link-panel, .todo-repeat-panel, .todo-modal-summary, .reflection-score-field, .reflection-todo-block) { border: 1px solid var(--study-border); border-radius: var(--study-control-radius); padding: var(--study-space-4); background: var(--study-soft); color: var(--study-ink); box-shadow: none; }
+.dashboard-redesign .workspace .goal-link-row { min-height: 44px; border: 1px solid var(--study-border); border-radius: var(--study-control-radius); padding: var(--study-space-3); background: var(--study-surface); color: var(--study-ink); }
+.dashboard-redesign .goal-link-row :is(strong, small) { font-size: var(--study-text-xs); color: var(--study-ink); line-height: var(--study-line); font-weight: 500; }
+.dashboard-redesign .goal-link-row small { color: var(--study-muted); }
+.dashboard-redesign .workspace :is(.todo-repeat-note, .todo-date-shortcuts) { border: 1px solid var(--study-border); border-radius: var(--study-control-radius); background: var(--study-surface); color: var(--study-muted); box-shadow: none; font-size: var(--study-text-xs); line-height: var(--study-line); }
+.dashboard-redesign .workspace :is(.todo-repeat-details, .todo-time-details) label { font-size: var(--study-text-xs); color: var(--study-ink); }
+.dashboard-redesign .todo-modal-summary :is(strong, span) { color: var(--study-ink); font-size: var(--study-text-sm); font-weight: 650; }
+.dashboard-redesign .todo-modal-summary :is(p, small) { color: var(--study-muted); font-size: var(--study-text-xs); }
+.dashboard-redesign .session-reflection-modal > p { color: var(--study-muted); font-size: var(--study-text-sm); line-height: var(--study-line); }
+.dashboard-redesign .reflection-score-field legend { color: var(--study-ink); font-size: var(--study-text-sm); font-weight: 650; }
+.dashboard-redesign .reflection-score-field > div { grid-template-columns: repeat(5, minmax(44px, 1fr)); gap: var(--study-space-2); }
+.dashboard-redesign .reflection-score-field button svg { display: none; }
+.dashboard-redesign .workspace .reflection-field { font-size: var(--study-text-sm); color: var(--study-ink); font-weight: 650; }
+.dashboard-redesign .workspace :is(.daily-habit-card, .goal-hero-card), .dashboard-redesign .dashboard-record-overview .study-summary > div { border: 1px solid var(--study-border); border-radius: var(--study-radius); padding: var(--study-space-4); background: var(--study-soft); color: var(--study-ink); box-shadow: none; }
+.dashboard-redesign :is(.daily-habit-card, .goal-hero-card)::after { display: none; }
+.dashboard-redesign :is(.daily-habit-copy, .goal-hero-card) h3 { font-size: var(--study-text-xl); line-height: 1.4; color: var(--study-ink); }
+.dashboard-redesign :is(.daily-habit-copy p, .study-summary span) { font-size: var(--study-text-xs); line-height: var(--study-line); color: var(--study-muted); font-weight: 500; }
+.dashboard-redesign .daily-habit-milestones li { border: 1px solid var(--study-border); border-radius: var(--study-control-radius); background: var(--study-surface); padding: var(--study-space-3); color: var(--study-muted); transform: none; }
+.dashboard-redesign .daily-habit-milestones li.current { border-color: var(--study-primary); background: var(--study-surface); }
+.dashboard-redesign .daily-habit-milestones li.completed { border-color: var(--study-primary); background: var(--study-soft); }
+.dashboard-redesign .daily-habit-milestones :is(strong, small) { font-size: var(--study-text-xs); color: var(--study-ink); line-height: 1.5; font-weight: 600; }
+.dashboard-redesign .daily-habit-milestones small { color: var(--study-muted); font-weight: 500; }
+.dashboard-redesign .daily-habit-step-icon { border-width: 1px; background: var(--study-surface); color: var(--study-primary); }
+.dashboard-redesign .workspace .todo-badge { min-width: 24px; height: 24px; padding: 0 var(--study-space-1); border: 0; background: var(--study-primary); color: var(--study-surface); font-size: var(--study-text-xs); box-shadow: none; }
+.dashboard-redesign .tech-feed :is(.feed-language-filter > span, .feed-language-filter button, .feed-language-filter button small, .feed-summary p, .feed-topic-tags span, .feed-filters label, .feed-summary dt, .feed-subscriptions label, .feed-briefing-totals span, .feed-briefing-meta, .feed-briefing-status, .feed-highlight-disclosure, .feed-card small) { font-size: var(--study-text-xs); line-height: 1.5; }
+.dashboard-redesign .tech-feed .feed-language-filter button { min-height: 44px; color: var(--study-primary); background: var(--study-surface); border-color: var(--study-border); }
+.dashboard-redesign .tech-feed .feed-language-filter button small { opacity: 1; color: inherit; }
+.dashboard-redesign .tech-feed .feed-language-filter button[aria-pressed=true] { color: var(--study-surface); background: var(--study-primary); border-color: var(--study-primary); }
+.dashboard-redesign .workspace :is(.todo-time-chip, .field-help, .profile-timezone small, .weekly-review-period span, .weekly-review-period strong, .weekly-review-trend, .weekly-habit-stats p, .weekly-habit-day span, .weekly-habit-day > strong, .weekly-habit-heading > span, .todo-link-head span, .plan-copy-modal small, .plan-copy-modal .weekday, .calendar-controls label, .calendar-controls > strong, .calendar-weekdays span, .calendar-legend span) { font-size: var(--study-text-xs); line-height: 1.5; color: var(--study-muted); }
+.dashboard-redesign .tech-feed :is(.feed-settings-panel > summary, .feed-settings-panel > summary span, .feed-daily-briefing header p, .feed-filter-heading, .feed-active-filters, .feed-filter-reset, .feed-freshness-note, .feed-avatar, .feed-evidence span, .feed-evidence a, .feed-card-actions button, .feed-card-actions a, .feed-interest-settings p, .feed-briefing-disclosure, .feed-list-head small) { font-size: var(--study-text-xs); line-height: 1.5; }
+.dashboard-redesign .study-forest-3d-shell .study-forest-3d-badge span { font-size: var(--study-text-xs); color: var(--study-surface); background: var(--study-primary); line-height: 1.5; }
 
 .dashboard-redesign .workspace :is(.history-panel, .settings-panel, .tech-feed, .today-task-panel) {
   width: 100%;
@@ -285,6 +398,7 @@
 .dashboard-redesign .workspace :is(.weekly-habit-rhythm, .weekly-review-card, .reflection-inbox, .adaptive-reminder-card, .recovery-summary-panel, .notification-channel-card) :is(p, li, small) { color: var(--study-muted); font-size: var(--study-text-xs); font-weight: 500; line-height: var(--study-line); }
 .dashboard-redesign .workspace :is(.adaptive-reminder-copy, .adaptive-reminder-time, .recovery-summary-grid span, .weekly-habit-stage, .weekly-habit-day-name, .weekly-habit-stats span, .reflection-inbox-copy > span) { color: var(--study-muted); font-size: var(--study-text-xs); line-height: var(--study-line); }
 .dashboard-redesign .workspace .weekly-review-score :is(strong, span, p, small) { color: var(--study-surface); }
+.dashboard-redesign .workspace .weekly-review-score :is(.weekly-review-trend, .trend-up, .trend-down) { font-size: var(--study-text-xs); }
 .dashboard-redesign .workspace .weekly-friction-sign { background: var(--study-soft); border-color: var(--study-border); color: var(--study-ink); box-shadow: none; }
 .dashboard-redesign .workspace .weekly-friction-sign :is(h4, .eyebrow, .weekly-friction-count) { color: var(--study-ink); font-size: var(--study-text-xs); }
 
@@ -350,12 +464,23 @@
 .dashboard-redesign .workspace :is(.weekly-data-quality, .focus-status-warning) { background: var(--study-warning-bg); border: 1px solid var(--study-border); border-radius: var(--study-control-radius); color: var(--study-warning); box-shadow: none; }
 
 @media (hover: hover) {
+  .login-shell .primary:not(:disabled):hover { background: var(--study-primary-hover); }
+  .login-shell :is(.secondary, .google-login):not(:disabled):hover { background: var(--study-soft); border-color: var(--study-primary); }
+  .dashboard-redesign .workspace :is(.break-return-actions, .todo-mode-toggle, .weekday-picker, .reflection-score-field) button:not(:disabled):not(.selected):hover { background: var(--study-soft); border-color: var(--study-primary); }
   .dashboard-redesign .workspace :is(.secondary, .plain, .modal-close):not(:disabled):hover { background: var(--study-soft); border-color: var(--study-primary); transform: none; box-shadow: none; }
   .dashboard-redesign .workspace .primary:not(:disabled):hover { background: var(--study-primary-hover); border-color: var(--study-primary-hover); transform: none; box-shadow: none; }
   .dashboard-redesign .forest-customizer-options .forest-item-card:not(:disabled):hover { border-color: var(--study-primary); box-shadow: none; transform: none; }
 }
 @media (max-width: 1000px) { .dashboard-redesign .study-forest-grid { grid-template-columns: minmax(0, 1fr); } }
 @media (max-width: 800px) {
+  .login-shell { padding: var(--study-space-4); }
+  .login-shell .login-panel { padding: var(--study-space-6); }
+  .dashboard-redesign .workspace .recovery-precheck { grid-template-columns: minmax(0, 1fr); padding: var(--study-space-4); }
+  .dashboard-redesign .workspace .session-break { padding: var(--study-space-4); }
+  .dashboard-redesign .break-return-plan { align-items: stretch; }
+  .dashboard-redesign .break-return-actions { flex-wrap: wrap; }
+  .dashboard-redesign .break-return-presets button { flex: 1; }
+  .dashboard-redesign .reflection-score-grid { grid-template-columns: minmax(0, 1fr); }
   .dashboard-redesign .workspace :is(.history-panel, .settings-panel, .tech-feed, .today-task-panel) { padding: var(--study-space-4); }
   .dashboard-redesign .workspace :is(.history-header, .settings-header, .section-heading, .feed-header) h2 { font-size: var(--study-text-xl); }
   .dashboard-redesign .workspace .todo-modal { padding: var(--study-space-4); }

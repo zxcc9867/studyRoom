@@ -232,7 +232,8 @@ if(mode==='start'||mode==='recovery'){state.sessions=[];state.todos.forEach(t=>t
 state.recoveries=mode==='recovery'?[{id:'recovery',local_date:'2026-09-20',covered_start_date:'2026-09-20',covered_end_date:'2026-09-20',covered_missed_days:1,trigger_type:'missed_attendance',status:'pending',reason:null,makeup_todo_title:null,pledge_todo_title:null,created_at:now}]:[];
 if(mode==='lease')state.sessions[0].lease_expires_at='2026-09-21T14:34:00Z';
 if(mode==='unknown'){state.current=null;state.sessions[0].paused_at=now;state.todos.forEach(t=>{t.first_started_at=null;t.unknown_allocation=true;t.evaluation_eligible=false;});}
-const authSession={access_token:'test-only',user:{id:'owner',email:'fixture@example.test',user_metadata:{}}};
+if(mode==='precheck'){state.sessions=[];state.recoveries=Array.from({length:5},(_,i)=>({id:'submitted-'+i,local_date:'2026-09-21',trigger_type:'missed_attendance',status:'submitted',reason:'일정 조정',makeup_todo_title:'보충 독서',pledge_todo_title:'다시 시작',created_at:now}));}
+const authSession=mode==='login'?null:{access_token:'test-only',user:{id:'owner',email:'fixture@example.test',user_metadata:{}}};
 const track=()=>({session_id:'session',current_todo_id:state.current,tracking_started_at:row.started_at,excluded_seconds:state.excluded,unknown_allocation:false,server_now:now,todos:state.todos.filter(t=>state.links.includes(t.id)).map(t=>({...t,open_started_at:state.sessions[0]?.paused_at||t.id!==state.current?null:row.started_at}))});
 function result(name,args){state.calls.push({name,args});
  if(name==='get_study_focus_snapshot')return {data:state.focusError?{device_connected:true,opted_in:true,permission_granted:true,last_error:'휴대폰 연결 테스트 오류'}:null,error:null};
@@ -263,7 +264,7 @@ async function withApp(width, run, mode='active') {
   const js=built.outputFiles.find(f=>f.path.endsWith('.js')).text, css=built.outputFiles.find(f=>f.path.endsWith('.css'))?.text||'';
   const server=createServer((req,res)=>{res.setHeader('Content-Type',req.url==='/app.js'?'text/javascript':req.url==='/app.css'?'text/css':'text/html');res.end(req.url==='/app.js'?js:req.url==='/app.css'?css:'<!doctype html><html lang="ko"><head><meta name="viewport" content="width=device-width,initial-scale=1"><link rel="stylesheet" href="/app.css"></head><body><div id="root"></div><script src="/app.js"></script></body></html>');});
   await new Promise(resolve=>server.listen(0,'127.0.0.1',resolve));let browser;
-  try {browser=await chromium.launch({headless:true,executablePath:process.env.FEED_BROWSER_EXECUTABLE||undefined,args:['--use-fake-ui-for-media-stream','--use-fake-device-for-media-stream']});const page=await browser.newPage({viewport:{width,height:960}});page.setDefaultTimeout(5000);const errors=[];page.on('pageerror',e=>errors.push(e.message));await page.clock.install({time:new Date('2026-09-21T14:30:00Z')});await page.goto('http://127.0.0.1:'+server.address().port+'?mode='+mode);await page.locator('.topbar-actions button:not([disabled])').first().waitFor();if(mode==='active'||mode==='active-empty'){await page.getByRole('dialog',{name:'카메라 인증 필요'}).waitFor();await page.keyboard.press('Escape');await page.getByRole('dialog').waitFor({state:'detached'});}await run(page);assert.deepEqual(errors,[]);}finally{await browser?.close();await new Promise(resolve=>server.close(resolve));}
+  try {browser=await chromium.launch({headless:true,executablePath:process.env.FEED_BROWSER_EXECUTABLE||undefined,args:['--use-fake-ui-for-media-stream','--use-fake-device-for-media-stream']});const page=await browser.newPage({viewport:{width,height:960}});page.setDefaultTimeout(5000);const errors=[];page.on('pageerror',e=>errors.push(e.message));await page.clock.install({time:new Date('2026-09-21T14:30:00Z')});await page.goto('http://127.0.0.1:'+server.address().port+'?mode='+mode);await page.locator(mode==='login'?'.login-panel':'.topbar-actions button:not([disabled])').first().waitFor();if(mode==='active'||mode==='active-empty'){await page.getByRole('dialog',{name:'카메라 인증 필요'}).waitFor();await page.keyboard.press('Escape');await page.getByRole('dialog').waitFor({state:'detached'});}await run(page);assert.deepEqual(errors,[]);}finally{await browser?.close();await new Promise(resolve=>server.close(resolve));}
 }
 
 
@@ -491,3 +492,103 @@ browserTest('mounted actual study panel: mobile schedule uses the full card widt
  assert.ok(valueBox.width>=panelBox.width-50,`schedule value width ${valueBox.width}px within ${panelBox.width}px panel`);
  assert.ok(valueBox.y>=labelBox.y+labelBox.height,'schedule time appears below its label');
 }));
+
+async function readableGroup(locator) {
+ assert.ok(await locator.count()>0,'visible text is present');
+ for(const text of await locator.all()) {
+  if(!await text.isVisible())continue;
+  const metric=await readableText(text);
+  assert.ok(metric.contrast>=4.5 && metric.fontSize>=14,`${await text.textContent()}: ${JSON.stringify(metric)}`);
+ }
+}
+
+async function touchControls(locator) {
+ for(const control of await locator.all()) {
+  if(!await control.isVisible())continue;
+  const box=await control.boundingBox();
+  assert.ok(box.height>=44 && box.width>=44,`${await control.textContent()}: ${JSON.stringify(box)}`);
+ }
+}
+
+for(const width of [375,1440]) {
+ browserTest(`design completeness: break and return promise use calm cards and accessible actions at ${width}px`,()=>withApp(width,async page=>{
+  await page.getByRole('button',{name:'잠시 쉬기',exact:true}).click();
+  const card=page.locator('.session-break');await card.waitFor();
+  await designSnapshot(page,'break-complete',width);
+  await readableGroup(card.locator('span:not(.session-break-icon),strong,small,p,button'));
+  await touchControls(card.locator('button'));
+  assert.equal(await card.evaluate(el=>getComputedStyle(el).backgroundImage),'none');
+  assert.equal(await card.locator('.break-return-plan').evaluate(el=>getComputedStyle(el).borderTopWidth),'1px');
+  assert.equal(await page.locator('.dashboard-attendance').textContent(),'휴식 중');
+  assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),true);
+ }));
+
+ browserTest(`design completeness: precheck uses common card and readable copy at ${width}px`,()=>withApp(width,async page=>{
+  const card=page.locator('.recovery-precheck');await card.waitFor();
+  await designSnapshot(page,'precheck-complete',width);
+  assert.equal(await card.evaluate(el=>getComputedStyle(el).borderTopWidth),'1px');
+  assert.equal(await card.evaluate(el=>getComputedStyle(el).boxShadow),'none');
+  await readableGroup(card.locator('p,strong'));
+  assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),true);
+ },'precheck'));
+
+ browserTest(`design completeness: camera header and messages remain legible at ${width}px`,()=>withApp(width,async page=>{
+  const tools=page.locator('.focus-tools');await tools.locator('summary').first().click();
+  await readableGroup(tools.locator('.camera-monitor-head,.camera-message,.camera-warning-note,.session-lease span,.session-lease small'));
+  await readableGroup(page.locator('.dashboard-page-heading p,.dashboard-attendance,.focus-attendance-rule,.session-clock > span,.focus-plan-card small,.focus-record-link,.focus-tools > summary > span'));
+ }));
+
+ browserTest(`design completeness: edit time and repeat choices have AA contrast and touch targets at ${width}px`,()=>withApp(width,async page=>{
+  await page.getByRole('button',{name:'계획',exact:true}).click();
+  await page.locator('.todo-edit').first().click();
+  const dialog=page.locator('.todo-modal');await dialog.waitFor();
+  await designSnapshot(page,'edit-complete',width);
+  await readableGroup(dialog.locator('.todo-mode-toggle button,.weekday-picker button,.goal-link-row'));
+  await touchControls(dialog.locator('.todo-mode-toggle button,.weekday-picker button'));
+  await page.keyboard.press('Escape');await dialog.waitFor({state:'detached'});
+  await page.locator('a[href="#goals"]:visible').first().click();
+  await page.getByRole('button',{name:'새 목표',exact:true}).click();
+  await page.locator('.goal-link-panel').waitFor();
+  await readableGroup(page.locator('.goal-link-row strong,.goal-link-row small'));
+  assert.equal(await page.locator('.goal-link-panel').evaluate(el=>getComputedStyle(el).borderTopWidth),'1px');
+  assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),true);
+ }));
+
+ browserTest(`design completeness: reflection score and heading share dialog hierarchy at ${width}px`,()=>withApp(width,async page=>{
+  await page.locator('.topbar-actions').getByRole('button',{name:'종료',exact:true}).click();
+  const dialog=page.locator('.session-reflection-modal');await dialog.waitFor();
+  await designSnapshot(page,'reflection-complete',width);
+  await readableGroup(dialog.locator('.reflection-score-field button,legend'));
+  await touchControls(dialog.locator('.reflection-score-field button'));
+  const heading=await dialog.getByRole('heading').boundingBox(),close=await dialog.getByRole('button',{name:'회고 닫기',exact:true}).boundingBox();
+  assert.ok(close.y<heading.y+heading.height && close.x>heading.x,'close is beside the heading');
+  await page.keyboard.press('Escape');await dialog.waitFor({state:'detached'});
+  assert.equal(await page.evaluate(()=>fixture.sessions[0].ended_at),null);
+ }));
+
+ browserTest(`design completeness: record milestones use readable calm surfaces at ${width}px`,()=>withApp(width,async page=>{
+  await page.getByRole('button',{name:'기록',exact:true}).click();
+  await readableGroup(page.locator('.daily-habit-card small,.daily-habit-card p,.study-summary span'));
+  assert.equal(await page.locator('.study-summary > div').first().evaluate(el=>getComputedStyle(el).borderTopWidth),'1px');
+  assert.equal(await page.locator('.daily-habit-card').evaluate(el=>getComputedStyle(el).backgroundImage),'none');
+ }));
+
+ browserTest(`design completeness: feed language controls and scene badges have readable text at ${width}px`,()=>withApp(width,async page=>{
+  await page.locator('a[href="#feed"]:visible').first().click();await page.locator('.tech-feed').waitFor();
+  await readableGroup(page.locator('.feed-language-filter label,.feed-language-filter button,.feed-language-filter button small,.feed-summary p,.feed-evidence span,.feed-card-actions a,.feed-card-actions button,.feed-settings-panel > summary,.feed-daily-briefing header p'));
+  await touchControls(page.locator('.feed-language-filter button'));
+  await page.locator('a[href="#forest"]:visible').first().click();
+  await page.locator('.study-forest-3d-badge').waitFor();
+  await readableGroup(page.locator('.study-forest-3d-badge span'));
+ }));
+
+ browserTest(`design completeness: login shares paper and accessible type at ${width}px`,()=>withApp(width,async page=>{
+  const panel=page.locator('.login-panel');await panel.waitFor();await designSnapshot(page,'login-complete',width);
+  assert.equal(await panel.evaluate(el=>getComputedStyle(el).backgroundColor),'rgb(255, 253, 245)');
+  assert.equal(await panel.evaluate(el=>getComputedStyle(el).borderTopWidth),'1px');
+  assert.ok(await panel.locator('h1').evaluate(el=>parseFloat(getComputedStyle(el).fontSize)<=32));
+  await readableGroup(panel.locator('p,label,button,.login-divider span'));
+  await touchControls(panel.locator('button,input'));
+  assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),true);
+ },'login'));
+}

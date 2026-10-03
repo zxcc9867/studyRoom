@@ -35,18 +35,18 @@ const emailOtpLength = 8;
 WebBrowser.maybeCompleteAuthSession();
 
 const mobilePalette = {
-  canvas: "#d9f0e3",
-  surface: "#fff9df",
-  surfaceWarm: "#fff6c7",
+  canvas: "#f3f4ed",
+  surface: "#fffdf5",
+  surfaceWarm: "#edf3ea",
   primary: "#2f6b52",
-  primarySoft: "#dff4cd",
-  border: "#4f916f",
-  gold: "#f0c85c",
-  goldDark: "#bf9736",
-  coral: "#bf5c42",
-  text: "#2f2a1f",
-  muted: "#5a513d",
-  softBorder: "#d2b56f",
+  primarySoft: "#edf3ea",
+  border: "#d7ddd2",
+  gold: "#fff1d3",
+  goldDark: "#805b20",
+  coral: "#9a3f33",
+  text: "#28372e",
+  muted: "#4e5b50",
+  softBorder: "#d7ddd2",
 } as const;
 
 type Profile = {
@@ -740,14 +740,15 @@ export default function App() {
     return (
       <SafeAreaView style={styles.screen}>
         <StatusBar barStyle="dark-content" backgroundColor={mobilePalette.canvas} />
+        <ScrollView contentContainerStyle={styles.loginContent} keyboardShouldPersistTaps="handled">
         <View style={styles.loginPanel}>
-          <Text style={styles.kicker}>forced attendance</Text>
-          <Text style={styles.title}>오늘도 독서실에 들어갈 시간</Text>
+          <Text style={styles.kicker}>STUDY ROOM</Text>
+          <Text style={styles.title}>독서실에 로그인</Text>
           <Text style={styles.copy}>
             웹에서 쓰던 같은 Google 계정 또는 이메일로 로그인하세요. 공부 기록과 기술 피드가 함께 연결됩니다.
           </Text>
-          <Pressable accessibilityRole="button" style={styles.secondaryButton} onPress={() => void loginWithGoogle()} disabled={busy || googleBusy} accessibilityState={{ disabled: busy || googleBusy, busy: googleBusy }}>
-            <Text style={styles.secondaryButtonText}>{googleBusy ? "Google 로그인 연결 중…" : "Google로 계속하기"}</Text>
+          <Pressable accessibilityRole="button" style={[styles.secondaryButton, (busy || googleBusy) && styles.disabledButton]} onPress={() => void loginWithGoogle()} disabled={busy || googleBusy} accessibilityState={{ disabled: busy || googleBusy, busy: googleBusy }}>
+            <Text style={[styles.secondaryButtonText, (busy || googleBusy) && styles.disabledButtonText]}>{googleBusy ? "Google 로그인 연결 중…" : "Google로 계속하기"}</Text>
           </Pressable>
           <Text style={styles.copy}>또는 이메일로 {emailOtpLength}자리 코드 받기</Text>
           <TextInput
@@ -756,6 +757,7 @@ export default function App() {
             autoCapitalize="none"
             keyboardType="email-address"
             placeholder="email@example.com"
+            accessibilityLabel="이메일"
             placeholderTextColor={mobilePalette.muted}
             style={styles.input}
           />
@@ -766,21 +768,23 @@ export default function App() {
               keyboardType="number-pad"
               textContentType="oneTimeCode"
               placeholder="12345678"
+              accessibilityLabel="8자리 인증 코드"
               placeholderTextColor={mobilePalette.muted}
               style={styles.input}
             />
           )}
-          <Pressable accessibilityRole="button" style={styles.primaryButton} onPress={requestCode} disabled={busy || googleBusy}>
-            <Text style={styles.primaryButtonText}>
+          <Pressable accessibilityRole="button" style={[styles.primaryButton, (busy || googleBusy) && styles.disabledButton]} onPress={requestCode} disabled={busy || googleBusy} accessibilityState={{ disabled: busy || googleBusy, busy }}>
+            <Text style={[styles.primaryButtonText, (busy || googleBusy) && styles.disabledButtonText]}>
               {busy ? "전송 중..." : resendSeconds > 0 ? `${resendSeconds}초 후 재전송` : codeSent ? "코드 다시 받기" : "코드 받기"}
             </Text>
           </Pressable>
           {codeSent && (
-            <Pressable accessibilityRole="button" style={styles.secondaryButton} onPress={verifyCode} disabled={busy || googleBusy}>
-              <Text style={styles.secondaryButtonText}>코드로 로그인</Text>
+            <Pressable accessibilityRole="button" style={[styles.secondaryButton, (busy || googleBusy) && styles.disabledButton]} onPress={verifyCode} disabled={busy || googleBusy} accessibilityState={{ disabled: busy || googleBusy }}>
+              <Text style={[styles.secondaryButtonText, (busy || googleBusy) && styles.disabledButtonText]}>코드로 로그인</Text>
             </Pressable>
           )}
         </View>
+        </ScrollView>
       </SafeAreaView>
     );
   }
@@ -922,7 +926,7 @@ export default function App() {
               onPress={addQuickTodo}
               disabled={busy || Boolean(activeSession)}
             >
-              <Text style={styles.quickTodoButtonText}>추가</Text>
+              <Text style={[styles.quickTodoButtonText, activeSession && styles.disabledButtonText]}>추가</Text>
             </Pressable>
           </View>
         </View>
@@ -935,7 +939,7 @@ export default function App() {
             onPress={!activeSession ? startTimer : activeSessionPaused ? resumeTimer : pauseTimer}
             disabled={busy || (!activeSession && selectedSessionTodoIds.length === 0)}
           >
-            <Text style={activeSession && !activeSessionPaused ? styles.breakButtonText : styles.primaryButtonText}>
+            <Text style={[activeSession && !activeSessionPaused ? styles.breakButtonText : styles.primaryButtonText, !activeSession && selectedSessionTodoIds.length === 0 && styles.disabledButtonText]}>
               {!activeSession ? "입장하고 타이머 시작" : activeSessionPaused ? "공부 계속하기" : "잠시 쉬기"}
             </Text>
           </Pressable>
@@ -944,7 +948,7 @@ export default function App() {
             onPress={openReflection}
             disabled={busy || !activeSession}
           >
-            <Text style={styles.dangerButtonText}>퇴실하고 종료</Text>
+            <Text style={[styles.dangerButtonText, !activeSession && styles.disabledButtonText]}>퇴실하고 종료</Text>
           </Pressable>
         </View>
 
@@ -1175,7 +1179,7 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: mobilePalette.border,
   },
-  webNativeStatus: { width: "100%", color: mobilePalette.primary, fontSize: 12, fontWeight: "700" },
+  webNativeStatus: { width: "100%", color: mobilePalette.primary, fontSize: 14, fontWeight: "700" },
   webNativeAction: {
     minHeight: 44,
     justifyContent: "center",
@@ -1184,7 +1188,7 @@ const styles = StyleSheet.create({
     borderColor: mobilePalette.border,
     paddingHorizontal: 12,
   },
-  webNativeActionText: { color: mobilePalette.primary, fontWeight: "800", fontSize: 13 },
+  webNativeActionText: { color: mobilePalette.primary, fontWeight: "700", fontSize: 14 },
   screen: {
     flex: 1,
     backgroundColor: mobilePalette.canvas,
@@ -1200,56 +1204,62 @@ const styles = StyleSheet.create({
     paddingBottom: 36,
     gap: 16,
   },
-  loginPanel: {
-    flex: 1,
+  loginContent: {
+    flexGrow: 1,
     justifyContent: "center",
-    margin: 18,
-    borderWidth: 3,
+    padding: 24,
+  },
+  loginPanel: {
+    width: "100%",
+    maxWidth: 560,
+    alignSelf: "center",
+    borderWidth: 1,
     borderColor: mobilePalette.border,
     borderRadius: 16,
     backgroundColor: mobilePalette.surface,
     padding: 24,
     gap: 18,
     shadowColor: mobilePalette.primary,
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.24,
-    shadowRadius: 0,
-    elevation: 5,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.03,
+    shadowRadius: 8,
+    elevation: 1,
   },
   header: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
     gap: 16,
-    borderWidth: 3,
+    borderWidth: 1,
     borderColor: mobilePalette.border,
-    borderRadius: 14,
+    borderRadius: 16,
     backgroundColor: mobilePalette.surface,
     padding: 18,
     shadowColor: mobilePalette.primary,
-    shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.2,
-    shadowRadius: 0,
-    elevation: 4,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.03,
+    shadowRadius: 8,
+    elevation: 1,
   },
   kicker: {
     color: mobilePalette.coral,
-    fontSize: 12,
-    fontWeight: "800",
+    fontSize: 14,
+    fontWeight: "700",
     letterSpacing: 0,
     textTransform: "uppercase",
   },
   title: {
     color: mobilePalette.primary,
-    fontSize: 32,
-    fontWeight: "900",
+    fontSize: 30,
+    lineHeight: 41,
+    fontWeight: "700",
     letterSpacing: 0,
   },
   copy: {
     color: mobilePalette.muted,
     fontSize: 15,
-    lineHeight: 22,
-    fontWeight: "600",
+    lineHeight: 25,
+    fontWeight: "400",
   },
   focusError: {
     color: mobilePalette.coral,
@@ -1258,22 +1268,22 @@ const styles = StyleSheet.create({
     fontWeight: "700",
   },
   statusPanel: {
-    borderWidth: 3,
+    borderWidth: 1,
     borderColor: mobilePalette.border,
-    borderRadius: 14,
+    borderRadius: 16,
     backgroundColor: mobilePalette.surfaceWarm,
     padding: 20,
     gap: 9,
   },
   statusLabel: {
     color: mobilePalette.coral,
-    fontSize: 13,
-    fontWeight: "900",
+    fontSize: 14,
+    fontWeight: "700",
   },
   statusValue: {
     color: mobilePalette.primary,
     fontSize: 42,
-    fontWeight: "900",
+    fontWeight: "700",
   },
   row: {
     flexDirection: "row",
@@ -1283,7 +1293,7 @@ const styles = StyleSheet.create({
     flex: 1,
     minHeight: 108,
     justifyContent: "center",
-    borderWidth: 2,
+    borderWidth: 1,
     borderColor: mobilePalette.softBorder,
     borderRadius: 12,
     backgroundColor: mobilePalette.surface,
@@ -1292,7 +1302,7 @@ const styles = StyleSheet.create({
   metricValue: {
     color: mobilePalette.primary,
     fontSize: 24,
-    fontWeight: "900",
+    fontWeight: "700",
   },
   metricLabel: {
     color: mobilePalette.muted,
@@ -1300,9 +1310,9 @@ const styles = StyleSheet.create({
     fontWeight: "700",
   },
   todoPanel: {
-    borderWidth: 2,
+    borderWidth: 1,
     borderColor: mobilePalette.border,
-    borderRadius: 14,
+    borderRadius: 16,
     backgroundColor: mobilePalette.surface,
     padding: 16,
     gap: 14,
@@ -1323,8 +1333,8 @@ const styles = StyleSheet.create({
     color: mobilePalette.primary,
     paddingHorizontal: 10,
     paddingVertical: 6,
-    fontSize: 12,
-    fontWeight: "900",
+    fontSize: 14,
+    fontWeight: "700",
   },
   todoChoices: {
     gap: 8,
@@ -1334,7 +1344,7 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     gap: 11,
-    borderWidth: 2,
+    borderWidth: 1,
     borderColor: mobilePalette.softBorder,
     borderRadius: 11,
     backgroundColor: mobilePalette.surfaceWarm,
@@ -1350,7 +1360,7 @@ const styles = StyleSheet.create({
     height: 24,
     alignItems: "center",
     justifyContent: "center",
-    borderWidth: 2,
+    borderWidth: 1,
     borderColor: mobilePalette.border,
     borderRadius: 7,
     backgroundColor: mobilePalette.surface,
@@ -1360,13 +1370,13 @@ const styles = StyleSheet.create({
   },
   todoCheckText: {
     color: mobilePalette.surface,
-    fontWeight: "900",
+    fontWeight: "700",
   },
   todoChoiceText: {
     flex: 1,
     color: mobilePalette.text,
     fontSize: 15,
-    fontWeight: "800",
+    fontWeight: "700",
   },
   emptyTodo: {
     color: mobilePalette.muted,
@@ -1391,15 +1401,15 @@ const styles = StyleSheet.create({
   },
   quickTodoButtonText: {
     color: mobilePalette.surface,
-    fontWeight: "900",
+    fontWeight: "700",
   },
   controls: {
     gap: 12,
   },
   settings: {
-    borderWidth: 2,
+    borderWidth: 1,
     borderColor: mobilePalette.border,
-    borderRadius: 14,
+    borderRadius: 16,
     backgroundColor: mobilePalette.surface,
     padding: 18,
     gap: 12,
@@ -1407,13 +1417,13 @@ const styles = StyleSheet.create({
   sectionTitle: {
     color: mobilePalette.primary,
     fontSize: 20,
-    fontWeight: "900",
+    fontWeight: "700",
   },
   input: {
     minHeight: 52,
     borderRadius: 10,
     borderColor: mobilePalette.softBorder,
-    borderWidth: 2,
+    borderWidth: 1,
     backgroundColor: mobilePalette.surface,
     color: mobilePalette.text,
     paddingHorizontal: 14,
@@ -1427,14 +1437,14 @@ const styles = StyleSheet.create({
     backgroundColor: mobilePalette.primary,
     paddingHorizontal: 16,
     shadowColor: mobilePalette.text,
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.22,
-    shadowRadius: 0,
-    elevation: 3,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.03,
+    shadowRadius: 8,
+    elevation: 1,
   },
   primaryButtonText: {
     color: mobilePalette.surface,
-    fontWeight: "900",
+    fontWeight: "700",
     fontSize: 16,
   },
   breakButton: {
@@ -1445,14 +1455,14 @@ const styles = StyleSheet.create({
     backgroundColor: mobilePalette.gold,
     paddingHorizontal: 16,
     shadowColor: mobilePalette.goldDark,
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 1,
-    shadowRadius: 0,
-    elevation: 3,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.03,
+    shadowRadius: 8,
+    elevation: 1,
   },
   breakButtonText: {
     color: mobilePalette.text,
-    fontWeight: "900",
+    fontWeight: "700",
     fontSize: 16,
   },
   dangerButton: {
@@ -1463,14 +1473,14 @@ const styles = StyleSheet.create({
     backgroundColor: mobilePalette.coral,
     paddingHorizontal: 16,
     shadowColor: "#8b3e2f",
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 1,
-    shadowRadius: 0,
-    elevation: 3,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.03,
+    shadowRadius: 8,
+    elevation: 1,
   },
   dangerButtonText: {
     color: mobilePalette.surface,
-    fontWeight: "900",
+    fontWeight: "700",
     fontSize: 15,
   },
   secondaryButton: {
@@ -1478,56 +1488,65 @@ const styles = StyleSheet.create({
     borderRadius: 10,
     alignItems: "center",
     justifyContent: "center",
-    backgroundColor: mobilePalette.gold,
+    backgroundColor: mobilePalette.surface,
+    borderWidth: 1,
+    borderColor: mobilePalette.border,
     paddingHorizontal: 16,
     shadowColor: mobilePalette.goldDark,
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 1,
-    shadowRadius: 0,
-    elevation: 3,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.03,
+    shadowRadius: 8,
+    elevation: 1,
   },
   secondaryButtonText: {
-    color: mobilePalette.text,
-    fontWeight: "900",
+    color: mobilePalette.primary,
+    fontWeight: "700",
     fontSize: 15,
   },
   ghostButton: {
-    borderWidth: 2,
+    minHeight: 44,
+    justifyContent: "center",
+    borderWidth: 1,
     borderColor: mobilePalette.border,
-    borderRadius: 999,
+    borderRadius: 10,
     backgroundColor: mobilePalette.primarySoft,
     paddingHorizontal: 12,
     paddingVertical: 10,
   },
   ghostButtonText: {
     color: mobilePalette.primary,
-    fontWeight: "900",
+    fontWeight: "700",
+    fontSize: 15,
   },
   disabledButton: {
-    opacity: 0.45,
+    opacity: 1,
+    backgroundColor: "#e6ebe4",
+  },
+  disabledButtonText: {
+    color: "#5e695f",
   },
   breakPanel: {
-    borderWidth: 2,
+    borderWidth: 1,
     borderColor: mobilePalette.goldDark,
-    borderRadius: 14,
-    backgroundColor: "#fff2b8",
+    borderRadius: 16,
+    backgroundColor: mobilePalette.gold,
     padding: 18,
     gap: 6,
   },
   breakLabel: {
-    color: "#8a4f23",
-    fontSize: 12,
-    fontWeight: "900",
+    color: mobilePalette.goldDark,
+    fontSize: 14,
+    fontWeight: "700",
   },
   breakValue: {
-    color: "#6f3f20",
+    color: mobilePalette.goldDark,
     fontSize: 24,
-    fontWeight: "900",
+    fontWeight: "700",
   },
   leasePanel: {
-    borderWidth: 2,
+    borderWidth: 1,
     borderColor: mobilePalette.goldDark,
-    borderRadius: 14,
+    borderRadius: 16,
     backgroundColor: mobilePalette.surfaceWarm,
     padding: 18,
     gap: 12,
@@ -1540,7 +1559,7 @@ const styles = StyleSheet.create({
   },
   reflectionModal: {
     maxHeight: "92%",
-    borderWidth: 3,
+    borderWidth: 1,
     borderColor: mobilePalette.border,
     borderRadius: 16,
     backgroundColor: mobilePalette.surface,
@@ -1553,7 +1572,7 @@ const styles = StyleSheet.create({
   fieldLabel: {
     color: mobilePalette.text,
     fontSize: 15,
-    fontWeight: "900",
+    fontWeight: "700",
   },
   scoreField: {
     gap: 8,
@@ -1567,7 +1586,7 @@ const styles = StyleSheet.create({
     minHeight: 44,
     alignItems: "center",
     justifyContent: "center",
-    borderWidth: 2,
+    borderWidth: 1,
     borderColor: mobilePalette.softBorder,
     borderRadius: 10,
     backgroundColor: mobilePalette.surfaceWarm,
@@ -1578,7 +1597,7 @@ const styles = StyleSheet.create({
   },
   scoreChoiceText: {
     color: mobilePalette.primary,
-    fontWeight: "900",
+    fontWeight: "700",
   },
   reasonChoices: {
     flexDirection: "row",
@@ -1586,7 +1605,9 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   reasonChoice: {
-    borderWidth: 2,
+    minHeight: 44,
+    justifyContent: "center",
+    borderWidth: 1,
     borderColor: mobilePalette.softBorder,
     borderRadius: 999,
     backgroundColor: mobilePalette.surfaceWarm,
@@ -1599,7 +1620,7 @@ const styles = StyleSheet.create({
   },
   reasonChoiceText: {
     color: mobilePalette.text,
-    fontWeight: "800",
+    fontWeight: "700",
   },
   noteInput: {
     minHeight: 96,

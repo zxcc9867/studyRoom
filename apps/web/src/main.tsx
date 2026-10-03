@@ -4808,7 +4808,7 @@ function DashboardApp() {
       <main className="login-shell">
         <section className="login-panel" onPaste={handleLoginPaste}>
           <p className="eyebrow">forced attendance</p>
-          <h1>매일 같은 시간, 독서실 입장</h1>
+          <h1>독서실에 로그인</h1>
           <p className="login-copy">
             이메일로 받은 8자리 코드를 입력하면 로그인됩니다. 알림 후 30분 안에 타이머를 시작하거나,
             오늘 목표 시간을 채우면 출석으로 인정됩니다.
@@ -4916,7 +4916,7 @@ function DashboardApp() {
         )}
         {activeSection === "today" && (
           <>
-            <div className="dashboard-page-heading"><div><p>{new Intl.DateTimeFormat("ko-KR", { timeZone, month: "long", day: "numeric", weekday: "long" }).format(new Date(nowMs))}</p><h1>오늘의 공부</h1></div><span className="dashboard-attendance">{dashboardReady ? attendanceDays.find(day => day.local_date === todayDateKey)?.status === "present" ? "출석 완료" : activeSession ? "공부 중" : "시작 준비" : "기록 확인 중"}</span></div>
+            <div className="dashboard-page-heading"><div><p>{new Intl.DateTimeFormat("ko-KR", { timeZone, month: "long", day: "numeric", weekday: "long" }).format(new Date(nowMs))}</p><h1>오늘의 공부</h1></div><span className="dashboard-attendance">{dashboardReady ? activeSession ? activeSession.paused_at ? "휴식 중" : "공부 중" : attendanceDays.find(day => day.local_date === todayDateKey)?.status === "present" ? "출석 완료" : "시작 준비" : "기록 확인 중"}</span></div>
             <TodayDomainTabs activeDomain={todayDomain} onChange={setTodayDomain} />
             {sectionOrderEditing && renderTodaySectionOrderEditor()}
           </>

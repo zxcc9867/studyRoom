@@ -60,19 +60,23 @@ export default function SessionReflectionModal({
       describedBy="session-reflection-description"
       onClose={() => { if (!busy) onClose(); }}
     >
-      <button
-        className="modal-close"
-        type="button"
-        onClick={onClose}
-        aria-label={followUp ? "나중 회고 닫기" : "회고 닫기"}
-        data-dialog-initial-focus
-      >
-        <X size={22} />
-      </button>
-      <p className="eyebrow">{followUp ? "reflection follow-up" : "session reflection"}</p>
-      <h3 id="session-reflection-title">
-        {followUp ? "놓친 세션을 짧게 돌아봐요" : "오늘의 집중을 짧게 돌아봐요"}
-      </h3>
+      <div className="todo-header">
+        <div>
+          <p className="eyebrow">{followUp ? "reflection follow-up" : "session reflection"}</p>
+          <h3 id="session-reflection-title">
+            {followUp ? "놓친 세션을 짧게 돌아봐요" : "오늘의 집중을 짧게 돌아봐요"}
+          </h3>
+        </div>
+        <button
+          className="modal-close"
+          type="button"
+          onClick={onClose}
+          aria-label={followUp ? "나중 회고 닫기" : "회고 닫기"}
+          data-dialog-initial-focus
+        >
+          <X size={22} />
+        </button>
+      </div>
       <p id="session-reflection-description">
         {followUp && sessionLabel ? `${sessionLabel} 집중 세션이에요. ` : ""}
         집중과 에너지 상태를 남기면 다음 세션을 더 쉽게 시작할 수 있어요.

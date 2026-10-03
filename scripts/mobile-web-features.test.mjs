@@ -58,6 +58,56 @@ function textOf(node) {
   return [node.props?.children].flat(Infinity).map(textOf).join('');
 }
 
+test('native first login renders the shared readable theme with scroll and accessible controls', () => {
+  let stateIndex = 0;
+  const states = { 3: true, 22: false };
+  const react = {
+    useState(initial) {
+      const index = stateIndex++;
+      return [index in states ? states[index] : typeof initial === 'function' ? initial() : initial, () => {}];
+    },
+    useRef(initial) { return { current: initial }; },
+    useEffect() {},
+    useMemo(callback) { return callback(); },
+  };
+  const { default: App } = compile('apps/mobile/App.tsx', {
+    react,
+    'react/jsx-runtime': { jsx: element, jsxs: element },
+    'react-native': native,
+    './src/supabase': { supabase: {} },
+    './src/focus': {},
+    './src/notifications': {},
+    './src/WebFeatureScreen': { WebFeatureScreen: 'WebFeatureScreen' },
+  });
+  const tree = App();
+  const scroll = find(tree, (node) => node.type === 'ScrollView');
+  assert.ok(scroll, 'small screens and the keyboard must not trap login controls');
+  assert.equal(scroll.props.contentContainerStyle.flexGrow, 1);
+  const panel = find(tree, (node) => node.type === 'View' && node.props.style?.maxWidth === 560);
+  assert.equal(panel.props.style.borderWidth, 1);
+  assert.equal(panel.props.style.borderRadius, 16);
+  assert.equal(panel.props.style.backgroundColor, '#fffdf5');
+  const title = find(tree, (node) => node.type === 'Text' && textOf(node) === '독서실에 로그인');
+  assert.equal(title.props.style.fontSize, 30);
+  assert.equal(title.props.style.lineHeight, 41);
+  const description = find(tree, (node) => node.type === 'Text' && /웹에서 쓰던 같은 Google/.test(textOf(node)));
+  assert.equal(description.props.style.fontSize, 15);
+  assert.equal(description.props.style.lineHeight, 25);
+  assert.equal(description.props.style.color, '#4e5b50');
+  for (const label of ['이메일', '8자리 인증 코드']) {
+    const input = find(tree, (node) => node.type === 'TextInput' && node.props.accessibilityLabel === label);
+    assert.ok(input, label);
+    assert.ok(input.props.style.minHeight >= 44, label);
+  }
+  for (const label of ['Google로 계속하기', '코드 다시 받기', '코드로 로그인']) {
+    const button = find(tree, (node) => node.type === 'Pressable' && textOf(node) === label);
+    assert.ok(button, label);
+    assert.equal(button.props.accessibilityRole, 'button');
+    const style = Object.assign({}, ...[button.props.style].flat().filter(Boolean));
+    assert.ok(style.minHeight >= 44, label);
+  }
+});
+
 test('Android login opens the full web shell while preserving native focus and study fallback', () => {
   const states = [];
   const refs = [];
@@ -110,9 +160,23 @@ test('Android login opens the full web shell while preserving native focus and s
   const webScreen = find(tree, (node) => node.type === 'WebFeatureScreen');
   assert.equal(webScreen?.props.sessionUserId, 'user-1');
   assert.ok(find(tree, (node) => node.type === 'Pressable' && /집중 모드/.test(textOf(node))));
+  for (const label of ['집중 모드 연결', '로그아웃']) {
+    const action = find(tree, (node) => node.type === 'Pressable' && textOf(node) === label);
+    assert.ok(action.props.style.minHeight >= 44, label);
+    const text = find(action, (node) => node.type === 'Text');
+    assert.ok(text.props.style.fontSize >= 14, label);
+  }
   webScreen.props.onFallback();
   assert.equal(find(render(), (node) => node.type === 'WebFeatureScreen'), null);
   assert.ok(tablesRead.includes('profiles'), 'native fallback must continue refreshing server study data');
+  states[13] = true;
+  const reflection = find(render(), (node) => node.type === 'Modal' && node.props.visible);
+  assert.ok(reflection);
+  for (const label of ['방해 없음', '휴대폰', '기타']) {
+    const reason = find(reflection, (node) => node.type === 'Pressable' && textOf(node) === label);
+    const style = Object.assign({}, ...[reason.props.style].flat().filter(Boolean));
+    assert.ok(style.minHeight >= 44, label);
+  }
 });
 
 test('signed-in app reuses one first-party web dashboard with all six sections and no second login hint', async () => {

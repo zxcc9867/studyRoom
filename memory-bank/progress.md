@@ -1,3 +1,88 @@
+# Progress
+
+## Timeline
+
+### 2026-10-04 — 전체 페이지 디자인 웹·APK 재배포 진행
+
+#### 현재 작업 / 검증
+
+- 사용자의 “배포해줘” 승인으로 현재 작업용 checkout의 관련 디자인/테스트/문서만 main에 반영한다. 다른 untracked 산출물과 오래된 기본 checkout은 변경하지 않는다.
+- 배포 전 일반 테스트845 통과/58 브라우저 선택 생략/0 실패, 별도 실제 브라우저58/58 통과/0생략, Edge21/21, 웹 빌드/모바일 호환성·타입/README 검사 통과. EAS 검사1252개 파일에서 민감 환경·서명·APK0개와 수정 앱 코드 포함·output 제외 확인.
+- EAS preview APK는 기존 패키지·서명으로 무료 빌드하며 환경/서명 파일과 output 산출물을 제외한다. 운영 READY/HTTP·APK 완료·설치 결과는 확인 후 추가한다.
+- 집중 설정 복귀 카메라 재획득 문제와 실기기 Google 인증/방해금지·푸시 미검증은 이번 디자인 배포 완료 주장에 포함하지 않는다.
+
+### 2026-10-04 — 전체 페이지 디자인 누락 보완
+
+#### 완료한 작업
+
+- 감사 후속 승인에 따라 휴식/복귀 약속/시작 전 체크/카메라 진단·세션 유지 안내/시간·반복 선택/목표 연결/회고/기록 내부에 공통 토큰을 적용했다. 피드 원문 링크·출처·언어 필터/숲 배지/웹 로그인과 네이티브 로그인·연결·fallback도 보완했다.
+- 일반 글자 대비4.5:1/보조14px/주요 버튼44px 기준, 휴식 배지·모달 제목/닫기 정렬·네이티브 입력 이름/스크롤을 보완했다. API/DB/인증/카메라/출석/타이머 정책 변경 없음.
+- 읽기 전용 리뷰에서 Critical/Important 없음. 네이티브13px 상단 버튼/회고 선택 최소 높이 누락을 재현 테스트 후 수정했다.
+
+#### 변경된 파일
+
+- 제품7개:apps/web/src/{appTheme.css,dashboardRedesign.css,techFeed.css,main.tsx,SessionReflectionModal.tsx}, apps/mobile/{App.tsx,src/WebFeatureScreen.tsx}.
+- 테스트3개:apps/web/test/{actualStudyMounted.test.mjs,mobileNativeTheme.test.mjs}, scripts/mobile-web-features.test.mjs.
+- 문서:docs/design-fix-20261004.md, memory-bank/{active-context,progress,trouble-shooting,implementation-plan,prd-main-dashboard-redesign}.md. 비배포 전후 근거는output/design-fix-20261003에 보관한다.
+
+#### 검증 방법
+
+- 테스트 우선:16개 디자인 사례 실패→수정→통과, 추가 metadata/세션 유지/네이티브 타이포·상단·회고 터치 회귀도 실패를 먼저 확인했다.
+- 최종 npm test903건:845통과/58선택 브라우저 생략/0실패. 별도 actualStudyMounted51/51와 피드 브라우저7/7로58건 모두 통과. 웹TypeScript/Vite1726모듈 빌드, 모바일 호환성/TypeScript, README3언어/24이미지 검사 통과.
+- 1440×960/375×812 실제 main entrypoint 예시 transport에서60개 상태 캡처:진입 미완료0/가로 넘침0/14px 미만 보이는 글자0/44px 미만 높이 버튼0/모달 Tab·ESC 실패0. 숲의 장식/색상 견본 대비는 본문 판정에서 구분했다.
+- 네이티브는 실제 컴포넌트 렌더 트리·팔레트 검사이며 새 APK 실행은 아니다. lint 스크립트가 없어 린트 미실행; 서버 변경/운영 데이터 검증 없음.
+
+#### 남은 작업 / 다음 우선순위
+
+- 별도 요청 후 웹 배포와 새 APK 생성·설치/실기기 확대 글꼴·키보드·안전 영역 확인. 현재 커밋/푸시/배포 없음.
+- 집중 설정 복귀 카메라 트랙 자동 재획득 동작 문제는 이번 디자인 수정과 분리해 미해결 상태를 유지한다.
+
+### 2026-10-03 — 전체 페이지 디자인 통일 재점검 (수정 미실행)
+
+#### 완료한 작업
+
+- 사용자 첨부 휴식/복귀 약속과 시작 전 체크의 legacy 디자인을 actual main entrypoint로 재현했다. 6개 탭·집중/계획/기록·편집/회고/세션/회복/일정 충돌 모달·카메라 상세·피드 설정·숲 성장 등을1440/375px에서 점검했다.
+- 카메라 헤더1.04:1, 할 일 선택3.54:1/34~38px, 회고 점수4.36:1을 확인했다. 기록/목표 연결/피드 보조문자/로그인에 남은 전용 스타일과 부분 선택자 적용 원인을 정리했다.
+- 기존 테마 통일 완료 범위가 기본 탭과 선정한 상태 중심이었음을 분리하고 docs/design-audit-20261003.md에 화면/문제/근거/영향도/개선 방향·Top5를 기록했다.
+
+#### 변경된 파일
+
+- docs/design-audit-20261003.md, output/design-audit-20261003의 비배포 진단 스크립트/스크린샷/JSON, memory-bank/{active-context,progress,trouble-shooting}.md. 제품 소스 변경 없음.
+
+#### 검증 방법
+
+- 로컬 transport/외부 호출 차단으로 실제 사용자 데이터를 변경하지 않고 Chromium1440×960/375×812에서 렌더링했다. 최종 audit.mjs 기본26개/--dialogs22개/--additional12개 상태, 모두exit0/진입 미완료0/가로 넘침0. 같은 화면과 중복 캡처를 포함한60회이며 디자인 기준 충족이 아니라 누락 검출이다.
+- 9종 모달과 인라인 알람 편집 확인, 모달14/20회 Tab/ESC 확인. 네이티브 최초 로그인/연결/fallback은 소스 대조만. 검사 도구의 초기 진입/가시성 조건을 보정했으며 제품 장애로 분류하지 않았다.
+- 제품 소스가 바뀌지 않아 릴리스 빌드·린트·전체 기능 테스트·운영 배포는 재실행하지 않았다.
+
+#### 남은 작업 / 다음 우선순위
+
+- 디자인 통일은 미완료다. 수정 요청 후 저대비/선택 버튼, 휴식/시작 전, 편집·기록 내부, 인증 전 웹/native, 피드·숲 보조 요소 순으로 적용한다. 기존 카메라 복귀 오류 수정 역시 별도 승인 전 미실행이다.
+- 커밋·푸시·배포 없음. 사용자 기록/구독/OS 권한 변경 없음.
+
+### 2026-10-03 — 집중 연결 카메라·네이티브 로그인 재진단 (수정 미실행)
+
+#### 완료한 작업
+
+- 연결 버튼 → 접근 미허용 시 Android 방해금지 설정 진입 경로와 AppState 복귀 재조회 확인. 네이티브 규칙은 카메라 API를 호출하지 않는다.
+- Android16 실제 운영 WebView의 임시 영상 live → 설정 전면 5.5초 후 ended → 앱 복귀 1.5초 후 ended를 관찰했다. 웹은 track-ended 오류에서 자동 재획득하지 않는 코드 경로를 확인했다.
+- 네이티브 첫 로그인은 Oct2 웹 테마 제외 범위였고 기존 색/3px 테두리/그림자가 남아 있다. 최신 메인과 다른 디자인은 확인된 구현 누락이다.
+
+#### 변경된 파일
+
+- memory-bank/{active-context.md,progress.md,trouble-shooting.md}만 변경. 진단 캡처는 기존 untracked output/focus-camera-audit에 보관한다. 제품 소스·서버·APK 변경 없음.
+
+#### 검증 방법
+
+- node --test apps/web/test/cameraVideoHealth.test.mjs apps/web/test/cameraFrameRecovery.test.mjs scripts/mobile-web-features.test.mjs scripts/mobile-camera-permission.test.mjs apps/web/test/mobileNativeTheme.test.mjs: 14 pass / 0 fail / 0 skip.
+- 기존 테스트의 native palette 검사는 과거 숲 색상 값만 검사하며 Oct2 새 웹 토큰과의 일치 검사는 아니다. passing을 전체 디자인 동등성 증거로 쓰지 않는다.
+- 실제 에뮬레이터 412px 로그인 유지/#today, 임시 스트림 모든 track stop/전역 제거, 최종 video srcObject 0. 실제 세션/회복/방해금지 설정 변경 없음. 전체 빌드·린트·운영 배포는 제품 변경 없는 진단에서 재실행하지 않았다.
+- 초기 CDP 중단은 WebView 자동 업데이트의 PACKAGE UPDATED 시스템 종료였다. 재실행 후 미디어 관찰 성공. Jev 외부 검증은 전송 정책 거절로 직접 근거 검토를 사용했다.
+
+#### 남은 작업 / 다음 우선순위
+
+- 수정 승인을 받은 뒤 카메라 복귀/ended 트랙 재획득 및 native 첫 로그인 디자인을 구현한다. 실기기 집중 모드/푸시 연결 완료 검증은 별도이며 이번 임시 스트림 관찰과 구분한다. 커밋·푸시·배포 없음.
+
 ### 2026-10-02 — 모든 탭·모달 디자인 통일
 
 #### 완료한 작업

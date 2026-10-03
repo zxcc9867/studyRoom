@@ -1,3 +1,102 @@
+## 2026-10-04 — 공통 테마 조건부 누락 수정 및 검증 중 오류
+
+### 상황 / 원인
+
+- 기존 공통 선택자가 바깥 카드 중심이라 휴식·복귀/시작 전 체크·전용 선택 버튼·카메라 헤더·기록/피드 보조 글자·인증 전/native 영역이 빠졌다. 서버 문제나 캐시로 분류하지 않는다. 원래 감사 기록은 아래에 보존한다.
+- 피드 원문 링크는 기존font-size:13px!important가 공통14px를 덮어썼다. 펼친 세션 유지 안내12px와 앱 상단13px, native 회고 선택 높이44px 미보장도 별도 검사로 확인했다.
+
+### 해결 방법
+
+- 동일한 기존 토큰을 누락 선택자와 :root/login-shell/native팔레트에 적용하고, 피드 작은 글자/강제 크기를 토큰으로 바꿨다. 최소44px와 읽을 수 있는 disabled/selected/focus 상태를 보완했다.
+- 스타일·표시만 수정, 공부/카메라/인증/API/DB/DND 동작은 유지한다. 이전 집중 설정 복귀 카메라 재획득 문제는 별도 미해결이다.
+
+### 검증 중 발견한 오류
+
+```txt
+네이티브 로그인 ScrollView 닫기 태그 위치 오류 → TypeScript JSX 오류와 모바일 계약12건 실패
+원문 읽기: contrast6.16 / fontSize13 → 실제 브라우저2건 실패
+세션 유지 남은 시간: contrast7.09 / fontSize12 → 실제 브라우저2건 실패
+네이티브 제목32 !== 30 / 상단13px / 회고 선택minHeight 없음 → 렌더 계약 실패
+```
+
+- ScrollView 닫기를 로그인 분기에 정확히 배치하고 서명/설정/의존성 변경 없이 모바일 검사 재통과했다. 테스트의 목표 연결 패널 위치/실제 버튼명은 현재 컴포넌트 흐름에 맞게 고쳤으며 제품 장애로 분류하지 않는다.
+- 실패 재현 후 각 글자·조작 영역을 수정했다. 최종 기본845+브라우저58개 통과, 웹 빌드/모바일 타입/README 검사 성공.60개 상태 진입/넘침/작은 글자/버튼 높이/키보드 실패0.
+
+### 관련 파일 / 재발 방지
+
+- apps/web/src/{appTheme.css,dashboardRedesign.css,techFeed.css,main.tsx,SessionReflectionModal.tsx}, apps/mobile/{App.tsx,src/WebFeatureScreen.tsx} 및 디자인 회귀 테스트.
+- docs/design-fix-20261004.md와output/design-fix-20261003. 스크린샷은 예시 transport이며 운영 기록이 아니다.
+- 기본 탭뿐 아니라 상세 펼침·휴식·회고·로그인·선택/disabled 상태를 검사한다. 네이티브 렌더 계약과 OS 실행을 구분한다. 이번 변경 APK 실기기/에뮬레이터 검증·배포는 미실행이다.
+
+## 2026-10-03 — 공통 테마에 남은 조건부 카드·내부 컨트롤 누락 (미수정)
+
+### 상황 / 확인된 증상
+
+- 사용자가 휴식/복귀 약속과 공부 시작 전 체크의 옛 디자인을 보고 전체 페이지 일관성 점검을 요청했다. 실제 main entrypoint1440/375px 예시 transport에서 재현했다.
+- session-break는 바깥1px/그림자 제거만 적용되고 break-return은 노란 배경/2px/40px 버튼이다. recovery-precheck는 공통 선택자가 없어3px/8px 하드 그림자/점선 그대로다.
+- 카메라 진단 본문은 테마 적용됐으나 camera-monitor-head/camera-message는 #fff9df를 유지해 #fffdf5 표면 위1.04:1. 시간/반복/요일 selected는3.54:1, 높이34~38px. 회고 미선택 점수는4.36:1. 목표 연결 패널/기록 내부/작은 피드 문자/로그인 역시 일부 누락이다.
+
+### 원인
+
+- 공통 CSS가 이름을 열거한 외곽/표준 버튼 선택자 중심이라 전용 클래스와 자식 상태가 빠졌다. dashboardRedesign.css의 부분 외곽 override는 기존 배경/장식/자식을 바꾸지 않는다. 인증 전 화면과 native StyleSheet는 테마 적용 범위 밖이다.
+- 기존 기본 탭/선정된 진단 검사 통과는 모든 컴포넌트/모든 상태 완료를 보장하지 않는다. 서버/캐시 문제로 분류하지 않는다.
+
+### 해결 제안 / 현재 상태
+
+- 제품 미수정. docs/design-audit-20261003.md에 근거와 영향도별 순서를 기록했다. 이후 수정 요청 시 기존 토큰을 내부 패널/선택 상태/경고/로그인까지 명시적으로 적용하며 기능/서버 정책은 유지한다.
+- 최종 로컬 browser3회26+22+12개 상태 모두exit0, 가로 넘침0. 디자인 기준은 미완료 판정이며 테스트 통과로 표현하지 않는다.
+
+### 점검 도구에서 발견한 별도 오류
+
+- Python Playwright 미설치: 새 설치 없이 기존 bundled Node Playwright/esbuild fixture를 사용했다.
+- 초기 feed-preferences click timeout은 접힌 details 안 버튼을 누른 탓, 일정 확인 timeout은 여러 할 일의 첫 집중 대상 미선택, 회고 첫 캡처 누락은 lazy 렌더 대기 부족이었다. 정상 진입·실제 dialog wait로 진단 스크립트만 수정했으며 최종 미완료0이다.
+- 닫힌 details 자식/모달 배경 텍스트가 초기 computed 검사에 들어갔다. 가시성 필터를 보정했다. 장식 아이콘의 대비와 실제 본문을 구분한다.
+- 외부 차단 fixture의 Failed to fetch는 운영 서버 실패가 아니다. 메시지 스타일의 대비 문제는 독립적으로 확인했다.
+
+### 관련 파일 / 재발 방지
+
+- apps/web/src/{main.tsx,styles.css,dashboardRedesign.css,appTheme.css,techFeed.css,SessionReflectionModal.tsx}, apps/mobile/App.tsx.
+- output/design-audit-20261003/audit.mjs와 최종3개 evidence JSON, docs/design-audit-20261003.md.
+- 기본/휴식/시작 전/회복/빈/조회 오류/편집/반복/회고/권한/만료를 페이지별 상태 검사표에 포함하고, 최상위 카드뿐 아니라 보이는 자식 글자/선택 컨트롤/모바일44px까지 검증해야 한다. 실제 운영 기록이나 OS 권한을 변경하는 검증은 별도 권한/범위로 다룬다.
+
+## 2026-10-03 — 집중 연결 설정 전환 후 카메라 종료 / 첫 로그인 디자인 불일치
+
+### 상황
+
+- 사용자는 집중 연결 모드를 켜면 카메라가 꺼지고 APK 첫 로그인 디자인이 메인과 다르다고 보고했다. 이번 요청은 원인 확인만 수행한다.
+
+### 재현 / 진단 메시지
+
+```txt
+임시 video-only stream: live, muted=false, active=true
+Android NOTIFICATION_POLICY_ACCESS_SETTINGS 전면 5.5초: visibility=hidden, track=ended, events=[ended]
+앱 복귀 1.5초: visibility=visible, track=ended
+임시 stream stop/전역 제거; 최종 앱 video stream=0, 로그인 유지
+```
+
+### 원인
+
+- App.connectFocus는 접근 미허용 때 openFocusPolicySettings를 호출한다. Android 설정 전환으로 WebView 카메라 트랙이 종료되는 플랫폼 경로를 실제 에뮬레이터에서 확인했다. 네이티브 DND 규칙 코드에는 카메라 종료 호출이 없다.
+- 웹 main의 streamHealth 실패는 markCameraHealthIssue 후 return하고 cameraEnabled를 false로 바꾸거나 restartCameraMonitoring을 실행하지 않는다. cameraFrameRecovery는 no-current-frame/no-video-size에만 재시작하고 track-ended/muted/disabled는 제외한다. AppState active 처리도 서버 상태만 재조회하고 웹 카메라 복구 신호는 없다.
+- 첫 로그인은 네이티브 App.tsx !session 분기이며 기존 mobilePalette와 3px 테두리/딱딱한 그림자다. Oct2 main 리디자인 PRD는 네이티브 최초 로그인을 제외했다. 웹 CSS는 APK 네이티브 StyleSheet에 적용되지 않는다.
+
+### 해결 방법 / 현재 상태
+
+- 미수정: 사용자 승인 후 복귀한 동일 사용자/활성 비휴식 세션/기존 카메라 의도/권한을 확인해 종료된 스트림을 재획득하도록 설계한다. 권한 철회·사용자 끄기·휴식·종료 후 자동 재활성화와 실제 공부 구간 왜곡을 막아야 한다. 실패는 재시도 안내로 제공한다.
+- 첫 로그인은 공통 디자인 토큰으로 별도 native StyleSheet를 갱신하고 Google/OTP 동작을 유지해야 한다. 새 APK 배포가 필요하다.
+- 관련 기존 테스트 14/14 통과는 현 정책 검사이며 복귀 재획득 기능이 존재한다는 의미가 아니다. 실제 활성 공부 세션/DND·푸시 연결 완료는 이번에 변경·검증하지 않았다.
+
+### 진단 중 별도 오류
+
+- 첫 CDP getUserMedia probe 중 앱 프로세스가 사라졌다. Android exit-info는 reason=16 PACKAGE UPDATED, description=stop com.google.android.webview due to installPackageLI였다. 자동 WebView 업데이트 완료 후 앱 재실행/로그인 유지와 임시 영상 재현을 확인했다. 제품 카메라 네이티브 크래시로 단정하지 않는다.
+- Jev로 근거 대조를 시도했으나 외부 전송 정책 거절. 우회 없이 직접 검증했다.
+
+### 관련 파일 / 재발 방지
+
+- apps/mobile/{App.tsx,src/focus.ts,src/WebFeatureScreen.tsx}, modules/my-module/android/src/main/java/expo/modules/studyfocusmode/StudyFocusModeModule.kt.
+- apps/web/src/{main.tsx,cameraVideoHealth.mjs,cameraFrameRecovery.mjs,dashboardRedesign.css}.
+- 추후 회귀는 설정 진입/복귀·트랙 ended/muted·권한 변경·사용자 끄기·휴식/종료·중복 복귀·WebView 유지 및 동일 계정/시간 기록을 별도로 확인한다. 에뮬레이터 임시 미디어와 실제 공부/실기기 집중 연결 검증을 혼동하지 않는다.
+
 ## 2026-10-02 — 공통 테마에 남은 legacy 가독성 문제
 
 ### 상황 / 원인

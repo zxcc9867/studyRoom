@@ -5,10 +5,15 @@ import { test } from "node:test";
 const mobileSource = readFileSync("apps/mobile/App.tsx", "utf8");
 const appConfig = JSON.parse(readFileSync("apps/mobile/app.json", "utf8"));
 
-test("Expo mobile UI uses the same light forest palette as the web dashboard", () => {
-  assert.match(mobileSource, /const mobilePalette =/);
-  for (const color of ["#d9f0e3", "#fff9df", "#fff6c7", "#2f6b52", "#4f916f", "#f0c85c"]) {
-    assert.match(mobileSource, new RegExp(color, "i"));
+test("Expo mobile UI uses the same semantic palette and AA contrast as the web dashboard", () => {
+  const declaration=mobileSource.match(/const mobilePalette = (\{[\s\S]*?\}) as const;/)[1];
+  const palette=Function(`return (${declaration})`)();
+  const webTheme=readFileSync("apps/web/src/dashboardRedesign.css", "utf8");
+  const color=token=>webTheme.match(new RegExp(`--study-${token}:\\s*(#[\\da-f]+)`,'i'))[1];
+  for(const [native,web] of [['canvas','bg'],['surface','surface'],['primarySoft','soft'],['border','border'],['text','ink'],['muted','muted'],['coral','danger']])assert.equal(palette[native],color(web),native);
+  const lum=hex=>hex.slice(1).match(/../g).map(x=>parseInt(x,16)/255).map(x=>x<=.04045?x/12.92:((x+.055)/1.055)**2.4).reduce((sum,x,i)=>sum+x*[.2126,.7152,.0722][i],0);
+  for(const [fg,bg] of [['text','surface'],['muted','surface'],['surface','primary'],['surface','coral']]){
+    const a=lum(palette[fg]),b=lum(palette[bg]);assert.ok((Math.max(a,b)+.05)/(Math.min(a,b)+.05)>=4.5,`${fg}/${bg}`);
   }
   assert.doesNotMatch(mobileSource, /#f8f4ea|#1d1a16/i);
   assert.match(mobileSource, /<StatusBar[^>]*barStyle="dark-content"/);

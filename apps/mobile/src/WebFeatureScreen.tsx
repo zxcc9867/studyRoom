@@ -177,15 +177,15 @@ export function WebFeatureScreen({ sessionUserId, onStudyStateChanged, onNativeS
 }
 
 const styles = StyleSheet.create({
-  screen: { flex: 1, backgroundColor: "#fff9df" },
-  errorBanner: { backgroundColor: "#fff0d0", color: "#713b25", fontSize: 13, lineHeight: 19, paddingHorizontal: 14, paddingVertical: 8 },
-  webView: { flex: 1, backgroundColor: "#fff9df" },
+  screen: { flex: 1, backgroundColor: "#f3f4ed" },
+  errorBanner: { backgroundColor: "#fbe9e4", color: "#9a3f33", fontSize: 14, lineHeight: 23, paddingHorizontal: 16, paddingVertical: 12 },
+  webView: { flex: 1, backgroundColor: "#f3f4ed" },
   loading: { flex: 1 },
   feedback: { flex: 1, alignItems: "center", justifyContent: "center", padding: 24, gap: 12 },
-  errorTitle: { color: "#2f6b52", fontSize: 20, fontWeight: "800" },
-  errorCopy: { color: "#5a513d", fontSize: 15, textAlign: "center" },
+  errorTitle: { color: "#28372e", fontSize: 24, lineHeight: 34, fontWeight: "700", textAlign: "center" },
+  errorCopy: { color: "#4e5b50", fontSize: 15, lineHeight: 25, textAlign: "center" },
   retryButton: { minHeight: 48, justifyContent: "center", borderRadius: 10, backgroundColor: "#2f6b52", paddingHorizontal: 20 },
-  retryText: { color: "#fff9df", fontWeight: "800" },
+  retryText: { color: "#fffdf5", fontSize: 15, fontWeight: "700" },
   fallbackButton: { minHeight: 44, justifyContent: "center", paddingHorizontal: 16 },
-  fallbackText: { color: "#2f6b52", fontWeight: "700" },
+  fallbackText: { color: "#2f6b52", fontSize: 14, fontWeight: "600" },
 });
