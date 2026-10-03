@@ -1,3 +1,23 @@
+## 2026-10-04 — 배포 검증 도구의 경로·로딩 대기 오류
+
+### 상황 / 원인
+
+- EAS build:view를 저장소 루트에서 실행했을 때 build:view command failed가 발생했다. 루트의 기존 미추적 app.json과 모바일 프로젝트 경로를 혼동한 도구 실행 문제이며, 원격 APK 빌드 실패가 아니다.
+- Playwright CLI의 첫 help 종료에 Windows libuv assertion, eval의 인용부호 손실로 SyntaxError가 발생했다. 실제 운영 JavaScript 오류와 구분한다.
+- 앱 WebView 재조회3초 뒤 오래된 화면 검증 스크립트가 Missing visible menu: #feed를 보고했다. 당시 화면은 '앱 로그인 연결 중'이며 아직 메뉴가 렌더되지 않았다.
+
+### 해결 / 재발 방지
+
+- EAS 명령은 apps/mobile에서 실행한다. 해당 build dd0a8955의 IN_PROGRESS와 commit d3f28ae를 확인했다. 기본 checkout이나 루트 미추적 파일은 변경하지 않는다.
+- CLI help open/screenshot과 명명 세션을 사용하고 eval에서 복잡한 문자열 선택자를 피했다. 운영 PC/모바일 화면 및30px 제목·넘침0 확인.
+- 실제 메뉴의 가시성을 조회해 로그인 연결 완료를 확인한 후 기존 검증을 재실행했다. 피드/숲/목표 재로그인0·넘침0 및 새 테마 검증 통과. 연결 중 화면을 제품 메뉴 누락으로 판정하지 않는다.
+- EAS 로그 JSON 파싱 실패는 상태 조회 보조 도구 문제이므로 APK 빌드 실패로 계산하지 않고 build:view의 공식 status/완료 artifact를 사용한다.
+
+### 관련 파일 / 주의
+
+- output/emulator-cdp.mjs, output/all-pages-theme-emulator-check.mjs, apps/mobile/eas.json, output/playwright/ui-deploy-login-{1440,375}.png.
+- Supabase/인증/사용자 기록/서명/제품 코드 수정 없음. APK 완료·설치와 카메라 복귀 미해결은 별도로 확인한다.
+
 ## 2026-10-04 — 공통 테마 조건부 누락 수정 및 검증 중 오류
 
 ### 상황 / 원인

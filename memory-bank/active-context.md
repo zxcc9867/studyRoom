@@ -2,7 +2,7 @@
 
 ## 현재 작업
 
-- 작업명:2026-10-04 전체 페이지 디자인 감사 후속 수정.
+- 작업명:2026-10-04 전체 페이지 디자인 감사 후속 수정 및 웹·APK 배포 완료.
 - 목적:사용자의 “그럼 수정을 해줘” 승인에 따라 기존 테마에 남은 휴식/시작 전/편집/회고/기록/로그인/피드/숲 내부 누락을 보완한다.
 - 관련 PRD:prd-main-dashboard-redesign.md 최신 승인, prd-android-web-parity.md. 결과:docs/design-fix-20261004.md.
 - 관련 파일:웹 appTheme/dashboardRedesign/techFeed/main/SessionReflectionModal, 앱 App/WebFeatureScreen, mounted/native 테마·렌더 계약 테스트.
@@ -17,13 +17,16 @@
 
 - 완료:7개 제품 파일과3개 테스트 파일 수정. 기본845개+브라우저58개 모두 통과, 웹 빌드/모바일 호환성·타입/README 검사 통과.60개1440/375px 예시 화면에서 가로 넘침/작은 글자/작은 높이 버튼0, 모달 Tab/ESC 실패0.
 - 완료:읽기 전용 리뷰의 앱 상단13px와 네이티브 회고 선택44px 보장 누락을 회귀 테스트 후 수정했다. 스크린샷 전후 비교와 대비 근거를 결과 문서에 기록했다.
-- 진행 중:사용자의 2026-10-04 “배포해줘” 요청에 따라 이번 디자인 파일만 커밋하여 main에 반영하고 GitHub Actions/Vercel 운영 웹과 무료 EAS preview APK를 배포한다. 기존 패키지/서명/로그인 데이터를 유지한다. lint 스크립트 없음.
+- 운영 웹 완료:이번 디자인17개 파일을 d3f28ae7a167adeb317a2df8a1ce2ca0c99b94d9로 main 푸시했다. Actions37133451775 success, Vercel dpl_Au6gUJVnfsvsTTSef6EGBwxmbEVx READY/동일 commit, production HTTP200 및 /assets/index-C86GTzPf.css 확인. PC1440/모바일375 운영 로그인 제목30px·넘침0.
+- 앱 웹 화면 확인:Android16 기존 로그인에서 새 웹 자산 재조회 후 피드/숲/목표 재로그인0·넘침0·종이/16px 공통 카드, 회복 본문15px/7.02:1·닫기44px, 카메라 안내14px/5.56~7.02:1 확인. 회복 제출/새 공부 기록/권한/DND 변경 없음.
+- APK 완료:무료 EAS preview dd0a8955-690d-4cd4-be10-0a6bd3216de4 FINISHED/commit d3f28ae. https://expo.dev/artifacts/eas/Xu2X_xH-3wJ7-UP2C7SO_6YAPDczNRiDQ2R3COcBabk.apk HTTP200/61,568,522bytes. com.jini9867.studyroomattendance·0.1.0(1), 기존 인증서 SHA256 일치 후 adb install -r 성공. 로그인 데이터 삭제 없음.
+- 새 APK 확인:Android16 에뮬레이터에서 기존 로그인 유지·6개 메뉴(오늘/목표/피드/숲/내 페이지/알림) 진입·411px 넘침0·새 native 연결 바와 회복/카메라 안내 테마 확인. 학습/회복 기록은 만들지 않았고 마지막은 오늘·카메라 해제 상태다. lint 스크립트 없음.
 - 배포 전 재검증:일반 테스트845 통과/58 선택 브라우저 생략, 별도 실제 브라우저58/58 통과/0생략, Edge21/21, 웹 빌드/모바일 호환성·타입/README 검사 통과. EAS 아카이브1252개 파일 중 민감 환경·서명·APK 파일0개, 수정 앱 소스 포함·output 자료 제외 확인.
-- 다음 작업:운영 commit/READY/HTTP와 APK FINISHED·서명을 확인한 후 배포 결과를 기록한다. 집중 설정 복귀 카메라 재획득 문제는 별도 미해결로 유지한다.
+- 다음 작업:사용자 휴대폰에서 APK를 기존 앱 위에 업데이트하여 키보드·확대 글꼴·안전 영역을 확인한다. 집중 설정 복귀 카메라 재획득 문제는 별도 미해결로 유지한다.
 
 ## 주의할 점
 
-- 이번 네이티브 검증은 타입/팔레트/렌더 트리 계약이며 에뮬레이터·실기기 실행 완료로 표현하지 않는다. 숲의 달/민트 견본은 본문 대비에서 구분한다.
+- 네이티브 최초 로그인 실제 Google/OTP 인증, 실휴대폰의 키보드/확대 글꼴/안전 영역/방해금지·푸시는 이번 배포에서 재검증하지 않았다. 새 APK 에뮬레이터 업데이트·기존 로그인 유지·메뉴 확인과 구분한다. 숲의 달/민트 견본은 본문 대비에서 구분한다.
 - Supabase/API/권한/DND/사용자 기록은 변경하지 않는다. 사용자 배포 요청은 로컬 AGENTS의 main 자동 배포 규칙에 따라 필요한 범위 커밋·푸시를 포함한다. 다른 untracked·기본 checkout의 작업은 보존하고 배포에서 제외한다.
 
 ---

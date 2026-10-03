@@ -2,13 +2,16 @@
 
 ## Timeline
 
-### 2026-10-04 — 전체 페이지 디자인 웹·APK 재배포 진행
+### 2026-10-04 — 전체 페이지 디자인 웹·APK 재배포 완료
 
 #### 현재 작업 / 검증
 
 - 사용자의 “배포해줘” 승인으로 현재 작업용 checkout의 관련 디자인/테스트/문서만 main에 반영한다. 다른 untracked 산출물과 오래된 기본 checkout은 변경하지 않는다.
 - 배포 전 일반 테스트845 통과/58 브라우저 선택 생략/0 실패, 별도 실제 브라우저58/58 통과/0생략, Edge21/21, 웹 빌드/모바일 호환성·타입/README 검사 통과. EAS 검사1252개 파일에서 민감 환경·서명·APK0개와 수정 앱 코드 포함·output 제외 확인.
-- EAS preview APK는 기존 패키지·서명으로 무료 빌드하며 환경/서명 파일과 output 산출물을 제외한다. 운영 READY/HTTP·APK 완료·설치 결과는 확인 후 추가한다.
+- 웹 배포 완료:제품 d3f28ae main 푸시, Actions37133451775 success, Vercel dpl_Au6gUJVnfsvsTTSef6EGBwxmbEVx READY/동일 commit, 운영 HTTP200·CSS index-C86GTzPf 확인. 운영 로그인1440/375px 넘침0·제목30px/짙은 텍스트 확인.
+- Android16 기존 앱의 운영 웹 재조회 후 로그인 유지·피드/숲/목표 공통 카드·넘침0, 회복15px/7.02:1·닫기44px, 카메라 보조14px/5.56~7.02:1 확인. 학습/회복 기록을 만들지 않고 오늘/카메라 해제 상태로 돌아왔다.
+- EAS preview APK dd0a8955-690d-4cd4-be10-0a6bd3216de4 FINISHED/commit d3f28ae. 다운로드 https://expo.dev/artifacts/eas/Xu2X_xH-3wJ7-UP2C7SO_6YAPDczNRiDQ2R3COcBabk.apk HTTP200/61,568,522bytes. 기존 패키지 com.jini9867.studyroomattendance/버전0.1.0(1)/인증서 SHA256 일치 확인. APK 서명키·환경 비밀·로컬 산출물 업로드 없음.
+- Android16 에뮬레이터 adb install -r 성공, 로그인/앱 데이터 유지·새 native 연결 바·6개 메뉴 진입·411px 가로 넘침0·회복/카메라 글자 대비 통과. 실제 로그인 재입력·회복 제출·새 공부 기록·권한/DND 변경 없이 오늘/카메라 해제 상태로 마쳤다. 증거:output/playwright/ui-deploy-emulator-{native,final}.png/XML 및 운영 로그인1440/375 캡처.
 - 집중 설정 복귀 카메라 재획득 문제와 실기기 Google 인증/방해금지·푸시 미검증은 이번 디자인 배포 완료 주장에 포함하지 않는다.
 
 ### 2026-10-04 — 전체 페이지 디자인 누락 보완
