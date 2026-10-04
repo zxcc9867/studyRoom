@@ -2,14 +2,17 @@
 
 ## Timeline
 
-### 2026-10-04 — 알림·독서실 아이콘 구현 (배포 진행 중)
+### 2026-10-04 — 알림·독서실 아이콘 구현·웹/공개 APK 배포 완료
 
 - 승인: 디자인 확인 후 `진행해줘`, 웹/새 APK 적용·배포.
 - 구현: AppNotice·의미별 한글 presentation·기존 디자인 토큰·status/alert·React 텍스트 escaping. Expo 일반/adaptive 아이콘에 승인된 책·조명 자산 적용. 세션·출석·회복·권한·서명 동작은 유지한다.
 - 검증: 새 문구 테스트7개가 미구현으로 실패한 것을 확인한 뒤 구현. 리뷰의 밑줄 없는 내부 코드 누락도 실패 테스트 후 보완하여 총11/11 통과·읽기 전용 재검토 차단 이슈0. 실제 컴포넌트/375·1440px 브라우저3/3, AA 대비4.5 이상·15px·1px 테두리·무그림자·가로 넘침 없음. 동일 viewport 전후 output/playwright/app-notice-{before,after}-{375,1440}.png.
-- 전체 검증: mounted 앱+알림71/71, 기본 npm test887통과/76선택 브라우저 생략/0실패, Edge 타입/21테스트, mobile:check·웹 build·README24이미지/3언어 통과. 전체 브라우저 동시 실행에서 로딩 초과1건은 격리 재검증 통과했으며 기존 아이콘 배경 기대는 승인된 primary/자산 경로로 갱신했다.
-- APK 진행: EAS 11afaede-0168-4f5d-bc6b-ea3ba8a710c5, preview/internal/기존 서명 freeze. archive1261파일·민감 환경/키/APK0개·현재 앱/설정/아이콘 해시 일치. 웹 커밋에는 이전 집중 상태 미커밋 소스/테스트를 포함하지 않는다.
-- 문서: main-dashboard PRD 개정, prd-app-branding 생성, active/progress/implementation/trouble 기록. 공개 웹/새 APK는 아직 진행 중.
+- 전체 검증: mounted 앱+알림71/71, 기본 npm test887통과/76선택 브라우저 생략/0실패, 최종 선택 브라우저 포함 순차 전체963/963·실패/생략0(182초). Edge 타입/21테스트, mobile:check·웹 build·README24이미지/3언어 통과. 초기 동시 브라우저 로딩 초과1건과 과거 아이콘 배경 기대 실패는 trouble-shooting에 원인/재검증을 보존했다. lint 스크립트 없음.
+- 웹 완료: 제품93d1d4d9f486c37ffa82a9313c6eb3fc2048c42d main 푸시 → GitHub Actions37201107595 success → Vercel dpl_CCBSdQr6Xp97HgMzq4EMJgGXCzRV production READY → https://study-room-attendance.vercel.app HTTP200/Server Vercel. 운영 index-Dun62dxF.js의 한글 안내/AppNotice 및 index-CSQG256s.css의 새 스타일 확인.
+- APK 완료: EAS11afaede-0168-4f5d-bc6b-ea3ba8a710c5 FINISHED/2026-10-04 12:09:38 UTC, 무료 preview/internal/기존 원격 서명 freeze. archive1261파일·민감 환경/키/APK0개·현재 앱/설정/아이콘 해시 일치. 공개 https://expo.dev/artifacts/eas/AhejFksagSnzLwBKmZQDJoD8MzJaFEHkPdV1Xg5p6ek.apk 인증 없이 HTTP200·61,942,571bytes.
+- 산출물: output/study-room-icon-eas-11afaede.apk SHA256 BE75DE859E8472D8959252C34BE7A80EB5D491308577974E75A0268EB93F44CA. apksigner exit0/v2 true·기존 인증서 SHA2568052acacaccf524b0672a27b6b79e957476b8d2dc5da564562ddb2948c12c8e9 일치. 이전 APK와 JS bundle SHA25677F62D4EC3D2537E6183C3940CB2C3B51BED5B602E0A59DBB049D4EA8CD81FE4 일치로 이전 집중 상태 수정 보존 확인.
+- 에뮬레이터: Android16 adb install -r 성공·native/web 로그인 유지·인증된 회복 화면 확인·앱 목록/홈의 책·스탠드 원형 아이콘 확인. 근거 output/study-room-{drawer-after,home-updated,icon-app-ready}.png/xml. 공부/회복 제출·권한·DND 변경 없음. 홈 추천 아이콘은 앱 목록 진입/실행/홈 복귀 후 새 아이콘으로 갱신됐으며 launcher 데이터 초기화는 하지 않았다.
+- 문서: main-dashboard PRD 개정, prd-app-branding 생성/완료 체크, active/progress/implementation/trouble 기록. Jev 완료 주장4건 verified/review0. 웹 커밋에는 이전 집중 상태 미커밋 제품 소스/테스트를 포함하지 않고 보존했다. 새 APK 설치가 필요하며 자동 APK/OTA 업데이트 및 실휴대폰 DND/푸시 E2E는 별도다.
 
 ### 2026-10-04 — 알림 UI·앱 아이콘 디자인 준비
 

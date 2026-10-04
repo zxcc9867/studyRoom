@@ -3,12 +3,15 @@
 ## 현재 작업 — 2026-10-04 알림 공통 디자인·독서실 앱 아이콘 배포
 
 - 사용자 요청: 화면에 남은 알림 UI를 통일하고 독서실 느낌의 앱 아이콘을 제작하여 배포한다.
-- 확인: styles.css:225의 .message는 이전 노란 배경·2px 테두리·아래 그림자를 유지한다. main.tsx:5268의 메시지 표시와 formatError:6899는 내부 코드를 한글 안내로 바꾸지 않는다. app.json에 icon/foregroundImage가 없다. 서버 세션 생성 실패 원인 자체는 이번 표시 코드 점검만으로 확정하지 않는다.
+- 수정 전 확인: styles.css:225의 .message는 이전 노란 배경·2px 테두리·아래 그림자를 유지했고 main.tsx의 메시지 표시는 내부 코드를 그대로 렌더링했다. app.json에 icon/foregroundImage가 없었다. 서버 세션 생성 실패 원인 자체는 이번 표시 코드 점검만으로 확정하지 않는다.
 - 디자인 제안: 기존 study 토큰으로 아이콘+안내 문구를 구성하고 안내/성공/주의/오류를 구분한다. ACTIVE_SESSION_EXISTS는 이미 진행 중인 공부가 있다는 안내로 표시하며 세션·출석 동작은 변경하지 않는다.
 - 완료: imagegen 내장 도구로 초록 배경·아이보리 책·금색 스탠드 아이콘을 생성하고 apps/mobile/assets의 일반/adaptive PNG와 app.json에 적용했다. 원본 C:/Users/zxcc9/.codex/generated_images/019f55f2-2f54-7891-bc45-d091cad8e764/exec-b9222daa-18f2-40c3-b30c-ed49bfefc670.png.
 - 승인/구현: 사용자의 `진행해줘`로 bounded 디자인 및 웹/새 APK 배포 승인. AppNotice·appMessage presentation과 기존 study 토큰 적용. 읽기 전용 리뷰에서 밑줄 없는 내부 코드 누락을 발견하여 PGRST301/UNEXPECTED/FORBIDDEN 회귀 테스트 후 보완했고 재검토 차단 이슈0.
-- 검증: 문구 단위11/11·실제 컴포넌트/브라우저3/3(375/1440px·대비4.5 이상·가로 넘침 없음), mounted 앱+알림71/71, 전체 기본887통과/76선택 브라우저 생략/0실패, Edge 타입/21테스트, mobile:check·웹 build·README24이미지/3언어 통과. 전체 브라우저 동시 실행의 5초 로딩 초과1건은 단독 재검증 통과, 이전 아이콘 배경 기대는 승인된 primary와 자산 경로 검사로 갱신했다.
-- 배포 진행: EAS preview 11afaede-0168-4f5d-bc6b-ea3ba8a710c5 무료/internal·기존 서명 freeze, 아카이브1261파일/민감 파일0개/현재 앱·아이콘 해시 일치. 웹은 이번 알림/아이콘 관련 파일만 커밋·main 푸시하며 이전 미커밋 집중 상태 소스는 섞지 않는다. 실제 배포/공개 APK 검증은 진행 중이며 기존 집중 상태 변경과 사용자 데이터는 보존한다.
+- 최종 검증: 문구11/11·컴포넌트/브라우저3/3(375/1440px·대비4.5 이상·가로 넘침 없음), mounted71/71, 기본 전체887통과/76선택 브라우저 생략, 선택 브라우저 포함 순차 전체963/963·0실패·0생략. Edge 타입/21테스트, mobile:check·웹 build·README24이미지/3언어 통과. lint 스크립트는 없다. 초기 로딩 timeout/이전 아이콘 기대 실패 및 재검증은 trouble-shooting에 기록했다.
+- 웹 배포 완료: 제품 커밋93d1d4d9f486c37ffa82a9313c6eb3fc2048c42d main 푸시, GitHub Actions37201107595 success. Vercel dpl_CCBSdQr6Xp97HgMzq4EMJgGXCzRV production READY·https://study-room-attendance.vercel.app HTTP200·배포 JS/CSS의 새 알림 문구/스타일 확인. 이전 미커밋 집중 상태 제품 소스/테스트는 포함하지 않고 보존했다.
+- APK 배포 완료: EAS preview11afaede-0168-4f5d-bc6b-ea3ba8a710c5 FINISHED(2026-10-04 12:09:38 UTC), 무료/internal·기존 서명 freeze. archive1261파일/민감 파일0개/현재 앱·아이콘 해시 일치. 새 공개 링크 https://expo.dev/artifacts/eas/AhejFksagSnzLwBKmZQDJoD8MzJaFEHkPdV1Xg5p6ek.apk HTTP200·61,942,571bytes·APK SHA256 BE75DE859E8472D8959252C34BE7A80EB5D491308577974E75A0268EB93F44CA.
+- 실제 확인: 기존 인증서 SHA2568052acacaccf524b0672a27b6b79e957476b8d2dc5da564562ddb2948c12c8e9 일치/v2 검증 성공·Android16 adb install -r 성공·로그인 유지/인증된 웹 회복 화면 확인·홈/앱 목록 책·조명 아이콘 잘림 없음. output/study-room-{drawer-after,home-updated,icon-app-ready}.png. 기존 공개 APK와 JS bundle SHA25677F62D4EC3D2537E6183C3940CB2C3B51BED5B602E0A59DBB049D4EA8CD81FE4 일치로 이전 집중 상태 코드 보존 확인. 사용자 공부/회복 제출·OS 권한/DND 변경 없음. Jev 완료 주장4건 근거 대조도 verified4/review0.
+- 다음 작업: 사용자는 기존 앱을 삭제하지 않고 새 APK로 업데이트한다. 웹 알림은 웹 새로고침/앱 재시작으로 적용된다. 자동 APK/OTA 업데이트와 실휴대폰 DND·푸시 E2E는 이번 범위 밖이다.
 
 ---
 

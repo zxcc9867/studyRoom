@@ -24,7 +24,7 @@
 ## 7. Functional Requirements
 - [x] Expo icon은 assets/study-room-icon.png를 사용한다.
 - [x] Android adaptiveIcon은 여백이 넓은 study-room-adaptive-icon.png와 초록 backgroundColor를 사용한다.
-- [ ] 공개 APK의 실제 launcher 아이콘과 삭제 없는 설치를 확인한다.
+- [x] 공개 APK의 실제 launcher 아이콘과 삭제 없는 설치를 확인한다.
 
 ## 8. Non-functional Requirements
 - 외부 이미지 URL/런타임 다운로드 없이 APK에 자산을 포함한다.
@@ -42,6 +42,11 @@ Expo53 icon prebuild 플러그인, 기존 EAS preview APK, 기존 원격 서명.
 
 ## 12. Open Questions
 실제 휴대폰 제조사별 launcher 캐시는 에뮬레이터 검증과 별개다. 앱 업데이트 구조는 기존과 같다.
+
+## 출시 확인 — 2026-10-04
+- EAS preview11afaede-0168-4f5d-bc6b-ea3ba8a710c5 FINISHED. 공개 링크 https://expo.dev/artifacts/eas/AhejFksagSnzLwBKmZQDJoD8MzJaFEHkPdV1Xg5p6ek.apk HTTP200·기존 서명 일치·Android16 삭제 없는 업데이트/로그인 유지 성공.
+- 실제 홈/앱 목록 원형 아이콘에서 책·조명 잘림 없음: output/study-room-home-updated.png, study-room-drawer-after.png. 패키지/권한/DND·공부/회복 데이터 변경 없음.
+- 검증된 기존 JS bundle은 그대로이고 일반/adaptive launcher 자산이 새 APK에 포함됐다. 아이콘 적용에는 새 APK 설치가 필요하며 과거 설치 링크가 자동으로 교체되지 않는다.
 
 ## 제작 프롬프트 / 도구
 - 내장 imagegen 사용. 원본: forest green #2F6B52, warm ivory open book and desk line, small warm-gold desk lamp, minimal bold silhouette, no text/border/tile.

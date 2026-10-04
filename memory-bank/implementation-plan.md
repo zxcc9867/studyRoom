@@ -3,6 +3,7 @@
 - AppNotice는 로그인 전후 message를 표시하는 작은 컴포넌트다. 순수 getAppMessagePresentation은 알려진 세션 코드/단독 기계 코드/실패/성공/검증/정보 순으로 분류한다. 원래 message 상태와 성공5초 자동 숨김 useEffect는 변경하지 않는다.
 - appTheme의 범위 선택자가 이전 styles.css 메시지 장식을 덮어쓴다. 역할/아이콘/제목/본문으로 구분하고 CSS는 기존 의미 색·간격·텍스트 토큰을 사용한다. 새 세션 처리나 DB/API 변경 없음.
 - mobile app.json의 icon/Android adaptiveIcon foreground는 저장소 PNG 자산을 가리킨다. 앱 패키지/버전/서명/권한을 유지하며 icon prebuild 결과는 새 APK에 포함된다. 웹 재배포만으로 launcher 아이콘이 바뀌지 않는다.
+- 검증/배포: 알림·아이콘 제품93d1d4d는 main/GitHub Actions37201107595/Vercel dpl_CCBSdQr6Xp97HgMzq4EMJgGXCzRV READY·HTTP200 확인. 무료 preview APK11afaede FINISHED·공개 HTTP200·기존 서명/동일 JS bundle·Android16 install -r 및 아이콘/로그인 유지 확인. 이전 미커밋 native 집중 상태 코드는 APK 아카이브에 유지하지만 이번 웹 배포 커밋에는 포함하지 않는다. 최종 브라우저 포함 전체963/963, Edge21, 모바일 타입/웹 빌드 통과.
 
 ## 2026-10-04 — APK 배포와 웹 업데이트 구분
 
