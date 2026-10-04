@@ -18,7 +18,7 @@
 - [x] APK 연결은 307 임시 리디렉션과 no-store로 이전 APK 주소의 영구 캐싱을 방지한다.
 - [x] APK 주소는 검증된 공개 HTTPS Expo artifact만 사용하며 요청 매개변수로 목적지를 바꾸지 않는다.
 - [x] 기존 SPA/API 라우팅을 유지한다.
-- [ ] 배포 후 안내 HTTP200·APK307·목적지 HTTP200/파일 형식/크기를 확인한다.
+- [x] 배포 후 안내 HTTP200·APK307·목적지 HTTP200/파일 형식/크기를 확인한다.
 
 ## 5. Dependencies / Rollout / Release Maintenance
 - Vite public 정적 파일, 기존 vercel.json routes, 기존 GitHub Actions production 배포. Supabase/새 비밀값/계정은 필요하지 않다.
@@ -29,3 +29,8 @@
 ## 6. Success Metrics / Open Questions
 - 공개 고정 주소와 버튼이 최신 검증된 APK를 제공하며 설치자가 링크를 매번 교체할 필요가 없다.
 - 실휴대폰 브라우저별 설치 확인은 OS 동작이며 자동 업데이트와 구분한다.
+
+## 출시 확인 — 2026-10-04
+- 제품5d5acb0·Actions37203826300 success·Vercel dpl_34DnnRMr9ZKgoneUvEdTezbDwTt2 READY.
+- 안내 https://study-room-attendance.vercel.app/download/android HTTP200/no-store·끝 slash/CSS200.
+- 파일 주소 https://study-room-attendance.vercel.app/download/android.apk 307/no-store→현재 아이콘 APK11afaede. 실제 다운로드200·61,942,571bytes·검증된 APK SHA256 일치. 실제 화면4/4, 기존 로컬890/CI865통과·0실패, 선택 브라우저77생략은 별도 기록한다.

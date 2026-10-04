@@ -4,6 +4,7 @@
 - 기존 vercel.json routes의 filesystem/SPA보다 앞에서 안내 파일을 rewrite하고 APK는 검증된 HTTPS Expo artifact로307/no-store 처리한다. 요청 파라미터/사용자 입력으로 redirect 목적지를 만들지 않는다.
 - 새 APK 검증 완료 후 route Location과 출시 안내 정보를 함께 갱신하고 기존 production 웹 배포를 수행한다. EAS artifact 링크는 immutable이며 이 방식은 최신 **게시한** 파일의 별칭이지 자동 APK 빌드/OTA/설치 기능이 아니다.
 - Supabase/API/비밀값/서명/패키지 변화 없음. 회귀는 route 계약·기존 SPA/API·375/1440px 화면/키보드/AA 대비·운영307→APK 다운로드로 확인한다.
+- 출시 확인: 5d5acb0/Actions37203826300 success/Vercel dpl_34DnnRMr9ZKgoneUvEdTezbDwTt2 READY. 고정 안내200/no-store, 고정 APK307/no-store→파일200/61,942,571bytes/기존 검증 SHA256일치. 기존 미커밋 native 변경은 배포 커밋에서 제외했다.
 
 ## 2026-10-04 — 공통 알림·앱 아이콘 표시 계약
 

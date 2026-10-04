@@ -5,7 +5,9 @@
 - 사용자 승인: 같은 주소에서 최신 APK를 받는 방식을 `그렇게해줘`로 승인했다. 관련 PRD는 prd-android-download.md, 기존 app-branding/Android 배포·Vercel CI 계약을 확인했다.
 - 결정: `/download/android` 정적 설치 안내와 `/download/android.apk` 307/no-store 연결을 추가한다. 현재 검증된 아이콘 APK11afaede를 사용하며 APK 재빌드/OTA/자동 설치/DB 변경은 하지 않는다.
 - 구현: public/download/android.html·android.css, vercel.json의 선행 다운로드 라우트, android-download.test.mjs. 기존 study 디자인·375/1440px·키보드·삭제 없는 업데이트 안내를 사용한다. 다른 API/SPA 라우팅과 미커밋 mobile 소스는 유지한다.
-- 현재 상태: 선행 RED2 실패/기존 라우팅1통과 확인 후 구현. 실제 브라우저 포함4/4 통과(AA4.5 이상·375/1440px). 전체890통과/77선택 브라우저 생략/실패0, 웹 타입·빌드/mobile:check/README24이미지·3언어/diff 검사 통과. lint 스크립트는 없다. 웹 production 배포 검증 진행 중.
+- 현재 상태: 선행 RED2 실패/기존 라우팅1통과 확인 후 구현. 실제 브라우저 포함4/4 통과(AA4.5 이상·375/1440px). 전체890통과/77선택 브라우저 생략/실패0, 웹 타입·빌드/mobile:check/README24이미지·3언어/diff 검사 통과. lint 스크립트는 없다.
+- 배포 완료: 제품5d5acb0c50e87b4b88dd5612f06ee37799f0afe2 main → Actions37203826300 success(CI865통과/77선택 브라우저 생략/실패0; 미커밋 native25테스트 제외) → Vercel dpl_34DnnRMr9ZKgoneUvEdTezbDwTt2 READY. 운영 안내/끝 slash/CSS HTTP200, 안내/redirect no-store 및 APK307→Expo 확인. 고정 주소를 따라 받은 파일HTTP200·61,942,571bytes·SHA256 BE75DE859E8472D8959252C34BE7A80EB5D491308577974E75A0268EB93F44CA 일치.
+- 검토 주의: Jev 외부 패치 전송은 보안 정책으로 거절되어 재시도·우회하지 않았다. 외부 검토 통과로 보고하지 않으며 로컬 소스/회귀/운영 다운로드 결과로 확인했다. 새 DB/기기 데이터/기존 앱 동작 변경 없음.
 - 운영 유지: 새 APK의 공개 다운로드/서명/기능 검증 완료 후 route Location과 안내 출시 정보를 갱신하여 웹을 배포한다. 새 EAS 빌드 자체가 고정 주소나 이미 설치한 앱을 자동 변경하지 않는다.
 
 ---

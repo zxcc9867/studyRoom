@@ -8,7 +8,10 @@
 - 변경: vercel.json, apps/web/public/download/android.html·android.css, scripts/android-download.test.mjs, prd-android-download·active-context·implementation-plan·progress.
 - 검증: RED2실패/기존 경로1통과 → 실제 브라우저 포함4/4 통과. 375/1440px 가로 넘침 없음/44px 이상 버튼/키보드 포커스 확인, output/playwright/android-download-{375,1440}.png.
 - 추가 검증: AA 대비4.5 이상, 전체890통과/77선택 브라우저 생략/실패0·웹 타입/빌드/mobile:check/README24이미지·3언어/diff 검사 통과. lint 스크립트 없음.
-- 남은 작업: production 배포·공개 주소 HTTP/다운로드 점검. 새 APK/OTA/DB 변경은 범위 밖이다.
+- 배포 완료: 제품5d5acb0 main·Actions37203826300 success(CI865통과/77생략/실패0; 기존 native 미커밋25테스트 미포함), Vercel dpl_34DnnRMr9ZKgoneUvEdTezbDwTt2 READY. `/download/android`·끝 slash·CSS HTTP200 및 no-store, `/download/android.apk`307/no-store→현재 Expo artifact를 확인했다.
+- 실제 파일: 고정 APK 주소를 따라 HTTP200·61,942,571bytes·SHA256 BE75DE859E8472D8959252C34BE7A80EB5D491308577974E75A0268EB93F44CA 일치. 기존 검증된 아이콘 APK이며 이번 변경으로 새 APK를 빌드하지 않았다.
+- Jev 외부 패치 검토는 보안 정책으로 거절되어 재전송/우회하지 않았다. 직접 코드/테스트/운영 검증으로 진행했으며 외부 검토 통과를 주장하지 않는다.
+- 남은 작업: 다음 APK 출시 때 검증 후 연결 목적지·출시 안내를 갱신한다. 새 APK/OTA/DB 변경은 이번 범위 밖이다.
 
 ### 2026-10-04 — 알림·독서실 아이콘 구현·웹/공개 APK 배포 완료
 
