@@ -1,3 +1,13 @@
+## 2026-10-05 — Android 앱 내부 업데이트·영구 APK 게시 계약
+
+- 공개 출시는 GitHub Releases의 immutable tag/파일을 사용한다. 현재 android-v0.2.0-build3의 APK는0.2.0/code3/61,975,731bytes/SHA256 c077f6815fc80be82dfb4cddc393797574df4543665108688219cca45d392b62이며 기존 패키지·서명 유지. EAS 만료 artifact는 앱 업데이트 원본으로 사용하지 않는다.
+- 고정 Vercel `/download/android-release.json` schema1/no-store의 실제 versionCode·크기·해시를 네이티브에서 검증한다. 고정 `/download/android.apk`307/no-store와 안내 페이지는 같은 immutable GitHub 파일을 가리킨다. 일반 웹 자료 업데이트와 APK 설치를 구분하며 OTA는 추가하지 않는다.
+- 앱 네이티브 updater는 제한 HTTPS 다운로드·전용 cache child·동일 전체 signer 검증·설치 직전 재검증을 맡는다. 공통 RN 패널은 취소/재시도/고정 설치 안내와 진행률을 제공한다. 다운로드·설정·설치는 사용자 선택만 실행하고 실제 설치 code로 성공을 판정한다.
+- 설치 직전 현재 계정의 기존 study_sessions를 읽기 전용으로 확인한다. 공부 중/불명 상태는 설치를 미루고 auth owner revision을 재검증한다. 새 DB/RLS/RPC/인증 정책 변경 없음.
+- 출시 설명은 빈 배열을 허용하되 빈/공백만인 항목은 거부한다. 날짜 시간/offset 및 소수 초1–9자리도 게시/JS/native 계약을 맞춘다. 실제 builder Buffer 대조·78focused/29JVM·1041전체 실제 브라우저 회귀로 검증했다.
+- 검토 결정(Ruling): 이미 존재한 App/focus dirty 의존성 때문에 controller가 검증 후 소스 경로를 명시하여 커밋했다. 별도 staging audit 비용으로 무관한 사용자 변경 포함을 방지했다. 판단이 잘못되면 누락된 의존성의 후속 커밋/재검증이 필요할 수 있다.
+- 실제 출시 검증: dfc44c3/main/Release android-v0.2.0-build3, Actions37214626793 success/Vercel dpl_8LrYU7JzJHAoKPHYDMeVa2AYs7j1 READY·운영 JSON/alias/익명파일 무결성 일치. Android16 앱 다운로드·권한 복귀·OS취소·재시작·Play Protect 정상 검사·2→3 OS설치·로그인6메뉴 유지까지 확인했다. 실기기/OEM/DND·푸시는 별도이며 강제 설치는 없다.
+
 ## 2026-10-04 — 고정 APK 다운로드 게시 계약
 
 - 사용자 공개 주소는 `/download/android`이며 Vite public의 독립 설치 안내를 로그인 없이 제공한다. 버튼은 `/download/android.apk`를 사용한다.

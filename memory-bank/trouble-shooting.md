@@ -1,3 +1,22 @@
+## 2026-10-05 — 최종 업데이트 검증 도구·OS 보안 검사
+
+- 실제 다운로드 진행률/Activity 전환 중 UIAutomator가 `could not get idle state`/`null root node`를 반환했다. 도구가 이전 XML을 다시 읽을 위험을 확인하여 output/app-update-emulator.mjs에서 새 dump 성공 문구가 없으면 즉시 실패하도록 수정했다. 이후 안정된 실제 화면/스크린샷으로 취소·복귀·설치 결과를 확인했다. 이 도구 실패를 제품 성공 근거로 세지 않는다.
+- 더 보기의 실제 항목은 `알림 설정`인데 테스트 locator `알림`은 존재하지 않아 실패했다. 관찰한 이름으로 수정하여 알림 화면 진입을 확인했다. 제품 메뉴/문구는 변경하지 않았다.
+- Play Protect는 처음 보는 공개 APK의 정상 검사를 요청했다. 앱 보안 기능을 끄거나 우회하지 않고 `Scan app`→`This app looks safe`→`Install` 정상 흐름으로 Android16 actualcode3 설치를 완료했다. 검사는 이 APK/이 환경의 관찰이며 모든 제조사/향후 APK의 안전 보장을 의미하지 않는다.
+- 최종 모든 제품 gate 통과: 실제 full1041/1041·native29/29·production/익명파일 무결성·actualOS2→3/로그인6메뉴 유지. 최초 리뷰finding과 c218df6/dfc44c3 한 번의 최종 보완 및 scoped 재검토 전 finding 해소를 progress/active-context에 기록했다. rootlint 없음/CI 브라우저77생략/기존 Gradle·Actions 안내 경고를 숨기지 않는다.
+- 남은 리스크는 실휴대폰/OEM 설치·기존 DND/푸시 E2E이며 이번 updater 설치 검증과 구분한다. 기존 피드 중지/회복 필요를 해소하려고 사용자 데이터를 수정하지 않았다.
+- 완료 후 생성 Android 폴더 복원은 Gradle 파일 잠금으로 Move-Item이 일부 파일만 옮긴 뒤 실패했다. 양쪽 생성 경로가 같은 worktree 안인지/중복 파일이 없는지 확인하고 해당 E:/Android/Gradle 데몬을 정상 종료한 후, 남은750파일만 robocopy /MOVE /E로 output/android-local-build에 복원했다(exit3, source없음/target존재). 비공개 키·공개 APK·제품 소스·다른 output은 수정/삭제하지 않았다. 다음 빌드 전 생성 root 복원 절차와 Expo 자동 연결 기준을 다시 확인한다.
+
+## 2026-10-05 — 업데이트 상태 복귀·생성 아이콘·Windows dex 잠금
+
+- UI 리뷰 재현: foreground의 native idle이 확인된 available을 덮어 다운로드 버튼을 숨겼다. `useAppUpdate`가 검증된 최신 후보/현재 실제 code와 JS 확인·설치 gate lock을 병합하도록 수정했다. RED4/4 → updater38/38·기존 포함78/78·타입 통과,0d312f7 독립 수정 재검토 차단 이슈0. 실제 native 단계와 실제 code 기반 성공은 유지한다.
+- 앞선 UI 자체 검토: effect remount 후 abandoned check lock, A→B→A 계정 재전환의 오래된 설치 확인을 실제 테스트로 발견했다. mounted/generation 해제와 auth owner revision으로 수정했으며 stale 결과는 unknown으로 처리한다. TS18047 nullable callback은 좁힌 native adapter로 해결했다. 새 DB/RPC/인증 정책 변경은 없다.
+- 생성 리소스: 이전 집중 APK용 Android 폴더에 기본 Android 아이콘이 남아 있었다. 앱 설정의 책·조명 자산과 actual native webp를 직접 비교한 뒤 `expo prebuild --platform android --no-install`로 최신 아이콘/adaptive 리소스를 생성했다. prebuild가 바꾼 개발 scripts는 자신의 변경만 apply_patch로 원복하고, 생성 Gradle의 빌드2/3 override와 기존 비공개 env 서명을 유지했다. 새 의존성/키 변경은 하지 않았다.
+- 경로 오류: prebuild 전 backup Copy-Item을 mobile cwd에서 repo-relative 경로로 요청해 존재하지 않는 경로 오류를 기록했다. 생성 자체는 성공했고 현재 Gradle을 확인하여 서명 설정 보존과 version override를 검증했다. 이 실패를 제품 검증으로 세지 않는다.
+- 최종3 첫 빌드 실패: `:app:mergeDexRelease`의 classes.dex에 `다른 프로세스가 파일을 사용 중이기 때문에 프로세스가 액세스 할 수 없습니다`. 별도 소스 수정·광범위 삭제·보안 도구 중지 없이 잠금 해제 후 동일 빌드 한 번 재시도로 성공(13초/327tasks). 잠금 보유 프로세스는 확정하지 않았으며 Windows 일시 잠금 경계로 기록한다.
+- 실제 후보: package 유지·0.2.0/code3·4개 ABI·기존 인증서 일치,61,974,751bytes/SHA256 A70AA39814598A2448638E633DB88A39B1AE6C50DD4A3E7BC7D368477E83D0B1. 공개/production/OS2→3 검증은 아직 별도 단계다.
+- 경고: Gradle9 deprecation/incubating·Metro NO_COLOR/FORCE_COLOR·FileSystem provider replace·로컬 helper shell deprecation·prebuild edge-to-edge/system-ui 안내는 남아 있다. root lint 스크립트는 없으며 APK lintVitalRelease 성공과 구분한다.
+
 ## 2026-10-04 — 생성 Android 프로젝트 외부 보관 경로와 모듈 자동 연결
 
 - 상황: 앱 내부 업데이트 모듈의 JVM RED 검사 전에 Gradle이 app/build.gradle resolveAppEntry에서 `Cannot convert '' to File`로 실패했다.
@@ -1831,6 +1850,12 @@ Escaped JSX template placeholders inside the Node edit script and reran the targ
 When using Node scripts to patch TSX after apply_patch is blocked, escape any JSX template placeholders in inserted strings or build the replacement from plain string arrays.
 
 # Trouble Shooting
+
+## 2026-10-05 — 앱 업데이트 최종 리뷰의 안내·출시 설명 검증 경계
+
+- 상황: whole-branch708ef8a..1de49ba 검토는 Critical0/Important0/Minor2였다. 정상 후보는 유효하나 Android 설치 화면 실패를 인터넷 재시도로만 설명하고 고정 안내 링크가 없었다. 또한 게시 도구·JS가 공백 releaseNotes를 허용하지만 native UpdatePolicy가 거부하여 미래 게시물이 네이티브 확인에서 실패할 수 있었다.
+- 대응: 두 지적을 PRD의 OEM 차단 안내 및 실제 네이티브 계약과 대조했다. 공개 전 한 번의 fix wave로 설치 전용 안전한 문구·사용자 선택의 고정 안내 링크·공백 항목 거부 회귀를 보완한다. UI 변경 후 내부2/최종3을 재빌드하고 실제 새 APK 바이트로 metadata를 갱신한다. 기존 후보를 공개한 뒤 바꾸지 않는다.
+- 관련: apps/mobile/src/appUpdate.ts·AppUpdatePanel.tsx, scripts/android-release.mjs 및 updater/release/download tests. 최종 수정/재검토·새 APK·공개/OS 성공은 현재 미완료이며 이후 검증 사실로 갱신한다.
 
 ## 2026-07-01 - Cross-midnight active session left Today study timer at zero
 

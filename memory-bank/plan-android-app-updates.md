@@ -7,6 +7,8 @@
 **Tech Stack:** Expo53, RN0.79, TypeScript, Kotlin, Android PackageManager/FileProvider, Node test, 기존 Gradle release 빌드, GitHub Releases, Vite/Vercel.
 **Spec:** memory-bank/prd-android-app-updates.md (2026-10-04 상세 설계·GitHub 게시 승인).
 
+**완료 — 2026-10-05:** Task1/2/3 source/review 및 ONE final fix/scoped re-review 통과. 실제 Chromium1041/1041/JVM29/29, 공개 GitHub APK 무결성, dfc44c3 main/Actions37214626793 success/Vercel dpl_8LrYU7JzJHAoKPHYDMeVa2AYs7j1 READY, Android16 다운로드 취소·권한 복귀·OS취소·재시작·Play Protect 정상 검사·actual2→3 및 로그인6메뉴 유지 완료. 릴리스 APK61,975,731bytes/SHA c077f6815fc80be82dfb4cddc393797574df4543665108688219cca45d392b62. 상세 proof/ruling/실기기 제한은 progress·active-context·implementation-plan에 보존한다.
+
 ## Global Constraints
 
 - 패키지 com.jini9867.studyroomattendance와 현재 배포된 APK 서명 인증서를 유지한다. 비밀값/keystore/환경 파일은 Git·리뷰 파일·APK release에 넣지 않는다.
@@ -23,6 +25,8 @@
 - 작업트리는 C:/jini-dev/worktrees/study-room-recovery-audit, branch codex/recovery-consistency. 리뷰용 diff에는 비밀값을 넣지 않는다. 커밋은 controller가 최종 배포 의존성을 확인해 수행하고 worker는 허가한 경로만 수정한다.
 
 ## Task 1: 네이티브 안전 다운로드·설치 모듈
+
+**상태 (2026-10-05):** 구현·JVM27/27·컴파일/manifest·독립 리뷰/취소 복귀 수정 재검토 완료. 소스1734157/0761c35, OS 실제 설치는 Task4에서 확인한다.
 
 **Files:**
 - Create: apps/mobile/modules/my-module/android/src/main/java/expo/modules/studyfocusmode/StudyAppUpdateModule.kt
@@ -50,7 +54,7 @@ installDownloaded(): Promise<NativeUpdateState>; // no URL/path argument
 addListener('onUpdateState', listener: (state: NativeUpdateState)=>void): { remove(): void };
 ```
 
-- [ ] Step 1 RED: write JVM tests of real UpdatePolicy validation and bounded read/hash helpers. Hand-derived fixtures cover accepted release URL, wrong repo/HTTP/userinfo/query/encoded traversal, redirect host mismatch, fractional/low/same version, empty/oversize/invalid SHA, byte overflow/truncation, cancelled read, exact hash mismatch. Example:
+- [x] Step 1 RED: write JVM tests of real UpdatePolicy validation and bounded read/hash helpers. Hand-derived fixtures cover accepted release URL, wrong repo/HTTP/userinfo/query/encoded traversal, redirect host mismatch, fractional/low/same version, empty/oversize/invalid SHA, byte overflow/truncation, cancelled read, exact hash mismatch. Example:
 ```kotlin
 @Test fun rejectsForeignRepository() {
   assertThrows(IllegalArgumentException::class.java) {
@@ -61,18 +65,20 @@ addListener('onUpdateState', listener: (state: NativeUpdateState)=>void): { remo
   assertEquals("github.com", UpdatePolicy.validateArtifactUrl("https://github.com/zxcc9867/studyRoom/releases/download/android-v0.2.0-build3/study-room.apk").host)
 }
 ```
-- [ ] Step 2: run the module Gradle unit test using the existing output/android-local-build project with E:/Android/Sdk, JDK21, existing Gradle cache. Before production module exists, verify missing behavior failure; do not treat a missing SDK as the intended RED.
-- [ ] Step 3 GREEN: implement policy, private updater storage, single background download, bounded HTTPS redirects, cancellation that does not queue behind the download, temporary files, progress and recovery. Native fetchLatestRelease reads only the fixed Vercel URL with16KiB/12s limit, then validates every schema field.
+- [x] Step 2: run the module Gradle unit test using the existing output/android-local-build project with E:/Android/Sdk, JDK21, existing Gradle cache. Before production module exists, verify missing behavior failure; do not treat a missing SDK as the intended RED.
+- [x] Step 3 GREEN: implement policy, private updater storage, single background download, bounded HTTPS redirects, cancellation that does not queue behind the download, temporary files, progress and recovery. Native fetchLatestRelease reads only the fixed Vercel URL with16KiB/12s limit, then validates every schema field.
 ```kotlin
 private const val RELEASE_URL = "https://study-room-attendance.vercel.app/download/android-release.json"
 private const val MAX_APK_BYTES = 150L * 1024L * 1024L
 // Manifest provider must expose only cacheDir/study-updates/, exported=false.
 // Before install: verify installed code < target, exact package and complete signer-set match.
 ```
-- [ ] Step 4: add REQUEST_INSTALL_PACKAGES and non-exported provider, register StudyAppUpdate module without removing StudyFocusMode. Get installed version with PackageManager, not the module library version. canInstall uses Android canRequestPackageInstalls. Open source settings for only this package. FileProvider APK ACTION_VIEW with temporary read grant opens the OS confirmation; return install_pending, never installed. On next native state read, verify actual native version to detect completion.
-- [ ] Step 5: unit tests GREEN, mobile typecheck, module compile/merged manifest verification. Add exact output and RED/GREEN evidence to task report. No commit/push or native focus implementation edits by worker.
+- [x] Step 4: add REQUEST_INSTALL_PACKAGES and non-exported provider, register StudyAppUpdate module without removing StudyFocusMode. Get installed version with PackageManager, not the module library version. canInstall uses Android canRequestPackageInstalls. Open source settings for only this package. FileProvider APK ACTION_VIEW with temporary read grant opens the OS confirmation; return install_pending, never installed. On next native state read, verify actual native version to detect completion.
+- [x] Step 5: unit tests GREEN, mobile typecheck, module compile/merged manifest verification. Add exact output and RED/GREEN evidence to task report. No commit/push or native focus implementation edits by worker.
 
 ## Task 2: 출시 검증·상태 hook·앱 업데이트 UI
+
+**상태 (2026-10-05):** 구현·신규38/38/기존 포함78/78·모바일 타입/호환성·독립 리뷰/foreground 수정 재검토 완료. 소스2d01f60/0d312f7, 제품 versionCode3 유지.
 
 **Files:**
 - Create: apps/mobile/src/appUpdate.ts, useAppUpdate.ts, AppUpdatePanel.tsx
@@ -91,17 +97,19 @@ export function AppUpdatePanel(props: { palette: StudyPalette; beforeInstall: ()
 // AppUpdateController encapsulates current/version/status/error/progress, open/close/check/download/cancel/install/settings actions.
 ```
 
-- [ ] Step 1 RED: write real source tests with boundary double only for Android native/OS and RN host. Mutation-sensitive behaviors: currentcode3 + release2/3 no update; current2 + release3 update; versionName999/current3 + release0.2.0/code4 still update; wrong schema/origin/repo/query/NaN/fraction/size/SHA/notes/date rejects; check timeout/failure not latest. Example:
+- [x] Step 1 RED: write real source tests with boundary double only for Android native/OS and RN host. Mutation-sensitive behaviors: currentcode3 + release2/3 no update; current2 + release3 update; versionName999/current3 + release0.2.0/code4 still update; wrong schema/origin/repo/query/NaN/fraction/size/SHA/notes/date rejects; check timeout/failure not latest. Example:
 ```js
 assert.equal(api.isNewerRelease(release({versionCode:3}), {supported:true,packageName:'com.jini9867.studyroomattendance',versionName:'9.9.9',versionCode:2}), true);
 assert.throws(()=>api.validateAndroidRelease(release({apkUrl:'https://github.com/other/repo/releases/download/v1/app.apk'})));
 ```
-- [ ] Step 2: run node --test scripts/mobile-app-update.test.mjs to prove missing behavior. Then implement schema checks and normalized Korean errors without raw native/server messages or artifact signed URLs.
-- [ ] Step 3 RED/GREEN UI: actual AppUpdatePanel/useAppUpdate rendering and actions. Login/foreground entry remains usable; initial check once; manual check; native progress; cancel; duplicate buttons; native error; outdated async result/unmount; server studying/unknown installation gate; permission settings requires user press; returning does not install; explicit installPending never success; installed actual code success. Add dynamic type/scroll/44dp/accessible dialog/live text contract. Use existing palette and restrained layout; no new fonts/menu redesign.
-- [ ] Step 4: wire a shared controller/panel in App login + WebView/fallback branches without resetting native Auth/WebView. Native installation guard re-reads existing current owner's active session at button time (error => unknown, active unpaused => studying, no user => allowed), rechecks owner after await, and performs no write.
-- [ ] Step 5: app.json version0.2.0/android.versionCode3 and eas.json cli.appVersionSource local. Internal updater bootstrap2 is built only in generated output; never edit committed product version down to2 or publish it as latest. Compile/RN focused tests and mobile:check GREEN. Report exact files/diff/test evidence, do not stage App wholesale or remove pre-existing focus changes.
+- [x] Step 2: run node --test scripts/mobile-app-update.test.mjs to prove missing behavior. Then implement schema checks and normalized Korean errors without raw native/server messages or artifact signed URLs.
+- [x] Step 3 RED/GREEN UI: actual AppUpdatePanel/useAppUpdate rendering and actions. Login/foreground entry remains usable; initial check once; manual check; native progress; cancel; duplicate buttons; native error; outdated async result/unmount; server studying/unknown installation gate; permission settings requires user press; returning does not install; explicit installPending never success; installed actual code success. Add dynamic type/scroll/44dp/accessible dialog/live text contract. Use existing palette and restrained layout; no new fonts/menu redesign.
+- [x] Step 4: wire a shared controller/panel in App login + WebView/fallback branches without resetting native Auth/WebView. Native installation guard re-reads existing current owner's active session at button time (error => unknown, active unpaused => studying, no user => allowed), rechecks owner after await, and performs no write.
+- [x] Step 5: app.json version0.2.0/android.versionCode3 and eas.json cli.appVersionSource local. Internal updater bootstrap2 is built only in generated output; never edit committed product version down to2 or publish it as latest. Compile/RN focused tests and mobile:check GREEN. Report exact files/diff/test evidence, do not stage App wholesale or remove pre-existing focus changes.
 
 ## Task 3: 출시 JSON·고정 설치 안내 게시 계약
+
+**상태 (2026-10-05):** 실제 final3 APK 바이트 기반 JSON/alias/안내 구현·375/1440 실제 브라우저 포함12/12·독립 리뷰 완료 (1de49ba). 공개 게시/HTTP 확인은 Task4에 남아 있다.
 
 **Files:**
 - Create: scripts/android-release.mjs, scripts/android-release.test.mjs
@@ -114,23 +122,23 @@ export function buildAndroidRelease({versionName,versionCode,releasedAt,releaseN
 // No key, token, local path or guessed EAS date in public manifest.
 ```
 
-- [ ] Step 1 RED: test builder with literal Buffer('apk-fixture') -> hand-checked size/hash; invalid GitHub owner/code/date/notes rejected. Simulated route serves application/json and no-store before SPA and APK route307 points to same apkUrl as manifest. The fixture must not be posted as product metadata.
+- [x] Step 1 RED: test builder with literal Buffer('apk-fixture') -> hand-checked size/hash; invalid GitHub owner/code/date/notes rejected. Simulated route serves application/json and no-store before SPA and APK route307 points to same apkUrl as manifest. The fixture must not be posted as product metadata.
 ```js
 const route = routes.find(r => r.src && new RegExp(`^${r.src}$`).test('/download/android-release.json'));
 assert.equal(route.dest, '/download/android-release.json');
 assert.equal(route.headers['Cache-Control'], 'no-store');
 ```
-- [ ] Step 2 GREEN: implement builder and new route. Until verified candidate APK exists, do not invent production release JSON or change fixed APK Location. Download page explains first manual updater APK install, later app update button, OS source permission/user confirmation, deletion-free update and version0.2.0/build3. Current page has no JS needed.
-- [ ] Step 3: after Task4 candidate is verified, use actual bytes/hash/version and final GitHub release URL to create JSON with apply_patch; update fixed alias and page together. Add contract tests for matching fields/url/header routes and existing API/SPA.
-- [ ] Step 4: run focused release/download tests and actual375/1440 browser with bundled Chromium, web build, docs check. No generic web redesign or study API changes.
+- [x] Step 2 GREEN: implement builder and new route. Until verified candidate APK exists, do not invent production release JSON or change fixed APK Location. Download page explains first manual updater APK install, later app update button, OS source permission/user confirmation, deletion-free update and version0.2.0/build3. Current page has no JS needed.
+- [x] Step 3: after Task4 candidate is verified, use actual bytes/hash/version and final GitHub release URL to create JSON with apply_patch; update fixed alias and page together. Add contract tests for matching fields/url/header routes and existing API/SPA.
+- [x] Step 4: run focused release/download tests and actual375/1440 browser with bundled Chromium, web build, docs check. No generic web redesign or study API changes.
 
 ## Task 4: Android16 실제 설치·공개 APK·웹 배포
 
 **Owner:** controller handles private signing/build/deployment and project memory-bank, not external reviewers. This task changes generated output and release publication only after source task gates.
 **Files:** generated output/android-local-build; final output/study-room-0.2.0-build3.apk; updater bootstrap output/study-room-updater-bootstrap2.apk; Task3 final manifest; active-context/progress/implementation-plan/trouble-shooting/PRD.
 
-- [ ] Step 1: run full npm.cmd test, mobile:check, web build, docs:check, Edge tests. Record pass/fail/skips separately; no lint script means not claim lint passed.
-- [ ] Step 2: use existing JDK21/SDK E:/Android/Sdk and private same-signing credentials, do not log values. Existing generated Gradle project points to current App.tsx/modules. Update generated versionCode2/versionName0.2.0 for bootstrap, build release, verify signer/package/version, adb install -r; verify login retained and panel entry. Build same source code3 for final release, verify code3/icon/signer and native permissions/provider.
+- [x] Step 1: run full npm.cmd test, mobile:check, web build, docs:check, Edge tests. Record pass/fail/skips separately; no lint script means not claim lint passed.
+- [x] Step 2: use existing JDK21/SDK E:/Android/Sdk and private same-signing credentials, do not log values. Existing generated Gradle project points to current App.tsx/modules. Update generated versionCode2/versionName0.2.0 for bootstrap, build release, verify signer/package/version, adb install -r; verify login retained and panel entry. Build same source code3 for final release, verify code3/icon/signer and native permissions/provider.
 ```powershell
 $env:ANDROID_HOME='E:/Android/Sdk'
 $env:GRADLE_USER_HOME='E:/Android/Gradle'
@@ -138,15 +146,15 @@ $env:GRADLE_USER_HOME='E:/Android/Gradle'
 & ./gradlew.bat :app:assembleRelease --no-daemon --console=plain
 & E:/Android/Sdk/platform-tools/adb.exe install -r <verified-bootstrap-apk>
 ```
-- [ ] Step 3: user authorized public GitHub Release android-v0.2.0-build3. Draft release -> upload only verified final APK -> publish -> anonymous HTTP/hash/size check. No APK/source signature secret/credential attachments. Verify immutable file rather than reusing/replacing a previous release tag. EAS is optional build route; local release uses same existing key.
+- [x] Step 3: user authorized public GitHub Release android-v0.2.0-build3. Draft release -> upload only verified final APK -> publish -> anonymous HTTP/hash/size check. No APK/source signature secret/credential attachments. Verify immutable file rather than reusing/replacing a previous release tag. EAS is optional build route; local release uses same existing key.
 ```powershell
 gh release create android-v0.2.0-build3 --repo zxcc9867/studyRoom --target <verified-source-commit> --title '독서실 Android 0.2.0 (3)' --draft --notes '앱에서 업데이트 확인·다운로드·Android 설치 확인을 지원합니다. 최초 한 번은 APK를 수동 설치하세요.'
 gh release upload android-v0.2.0-build3 output/study-room-0.2.0-build3.apk --repo zxcc9867/studyRoom
 gh release edit android-v0.2.0-build3 --repo zxcc9867/studyRoom --draft=false
 ```
-- [ ] Step 4: finalize Task3 manifest/alias/page, verify tests, scoped commit/push main under existing web deployment authorization, wait for .github/workflows/vercel-production.yml success, Vercel READY and production HTTP200/JSON200/no-store/alias307->APK200/hash match. Never count deployment requested as completed.
-- [ ] Step 5: bootstrap2 app checks production code3, user-triggered actual download + cancel/retry, permission explanation -> Android source settings -> return with no automatic install -> install button -> OS update confirmation -> real code3. ADB/UIAutomator screenshots and UI dumps, no login secret capture. Verify native/web session and6tabs retained after install. Do not create study/recovery writes or toggle DND in these tests. If a study gate is active, use controlled mounted test for that condition rather than modifying user study data.
-- [ ] Step 6: final whole-branch review and fix gate, memory-bank exact checks/deployment IDs/limitations, release claims. Do not delete source worktree, existing output or other task's scratch. Remove only this plan's scratch if appropriate after evidence survives in git/docs.
+- [x] Step 4: finalize Task3 manifest/alias/page, verify tests, scoped commit/push main under existing web deployment authorization, wait for .github/workflows/vercel-production.yml success, Vercel READY and production HTTP200/JSON200/no-store/alias307->APK200/hash match. Never count deployment requested as completed.
+- [x] Step 5: bootstrap2 app checks production code3, user-triggered actual download + cancel/retry, permission explanation -> Android source settings -> return with no automatic install -> install button -> OS update confirmation -> real code3. ADB/UIAutomator screenshots and UI dumps, no login secret capture. Verify native/web session and6tabs retained after install. Do not create study/recovery writes or toggle DND in these tests. If a study gate is active, use controlled mounted test for that condition rather than modifying user study data.
+- [x] Step 6: final whole-branch review and fix gate, memory-bank exact checks/deployment IDs/limitations, release claims. Do not delete source worktree, existing output or other task's scratch. Remove only this plan's scratch if appropriate after evidence survives in git/docs.
 
 ## Preflight coverage / dependency checks
 

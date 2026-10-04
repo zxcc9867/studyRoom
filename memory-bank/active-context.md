@@ -1,5 +1,30 @@
 # Active Context
 
+## 현재 작업 — 2026-10-05 앱 내부 업데이트 배포 완료
+
+### 현재 작업
+
+- 목적/관련 PRD: 앱 버튼으로 최신 APK 확인·다운로드·사용자 Android 설치 확인. prd-android-app-updates.md·prd-android-download.md·plan-android-app-updates.md.
+- 제품 소스 dfc44c39a0f3195cc97e2d9e0141ad40124516d6를 main에 정상 푸시하고 GitHub Release android-v0.2.0-build3에 APK 하나만 공개했다. 0.2.0/code3/61,975,731bytes/SHA256 c077f6815fc80be82dfb4cddc393797574df4543665108688219cca45d392b62/기존 패키지·전체 signer·4ABI·책/조명 아이콘 유지. 이전 A70후보는 게시하지 않았다.
+
+### 최근 결정 사항
+
+- EAS14일 만료 대신 승인된 공개 GitHub Releases의 immutable APK를 사용한다. 고정 안내 https://study-room-attendance.vercel.app/download/android 및 파일 /download/android.apk, schema1/no-store /download/android-release.json을 함께 게시했다.
+- 다운로드·설정·설치는 사용자 선택만 실행한다. 설치 직전 기존 현재 계정의 study_sessions 읽기 확인은 fail-closed이며 updater는 세션/회복/인증 데이터를 쓰지 않는다. 새 DB/RLS/RPC/키/OTA/Play 출시 없음.
+
+### 현재 상태
+
+- 완료: Task1/2/3 독립 리뷰와 수정 재검토. 최종 whole-branch C0/I0/M2를 한 번의 fix wave c218df6/dfc44c3로 해소하고, 한 번의 scoped 재검토로 전 finding ADDRESSED·새 breakage0. 설치 실패 문구·고정 안내·설명 공백/날짜 형식 계약 보완.
+- 검증: 실제 Chromium 포함 전체1041/1041·0실패·0생략(127.400초), focused78/78·실제 JVM29/29·모바일 타입/호환성·웹 타입/빌드1727모듈·README24자산/3언어·diff 성공. root lint 스크립트 없음; APK lintVitalRelease 통과.
+- production: Actions37214626793 success(2분37초; CI964통과/77선택 브라우저 생략/0실패/Edge21통과), Vercel dpl_8LrYU7JzJHAoKPHYDMeVa2AYs7j1 READY·정확한 제품 SHA·운영 alias. 실제 JSON200/application-json/no-store/전체 필드 일치, 안내200/APK307/no-store→익명 파일200·실제 크기/해시 일치.
+- 실제 Android16: 내부2에서 앱 다운로드 취소→재시도→검증 ready→출처 허용 UI→복귀만으로 미설치(code2)→명시적 설치→OS Cancel→ready 복원→프로세스 재시작 ready/code2→재설치→Play Protect 정상 검사 `This app looks safe`→OS Install→실제 code3/App installed→앱 `업데이트가 설치됐어요`/현재3 확인. 삭제/pm clear/보안 우회 없음.
+- 동일 native/web 로그인으로 오늘·목표·기술 피드·공부 숲(3D 로딩 완료)·내 페이지·알림 화면 진입 확인. 회복 제출·공부 시작·DND 조작 없음. zen_mode0 유지/임시 네트워크 제한 full 복구. 근거 output/app-update-{cancelled,settings-return-no-auto-install,installer-cancel-return,restarted-ready,play-protect-safe,os-installed,installed-version3,installed-feed,installed-forest-ready}.png.
+
+### 주의할 점 / 다음 작업
+
+- 기존 사용자는 이번0.2.0/code3 APK를 앱 삭제 없이 최초 한 번 수동 설치한다. 이후 출시 버전은 앱 업데이트 버튼으로 시작하되 Android 승인·필요한 출처 허용은 직접 수행한다. 무인 자동 설치로 설명하지 않는다.
+- 실휴대폰/OEM 설치 차이·백그라운드 푸시·실제 알림 억제는 이 updater 검증과 별도다. 계정의 기술 피드 수집/소식 수신 중지·기존 회복 필요 상태는 바꾸지 않았다. 테스트한 것은 로그인/페이지 유지이며 새 기사 수집 성공이나 실제 공부 시작 성공을 주장하지 않는다.
+
 ## 현재 작업 — 2026-10-04 앱 내부 APK 업데이트 구현
 
 - 사용자 요청: `그럼 그 기능을 넣어줘`로 앱 내부 최신 버전 확인·다운로드·Android 설치 확인 기능 추가를 요청했다.

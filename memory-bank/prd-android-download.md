@@ -34,3 +34,8 @@
 - 제품5d5acb0·Actions37203826300 success·Vercel dpl_34DnnRMr9ZKgoneUvEdTezbDwTt2 READY.
 - 안내 https://study-room-attendance.vercel.app/download/android HTTP200/no-store·끝 slash/CSS200.
 - 파일 주소 https://study-room-attendance.vercel.app/download/android.apk 307/no-store→현재 아이콘 APK11afaede. 실제 다운로드200·61,942,571bytes·검증된 APK SHA256 일치. 실제 화면4/4, 기존 로컬890/CI865통과·0실패, 선택 브라우저77생략은 별도 기록한다.
+
+## 최신 출시 확인 — 2026-10-05
+
+- updater0.2.0/code3의 고정 안내/JSON/alias를 dfc44c3로 게시했다. Actions37214626793 success/Vercel dpl_8LrYU7JzJHAoKPHYDMeVa2AYs7j1 READY. 고정 JSON200/application-json/no-store/전체 필드 일치·안내200·파일307/no-store→공개 GitHub Release android-v0.2.0-build3 APK200.
+- 실제 파일61,975,731bytes/SHA256 c077f6815fc80be82dfb4cddc393797574df4543665108688219cca45d392b62 일치. 앱 안에서 이 파일을 다운로드하여 Android16 OS 승인으로2→3 업데이트/동일 로그인6메뉴 유지까지 확인했다. 최초 updater APK 한 번 수동 설치 후 앱 버튼을 사용하며 강제/무인 설치는 없다.

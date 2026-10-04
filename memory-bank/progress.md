@@ -2,6 +2,49 @@
 
 ## Timeline
 
+### 2026-10-05 — 앱 내부 업데이트 공개·운영·실제 OS 검증 완료
+
+#### 완료한 작업
+
+- 제품 dfc44c39a0f3195cc97e2d9e0141ad40124516d6/main, tag/Release android-v0.2.0-build3·APK 하나 게시. 0.2.0/code3/61,975,731bytes/SHA256 c077f6815fc80be82dfb4cddc393797574df4543665108688219cca45d392b62/기존 signer 일치. private key/config/generated/output 미게시.
+- Actions37214626793 success/2분37초, Vercel dpl_8LrYU7JzJHAoKPHYDMeVa2AYs7j1 READY/제품SHA/운영alias. JSON200/application-json/no-store·전체 필드 대조, 안내200·APK307/no-store·익명 파일200/크기·해시 재대조 통과.
+- Android16 내부2→앱 실제 다운로드 취소/재시도/ready→출처 허용 직접 선택→복귀 시 미설치→OS 설치 취소→ready 재시도→프로세스 재시작/code2 유지→Play Protect 정상 안전 검사→OS 설치→actual code3/앱 완료 표시. 삭제/초기화/보안 기능 우회 없음.
+- native/web 로그인 유지, 오늘·목표·피드·공부 숲3D·내 페이지·알림 진입. 회복 제출/공부 시작/알림 발송/DND 조작은 하지 않았다. 임시 network edge는 finally에서 full 복구, zen_mode0 유지.
+
+#### 변경한 파일 / 검증 방법
+
+- 앱 공통 updater UI/hook/validator, Android updater/policy/storage/downloader/provider/manifest/테스트, app.json/eas.json, 출시 builder/JSON/안내/라우팅/회귀 테스트. 기존 배포된 focus 의존성은8b8c884 별도 보존했다.
+- 실제 브라우저 포함1041/1041·0실패·0생략, focused78/78/JVM29/29, mobile check·web build·README24자산/3언어·diff 성공. CI964통과/77선택 브라우저 생략/0실패, Edge21/21. root lint 없음; native lintVitalRelease는 실제 빌드 성공.
+- final whole-branch C0/I0/M2 → ONE final fix c218df6/dfc44c3 → ONE scoped re-review 전 finding ADDRESSED/새 breakage0. 단계별 최초 리뷰/수정 회귀 근거는 관련 이전 기록을 보존한다.
+- OS 증거: output/app-update-{cancelled,settings-return-no-auto-install,installer-cancel-return,restarted-ready,play-protect-safe,os-installed,installed-version3,installed-feed,installed-forest-ready}.png. 관찰한 실제 화면/PackageManager 버전 기준이며 mock과 구분한다.
+
+#### 주의 사항 / 다음 우선순위
+
+- 첫 updater APK는 한 번 수동 설치, 이후 앱 버튼 사용·OS 승인 필요. 실기기/OEM 설치 및 실제 DND/푸시 E2E는 후속 검증이다. 기존 피드 수집 중지/회복 상태는 변경하지 않았다.
+- Ruling: 기존 dirty App/focus 의존성의 controller 명시 경로 staging. 비용은 staging audit, 틀리면 누락 의존성 후속 커밋/재검증이며 무관한 사용자 변경을 섞지 않는다. 이 작업의 유일한 구현 ruling이다.
+- 정리: 이 작업의 생성 Android 프로젝트를 경로/중복 검사 후 output/android-local-build로 복원했다. 초기 Gradle 잠금과 정상 종료/남은750파일 복원은 trouble-shooting에 기록했다. task scratch의 핵심 검토/배포/OS 근거와 유일한 ruling은 이 문서·active-context·implementation-plan에 보존한 뒤 이 plan의 임시 폴더만 정리한다. 다른 사용자 untracked 파일/output은 보존한다.
+
+### 2026-10-05 — 최종 리뷰 보완·새 APK 후보
+
+- 공개 게시: 한 번의 scoped final fix 재검토 전 finding 해소·신규 breakage0. dfc44c3의 tag android-v0.2.0-build3 → draft APK 하나 업로드 → 공개 게시 → 익명 HTTP200 실제62MB 크기/해시 일치. main 정상 푸시/Actions37214626793 시작, production/Android OS 설치 gate는 진행 중이다.
+- dfc44c3 최종 트리: 실제 브라우저 포함 직렬 전체1041/1041·0실패·0생략(127.400초), 웹 타입/빌드1727모듈·README24자산/3언어·diff 검사 성공. 최종 공개 전 scoped fix 재검토를 진행한다.
+- c218df6: 설치 실패/사용불가의 Android 보안 정책 문구, 사용자 버튼의 고정 설치 안내 및 링크 열기 실패 처리, 게시/JS/native 설명 공백·날짜 형식 계약 일치. 최종 리뷰 두Minor와 controller가 발견한 소수 초·24시 경계를 같은 fix wave로 보완했다.
+- 실제 테스트: focused78/78(375/1440브라우저 포함)·모바일check·JVM29/29 실패0. 내부2release33초/최종3release14초/lintVitalRelease 성공, same signer/install-r/로그인 유지·설치 안내 버튼 확인.
+- 새 최종 APK:61,975,731bytes/SHA256 C077F6815FC80BE82DFB4CDDC393797574DF4543665108688219CCA45D392B62/0.2.0/code3/4ABI/패키지·기존 인증서 유지, actualreleasedAt2026-10-04T15:43:07Z. 이전A70후보를 공개하지 않은 상태에서 교체한다. metadata·재검토·최종전체·GitHub/웹·실제OS 설치는 이후 게이트다.
+
+### 2026-10-05 — 앱 업데이트 출시 계약·전체 검증
+
+- 완료:1de49ba의 실제 final3 JSON/고정 APK alias/수동·앱 내부 설치 안내. 공개 metadata는61,974,751bytes/SHAa70aa39814598a2448638e633db88a39b1ae6c50dd4a3e7bc7d368477e83d0b1/0.2.0/code3이며 fixture를 게시하지 않는다. Task3 독립 리뷰 차단 이슈0.
+- 검증: 실제375/1440 브라우저 포함 출시12/12, 기본전체936통과/77선택 생략/실패0, 실제 브라우저 포함 직렬1013/1013·실패0·생략0(132.265초), Edge21/21·모바일 check·웹 build·README24자산/3언어·diff 성공. lint 스크립트 없음.
+- 남은 작업: 최종 whole-branch 리뷰, GitHub Release 게시/익명 실제파일 무결성, main/Vercel production 배포, Android16 OS2→3 권한복귀·취소·재시도·로그인 유지 확인. 아직 공개 완료가 아니다.
+
+### 2026-10-05 — 앱 업데이트 UI·동일 서명 후보 완료, 게시 검증 중
+
+- 완료한 작업: 공통 네이티브 업데이트 패널/validation/hook/읽기 전용 설치 gate2d01f60, foreground idle 병합 수정0d312f7. Task2 독립 검토 I1을 재현·수정하고 재검토 차단 이슈0. 최초 실패/자체 remount·계정 epoch·TS 오류/아이콘 생성·dex 잠금은 trouble-shooting에 기록했다.
+- 검증: 신규38/38·기존 포함78/78·mobile:check·diff 검증 통과. 내부 build2 최신 아이콘 포함 assembleRelease37초/327tasks·기존 signer/code2·adb install -r/로그인 유지/실제 업데이트 모달 확인. code3 첫 Windows dex 잠금 실패 후 동일 명령 재시도13초/327tasks 성공. root lint는 없고 native lintVitalRelease는 성공했다.
+- 후보: output/study-room-0.2.0-build3.apk(61,974,751bytes), SHA256 A70AA39814598A2448638E633DB88A39B1AE6C50DD4A3E7BC7D368477E83D0B1,actual0.2.0/code3/4개 ABI/package·기존 signer 유지. 비공개 키/생성 Android/output는 커밋하지 않는다.
+- 남은 작업/다음: 실제 metadata/게시 계약·375/1440브라우저·전체검증·최종branchreview → GitHub APK 및 Vercel → Android16 실제 다운로드·취소·권한 복귀·설치 취소/재시도·OS2→3 및 로그인/메뉴 유지. 이 시점에는 공개 설치 링크/운영 JSON을 변경하지 않았다.
+
 ### 2026-10-04 — 앱 내부 APK 업데이트 구현 진행
 
 - 승인: 상세 설계/구현/웹·APK 배포 및 기존 공개 GitHub Releases APK 게시를 사용자 승인받았다. 외부 결제/새 계정은 추가하지 않는다.

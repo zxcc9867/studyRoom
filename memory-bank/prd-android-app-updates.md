@@ -1,9 +1,9 @@
 # PRD: Android 앱 내부 APK 업데이트
 
-## 상태 — 2026-10-04
+## 상태 — 2026-10-05 구현·배포 완료
 
 - 사용자 요청: 앱에서 최신 버전을 확인하고 업데이트 버튼으로 APK 다운로드·Android 설치 확인까지 진행한다.
-- 단계: 사용자의 `진행해줘`로 상세 설계 및 구현·APK/웹 게시 승인. 구현 계획·테스트 우선 개발을 시작한다.
+- 단계: 사용자 승인 설계를 구현했고 공개 GitHub APK·고정 JSON/안내/alias·웹 production·Android16 실제2→3 업데이트 및 로그인/6개 메뉴 유지 검증까지 완료했다. 운영 제품은 dfc44c3/0.2.0/code3, Actions37214626793/Vercel dpl_8LrYU7JzJHAoKPHYDMeVa2AYs7j1이다.
 - 분류: 새 업데이트 하위 시스템을 추가하는 architectural 작업이다. 기존 집중 모드 미커밋 변경을 보존하고 필요한 배포 의존성을 함께 검증한다.
 - 추가 승인: 무료 EAS artifact의 실제 응답에 14일 만료 표시가 확인되어 사용자에게 알렸고, 기존 공개 GitHub studyRoom Releases에 APK를 함께 게시하여 지속적인 다운로드 경로로 사용하는 것을 승인받았다. 비밀값은 게시하지 않는다.
 - 기존 `prd-android-download.md`의 당시 범위 제외는 고정 주소 작업에 한정된다. 이 기능은 고정 주소 계약을 유지하며 별도 확장한다. 자동 무인 설치는 계속 제외한다.
@@ -82,8 +82,8 @@ APK 변경 때마다 사용자가 새 링크를 찾고 브라우저에서 파일
 - `packageName`: 고정 `com.jini9867.studyroomattendance`.
 - `versionName`: 사용자 표시 문자열, 최대 32자. 비교 기준으로 사용하지 않는다.
 - `versionCode`: 1 이상 Android 지원 범위의 정수. 모든 공개 APK에서 단조 증가시킨다.
-- `releasedAt`: 시간대가 명시된 유효 ISO8601 출시 시각. UI는 연도 포함 현지 날짜를 표시한다.
-- `releaseNotes`: 일반 텍스트 배열, 최대 8항목/항목당 200자. HTML·외부 명령으로 실행하지 않는다.
+- `releasedAt`: 시간대가 명시된 유효 ISO8601 출시 시각. 네이티브와 맞춰 시0..23/분·초0..59, 선택 소수 초1..9자리로 검증한다. UI는 연도 포함 현지 날짜를 표시한다.
+- `releaseNotes`: 일반 텍스트 배열, 최대 8항목/항목당 200자. 항목은 공백만으로 구성되지 않아야 하며 항목이 없는 배열은 허용한다. 게시 도구·JS·네이티브 검증을 일치시킨다. HTML·외부 명령으로 실행하지 않는다.
 - `apkUrl`: 검증된 `https://github.com/zxcc9867/studyRoom/releases/download/<tag>/<filename>.apk` 공개 release 주소. query·인증 정보·fragment·다른 프로토콜/호스트/저장소는 거부한다. 다운로드 리디렉션은 정확한 github.com과 release-assets.githubusercontent.com HTTPS 호스트만 최대 5회 허용한다. CDN의 서명된 query는 다운로드 전용 리디렉션에서만 허용하며 기록/문서/서버 manifest에 저장하지 않는다. 와일드카드 전체 허용은 하지 않는다. 같은 tag/파일은 다른 APK로 덮어쓰지 않는다.
 - `sha256`: 완성 APK의 64자리 16진수 SHA256.
 - `sizeBytes`: 1 이상 150MiB 이하 정수. 다운로드 한도는 이 값과 전역 150MiB를 모두 적용한다.
