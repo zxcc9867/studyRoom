@@ -1696,3 +1696,10 @@ docs/images/study-room-thumbnail.png
 - 날짜 레이블은 RSS/API `발행일`, 웹 검색 `검색 제공 날짜`로 구분한다. 카드에는 연도를 포함한다.
 - 검색 결과 분류는 `startups.aws.com/(언어/)?build` 자료 모음 경로를 목록으로 처리하며 하위 개별 가이드 경로는 유지한다. Supabase CLI의 일반 `db push` 드라이런은 과거 원격 이력 불일치로 중단되어 이번 DDL만 MCP 마이그레이션으로 적용했고, 저장소 SQL 파일명은 실제 적용된 버전 `20260927092206`과 일치시켰다. 무관한 과거 이력은 수정하지 않았다.
 - 배포 순서: 해당 DB 마이그레이션 → JWT 검증을 유지한 `tech-feed`/`tech-feed-worker` Edge → main 푸시로 Vercel 웹 배포. 출석/타이머/다른 함수·비밀값·RSS 승인 상태는 변경하지 않았다.
+## 2026-10-04 — 앱 내부 APK 업데이트 계약 (구현 중)
+
+- 출시 정보는 고정 공개 `GET /download/android-release.json`의 schema1 JSON으로 제공한다. 서버 로그인/쿠키는 필요 없으며 원본 APK는 사용자 승인된 공개 GitHub `zxcc9867/studyRoom` Releases에 둔다. 실제 APK 바이트의 SHA256/크기/패키지/versionCode로 metadata를 만들며 운영 JSON은 후보 검증 후 게시한다.
+- Expo 로컬 `StudyAppUpdate`는 `StudyFocusMode`와 별도 등록한다. 확인16KiB/12초, APK150MiB/접속15초/읽기30초/총10분, 제한된 HTTPS 리디렉션/독립 취소/250ms 이상 진행 이벤트, 전용 cache child만 사용한다. FileProvider는 비공개 updater child만 노출한다.
+- 검증은 크기·해시·패키지·versionCode·현재 전체 signer set이며 설치 직전 재검증한다. 권한 설정과 Android 설치 확인은 사용자 명시적 버튼으로만 열고 실제 설치 code가 성공 근거다. 취소/거부 후 foreground는 retryable ready, 설치 화면이 열린 동안은 pending이다.
+- RN 서비스/hook/공통 패널은 기존 팔레트와 로그인/WebView를 유지한다. 설치 직전 현재 소유자의 기존 study_sessions를 읽기만 하고, 공부 중/조회 실패/계정 전환이면 설치를 미룬다. DB/RLS/RPC·기기 집중 규칙은 변경하지 않는다.
+- 제품 version0.2.0/code3을 명시하고 EAS appVersionSource는 local이다. 검증 전용 bootstrap2는 생성 Gradle 출력만 사용하며 공개 최신 버전으로 게시하지 않는다. 최초 updater APK 한 번은 수동 설치, 이후 앱에서 다운로드·사용자 승인 설치한다. OTA/무인 설치/Play 배포는 범위 밖이다.

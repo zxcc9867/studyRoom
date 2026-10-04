@@ -1,3 +1,13 @@
+## 2026-10-04 — 생성 Android 프로젝트 외부 보관 경로와 모듈 자동 연결
+
+- 상황: 앱 내부 업데이트 모듈의 JVM RED 검사 전에 Gradle이 app/build.gradle resolveAppEntry에서 `Cannot convert '' to File`로 실패했다.
+- 원인: 생성 Android 루트가 output/android-local-build에 보관돼 표준 parent projectRoot가 output을 가리켰다. 앱 루트만 바꿔도 Expo settings 자동 연결은 별도로 output 기준을 사용해 로컬 모듈이 포함되지 않았다.
+- 해결: source/target 절대 경로가 같은 worktree 안이며 target이 없음을 확인한 후 생성 폴더만 apps/mobile/android로 복원했다. 생성 설정의 표준 parent projectRoot를 유지하고 서명 환경이 없는 JVM 검사에서는 storeFile을 null로 허용한다. 비공개 키는 release 빌드에서만 환경 변수로 제공한다.
+- 추가: 생성 versionCode의 Groovy DSL expression은 메서드 결과에 toInteger를 적용하는 형태로 해석돼 Value is null을 기록했다. `versionCode = (System.getenv('STUDYROOM_BUILD_CODE') ?: '3').toInteger()` 명시적 할당으로 수정했다.
+- 앱 manifest 검사 중 JS bundle을 실행하면 monorepo 루트의 ./index.js를 찾는 Metro 오류가 있었다. 기존 승인된 빌드와 같은 EXPO_NO_METRO_WORKSPACE_ROOT=1/NODE_ENV=production을 적용해 실제 bundle과 앱 manifest까지 통과했다. bundle task를 제외한 시도는 extractDeepLinksRelease의 resource-provider 의존성이 실패했으므로 통과 근거로 세지 않는다.
+- 확인: 로컬 모듈 JVM21/21·release Kotlin·실제 app manifest·mobile typecheck 통과, Expo 자동 연결의 focus/updater 두 등록을 확인했다. 아직 실제 OS 설치/최종 APK 게시 검증은 별도 단계다.
+- 재발 방지: Expo 자동 연결 결과에 StudyFocusMode/StudyAppUpdate가 포함되는지 별도로 확인한다. 생성 Android 파일과 키는 커밋하지 않으며 feature RED와 빌드 환경 실패를 구분한다. 앱/launcher/로그인 데이터를 초기화하지 않는다.
+
 ## 2026-10-04 — 공통 알림 테마 누락·내부 코드 표시 해결
 
 - 상황: 사용자 화면에 이전 노란 알림 카드와 ACTIVE_SESSION_EXISTS 코드가 그대로 보인다.
@@ -5868,3 +5878,11 @@ Error: GraphQL request failed.
 ### 재발 방지
 
 프로젝트 조회·푸시 토큰 등록 전 `extra.eas.projectId`가 실제 UUID인지 검증한다. Expo 로그인/프로젝트 연결과 FCM 푸시 자격 증명 설정은 별개로 확인한다.
+## 2026-10-04 — 앱 업데이트 설치 취소 후 재시도 잠금
+
+- 상황: 네이티브 updater 독립 리뷰에서 Android 설치 화면을 취소·거부한 뒤에도 `install_pending`이 남아 새 후보 다운로드가 `update_busy`로 막히는 경로를 확인했다.
+- 원인: 설치 화면 진입 상태만 저장하고 앱 복귀/재시작에서 실제 설치 버전과 비교해 취소 상태를 해제하지 않았다. 다운로드가 끝난 상태라 다운로드 취소도 이 상태를 풀지 못했다.
+- 해결: Expo foreground/background 콜백과 재시작의 실제 window focus로 설치 화면 이탈/복귀를 구분한다. 실제 versionCode가 그대로면 검증된 후보를 `ready`로 되돌리고, 실제 설치 버전이 목표 이상일 때만 `installed`로 표시한다. 열린 설치 화면/진행 중 다운로드/검증은 계속 busy로 유지한다. 복귀만으로 설치·다운로드·공부를 시작하지 않는다.
+- 검증: 신규 실제 상태정책 테스트 RED27개 중4개 실패 → GREEN27/27 및 release Kotlin 컴파일 성공. 수정 커밋0761c35. Android16 실제 OS 복귀/재시작은 이후 APK 검증 단계이며 아직 완료로 주장하지 않는다.
+- 관련 파일: `StudyAppUpdateModule.kt`, `UpdateInstallState.kt`, `UpdateInstallStateTest.kt`.
+- 추가 환경 오류: RN LifecycleState를 Expo 라이브러리 classpath에서 직접 참조한 첫 컴파일이 실패했다. 새 의존성 대신 사용 가능한 Android currentActivity와 Expo lifecycle 콜백으로 처리했다. 이 컴파일 오류를 기능 RED로 세지 않는다.

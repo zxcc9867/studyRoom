@@ -1,5 +1,20 @@
 # Active Context
 
+## 현재 작업 — 2026-10-04 앱 내부 APK 업데이트 구현
+
+- 사용자 요청: `그럼 그 기능을 넣어줘`로 앱 내부 최신 버전 확인·다운로드·Android 설치 확인 기능 추가를 요청했다.
+- 관련 PRD/확인: 신규 prd-android-app-updates.md 설계 초안, 기존 prd-android-download·android-web-parity, design-document·prd-user-profile·implementation-plan·progress·trouble-shooting. 실제 작업트리는 study-room-recovery-audit이며 이전 미커밋 native 집중 상태 변경을 보존한다.
+- 결정 제안: 공개 출시 JSON/no-store·실제 versionCode 비교·동일 서명 APK 네이티브 다운로드/검증·명시적 OS 설치 확인. 고정 다운로드 주소는 유지한다. OTA/강제 설치/새 DB/키 변경은 제외한다.
+- 현재 상태: 상세 설계와 구현·배포를 `진행해줘`로 승인받았다. 기존 전체967개 중890통과/77선택 브라우저 생략/실패0의 기준선을 확인했다. plan-android-app-updates.md를 작성해 네이티브/앱 UI/게시 계약/실제 설치 순서로 테스트 우선 진행한다.
+- 추가 결정/승인: 실제 무료 EAS 응답에14일 만료가 있고 GitHub studyRoom은 공개 저장소임을 확인했다. 사용자 승인으로 APK를 기존 GitHub Releases에도 보관하며 앱의 다운로드 원본으로 사용한다. 최초 metadata 확인은 고정 Vercel URL이고 비밀값/서명키는 게시하지 않는다.
+- 확정한 정책: 공부 진행 중/상태 확인 실패에는 설치를 미루고 기존 휴식/종료 후 직접 설치한다. 로그인 전후 공통 앱 업데이트 진입점을 제공하며 다운로드·설치·권한 화면은 사용자 액션으로만 실행한다.
+- 현재 구현: 네이티브 제한 다운로드·APK 검사 모듈의 테스트를 먼저 작성했다. 외부 보관된 생성 Android 폴더의 앱 루트/Expo 자동 연결 문제를 확인해 표준 apps/mobile/android에 복원했다. 생성 파일/비공개 키를 소스 커밋에 포함하지 않는다.
+- 네이티브 완료 범위: 1734157/0761c35의 실제 policy/storage/downloader/install-state JVM27/27·release Kotlin·앱 manifest/type 검증 및 독립 리뷰 통과. OS 설치 취소/거부 후 복귀/재시작은 ready로 회복하고 실제 code만 성공으로 표시한다. 실제 Android16 OS 검증은 이후 단계다. 이미 공개 APK에 있던 집중 상태 의존 소스는8b8c884로 별도 보존했다.
+- 진행 중: 새 worker가 출시 validation/hook/공통 앱 업데이트 UI와 설치 직전 현재 계정의 읽기 전용 공부 상태 확인을 연결한다. 검증 전 GitHub Release/운영 JSON/고정 APK 링크는 변경하지 않는다.
+- 주의: 현재 공개 설치 링크는 기존 아이콘 APK 그대로다. updater가 설치된 최초 APK는 한 번 수동 업데이트해야 하며 설치 화면을 열었다고 성공을 보고하지 않는다. 새 APK 게시·production 반영은 아직 수행하지 않았다.
+
+---
+
 ## 현재 작업 — 2026-10-04 고정 Android 다운로드 주소
 
 - 사용자 승인: 같은 주소에서 최신 APK를 받는 방식을 `그렇게해줘`로 승인했다. 관련 PRD는 prd-android-download.md, 기존 app-branding/Android 배포·Vercel CI 계약을 확인했다.

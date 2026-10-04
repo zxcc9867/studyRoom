@@ -2,6 +2,21 @@
 
 ## Timeline
 
+### 2026-10-04 — 앱 내부 APK 업데이트 구현 진행
+
+- 승인: 상세 설계/구현/웹·APK 배포 및 기존 공개 GitHub Releases APK 게시를 사용자 승인받았다. 외부 결제/새 계정은 추가하지 않는다.
+- 완료: 네이티브 updater1734157, 설치 취소 잠금 수정0761c35. 기존 공개 APK의 집중 상태 소스 의존성은8b8c884 별도 보존. 실제 JVM policy/downloader/storage/install-state27/27, release Kotlin/merged app manifest/mobile 타입 검사 및 독립 검토 차단 이슈0.
+- 검증 경계: 현재는 네이티브 소스/컴파일 gate이며 실제 Android OS 설치·공개 다운로드·production 배포 성공으로 보고하지 않는다. 최초 기준 전체890통과/77선택 브라우저 생략/0실패와 Edge21/README 검사는 이후 최종 트리에서 다시 검증한다.
+- 진행 중/다음: RN 공통 업데이트 패널·현재 소유자의 읽기 전용 공부 gate → 게시 계약 → 같은 서명 bootstrap2/final3 → GitHub APK/출시 JSON/웹 → 실제 Android16 업데이트.
+
+### 2026-10-04 — 앱 내부 APK 업데이트 설계 검토 준비
+
+- 사용자 요청: 앱의 업데이트 버튼으로 새 APK 다운로드·Android 설치 확인을 진행한다.
+- 완료한 작업: 기존 네이티브 shell/모듈/권한·버전·고정 다운로드 경로를 조사하고 Android/Expo 공식 문서를 확인했다. prd-android-app-updates.md에 출시 JSON·실제 빌드 비교·파일/동일 서명 검증·사용자 설치 승인·공부 중 설치 지연·배포/회귀 기준을 작성했다.
+- 변경한 파일: 신규 memory-bank/prd-android-app-updates.md, active-context.md, progress.md. 기존 제품 소스·설치 권한·패키지/서명·운영 링크·DB는 변경하지 않았다.
+- 검증 경계: 설계 자체의 범위/모순/공개 API/설치 성공 판정/다운그레이드 금지/기존 로그인 보존을 자체 검토한다. 구현 테스트·빌드·에뮬레이터 설치는 아직 수행하지 않았고 기존 기록을 이번 기능의 검증으로 세지 않는다.
+- 남은 작업/다음 우선순위: architectural 상세 설계 사용자 검토 → 구현 계획/TDD → 네이티브 다운로드/설치·RN UI → 실제 Android16 두 빌드 업데이트 → 최종 APK 검증 후 출시 JSON/고정 링크 웹 production 게시. 이 설계 변경은 문서만 작성되어 자동 웹 배포 대상이 아니며 커밋/푸시하지 않는다.
+
 ### 2026-10-04 — 고정 Android 다운로드 진입점
 
 - 요청/구현: 사용자 승인에 따라 `/download/android` 설치 안내와 `/download/android.apk` 최신 검증 공개 artifact 연결을 추가했다. 307/no-store로 이전 목적지의 영구 캐싱을 피하고 기존 SPA/API는 유지한다.
