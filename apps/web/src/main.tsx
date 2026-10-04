@@ -13,6 +13,7 @@ import {
 import { createRoot } from "react-dom/client";
 import GoalAchievementBadges from "./GoalAchievementBadges";
 import StudyRestartCoach from "./StudyRestartCoach";
+import AppNotice from "./AppNotice";
 import { createTechFeedClient, feedTodoDraft } from "./techFeed.mjs";
 import type { FeedArticle } from "./techFeedTypes";
 import TimeZonePicker from "./TimeZonePicker";
@@ -4972,7 +4973,7 @@ function DashboardApp() {
               )}
             </div>
           </div>
-          {message && <p className="message">{message}</p>}
+          <AppNotice message={message} />
         </section>
       </main>
     );
@@ -5263,14 +5264,10 @@ function DashboardApp() {
             />
           </details>
         )}
-        {message && (
-          <p
-            className="message"
-            style={activeSection === "today" ? { order: getTodaySectionSortOrder("topbar") + 2 } : undefined}
-          >
-            {message}
-          </p>
-        )}
+        <AppNotice
+          message={message}
+          style={activeSection === "today" ? { order: getTodaySectionSortOrder("topbar") + 2 } : undefined}
+        />
 
         {activeSection === "today" && todayDomain === "record" && (
           <WeeklyHabitRhythmPanel

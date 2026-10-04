@@ -1,3 +1,64 @@
+## 2026-10-04 — 공통 알림 테마 누락·내부 코드 표시 (수정 전 진단)
+
+- 상황: 사용자 화면에 이전 노란 알림 카드와 ACTIVE_SESSION_EXISTS 코드가 그대로 보인다.
+- 확인된 표시 원인: styles.css:225의 .message에 이전 2px 테두리/노란 배경/그림자가 정의되어 있고 appTheme.css에 해당 공통 메시지 override가 없다. main.tsx:5268은 메시지를 그대로 렌더링하고 formatError:6899도 Error.message를 그대로 반환한다.
+- 제안/미완료: 기존 study 토큰의 의미별 알림 컴포넌트와 읽기 쉬운 한글 안내를 적용한다. 세션 생성 오류의 실제 서버 원인을 해결했다고 주장하지 않으며 세션/출석 정책 변경을 이번 디자인 작업에 섞지 않는다. 디자인 승인 후 테스트와 배포를 수행한다.
+- 승인 후 수정: AppNotice/appMessage presentation과 공통 테마 override 적용. 오류 혼합 성공을 danger로 우선 분류하고 단독 내부 코드는 한글 안내로 표시한다. 읽기 전용 리뷰에서 PGRST301/UNEXPECTED/FORBIDDEN처럼 밑줄 없는 코드 누락을 발견했고 실패 테스트 후 정규식 optional underscore로 보완했다. 11개 단위·3개 컴포넌트/브라우저 검사 및 재리뷰 통과. 첫 테스트는 제목에 있는 안내를 본문에만 찾는 잘못된 기대를 제목+본문의 사용자 표시로 바로잡았으며 본문/기능을 중복시키지 않았다.
+- 아이콘 추출 시안은 가장자리/투명 품질이 낮아 채택하지 않았다. 같은 승인 디자인을 불투명 초록 배경에서 축소·중앙 배치하여 adaptive 여백을 확보했다. 자산은 프로젝트 assets에 저장하며 외부 기본 생성 경로를 앱에서 참조하지 않는다.
+- 전체 검사에서 mobileNativeTheme의 과거 adaptive 배경 #d9f0e3 기대가 실패했다. 승인된 책·조명 아이콘의 palette.primary 배경과 일반/adaptive 경로 검사로 갱신했다. 모바일 UI 팔레트 자체는 변경하지 않는다.
+- 모든 선택 브라우저 검사를 병렬로 실행했을 때 actualStudyMounted의 legacy unknown resume가 page.goto load 5000ms 초과1건을 기록했다. 앞선 mounted 전체71/71과 해당 시나리오 격리 실행(약3초)이 통과했다. 제품 회귀는 재현되지 않았지만 실패를 숨기지 않으며 기본 전체 검사887/76skip/0fail과 선택 브라우저 근거를 구분한다. 기존 timeout이나 세션 코드는 임의로 완화하지 않는다.
+
+## 2026-10-04 — EAS 요청503과 실제 빌드 생성 불일치
+
+- 상황/에러: EAS 소스 업로드 완료 후 build 명령이 `Network error: Service Unavailable / Response status: 503 Service Unavailable`로 종료했다.
+- 조사/대응: systematic-debugging에 따라 재요청 전에 build:list를 확인했다. 최신 message/생성시각의 3b3805c4-ef3e-434f-98a5-99fb0dc120fb가 IN_PROGRESS로 존재했으므로 서버 생성은 성공했고 결과 응답 경계가 실패한 것으로 판단했다. 서버 내부 원인은 확인하지 못했으며 CLI 업그레이드나 중복 빌드를 만들지 않는다.
+- 보조 도구: 설치된 CLI에 build:upload가 없으므로 기존 로컬 APK의 EAS 업로드 대신 공식 build preview 경로를 사용했다. app.config.ts/js나 선택 memory-bank/README를 추정해 읽지 말고 현재 app.json과 절대 프로젝트 경로를 사용한다. 앱 폴더 상대 경로 오류는 제품/빌드 오류와 구분한다.
+- 후속 확인: 첫 build가 CREDENTIALS_TEMPORARY_NETWORK_ERROR(`Expo experienced a temporary network issue. Try again.`)로 ERRORED됐다. 생성 상태와 실행 성공은 다르므로 실패 확정 뒤 같은 키/설정으로 한 번 재시도했고 de8fb01c-33a5-4d03-9b72-1b5e86437528 IN_PROGRESS/error null을 확인했다.
+- 해결 확인: 재시도 de8fb01c-33a5-4d03-9b72-1b5e86437528 FINISHED·Gradle7분28초/assembleRelease·HTTP200 다운로드·기존 인증서 일치·동일 로컬/public JS bundle·에뮬레이터 로그인 유지/새 설정 모달 확인. 무료 preview/원격 키 유지, 유료 전환·키 변경·운영 데이터 변경 없음. 실제 휴대폰 DND E2E는 검증하지 않았다.
+
+## 2026-10-04 — 집중 상태 표시·재확인 및 로그아웃 경합 수정
+
+### 상황 / 원인
+
+- 연결 후 확인 버튼도 매번 푸시/기기를 재등록하지만 성공 상태가 같으면 상단 변화가 없었다. 조회 실패와 오래된 ACK을 기존 켜짐 label이 구분하지 않았고 재조정 return의 확인 시각·권한은 ACK 이전 값이었다.
+- 새 주기적 확인을 추가한 뒤 읽기 전용 리뷰가 `규칙 해제 → 이전 조회가 다시 켬 → 해제 확인 실패`를 제어된 focus.ts 실행으로 재현했다. 기존 logout은 이 실패를 경고한 뒤 signOut하여 규칙/owner가 남을 수 있었다.
+
+### 해결 / 재발 방지
+
+- FocusStatusPanel/순수 focusStatus 함수로 상태·현재 작업·마지막 확인·오류를 분리한다. 재확인은 기기 재등록 없이 수행하고 ACK 뒤 최신 snapshot을 다시 읽는다. 기기 불일치·권한 철회·서버 revision·lease·ACK 시각을 회귀 검증한다.
+- 로그아웃 해제와 signOut을 같은 focus 작업 순서에 포함했다. 확인 중 명시적 로그아웃은 우선 예약하고 계정이 바뀐 요청은 폐기한다. 양쪽 실행 순서의 실패 테스트와 대체 화면 로그아웃 테스트를 통과했다.
+- initial native status read/Android 설정 launch 오류는 앱 crash 대신 확인 필요로 표시한다. 공부 busy/타이머·카메라 정책은 바꾸지 않는다.
+- 테스트 추가 시 Babel default native boundary의 __esModule 표시 누락과 `states[states.length-1]` 대체 화면 선택이 새 hook에 영향을 주어 초기 harness가 실패했다. 경계 import와 기존 webFallback index33을 명시하고 실제 회복/타이머 회귀가 다시 통과하는지 확인했다.
+- 서명 확인 명령의 native 출력에 Select-Object -First를 직접 연결하면 출력 파이프가 조기에 닫혀 비정상 exit가 생겼다. 전체 apksigner 출력을 먼저 수집한 뒤 인증서 문자열을 추출한다. 재검사 v2 서명/기존 인증서 일치 확인, 실제 APK 손상이 아니었다.
+- uiautomator가 Android 설정 전환 애니메이션 중 null root를 반환했다. 이전 화면 좌표를 즉시 반복 클릭하지 않고 현재 modal hierarchy 확인→버튼 클릭→resumedActivity가 ZenAccessSettingsActivity인지 확인→dump 순서로 다시 확인했다.
+
+### 검증 / 남은 리스크
+
+- focused40/40·전체877통과/75브라우저 선택 생략·모바일 타입/웹 빌드/README/diff 검사 통과. 읽기 전용 재검토 Critical/Important/Minor0. 실제 소스 실행의 native/RN host/transport 경계는 mock이며 OS 푸시·DND E2E 근거가 아니다.
+- Android16 새 APK 상단/모달/정책 설정 진입/복귀 및 로그인 유지 확인. 물리 기기 연결 guard 때문에 에뮬레이터는 계속 미연결이다. 실제 휴대폰의 비예외 알림 억제와 start/pause/resume/end는 별도 검증한다. 수동·다른 앱 DND는 유지한다.
+- 경합 보완 후 최종 release 재빌드도 성공(1분42초/327tasks), lintVitalRelease·같은 인증서·adb install -r/로그인 유지·설정 모달 재확인 통과. SDK XML 버전/Gradle9 호환성 경고는 빌드 실패가 아니며 이번 범위에서 도구 업그레이드를 하지 않았다. 최종 APK/해시는 progress에 기록했다.
+- 관련 파일: apps/mobile/App.tsx, src/focus.ts, src/focusStatus.ts, src/FocusStatusPanel.tsx, scripts/mobile-focus-status.test.mjs. DB/RPC/Edge/Android 규칙 구현 변경 없음.
+
+## 2026-10-04 — 집중 모드 재연결 버튼이 무반응처럼 보이는 문제 (이전 진단)
+
+### 상황 / 원인
+
+- 사용자 휴대폰의 연결 후 상단 `집중 모드 다시 연결·확인`에 동작 변화가 보이지 않는다는 제보. 앱 소유 규칙의 실제 적용 여부도 불명확하다.
+- App.connectFocus는 기존 DND 접근 권한이 있으면 설정 화면을 열지 않는다. connectStudyFocus가 푸시 토큰/기기를 다시 등록하고 현재 서버 상태를 적용한다. 버튼 handler는 존재하지만 상단에는 로딩/성공 피드백이 없어 같은 상태에서 성공해도 변화가 없다. 특정 휴대폰의 네트워크 실패 여부까지 재현한 것은 아니다.
+- refreshFocus의 실패는 focusError만 바꾸고 snapshot을 유지하며 focusStatusLabel은 조회 실패/ACK freshness를 반영하지 않는다. reconcileStudyFocus 성공 응답은 최신 applied_revision/applied_focus/last_error만 합치고 기존 last_ack_at/permission_granted를 보존한다. 과거 켜짐 표시가 최신 기기 확인과 같다고 단정할 수 없다.
+
+### 확인한 근거 / 남은 리스크
+
+- 운영 get_study_focus_snapshot 정의는 소유자 기준 device/state 조인, lease 내 desired_focus, applied_revision/last_ack_at/last_error를 반환한다. 2026-10-04 08:43:31 UTC 동일 revision 켜짐 ACK 기록은 존재했으나 실제 휴대폰 OS/알림 억제 동작을 직접 검사하지 않았다.
+- Android16 emulator-5554는 앱 상단 미연결, WebView 적용 확인 중, zen_mode=0 및 앱 소유 규칙 없음. registerExpoPushTarget의 Device.isDevice guard 때문에 물리 휴대폰 연결 검증과 분리한다. 기기·서버 데이터를 변경하지 않았다.
+- Android 15+는 앱 소유 AutomaticZenRule들을 OS가 합성한다. 앱 규칙 해제와 휴대폰 전체 DND 해제는 다르므로 수동 DND/다른 앱 규칙을 끄는 테스트나 구현을 하지 않는다.
+
+### 해결 방향 (미구현 / 설계 승인 대기)
+
+- 연결 전 버튼/연결 후 상태 표시로 정리하고, 상태 재확인은 재등록과 분리한다. 확인 중/완료/오류 피드백과 최신 적용 확인 시각을 표시하며 조회 실패나 오래된 기록은 현재 켜짐으로 확정하지 않는다.
+- App.tsx/focus.ts/네이티브 status와 관련 회귀 테스트가 예상 범위다. 시작→휴식→재개→종료 시 실제 앱 규칙과 비예외 알림을 확인한다. 최초 권한 요청/카메라 복귀/기존 출석·공부 기록은 보존한다.
+- 관련 PRD: prd-android-focus-mode.md, prd-android-web-parity.md. 현재는 문서만 변경하며 native UI를 적용하려면 사용자 승인 후 새 APK를 제공해야 한다.
+
 ## 2026-10-04 — 집중 설정 복귀 후 카메라 트랙 종료 미복구
 
 ### 상황 / 원인

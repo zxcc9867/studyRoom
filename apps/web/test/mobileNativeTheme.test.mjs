@@ -18,5 +18,7 @@ test("Expo mobile UI uses the same semantic palette and AA contrast as the web d
   assert.doesNotMatch(mobileSource, /#f8f4ea|#1d1a16/i);
   assert.match(mobileSource, /<StatusBar[^>]*barStyle="dark-content"/);
   assert.equal(appConfig.expo.userInterfaceStyle, "light");
-  assert.equal(appConfig.expo.android.adaptiveIcon.backgroundColor, "#d9f0e3");
+  assert.equal(appConfig.expo.android.adaptiveIcon.backgroundColor, palette.primary);
+  assert.equal(appConfig.expo.icon, "./assets/study-room-icon.png");
+  assert.equal(appConfig.expo.android.adaptiveIcon.foregroundImage, "./assets/study-room-adaptive-icon.png");
 });

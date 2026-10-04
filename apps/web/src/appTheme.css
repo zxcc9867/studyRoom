@@ -16,6 +16,32 @@
   color-scheme: light;
 }
 
+/* Shared notices before and after login; no legacy raised yellow banner. */
+:is(.dashboard-redesign, .login-shell) .message.app-notice {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--study-space-3);
+  min-width: 0;
+  margin: 0;
+  padding: var(--study-space-4);
+  border: 1px solid var(--study-border);
+  border-radius: var(--study-control-radius);
+  background: var(--study-soft);
+  color: var(--study-primary);
+  box-shadow: none;
+  font-size: var(--study-text-sm);
+  font-weight: 400;
+  line-height: var(--study-line);
+  overflow-wrap: anywhere;
+}
+.login-shell .message.app-notice { margin-top: var(--study-space-4); }
+:is(.dashboard-redesign, .login-shell) .message.app-notice--warning { background: var(--study-warning-bg); color: var(--study-warning); }
+:is(.dashboard-redesign, .login-shell) .message.app-notice--danger { background: var(--study-danger-bg); color: var(--study-danger); }
+:is(.dashboard-redesign, .login-shell) .app-notice-icon { width: var(--study-space-6); height: var(--study-space-6); flex: 0 0 var(--study-space-6); margin-top: var(--study-space-1); color: inherit; }
+:is(.dashboard-redesign, .login-shell) .app-notice-copy { min-width: 0; }
+:is(.dashboard-redesign, .login-shell) .app-notice-copy strong { display: block; margin: 0; color: inherit; font-size: var(--study-text-sm); font-weight: 650; line-height: var(--study-line); }
+:is(.dashboard-redesign, .login-shell) .app-notice-copy p { margin: var(--study-space-1) 0 0; color: var(--study-ink); font-size: var(--study-text-sm); font-weight: 400; line-height: var(--study-line); }
+
 /* Authentication uses the same tokens before the dashboard is mounted. */
 .login-shell {
   min-height: 100dvh;

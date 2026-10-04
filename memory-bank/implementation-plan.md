@@ -1,3 +1,25 @@
+## 2026-10-04 — 공통 알림·앱 아이콘 표시 계약
+
+- AppNotice는 로그인 전후 message를 표시하는 작은 컴포넌트다. 순수 getAppMessagePresentation은 알려진 세션 코드/단독 기계 코드/실패/성공/검증/정보 순으로 분류한다. 원래 message 상태와 성공5초 자동 숨김 useEffect는 변경하지 않는다.
+- appTheme의 범위 선택자가 이전 styles.css 메시지 장식을 덮어쓴다. 역할/아이콘/제목/본문으로 구분하고 CSS는 기존 의미 색·간격·텍스트 토큰을 사용한다. 새 세션 처리나 DB/API 변경 없음.
+- mobile app.json의 icon/Android adaptiveIcon foreground는 저장소 PNG 자산을 가리킨다. 앱 패키지/버전/서명/권한을 유지하며 icon prebuild 결과는 새 APK에 포함된다. 웹 재배포만으로 launcher 아이콘이 바뀌지 않는다.
+
+## 2026-10-04 — APK 배포와 웹 업데이트 구분
+
+- 실제 앱은 native App/FocusStatusPanel/Android module과 Vercel origin의 단일 WebFeatureScreen으로 구성된다. 웹 UI·자료는 서버 배포/재로드로 바뀌며 앱 로그인·상단 집중 설정·OS 권한/브리지는 설치한 APK의 코드다.
+- 현재 mobile 의존성에 expo-updates가 없고 app.json/eas.json에 updates URL/runtimeVersion/channel이 없다. EAS Build는 새 설치 파일을 만드는 경로이며 설치된 APK 자동 업데이트를 뜻하지 않는다. OTA 도입은 이번 공개 링크 갱신 범위 밖이다.
+- native 공개 배포는 앱 폴더에서 EAS preview APK/free internal 및 기존 원격 서명을 사용한다. 업로드 전 .easignore 기반 archive 파일/최신 소스 해시 검사, 완료 후 HTTP 다운로드/인증서 일치/adb install -r·화면 검증을 수행한다. 미커밋 소스 업로드의 gitCommitHash는 기준 HEAD 메타데이터이며 실제 소스 내용은 아카이브/산출물로 검증한다.
+- 2026-10-04 공개 APK는 preview de8fb01c FINISHED·HTTP200·기존 인증서 및 로컬 검증 JS bundle 해시 일치를 확인했다. 빌드별 URL을 새로 제공하며 과거 URL의 파일을 자동 교체하지 않는다. 설치 시 삭제/데이터 초기화 없이 같은 패키지·서명 업데이트로 적용한다. 현재 versionName0.1.0/versionCode1을 이번 링크 갱신에서 임의 변경하지 않았다.
+
+## 2026-10-04 — Android 집중 상태 UI·적용 확인 계약
+
+- `FocusStatusPanel.tsx`는 기존 mobilePalette를 사용하여 상단 상태/확인 시각과 상세 모달을 공유한다. `focusStatus.ts`의 순수 표시 함수는 작업·오류·지원·권한·revision·ACK 신선도·lease·로컬 앱 규칙을 순서대로 확인한다. 새 색상 체계/웹 화면 복제는 하지 않는다.
+- `App.runFocusAction`은 연결/확인/해제 진행을 공부 busy와 분리한다. 동시 확인을 하나의 후속 요청으로 합치고 계정이 바뀐 뒤 끝난 결과는 UI에 반영하지 않는다. 로그아웃의 해제/인증 종료도 같은 작업 순서에 포함하고 확인 도중의 명시적 로그아웃은 소유자별 콜백으로 우선 예약한다. 로컬 status/설정 호출 실패는 복구 메시지로 표시한다.
+- 기존 화면 복귀/공부 상태 변경 재확인과 foreground 60초 확인을 사용하며 background polling은 하지 않는다. 재확인은 `reconcileStudyFocus`만 호출하여 Expo 토큰/기기 등록과 분리한다.
+- `reconcileStudyFocus`는 적용 직후 현재 권한으로 ACK하고 성공 뒤 서버 snapshot을 다시 읽는다. 변경 revision은 최대2회 재조정하며 다른 installation/해제 기기는 null로 반환한다. ACK 시각을 클라이언트에서 만들어내지 않는다.
+- 운영 snapshot/ACK 함수 정의는 Supabase MCP 읽기로 확인했다. DB/RLS/RPC/Edge/마이그레이션/Android 규칙 구현은 변경하지 않았다. 앱 UI 변경이므로 새 APK가 필요하고 Vercel 자동 웹 배포 대상이 아니다.
+- actual App/컴포넌트/서비스의 Babel 실행 테스트는 RN host·native/transport 경계만 대체한다. OS 방해금지/푸시 성공은 실제 휴대폰 검증으로 분리한다.
+
 ## 2026-10-04 — Android 설정 복귀 카메라 복구 계약
 
 - visibilitychange/focus와 기존5초 health 검사에서 foreground만 검사한다. ended/no-track 즉시1회, muted/no-frame15초 후1회 복구. visible-frame 확인 시만 예산 초기화. in-flight/attempt ID로 오래된 요청이 새 UI/자원을 정리하지 못하게 한다.

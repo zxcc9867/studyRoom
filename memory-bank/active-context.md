@@ -1,5 +1,66 @@
 # Active Context
 
+## 현재 작업 — 2026-10-04 알림 공통 디자인·독서실 앱 아이콘 배포
+
+- 사용자 요청: 화면에 남은 알림 UI를 통일하고 독서실 느낌의 앱 아이콘을 제작하여 배포한다.
+- 확인: styles.css:225의 .message는 이전 노란 배경·2px 테두리·아래 그림자를 유지한다. main.tsx:5268의 메시지 표시와 formatError:6899는 내부 코드를 한글 안내로 바꾸지 않는다. app.json에 icon/foregroundImage가 없다. 서버 세션 생성 실패 원인 자체는 이번 표시 코드 점검만으로 확정하지 않는다.
+- 디자인 제안: 기존 study 토큰으로 아이콘+안내 문구를 구성하고 안내/성공/주의/오류를 구분한다. ACTIVE_SESSION_EXISTS는 이미 진행 중인 공부가 있다는 안내로 표시하며 세션·출석 동작은 변경하지 않는다.
+- 완료: imagegen 내장 도구로 초록 배경·아이보리 책·금색 스탠드 아이콘을 생성하고 apps/mobile/assets의 일반/adaptive PNG와 app.json에 적용했다. 원본 C:/Users/zxcc9/.codex/generated_images/019f55f2-2f54-7891-bc45-d091cad8e764/exec-b9222daa-18f2-40c3-b30c-ed49bfefc670.png.
+- 승인/구현: 사용자의 `진행해줘`로 bounded 디자인 및 웹/새 APK 배포 승인. AppNotice·appMessage presentation과 기존 study 토큰 적용. 읽기 전용 리뷰에서 밑줄 없는 내부 코드 누락을 발견하여 PGRST301/UNEXPECTED/FORBIDDEN 회귀 테스트 후 보완했고 재검토 차단 이슈0.
+- 검증: 문구 단위11/11·실제 컴포넌트/브라우저3/3(375/1440px·대비4.5 이상·가로 넘침 없음), mounted 앱+알림71/71, 전체 기본887통과/76선택 브라우저 생략/0실패, Edge 타입/21테스트, mobile:check·웹 build·README24이미지/3언어 통과. 전체 브라우저 동시 실행의 5초 로딩 초과1건은 단독 재검증 통과, 이전 아이콘 배경 기대는 승인된 primary와 자산 경로 검사로 갱신했다.
+- 배포 진행: EAS preview 11afaede-0168-4f5d-bc6b-ea3ba8a710c5 무료/internal·기존 서명 freeze, 아카이브1261파일/민감 파일0개/현재 앱·아이콘 해시 일치. 웹은 이번 알림/아이콘 관련 파일만 커밋·main 푸시하며 이전 미커밋 집중 상태 소스는 섞지 않는다. 실제 배포/공개 APK 검증은 진행 중이며 기존 집중 상태 변경과 사용자 데이터는 보존한다.
+
+---
+
+## 현재 작업 — 2026-10-04 집중 상태 공개 APK 갱신
+
+- 사용자 요청: 공개 설치 링크를 최신 집중 상태 UI로 갱신하고 APK 자동 반영 구조를 설명한다.
+- 확인/결정: 앱은 첫 로그인·집중 상태·Android 권한의 네이티브 shell과 Vercel 단일 WebView를 사용한다. apps/mobile/package.json에 expo-updates가 없고 app.json/eas.json에도 OTA updates/runtimeVersion/channel 설정이 없으므로 APK 내 코드의 자동 업데이트는 구성되지 않았다. 웹 배포와 새 APK 설치를 구분하며 이번 요청으로 OTA 구현까지 확대하지 않는다.
+- 완료: focused40/40·전체877통과/75선택 브라우저 생략/0실패·mobile:check·웹 빌드·README 검사 재검증. EAS archive1256개 파일/민감 환경·키·APK0개, App/focus/focusStatus/FocusStatusPanel/WebView patch 해시 일치. 기존 원격 인증서는 freeze-credentials로 유지했다.
+- 공개 배포 완료: EAS preview de8fb01c-33a5-4d03-9b72-1b5e86437528 FINISHED(2026-10-04 09:37:48 UTC), Gradle7분28초/lintVitalRelease 성공. 새 링크 https://expo.dev/artifacts/eas/jSOrKIsQPqPFMYf1OI8rwVRQ1fUZG7lVuKw9tGE4PhA.apk 인증 없는 다운로드HTTP200·61,576,150bytes·기존 인증서 일치. APK SHA256157F040664D2C7F62CB20EAF4820758EB5937DAC868562795D65A00AC900E6D4, 공개/로컬 JS bundle SHA25677F62D4EC3D2537E6183C3940CB2C3B51BED5B602E0A59DBB049D4EA8CD81FE4 일치.
+- 에뮬레이터 완료: 공개 APK adb install -r 성공·로그인 유지·새 상단/설정 모달 확인, output/focus-status-public{,-settings}.png. 사용자 공부/회복/권한/DND 데이터 변경 없음. 첫3b3805c4는 일시적 credential network 실패 확정 후 재시도했다. 현재 HEAD87c0854+미커밋 소스의 검증된 아카이브이며 커밋/푸시/웹·DB 배포는 하지 않았다.
+- 다음 작업: 사용자는 기존 앱을 삭제하지 않고 새 링크의 APK로 업데이트한다. 기존 APK 링크는 최신 파일로 교체되지 않는다. 실휴대폰 알림 억제·백그라운드 푸시 E2E는 별도다.
+
+---
+
+## 현재 작업 — 2026-10-04 휴대폰 집중 상태 UX 개선
+
+- 작업명/목적: 사용자 승인 `진행해줘`에 따라 연결 후 상단을 상태 중심으로 정리하고 재확인의 무반응·오래된 켜짐 표시를 해소한다.
+- 관련 PRD/파일: prd-android-focus-mode.md, prd-android-web-parity.md; apps/mobile/App.tsx, src/focus.ts, src/focusStatus.ts, src/FocusStatusPanel.tsx, mobile 회귀 테스트.
+
+### 최근 결정 사항
+
+- 상단은 상태·마지막 확인·집중 설정, 연결 전만 휴대폰 연결 버튼을 제공한다. 확인/Android 설정/해제/로그아웃과 실제 알림 테스트 방법은 상세 모달에 둔다.
+- 서버 ACK를 다시 읽어 표시하며 오류·5분 넘은 확인·권한/lease/로컬 규칙 불일치를 켜짐으로 단정하지 않는다. foreground 60초 및 기존 복귀/공부 변경 재확인만 수행하고 토큰/기기는 재등록하지 않는다.
+- 같은 작업 순서에 로그아웃을 넣어 자동 확인이 해제를 다시 켜지 못하게 한다. 명시적 로그아웃은 대기 중인 확인 다음에 우선 예약하고 계정이 바뀌면 이전 요청을 폐기한다.
+
+### 현재 상태
+
+- 완료: focused40/40, 전체877통과/75브라우저 선택 검사 생략/0실패, 모바일 호환성·타입/웹 빌드/README 검사/git diff --check 통과. 읽기 전용 재검토 Critical/Important/Minor0.
+- 완료: 첫 상태 개선 APK 같은 인증서로 빌드/adb install -r 성공·로그인 유지, 새 상단/집중 설정 모달·Android 정책 접근 화면 진입/복귀 확인. 권한/DND·공부/회복 데이터를 바꾸지 않았다.
+- 완료: 로그아웃 경합 보완까지 포함한 최종 release APK 빌드 성공(1분42초/327tasks), 기존 인증서 일치·adb install -r 성공·로그인 유지·상단/설정 모달 재확인. 산출물 output/study-room-focus-status-20261004.apk(61,576,150bytes), SHA256 BEC02027332BAD06E27C7824DB4A90120C78B7C218D4130BEDEDBE2D3D7E7B4F.
+- 완료: 임시 생성 Android 폴더는 output/android-local-build로 원복했고 기존 미추적 파일은 보존했다. 최종 화면 근거 output/focus-status-final.png, focus-status-final-settings.png.
+- 다음 작업: 별도 배포 요청이 있으면 공개 APK를 갱신한다. 실제 휴대폰 알림 억제·백그라운드 푸시·시작/휴식/재개/종료 E2E는 아직 미검증이다.
+
+### 주의할 점
+
+- 변경은 네이티브 앱 전용이며 Vercel 웹 자동 배포 대상이 아니다. 커밋/푸시/운영 DB/웹·공개 APK 배포 없음. 기존 설치 링크는 이 새 UI가 아니다.
+- 에뮬레이터는 registerExpoPushTarget의 물리 기기 guard로 미연결이다. 상태 함수/서비스의 transport/native 경계 테스트와 실제 OS 푸시/DND 성공을 혼동하지 않는다.
+
+---
+
+## 이전 진단 — 2026-10-04 휴대폰 집중 상태·상단 연결 버튼
+
+- 작업명/목적: 연결 후 상단 `집중 모드 다시 연결·확인`의 무반응처럼 보이는 UX와 실제 Android 방해금지 확인 방법을 점검한다. 관련 PRD: prd-android-focus-mode.md, prd-android-web-parity.md.
+- 확인: App.connectFocus는 권한이 이미 있으면 설정 화면을 열지 않고 connectStudyFocus → 푸시 토큰 재등록 → 기기 등록 → 서버 상태 재조회/앱 규칙 적용/ACK을 수행한다. 상단에는 로딩/완료 피드백이 없고 성공 상태가 같으면 화면 변화가 없다. 이것은 버튼 handler가 없다는 뜻은 아니다.
+- 확인: 모바일 refreshFocus 실패는 별도 오류만 갱신하고 이전 snapshot을 유지한다. 상태 label은 조회 실패/확인 시각의 신선도를 검사하지 않는다. reconcileStudyFocus의 성공 return도 ACK 전 snapshot의 last_ack_at/permission_granted를 유지하므로 표시와 최신 서버 확인 기록이 어긋날 수 있다.
+- 운영 읽기 확인: Supabase MCP로 snapshot RPC 정의/기기 적용 확인을 읽었다. 2026-10-04 08:43:31 UTC에 서버 revision과 ACK revision이 같은 켜짐 확인 기록이 있었으나, 연결된 실제 휴대폰의 OS 상태를 직접 확인한 것은 아니다. 다른 기기의 과거 ACK을 현재 동작 증거로 사용하지 않는다.
+- Android16 에뮬레이터 읽기 확인: 앱 상단 미연결, 웹 오늘 상태 적용 확인 중, OS zen_mode=0/독서실 앱 소유 규칙 없음. registerExpoPushTarget는 물리 기기만 허용하므로 이 에뮬레이터는 실제 푸시 집중 연결 완료 증거가 아니다. 공부/회복/권한/DND는 변경하지 않았다.
+- 제안/승인 대기: 연결 전에는 연결 버튼, 연결 후에는 상태·확인 시각 중심으로 표시하고 확인/권한/연결 해제는 상세 설정으로 이동한다. 초기 연결과 상태 재확인을 분리하고 실패/오래된 확인을 켜짐 성공으로 표시하지 않는다. brainstorming bounded 설계 승인 후 구현하며 현재는 진단 문서만 변경했다.
+- 다음 작업: 사용자 승인 후 상단 UI/조회·ACK 결과 표시를 최소 범위로 개선하고 시작→휴식→재개→종료의 앱 전용 규칙과 실제 알림 억제를 각각 검증한다. 수동 방해금지/다른 앱 규칙은 유지한다. 새 native UI 적용에는 새 APK가 필요하다.
+
+---
+
 ## 현재 작업 — 2026-10-04 집중 설정 복귀 카메라 복구
 
 - 사용자 승인: 집중 설정 복귀 시 카메라 끊김의 원인을 파악하고 해결한다. 디자인 후속 작업과 별개다.

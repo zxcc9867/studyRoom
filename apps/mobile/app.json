@@ -4,6 +4,7 @@
     "slug": "study-room-attendance",
     "scheme": "studyroom",
     "version": "0.1.0",
+    "icon": "./assets/study-room-icon.png",
     "orientation": "portrait",
     "userInterfaceStyle": "light",
     "assetBundlePatterns": [
@@ -19,7 +20,8 @@
       ],
       "googleServicesFile": "./google-services.json",
       "adaptiveIcon": {
-        "backgroundColor": "#d9f0e3"
+        "foregroundImage": "./assets/study-room-adaptive-icon.png",
+        "backgroundColor": "#2f6b52"
       }
     },
     "extra": {
