@@ -34,7 +34,16 @@
 - EAS archive1252개 파일에 민감 환경·서명·APK 파일0개. 수정 앱 소스/패치 포함, output 제외.
 - 실제 Chromium 브라우저75개(마운트68·언어/반응형2·브리핑5) 통과, 실패/생략0. 시간 고정 테스트 경합 수정 후 전체 재실행했다.
 - 읽기 전용 리뷰에서 취소된 이전 요청·언마운트·대기 중 서버 변경·네이티브 권한 경합을 보완했고 남은 Critical/Important 지적0개다.
-- 웹 운영 배포·새 APK·Android16 설치 검증은 진행 중이며 아래에 확정 결과를 추가한다.
+- 웹 운영 완료: a5507093cdd989b2edea294bdcb6f8973ef35cd3 main 반영. 첫 캐시 충돌 배포는 실패했고 캐시 없는 Actions37188912937이 success, Vercel dpl_DKaRUfddVaDEYFpm8rNGwgGfKWPv READY/동일 commit이다. 운영 https://study-room-attendance.vercel.app HTTP200, /assets/index-CWv0LgcA.js HTTP200 및 CHECK/최신 APK 안내 코드 포함 확인.
+- 무료 preview APK64274a3c-23cc-4281-b81c-f9fe088c95f9 FINISHED/동일 제품 commit. [APK 다운로드](https://expo.dev/artifacts/eas/4lNJUvbuWO9-lYddPyi4ce7TOU_xWMXVwRC4DhjZuyo.apk), 61,568,882bytes, package com.jini9867.studyroomattendance·0.1.0(1). apksigner 검증·기존 인증서 일치 후 adb install -r Success. 앱 삭제/데이터 초기화 없이 기존 로그인 유지와 CHECK capability 확인.
+- Android16 실제 미디어/격리 공부 세션에서3회 성공: 설정 전 visible/live → 설정에서 hidden/ended → 복귀 후 서로 다른 새 live 트랙·480px 영상·readyState4. 같은 sessionId와 started_at 유지. 매회 휴식 후 같은 설정 왕복에서 track null/paused true 확인.
+- 검증 후 Fetch interception 해제·운영 페이지 재조회: fixture false, 로그인 재입력 없음, 카메라 track null. 기존 CAMERA 허용 유지. DND/권한 설정/사용자 공부·회복 데이터 변경 없음. 근거는 로컬 output/camera-return-android16-result.json, output/playwright/camera-return-android16-after.png.
+- lint 스크립트가 없어 별도 린트는 실행하지 않았다. Jev 완료 대조는 내부 배포 메타데이터의 외부 전송 승인 부족으로 차단돼 실행되지 않았다. 우회/재전송 없이 실제 테스트·배포·에뮬레이터 로그로 직접 확인했다.
+
+## Memory-bank
+
+- 확인: design-document, active-context, implementation-plan, progress, trouble-shooting, prd-user-profile 및 prd-camera-presence/prd-android-web-parity/prd-android-focus-mode.
+- 갱신: active-context, progress, trouble-shooting, implementation-plan, prd-camera-presence. 제품 방향·DB 구조는 변경하지 않았다.
 
 ## 검증 경계
 

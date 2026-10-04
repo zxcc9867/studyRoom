@@ -8,7 +8,10 @@
 - 구현: foreground 단일 자동 재연결, 같은 사용자·활성·비휴식·유효 lease·카메라 의도 및 서버 상태를 전후 검증한다. 취소/새 요청/계정 변경/화면 종료 시 이전 결과는 폐기하고 트랙·검출기를 정리한다. 원격 휴식도 관찰 시 카메라를 끈다.
 - 권한: native CHECK 메시지는 check만 수행한다. WebView callback도 미허용/중간 철회 시 deny하며 OS 요청은 직접 누른 카메라 버튼에만 둔다. 구 APK는 최신 APK/직접 재시도 안내다.
 - 로컬 검증 완료: 기본852통과/선택 브라우저75생략/실패0, 별도 실제 Chromium75/75·Edge21/21, 웹 빌드·모바일 호환성/타입·README 검사 통과. 읽기 전용 리뷰 Critical/Important0. EAS archive1252개 파일 중 민감 환경/서명/APK0개. 상세 docs/camera-return-fix-20261004.md.
-- 진행 중: 로컬 AGENTS 자동 배포 규칙에 따라 관련 변경만 main 커밋/푸시→웹 운영 및 같은 서명 무료 preview APK 배포→Android16 실제 미디어/격리 세션의 설정 왕복 검증. 아직 운영·설치 결과를 완료로 표시하지 않는다.
+- 웹 운영 완료: 제품 a5507093cdd989b2edea294bdcb6f8973ef35cd3 main 반영, 캐시 없는 Actions37188912937 success·Vercel dpl_DKaRUfddVaDEYFpm8rNGwgGfKWPv READY/동일 commit·HTTP200·index-CWv0LgcA.js 새 CHECK/최신 APK 안내 확인. 첫 캐시 충돌 실패는 trouble-shooting에 기록했다.
+- APK/에뮬레이터 완료: 무료 preview64274a3c-23cc-4281-b81c-f9fe088c95f9 FINISHED/동일 commit, 61,568,882bytes·기존 인증서 일치·adb install -r 성공·로그인 유지·CHECK capability true. 다운로드 https://expo.dev/artifacts/eas/4lNJUvbuWO9-lYddPyi4ce7TOU_xWMXVwRC4DhjZuyo.apk.
+- Android16 실제 WebView MediaStream/격리 세션3회: 설정 진입 hidden/ended → 복귀 시 다른 새 live 트랙·480px·readyState4·시작 시각 유지. 휴식 후 왕복에서는 track null. 종료 후 fixture false/운영 로그인 유지/카메라 해제로 복원했다. 검출기 경계는 예시이며 실제 휴대폰·상반신 인식까지 검증한 것으로 확대하지 않는다.
+- 다음 작업: 사용자는 기존 앱을 삭제하지 말고 새 APK로 업데이트해 실휴대폰 제조사별 설정 복귀를 확인한다. Jev 대조는 외부 전송 승인 부족으로 차단되어 우회하지 않았으며 직접 로그로 검증했다. lint 스크립트 없음.
 - 변경 범위: 카메라/권한 브리지/관련 테스트·문서. Supabase schema/RLS/RPC/Edge/권한 설정/DND 규칙/사용자 공부·회복 데이터는 변경하지 않는다. 기존 산출물과 기본 checkout 보존.
 
 ---

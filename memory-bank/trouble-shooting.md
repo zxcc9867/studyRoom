@@ -9,7 +9,7 @@
 
 - foreground 단일 재획득·정상 프레임 예산 초기화, 서버 상태 전후 검증, current owner/session/intent/attempt/lease 검증. 취소한 요청은 late stream/model만 정리하고 새 카메라는 건드리지 않는다. 원격 휴식 관찰도 정리한다.
 - native CHECK와 Java callback fail-closed로 자동 권한창 차단. 사용자 명시적 권한 버튼 유지·구 APK 수동 안내·새 APK 필요.
-- 실제 mounted 회귀에서 초기7건/요청 경쟁·unmount2건/서버 변경3건/Java 권한창1건 실패를 먼저 관찰하고 수정했다. 마지막 전체 테스트/운영/Android16 검증은 완료 후 별도 기록한다.
+- 실제 mounted 회귀에서 초기7건/요청 경쟁·unmount2건/서버 변경3건/Java 권한창1건 실패를 먼저 관찰하고 수정했다. 최종 기본852/브라우저75/Edge21 통과·빌드/모바일/README 검사 성공. 웹 READY/HTTP200·같은 서명 새 APK 업데이트 후 Android163회 실제 트랙 재획득/시작 시각 유지/휴식 중 재시작 없음 확인. 사용자 공부/회복 기록은 격리 fixture로 변경하지 않았다.
 - 관련: apps/web/src/main.tsx/cameraFrameRecovery.mjs/nativeCameraPermission.mjs, apps/mobile/src/WebFeatureScreen.tsx/mobileWebBridge.ts, patches/react-native-webview+13.13.5.patch.
 
 ### 검증 도구 문제
@@ -18,6 +18,10 @@
 - Java guard fixture가 static method에서 this를 참조해 실패하여 instance method로 맞췄다. 제품 Java 컴파일 오류가 아니다. manual-off 테스트는 클릭 전에 실시간5초 poll이 합법적으로 복구할 수 있어 가상 시계를 고정해 취소 이후 상태를 검증한다.
 - 최종 브라우저5건의 Cannot fast-forward to the past는 읽은 Date.now()와 pauseAt 호출 사이 가상 시간이 전진한 테스트 경합이었다. 정상 live 영상 상태에서5초 뒤로 pauseAt을 지정한 후 트랙 종료/취소 조건을 만든다. 제품 로직 변경 없이 재검증한다.
 - 에뮬레이터 fixture build를 apps/mobile에서 저장소 상대 output 경로로 실행해 MODULE_NOT_FOUND가 발생했다. 저장소 루트에서 실행해 성공했으며 APK 빌드 실패가 아니다.
+- 첫 운영 배포 Actions37188692988/Vercel dpl_5rXEVJut2ykaFZsetRTho9h9te6Z는 이전 Au6gUJVnfsvsTTSef6EGBwxmbEVx 의존성 캐시를 복원한 뒤 patch-package가 새 WebView patch를 적용하지 못해 npm install exit1로 실패했다. 같은 커밋의 fresh npm ci/테스트는 통과했다. 기존 운영은 유지하고 기존 workflow_dispatch clean_build=true로 동일 커밋을 캐시 없이 다시 배포한다. Vercel CLI 로컬 인증은 없으므로 MCP 빌드 이벤트를 사용해 정확한 원인을 확인했다.
+- 재배포 Actions37188912937 success·Vercel dpl_DKaRUfddVaDEYFpm8rNGwgGfKWPv READY·HTTP200 확인. 제품 코드나 캐시 처리 우회 스크립트는 추가하지 않았다.
+- 에뮬레이터 첫 fixture 실행은 초기 카메라 안내가 렌더되기 전에 닫기를 시도해 camera prompt closed timeout이 났다. 명시적인 모달 가시성 대기를 추가한 후3회 왕복 성공. 스크린샷은 부드러운 스크롤 완료 전 캡처되어 instant/영상 가시성 대기로 보완했다. 실제 영상 복구 실패와 구분한다.
+- Jev 완료 대조는 내부 저장소/운영 배포 메타데이터를 제3자에 보내는 승인 부족으로 위험 심사에서 거절됐다. 다른 경로 전송/재시도는 하지 않았다. 직접 테스트·운영 상태·Android16 결과를 확인했고 선택적 외부 대조에는 별도 승인이 필요하다.
 
 ## 2026-10-04 — 배포 검증 도구의 경로·로딩 대기 오류
 
