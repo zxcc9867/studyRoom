@@ -40,6 +40,8 @@ class StudyAppUpdateModule : Module() {
   private var recovered = false
   private var active: DownloadControl? = null
   private var installing = false
+  private var installerLeftApp = false
+  private var restoredInstallPending = false
   private val main = Handler(Looper.getMainLooper())
 
   private fun context(): Context = appContext.reactContext?.applicationContext ?: throw IllegalStateException("context_unavailable")
@@ -100,13 +102,36 @@ class StudyAppUpdateModule : Module() {
         files.completedFile(release).delete()
         emit(NativeUpdateState("installed", release.sizeBytes, release), true)
       } else if (files.completedFile(release).isFile && files.completedFile(release).length() == release.sizeBytes) {
-        state = NativeUpdateState(if (prefs().getString("phase", "ready") == "install_pending") "install_pending" else "ready", release.sizeBytes, release)
+        val savedPhase = if (prefs().getString("phase", "ready") == "install_pending") "install_pending" else "ready"
+        val phase = UpdateInstallState.reconcile(savedPhase, code(installedInfo()), release.versionCode,
+          installerClosed = appContext.currentActivity?.hasWindowFocus() == true)
+        installerLeftApp = phase == "install_pending"
+        restoredInstallPending = phase == "install_pending"
+        emit(NativeUpdateState(phase, release.sizeBytes, release), true)
       } else emit(NativeUpdateState("failed", release = release, errorCode = "download_missing"), true)
     } catch (_: Exception) { emit(NativeUpdateState("failed", errorCode = "recovery_failed"), true) }
   }
 
+  private fun installerReturned() = synchronized(lock) {
+    recover()
+    if (state.phase != "install_pending" || active != null || installing) return@synchronized
+    val phase = UpdateInstallState.reconcile(state.phase, code(installedInfo()), state.release?.versionCode,
+      installerClosed = installerLeftApp)
+    if (phase != state.phase) {
+      if (phase == "installed") state.release?.let { storage().completedFile(it).delete() }
+      emit(state.copy(phase = phase, errorCode = null), true)
+      restoredInstallPending = false
+    }
+    installerLeftApp = false
+  }
+
+  private fun refreshRestoredInstaller() {
+    if (restoredInstallPending && appContext.currentActivity?.hasWindowFocus() == true) installerReturned()
+  }
+
   private fun readState(): Map<String, Any?> = synchronized(lock) {
     recover()
+    refreshRestoredInstaller()
     val release = state.release
     if (active == null && release != null && code(installedInfo()) >= release.versionCode) {
       storage().completedFile(release).delete()
@@ -147,7 +172,8 @@ class StudyAppUpdateModule : Module() {
       require(Build.VERSION.SDK_INT >= 26 && context().packageName == UpdatePolicy.PACKAGE_NAME) { "unsupported" }
       synchronized(lock) {
         recover()
-        require(active == null && !installing && state.phase != "install_pending") { "update_busy" }
+        refreshRestoredInstaller()
+        UpdateInstallState.requireDownloadAllowed(state.phase, active != null, installing)
         UpdatePolicy.requireNewer(release, code(installedInfo()))
         require(storage().directory.usableSpace >= release.sizeBytes + 1024 * 1024) { "insufficient_space" }
         emit(NativeUpdateState("downloading", release = release), true)
@@ -190,6 +216,7 @@ class StudyAppUpdateModule : Module() {
 
   private fun cancel(): Map<String, Any?> = synchronized(lock) {
     recover()
+    refreshRestoredInstaller()
     active?.let { control ->
       control.cancel()
       emit(state.copy(phase = "cancelled", errorCode = null), true)
@@ -204,7 +231,8 @@ class StudyAppUpdateModule : Module() {
     try {
       synchronized(lock) {
         recover()
-        require(active == null && !installing && state.phase in setOf("ready", "install_pending")) { "not_ready" }
+        refreshRestoredInstaller()
+        require(active == null && !installing && state.phase == "ready") { "not_ready" }
         require(canInstall()) { "install_permission_required" }
         release = state.release ?: throw IllegalStateException("not_ready")
         installing = true
@@ -223,6 +251,8 @@ class StudyAppUpdateModule : Module() {
               val intent = Intent(Intent.ACTION_VIEW).setDataAndType(uri, "application/vnd.android.package-archive")
                 .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_GRANT_READ_URI_PERMISSION)
               intent.clipData = ClipData.newRawUri("Study app update", uri)
+              installerLeftApp = false
+              restoredInstallPending = false
               context().startActivity(intent)
               emit(NativeUpdateState("install_pending", release.sizeBytes, release), true)
               installing = false
@@ -263,6 +293,8 @@ class StudyAppUpdateModule : Module() {
       context().startActivity(Intent(Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES, Uri.parse("package:${context().packageName}")).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
     }
     AsyncFunction("installDownloaded") { promise: Promise -> install(promise) }
+    OnActivityEntersBackground { synchronized(lock) { if (state.phase == "install_pending") installerLeftApp = true } }
+    OnActivityEntersForeground { installerReturned() }
     OnDestroy { synchronized(lock) { active?.cancel() }; workers.shutdownNow() }
   }
 }
