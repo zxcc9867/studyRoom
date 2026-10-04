@@ -25,14 +25,21 @@ export function useAppUpdate(beforeInstall: () => Promise<InstallGate>): AppUpda
     return current;
   }
   function applyNative(s: NativeUpdateState) {
+    const previous = stateRef.current;
     const current = readCurrent();
     const r = s.release ? validateAndroidRelease(s.release) : stateRef.current.release;
     const completed = Boolean(r && current?.supported && current.packageName === r.packageName && current.versionCode >= r.versionCode);
+    // Native idle means no download, not that the validated release offer or JS check disappeared.
+    if (s.phase === "idle" && !completed) {
+      if (locked.current || previous.status === "failed" || previous.status === "cancelled") return;
+      update({ release: r, status: r && current ? isNewerRelease(r, current) ? "available" : "latest" : "idle", busy: false });
+      return;
+    }
     const phase = s.phase === "installed" && !completed ? "ready" : s.phase;
-    update({ release: r, status: completed ? "installed" : phase,
+    update({ release: r, status: completed ? "installed" : locked.current && previous.status === "checking" && phase === "ready" ? "checking" : phase,
       progress: s.totalBytes > 0 ? Math.min(100, Math.max(0, Math.round(s.downloadedBytes / s.totalBytes * 100))) : 0,
       error: s.phase === "failed" ? getUpdateErrorMessage({ code: s.errorCode }) : "",
-      busy: phase === "downloading" || phase === "verifying" });
+      busy: locked.current || phase === "downloading" || phase === "verifying" });
   }
   async function check() {
     if (!native || locked.current || stateRef.current.busy || stateRef.current.status === "install_pending") return;

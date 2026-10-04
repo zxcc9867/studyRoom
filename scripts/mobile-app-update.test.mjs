@@ -111,6 +111,36 @@ test('initial check once, manual check and progress/cancel preserve a usable ent
   h.emit({ phase: 'downloading', downloadedBytes: 500, totalBytes: 1000 }); c = h.render();
   assert.equal(c.progress, 50); c.cancel(); assert.equal(h.render().status, 'cancelled');
 });
+test('foreground native idle retains available release notice and usable explicit download', async () => {
+  const h = harness(); h.render(); await flush(); h.render().open(); h.render();
+  h.foreground(); const c = h.render(), tree = h.panel();
+  assert.equal(c.status, 'available'); assert.match(textOf(tree), /새 버전으로 더 편하게 공부해요/);
+  const button = all(tree, n => n.type === 'Pressable').find(n => textOf(n) === '업데이트 다운로드');
+  assert.ok(button); assert.equal(button.props.disabled, false); assert.equal(h.counts().downloads, 0);
+  assert.equal(h.counts().checks, 1); await button.props.onPress(); assert.equal(h.counts().downloads, 1);
+});
+test('foreground native idle preserves pending manual check and its busy controls', async () => {
+  let resolve, count = 0;
+  const h = harness({ fetch: () => ++count === 1 ? Promise.resolve(release()) : new Promise(r => resolve = r) });
+  h.render(); await flush(); const pending = h.render().check(); h.foreground();
+  const c = h.render(); assert.equal(c.status, 'checking'); assert.equal(c.busy, true);
+  const button = all(h.panel(), n => n.type === 'Pressable').find(n => textOf(n) === '최신 버전 다시 확인');
+  assert.equal(button.props.disabled, true); await c.check(); assert.equal(h.counts().checks, 2);
+  resolve(release({ versionCode: 4 })); await pending; assert.equal(h.render().status, 'available'); assert.equal(h.render().release.versionCode, 4);
+});
+test('foreground native idle does not erase a failed check or fabricate latest', async () => {
+  const h = harness({ fetch: () => Promise.reject(new Error('failure')) }); h.render(); await flush();
+  const error = h.render().error; h.foreground(); assert.equal(h.render().status, 'failed'); assert.equal(h.render().error, error);
+});
+test('foreground native ready keeps fresh install guard busy until its explicit request resolves', async () => {
+  let resolve, gates = 0;
+  const h = harness({ gate: () => { gates++; return new Promise(r => resolve = r); } }); h.render(); await flush(); await h.render().download();
+  const pending = h.render().install(); h.foreground(); const c = h.render();
+  assert.equal(c.status, 'ready'); assert.equal(c.busy, true);
+  const button = all(h.panel(), n => n.type === 'Pressable').find(n => textOf(n) === '업데이트 설치');
+  assert.equal(button.props.disabled, true); await c.install(); assert.equal(gates, 1); assert.equal(h.counts().installs, 0);
+  resolve('unknown'); await pending; assert.equal(h.render().busy, false); assert.equal(h.counts().installs, 0); assert.match(h.render().error, /상태/);
+});
 test('failed and timed out checks never claim latest and stale async checks are discarded', async () => {
   let resolve;
   const h = harness({ fetch: () => new Promise(r => resolve = r) }); h.render();
@@ -151,7 +181,7 @@ test('installer entry and spoofed installed event are not success until actual i
   assert.equal(h.render().status, 'install_pending');
   h.emit({ phase: 'installed' }); assert.notEqual(h.render().status, 'installed');
   h.emit({ phase: 'ready' }); h.foreground(); assert.equal(h.render().status, 'ready');
-  h.current(3); h.foreground(); assert.equal(h.render().status, 'installed');
+  h.current(3); h.emit({ phase: 'idle', release: null }); h.foreground(); assert.equal(h.render().status, 'installed');
 });
 test('actual panel renders scrolling accessible details and explicit user actions', async () => {
   const h = harness(); h.render(); await flush(); h.render().open(); h.render(); const tree = h.panel();
