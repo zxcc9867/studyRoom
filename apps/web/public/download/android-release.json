@@ -3,13 +3,13 @@
   "packageName": "com.jini9867.studyroomattendance",
   "versionName": "0.2.0",
   "versionCode": 3,
-  "releasedAt": "2026-10-04T15:22:04Z",
+  "releasedAt": "2026-10-04T15:43:07Z",
   "releaseNotes": [
     "앱에서 최신 버전을 확인하고 업데이트 APK를 직접 다운로드할 수 있어요.",
     "Android 출처 허용과 설치 확인은 사용자 선택으로 진행해요.",
     "기존 로그인, 독서실 아이콘과 집중 모드 상태 안내를 유지해요."
   ],
   "apkUrl": "https://github.com/zxcc9867/studyRoom/releases/download/android-v0.2.0-build3/study-room-0.2.0-build3.apk",
-  "sha256": "a70aa39814598a2448638e633db88a39b1ae6c50dd4a3e7bc7d368477e83d0b1",
-  "sizeBytes": 61974751
+  "sha256": "c077f6815fc80be82dfb4cddc393797574df4543665108688219cca45d392b62",
+  "sizeBytes": 61975731
 }

@@ -94,9 +94,9 @@ test("public release manifest matches the actual final APK contract and stable r
   const release = validateAndroidRelease(JSON.parse(bytes));
   assert.equal(release.versionName, "0.2.0");
   assert.equal(release.versionCode, 3);
-  assert.equal(release.releasedAt, "2026-10-04T15:22:04Z");
-  assert.equal(release.sizeBytes, 61974751);
-  assert.equal(release.sha256, "a70aa39814598a2448638e633db88a39b1ae6c50dd4a3e7bc7d368477e83d0b1");
+  assert.equal(release.releasedAt, "2026-10-04T15:43:07Z");
+  assert.equal(release.sizeBytes, 61975731);
+  assert.equal(release.sha256, "c077f6815fc80be82dfb4cddc393797574df4543665108688219cca45d392b62");
   assert.equal(release.apkUrl, firstRoute("/download/android.apk").headers.Location);
   assert.ok(release.sizeBytes > 11, "Production metadata must not contain the APK test fixture");
   assert.notEqual(release.sha256, "3934be6f0ca5c6c3efc3576bb846f79a8512db715c6a8103b034cb29e676fd8e");
