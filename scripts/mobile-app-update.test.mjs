@@ -48,12 +48,23 @@ for (const [name, value] of Object.entries({ schema: { schemaVersion: 2 }, packa
   nan: { versionCode: NaN }, fraction: { versionCode: 3.1 }, zero: { versionCode: 0 }, max: { versionCode: 2100000001 },
   size: { sizeBytes: 150 * 1024 * 1024 + 1 }, sizeFraction: { sizeBytes: 1.1 }, hash: { sha256: 'g'.repeat(64) },
   notes: { releaseNotes: ['x'.repeat(201)] }, noteCount: { releaseNotes: Array(9).fill('x') },
+  blankNote: { releaseNotes: [''] }, whitespaceNote: { releaseNotes: [' \t\r\n'] },
+  longFraction: { releasedAt: '2026-10-04T12:00:00.1234567890Z' }, hour24: { releasedAt: '2026-10-04T24:00:00Z' },
   date: { releasedAt: '2026-02-30T12:00:00Z' }, timezone: { releasedAt: '2026-10-04T12:00:00' },
   name: { versionName: 'x'.repeat(33) },
 })) test(`release validation rejects ${name}`, () => assert.throws(() => api().validateAndroidRelease(release(value))));
 test('safe Korean errors do not expose arbitrary native or signed URL messages', () => {
   assert.match(api().getUpdateErrorMessage(new Error('https://host/file?secret=token')), /확인|업데이트/);
   assert.ok(!api().getUpdateErrorMessage(new Error('https://host/file?secret=token')).includes('secret'));
+});
+
+for (const code of ['install_failed', 'install_unavailable']) test(`${code} explains OS restrictions without bypass or deletion`, () => {
+  const message = api().getUpdateErrorMessage({ code, message: 'https://host/?secret=token' });
+  assert.match(message, /Android.*보안.*정책|Android.*보안.*제한/);
+  assert.match(message, /우회하지/);
+  assert.match(message, /삭제하지/);
+  assert.ok(!message.includes('인터넷'));
+  assert.ok(!message.includes('secret'));
 });
 
 // Only Android/OS and React Native host boundaries are doubled; real hook and panel execute.
@@ -82,6 +93,9 @@ function harness(options = {}) {
   const globals = { setTimeout(fn) { timers.set(++timerId, fn); return timerId; }, clearTimeout(id) { timers.delete(id); } };
   const element = (type, props) => ({ type, props });
   const rn = Object.fromEntries(['Modal', 'Pressable', 'ScrollView', 'Text', 'View', 'ActivityIndicator'].map(n => [n, n]));
+  const links = [], alerts = [];
+  rn.Linking = { async openURL(url) { links.push(url); if (options.linkFailure) throw new Error('signed-secret'); } };
+  rn.Alert = { alert(...args) { alerts.push(args); } };
   rn.StyleSheet = { create: x => x };
   rn.AppState = { currentState: 'active', addEventListener(_event, cb) { foreground = cb; return { remove() { foreground = null; } }; } };
   const imports = { react, 'react/jsx-runtime': { jsx: element, jsxs: element }, 'react-native': rn,
@@ -94,13 +108,33 @@ function harness(options = {}) {
   function render() { vi = ri = ei = 0; controller = hook(gate); while (pending.length) pending.shift()(); return controller; }
   return { render, panel: () => Panel({ palette, beforeInstall: gate, controller }), native,
     emit(s) { state = { ...state, ...s }; listener?.(state); }, foreground: () => foreground?.('active'),
-    current(code) { current = installed(code); }, timeout() { for (const fn of [...timers.values()]) fn(); },
+    current(code) { current = installed(code); }, links, alerts, timeout() { for (const fn of [...timers.values()]) fn(); },
     unmount() { mounted = false; cleanups.forEach(fn => fn?.()); }, remount() { mounted = true; effects.length = 0; render(); }, counts: () => ({ downloads, installs, settings, checks }) };
 }
 const flush = () => new Promise(resolve => setImmediate(resolve));
 function all(tree, predicate, found = []) { if (!tree || typeof tree !== 'object') return found; if (predicate(tree)) found.push(tree);
   for (const child of [tree.props?.children].flat(Infinity)) all(child, predicate, found); return found; }
 const textOf = node => typeof node === 'string' || typeof node === 'number' ? String(node) : node && typeof node === 'object' ? [node.props?.children].flat(Infinity).map(textOf).join('') : '';
+
+for (const phase of ['failed', 'permission_required']) test(`fixed install guide in ${phase} opens only by user choice`, async () => {
+  const h = harness(); h.render(); await flush(); h.render().open();
+  h.emit({ phase, errorCode: phase === 'failed' ? 'install_unavailable' : null }); h.render();
+  const button = all(h.panel(), n => n.type === 'Pressable').find(n => textOf(n) === '설치 안내 보기');
+  assert.ok(button); assert.equal(button.props.disabled, false);
+  assert.deepEqual(h.links, []); assert.equal(h.counts().downloads, 0); assert.equal(h.counts().installs, 0);
+  await button.props.onPress();
+  assert.deepEqual(h.links, ['https://study-room-attendance.vercel.app/download/android']);
+  assert.equal(h.counts().downloads, 0); assert.equal(h.counts().installs, 0); assert.equal(h.counts().settings, 0);
+});
+
+test('failed install-guide opening is handled with safe usable guidance', async () => {
+  const h = harness({ linkFailure: true }); h.render(); await flush(); h.render().open(); h.render();
+  const button = all(h.panel(), n => n.type === 'Pressable').find(n => textOf(n) === '설치 안내 보기');
+  assert.ok(button); await assert.doesNotReject(() => button.props.onPress());
+  assert.equal(h.alerts.length, 1); assert.match(h.alerts[0].join(' '), /브라우저|설치 안내/);
+  assert.ok(!h.alerts[0].join(' ').includes('signed-secret'));
+  assert.equal(h.render().isOpen, true); assert.equal(h.counts().downloads, 0); assert.equal(h.counts().installs, 0);
+});
 
 test('initial check once, manual check and progress/cancel preserve a usable entry', async () => {
   const h = harness(); h.render(); await flush(); let c = h.render();

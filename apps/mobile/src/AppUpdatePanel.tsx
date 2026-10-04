@@ -1,9 +1,13 @@
 import type React from "react";
-import { ActivityIndicator, Modal, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import { ActivityIndicator, Alert, Linking, Modal, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { useAppUpdate, type AppUpdateController, type InstallGate } from "./useAppUpdate";
 
 export type StudyPalette = { surface: string; canvas: string; primary: string; primarySoft: string; border: string; text: string; muted: string; coral: string };
 type Props = { palette: StudyPalette; beforeInstall: () => Promise<InstallGate>; controller?: AppUpdateController };
+async function openInstallGuide(): Promise<void> {
+  try { await Linking.openURL("https://study-room-attendance.vercel.app/download/android"); }
+  catch { Alert.alert("설치 안내를 열지 못했어요", "현재 앱은 계속 사용할 수 있어요. 브라우저에서 https://study-room-attendance.vercel.app/download/android 를 직접 열어 주세요."); }
+}
 function StandalonePanel(props: Props) { const controller = useAppUpdate(props.beforeInstall); return <AppUpdatePanel {...props} controller={controller} />; }
 export function AppUpdatePanel(props: Props): React.ReactElement | null {
   if (!props.controller) return <StandalonePanel {...props} />;
@@ -46,6 +50,7 @@ export function AppUpdatePanel(props: Props): React.ReactElement | null {
           </> : null}
           {c.status === "install_pending" ? <Text style={styles.copy}>설치 화면 진입은 완료가 아니에요. Android 확인을 마친 뒤 실제 설치 버전을 다시 확인해요.</Text> : null}
           {button("최신 버전 다시 확인", c.check, false, c.busy || c.status === "install_pending")}
+          {button("설치 안내 보기", openInstallGuide, false, false)}
           <Text style={styles.copy}>다운로드와 설치는 직접 선택할 때만 진행해요. 공부 중에는 먼저 휴식 또는 종료하세요. 기존 앱을 삭제할 필요는 없어요.</Text>
         </ScrollView>
       </View></View>

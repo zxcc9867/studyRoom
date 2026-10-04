@@ -55,6 +55,23 @@ class UpdatePolicyTest {
     UpdatePolicy.requireNewer(release, 2)
   }
 
+  @Test fun rejectsBlankReleaseNotesButAllowsEmptyArray() {
+    listOf("", "   ", "\t\r\n", "\u00a0\u2003").forEach { note ->
+      assertThrows(IllegalArgumentException::class.java) { UpdatePolicy.validateRelease(fixture() + ("releaseNotes" to listOf(note))) }
+    }
+    assertTrue(UpdatePolicy.validateRelease(fixture() + ("releaseNotes" to emptyList<String>())).releaseNotes.isEmpty())
+    assertEquals(listOf("  업데이트 안내  "), UpdatePolicy.validateRelease(fixture() + ("releaseNotes" to listOf("  업데이트 안내  "))).releaseNotes)
+  }
+
+  @Test fun releaseDateFractionAndTimeBoundsMatchPublisherAndJsContract() {
+    listOf("2026-10-04T12:00:00.1234567890Z", "2026-10-04T24:00:00Z", "2026-10-04T12:60:00Z", "2026-10-04T12:00:60Z", "2026-10-04T12:00:00+24:00", "2026-10-04T12:00:00+09:60").forEach { date ->
+      assertThrows(IllegalArgumentException::class.java) { UpdatePolicy.validateRelease(fixture() + ("releasedAt" to date)) }
+    }
+    listOf("2026-10-04T23:59:59.1Z", "2026-10-04T23:59:59.123456789+09:00").forEach { date ->
+      assertEquals(date, UpdatePolicy.validateRelease(fixture() + ("releasedAt" to date)).releasedAt)
+    }
+  }
+
   @Test fun copiesExactBytesAndChecksIndependentHash() {
     val output = ByteArrayOutputStream()
     assertEquals(abcHash, UpdatePolicy.copyAndHash(ByteArrayInputStream("abc".toByteArray()), output, 3, { false }, {}))

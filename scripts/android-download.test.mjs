@@ -5,6 +5,7 @@ import { createServer } from "node:http";
 import { pathToFileURL } from "node:url";
 import { createRequire } from "node:module";
 import { runInNewContext } from "node:vm";
+import { buildAndroidRelease } from "./android-release.mjs";
 
 // Reuse the mobile tests' Babel boundary: execute the real client validator, not a test copy.
 const require = createRequire(new URL("../apps/mobile/package.json", import.meta.url));
@@ -16,6 +17,37 @@ const validatorCode = require("@babel/core").transformSync(await readFile(new UR
 const validator = { exports: {}, Date };
 runInNewContext(validatorCode, validator);
 const { validateAndroidRelease } = validator.exports;
+
+for (const note of ["", "   ", "\t\r\n", "\u00a0\u2003"]) {
+  test(`publisher and real JS client reject blank release note ${JSON.stringify(note)}`, async () => {
+    const metadata = JSON.parse(await readFile(new URL("../apps/web/public/download/android-release.json", import.meta.url), "utf8"));
+    assert.throws(() => buildAndroidRelease({ ...metadata, releaseNotes: [note], apkBytes: Buffer.from([1]) }), /releaseNotes/);
+    assert.throws(() => validateAndroidRelease({ ...metadata, releaseNotes: [note] }), /INVALID_RELEASE/);
+  });
+}
+
+test("publisher and real JS client preserve empty release notes and nonblank boundary entries", async () => {
+  const metadata = JSON.parse(await readFile(new URL("../apps/web/public/download/android-release.json", import.meta.url), "utf8"));
+  for (const releaseNotes of [[], ["  업데이트 안내  "], Array(8).fill("n".repeat(200))]) {
+    const published = buildAndroidRelease({ ...metadata, releaseNotes, apkBytes: Buffer.from([1]) });
+    const accepted = validateAndroidRelease(published);
+    assert.deepEqual(Array.from(accepted.releaseNotes), releaseNotes);
+  }
+});
+
+for (const releasedAt of ["2026-10-04T12:00:00.1234567890Z", "2026-10-04T24:00:00Z", "2026-10-04T12:60:00Z", "2026-10-04T12:00:60Z", "2026-10-04T12:00:00+24:00", "2026-10-04T12:00:00+09:60"]) {
+  for (const boundary of ["publisher", "JS client"]) test(`${boundary} rejects out-of-contract release time ${releasedAt}`, async () => {
+    const metadata = JSON.parse(await readFile(new URL("../apps/web/public/download/android-release.json", import.meta.url), "utf8"));
+    assert.throws(() => boundary === "publisher" ? buildAndroidRelease({ ...metadata, releasedAt, apkBytes: Buffer.from([1]) }) : validateAndroidRelease({ ...metadata, releasedAt }));
+  });
+}
+
+test("publisher and real JS client accept one through nine fractional second digits", async () => {
+  const metadata = JSON.parse(await readFile(new URL("../apps/web/public/download/android-release.json", import.meta.url), "utf8"));
+  for (const releasedAt of ["2026-10-04T23:59:59.1Z", "2026-10-04T23:59:59.123456789+09:00"]) {
+    assert.equal(validateAndroidRelease(buildAndroidRelease({ ...metadata, releasedAt, apkBytes: Buffer.from([1]) })).releasedAt, releasedAt);
+  }
+});
 
 const config = JSON.parse(await readFile(new URL("../vercel.json", import.meta.url), "utf8"));
 const publicRoot = new URL("../apps/web/public/", import.meta.url);

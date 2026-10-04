@@ -51,6 +51,12 @@ test("release builder accepts valid boundary values without changing the supplie
   assert.ok(Buffer.byteLength(JSON.stringify(release)) <= 16 * 1024);
 });
 
+test("release builder rejects blank entries but allows an empty release notes array", async () => {
+  const { buildAndroidRelease } = await import("./android-release.mjs");
+  for (const note of ["", "   ", "\t\r\n", "\u00a0\u2003"]) assert.throws(() => buildAndroidRelease({ ...input, releaseNotes: [note] }), /releaseNotes/);
+  assert.deepEqual(buildAndroidRelease({ ...input, releaseNotes: [] }).releaseNotes, []);
+});
+
 test("release builder refuses a serialized manifest above the 16KiB client limit", async () => {
   const { buildAndroidRelease } = await import("./android-release.mjs");
   assert.throws(() => buildAndroidRelease({ ...input, apkUrl: `https://github.com/zxcc9867/studyRoom/releases/download/${"v".repeat(16 * 1024)}/release.apk` }), /16KiB/);
