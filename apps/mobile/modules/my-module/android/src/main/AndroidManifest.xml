@@ -1,7 +1,15 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
   <uses-permission android:name="android.permission.ACCESS_NOTIFICATION_POLICY" />
   <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
+  <uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES" />
   <application>
+    <provider android:name="expo.modules.studyfocusmode.StudyAppUpdateFileProvider"
+      android:authorities="${applicationId}.study-app-update"
+      android:exported="false"
+      android:grantUriPermissions="true">
+      <meta-data android:name="android.support.FILE_PROVIDER_PATHS"
+        android:resource="@xml/study_update_paths" />
+    </provider>
     <service android:name="expo.modules.studyfocusmode.StudyFocusConditionProvider"
       android:exported="true"
       android:permission="android.permission.BIND_CONDITION_PROVIDER_SERVICE">

@@ -1,6 +1,6 @@
 {
   "platforms": ["android"],
   "android": {
-    "modules": ["expo.modules.studyfocusmode.StudyFocusModeModule"]
+    "modules": ["expo.modules.studyfocusmode.StudyFocusModeModule", "expo.modules.studyfocusmode.StudyAppUpdateModule"]
   }
 }
