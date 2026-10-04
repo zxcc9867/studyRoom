@@ -60,6 +60,7 @@ function renderStudyRoom(session, nowMs) {
         './src/focus': {},
         './src/notifications': {},
         './src/WebFeatureScreen': { WebFeatureScreen: 'WebFeatureScreen' },
+        './src/FocusStatusPanel': { FocusStatusPanel: 'FocusStatusPanel' },
       };
       assert.ok(name in imports, `Unexpected import: ${name}`);
       return imports[name];
@@ -73,7 +74,7 @@ function renderStudyRoom(session, nowMs) {
   states[5] = nowMs;
   states[8] = session ? [session] : [];
   states[22] = false;
-  states[states.length - 1] = true; // Exercise the retained native study fallback.
+  states[33] = true; // Exercise the retained native study fallback.
   const render = () => {
     stateIndex = 0;
     refIndex = 0;

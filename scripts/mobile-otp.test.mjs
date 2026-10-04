@@ -68,6 +68,7 @@ test('mobile login keeps all eight OTP digits and verifies that exact code', asy
       if (name === './src/focus') return {};
       if (name === './src/notifications') return {};
       if (name === './src/WebFeatureScreen') return { WebFeatureScreen: 'WebFeatureScreen' };
+      if (name === './src/FocusStatusPanel') return { FocusStatusPanel: 'FocusStatusPanel' };
       throw new Error(`Unexpected App import: ${name}`);
     },
   };

@@ -29,6 +29,8 @@ import {
 } from "./src/focus";
 import { supabase } from "./src/supabase";
 import { WebFeatureScreen } from "./src/WebFeatureScreen";
+import { FocusStatusPanel } from "./src/FocusStatusPanel";
+import type { FocusAction, LocalFocusStatus } from "./src/focusStatus";
 
 const retryCooldownMs = 15 * 60 * 1000;
 const emailOtpLength = 8;
@@ -48,6 +50,11 @@ const mobilePalette = {
   muted: "#4e5b50",
   softBorder: "#d7ddd2",
 } as const;
+
+function readLocalFocusStatus(): LocalFocusStatus | null {
+  try { return getLocalFocusStatus(); }
+  catch { return null; }
+}
 
 type Profile = {
   user_id: string;
@@ -146,6 +153,17 @@ export default function App() {
   const [googleBusy, setGoogleBusy] = useState(false);
   const googleBusyRef = useRef(false);
   const [webFallback, setWebFallback] = useState(false);
+  const [focusAction, setFocusAction] = useState<FocusAction>(null);
+  const [localFocusStatus, setLocalFocusStatus] = useState<LocalFocusStatus | null>(readLocalFocusStatus);
+  const [focusSettingsOpen, setFocusSettingsOpen] = useState(false);
+  const focusOwnerRef = useRef(session?.user.id ?? null);
+  focusOwnerRef.current = session?.user.id ?? null;
+  const focusOperationRef = useRef<{
+    running: boolean;
+    pendingRefresh: boolean;
+    pendingLogout: { userId: string; run: () => Promise<void> } | null;
+    sequence: number;
+  }>({ running: false, pendingRefresh: false, pendingLogout: null, sequence: 0 });
 
   async function loginWithGoogle() {
     if (googleBusyRef.current || busy) return;
@@ -196,6 +214,8 @@ export default function App() {
 
   useEffect(() => {
     setWebFallback(false);
+    setFocusSettingsOpen(false);
+    setFocusAction(null);
     if (session?.user.id) {
       setFocusSnapshot(null);
       setFocusError("");
@@ -210,6 +230,16 @@ export default function App() {
       dismissedRecoveryIdRef.current = null;
     }
   }, [session?.user.id]);
+
+  useEffect(() => {
+    if (!session?.user.id || !focusSnapshot?.device_connected) return;
+    const userId = session.user.id;
+    // Foreground-only, bounded status checks; no background polling or new push registration.
+    const timer = setInterval(() => {
+      if (AppState.currentState === "active") void refreshFocus(userId);
+    }, 60_000);
+    return () => clearInterval(timer);
+  }, [session?.user.id, focusSnapshot?.device_connected]);
 
   useEffect(() => {
     const listener = AppState.addEventListener("change", (state) => {
@@ -257,14 +287,42 @@ export default function App() {
   const activeStudySeconds = getActiveStudySeconds(activeSession, nowMs);
   const resendSeconds = Math.max(0, Math.ceil((resendAvailableAt - nowMs) / 1000));
 
-  async function refreshFocus(userId: string) {
-    try {
-      const snapshot = await reconcileStudyFocus(userId);
-      if (snapshot) setFocusSnapshot(snapshot);
-      setFocusError("");
-    } catch (error) {
-      setFocusError(formatError(error));
+  async function runFocusAction(userId: string, action: Exclude<FocusAction, null>, operation: () => Promise<FocusSnapshot | null>) {
+    if (focusOwnerRef.current !== userId) return;
+    const state = focusOperationRef.current;
+    if (state.running) {
+      if (action === "checking") state.pendingRefresh = true;
+      return;
     }
+    state.running = true;
+    const sequence = ++state.sequence;
+    setFocusAction(action);
+    setFocusError("");
+    try {
+      const snapshot = await operation();
+      if (focusOwnerRef.current === userId && state.sequence === sequence) {
+        setFocusSnapshot(snapshot);
+        setLocalFocusStatus(getLocalFocusStatus());
+      }
+    } catch (error) {
+      if (focusOwnerRef.current === userId && state.sequence === sequence) {
+        setFocusError(formatError(error));
+        try { setLocalFocusStatus(getLocalFocusStatus()); } catch { setLocalFocusStatus(null); }
+      }
+    } finally {
+      state.running = false;
+      if (focusOwnerRef.current === userId) setFocusAction(null);
+      const pendingLogout = state.pendingLogout;
+      state.pendingLogout = null;
+      const pending = state.pendingRefresh;
+      state.pendingRefresh = false;
+      if (pendingLogout && pendingLogout.userId === focusOwnerRef.current) void pendingLogout.run();
+      else if (pending && focusOwnerRef.current) void refreshFocus(focusOwnerRef.current);
+    }
+  }
+
+  async function refreshFocus(userId: string) {
+    await runFocusAction(userId, "checking", () => reconcileStudyFocus(userId));
   }
 
   async function signalFocusChange(userId: string) {
@@ -273,52 +331,59 @@ export default function App() {
       if (error) throw error;
       await refreshFocus(userId);
     } catch (error) {
-      setFocusError(`휴대폰 집중 모드 동기화를 확인하지 못했습니다: ${formatError(error)}`);
+      if (focusOwnerRef.current === userId) setFocusError(`휴대폰 집중 모드 동기화를 확인하지 못했습니다: ${formatError(error)}`);
     }
   }
 
   async function connectFocus() {
     if (!session?.user.id) return;
-    try {
+    await runFocusAction(session.user.id, "connecting", async () => {
       const status = getLocalFocusStatus();
+      setLocalFocusStatus(status);
       if (!status.supported) throw new Error("Android 15 이상에서 지원합니다.");
       if (!status.hasAccess) {
         openFocusPolicySettings();
-        setFocusError("Android 설정에서 독서실의 방해금지 접근을 허용한 뒤 연결 버튼을 다시 눌러 주세요.");
-        return;
+        throw new Error("Android 설정에서 독서실의 방해금지 접근을 허용한 뒤 연결 버튼을 다시 눌러 주세요.");
       }
-      setBusy(true);
-      const snapshot = await connectStudyFocus(session.user.id);
-      if (snapshot) setFocusSnapshot(snapshot);
-      setFocusError("");
-      await signalFocusChange(session.user.id);
-    } catch (error) {
-      setFocusError(formatError(error));
-    } finally {
-      setBusy(false);
-    }
+      return connectStudyFocus(session.user.id);
+    });
   }
 
   async function disconnectFocus() {
     if (!session?.user.id) return;
-    try {
-      setBusy(true);
+    await runFocusAction(session.user.id, "disconnecting", async () => {
       await disconnectStudyFocus(session.user.id);
-      setFocusSnapshot(null);
-      setFocusError("");
-    } catch (error) {
-      setFocusError(formatError(error));
-    } finally {
-      setBusy(false);
-    }
+      return null;
+    });
+  }
+
+  function openAndroidFocusSettings() {
+    try { openFocusPolicySettings(); }
+    catch (error) { setFocusError(`Android 방해금지 설정을 열지 못했습니다: ${formatError(error)}`); }
   }
 
   async function logout() {
-    if (session?.user.id) {
-      try { await disconnectStudyFocus(session.user.id); }
-      catch (error) { Alert.alert("집중 모드 해제 확인 필요", formatError(error)); }
+    const userId = session?.user.id;
+    if (!userId) {
+      await supabase.auth.signOut();
+      return;
     }
-    await supabase.auth.signOut();
+    if (focusOwnerRef.current !== userId) return;
+    const state = focusOperationRef.current;
+    if (state.running) {
+      state.pendingLogout = { userId, run: logout };
+      return;
+    }
+    await runFocusAction(userId, "disconnecting", async () => {
+      try { await disconnectStudyFocus(userId); }
+      catch (error) { Alert.alert("집중 모드 해제 확인 필요", formatError(error)); }
+      if (focusOwnerRef.current === userId) {
+        const { error } = await supabase.auth.signOut();
+        if (error) throw error;
+        state.pendingRefresh = false;
+      }
+      return null;
+    });
   }
 
   async function requestCode() {
@@ -793,16 +858,11 @@ export default function App() {
     return (
       <SafeAreaView style={styles.screen}>
         <StatusBar barStyle="dark-content" backgroundColor={mobilePalette.canvas} />
-        <View style={styles.webNativeBar}>
-          <Text style={styles.webNativeStatus}>휴대폰 집중 모드 · {focusStatusLabel(focusSnapshot)}</Text>
-          <Pressable accessibilityRole="button" style={styles.webNativeAction} onPress={() => void connectFocus()} disabled={busy}>
-            <Text style={styles.webNativeActionText}>{focusSnapshot?.device_connected ? "집중 모드 다시 연결·확인" : "집중 모드 연결"}</Text>
-          </Pressable>
-          <Pressable accessibilityRole="button" style={styles.webNativeAction} onPress={() => void logout()}>
-            <Text style={styles.webNativeActionText}>로그아웃</Text>
-          </Pressable>
-        </View>
-        {focusError ? <Text style={styles.focusError}>{focusError}</Text> : null}
+        <FocusStatusPanel snapshot={focusSnapshot} local={localFocusStatus} error={focusError} action={focusAction}
+          paused={activeSessionPaused} nowMs={nowMs} palette={mobilePalette} settingsOpen={focusSettingsOpen}
+          onOpenSettings={() => setFocusSettingsOpen(true)} onCloseSettings={() => setFocusSettingsOpen(false)}
+          onConnect={() => void connectFocus()} onCheck={() => void refreshFocus(session.user.id)}
+          onDisconnect={() => void disconnectFocus()} onPolicySettings={openAndroidFocusSettings} onLogout={() => void logout()} />
         <WebFeatureScreen
           key={session.user.id}
           sessionUserId={session.user.id}
@@ -836,7 +896,7 @@ export default function App() {
             <Text style={styles.kicker}>study room</Text>
             <Text style={styles.title}>강제 출석 독서실</Text>
           </View>
-          <Pressable onPress={() => void logout()} style={styles.ghostButton}>
+          <Pressable accessibilityRole="button" accessibilityState={{ disabled: Boolean(focusAction) }} disabled={Boolean(focusAction)} onPress={() => void logout()} style={styles.ghostButton}>
             <Text style={styles.ghostButtonText}>로그아웃</Text>
           </Pressable>
         </View>
@@ -861,20 +921,11 @@ export default function App() {
           </View>
         </View>
 
-        <View style={styles.statusPanel}>
-          <Text style={styles.statusLabel}>휴대폰 집중 모드</Text>
-          <Text style={styles.sectionTitle}>{focusStatusLabel(focusSnapshot)}</Text>
-          <Text style={styles.copy}>공부 시작·재개 때 앱 전용 방해금지를 켜고 잠시 쉬기·종료 때 끕니다. 전화·메신저 예외는 Android 설정에서 직접 정하세요.</Text>
-          {focusSnapshot?.last_ack_at && <Text style={styles.copy}>마지막 적용 확인: {new Date(focusSnapshot.last_ack_at).toLocaleString()}</Text>}
-          {focusError ? <Text style={styles.focusError}>{focusError}</Text> : null}
-          {focusSnapshot?.last_error ? <Text style={styles.focusError}>{focusSnapshot.last_error}</Text> : null}
-          <Pressable style={styles.secondaryButton} onPress={() => void connectFocus()} disabled={busy}>
-            <Text style={styles.secondaryButtonText}>{focusSnapshot?.device_connected ? "연결·상태 다시 확인" : "이 휴대폰 연결"}</Text>
-          </Pressable>
-          {focusSnapshot?.device_connected && <Pressable style={styles.ghostButton} onPress={() => void disconnectFocus()} disabled={busy}>
-            <Text style={styles.ghostButtonText}>집중 모드 연결 해제</Text>
-          </Pressable>}
-        </View>
+        <FocusStatusPanel snapshot={focusSnapshot} local={localFocusStatus} error={focusError} action={focusAction}
+          paused={activeSessionPaused} nowMs={nowMs} palette={mobilePalette} settingsOpen={focusSettingsOpen}
+          onOpenSettings={() => setFocusSettingsOpen(true)} onCloseSettings={() => setFocusSettingsOpen(false)}
+          onConnect={() => void connectFocus()} onCheck={() => void refreshFocus(session.user.id)}
+          onDisconnect={() => void disconnectFocus()} onPolicySettings={openAndroidFocusSettings} onLogout={() => void logout()} />
 
         <View style={styles.todoPanel}>
           <View style={styles.todoPanelHeader}>
@@ -1108,15 +1159,6 @@ function formatError(error: unknown) {
   return typeof error === "string" ? error : "오류 내용을 확인하지 못했습니다. 잠시 후 다시 시도해 주세요.";
 }
 
-function focusStatusLabel(snapshot: FocusSnapshot | null) {
-  if (!snapshot?.device_connected) return "미연결";
-  if (!snapshot.opted_in || !snapshot.permission_granted) return "권한 확인 필요";
-  if (snapshot.applied_revision !== snapshot.revision) {
-    return "휴대폰 적용 확인 중";
-  }
-  if (snapshot.last_error || snapshot.applied_focus !== snapshot.desired_focus) return "적용 확인 실패";
-  return snapshot.applied_focus ? "방해금지 켜짐" : "방해금지 꺼짐";
-}
 function attendanceLabel(status?: AttendanceDay["status"]) {
   if (status === "present") return "출석";
   if (status === "missed") return "결석";

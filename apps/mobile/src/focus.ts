@@ -83,7 +83,7 @@ export async function reconcileStudyFocus(userId: string): Promise<FocusSnapshot
     if (!snapshot.device_connected || snapshot.installation_id !== id || !snapshot.opted_in) {
       nativeFocusMode().setOwnRule(false, 0);
       await AsyncStorage.removeItem(ownerKey);
-      return snapshot;
+      return null;
     }
     const permission = nativeFocusMode().getStatus();
     let applied = false;
@@ -100,15 +100,25 @@ export async function reconcileStudyFocus(userId: string): Promise<FocusSnapshot
       failure = error instanceof Error ? error.message : String(error);
       applied = nativeFocusMode().getStatus().active;
     }
+    const verifiedPermission = nativeFocusMode().getStatus().hasAccess;
     const { data: accepted, error: ackError } = await supabase.rpc("ack_study_focus_device", {
       p_installation_id: id,
       p_revision: snapshot.revision,
       p_applied_focus: applied,
-      p_permission_granted: permission.hasAccess,
+      p_permission_granted: verifiedPermission,
       p_error: failure,
     });
     if (ackError) throw ackError;
-    if (accepted) return { ...snapshot, applied_focus: applied, applied_revision: snapshot.revision, last_error: failure };
+    if (accepted) {
+      // Only the server's stored ACK time is an application confirmation.
+      const confirmed = await readSnapshot();
+      if (!confirmed.device_connected || confirmed.installation_id !== id || !confirmed.opted_in) {
+        nativeFocusMode().setOwnRule(false, 0);
+        await AsyncStorage.removeItem(ownerKey);
+        return null;
+      }
+      if (confirmed.revision === snapshot.revision) return confirmed;
+    }
   }
   throw new Error("공부 상태가 바뀌었습니다. 다시 동기화해 주세요.");
 }

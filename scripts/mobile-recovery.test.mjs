@@ -102,6 +102,7 @@ function mountApp({ pending = [], startError = null, latePending = null } = {}) 
       if (name === './src/focus') return { async reconcileStudyFocus() { return null; } };
       if (name === './src/notifications') return {};
       if (name === './src/WebFeatureScreen') return { WebFeatureScreen: 'WebFeatureScreen' };
+      if (name === './src/FocusStatusPanel') return { FocusStatusPanel: 'FocusStatusPanel' };
       throw new Error(`Unexpected App import: ${name}`);
     },
   };
@@ -113,7 +114,7 @@ function mountApp({ pending = [], startError = null, latePending = null } = {}) 
   states[9] = [{ id: todoId, user_id: 'user-1', local_date: new Date().toISOString().slice(0, 10), title: '클로드 공부', is_completed: false, position: 0 }];
   states[12] = [todoId];
   states[22] = false;
-  states[states.length - 1] = true; // Exercise the retained native study fallback.
+  states[33] = true; // Exercise the retained native study fallback.
   return { render, calls, states, runSessionEffect: async () => { effects[1](); await new Promise((resolve) => setImmediate(resolve)); } };
 }
 

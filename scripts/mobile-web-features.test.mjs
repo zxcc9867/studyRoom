@@ -23,6 +23,8 @@ function compile(relativePath, imports) {
     ],
   }).code;
   const context = { exports: {}, URL, require(name) {
+    if (name === './src/FocusStatusPanel') return compile('apps/mobile/src/FocusStatusPanel.tsx', imports);
+    if (name === './focusStatus') return compile('apps/mobile/src/focusStatus.ts', imports);
     if (name === 'expo-web-browser') return { maybeCompleteAuthSession() {} };
     if (name === './src/mobileOAuth') return mobileRequire('./src/mobileOAuth.ts');
     if (name === './cameraPermission') return mobileRequire('./src/cameraPermission.ts');
@@ -33,7 +35,7 @@ function compile(relativePath, imports) {
   return context.exports;
 }
 
-const element = (type, props) => ({ type, props });
+const element = (type, props) => typeof type === 'function' ? type(props) : ({ type, props });
 const native = {
   ActivityIndicator: 'ActivityIndicator', Alert: { alert() {} }, AppState: {},
   Linking: { async openURL() {} }, Modal: 'Modal', Pressable: 'Pressable',
@@ -159,12 +161,14 @@ test('Android login opens the full web shell while preserving native focus and s
   const tree = render();
   const webScreen = find(tree, (node) => node.type === 'WebFeatureScreen');
   assert.equal(webScreen?.props.sessionUserId, 'user-1');
-  assert.ok(find(tree, (node) => node.type === 'Pressable' && /집중 모드/.test(textOf(node))));
-  for (const label of ['집중 모드 연결', '로그아웃']) {
+  assert.ok(find(tree, (node) => node.type === 'Text' && textOf(node) === '휴대폰 집중 모드'));
+  for (const label of ['휴대폰 연결', '집중 설정', '로그아웃']) {
     const action = find(tree, (node) => node.type === 'Pressable' && textOf(node) === label);
-    assert.ok(action.props.style.minHeight >= 44, label);
+    const style = Object.assign({}, ...[action.props.style].flat().filter(Boolean));
+    assert.ok(style.minHeight >= 44, label);
     const text = find(action, (node) => node.type === 'Text');
-    assert.ok(text.props.style.fontSize >= 14, label);
+    const textStyle = Object.assign({}, ...[text.props.style].flat().filter(Boolean));
+    assert.ok(textStyle.fontSize >= 14, label);
   }
   webScreen.props.onFallback();
   assert.equal(find(render(), (node) => node.type === 'WebFeatureScreen'), null);
