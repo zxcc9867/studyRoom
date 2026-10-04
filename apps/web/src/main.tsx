@@ -674,6 +674,7 @@ function DashboardApp() {
   const cameraStartAttemptRef = useRef(0);
   const cameraAutoRestoreAttemptedRef = useRef(false);
   const cameraRecoveryInFlightRef = useRef(false);
+  const cameraRecoveryContextRef = useRef<{ userId: string | null; sessionId: string | null; enabled: boolean; paused: boolean; deadlineMs: number | null }>({ userId: null, sessionId: null, enabled: false, paused: false, deadlineMs: null });
   const cameraFrameRecoveryStateRef = useRef<CameraFrameRecoveryState>(createCameraFrameRecoveryState());
   const lastCameraRequiredWarningAtRef = useRef(0);
   const warningInFlightRef = useRef(false);
@@ -932,6 +933,7 @@ function DashboardApp() {
     activeSessionLeaseDeadlineMs !== null
       ? getLeaseAwareActiveNowMs({ deadlineMs: activeSessionLeaseDeadlineMs, nowMs })
       : nowMs;
+  cameraRecoveryContextRef.current = { userId: session?.user.id ?? null, sessionId: activeSession?.id ?? null, enabled: cameraEnabled, paused: activeSessionPaused || Boolean(activeSession?.ended_at), deadlineMs: activeSessionLeaseDeadlineMs };
   const activeBreakSeconds = activeSession
     ? getTotalStudyBreakSeconds({
         pausedSeconds: activeSession.paused_seconds,
@@ -1573,6 +1575,11 @@ function DashboardApp() {
   }, [activeSession?.id, cameraEnabled, cameraStatus]);
 
   useEffect(() => {
+    // A newly observed remote pause closes video; an existing pause may be in explicit resume preparation.
+    if (activeSessionPaused && cameraEnabled) stopCameraMonitoring({ preserveExcludedSeconds: true });
+  }, [activeSession?.id, activeSession?.paused_at]);
+
+  useEffect(() => {
     if (!activeSession || activeSessionPaused || !session?.user.id || cameraEnabled || cameraStatus === "starting") {
       return;
     }
@@ -1620,17 +1627,17 @@ function DashboardApp() {
 
     let cancelled = false;
     const checkPresence = async () => {
-      if (cancelled || !videoRef.current || !presenceDetectorRef.current) {
+      if (cancelled || document.visibilityState !== "visible" || cameraRecoveryInFlightRef.current || !videoRef.current) {
         return;
       }
 
       const streamHealth = getCameraStreamHealth(cameraStreamRef.current);
       if (!streamHealth.ok) {
-        cameraFrameRecoveryStateRef.current = createCameraFrameRecoveryState();
         setCameraDiagnosticReason(streamHealth.reason);
-        markCameraHealthIssue(streamHealth.reason);
+        await handleCameraFrameHealthIssue(streamHealth.reason);
         return;
       }
+      if (!presenceDetectorRef.current) return;
 
       const video = videoRef.current;
       const frameHealth = getCameraFrameHealth({
@@ -1675,15 +1682,34 @@ function DashboardApp() {
       void checkPresence();
     }, 5000);
     void checkPresence();
+    const onVisibilityChange = () => {
+      if (document.visibilityState === "visible") void checkPresence();
+      else {
+        preserveCurrentCameraExcludedSeconds();
+        resetPresenceState();
+        if (cameraRecoveryInFlightRef.current) {
+          cameraStartAttemptRef.current += 1;
+          cameraRecoveryInFlightRef.current = false;
+          cleanupCameraResources();
+        }
+      }
+    };
+    document.addEventListener("visibilitychange", onVisibilityChange);
+    window.addEventListener("focus", checkPresence);
 
     return () => {
       cancelled = true;
       window.clearInterval(intervalId);
+      document.removeEventListener("visibilitychange", onVisibilityChange);
+      window.removeEventListener("focus", checkPresence);
     };
   }, [cameraEnabled, activeSession?.id, activeSession?.paused_at, session?.access_token]);
 
   useEffect(() => {
     return () => {
+      cameraStartAttemptRef.current += 1;
+      cameraRecoveryContextRef.current.enabled = false;
+      cameraRecoveryInFlightRef.current = false;
       cleanupCameraResources();
     };
   }, []);
@@ -3855,12 +3881,14 @@ function DashboardApp() {
   }
 
   function markCameraHealthIssue(reason: string) {
+    preserveCurrentCameraExcludedSeconds();
     resetPresenceState();
     setCameraStatus(reason === "no-current-frame" || reason === "no-video-size" ? "starting" : "error");
     setCameraMessage(cameraHealthMessage(reason));
   }
 
   async function handleCameraFrameHealthIssue(reason: string) {
+    if (cameraRecoveryInFlightRef.current || document.visibilityState !== "visible") return;
     const recovery = updateCameraFrameRecoveryState(cameraFrameRecoveryStateRef.current, {
       reason,
       nowMs: Date.now(),
@@ -3872,17 +3900,28 @@ function DashboardApp() {
         return;
       }
       cameraRecoveryInFlightRef.current = true;
+      cameraAutoRestoreAttemptedRef.current = true;
       setCameraStatus("starting");
       setCameraMessage("카메라 영상이 멈춰 다시 연결하고 있습니다.");
+      const pending = restartCameraMonitoring();
+      const recoveryAttempt = cameraStartAttemptRef.current;
       try {
-        await restartCameraMonitoring();
+        const restored = await pending;
+        if (!restored && cameraStartAttemptRef.current === recoveryAttempt
+          && cameraRecoveryContextRef.current.enabled && document.visibilityState === "visible") {
+          cleanupCameraResources();
+          setCameraEnabled(false);
+          setCameraStatus("error");
+          setCameraSetupPrompt({ mode: "resume" });
+        }
       } finally {
-        cameraRecoveryInFlightRef.current = false;
+        if (cameraStartAttemptRef.current === recoveryAttempt) cameraRecoveryInFlightRef.current = false;
       }
       return;
     }
 
     if (recovery.action === "fail") {
+      preserveCurrentCameraExcludedSeconds();
       cleanupCameraResources();
       cameraFrameRecoveryStateRef.current = createCameraFrameRecoveryState();
       setCameraEnabled(false);
@@ -3938,6 +3977,7 @@ function DashboardApp() {
       preserveCurrentCameraExcludedSeconds();
     }
     cameraStartAttemptRef.current += 1;
+    cameraRecoveryContextRef.current.enabled = false;
     cameraSessionStartingRef.current = false;
     cleanupCameraResources();
     cameraSessionIdRef.current = null;
@@ -3963,7 +4003,8 @@ function DashboardApp() {
   async function startCameraMonitoring({
     allowWithoutSession = false,
     restart = false,
-  }: { allowWithoutSession?: boolean; restart?: boolean } = {}) {
+    automatic = false,
+  }: { allowWithoutSession?: boolean; restart?: boolean; automatic?: boolean } = {}) {
     if (cameraEnabled && !restart) {
       return true;
     }
@@ -3987,18 +4028,63 @@ function DashboardApp() {
 
     const startAttempt = cameraStartAttemptRef.current + 1;
     cameraStartAttemptRef.current = startAttempt;
+    const owner = session.user.id;
+    const sessionId = activeSession?.id;
+    const isCurrentAttempt = () => {
+      if (cameraStartAttemptRef.current !== startAttempt || currentUserIdRef.current !== owner) return false;
+      if (!automatic) return true;
+      const context = cameraRecoveryContextRef.current;
+      return document.visibilityState === "visible" && context.enabled && context.userId === owner
+        && context.sessionId === sessionId && !context.paused && context.deadlineMs !== null
+        && Date.now() < context.deadlineMs && !sessionStartRequestRef.current && !actualIntentRef.current
+        && endSessionInFlightRef.current !== sessionId;
+    };
+    if (!isCurrentAttempt()) return false;
+    if (restart) {
+      preserveCurrentCameraExcludedSeconds();
+      resetPresenceState();
+    }
     setCameraStatus("starting");
     setCameraMessage("카메라 준비 중");
     setCameraDiagnosticReason(null);
+    let acquiredStream: MediaStream | null = null;
+    let acquiredDetector: UpperBodyPresenceDetector | null = null;
+    const validateAutomaticSession = async () => {
+      const { data: latest, error } = await runBoundedRequest(signal => supabase.from("study_sessions")
+        .select("id,user_id,status,ended_at,paused_at,lease_expires_at")
+        .eq("user_id", owner).eq("id", sessionId!).abortSignal(signal).maybeSingle());
+      if (!isCurrentAttempt()) return false;
+      if (error) throw error;
+      if (!latest || latest.id !== sessionId || latest.user_id !== owner || latest.status !== "active"
+        || latest.ended_at || latest.paused_at || !Number.isFinite(Date.parse(latest.lease_expires_at ?? ""))
+        || Date.parse(latest.lease_expires_at) <= Date.now()) {
+        stopCameraMonitoring({ preserveExcludedSeconds: true });
+        cameraAutoRestoreAttemptedRef.current = true;
+        await loadDashboard(owner);
+        return false;
+      }
+      return true;
+    };
 
     try {
-      const permission = await requestNativeCameraPermission(window);
-      if (cameraStartAttemptRef.current !== startAttempt) return false;
-      if (["denied", "blocked", "cancelled"].includes(permission)) {
+      if (automatic && !await validateAutomaticSession()) return false;
+      const permission = await requestNativeCameraPermission(window, automatic ? 5000 : 120000, { interactive: !automatic });
+      if (!isCurrentAttempt()) return false;
+      if (automatic && !isEmbeddedStudyApp(window)) {
+        const browserPermission = await navigator.permissions?.query({ name: "camera" as PermissionName }).catch(() => null);
+        if (!isCurrentAttempt()) return false;
+        if (browserPermission?.state !== "granted") {
+          setCameraMessage("카메라 권한을 확인할 수 없어요. 카메라 감시를 직접 다시 켜주세요.");
+          return false;
+        }
+      }
+      if (["denied", "blocked", "cancelled"].includes(permission) || (automatic && isEmbeddedStudyApp(window) && permission !== "granted")) {
         setCameraStatus("error");
-        setNativeCameraPermissionDenied(permission !== "cancelled");
+        setNativeCameraPermissionDenied(permission !== "cancelled" && !(automatic && permission === "blocked"));
         setCameraDiagnosticReason(permission === "cancelled" ? null : "permission-denied");
-        setCameraMessage(permission === "cancelled"
+        setCameraMessage(automatic && permission === "blocked"
+          ? "자동 복구를 사용할 수 없어요. 최신 APK로 업데이트하거나 카메라 감시를 직접 다시 켜주세요."
+          : permission === "cancelled"
           ? "카메라 권한 요청을 취소했어요. 준비되면 다시 눌러 주세요."
           : "카메라 권한이 없어요. 다시 요청하거나 앱 설정 → 권한 → 카메라에서 허용한 뒤 다시 눌러 주세요.");
         return false;
@@ -4017,32 +4103,38 @@ function DashboardApp() {
           audio: false,
         }),
       );
+      acquiredStream = stream;
 
-      if (cameraStartAttemptRef.current !== startAttempt) {
+      if (!isCurrentAttempt()) {
         stream.getTracks().forEach((track) => track.stop());
         return false;
       }
 
       cameraStreamRef.current = stream;
-      if (videoRef.current) {
-        videoRef.current.srcObject = stream;
-        void videoRef.current.play().catch(() => undefined);
-      }
 
       const detector = await createUpperBodyPresenceDetector();
-      if (cameraStartAttemptRef.current !== startAttempt) {
+      acquiredDetector = detector;
+      if (!isCurrentAttempt() || (automatic && !await validateAutomaticSession())) {
         detector.close();
+        stream.getTracks().forEach((track) => track.stop());
+        if (cameraStreamRef.current === stream) cameraStreamRef.current = null;
         if (videoRef.current?.srcObject === stream) videoRef.current.srcObject = null;
         return false;
       }
 
       presenceDetectorRef.current = detector;
+      acquiredDetector = null;
+      acquiredStream = null;
+      if (videoRef.current) {
+        videoRef.current.srcObject = stream;
+        void videoRef.current.play().catch(() => undefined);
+      }
       cameraSessionIdRef.current = activeSession?.id ?? null;
       if (activeSession?.id) {
         rememberCameraMonitoringIntent(activeSession.id);
       }
       resetPresenceState();
-      cameraFrameRecoveryStateRef.current = createCameraFrameRecoveryState();
+      if (!restart) cameraFrameRecoveryStateRef.current = createCameraFrameRecoveryState();
       setCameraEnabled(true);
       setCameraStatus("watching");
       setCameraMessage("카메라 감시 중");
@@ -4054,7 +4146,9 @@ function DashboardApp() {
       }
       return true;
     } catch (error) {
-      if (cameraStartAttemptRef.current !== startAttempt) {
+      acquiredStream?.getTracks().forEach((track) => track.stop());
+      acquiredDetector?.close();
+      if (!isCurrentAttempt()) {
         return false;
       }
 
@@ -4085,7 +4179,7 @@ function DashboardApp() {
   }
 
   async function restartCameraMonitoring() {
-    return await startCameraMonitoring({ restart: true });
+    return await startCameraMonitoring({ restart: true, automatic: true });
   }
 
   async function toggleCameraMonitoring() {

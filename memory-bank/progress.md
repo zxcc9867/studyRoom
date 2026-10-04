@@ -2,6 +2,16 @@
 
 ## Timeline
 
+### 2026-10-04 — 집중 설정 복귀 카메라 복구 (검증·배포 진행 중)
+
+- Android16 설정 전환으로 트랙 종료 및 미복구 재현. 집중/DND 규칙이 카메라를 끄는 것이 아니라 WebView 영상 종료와 웹 복구 누락이다.
+- foreground에서 ended/no-track 즉시1회, muted/stalled frame15초 유예 후1회 재획득. 정상 프레임 확인 전 예산을 초기화하지 않는다. 제외시간 보존·오류를 자리비움으로 처리하지 않는다.
+- 서버 활성/소유권/휴식/lease를 복구 전과 영상 표시 직전에 재검증. 끄기/휴식/계정 변경/백그라운드/화면 종료·이전 요청 경쟁에서 late stream/model 폐기.
+- native CHECK는 비대화형, 명시적 권한 요청은 유지. Java WebView callback도 미허용/중간 철회 시 자동 권한창 대신 deny. 새 APK 필요.
+- 테스트 우선: 초기7건, 이전 요청·unmount2건, 대기 중 서버 변경3건, Java 권한창1건의 실패를 확인하고 수정했다. 전체 최종 검증/배포/에뮬레이터 결과는 확정 후 추가한다.
+- 최종 로컬 검증: npm test852통과/75선택 브라우저 생략/0실패, 별도 Chromium75/75(68+2+5)·Edge21/21, 웹 빌드/모바일 호환성·타입/README 검사 통과. 최종5건 가상 clock 과거 이동 테스트 경합 수정 후 재실행했다. 읽기 전용 리뷰 Critical/Important0. EAS archive1252파일에서 민감 환경/서명/APK0개 확인.
+- 변경: 웹 main/cameraFrameRecovery/nativeCameraPermission, native WebFeatureScreen/mobileWebBridge, WebView patch, 관련 테스트·memory-bank. DB/운영 정책/사용자 기록 변경 없음.
+
 ### 2026-10-04 — 전체 페이지 디자인 웹·APK 재배포 완료
 
 #### 현재 작업 / 검증

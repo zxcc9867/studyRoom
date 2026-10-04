@@ -1,3 +1,24 @@
+## 2026-10-04 — 집중 설정 복귀 후 카메라 트랙 종료 미복구
+
+### 상황 / 원인
+
+- Android16 DND 접근 설정이 앱을 background로 전환하여 WebView video track이 ended가 된다. visible 복귀 후 트랙은 ended 그대로이고 기존 presence loop는 오류 표시만 했다. 브라우저 permission query는 prompt로 표시돼 OS 권한 확인 대용으로 쓸 수 없었다.
+- 기존 restart가 retry budget을 초기화하여 프레임 미복구 시 무한 재시도할 수 있었다. cameraEnabled=true/오래된 요청 continuation/언마운트 취소 누락은 수동 복구·새 카메라 자원을 혼동했다.
+
+### 해결 / 재발 방지
+
+- foreground 단일 재획득·정상 프레임 예산 초기화, 서버 상태 전후 검증, current owner/session/intent/attempt/lease 검증. 취소한 요청은 late stream/model만 정리하고 새 카메라는 건드리지 않는다. 원격 휴식 관찰도 정리한다.
+- native CHECK와 Java callback fail-closed로 자동 권한창 차단. 사용자 명시적 권한 버튼 유지·구 APK 수동 안내·새 APK 필요.
+- 실제 mounted 회귀에서 초기7건/요청 경쟁·unmount2건/서버 변경3건/Java 권한창1건 실패를 먼저 관찰하고 수정했다. 마지막 전체 테스트/운영/Android16 검증은 완료 후 별도 기록한다.
+- 관련: apps/web/src/main.tsx/cameraFrameRecovery.mjs/nativeCameraPermission.mjs, apps/mobile/src/WebFeatureScreen.tsx/mobileWebBridge.ts, patches/react-native-webview+13.13.5.patch.
+
+### 검증 도구 문제
+
+- patch-package 재생성은 기존 android/build/.transforms 산출물의 Filename too long으로 실패했다. 빌드 폴더 삭제/전역 Git 변경 없이 기존 patch를 최소 갱신하고 postinstall 및 실제 Java callback 실행으로 확인했다.
+- Java guard fixture가 static method에서 this를 참조해 실패하여 instance method로 맞췄다. 제품 Java 컴파일 오류가 아니다. manual-off 테스트는 클릭 전에 실시간5초 poll이 합법적으로 복구할 수 있어 가상 시계를 고정해 취소 이후 상태를 검증한다.
+- 최종 브라우저5건의 Cannot fast-forward to the past는 읽은 Date.now()와 pauseAt 호출 사이 가상 시간이 전진한 테스트 경합이었다. 정상 live 영상 상태에서5초 뒤로 pauseAt을 지정한 후 트랙 종료/취소 조건을 만든다. 제품 로직 변경 없이 재검증한다.
+- 에뮬레이터 fixture build를 apps/mobile에서 저장소 상대 output 경로로 실행해 MODULE_NOT_FOUND가 발생했다. 저장소 루트에서 실행해 성공했으며 APK 빌드 실패가 아니다.
+
 ## 2026-10-04 — 배포 검증 도구의 경로·로딩 대기 오류
 
 ### 상황 / 원인

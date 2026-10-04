@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createServer } from 'node:http';
-import { mkdir } from 'node:fs/promises';
+import { mkdir, readFile } from 'node:fs/promises';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { build } from 'esbuild';
 let chromium;
@@ -220,6 +220,136 @@ browserTest('dashboard redesign: collapsing camera settings preserves the live t
  assert.equal(await page.evaluate(()=>window.cameraTestTrack.readyState),'ended');
 }));
 
+browserTest('camera return: ended track is replaced on foreground without restarting study',()=>withApp(390,async page=>{
+ const tools=page.locator('.focus-tools');await tools.locator('summary').first().click();
+ await tools.getByRole('button',{name:'카메라 감시 켜기',exact:true}).click();
+ await page.waitForFunction(()=>document.querySelector('video')?.srcObject?.getVideoTracks()[0]?.readyState==='live');
+ await page.evaluate(()=>{
+  window.oldCameraTrack=document.querySelector('video').srcObject.getVideoTracks()[0];
+  window.oldCameraTrack.stop();
+  document.dispatchEvent(new Event('visibilitychange'));
+ });
+ await page.waitForFunction(()=>{const track=document.querySelector('video')?.srcObject?.getVideoTracks()[0];return track&&track!==window.oldCameraTrack&&track.readyState==='live';});
+ await page.clock.runFor(5000);
+ assert.equal(await page.evaluate(()=>fixture.sessions[0].id),'session');
+ assert.equal(await page.evaluate(()=>fixture.calls.some(c=>['start_study_session','confirm_actual_study_action','pause_actual_study_session'].includes(c.name))),false);
+ assert.equal(await page.evaluate(()=>fixture.excluded),60);
+}));
+
+browserTest('camera return: revoked permission never prompts or repeatedly acquires video',()=>withApp(390,async page=>{
+ const tools=page.locator('.focus-tools');await tools.locator('summary').first().click();
+ await tools.getByRole('button',{name:'카메라 감시 켜기',exact:true}).click();
+ await page.waitForFunction(()=>document.querySelector('video')?.srcObject);
+ await page.evaluate(()=>{
+  window.autoCameraRequests=0;const original=navigator.mediaDevices.getUserMedia.bind(navigator.mediaDevices);
+  navigator.mediaDevices.getUserMedia=(options)=>{window.autoCameraRequests++;return original(options);};
+  navigator.permissions.query=async()=>({state:'denied'});
+  document.querySelector('video').srcObject.getTracks().forEach(t=>t.stop());
+  document.dispatchEvent(new Event('visibilitychange'));
+ });
+ await tools.getByRole('button',{name:'카메라 감시 켜기',exact:true}).waitFor();
+ await page.clock.runFor(30000);
+ assert.equal(await page.evaluate(()=>window.autoCameraRequests),0);
+ assert.match(await tools.textContent(),/권한/);
+}));
+
+for(const change of ['pause','ended','owner','manual-off','lease'])browserTest('camera return: '+change+' prevents late or automatic camera startup',()=>withApp(390,async page=>{
+ const tools=page.locator('.focus-tools');await tools.locator('summary').first().click();
+ await tools.getByRole('button',{name:'카메라 감시 켜기',exact:true}).click();
+ await page.waitForFunction(()=>document.querySelector('video')?.srcObject);
+ await page.clock.pauseAt(await page.evaluate(()=>new Date(Date.now()+5000)));
+ await page.evaluate(()=>{
+  window.autoCameraRequests=0;const original=navigator.mediaDevices.getUserMedia.bind(navigator.mediaDevices);
+  navigator.mediaDevices.getUserMedia=(options)=>{window.autoCameraRequests++;return original(options);};
+  document.querySelector('video').srcObject.getTracks().forEach(t=>t.stop());
+ });
+ if(change==='manual-off')await tools.getByRole('button',{name:'카메라 감시 끄기',exact:true}).click();
+ else if(change==='owner')await page.evaluate(()=>fixture.changeOwner());
+ else if(change==='lease')await page.clock.fastForward(10*60*60*1000);
+ else await page.evaluate(change=>{if(change==='pause')fixture.sessions[0].paused_at=new Date().toISOString();else fixture.sessions[0].ended_at=new Date().toISOString();},change);
+ await page.evaluate(()=>document.dispatchEvent(new Event('visibilitychange')));
+ await page.clock.runFor(16000);
+ assert.equal(await page.evaluate(()=>window.autoCameraRequests),0,change);
+ assert.equal(await page.evaluate(()=>document.querySelector('video')?.srcObject?.getVideoTracks().some(t=>t.readyState==='live')??false),false);
+}));
+
+browserTest('camera return: unhealthy replacement does not reset the single automatic attempt',()=>withApp(390,async page=>{
+ const tools=page.locator('.focus-tools');await tools.locator('summary').first().click();
+ await tools.getByRole('button',{name:'카메라 감시 켜기',exact:true}).click();
+ await page.waitForFunction(()=>document.querySelector('video')?.srcObject);
+ await page.evaluate(()=>{
+  window.autoCameraRequests=0;const original=navigator.mediaDevices.getUserMedia.bind(navigator.mediaDevices);
+  navigator.mediaDevices.getUserMedia=async options=>{window.autoCameraRequests++;const stream=await original(options);stream.getTracks().forEach(t=>t.stop());return stream;};
+  document.querySelector('video').srcObject.getTracks().forEach(t=>t.stop());document.dispatchEvent(new Event('visibilitychange'));
+ });
+ await page.waitForFunction(()=>window.autoCameraRequests===1);
+ await page.clock.runFor(30000);
+ assert.equal(await page.evaluate(()=>window.autoCameraRequests),1);
+ assert.equal(await tools.getByRole('button',{name:'카메라 감시 켜기',exact:true}).isVisible(),true);
+}));
+
+for(const action of ['manual-off','pause','owner','background','unmount'])browserTest('camera return: late media after '+action+' is stopped',()=>withApp(390,async page=>{
+ const tools=page.locator('.focus-tools');await tools.locator('summary').first().click();
+ await tools.getByRole('button',{name:'카메라 감시 켜기',exact:true}).click();
+ await page.waitForFunction(()=>document.querySelector('video')?.srcObject);
+ await page.evaluate(()=>{
+  const original=navigator.mediaDevices.getUserMedia.bind(navigator.mediaDevices);
+  navigator.mediaDevices.getUserMedia=()=>new Promise(resolve=>{window.releaseCamera=async()=>{window.lateCameraStream=await original({video:true,audio:false});resolve(window.lateCameraStream);};});
+  document.querySelector('video').srcObject.getTracks().forEach(t=>t.stop());document.dispatchEvent(new Event('visibilitychange'));
+ });
+ await page.waitForFunction(()=>!!window.releaseCamera);
+ if(action==='manual-off')await tools.getByRole('button',{name:'카메라 감시 끄기',exact:true}).click();
+ if(action==='pause')await page.getByRole('button',{name:'잠시 쉬기',exact:true}).click();
+ if(action==='owner')await page.evaluate(()=>fixture.changeOwner());
+ if(action==='unmount')await page.evaluate(()=>window.fixtureRoot.unmount());
+ if(action==='background')await page.evaluate(()=>{Object.defineProperty(document,'visibilityState',{configurable:true,value:'hidden'});document.dispatchEvent(new Event('visibilitychange'));});
+ await page.evaluate(()=>window.releaseCamera());
+ await page.waitForFunction(()=>window.lateCameraStream.getTracks().every(t=>t.readyState==='ended'));
+ if(action==='background')await page.evaluate(()=>{Object.defineProperty(document,'visibilityState',{configurable:true,value:'visible'});document.dispatchEvent(new Event('visibilitychange'));});
+ assert.equal(await page.evaluate(()=>document.querySelector('video')?.srcObject?.getTracks().some(t=>t.readyState==='live')??false),false);
+}));
+
+browserTest('camera return: old cancelled recovery cannot stop a newer manual camera',()=>withApp(390,async page=>{
+ const tools=page.locator('.focus-tools');await tools.locator('summary').first().click();
+ await tools.getByRole('button',{name:'카메라 감시 켜기',exact:true}).click();await page.waitForFunction(()=>document.querySelector('video')?.srcObject);
+ await page.evaluate(()=>{
+  const original=navigator.mediaDevices.getUserMedia.bind(navigator.mediaDevices);window.pendingMedia=[];
+  navigator.mediaDevices.getUserMedia=()=>new Promise(resolve=>window.pendingMedia.push(async()=>{const stream=await original({video:true,audio:false});resolve(stream);return stream;}));
+  document.querySelector('video').srcObject.getTracks().forEach(t=>t.stop());document.dispatchEvent(new Event('visibilitychange'));
+ });
+ await page.waitForFunction(()=>window.pendingMedia.length===1);
+ await tools.getByRole('button',{name:'카메라 감시 끄기',exact:true}).click();
+ await tools.getByRole('button',{name:'카메라 감시 켜기',exact:true}).click();await page.waitForFunction(()=>window.pendingMedia.length===2);
+ await page.evaluate(async()=>{window.newManualStream=await window.pendingMedia[1]();});
+ await page.waitForFunction(()=>document.querySelector('video')?.srcObject===window.newManualStream);
+ await page.evaluate(async()=>{window.oldCancelledStream=await window.pendingMedia[0]();});
+ await page.waitForFunction(()=>window.oldCancelledStream.getTracks().every(t=>t.readyState==='ended'));
+ assert.equal(await page.evaluate(()=>window.newManualStream.getVideoTracks()[0].readyState),'live');
+ assert.equal(await tools.getByRole('button',{name:'카메라 감시 끄기',exact:true}).isVisible(),true);
+}));
+
+for(const change of ['pause','ended'])browserTest('camera return: server '+change+' during media acquisition discards the late stream',()=>withApp(390,async page=>{
+ const tools=page.locator('.focus-tools');await tools.locator('summary').first().click();
+ await tools.getByRole('button',{name:'카메라 감시 켜기',exact:true}).click();await page.waitForFunction(()=>document.querySelector('video')?.srcObject);
+ await page.evaluate(()=>{
+  const original=navigator.mediaDevices.getUserMedia.bind(navigator.mediaDevices);
+  navigator.mediaDevices.getUserMedia=()=>new Promise(resolve=>{window.releaseCamera=async()=>{window.lateCameraStream=await original({video:true,audio:false});resolve(window.lateCameraStream);};});
+  document.querySelector('video').srcObject.getTracks().forEach(t=>t.stop());document.dispatchEvent(new Event('visibilitychange'));
+ });
+ await page.waitForFunction(()=>!!window.releaseCamera);
+ await page.evaluate(change=>{fixture.sessions[0]={...fixture.sessions[0],...(change==='pause'?{paused_at:new Date().toISOString()}:{status:'completed',ended_at:new Date().toISOString()})};},change);
+ await page.evaluate(()=>window.releaseCamera());
+ await page.waitForFunction(()=>window.lateCameraStream.getTracks().every(t=>t.readyState==='ended'));
+}));
+
+browserTest('camera return: observed remote pause closes an already live camera',()=>withApp(390,async page=>{
+ const tools=page.locator('.focus-tools');await tools.locator('summary').first().click();
+ await tools.getByRole('button',{name:'카메라 감시 켜기',exact:true}).click();await page.waitForFunction(()=>document.querySelector('video')?.srcObject);
+ await page.evaluate(()=>{window.remotePausedTrack=document.querySelector('video').srcObject.getVideoTracks()[0];fixture.sessions[0]={...fixture.sessions[0],paused_at:new Date().toISOString()};window.dispatchEvent(new Event('focus'));});
+ await page.waitForFunction(()=>window.remotePausedTrack.readyState==='ended');
+ assert.equal(await page.getByRole('button',{name:'공부 계속하기',exact:true}).isVisible(),true);
+}));
+
 const backend = `
 const now='2026-09-21T14:30:00Z';
 const todo=(id,title,date='2026-09-21')=>({id,user_id:'owner',title,local_date:date,start_time:'23:00:00',end_time:'01:00:00',is_completed:false,position:0,goal_id:'goal',repeat_group_id:'repeat',repeat_mode:'weekly',repeat_weekdays:[1],repeat_until:null,repeat_forever:true,created_at:now,original_start_at:'2026-09-21T14:00:00Z',original_end_at:'2026-09-21T16:00:00Z',target_seconds:7200,first_started_at:'2026-09-21T14:00:00Z',first_tracked_at:'2026-09-21T14:00:00Z',known_seconds:1800,open_started_at:'2026-09-21T14:00:00Z',remaining_seconds:5400,adjustment_count:1,evaluation_eligible:true,unknown_allocation:false});
@@ -260,7 +390,7 @@ export const supabase={from:query,rpc(name,args){const q={then(resolve,reject){r
 `;
 
 async function withApp(width, run, mode='active') {
-  const built=await build({entryPoints:[fileURLToPath(new URL('../src/main.tsx',import.meta.url))],bundle:true,write:false,outdir:'fixture',platform:'browser',format:'iife',jsx:'automatic',logLevel:'silent',define:{'import.meta.env':'{}'},plugins:[{name:'local-boundaries',setup(b){b.onResolve({filter:/^\.\/supabase$/},()=>({path:'backend',namespace:'fixture'}));b.onLoad({filter:/.*/,namespace:'fixture'},()=>({contents:backend,loader:'js'}));b.onLoad({filter:/bodyPresenceDetection\.mjs$/},()=>({contents:'export async function createUpperBodyPresenceDetector(){return {detect:()=>true,close(){}}}',loader:'js'}));}}]});
+  const built=await build({entryPoints:[fileURLToPath(new URL('../src/main.tsx',import.meta.url))],bundle:true,write:false,outdir:'fixture',platform:'browser',format:'iife',jsx:'automatic',logLevel:'silent',define:{'import.meta.env':'{}'},plugins:[{name:'local-boundaries',setup(b){b.onResolve({filter:/^\.\/supabase$/},()=>({path:'backend',namespace:'fixture'}));b.onLoad({filter:/.*/,namespace:'fixture'},()=>({contents:backend,loader:'js'}));b.onLoad({filter:/bodyPresenceDetection\.mjs$/},()=>({contents:'export async function createUpperBodyPresenceDetector(){return {detect:()=>true,close(){}}}',loader:'js'}));b.onLoad({filter:/[\\/]src[\\/]main\.tsx$/},async({path})=>({contents:(await readFile(path,'utf8')).replace('createRoot(document.getElementById("root")!).render','(window.fixtureRoot = createRoot(document.getElementById("root")!)).render'),loader:'tsx'}));}}]});
   const js=built.outputFiles.find(f=>f.path.endsWith('.js')).text, css=built.outputFiles.find(f=>f.path.endsWith('.css'))?.text||'';
   const server=createServer((req,res)=>{res.setHeader('Content-Type',req.url==='/app.js'?'text/javascript':req.url==='/app.css'?'text/css':'text/html');res.end(req.url==='/app.js'?js:req.url==='/app.css'?css:'<!doctype html><html lang="ko"><head><meta name="viewport" content="width=device-width,initial-scale=1"><link rel="stylesheet" href="/app.css"></head><body><div id="root"></div><script src="/app.js"></script></body></html>');});
   await new Promise(resolve=>server.listen(0,'127.0.0.1',resolve));let browser;

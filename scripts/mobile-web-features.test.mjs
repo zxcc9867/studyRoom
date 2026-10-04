@@ -217,3 +217,19 @@ test('signed-in app reuses one first-party web dashboard with all six sections a
     'https://study-room-attendance.vercel.app.evil.test/', 'https://example.com/article',
   ]);
 });
+
+test('automatic camera check in native WebView does not show explanation or OS request',async()=>{
+ const injected=[];let requests=0,alerts=0;
+ const refs=[];const react={useState:initial=>[initial,()=>{}],useRef(initial){const ref={current:initial};refs.push(ref);return ref;},useEffect(){}};
+ const {WebFeatureScreen}=compile('apps/mobile/src/WebFeatureScreen.tsx',{
+  react,'react/jsx-runtime':{jsx:element,jsxs:element},
+  'react-native':{...native,Platform:{OS:'android'},Alert:{alert(){alerts++;}},PermissionsAndroid:{PERMISSIONS:{CAMERA:'camera'},check:async()=>false,request:async()=>{requests++;return 'granted';}}},
+  'react-native-webview':{__esModule:true,default:'WebView'},'expo-device':{isDevice:false},'./supabase':{supabase:{}},
+  './mobileWebBridge':{studyWebOrigin:'https://study-room-attendance.vercel.app',isTrustedWebUrl:url=>url==='https://study-room-attendance.vercel.app/',parseNativeBridgeMessage:JSON.parse,buildCameraPermissionInjection:(id,status)=>JSON.stringify({id,status})},
+ });
+ const view=find(WebFeatureScreen({sessionUserId:'owner',onStudyStateChanged(){},onNativeSignOut(){},onFallback(){}}),node=>node.type==='WebView');
+ refs[0].current={injectJavaScript:script=>injected.push(JSON.parse(script))};refs[1].current='https://study-room-attendance.vercel.app/';
+ await view.props.onMessage({nativeEvent:{url:'https://study-room-attendance.vercel.app/',data:JSON.stringify({type:'STUDY_WEB_CAMERA_PERMISSION_CHECK',requestId:'check'})}});
+ await new Promise(resolve=>setImmediate(resolve));
+ assert.deepEqual(JSON.parse(JSON.stringify(injected)),[{id:'check',status:'denied'}]);assert.equal(requests,0);assert.equal(alerts,0);
+});

@@ -42,3 +42,18 @@ test('embedded permission diagnostics guide to app settings, desktop keeps site 
   assert.doesNotMatch(getCameraDiagnostic({ ...input, embeddedAndroid: true }).checks.join(' '), /주소창/);
   assert.match(getCameraDiagnostic(input).checks.join(' '), /주소창/);
 });
+
+test('automatic recovery checks native permission without requesting it', async () => {
+  const h = host(); h.studyRoomNativeCameraPermissionCheck = true;
+  const pending = requestNativeCameraPermission(h, 50, { interactive: false });
+  assert.deepEqual(h.sent, [{ type: 'STUDY_WEB_CAMERA_PERMISSION_CHECK', requestId: 'camera-1' }]);
+  h.reply({ type: 'STUDY_NATIVE_CAMERA_PERMISSION', requestId: 'camera-1', status: 'denied' });
+  assert.equal(await pending, 'denied');
+  assert.equal(h.listeners.size, 0);
+});
+
+test('older APK never gets an interactive permission request from automatic recovery', async () => {
+  const h = host(); h.studyRoomNativeCameraPermission = true;
+  assert.equal(await requestNativeCameraPermission(h, 5, { interactive: false }), 'blocked');
+  assert.deepEqual(h.sent, []);
+});

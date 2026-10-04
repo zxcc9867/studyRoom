@@ -1,5 +1,20 @@
 # Active Context
 
+## 현재 작업 — 2026-10-04 집중 설정 복귀 카메라 복구
+
+- 사용자 승인: 집중 설정 복귀 시 카메라 끊김의 원인을 파악하고 해결한다. 디자인 후속 작업과 별개다.
+- 관련 PRD: prd-camera-presence.md, prd-android-web-parity.md, prd-android-focus-mode.md.
+- 원인: Android16 실제 WebView에서 설정 진입 시 visible/live → hidden/ended, 복귀 후 visible/ended. 기존 웹은 트랙 종료에서 오류만 표시하고 재획득하지 않았다. 브라우저 Permissions API는 OS 권한과 달리 prompt로 응답한다.
+- 구현: foreground 단일 자동 재연결, 같은 사용자·활성·비휴식·유효 lease·카메라 의도 및 서버 상태를 전후 검증한다. 취소/새 요청/계정 변경/화면 종료 시 이전 결과는 폐기하고 트랙·검출기를 정리한다. 원격 휴식도 관찰 시 카메라를 끈다.
+- 권한: native CHECK 메시지는 check만 수행한다. WebView callback도 미허용/중간 철회 시 deny하며 OS 요청은 직접 누른 카메라 버튼에만 둔다. 구 APK는 최신 APK/직접 재시도 안내다.
+- 로컬 검증 완료: 기본852통과/선택 브라우저75생략/실패0, 별도 실제 Chromium75/75·Edge21/21, 웹 빌드·모바일 호환성/타입·README 검사 통과. 읽기 전용 리뷰 Critical/Important0. EAS archive1252개 파일 중 민감 환경/서명/APK0개. 상세 docs/camera-return-fix-20261004.md.
+- 진행 중: 로컬 AGENTS 자동 배포 규칙에 따라 관련 변경만 main 커밋/푸시→웹 운영 및 같은 서명 무료 preview APK 배포→Android16 실제 미디어/격리 세션의 설정 왕복 검증. 아직 운영·설치 결과를 완료로 표시하지 않는다.
+- 변경 범위: 카메라/권한 브리지/관련 테스트·문서. Supabase schema/RLS/RPC/Edge/권한 설정/DND 규칙/사용자 공부·회복 데이터는 변경하지 않는다. 기존 산출물과 기본 checkout 보존.
+
+---
+
+## 이전 작업: 전체 페이지 디자인 배포
+
 ## 현재 작업
 
 - 작업명:2026-10-04 전체 페이지 디자인 감사 후속 수정 및 웹·APK 배포 완료.

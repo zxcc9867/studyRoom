@@ -1,3 +1,13 @@
+## 2026-10-04 — Android 설정 복귀 카메라 복구 계약
+
+- visibilitychange/focus와 기존5초 health 검사에서 foreground만 검사한다. ended/no-track 즉시1회, muted/no-frame15초 후1회 복구. visible-frame 확인 시만 예산 초기화. in-flight/attempt ID로 오래된 요청이 새 UI/자원을 정리하지 못하게 한다.
+- 자동 복구 전후 study_sessions 기존 RLS query로 소유권/active/ended_at/paused_at/lease_expires_at 검증. 현재 사용자/세션/카메라 의도/lease/전환 중 상태를 async 경계마다 재검증. 새 DB/RPC/Edge/마이그레이션 없음.
+- 추가 요청: `{type:"STUDY_WEB_CAMERA_PERMISSION_CHECK",requestId}` (정확히2필드). 기존 STUDY_NATIVE_CAMERA_PERMISSION 응답/ID 재사용. capability studyRoomNativeCameraPermissionCheck가 없는 APK에는 interactive 메시지를 보내지 않고 수동 복구 안내. native PermissionsAndroid.check만 실행한다.
+- react-native-webview patch exact first-party/video-only 정책에 OS CAMERA 미허용/중간 철회 fail-closed 추가. 권한 요청은 기존 명시적 설명→request 버튼에만 둔다. Android 권한·DND 설정 변경 없음.
+- 오류/배경 전환은 제외시간 보존 후 presence 초기화하며 자리비움 경고를 만들지 않는다. 원격 휴식 관찰은 영상 정리, 이미 휴식 중인 explicit resume preparation은 보존한다.
+- 실제 마운트 main의 transport/검출기 경계만 예시화한다. native callback은 설치 Java 코드에서 추출해 granted/denied/철회 경쟁 실행. Android16 실제 미디어·예시 세션 검증과 실사용 검증을 구분한다.
+- 웹 GitHub Actions production, native CHECK/Java 정책은 같은 서명 새 APK에 반영하고 설치 후 확인한다.
+
 ## 2026-10-04 — 전체 페이지·인증 전/네이티브 디자인 누락 보완
 
 - 기존 색상/간격/크기 토큰을 :root에 선언해 dashboard와 login-shell이 재사용한다. 레이아웃/페이지 스타일은 .dashboard-redesign/.login-shell 범위로 유지하고 lazy CSS보다 명시적 컴포넌트 선택자를 우선한다.

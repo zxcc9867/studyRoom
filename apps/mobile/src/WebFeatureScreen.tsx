@@ -56,6 +56,20 @@ export function WebFeatureScreen({ sessionUserId, onStudyStateChanged, onNativeS
     const message = parseNativeBridgeMessage(event.nativeEvent.data);
     if (!message) return;
 
+    if (message.type === "STUDY_WEB_CAMERA_PERMISSION_CHECK") {
+      // Recovery may only read permission, never display an OS prompt or explanation.
+      try {
+        const granted = Platform.OS === "android" && await PermissionsAndroid.check(PermissionsAndroid.PERMISSIONS.CAMERA);
+        if (activeRef.current && isTrustedWebUrl(currentUrlRef.current)) {
+          webViewRef.current?.injectJavaScript(buildCameraPermissionInjection(message.requestId, granted ? "granted" : "denied"));
+        }
+      } catch {
+        if (activeRef.current && isTrustedWebUrl(currentUrlRef.current)) {
+          webViewRef.current?.injectJavaScript(buildCameraPermissionInjection(message.requestId, "denied"));
+        }
+      }
+      return;
+    }
     if (message.type === "STUDY_WEB_CAMERA_PERMISSION") {
       if (cameraPermissionBusyRef.current) return;
       cameraPermissionBusyRef.current = true;
@@ -158,8 +172,8 @@ export function WebFeatureScreen({ sessionUserId, onStudyStateChanged, onNativeS
           key={retryKey}
           ref={webViewRef}
           source={{ uri: `${studyWebOrigin}/#today` }}
-          injectedJavaScriptBeforeContentLoaded={"window.studyRoomNativeCameraPermission = true; true;"}
-          injectedJavaScript={"window.studyRoomNativeCameraPermission = true; true;"}
+          injectedJavaScriptBeforeContentLoaded={"window.studyRoomNativeCameraPermission = true; window.studyRoomNativeCameraPermissionCheck = true; true;"}
+          injectedJavaScript={"window.studyRoomNativeCameraPermission = true; window.studyRoomNativeCameraPermissionCheck = true; true;"}
           originWhitelist={[studyWebOrigin]}
           onShouldStartLoadWithRequest={allowNavigation}
           onNavigationStateChange={(state) => { currentUrlRef.current = state.url; }}

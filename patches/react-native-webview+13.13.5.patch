@@ -1,7 +1,7 @@
 diff --git a/node_modules/react-native-webview/android/src/main/java/com/reactnativecommunity/webview/RNCWebChromeClient.java b/node_modules/react-native-webview/android/src/main/java/com/reactnativecommunity/webview/RNCWebChromeClient.java
 --- a/node_modules/react-native-webview/android/src/main/java/com/reactnativecommunity/webview/RNCWebChromeClient.java
 +++ b/node_modules/react-native-webview/android/src/main/java/com/reactnativecommunity/webview/RNCWebChromeClient.java
-@@ -145,6 +145,17 @@ public class RNCWebChromeClient extends WebChromeClient implements LifecycleEv
+@@ -145,6 +145,24 @@ public class RNCWebChromeClient extends WebChromeClient implements LifecycleEv
      @Override
      public void onPermissionRequest(final PermissionRequest request) {
  
@@ -16,6 +16,27 @@ diff --git a/node_modules/react-native-webview/android/src/main/java/com/reactna
 +            return;
 +        }
 +
++        // Permission prompts belong to the explicit native camera button, not WebView recovery.
++        if (ContextCompat.checkSelfPermission(this.mWebView.getThemedReactContext(), Manifest.permission.CAMERA)
++                != PackageManager.PERMISSION_GRANTED) {
++            request.deny();
++            return;
++        }
++
          grantedPermissions = new ArrayList<>();
  
          ArrayList<String> requestedAndroidPermissions = new ArrayList<>();
+@@ -171,9 +189,12 @@ public class RNCWebChromeClient extends WebChromeClient implements LifecycleEv
+             // TODO: RESOURCE_MIDI_SYSEX, RESOURCE_PROTECTED_MEDIA_ID.
+             if (androidPermission != null) {
+                 if (ContextCompat.checkSelfPermission(this.mWebView.getThemedReactContext(), androidPermission) == PackageManager.PERMISSION_GRANTED) {
+                     grantedPermissions.add(requestedResource);
+                 } else {
+-                    requestedAndroidPermissions.add(androidPermission);
++                    // Permission may have been revoked after the first check. Fail closed.
++                    request.deny();
++                    grantedPermissions = null;
++                    return;
+                 }
+             }
+         }

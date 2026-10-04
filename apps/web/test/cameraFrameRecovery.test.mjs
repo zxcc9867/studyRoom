@@ -65,6 +65,20 @@ test("camera frame recovery resets when a visible frame arrives", () => {
   assert.deepEqual(result.state, createCameraFrameRecoveryState());
 });
 
+test("an ended Android camera track reconnects once without waiting for a frame", () => {
+  const first = updateCameraFrameRecoveryState(createCameraFrameRecoveryState(), { reason: "track-ended", nowMs: 1000 });
+  assert.equal(first.action, "restart");
+  assert.equal(first.state.restartAttempts, 1);
+  const repeated = updateCameraFrameRecoveryState(first.state, { reason: "track-ended", nowMs: 2000 });
+  assert.equal(repeated.action, "fail");
+});
+
+test("a muted track gets the same bounded grace period as stalled frames", () => {
+  const first = updateCameraFrameRecoveryState(createCameraFrameRecoveryState(), { reason: "track-muted", nowMs: 1000 });
+  assert.equal(first.action, "wait");
+  assert.equal(updateCameraFrameRecoveryState(first.state, { reason: "track-muted", nowMs: 16000 }).action, "restart");
+});
+
 test("web app wires stalled camera frame recovery and allows stopping while starting", () => {
   const appSource = readFileSync("apps/web/src/main.tsx", "utf8");
 

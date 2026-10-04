@@ -90,3 +90,11 @@ test('native bridge ignores unknown messages and incomplete sign-out requests', 
     type: 'STUDY_WEB_READY', requestId: 'ready-1',
   });
 });
+
+test('passive camera check accepts only a request ID and never extra settings or tokens',()=>{
+ const {parseNativeBridgeMessage}=bridge();
+ assert.deepEqual({...parseNativeBridgeMessage('{"type":"STUDY_WEB_CAMERA_PERMISSION_CHECK","requestId":"check"}')},{type:'STUDY_WEB_CAMERA_PERMISSION_CHECK',requestId:'check'});
+ for(const extra of ['"url":"https://evil.test"','"permission":"audio"','"access_token":"not-a-secret"']){
+  assert.equal(parseNativeBridgeMessage('{"type":"STUDY_WEB_CAMERA_PERMISSION_CHECK","requestId":"check",'+extra+'}'),null);
+ }
+});
