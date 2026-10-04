@@ -5,6 +5,21 @@
   "outputDirectory": "apps/web/dist",
   "routes": [
     {
+      "src": "/download/android\\.apk",
+      "status": 307,
+      "headers": {
+        "Location": "https://expo.dev/artifacts/eas/AhejFksagSnzLwBKmZQDJoD8MzJaFEHkPdV1Xg5p6ek.apk",
+        "Cache-Control": "no-store"
+      }
+    },
+    {
+      "src": "/download/android/?",
+      "dest": "/download/android.html",
+      "headers": {
+        "Cache-Control": "no-store"
+      }
+    },
+    {
       "handle": "filesystem"
     },
     {

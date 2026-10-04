@@ -1,3 +1,10 @@
+## 2026-10-04 — 고정 APK 다운로드 게시 계약
+
+- 사용자 공개 주소는 `/download/android`이며 Vite public의 독립 설치 안내를 로그인 없이 제공한다. 버튼은 `/download/android.apk`를 사용한다.
+- 기존 vercel.json routes의 filesystem/SPA보다 앞에서 안내 파일을 rewrite하고 APK는 검증된 HTTPS Expo artifact로307/no-store 처리한다. 요청 파라미터/사용자 입력으로 redirect 목적지를 만들지 않는다.
+- 새 APK 검증 완료 후 route Location과 출시 안내 정보를 함께 갱신하고 기존 production 웹 배포를 수행한다. EAS artifact 링크는 immutable이며 이 방식은 최신 **게시한** 파일의 별칭이지 자동 APK 빌드/OTA/설치 기능이 아니다.
+- Supabase/API/비밀값/서명/패키지 변화 없음. 회귀는 route 계약·기존 SPA/API·375/1440px 화면/키보드/AA 대비·운영307→APK 다운로드로 확인한다.
+
 ## 2026-10-04 — 공통 알림·앱 아이콘 표시 계약
 
 - AppNotice는 로그인 전후 message를 표시하는 작은 컴포넌트다. 순수 getAppMessagePresentation은 알려진 세션 코드/단독 기계 코드/실패/성공/검증/정보 순으로 분류한다. 원래 message 상태와 성공5초 자동 숨김 useEffect는 변경하지 않는다.

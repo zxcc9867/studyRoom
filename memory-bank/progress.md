@@ -2,6 +2,14 @@
 
 ## Timeline
 
+### 2026-10-04 — 고정 Android 다운로드 진입점
+
+- 요청/구현: 사용자 승인에 따라 `/download/android` 설치 안내와 `/download/android.apk` 최신 검증 공개 artifact 연결을 추가했다. 307/no-store로 이전 목적지의 영구 캐싱을 피하고 기존 SPA/API는 유지한다.
+- 변경: vercel.json, apps/web/public/download/android.html·android.css, scripts/android-download.test.mjs, prd-android-download·active-context·implementation-plan·progress.
+- 검증: RED2실패/기존 경로1통과 → 실제 브라우저 포함4/4 통과. 375/1440px 가로 넘침 없음/44px 이상 버튼/키보드 포커스 확인, output/playwright/android-download-{375,1440}.png.
+- 추가 검증: AA 대비4.5 이상, 전체890통과/77선택 브라우저 생략/실패0·웹 타입/빌드/mobile:check/README24이미지·3언어/diff 검사 통과. lint 스크립트 없음.
+- 남은 작업: production 배포·공개 주소 HTTP/다운로드 점검. 새 APK/OTA/DB 변경은 범위 밖이다.
+
 ### 2026-10-04 — 알림·독서실 아이콘 구현·웹/공개 APK 배포 완료
 
 - 승인: 디자인 확인 후 `진행해줘`, 웹/새 APK 적용·배포.
