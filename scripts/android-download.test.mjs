@@ -3,17 +3,39 @@ import test from "node:test";
 import { readFile, access, mkdir } from "node:fs/promises";
 import { createServer } from "node:http";
 import { pathToFileURL } from "node:url";
+import { createRequire } from "node:module";
+import { runInNewContext } from "node:vm";
+
+// Reuse the mobile tests' Babel boundary: execute the real client validator, not a test copy.
+const require = createRequire(new URL("../apps/mobile/package.json", import.meta.url));
+const validatorCode = require("@babel/core").transformSync(await readFile(new URL("../apps/mobile/src/appUpdate.ts", import.meta.url), "utf8"), {
+  filename: "appUpdate.ts", babelrc: false, configFile: false,
+  presets: [[require.resolve("@babel/preset-typescript"), { allExtensions: true }]],
+  plugins: [require.resolve("@babel/plugin-transform-modules-commonjs")],
+}).code;
+const validator = { exports: {}, Date };
+runInNewContext(validatorCode, validator);
+const { validateAndroidRelease } = validator.exports;
 
 const config = JSON.parse(await readFile(new URL("../vercel.json", import.meta.url), "utf8"));
 const publicRoot = new URL("../apps/web/public/", import.meta.url);
 const firstRoute = path => config.routes.find(route => route.src && new RegExp(`^${route.src}$`).test(path));
 
+test("release JSON route provides uncached JSON before filesystem and SPA handling", () => {
+  const route = firstRoute("/download/android-release.json");
+  assert.equal(route?.dest, "/download/android-release.json");
+  assert.equal(route.headers["Content-Type"], "application/json; charset=utf-8");
+  assert.equal(route.headers["Cache-Control"], "no-store");
+  assert.ok(config.routes.indexOf(route) < config.routes.findIndex(item => item.handle === "filesystem"));
+  assert.notEqual(firstRoute("/download/android-releaseXjson")?.dest, "/download/android-release.json");
+});
+
 test("fixed APK address redirects temporarily to a public APK without caching an old release", () => {
   const route = firstRoute("/download/android.apk");
   assert.equal(route?.status, 307);
   const target = new URL(route.headers.Location);
-  assert.equal(target.origin, "https://expo.dev");
-  assert.match(target.pathname, /^\/artifacts\/eas\/[\w-]+\.apk$/);
+  assert.equal(target.origin, "https://github.com");
+  assert.equal(target.pathname, "/zxcc9867/studyRoom/releases/download/android-v0.2.0-build3/study-room-0.2.0-build3.apk");
   assert.equal(target.search, "");
   assert.equal(route.headers["Cache-Control"], "no-store");
   assert.ok(config.routes.indexOf(route) < config.routes.findIndex(item => item.handle === "filesystem"));
@@ -32,6 +54,50 @@ test("fixed install page resolves before the SPA fallback with or without a trai
 test("download routes leave unrelated API and app routes unchanged", () => {
   assert.equal(firstRoute("/api/not-found").status, 404);
   assert.equal(firstRoute("/tech-feed").dest, "/index.html");
+});
+
+test("public release manifest matches the actual final APK contract and stable redirect", async () => {
+  const bytes = await readFile(new URL("download/android-release.json", publicRoot));
+  assert.ok(bytes.length <= 16 * 1024);
+  const release = validateAndroidRelease(JSON.parse(bytes));
+  assert.equal(release.versionName, "0.2.0");
+  assert.equal(release.versionCode, 3);
+  assert.equal(release.releasedAt, "2026-10-04T15:22:04Z");
+  assert.equal(release.sizeBytes, 61974751);
+  assert.equal(release.sha256, "a70aa39814598a2448638e633db88a39b1ae6c50dd4a3e7bc7d368477e83d0b1");
+  assert.equal(release.apkUrl, firstRoute("/download/android.apk").headers.Location);
+  assert.ok(release.sizeBytes > 11, "Production metadata must not contain the APK test fixture");
+  assert.notEqual(release.sha256, "3934be6f0ca5c6c3efc3576bb846f79a8512db715c6a8103b034cb29e676fd8e");
+  assert.deepEqual(Object.keys(JSON.parse(bytes)).sort(), ["apkUrl", "packageName", "releaseNotes", "releasedAt", "schemaVersion", "sha256", "sizeBytes", "versionCode", "versionName"]);
+});
+
+test("configured public JSON and APK routes deliver matching responses ahead of the SPA", async () => {
+  const server = createServer(async (request, response) => {
+    const route = firstRoute(new URL(request.url, "http://127.0.0.1").pathname);
+    response.writeHead(route.status || 200, route.headers || {});
+    if (!route.dest) return response.end();
+    try { response.end(await readFile(new URL(`.${route.dest}`, publicRoot))); }
+    catch { response.end("Missing public asset"); }
+  });
+  await new Promise(resolve => server.listen(0, "127.0.0.1", resolve));
+  try {
+    const origin = `http://127.0.0.1:${server.address().port}`;
+    const json = await fetch(`${origin}/download/android-release.json`);
+    assert.equal(json.status, 200);
+    assert.equal(json.headers.get("content-type"), "application/json; charset=utf-8");
+    assert.equal(json.headers.get("cache-control"), "no-store");
+    const release = validateAndroidRelease(await json.json());
+    const apk = await fetch(`${origin}/download/android.apk`, { redirect: "manual" });
+    assert.equal(apk.status, 307);
+    assert.equal(apk.headers.get("cache-control"), "no-store");
+    assert.equal(apk.headers.get("location"), release.apkUrl);
+    const page = await fetch(`${origin}/download/android`);
+    assert.equal(page.status, 200);
+    assert.equal(page.headers.get("cache-control"), "no-store");
+    assert.match(await page.text(), /0\.2\.0 · 빌드 3/);
+    const api = await fetch(`${origin}/api/not-found`);
+    assert.equal(api.status, 404);
+  } finally { await new Promise(resolve => server.close(resolve)); }
 });
 
 let chromium;
@@ -62,6 +128,12 @@ test("install page offers one stable download link, readable instructions and ke
       assert.equal(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), true);
       assert.ok(await page.getByText("기존 앱을 삭제하지 마세요.", { exact: false }).isVisible());
       assert.ok(await page.getByText("자동 설치나 자동 업데이트는 아니에요.", { exact: false }).isVisible());
+      assert.ok(await page.getByText("0.2.0 · 빌드 3", { exact: false }).isVisible());
+      assert.ok(await page.getByRole("heading", { name: "첫 업데이트는 한 번 수동으로" }).isVisible());
+      assert.ok(await page.getByRole("heading", { name: "다음 버전부터는 앱에서" }).isVisible());
+      assert.ok(await page.getByText("앱 업데이트", { exact: false }).isVisible());
+      assert.ok(await page.locator("#app-update-title + ol").getByText("설치 확인", { exact: false }).isVisible());
+      assert.equal(await page.locator("script").count(), 0);
       const size = await download.boundingBox();
       assert.ok(size.height >= 44 && size.width >= 44);
       await page.keyboard.press("Tab");

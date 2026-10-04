@@ -5,10 +5,18 @@
   "outputDirectory": "apps/web/dist",
   "routes": [
     {
+      "src": "/download/android-release\\.json",
+      "dest": "/download/android-release.json",
+      "headers": {
+        "Content-Type": "application/json; charset=utf-8",
+        "Cache-Control": "no-store"
+      }
+    },
+    {
       "src": "/download/android\\.apk",
       "status": 307,
       "headers": {
-        "Location": "https://expo.dev/artifacts/eas/AhejFksagSnzLwBKmZQDJoD8MzJaFEHkPdV1Xg5p6ek.apk",
+        "Location": "https://github.com/zxcc9867/studyRoom/releases/download/android-v0.2.0-build3/study-room-0.2.0-build3.apk",
         "Cache-Control": "no-store"
       }
     },
