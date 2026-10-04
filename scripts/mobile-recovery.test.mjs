@@ -103,6 +103,8 @@ function mountApp({ pending = [], startError = null, latePending = null } = {}) 
       if (name === './src/notifications') return {};
       if (name === './src/WebFeatureScreen') return { WebFeatureScreen: 'WebFeatureScreen' };
       if (name === './src/FocusStatusPanel') return { FocusStatusPanel: 'FocusStatusPanel' };
+      if (name === './src/AppUpdatePanel') return { AppUpdatePanel: 'AppUpdatePanel' };
+      if (name === './src/useAppUpdate') return { useAppUpdate: () => ({}) };
       throw new Error(`Unexpected App import: ${name}`);
     },
   };

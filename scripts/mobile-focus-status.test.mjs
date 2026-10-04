@@ -18,6 +18,8 @@ function compile(relative, imports, globals = {}) {
   }).code;
   const context = { exports: {}, URL, Date, setTimeout: (callback) => { callback(); return 1; }, clearTimeout() {}, ...globals,
     require(name) {
+      if (name === './src/AppUpdatePanel') return { AppUpdatePanel: 'AppUpdatePanel' };
+      if (name === './src/useAppUpdate') return { useAppUpdate: () => ({}) };
       if (name in imports) return imports[name];
       if (name === './src/FocusStatusPanel') return compile('apps/mobile/src/FocusStatusPanel.tsx', imports);
       if (name === './focusStatus' || name === './src/focusStatus') return compile('apps/mobile/src/focusStatus.ts', imports);

@@ -30,6 +30,8 @@ import {
 import { supabase } from "./src/supabase";
 import { WebFeatureScreen } from "./src/WebFeatureScreen";
 import { FocusStatusPanel } from "./src/FocusStatusPanel";
+import { AppUpdatePanel } from "./src/AppUpdatePanel";
+import { useAppUpdate, type InstallGate } from "./src/useAppUpdate";
 import type { FocusAction, LocalFocusStatus } from "./src/focusStatus";
 
 const retryCooldownMs = 15 * 60 * 1000;
@@ -164,6 +166,31 @@ export default function App() {
     pendingLogout: { userId: string; run: () => Promise<void> } | null;
     sequence: number;
   }>({ running: false, pendingRefresh: false, pendingLogout: null, sequence: 0 });
+  const updateOwnerRef = useRef({ owner: session?.user.id ?? null, revision: 0 });
+  const updateOwner = session?.user.id ?? null;
+  if (updateOwnerRef.current.owner !== updateOwner) {
+    updateOwnerRef.current = { owner: updateOwner, revision: updateOwnerRef.current.revision + 1 };
+  }
+  const appUpdate = useAppUpdate(beforeInstallUpdate);
+
+  async function beforeInstallUpdate(): Promise<InstallGate> {
+    const { owner, revision } = updateOwnerRef.current;
+    if (!owner) return "allowed";
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    try {
+      // Dedicated read only: bulk refresh also invokes unrelated RPCs and must not gate installation.
+      const result = await Promise.race([
+        supabase.from("study_sessions").select("id,status,paused_at,lease_expires_at")
+          .eq("user_id", owner).eq("status", "active"),
+        new Promise<never>((_, reject) => { timer = setTimeout(() => reject(new Error("STUDY_STATE_TIMEOUT")), 12000); }),
+      ]);
+      if (owner !== updateOwnerRef.current.owner || revision !== updateOwnerRef.current.revision || result.error || !Array.isArray(result.data)) return "unknown";
+      if (result.data.some(row => row.status !== "active" || !(row.paused_at === null || typeof row.paused_at === "string" && Number.isFinite(Date.parse(row.paused_at))))) return "unknown";
+      // An expired or legacy lease is not permission to interrupt a still-active server session.
+      return result.data.some(row => row.paused_at === null) ? "studying" : "allowed";
+    } catch { return "unknown"; }
+    finally { if (timer !== undefined) clearTimeout(timer); }
+  }
 
   async function loginWithGoogle() {
     if (googleBusyRef.current || busy) return;
@@ -203,6 +230,8 @@ export default function App() {
 
     void restoreSession();
     const { data } = supabase.auth.onAuthStateChange((_event, nextSession) => {
+      const owner = nextSession?.user.id ?? null;
+      if (updateOwnerRef.current.owner !== owner) updateOwnerRef.current = { owner, revision: updateOwnerRef.current.revision + 1 };
       setSession(nextSession);
     });
 
@@ -796,6 +825,7 @@ export default function App() {
     return (
       <SafeAreaView style={styles.center}>
         <StatusBar barStyle="dark-content" backgroundColor={mobilePalette.canvas} />
+        <AppUpdatePanel palette={mobilePalette} beforeInstall={beforeInstallUpdate} controller={appUpdate} />
         <ActivityIndicator color={mobilePalette.primary} />
       </SafeAreaView>
     );
@@ -805,6 +835,7 @@ export default function App() {
     return (
       <SafeAreaView style={styles.screen}>
         <StatusBar barStyle="dark-content" backgroundColor={mobilePalette.canvas} />
+        <AppUpdatePanel palette={mobilePalette} beforeInstall={beforeInstallUpdate} controller={appUpdate} />
         <ScrollView contentContainerStyle={styles.loginContent} keyboardShouldPersistTaps="handled">
         <View style={styles.loginPanel}>
           <Text style={styles.kicker}>STUDY ROOM</Text>
@@ -858,6 +889,7 @@ export default function App() {
     return (
       <SafeAreaView style={styles.screen}>
         <StatusBar barStyle="dark-content" backgroundColor={mobilePalette.canvas} />
+        <AppUpdatePanel palette={mobilePalette} beforeInstall={beforeInstallUpdate} controller={appUpdate} />
         <FocusStatusPanel snapshot={focusSnapshot} local={localFocusStatus} error={focusError} action={focusAction}
           paused={activeSessionPaused} nowMs={nowMs} palette={mobilePalette} settingsOpen={focusSettingsOpen}
           onOpenSettings={() => setFocusSettingsOpen(true)} onCloseSettings={() => setFocusSettingsOpen(false)}
@@ -884,6 +916,7 @@ export default function App() {
   return (
     <SafeAreaView style={styles.screen}>
       <StatusBar barStyle="dark-content" backgroundColor={mobilePalette.canvas} />
+      <AppUpdatePanel palette={mobilePalette} beforeInstall={beforeInstallUpdate} controller={appUpdate} />
       <View style={styles.webNativeBar}>
         <Text style={styles.webNativeStatus}>네이티브 공부방 · 웹 화면을 열 수 없을 때 사용</Text>
         <Pressable accessibilityRole="button" style={styles.webNativeAction} onPress={() => setWebFallback(false)}>

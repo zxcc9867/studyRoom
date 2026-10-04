@@ -23,6 +23,8 @@ function compile(relativePath, imports) {
     ],
   }).code;
   const context = { exports: {}, URL, require(name) {
+    if (name === './src/AppUpdatePanel') return { AppUpdatePanel: 'AppUpdatePanel' };
+    if (name === './src/useAppUpdate') return { useAppUpdate: () => ({}) };
     if (name === './src/FocusStatusPanel') return compile('apps/mobile/src/FocusStatusPanel.tsx', imports);
     if (name === './focusStatus') return compile('apps/mobile/src/focusStatus.ts', imports);
     if (name === 'expo-web-browser') return { maybeCompleteAuthSession() {} };

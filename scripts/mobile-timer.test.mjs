@@ -61,6 +61,8 @@ function renderStudyRoom(session, nowMs) {
         './src/notifications': {},
         './src/WebFeatureScreen': { WebFeatureScreen: 'WebFeatureScreen' },
         './src/FocusStatusPanel': { FocusStatusPanel: 'FocusStatusPanel' },
+        './src/AppUpdatePanel': { AppUpdatePanel: 'AppUpdatePanel' },
+        './src/useAppUpdate': { useAppUpdate: () => ({}) },
       };
       assert.ok(name in imports, `Unexpected import: ${name}`);
       return imports[name];
