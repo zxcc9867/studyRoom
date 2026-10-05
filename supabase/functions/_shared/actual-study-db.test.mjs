@@ -50,7 +50,7 @@ before(async () => {
     grant usage on schema auth,public to anon,authenticated,service_role;
     create or replace function pg_catalog.now() returns timestamptz language sql stable as $$select current_setting('test.now')::timestamptz$$;
     select set_config('test.now','2026-09-21T00:00:00Z',false);
-    create table profiles(user_id uuid primary key references auth.users,time_zone text not null default 'Asia/Tokyo',reminder_time time not null default '21:00');
+    create table profiles(user_id uuid primary key references auth.users,time_zone text not null default 'Asia/Tokyo',reminder_time time not null default '21:00',email text);
     create table study_sessions(id uuid primary key default gen_random_uuid(),user_id uuid not null references auth.users,local_date date not null,
       started_at timestamptz not null default now(),ended_at timestamptz,duration_seconds integer not null default 0,status text not null default 'active',
       created_at timestamptz not null default now(),updated_at timestamptz not null default now(),lease_expires_at timestamptz,lease_warning_sent_at timestamptz,
@@ -61,14 +61,16 @@ before(async () => {
       repeat_group_id uuid,repeat_mode text not null default 'single',repeat_weekdays smallint[] not null default '{}',repeat_until date,repeat_forever boolean not null default false,
       coach_start_at timestamptz,coach_end_at timestamptz,created_at timestamptz not null default now(),updated_at timestamptz not null default now(),unique(id,user_id),
       constraint study_todos_time_window_check check((start_time is null and end_time is null)or(start_time is not null and end_time is not null and start_time<>end_time)));
-    create table study_recovery_requests(id uuid primary key default gen_random_uuid(),user_id uuid,status text);
-    create table attendance_days(user_id uuid,local_date date,status text,reminder_at timestamptz,deadline_at timestamptz,qualifying_session_id uuid,marked_at timestamptz,primary key(user_id,local_date));
-    create function local_reminder_at(d date,t time,z text)returns timestamptz language sql as $$select(d+t)at time zone z$$;
+    create table study_recovery_requests(id uuid primary key default gen_random_uuid(),user_id uuid,status text,
+      local_date date,trigger_type text,reason text,submitted_at timestamptz,followup_sent_at timestamptz);
+    create table attendance_days(user_id uuid,local_date date,status text,reminder_at timestamptz,deadline_at timestamptz,qualifying_session_id uuid,marked_at timestamptz,
+      initial_reminder_claimed_at timestamptz,nudge_reminder_claimed_at timestamptz,primary key(user_id,local_date));
+    create function local_reminder_at(p_local_date date,p_reminder_time time,p_time_zone text)returns timestamptz language sql as $$select(p_local_date+p_reminder_time)at time zone p_time_zone$$;
     create function effective_reminder_time(d date,t time)returns time language sql as $$select t$$;
     create table study_session_reflections(user_id uuid,session_id uuid primary key,focus_score integer,energy_score integer,interruption_reason text,note text,next_action text,updated_at timestamptz);
     grant select on study_session_reflections to authenticated;
     create table attendance_calls(user_id uuid,local_date date,session_id uuid);
-    create function promote_attendance_by_daily_study_total(u uuid,d date,n timestamptz,s uuid)returns void language sql as $$insert into public.attendance_calls values(u,d,s)$$;
+    create function promote_attendance_by_daily_study_total(p_user_id uuid,p_local_date date,p_now timestamptz default now(),p_qualifying_session_id uuid default null)returns boolean language sql as $$select true$$;
     insert into auth.users values('${owner}'),('${other}'); insert into profiles(user_id)values('${owner}'),('${other}');
     alter table study_sessions enable row level security; create policy session_owner on study_sessions to authenticated using(auth.uid()=user_id)with check(auth.uid()=user_id);
     alter table study_todos enable row level security; create policy todo_owner on study_todos to authenticated using(auth.uid()=user_id)with check(auth.uid()=user_id);
@@ -79,8 +81,88 @@ before(async () => {
   for (const name of ['pause_study_session','resume_study_session']) await db.exec(existingFunction('20260719134726_add_study_session_breaks.sql',name));
   for (const name of ['end_study_session','close_expired_study_sessions']) await db.exec(existingFunction('20260804133546_enforce_session_lease_expiry.sql',name));
   await db.exec(readFileSync('supabase/migrations/20260921095213_actual_study_tracking.sql','utf8'));
+  for (const name of ['daily_completed_study_seconds', 'get_study_period_summary']) {
+    await db.exec(existingFunction('20260719045940_secure_rpc_and_study_period_summary.sql', name));
+  }
+  await db.exec(existingFunction('0021_late_study_goal_attendance_policy.sql', 'study_attendance_goal_seconds'));
+  await db.exec(readFileSync('supabase/migrations/20261005131830_study_day_four_am.sql','utf8'));
 });
 after(async () => db?.close());
+
+test('late-night sessions are credited once to the stored study day, including period totals', () => fixture(async () => {
+  await admin(() => db.query(`insert into study_sessions(user_id,local_date,started_at,ended_at,status,duration_seconds)
+    values($1,'2026-10-05','2026-10-05T14:00:00Z','2026-10-05T16:30:00Z','completed',9000)`, [owner]));
+  assert.equal(await admin(() => scalar("select daily_completed_study_seconds($1,'2026-10-05') value", [owner])), 9000);
+  assert.equal(await admin(() => scalar("select daily_completed_study_seconds($1,'2026-10-06') value", [owner])), 0);
+  assert.equal((await rows("select * from get_study_period_summary('2026-10-05','2026-10-05')"))[0].completed_seconds, 9000);
+  assert.equal((await rows("select * from get_study_period_summary('2026-10-06','2026-10-06')"))[0].completed_seconds, 0);
+}));
+
+test('start and actual-action preview before 04:00 accept previous study-day todos; resume never reassigns the day', () => fixture(async () => {
+  await at('2026-10-05T18:30:00Z'); // Oct 6 03:30 Tokyo
+  await todo(todoA, null, null, '2026-10-05');
+  const p = await preview(); assert.equal(p.blocking_error, null);
+  const result = await confirm(p); assert.equal(result.session.local_date, '2026-10-05');
+  await at('2026-10-05T18:45:00Z'); await scalar('select pause_study_session($1) value', [result.session.id]);
+  await admin(() => db.query("update study_sessions set lease_expires_at='2026-10-05T21:00:00Z' where id=$1", [result.session.id]));
+  await at('2026-10-05T19:30:00Z');
+  const resumed = await confirm(await preview('resume', todoA, [todoA], result.session.id), '00000000-0000-4000-8000-000000000399');
+  assert.equal(resumed.session.local_date, '2026-10-05');
+  assert.equal(resumed.session.paused_seconds, 2700);
+}));
+
+test('completion at 01:30 qualifies the previous weekday without granting the next day attendance', () => fixture(async () => {
+  await at('2026-10-05T14:00:00Z'); await todo(todoA, null, null, '2026-10-05');
+  const s = await scalar('select to_jsonb(start_study_session($1::uuid[])) value', [[todoA]]);
+  await admin(() => db.query("update study_sessions set lease_expires_at='2026-10-05T17:00:00Z' where id=$1", [s.id]));
+  await at('2026-10-05T16:30:00Z');
+  const ended = await scalar('select to_jsonb(end_study_session($1,0)) value', [s.id]);
+  assert.equal(ended.duration_seconds, 9000);
+  assert.equal(ended.local_date, '2026-10-05');
+  assert.deepEqual(await admin(() => rows('select local_date::text local_date,status from attendance_days')), [{ local_date: '2026-10-05', status: 'present' }]);
+}));
+
+test('04:00 boundary and DST use civil profile time, not a fixed UTC subtraction', () => fixture(async () => {
+  for (const [at, zone, date] of [
+    ['2026-10-05T18:59:59Z','Asia/Tokyo','2026-10-05'],
+    ['2026-10-05T19:00:00Z','Asia/Tokyo','2026-10-06'],
+    ['2026-03-08T07:30:00Z','America/New_York','2026-03-07'],
+    ['2026-03-08T08:00:00Z','America/New_York','2026-03-08'],
+  ]) assert.equal(await scalar('select study_day_at($1,$2)::text value', [at,zone]), date);
+  assert.equal((await scalar("select study_reminder_at('2026-10-05','02:30','Asia/Tokyo') value")).toISOString(), '2026-10-05T17:30:00.000Z');
+  assert.equal((await scalar("select local_reminder_at('2026-10-06','02:30','Asia/Tokyo') value")).toISOString(), '2026-10-05T17:30:00.000Z');
+}));
+
+test('a calendar-planned 01:00 todo can start on the previous study day without rewriting its original plan', () => fixture(async () => {
+  await at('2026-10-05T16:00:00Z'); await todo(todoA, '01:00', '02:00', '2026-10-06');
+  const r = await start();
+  assert.equal(r.session.local_date, '2026-10-05');
+  assert.equal(r.tracking.todos[0].original_start_at, '2026-10-05T16:00:00+00:00');
+  assert.equal((await rows('select local_date::text local_date from study_todos where id=$1',[todoA]))[0].local_date, '2026-10-06');
+}));
+
+test('03:50 attendance reminder nudges once at 04:05 without changing its stored study day', () => fixture(async () => {
+  await admin(() => db.query("update profiles set reminder_time='03:50' where user_id=$1",[owner]));
+  const initial = await admin(() => rows("select local_date::text local_date,reminder_stage from get_due_reminders('2026-10-05T18:50:00Z')"));
+  assert.deepEqual(initial, [{local_date:'2026-10-05',reminder_stage:'initial'}]);
+  const nudge = await admin(() => rows("select local_date::text local_date,reminder_stage from get_due_reminders('2026-10-05T19:05:00Z')"));
+  assert.deepEqual(nudge, [{local_date:'2026-10-05',reminder_stage:'nudge'}]);
+  assert.deepEqual(await admin(() => rows("select * from get_due_reminders('2026-10-05T19:05:00Z')")), []);
+  await at('2026-10-05T19:10:00Z'); await todo(todoA, null, null, '2026-10-06');
+  const s = await scalar('select to_jsonb(start_study_session($1::uuid[])) value', [[todoA]]);
+  assert.equal(s.local_date, '2026-10-06');
+  assert.equal(await admin(() => scalar("select status value from attendance_days where local_date='2026-10-05' and user_id=$1",[owner])), 'pending');
+}));
+
+test('study summary remains owner-only and recognized seconds never exceed elapsed time', () => fixture(async () => {
+  await admin(() => db.query(`insert into study_sessions(user_id,local_date,started_at,ended_at,status,duration_seconds)
+    values($1,'2026-10-05','2026-10-05T14:00Z','2026-10-05T15:00Z','completed',9000),
+      ($2,'2026-10-05','2026-10-05T14:00Z','2026-10-05T15:00Z','completed',3000)`,[owner,other]));
+  assert.equal((await rows("select * from get_study_period_summary('2026-10-05','2026-10-05')"))[0].completed_seconds, 3600);
+  await auth(other);
+  assert.equal((await rows("select * from get_study_period_summary('2026-10-05','2026-10-05')"))[0].completed_seconds, 3000);
+  await rejectedWithoutAborting(() => scalar("select daily_completed_study_seconds($1,'2026-10-05') value",[owner]), /permission denied/);
+}));
 
 
 for (const completedLinks of [false,true]) test('legacy resume atomically adds today focus with '+(completedLinks?'all completed links':'empty links')+' and preserves unknown history',()=>fixture(async()=>{
@@ -397,7 +479,7 @@ test('missing-profile recovery uses Tokyo for original snapshot and start at the
   assert.equal(original.time_zone,'Asia/Tokyo');assert.equal(original.original_start_at.toISOString(),'2026-09-21T15:00:00.000Z');
   const p=await preview();assert.equal(p.blocking_error,null);assert.equal(p.time_zone,'Asia/Tokyo');
   assert.equal(p.changes[0].after.local_date,'2026-09-22');assert.equal(p.changes[0].after.start_time,'00:30:00');
-  const r=await confirm(p);assert.equal(r.session.local_date,'2026-09-22');
+  const r=await confirm(p);assert.equal(r.session.local_date,'2026-09-21');
   assert.equal(await scalar('select time_zone value from profiles where user_id=$1',[owner]),'Asia/Tokyo');
   assert.equal(r.tracking.todos[0].original_start_at,'2026-09-21T15:00:00+00:00');
 }));

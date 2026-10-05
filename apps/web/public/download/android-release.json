@@ -1,15 +1,15 @@
 {
   "schemaVersion": 1,
   "packageName": "com.jini9867.studyroomattendance",
-  "versionName": "0.2.0",
-  "versionCode": 3,
-  "releasedAt": "2026-10-04T15:43:07Z",
+  "versionName": "0.2.1",
+  "versionCode": 4,
+  "releasedAt": "2026-10-05T13:45:16Z",
   "releaseNotes": [
-    "앱에서 최신 버전을 확인하고 업데이트 APK를 직접 다운로드할 수 있어요.",
-    "Android 출처 허용과 설치 확인은 사용자 선택으로 진행해요.",
-    "기존 로그인, 독서실 아이콘과 집중 모드 상태 안내를 유지해요."
+    "새벽 4시를 기준으로 공부일을 구분하고 자정을 넘긴 공부도 시작한 날에 기록해요.",
+    "계획표 날짜는 그대로 유지하고 공부시간과 출석만 같은 공부일에 합산해요.",
+    "기존 로그인·집중 모드·앱 내부 업데이트 기능을 유지해요."
   ],
-  "apkUrl": "https://github.com/zxcc9867/studyRoom/releases/download/android-v0.2.0-build3/study-room-0.2.0-build3.apk",
-  "sha256": "c077f6815fc80be82dfb4cddc393797574df4543665108688219cca45d392b62",
-  "sizeBytes": 61975731
+  "apkUrl": "https://github.com/zxcc9867/studyRoom/releases/download/android-v0.2.1-build4/study-room-0.2.1-build4.apk",
+  "sha256": "9833cee299bd79d3c9cd1053bf028e8b702e648cdbcac96dac3f9ff24fc80850",
+  "sizeBytes": 61980915
 }

@@ -14,17 +14,30 @@ export function getDateKey(date, timeZone) {
   return `${parts.year}-${pad(parts.month)}-${pad(parts.day)}`;
 }
 
+export function getStudyDateKey(date, timeZone) {
+  const parts = getZonedParts(asDate(date), timeZone);
+  // Shift the civil date, not the instant: DST days need not last 24 hours.
+  return new Date(Date.UTC(parts.year, parts.month - 1, parts.day - (parts.hour < 4 ? 1 : 0)))
+    .toISOString().slice(0, 10);
+}
+
+export function getSessionStudyDateKey(session, timeZone) {
+  return session.local_date ?? session.localDate ?? getStudyDateKey(asDate(session.started_at ?? session.startedAt), timeZone);
+}
+
 export function evaluateAttendance({ now, reminderTime, timeZone, sessions }) {
   const current = asDate(now);
-  const dateKey = getDateKey(current, timeZone);
+  const dateKey = getStudyDateKey(current, timeZone);
   const effectiveReminderTime = getEffectiveReminderTime(dateKey, reminderTime);
-  const reminderAt = zonedTimeToUtc(dateKey, effectiveReminderTime, timeZone);
+  const reminderDate = Number(effectiveReminderTime.slice(0, 2)) < 4
+    ? new Date(Date.parse(`${dateKey}T00:00:00Z`) + 86400000).toISOString().slice(0, 10) : dateKey;
+  const reminderAt = zonedTimeToUtc(reminderDate, effectiveReminderTime, timeZone);
   const deadlineAt = new Date(reminderAt.getTime() + ATTENDANCE_WINDOW_MINUTES * minuteMs);
   const qualifyingSession = sessions
     .map((session) => ({ ...session, startedAtDate: asDate(session.startedAt) }))
     .find((session) => session.startedAtDate >= reminderAt && session.startedAtDate < deadlineAt);
   const dailyStudySeconds = sessions
-    .filter((session) => session.localDate === undefined || session.localDate === dateKey)
+    .filter((session) => getSessionStudyDateKey(session, timeZone) === dateKey)
     .reduce((total, session) => total + getSessionDurationSeconds(session), 0);
 
   if (qualifyingSession) {

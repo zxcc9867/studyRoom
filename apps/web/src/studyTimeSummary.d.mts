@@ -12,6 +12,7 @@ export function getActiveStudySecondsForDate(input: {
   startedAtMs: number | null;
   nowMs: number;
   dateKey: string;
+  localDate?: string;
   timeZone?: string;
   excludedSeconds?: number;
 }): number;
@@ -20,6 +21,7 @@ export function getActiveStudySecondsForMonth(input: {
   startedAtMs: number | null;
   nowMs: number;
   monthKey: string;
+  localDate?: string;
   timeZone?: string;
   excludedSeconds?: number;
 }): number;

@@ -1,3 +1,32 @@
+## 2026-10-05 — 자정 분할로 야간 공부 출석과 날짜 집계 불일치
+
+### 상황 / 원인
+
+- 기존 SQL 기간/하루 합계와 웹·숲 계산이 세션을 달력 자정에 비례 분할했다. 실제 PGlite/JS 재현에서23:00~01:30의 전날 합계가3,600초로 나와9,000초 기대와 달랐다.
+- 새 공부일을 적용할 때 기존 todo 선택의 달력 날짜 검증은 새벽에 INVALID_SELECTION을 만들었다. 공부 날짜를 계획 기본 날짜에도 사용하면 원래 계획이 바뀌는 부작용이 생긴다.
+
+### 해결 / 재발 방지
+
+- 저장된 세션 local_date로 전체 유효 시간을 합산, 04시 새 공부일 계산을 core/SQL로 통일한다. 새벽에는 공부일과 실제 달력 날짜의 todo를 허용하되 계획 자체는 달력 날짜에 유지한다.
+- 출석용 새벽 알림은 별도 study_reminder_at로 분리했다. 리뷰가 발견한 달력 todo02시 알림의24시간 지연을 기존 local_reminder_at 보존으로 해소했다.03:50 알림/04:05 재촉도 두 공부일 후보 검사로 유지한다.
+- 날짜 변경 웹 캐시/네이티브 재조회, 오래된 자정 분할 설명, 모바일 테스트 import 경계를 함께 보완했다. 신규 실제 SQL 테스트로 소유권·휴식·중복 요청·DST·캘린더 구분을 검증한다.
+- 관련: core index, web studyTimeSummary/weeklyHabit/reports/main, mobile App,20261005131830_study_day_four_am.sql, actual-study-db.test.mjs.
+
+### APK 빌드 오류 / 해결
+
+- release Metro에서 core index.mjs를 해석하지 못했다. EXPO_NO_METRO_WORKSPACE_ROOT=1의 실제 config.watchFolders가 빈 배열이라 app 밖의 공통 모듈이 파일맵에 없었다. 재현 테스트 RED 후 packages/core만 감시 경로에 추가해 GREEN·실제786모듈 bundle·327tasks release/lint 성공.
+- SDK 검증 경로36.0.0을 추정해 aapt/apksigner 조회가 실패했다. 설치 목록에서35.0.0을 확인 후 실제 버전/기존 signer 일치를 다시 검증했다. 도구 조회 실패를 APK 검증 성공으로 세지 않는다.
+- 생성 prebuild가 변경한 개발 스크립트는 이번 자동 변경만 apply_patch로 복원했다. SDK/키/서명 변경·사용자 데이터 삭제 없음.
+- 남은 리스크: 과거 출석 소급 정정과 실제 야간 기기 E2E는 이번 범위 밖이며 기존 기록을 임의 수정하지 않는다.
+
+## 2026-10-05 — APK 링크가 열렸다 닫히고 다운로드되지 않는 보고
+
+- 상황: 사용자가 APK 링크 클릭 후 화면이 닫히고 파일이 내려오지 않는다고 보고했다. 클릭한 앱/브라우저는 아직 확인 중이다.
+- 확인된 사실: output/app-update-verify.mjs production 재실행 성공. 안내·JSON200/alias307, GitHub302 뒤 CDN200, 전체61,975,731bytes 및 게시 SHA256 일치. 최종 Content-Type은 application/vnd.android.package-archive, Content-Disposition은 attachment; filename=study-room-0.2.0-build3.apk.
+- 원인 상태: 서버 파일 누락·링크 만료·파일 손상은 이번 익명 요청에서 재현되지 않았다. 채팅 내 브라우저의 다운로드 인계 제한 가능성은 가설이며 사용자 환경 재현 전 단정하지 않는다.
+- 대응/다음 확인: 고정 HTML 설치 안내 https://study-room-attendance.vercel.app/download/android를 외부 Chrome·삼성 인터넷에서 열고 다운로드 버튼을 선택하도록 안내한다. 사용자 성공은 아직 확인하지 않았다. 저장소/라우팅/공개 APK/서명/보안 설정·사용자 데이터는 바꾸지 않는다.
+- 재발 방지: 파일 링크의 화면 종료와 실제 HTTP 다운로드 실패를 구분하고 최종 응답·전체 크기/해시를 확인한다. CDN 서명 query는 로그나 문서에 기록하지 않는다.
+
 ## 2026-10-05 — 최종 업데이트 검증 도구·OS 보안 검사
 
 - 실제 다운로드 진행률/Activity 전환 중 UIAutomator가 `could not get idle state`/`null root node`를 반환했다. 도구가 이전 XML을 다시 읽을 위험을 확인하여 output/app-update-emulator.mjs에서 새 dump 성공 문구가 없으면 즉시 실패하도록 수정했다. 이후 안정된 실제 화면/스크린샷으로 취소·복귀·설치 결과를 확인했다. 이 도구 실패를 제품 성공 근거로 세지 않는다.

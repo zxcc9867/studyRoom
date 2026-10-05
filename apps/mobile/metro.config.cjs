@@ -2,6 +2,8 @@ const path = require('node:path');
 const { getDefaultConfig } = require('expo/metro-config');
 
 const config = getDefaultConfig(__dirname);
+// Signed native builds use the app root, but the study-day policy is shared with web.
+config.watchFolders = [...new Set([...config.watchFolders, path.resolve(__dirname, '../../packages/core')])];
 const nativePackages = Object.fromEntries(
   ['react', 'react-native'].map((name) => [
     name,

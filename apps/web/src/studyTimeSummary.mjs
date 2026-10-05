@@ -1,4 +1,4 @@
-import { getZonedDateBoundaryMs, shiftHabitDateKey } from "./weeklyHabit.mjs";
+import { getStudyDateKey } from "../../../packages/core/src/index.mjs";
 
 function toFiniteMs(value) {
   return Number.isFinite(value) ? value : null;
@@ -6,16 +6,6 @@ function toFiniteMs(value) {
 
 function resolveTimeZone(timeZone) {
   return timeZone ?? Intl.DateTimeFormat().resolvedOptions().timeZone;
-}
-
-function getDateWindow(dateKey, nextDateKey, timeZone) {
-  try {
-    const zone = resolveTimeZone(timeZone);
-    return {
-      windowStartMs: getZonedDateBoundaryMs(dateKey, zone),
-      windowEndMs: getZonedDateBoundaryMs(nextDateKey, zone),
-    };
-  } catch { return null; }
 }
 
 export function getStudyMonthKey(date, timeZone) {
@@ -52,31 +42,31 @@ export function getActiveStudySecondsInWindow({
   return Math.max(0, elapsedSeconds - Math.max(0, Math.floor(excludedSeconds)));
 }
 
-export function getActiveStudySecondsForDate({ startedAtMs, nowMs, dateKey, timeZone, excludedSeconds = 0 }) {
-  let nextDateKey;
-  try { nextDateKey = shiftHabitDateKey(dateKey, 1); } catch { return 0; }
-  const window = getDateWindow(dateKey, nextDateKey, timeZone);
-  if (!window) return 0;
-
+export function getActiveStudySecondsForDate({ startedAtMs, nowMs, dateKey, localDate, timeZone, excludedSeconds = 0 }) {
+  if (!Number.isFinite(startedAtMs)) return 0;
+  let studyDate;
+  try { studyDate = localDate ?? getStudyDateKey(new Date(startedAtMs), resolveTimeZone(timeZone)); } catch { return 0; }
+  if (studyDate !== dateKey) return 0;
   return getActiveStudySecondsInWindow({
     startedAtMs,
     nowMs,
-    ...window,
+    windowStartMs: startedAtMs,
+    windowEndMs: nowMs,
     excludedSeconds,
   });
 }
 
-export function getActiveStudySecondsForMonth({ startedAtMs, nowMs, monthKey, timeZone, excludedSeconds = 0 }) {
+export function getActiveStudySecondsForMonth({ startedAtMs, nowMs, monthKey, localDate, timeZone, excludedSeconds = 0 }) {
   if (!/^\d{4}-(0[1-9]|1[0-2])$/.test(String(monthKey))) return 0;
-  const [year, month] = monthKey.split("-").map(Number);
-  const nextDateKey = new Date(Date.UTC(year, month, 1)).toISOString().slice(0, 10);
-  const window = getDateWindow(`${monthKey}-01`, nextDateKey, timeZone);
-  if (!window) return 0;
-
+  if (!Number.isFinite(startedAtMs)) return 0;
+  let studyDate;
+  try { studyDate = localDate ?? getStudyDateKey(new Date(startedAtMs), resolveTimeZone(timeZone)); } catch { return 0; }
+  if (studyDate.slice(0, 7) !== monthKey) return 0;
   return getActiveStudySecondsInWindow({
     startedAtMs,
     nowMs,
-    ...window,
+    windowStartMs: startedAtMs,
+    windowEndMs: nowMs,
     excludedSeconds,
   });
 }

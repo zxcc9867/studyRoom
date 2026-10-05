@@ -25,7 +25,7 @@ test("rolling habit dates include today and cross month and year boundaries", ()
   assert.throws(() => getRollingHabitDateKeys("2026-02-30"), /Invalid date key/);
 });
 
-test("completed study seconds are proportionally split across local midnight", () => {
+test("completed study seconds stay on the starting study day across midnight", () => {
   const totals = allocateCompletedStudySecondsByDate({
     timeZone: "Asia/Seoul",
     dateKeys: ["2026-07-13", "2026-07-14"],
@@ -40,8 +40,8 @@ test("completed study seconds are proportionally split across local midnight", (
   });
 
   assert.deepEqual(totals, {
-    "2026-07-13": 2_700,
-    "2026-07-14": 2_700,
+    "2026-07-13": 5_400,
+    "2026-07-14": 0,
   });
 });
 
@@ -52,6 +52,7 @@ test("allocation matches server caps and daylight-saving day boundaries", () => 
     sessions: [
       {
         started_at: "2026-03-08T05:00:00.000Z",
+        local_date: "2026-03-08",
         ended_at: "2026-03-09T04:00:00.000Z",
         duration_seconds: 99_999,
         status: "completed",

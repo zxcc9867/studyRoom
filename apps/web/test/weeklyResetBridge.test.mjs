@@ -61,7 +61,7 @@ test("weekly review connects reflection actions to the existing todo create and 
   assert.match(section, /onOpenPlannedTodo/);
 
   assert.match(main, /function openWeeklyReviewActionPlan/);
-  assert.match(main, /resetTodoDraftForDate\(todayDateKey\)/);
+  assert.match(main, /resetTodoDraftForDate\(calendarDateKey\)/);
   assert.match(main, /setTodoDraft\(normalizedAction\)/);
   assert.match(main, /onPlanAction=\{openWeeklyReviewActionPlan\}/);
   assert.match(main, /onOpenPlannedTodo=\{openWeeklyReviewPlannedTodo\}/);

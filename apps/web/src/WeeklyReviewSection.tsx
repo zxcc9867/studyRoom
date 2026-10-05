@@ -56,9 +56,9 @@ export default function WeeklyReviewSection(props: Props) {
         <div className="weekly-data-quality" role="note">
           <AlertTriangle size={20} />
           <div>
-            <strong>시간 기록을 날짜 경계에 맞춰 계산했어요.</strong>
+            <strong>시간 기록을 시작한 공부일에 합산했어요.</strong>
             <p>
-              {splitCount > 0 ? `자정을 넘긴 세션 ${splitCount}건은 날짜별로 나눴습니다. ` : ""}
+              {splitCount > 0 ? `자정을 넘긴 세션 ${splitCount}건도 시작한 공부일에만 기록했습니다. ` : ""}
               {anomalyCount > 0 ? `12시간을 넘긴 장기 세션 ${anomalyCount}건은 원본을 유지한 채 검토 필요 기록으로 표시합니다.` : ""}
             </p>
           </div>

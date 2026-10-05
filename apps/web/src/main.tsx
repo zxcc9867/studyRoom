@@ -12,6 +12,7 @@ import {
 } from "react";
 import { createRoot } from "react-dom/client";
 import GoalAchievementBadges from "./GoalAchievementBadges";
+import { getStudyDateKey } from "../../../packages/core/src/index.mjs";
 import StudyRestartCoach from "./StudyRestartCoach";
 import AppNotice from "./AppNotice";
 import { createTechFeedClient, feedTodoDraft } from "./techFeed.mjs";
@@ -554,6 +555,7 @@ function DashboardApp() {
   const [tenMinuteCheckpointAcknowledged, setTenMinuteCheckpointAcknowledged] = useState(false);
   const [breakReturnDeadlineMs, setBreakReturnDeadlineMs] = useState<number | null>(null);
   const [studyPeriodSummaries, setStudyPeriodSummaries] = useState<{
+    key: string;
     today: StudyPeriodSummary;
     month: StudyPeriodSummary;
   } | null>(null);
@@ -971,7 +973,9 @@ function DashboardApp() {
     windowStartMs: activeSessionStartedAtMs, windowEndMs: activeSessionClockNowMs,
     excludedSeconds: activeExcludedSeconds,
   });
-  const todayDateKey = getLocalDateKey(new Date(nowMs), timeZone);
+  const todayDateKey = activeSession?.local_date ?? getStudyDateKey(new Date(nowMs), timeZone);
+  const calendarDateKey = getLocalDateKey(new Date(nowMs), timeZone);
+  const studySummaryKey = JSON.stringify([session?.user.id, todayDateKey, calendarMonth, timeZone]);
   const tenMinuteCheckpointStorageKey = getTenMinuteCheckpointStorageKey({
     userId: session?.user.id,
     sessionId: activeSession?.id,
@@ -1011,7 +1015,7 @@ function DashboardApp() {
       fetchStudyPeriodSummary(supabase, todayDateKey, todayDateKey),
       fetchStudyPeriodSummary(supabase, monthRange.startDate, monthRange.endDate),
     ]).then(([today, month]) => {
-      if (!cancelled) setStudyPeriodSummaries({ today, month });
+      if (!cancelled) setStudyPeriodSummaries({ key: studySummaryKey, today, month });
     }).catch((error) => {
       if (!cancelled) setMessage(`\uacf5\ubd80 \uc2dc\uac04 \uc9d1\uacc4\ub97c \ubd88\ub7ec\uc624\uc9c0 \ubabb\ud588\uc2b5\ub2c8\ub2e4: ${formatError(error)}`);
     });
@@ -1019,7 +1023,7 @@ function DashboardApp() {
     return () => {
       cancelled = true;
     };
-  }, [calendarMonth, completedSessionVersion, session?.user.id, todayDateKey]);
+  }, [calendarMonth, completedSessionVersion, session?.user.id, todayDateKey, studySummaryKey]);
 
   useEffect(() => {
     if (!session?.user.id || recoveryModalRequest || autoOpenRecoveryRequests.length === 0) {
@@ -1077,7 +1081,7 @@ function DashboardApp() {
     resumeStartAfterRecoveryUnlock,
   ]);
 
-  const todayCompletedSeconds = studyPeriodSummaries?.today.completedSeconds
+  const todayCompletedSeconds = (studyPeriodSummaries?.key === studySummaryKey ? studyPeriodSummaries.today.completedSeconds : null)
     ?? studySessions
       .filter((item) => item.local_date === todayDateKey && item.status === "completed")
       .reduce((sum, item) => sum + item.duration_seconds, 0);
@@ -1085,9 +1089,10 @@ function DashboardApp() {
     ? getActiveStudySecondsForDate({
         startedAtMs: activeSessionStartedAtMs,
         nowMs: activeSessionClockNowMs,
-        dateKey: todayDateKey,
-        timeZone,
-        excludedSeconds: activeExcludedSeconds,
+      dateKey: todayDateKey,
+      timeZone,
+      excludedSeconds: activeExcludedSeconds,
+      localDate: activeSession.local_date,
       })
     : 0;
   const todaySeconds = todayCompletedSeconds + activeTodaySeconds;
@@ -1098,7 +1103,7 @@ function DashboardApp() {
     activeSessionPaused,
     acknowledged: tenMinuteCheckpointAcknowledged,
   });
-  const monthCompletedSeconds = studyPeriodSummaries?.month.completedSeconds
+  const monthCompletedSeconds = (studyPeriodSummaries?.key === studySummaryKey ? studyPeriodSummaries.month.completedSeconds : null)
     ?? studySessions
       .filter((item) => item.local_date.startsWith(calendarMonth) && item.status === "completed")
       .reduce((sum, item) => sum + item.duration_seconds, 0);
@@ -1106,9 +1111,10 @@ function DashboardApp() {
     ? getActiveStudySecondsForMonth({
         startedAtMs: activeSessionStartedAtMs,
         nowMs: activeSessionClockNowMs,
-        monthKey: calendarMonth,
-        timeZone,
-        excludedSeconds: activeExcludedSeconds,
+      monthKey: calendarMonth,
+      timeZone,
+      excludedSeconds: activeExcludedSeconds,
+      localDate: activeSession.local_date,
       })
     : 0;
   const monthSeconds = monthCompletedSeconds + activeMonthSeconds;
@@ -1122,14 +1128,14 @@ function DashboardApp() {
   const todayAttendanceRuleLabel = getAttendanceRuleLabel(todayDateKey, profile?.reminder_time ?? reminderTime);
   const todayProgress = Math.min(100, Math.round((todaySeconds / todayGoalSeconds) * 100));
   const todayTodos = useMemo(
-    () => studyTodos.filter((todo) => todo.local_date === todayDateKey),
-    [studyTodos, todayDateKey],
+    () => studyTodos.filter((todo) => todo.local_date === todayDateKey || todo.local_date === calendarDateKey),
+    [studyTodos, todayDateKey, calendarDateKey],
   );
   const selectedPlannerTodos = useMemo(
     () => studyTodos.filter((todo) => todo.local_date === selectedTodoDate),
     [studyTodos, selectedTodoDate],
   );
-  const plannerDateLabel = getPlannerDateLabel(selectedTodoDate, todayDateKey);
+  const plannerDateLabel = getPlannerDateLabel(selectedTodoDate, calendarDateKey);
   const dailyPlanner = useMemo(
     () => buildDailyPlannerSegments(selectedPlannerTodos, selectedTodoDate),
     [selectedPlannerTodos, selectedTodoDate],
@@ -1143,8 +1149,8 @@ function DashboardApp() {
   );
   const renderedTodaySectionOrder = sectionOrderEditing ? draftTodaySectionOrder : todaySectionOrder;
   const incompleteTodayTodos = useMemo(
-    () => getIncompleteTodayTodos(studyTodos, todayDateKey),
-    [studyTodos, todayDateKey],
+    () => [...new Set([todayDateKey, calendarDateKey])].flatMap(dateKey => getIncompleteTodayTodos(studyTodos, dateKey)),
+    [studyTodos, todayDateKey, calendarDateKey],
   );
   const completedTodayTodoCount = useMemo(
     () => todayTodos.filter((todo) => todo.is_completed).length,
@@ -2004,12 +2010,12 @@ function DashboardApp() {
   }
 
   function openFeedPlan(article: FeedArticle) {
-    showPlannerDate(todayDateKey);
-    resetTodoDraftForDate(todayDateKey);
+    showPlannerDate(calendarDateKey);
+    resetTodoDraftForDate(calendarDateKey);
     setTodoGoalId("");
     setFeedPlanArticle(article);
     setFeedPlanError("");
-    setTodoDraft(feedTodoDraft(article, todayDateKey).title);
+    setTodoDraft(feedTodoDraft(article, calendarDateKey).title);
     setTodoModalOpen(true);
   }
 
@@ -2017,8 +2023,8 @@ function DashboardApp() {
     const normalizedAction = normalizeHabitText(action);
     if (!normalizedAction) return;
 
-    showPlannerDate(todayDateKey);
-    resetTodoDraftForDate(todayDateKey);
+    showPlannerDate(calendarDateKey);
+    resetTodoDraftForDate(calendarDateKey);
     setTodoDraft(normalizedAction);
     setTodoModalOpen(true);
   }
@@ -2462,7 +2468,7 @@ function DashboardApp() {
     }
 
     const rows = buildTodoInsertRows({
-      targetDates: [todayDateKey],
+      targetDates: [calendarDateKey],
       title,
       userId: session.user.id,
       schedule,
@@ -2975,7 +2981,7 @@ function DashboardApp() {
   function openNewGoalModal() {
     setEditingGoalId(null);
     setGoalTitle("");
-    setGoalTargetDate(addDaysToDateKey(todayDateKey, 30));
+    setGoalTargetDate(addDaysToDateKey(calendarDateKey, 30));
     setGoalLinkedTodoIds([]);
     setGoalModalOpen(true);
   }
@@ -5011,7 +5017,7 @@ function DashboardApp() {
         )}
         {activeSection === "today" && (
           <>
-            <div className="dashboard-page-heading"><div><p>{new Intl.DateTimeFormat("ko-KR", { timeZone, month: "long", day: "numeric", weekday: "long" }).format(new Date(nowMs))}</p><h1>오늘의 공부</h1></div><span className="dashboard-attendance">{dashboardReady ? activeSession ? activeSession.paused_at ? "휴식 중" : "공부 중" : attendanceDays.find(day => day.local_date === todayDateKey)?.status === "present" ? "출석 완료" : "시작 준비" : "기록 확인 중"}</span></div>
+            <div className="dashboard-page-heading"><div><p>{todayDateKey} 공부일 · 새벽 4시 기준{activeSession && todayDateKey !== getStudyDateKey(new Date(nowMs), timeZone) ? " · 시작한 공부일로 계속 기록 중" : ""}</p><h1>오늘의 공부</h1></div><span className="dashboard-attendance">{dashboardReady ? activeSession ? activeSession.paused_at ? "휴식 중" : "공부 중" : attendanceDays.find(day => day.local_date === todayDateKey)?.status === "present" ? "출석 완료" : "시작 준비" : "기록 확인 중"}</span></div>
             <TodayDomainTabs activeDomain={todayDomain} onChange={setTodayDomain} />
             {sectionOrderEditing && renderTodaySectionOrderEditor()}
           </>
@@ -5150,7 +5156,7 @@ function DashboardApp() {
               {activeGoal && activeGoalProgress ? (
                 <>
                   <div className="goal-hero-main">
-                    <span className="goal-dday">{formatDdayLabel(todayDateKey, activeGoal.target_date)}</span>
+                    <span className="goal-dday">{formatDdayLabel(calendarDateKey, activeGoal.target_date)}</span>
                     <div>
                       <p className="eyebrow">today goal</p>
                       <h3>{activeGoal.title}</h3>
@@ -5258,9 +5264,9 @@ function DashboardApp() {
               key={session.user.id}
               userId={session.user.id}
               supabase={supabase}
-              todos={studyTodos.filter(todo => todo.local_date <= todayDateKey)}
+              todos={studyTodos.filter(todo => todo.local_date <= calendarDateKey)}
               onPlanAction={openWeeklyReviewActionPlan}
-              onAddTodo={() => { resetTodoDraftForDate(todayDateKey); setTodoModalOpen(true); }}
+              onAddTodo={() => { resetTodoDraftForDate(calendarDateKey); setTodoModalOpen(true); }}
             />
           </details>
         )}
@@ -6252,7 +6258,7 @@ function DashboardApp() {
                 <ChevronLeft size={16} />
                 {"\uC774\uC804"}
               </button>
-              <button type="button" onClick={() => showPlannerDate(todayDateKey)}>{"\uC624\uB298"}</button>
+              <button type="button" onClick={() => showPlannerDate(calendarDateKey)}>{"\uC624\uB298"}</button>
               <button
                 type="button"
                 aria-label={"\uB2E4\uC74C \uB0A0\uC9DC\uB85C \uC774\uB3D9"}
@@ -6343,7 +6349,7 @@ function DashboardApp() {
                 return (
                   <article className={`goal-card goal-card-${goal.status}`} key={goal.id}>
                     <div className="goal-card-head">
-                      <span className="goal-dday">{formatDdayLabel(todayDateKey, goal.target_date)}</span>
+                      <span className="goal-dday">{formatDdayLabel(calendarDateKey, goal.target_date)}</span>
                       <div>
                         <p className="eyebrow">{goal.status === "completed" ? "달성한 목표" : goal.status === "active" ? "진행 중" : "보관한 목표"}</p>
                         <h3>{goal.title}</h3>

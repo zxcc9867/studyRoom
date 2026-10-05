@@ -5,6 +5,7 @@ import path from 'node:path';
 import test from 'node:test';
 import { fileURLToPath } from 'node:url';
 import { runInNewContext } from 'node:vm';
+import * as studyCore from '../packages/core/src/index.mjs';
 
 const root = fileURLToPath(new URL('../', import.meta.url));
 const mobileRequire = createRequire(path.join(root, 'apps/mobile/package.json'));
@@ -59,6 +60,7 @@ test('mobile login keeps all eight OTP digits and verifies that exact code', asy
   const context = {
     exports: {},
     require(name) {
+      if (name === '../../packages/core/src/index.mjs') return studyCore;
       if (name === 'expo-web-browser') return { maybeCompleteAuthSession() {} };
       if (name === './src/mobileOAuth') return mobileRequire('./src/mobileOAuth.ts');
       if (name === 'react') return react;

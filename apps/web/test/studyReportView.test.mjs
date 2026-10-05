@@ -39,7 +39,8 @@ test("ready monthly report names both full periods and uses canonical hours", ()
   assert.match(html, /이전 달보다 -1시간 0분/);
   assert.match(html, /일평균/);
   assert.doesNotMatch(html, /이번 주|지난주/);
-  assert.match(html, /시작한 날짜/);
+  assert.match(html, /시작한 공부일/);
+  assert.doesNotMatch(html, /날짜별로 나눴습니다/);
 });
 
 test("a valid empty response explains the selected period has no records", () => {

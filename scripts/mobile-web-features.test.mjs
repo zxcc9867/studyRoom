@@ -5,6 +5,7 @@ import path from 'node:path';
 import test from 'node:test';
 import { fileURLToPath } from 'node:url';
 import { runInNewContext } from 'node:vm';
+import * as studyCore from '../packages/core/src/index.mjs';
 
 const root = fileURLToPath(new URL('../', import.meta.url));
 const mobileRequire = createRequire(path.join(root, 'apps/mobile/package.json'));
@@ -23,6 +24,7 @@ function compile(relativePath, imports) {
     ],
   }).code;
   const context = { exports: {}, URL, require(name) {
+    if (name === '../../packages/core/src/index.mjs') return studyCore;
     if (name === './src/AppUpdatePanel') return { AppUpdatePanel: 'AppUpdatePanel' };
     if (name === './src/useAppUpdate') return { useAppUpdate: () => ({}) };
     if (name === './src/FocusStatusPanel') return compile('apps/mobile/src/FocusStatusPanel.tsx', imports);

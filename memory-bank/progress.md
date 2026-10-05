@@ -2,6 +2,32 @@
 
 ## Timeline
 
+### 2026-10-05 — 새벽 4시 공부일과 세션 전체 귀속
+
+#### 완료한 작업
+
+- 승인된 공부일 정책 구현: 04시 기준, 저장된 시작 공부일 고정, 자정 넘긴 2.5시간 전체를 전날 출석·오늘 누적·기간 리포트·습관/숲에 합산. 다음 날 중복 인정 없음.
+- 달력 계획·기술 피드·쿼터 날짜 유지. 새벽 달력 계획 선택/원래 날짜 보존, 03:50 알림의 04:05 재촉과 기존 중복 방지 유지.
+- 웹 날짜 변경 집계 캐시 분리, 네이티브 날짜 변경 재조회, 공통 날짜 헬퍼 사용. 네이티브 Metro 감시 경로 보완.
+- MCP 운영 migration study_day_four_am(20261005134503) 적용 및 helper 경계/권한 live 확인 완료. 기존 기록·테이블·RLS 삭제나 재작성 없음.
+
+#### 변경한 파일 / 검증 방법
+
+- packages/core, apps/web 집계·리포트·main, apps/mobile App·Metro·app.json, SQL migration, 관련 SQL/JS/모바일 회귀 테스트, 공개 APK JSON/안내/라우팅, 정책 문서.
+- 전체1054:977통과/77선택 브라우저 생략/실패0; Edge21/21; mobile 타입/호환성·web1728모듈·README24자산/3언어. root lint 스크립트 없음; APK lintVitalRelease 성공.
+- 독립 핵심148/148·추가 Metro11/11 통과. 실제 PGlite RPC로 9,000/0초, 휴식/재개/04시·월말/DST/소유권/중복 요청 확인.
+- APK0.2.1/code4, 기존 패키지·서명 유지,61,980,915bytes/SHA2569833cee299bd79d3c9cd1053bf028e8b702e648cdbcac96dac3f9ff24fc80850. 실제 야간 기기 공부를 생성하지 않았고 APK 설치 E2E는 이번 범위에서 미실행.
+
+#### 남은 작업 / 다음 우선순위
+
+- GitHub Release 공개 및 웹 production READY/HTTP 확인 후 배포 증거 추가. 앱 기본 WebView는 새 웹을 사용하며 native fallback까지 반영하려면 새 APK 설치가 필요하다.
+
+### 2026-10-05 — APK 링크 다운로드 실패 보고 재검증
+
+- 완료: 현재 고정 안내/JSON200, 파일 alias307/GitHub302/CDN200과 실제 전체 파일 크기·SHA256 일치 재확인. APK 콘텐츠 형식과 attachment 파일명도 확인했다.
+- 확인 문서: prd-android-download·prd-android-app-updates, 최신 active-context·implementation-plan·progress·trouble-shooting. 제품 소스 변경·새 게시·커밋·푸시·배포 없음.
+- 남은 확인: 링크를 누른 채팅/외부 브라우저/PC 환경과 실제 다운로드 차단 원인. 외부 Chrome·삼성 인터넷에서 고정 HTML 안내를 통한 시도를 안내하며 서버 정상과 사용자 다운로드 성공을 구분한다.
+
 ### 2026-10-05 — 앱 내부 업데이트 공개·운영·실제 OS 검증 완료
 
 #### 완료한 작업

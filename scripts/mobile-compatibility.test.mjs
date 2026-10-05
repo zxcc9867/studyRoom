@@ -88,3 +88,21 @@ test('native aliases retain default resolution for unrelated packages', () => {
   const resolved = resolveMobileImport(root, origin, 'react-is', 'android');
   assert.equal(resolved.filePath, createRequire(origin).resolve('react-is'));
 });
+
+test('shared study-day module remains visible when native builds disable the workspace root', () => {
+  const configPath = path.join(root, 'apps/mobile/metro.config.cjs');
+  const previous = process.env.EXPO_NO_METRO_WORKSPACE_ROOT;
+  try {
+    process.env.EXPO_NO_METRO_WORKSPACE_ROOT = '1';
+    delete mobileRequire.cache[configPath];
+    const config = mobileRequire(configPath);
+    const sharedRoot = path.join(root, 'packages/core');
+    assert.ok(config.watchFolders.some((folder) => path.resolve(folder) === sharedRoot));
+    const resolved = resolveMobileImport(root, path.join(root, 'apps/mobile/App.tsx'), '../../packages/core/src/index.mjs', 'android');
+    assert.equal(resolved.filePath, path.join(sharedRoot, 'src/index.mjs'));
+  } finally {
+    if (previous === undefined) delete process.env.EXPO_NO_METRO_WORKSPACE_ROOT;
+    else process.env.EXPO_NO_METRO_WORKSPACE_ROOT = previous;
+    delete mobileRequire.cache[configPath];
+  }
+});

@@ -1,9 +1,8 @@
 import { buildRangeMetrics } from "./weeklyReview.mjs";
+import { getStudyDateKey } from "../../../packages/core/src/index.mjs";
 
 export function getStudyReportTodayDate(nowMs, timeZone) {
-  const parts = new Intl.DateTimeFormat("en-US", { timeZone, year: "numeric", month: "2-digit", day: "2-digit" }).formatToParts(new Date(nowMs));
-  const part = type => parts.find(item => item.type === type).value;
-  return `${part("year")}-${part("month")}-${part("day")}`;
+  return getStudyDateKey(new Date(nowMs), timeZone);
 }
 
 const DAY = 86400000;

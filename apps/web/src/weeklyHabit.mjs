@@ -1,5 +1,6 @@
 import { getDailyAttendanceGoalSeconds } from "./attendancePolicy.mjs";
 import { getDailyHabitState } from "./dailyHabit.mjs";
+import { getSessionStudyDateKey } from "../../../packages/core/src/index.mjs";
 
 const DATE_KEY_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
 const KOREAN_WEEKDAYS = ["일", "월", "화", "수", "목", "금", "토"];
@@ -137,11 +138,6 @@ export function allocateCompletedStudySecondsByDate({ sessions = [], dateKeys, t
     parseDateKey(dateKey);
     return [dateKey, 0];
   }));
-  const windows = dateKeys.map((dateKey) => ({
-    dateKey,
-    startMs: getZonedDateBoundaryMs(dateKey, resolvedTimeZone),
-    endMs: getZonedDateBoundaryMs(shiftHabitDateKey(dateKey, 1), resolvedTimeZone),
-  }));
 
   for (const session of sessions) {
     if (session?.status !== "completed" || !session.ended_at) continue;
@@ -151,15 +147,9 @@ export function allocateCompletedStudySecondsByDate({ sessions = [], dateKeys, t
     const elapsedSeconds = (endedAtMs - startedAtMs) / 1000;
     if (!Number.isFinite(startedAtMs) || !Number.isFinite(endedAtMs) || elapsedSeconds <= 0) continue;
 
-    const allocationRatio = Math.min(1, toNonNegativeNumber(session.duration_seconds) / elapsedSeconds);
-    if (allocationRatio <= 0) continue;
-
-    for (const window of windows) {
-      const overlapMs = Math.max(
-        0,
-        Math.min(endedAtMs, window.endMs) - Math.max(startedAtMs, window.startMs),
-      );
-      totals[window.dateKey] += (overlapMs / 1000) * allocationRatio;
+    const dateKey = getSessionStudyDateKey(session, resolvedTimeZone);
+    if (Object.hasOwn(totals, dateKey)) {
+      totals[dateKey] += Math.min(elapsedSeconds, toNonNegativeNumber(session.duration_seconds));
     }
   }
 
@@ -230,27 +220,10 @@ function allocateCompletedStudySecondsAcrossRecordedDates({ sessions, todayDateK
     const elapsedSeconds = (endedAtMs - startedAtMs) / 1000;
     if (!Number.isFinite(startedAtMs) || !Number.isFinite(endedAtMs) || elapsedSeconds <= 0) continue;
 
-    const allocationRatio = Math.min(1, toNonNegativeNumber(session.duration_seconds) / elapsedSeconds);
-    if (allocationRatio <= 0) continue;
-
-    const firstDateKey = getDateKeyAtTimestamp(startedAtMs, resolvedTimeZone);
-    const lastDateKey = getDateKeyAtTimestamp(endedAtMs - 1, resolvedTimeZone);
-    const firstDayMs = parseDateKey(firstDateKey).utcDate.getTime();
-    const lastDayMs = parseDateKey(lastDateKey).utcDate.getTime();
-    const sessionSpanDays = Math.floor((lastDayMs - firstDayMs) / 86_400_000) + 1;
-    if (sessionSpanDays < 1 || sessionSpanDays > MAX_REWARD_SESSION_SPAN_DAYS || firstDateKey > todayDateKey) continue;
-
-    const boundedLastDateKey = lastDateKey > todayDateKey ? todayDateKey : lastDateKey;
-    let dateKey = firstDateKey;
-    for (let index = 0; index < sessionSpanDays && dateKey <= boundedLastDateKey; index += 1) {
-      const dayStartMs = getZonedDateBoundaryMs(dateKey, resolvedTimeZone);
-      const dayEndMs = getZonedDateBoundaryMs(shiftHabitDateKey(dateKey, 1), resolvedTimeZone);
-      const overlapMs = Math.max(0, Math.min(endedAtMs, dayEndMs) - Math.max(startedAtMs, dayStartMs));
-      if (overlapMs > 0) {
-        totals.set(dateKey, (totals.get(dateKey) ?? 0) + (overlapMs / 1000) * allocationRatio);
-      }
-      dateKey = shiftHabitDateKey(dateKey, 1);
-    }
+    const dateKey = getSessionStudyDateKey(session, resolvedTimeZone);
+    if (elapsedSeconds > MAX_REWARD_SESSION_SPAN_DAYS * 86400 || dateKey > todayDateKey) continue;
+    const seconds = Math.min(elapsedSeconds, toNonNegativeNumber(session.duration_seconds));
+    if (seconds > 0) totals.set(dateKey, (totals.get(dateKey) ?? 0) + seconds);
   }
 
   return new Map([...totals].map(([dateKey, seconds]) => [dateKey, Math.round(seconds)]));

@@ -128,7 +128,7 @@ test("untimed planner todos can be completed from their checkbox outside active 
 test("daily planner follows the selected calendar date and can copy a plan to multiple dates", () => {
   const appSource = readFileSync("apps/web/src/main.tsx", "utf8");
 
-  assert.ok(appSource.includes("getPlannerDateLabel(selectedTodoDate, todayDateKey)"));
+  assert.ok(appSource.includes("getPlannerDateLabel(selectedTodoDate, calendarDateKey)"));
   assert.ok(appSource.includes("const selectedPlannerTodos = useMemo("));
   assert.ok(appSource.includes("buildDailyPlannerSegments(selectedPlannerTodos, selectedTodoDate)"));
   assert.ok(appSource.includes("showPlannerDate(day.dateKey)"));

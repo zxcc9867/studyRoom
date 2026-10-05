@@ -15,6 +15,7 @@ import {
   View,
 } from "react-native";
 import type { Session } from "@supabase/supabase-js";
+import { getDateKey, getStudyDateKey } from "../../packages/core/src/index.mjs";
 import * as WebBrowser from "expo-web-browser";
 import { completeMobileOAuthCallback, signInWithMobileGoogle } from "./src/mobileOAuth";
 
@@ -74,6 +75,7 @@ type AttendanceDay = {
 
 type StudySession = {
   id: string;
+  local_date: string;
   started_at: string;
   ended_at: string | null;
   duration_seconds: number;
@@ -290,13 +292,21 @@ export default function App() {
     [sessions],
   );
   const activeSessionPaused = Boolean(activeSession?.paused_at);
+  const refreshedStudyDayRef = useRef<string | null>(null);
   const todayDateKey = useMemo(
-    () => getLocalDateKey(new Date(), profile?.time_zone ?? Intl.DateTimeFormat().resolvedOptions().timeZone),
-    [profile?.time_zone],
+    () => activeSession?.local_date ?? getStudyDateKey(new Date(nowMs), profile?.time_zone ?? Intl.DateTimeFormat().resolvedOptions().timeZone),
+    [activeSession?.local_date, nowMs, profile?.time_zone],
   );
+  useEffect(() => {
+    if (!session?.user.id) { refreshedStudyDayRef.current = null; return; }
+    const key = `${session.user.id}:${todayDateKey}`;
+    const previous = refreshedStudyDayRef.current;
+    refreshedStudyDayRef.current = key;
+    if (previous !== null && previous !== key) void refreshData(session.user.id);
+  }, [session?.user.id, todayDateKey]);
   const todayTodos = useMemo(
-    () => studyTodos.filter((todo) => todo.local_date === todayDateKey && !todo.is_completed),
-    [studyTodos, todayDateKey],
+    () => studyTodos.filter((todo) => (todo.local_date === todayDateKey || todo.local_date === getDateKey(new Date(nowMs), profile?.time_zone ?? Intl.DateTimeFormat().resolvedOptions().timeZone)) && !todo.is_completed),
+    [studyTodos, todayDateKey, nowMs, profile?.time_zone],
   );
   const linkedActiveTodoIds = useMemo(
     () => activeSession
@@ -475,8 +485,13 @@ export default function App() {
       if (profileError) throw profileError;
 
       const resolvedTimeZone = profileData?.time_zone ?? Intl.DateTimeFormat().resolvedOptions().timeZone;
-      const localDate = getLocalDateKey(new Date(), resolvedTimeZone);
-      const [attendanceResult, sessionsResult, todosResult, sessionTodoResult, studySummaryResult, recoveryResult] = await Promise.all([
+      const sessionsResult = await supabase.from("study_sessions").select("*").eq("user_id", userId)
+        .order("started_at", { ascending: false }).limit(20);
+      if (sessionsResult.error) throw sessionsResult.error;
+      const localDate = (sessionsResult.data as StudySession[] | null)?.find(item => item.status === "active")?.local_date
+        ?? getStudyDateKey(new Date(), resolvedTimeZone);
+      const calendarDate = getDateKey(new Date(), resolvedTimeZone);
+      const [attendanceResult, todosResult, sessionTodoResult, studySummaryResult, recoveryResult] = await Promise.all([
         supabase
           .from("attendance_days")
           .select("*")
@@ -484,16 +499,10 @@ export default function App() {
           .eq("local_date", localDate)
           .maybeSingle(),
         supabase
-          .from("study_sessions")
-          .select("*")
-          .eq("user_id", userId)
-          .order("started_at", { ascending: false })
-          .limit(20),
-        supabase
           .from("study_todos")
           .select("id,user_id,local_date,title,is_completed,position")
           .eq("user_id", userId)
-          .eq("local_date", localDate)
+          .in("local_date", [...new Set([localDate, calendarDate])])
           .eq("is_completed", false)
           .order("position", { ascending: true }),
         supabase
@@ -582,7 +591,7 @@ export default function App() {
         .from("study_todos")
         .insert({
           user_id: session.user.id,
-          local_date: todayDateKey,
+          local_date: getDateKey(new Date(), profile?.time_zone ?? Intl.DateTimeFormat().resolvedOptions().timeZone),
           title,
           is_completed: false,
           position,

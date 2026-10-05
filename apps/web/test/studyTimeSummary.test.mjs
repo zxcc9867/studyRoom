@@ -22,21 +22,21 @@ test("uses the profile date when the device is UTC at Tokyo's next-day boundary"
     assert.equal(getActiveStudySecondsForDate({
       startedAtMs: Date.parse("2026-09-30T16:54:16Z"),
       nowMs: Date.parse("2026-09-30T16:56:18Z"),
-      dateKey: "2026-10-01",
+      dateKey: "2026-09-30",
       timeZone: "Asia/Tokyo",
     }), 122);
   });
 });
 
-test("splits profile months at Tokyo midnight instead of the device's month boundary", () => {
+test("keeps the starting study month at Tokyo midnight on UTC devices", () => {
   withDeviceTimeZone("UTC", () => {
     const input = {
       startedAtMs: Date.parse("2026-09-30T14:50:00Z"),
       nowMs: Date.parse("2026-09-30T15:10:00Z"),
       timeZone: "Asia/Tokyo",
     };
-    assert.equal(getActiveStudySecondsForMonth({ ...input, monthKey: "2026-09" }), 600);
-    assert.equal(getActiveStudySecondsForMonth({ ...input, monthKey: "2026-10" }), 600);
+    assert.equal(getActiveStudySecondsForMonth({ ...input, monthKey: "2026-09" }), 1200);
+    assert.equal(getActiveStudySecondsForMonth({ ...input, monthKey: "2026-10" }), 0);
   });
 });
 
@@ -49,20 +49,21 @@ test("keeps profile study totals identical on devices in different time zones", 
         timeZone: "Asia/Seoul",
         excludedSeconds: 90,
       };
-      assert.equal(getActiveStudySecondsForDate({ ...input, dateKey: "2026-10-01" }), 510);
-      assert.equal(getActiveStudySecondsForMonth({ ...input, monthKey: "2026-10" }), 510);
+      assert.equal(getActiveStudySecondsForDate({ ...input, dateKey: "2026-09-30" }), 510);
+      assert.equal(getActiveStudySecondsForMonth({ ...input, monthKey: "2026-09" }), 510);
     });
   }
 });
 
-test("uses both real midnight boundaries on a 23-hour daylight-saving day", () => {
+test("keeps the whole active session on its persisted day across a spring DST change", () => {
   withDeviceTimeZone("UTC", () => {
     assert.equal(getActiveStudySecondsForDate({
       startedAtMs: Date.parse("2026-03-08T05:00:00Z"),
       nowMs: Date.parse("2026-03-09T04:30:00Z"),
       dateKey: "2026-03-08",
+      localDate: "2026-03-08",
       timeZone: "America/New_York",
-    }), 23 * 3600);
+    }), 23.5 * 3600);
   });
 });
 
@@ -72,6 +73,7 @@ test("includes the repeated hour on a 25-hour daylight-saving day", () => {
       startedAtMs: Date.parse("2026-11-01T04:00:00Z"),
       nowMs: Date.parse("2026-11-02T05:00:00Z"),
       dateKey: "2026-11-01",
+      localDate: "2026-11-01",
       timeZone: "America/New_York",
     }), 25 * 3600);
   });
@@ -82,9 +84,9 @@ test("supports profile time zones with non-hour offsets", () => {
     assert.equal(getActiveStudySecondsForDate({
       startedAtMs: Date.parse("2026-09-30T18:00:00Z"),
       nowMs: Date.parse("2026-09-30T18:30:00Z"),
-      dateKey: "2026-10-01",
+      dateKey: "2026-09-30",
       timeZone: "Asia/Kathmandu",
-    }), 900);
+    }), 1800);
   });
 });
 
@@ -101,29 +103,29 @@ test("counts same-day active study seconds inside the requested date", () => {
     getActiveStudySecondsForDate({
       startedAtMs: new Date("2026-07-01T00:05:00").getTime(),
       nowMs: new Date("2026-07-01T00:20:00").getTime(),
-      dateKey: "2026-07-01",
+      dateKey: "2026-06-30",
     }),
     15 * 60,
   );
 });
 
-test("counts only the post-midnight part of an active session for today's study timer", () => {
+test("does not count the post-midnight part again on the next date", () => {
   assert.equal(
     getActiveStudySecondsForDate({
       startedAtMs: new Date("2026-06-30T23:50:00").getTime(),
       nowMs: new Date("2026-07-01T00:10:00").getTime(),
       dateKey: "2026-07-01",
     }),
-    10 * 60,
+    0,
   );
 });
 
-test("splits active study seconds by month instead of assigning all elapsed time to the start month", () => {
+test("assigns all active recognized time to the starting month", () => {
   const startedAtMs = new Date("2026-06-30T23:50:00").getTime();
   const nowMs = new Date("2026-07-01T00:10:00").getTime();
 
-  assert.equal(getActiveStudySecondsForMonth({ startedAtMs, nowMs, monthKey: "2026-06" }), 10 * 60);
-  assert.equal(getActiveStudySecondsForMonth({ startedAtMs, nowMs, monthKey: "2026-07" }), 10 * 60);
+  assert.equal(getActiveStudySecondsForMonth({ startedAtMs, nowMs, monthKey: "2026-06" }), 20 * 60);
+  assert.equal(getActiveStudySecondsForMonth({ startedAtMs, nowMs, monthKey: "2026-07" }), 0);
 });
 
 test("clamps invalid or excluded active study windows to zero", () => {
