@@ -14,13 +14,15 @@
 #### 변경한 파일 / 검증 방법
 
 - packages/core, apps/web 집계·리포트·main, apps/mobile App·Metro·app.json, SQL migration, 관련 SQL/JS/모바일 회귀 테스트, 공개 APK JSON/안내/라우팅, 정책 문서.
-- 전체1054:977통과/77선택 브라우저 생략/실패0; Edge21/21; mobile 타입/호환성·web1728모듈·README24자산/3언어. root lint 스크립트 없음; APK lintVitalRelease 성공.
+- 실제 Chromium 포함 최종 전체1054/1054·실패0·생략0(140.253초). CI/중간 실행977통과/77선택 브라우저 생략과 구분한다. Edge21/21; mobile 타입/호환성·web1728모듈·README24자산/3언어. root lint 스크립트 없음; APK lintVitalRelease 성공.
 - 독립 핵심148/148·추가 Metro11/11 통과. 실제 PGlite RPC로 9,000/0초, 휴식/재개/04시·월말/DST/소유권/중복 요청 확인.
 - APK0.2.1/code4, 기존 패키지·서명 유지,61,980,915bytes/SHA2569833cee299bd79d3c9cd1053bf028e8b702e648cdbcac96dac3f9ff24fc80850. 실제 야간 기기 공부를 생성하지 않았고 APK 설치 E2E는 이번 범위에서 미실행.
 
 #### 남은 작업 / 다음 우선순위
 
-- GitHub Release 공개 및 웹 production READY/HTTP 확인 후 배포 증거 추가. 앱 기본 WebView는 새 웹을 사용하며 native fallback까지 반영하려면 새 APK 설치가 필요하다.
+- 배포 완료: 제품0555327879d738e3a309e5172b01363124071e9b/main, GitHub Release android-v0.2.1-build4, Actions37319977032 success, Vercel dpl_GKGN3d6CvD9n9B64oewXN6pwcHsn READY·운영alias·제품SHA. 웹200/실제4시 번들, 출시JSON200/no-store/code4·안내200·APK307→익명파일200/전체크기·해시 일치.
+- 앱 기본 WebView는 새 웹을 사용하며 native fallback까지 반영하려면 새 APK 설치가 필요하다. 웹은 새로고침, code3 앱은 내부 업데이트에서0.2.1 선택 후 Android 확인. 강제 설치·앱 데이터 삭제 없음.
+- Jev 완료 근거 점검: 배포/APK/SQL 주장3건 자동 확인, 테스트 숫자1건은 중간977/77 문서와 최종1054/0 로그가 함께 있어 review로 분류됐다. 재호출 없이 최종 원본 실행로그(실패0/생략0/exit0)를 직접 확인해 문서를 갱신했다.
 
 ### 2026-10-05 — APK 링크 다운로드 실패 보고 재검증
 

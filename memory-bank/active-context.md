@@ -16,11 +16,11 @@
 
 ### 현재 상태
 
-- 완료: 전체1054 중977통과/77선택 브라우저 생략/실패0, Edge21/21, mobile 타입·호환성/README24자산·3언어/web1728모듈 빌드/diff 검사. 독립 핵심148/148 및 Metro11/11 재검토 차단 이슈0.
+- 완료: 실제 Chromium 포함 최종1054/1054·실패0·생략0(140.253초). CI/브라우저 런타임 없는 중간 실행은977통과/77생략이며 최종 실행과 구분한다. Edge21/21, mobile 타입·호환성/README24자산·3언어/web1728모듈 빌드/diff 검사. 독립 핵심148/148 및 Metro11/11 재검토 차단 이슈0.
 - 운영 DB: MCP로 study_day_four_am 적용(원격20261005134503). 04시 경계·달력/출석 알림 분리·내부 함수 권한 live SQL 검증 모두 true.
-- APK: 0.2.1/code4/61,980,915bytes, 기존 signer 일치, release/Android lintVitalRelease 빌드 성공. 공개 JSON·고정 링크 갱신 준비 완료.
-- 진행 중: 제품 커밋·GitHub Release·main 푸시·Actions/Vercel production 및 익명 APK 무결성 확인.
-- 다음 작업: 배포 증거를 기록하고 완료 보고. 이번 변경의 실제 야간 공부를 사용자 데이터로 만들지 않았으며 SQL/JS 경계 테스트와 운영 읽기 검증을 구분한다.
+- APK: 0.2.1/code4/61,980,915bytes, 기존 signer 일치, release/Android lintVitalRelease 빌드 성공. GitHub Release android-v0.2.1-build4 공개 및 고정 JSON/안내/307 별칭 갱신 완료. 전체 익명 파일200·크기/게시SHA256 일치.
+- production: 제품0555327879d738e3a309e5172b01363124071e9b/main, Actions37319977032 success, Vercel dpl_GKGN3d6CvD9n9B64oewXN6pwcHsn READY·제품SHA·운영alias. 웹200/실제 번들 새벽4시 정책, JSON200/no-store/code4/전체 메타데이터, 안내200·APK307→파일200 확인.
+- 다음 작업: 사용자는 웹 새로고침 또는 앱 내부 업데이트로0.2.1을 설치한다. 이번 변경의 실제 야간 공부를 사용자 데이터로 만들지 않았으며 SQL/JS 경계 테스트와 운영 읽기 검증을 구분한다. 과거 출석 소급 수정은 별도다.
 
 ### 주의할 점
 

@@ -6,7 +6,7 @@
 - 확인 방법: 실제 PGlite DB/RPC 회귀, 운영 helper/함수 권한 읽기 검사, migration 목록 확인. 새 헬퍼/집계 RPC는 빈 search_path·명시적 권한; 내부 타 사용자 집계는 service_role만 호출한다.
 - 주의 사항: 기존 local_date와 출석 결과를 재작성하지 않는다. 달력 todo 알림 local_reminder_at는 변경하지 않고 출석 알림만 study_reminder_at로 다음 실제 새벽에 예약한다. 04시 경계 후 재촉은 이전 공부일 후보도 검사한다.
 - 프론트엔드: core 헬퍼를 웹/네이티브가 공유한다. 활성 세션은 저장 local_date 우선; 달력 계획·D-day·피드 날짜는 별도 calendarDateKey. 날짜·계정·조회 월 변경 시 웹 집계 키 분리, native 날짜 변화 재조회. Metro는 app-root 빌드에서도 packages/core를 읽는다.
-- 검증/출시: 전체977통과/77선택 브라우저 생략, Edge21, mobile/web/README/Android release·lint 성공. DB 적용 완료; 웹·APK 게시 확인은 progress에 추가한다.
+- 검증/출시: 실제 Chromium 포함 최종1054/1054·생략0, CI/중간977통과/77생략, Edge21, mobile/web/README/Android release·lint 성공. DB 적용 및 제품0555327/main·Actions37319977032 success·Vercel dpl_GKGN3d6CvD9n9B64oewXN6pwcHsn READY·운영200·실제4시 번들 확인. GitHub0.2.1/code4와 고정 안내/JSON/307 별칭·익명 파일무결성 일치.
 - 기존 advisor: local_reminder_at/touch_updated_at search_path, pg_net public, Auth leaked-password 설정 경고가 남아 있다. 이번 범위 밖이며 무관한 보안 설정을 바꾸지 않았다. 참고: https://supabase.com/docs/guides/database/database-linter?lint=0011_function_search_path_mutable
 
 ## 2026-10-05 — Android 앱 내부 업데이트·영구 APK 게시 계약

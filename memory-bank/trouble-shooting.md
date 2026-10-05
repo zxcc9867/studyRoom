@@ -17,6 +17,8 @@
 - release Metro에서 core index.mjs를 해석하지 못했다. EXPO_NO_METRO_WORKSPACE_ROOT=1의 실제 config.watchFolders가 빈 배열이라 app 밖의 공통 모듈이 파일맵에 없었다. 재현 테스트 RED 후 packages/core만 감시 경로에 추가해 GREEN·실제786모듈 bundle·327tasks release/lint 성공.
 - SDK 검증 경로36.0.0을 추정해 aapt/apksigner 조회가 실패했다. 설치 목록에서35.0.0을 확인 후 실제 버전/기존 signer 일치를 다시 검증했다. 도구 조회 실패를 APK 검증 성공으로 세지 않는다.
 - 생성 prebuild가 변경한 개발 스크립트는 이번 자동 변경만 apply_patch로 복원했다. SDK/키/서명 변경·사용자 데이터 삭제 없음.
+- 운영 smoke 첫 시도는 PowerShell의 node-e 정규식 따옴표 이스케이프가 ParserError/Missing type name after '['를 냈다. 제품 오류가 아니며 실행 전 파싱 실패다. 기존 output/app-update-verify.mjs에 읽기 전용 검증을 넣어 웹200/4시 실제 번들·JSON/별칭/익명파일 크기·해시를 exit0으로 재확인했다.
+- 최종 근거: 브라우저 포함1054/1054·생략0, Edge21, DB 적용/운영 경계·권한검사, Actions37319977032 success·Vercel dpl_GKGN3d6CvD9n9B64oewXN6pwcHsn READY·운영HTTP200. Jev는 중간977/77 문서와 최종1054/0 로그의 차이를review로 분류했고, 원하는 결과를 위한 재호출 없이 최종 실행로그를 직접 대조했다.
 - 남은 리스크: 과거 출석 소급 정정과 실제 야간 기기 E2E는 이번 범위 밖이며 기존 기록을 임의 수정하지 않는다.
 
 ## 2026-10-05 — APK 링크가 열렸다 닫히고 다운로드되지 않는 보고
