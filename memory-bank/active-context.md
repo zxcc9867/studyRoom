@@ -12,6 +12,7 @@
 - 최종 검토: 통합 review C0/I0/M0 PASS, 독립71/71·실패0·생략0 및 patch reverse-check 통과. Jev 완료 근거3건 verified/auto. 현재 HEAD는 기준74d3a754 그대로이며 미커밋 변경과 로컬 증거를 보존한다.
 - 배포 승인/진행: 사용자가 이어서 ‘배포해줘야지’로 웹·새 APK·고정 링크 갱신을 요청했다. GitHub 공개 최신은0.2.1/code4, origin/main과HEAD74d3a754 일치로 충돌 없음을 확인했다. 동일 서명0.2.2/code5 APK 게시·실제 다운로드 검증 후 main을 배포한다. 완료 증거는 후속 기록한다.
 - 배포 직전 재검증: 최종1083/1083·실패0·생략0(161.053초), focused 출시31/31 및 mobile/build/docs/diff 통과. 초기 fixture page.goto의5초 timeout을15초 navigation 한정으로 분리했으며 제품/API/5초 조작 제한은 변경하지 않았다.
+- 게시/CI 상태: 3e9a91fc를 main에 푸시하고 android-v0.2.2-build5 Release를 공개했다. 전체 익명 APK HTTP200·61990159bytes·게시 SHA256 일치 확인. 첫 Actions37460243603은 Linux의 java.exe/javac.exe ENOENT로 테스트2개 실패하여 웹 배포되지 않았다. test-only 플랫폼 경로 수정 focused72/72 및 전체1084/1084·실패0·생략0(143.558초) 통과; CI 재배포·운영 응답 확인을 진행한다. APK 재빌드/태그 변경 없음.
 - 주의: 이전 구현 단계의 미배포 제한은 위 별도 배포 요청으로 해제됐다. 공개 대상은 검증 APK 한 개와 제품/출시 메타데이터뿐이며 private/generated/output를 일괄 공개하지 않는다. APK61990159bytes/SHA256b1e98d2899fe6b3b9000a4365ed813707672f4d18c8090c539ed02c4b6ac176f.
 
 

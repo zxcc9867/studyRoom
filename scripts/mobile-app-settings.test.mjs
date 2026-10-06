@@ -11,6 +11,21 @@ import { tmpdir } from 'node:os';
 
 const root = fileURLToPath(new URL('../', import.meta.url));
 const req = createRequire(path.join(root, 'apps/mobile/package.json'));
+function javaCommand(tool, platform = process.platform, home = process.env.JAVA_HOME) {
+  const filename = platform === 'win32' ? `${tool}.exe` : tool;
+  if (home) return (platform === 'win32' ? path.win32 : path.posix).join(home, 'bin', filename);
+  return platform === 'win32' ? `C:/Program Files/Microsoft/jdk-21.0.12.8-hotspot/bin/${filename}` : tool;
+}
+test('JVM commands resolve native names on Windows and Linux with or without JAVA_HOME', () => {
+  assert.equal(javaCommand('java', 'linux', '/opt/jdk'), '/opt/jdk/bin/java');
+  assert.equal(javaCommand('javac', 'linux', '/opt/jdk'), '/opt/jdk/bin/javac');
+  assert.equal(javaCommand('java', 'linux', ''), 'java');
+  assert.equal(javaCommand('javac', 'linux', ''), 'javac');
+  assert.equal(javaCommand('java', 'win32', 'C:/jdk').replaceAll('\\', '/'), 'C:/jdk/bin/java.exe');
+  assert.equal(javaCommand('javac', 'win32', 'C:/jdk').replaceAll('\\', '/'), 'C:/jdk/bin/javac.exe');
+  assert.match(javaCommand('java', 'win32', ''), /\/java\.exe$/);
+  assert.match(javaCommand('javac', 'win32', ''), /\/javac\.exe$/);
+});
 function compile(file, imports = {}) {
   if (!existsSync(path.join(root, file))) return {};
   const code = req('@babel/core').transformSync(readFileSync(path.join(root, file), 'utf8'), {
@@ -140,8 +155,7 @@ test('Android WebMessageListener settings policy rejects subframes/untrusted/leg
         System.out.println(settingsBridgeAllowed("STUDY_WEB_CAMERA_PERMISSION",origin,false));
       }
     }`);
-    const java = process.env.JAVA_HOME ? path.join(process.env.JAVA_HOME, 'bin/java.exe') : 'C:/Program Files/Microsoft/jdk-21.0.12.8-hotspot/bin/java.exe';
-    const result = spawnSync(java, [file], { encoding: 'utf8', timeout: 20000 }); assert.equal(result.status, 0, result.stderr || result.error?.message);
+    const result = spawnSync(javaCommand('java'), [file], { encoding: 'utf8', timeout: 20000 }); assert.equal(result.status, 0, result.stderr || result.error?.message);
     assert.deepEqual(result.stdout.trim().split(/\r?\n/), ['true', 'false', 'false', 'false', 'true', 'true']);
   } finally { rmSync(directory, { force: true, recursive: true }); }
 });
@@ -232,9 +246,8 @@ c.onPageStarted(v,"https://study-room-attendance.vercel.app/#settings",null);
 c.doUpdateVisitedHistory(v,"https://study-room-attendance.vercel.app/#settings",true);
 System.out.println(v.epochs);System.out.println(v.injected);}}
 `);
-    const java = process.env.JAVA_HOME ? path.join(process.env.JAVA_HOME, 'bin/java.exe') : 'C:/Program Files/Microsoft/jdk-21.0.12.8-hotspot/bin/java.exe';
-    const compiled = spawnSync(java.replace(/java\.exe$/, 'javac.exe'), [file], { encoding: 'utf8', timeout: 20000 }); assert.equal(compiled.status, 0, compiled.stderr || compiled.error?.message);
-    const result = spawnSync(java, ['-cp', directory, 'DocumentPolicy'], { encoding: 'utf8', timeout: 20000 }); assert.equal(result.status, 0, result.stderr || result.error?.message);
+    const compiled = spawnSync(javaCommand('javac'), [file], { encoding: 'utf8', timeout: 20000 }); assert.equal(compiled.status, 0, compiled.stderr || compiled.error?.message);
+    const result = spawnSync(javaCommand('java'), ['-cp', directory, 'DocumentPolicy'], { encoding: 'utf8', timeout: 20000 }); assert.equal(result.status, 0, result.stderr || result.error?.message);
     assert.deepEqual(result.stdout.trim().split(/\r?\n/), ['[1.0, 1.0, 1.0, 2.0, 2.0]', '2']);
   } finally { rmSync(directory, { force: true, recursive: true }); }
 });

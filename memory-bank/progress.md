@@ -8,6 +8,7 @@
 - 실제 APK0.2.2/code5·패키지com.jini9867.studyroomattendance·61990159bytes/SHA256b1e98d2899fe6b3b9000a4365ed813707672f4d18c8090c539ed02c4b6ac176f 재확인. 공개4와 서명SHA256이 동일하며 apksigner 검증 통과.
 - 출시 JSON/고정307/다운로드 안내를 후보5에 맞춰 로컬 갱신한다. 파일 게시·전체 익명 다운로드 검증을 먼저 하고 GitHub Actions main 배포 후 실제 운영 응답을 확인한다. 배포 완료로 미리 기록하지 않는다.
 - 최종 배포 전 검사: browser 포함1083/1083·실패0·생략0(161053.158ms/exit0), focused 출시31/31, mobile:check·docs24자산/3언어·tsc/Vite1730모듈·diff 통과. 중간 metadata 기대값 및 fixture 초기 navigation timeout 실패는 trouble-shooting과 별도 로그로 보존하고 최종 결과와 구분한다.
+- 제품3e9a91fc main 푸시 및 GitHub Release android-v0.2.2-build5 게시 완료. 전체 익명 APK200/61990159bytes/게시 SHA256 일치. 첫 Actions37460243603은 테스트용 Windows Java 실행명으로 Linux에서 ENOENT(992통과/2실패/89선택생략), 운영 웹은 이전 버전 유지. 플랫폼별 테스트 도구 경로 RED/GREEN·focused72/72·전체1084/1084·실패0·생략0(143558.3525ms/exit0)을 확인했고 Linux CI 재실행을 진행한다.
 
 ### 2026-10-06 — 웹·앱 공통 설정 탭 구현·로컬 검증
 

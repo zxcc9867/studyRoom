@@ -1,3 +1,10 @@
+## 2026-10-06 — 운영 CI의 Java 테스트 경로 이식성
+
+- 상황/에러: 설정 출시 커밋3e9a91fc의 Actions37460243603이 Ubuntu 테스트 단계에서 실패했다. `spawnSync /usr/lib/jvm/temurin-17-jdk-amd64/bin/java.exe ENOENT` 및 `javac.exe ENOENT`; 992통과/2실패/89선택 브라우저 생략이며 후속 빌드·운영 배포는 실행되지 않았다. 기존 운영 웹은 유지됐다.
+- 원인: 새 실제 Java 회귀 테스트 두 개가 Windows의 실행 파일 이름을 Linux JAVA_HOME에도 적용했다. APK/제품 코드 문제가 아니라 테스트 실행 도구 경로 오류다.
+- 해결: scripts/mobile-app-settings.test.mjs의 도구 경로를 플랫폼별 java/java.exe·javac/javac.exe로 분리하고 JAVA_HOME 없는 Linux는 PATH를 사용한다. Windows/Linux·JAVA_HOME 유무 회귀표에서 기존 구현의 실제 경로 AssertionError RED를 확인한 뒤 GREEN으로 수정했다.
+- 검증/재발 방지: focused native/update/web/camera72/72·실패0·생략0, 실제 Chromium 포함 전체1084/1084·실패0·생략0(143558.3525ms/exit0). 실제 Linux CI를 다시 실행한다. 테스트만 변경하므로 공개 immutable APK5의 제품 바이트·서명·태그는 변경하지 않는다.
+
 ## 2026-10-06 — 설정 출시5 메타데이터와 다운로드 테스트 기대값
 
 - 상황/에러: 출시 JSON·307·안내를0.2.2/code5로 바꾼 후 focused 다운로드 테스트3개가0.2.1/code4의 URL/버전/날짜를 기대해 AssertionError로 실패했다. 별도 브라우저 확인에도 이전 표시값 기대가 남아 있었다.
