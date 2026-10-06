@@ -14,6 +14,7 @@ import {
 import { supabase } from "./supabase";
 import { prepareCameraPermission } from "./cameraPermission";
 import { handleNativeSettingsRequest, type SettingsSnapshot, type SettingsTarget } from "./nativeAppSettings";
+import { createDeviceStudyProbe, type DeviceStudyReader } from "./deviceStudyProbe";
 
 type Props = {
   sessionUserId: string;
@@ -24,9 +25,10 @@ type Props = {
   getNativeOwnerRevision?: () => number;
   readSettingsSnapshot?: () => Promise<SettingsSnapshot>;
   onOpenNativeSettings?: (target: SettingsTarget) => void;
+  onDeviceStudyReader?: (reader: DeviceStudyReader | null) => void;
 };
 
-export function WebFeatureScreen({ sessionUserId, onStudyStateChanged, onNativeSignOut, onFallback, getNativeOwner, getNativeOwnerRevision, readSettingsSnapshot, onOpenNativeSettings }: Props) {
+export function WebFeatureScreen({ sessionUserId, onStudyStateChanged, onNativeSignOut, onFallback, getNativeOwner, getNativeOwnerRevision, readSettingsSnapshot, onOpenNativeSettings, onDeviceStudyReader }: Props) {
   const [failed, setFailed] = useState(false);
   const [connectionError, setConnectionError] = useState("");
   const [retryKey, setRetryKey] = useState(0);
@@ -45,10 +47,24 @@ export function WebFeatureScreen({ sessionUserId, onStudyStateChanged, onNativeS
   const issuedOwnerRevisionRef = useRef<number | undefined>(undefined);
   const navigationRef = useRef(0);
   const nativeDocumentRef = useRef<number | null>(null);
+  const failedRef = useRef(failed); failedRef.current = failed;
+  const probeRef = useRef<ReturnType<typeof createDeviceStudyProbe> | null>(null);
+  if (!probeRef.current) probeRef.current = createDeviceStudyProbe({
+    current: () => ({ active: activeRef.current && !failedRef.current, owner: settingsPropsRef.current.getNativeOwner?.() ?? null,
+      ownerRevision: settingsPropsRef.current.getNativeOwnerRevision?.(), authenticatedOwner: authenticatedOwnerRef.current,
+      authenticatedOwnerRevision: authenticatedOwnerRevisionRef.current, document: documentRef.current, nativeDocument: nativeDocumentRef.current,
+      navigation: navigationRef.current, url: currentUrlRef.current, cameraPermissionBusy: cameraPermissionBusyRef.current }),
+    inject: script => { if (!webViewRef.current) throw new Error("WebView unavailable"); webViewRef.current.injectJavaScript(script); },
+  });
+
+  useEffect(() => {
+    onDeviceStudyReader?.(probeRef.current!.read);
+    return () => { probeRef.current?.invalidate(); onDeviceStudyReader?.(null); };
+  }, [onDeviceStudyReader]);
 
   useEffect(() => {
     activeRef.current = true;
-    return () => { activeRef.current = false; };
+    return () => { activeRef.current = false; probeRef.current?.invalidate(); };
   }, []);
 
   function allowNavigation(request: { url: string }) {
@@ -69,6 +85,11 @@ export function WebFeatureScreen({ sessionUserId, onStudyStateChanged, onNativeS
     if (!isTrustedWebUrl(event.nativeEvent.url)) return;
     const message = parseNativeBridgeMessage(event.nativeEvent.data);
     if (!message) return;
+
+    if (message.type === "STUDY_WEB_DEVICE_STUDY_STATE") {
+      probeRef.current?.receive(message, event.nativeEvent);
+      return;
+    }
 
     if (message.type === "STUDY_WEB_SETTINGS_INFO" || message.type === "STUDY_WEB_OPEN_SETTINGS") {
       if (nativeDocumentRef.current === null || event.nativeEvent.studySettingsDocumentId !== nativeDocumentRef.current) return;
@@ -184,6 +205,7 @@ export function WebFeatureScreen({ sessionUserId, onStudyStateChanged, onNativeS
   }
 
   function retry() {
+    probeRef.current?.invalidate();
     pendingRequestIdRef.current = null;
     issuedRequestIdRef.current = null;
     authenticatedOwnerRef.current = null;
@@ -238,7 +260,7 @@ export function WebFeatureScreen({ sessionUserId, onStudyStateChanged, onNativeS
             issuedDocumentRef.current = null;
           }}
           onMessage={(event) => { void receiveMessage(event); }}
-          onError={() => setFailed(true)}
+          onError={() => { probeRef.current?.invalidate(); setFailed(true); }}
           startInLoadingState
           renderLoading={() => <ActivityIndicator style={styles.loading} color="#2f6b52" />}
           setSupportMultipleWindows={false}

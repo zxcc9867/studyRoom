@@ -1,5 +1,37 @@
 # Active Context
 
+## 현재 작업 — 2026-10-06 기기 단위 APK 설치 제한
+
+- 작업 목적/승인: 사용자 ‘기기단위로 제한을 수정해줘’. 기존 PC 단독 공부 차단 진단의 승인 대기 상태를 대체하며 prd-android-app-updates를 개정했다. AI 일일 요약 오류는 이번 구현 범위 밖이다.
+- 완료: 설치 직전 소유자 경계의 서버 세션 조회와 현재 최상위 WebView의 참여/카메라/준비 상태를 함께 검사한다. PC 단독 공부는 변경하지 않고 허용, 이 휴대폰의 실제 실행과 불명 상태는 차단한다. updater에 휴식/종료/재개 RPC를 넣지 않았다.
+- 안전성: true native frame/origin/document epoch·owner/navigation revision 검증, 5초 bounded probe, stale/누락/legacy 응답 차단. 카메라 끄기·새로고침 뒤에도 참여 기록을 유지하며 확정된 참여의 휴식/종료 관찰만 해제한다.
+- 저장 실패: 카메라 획득/서버 확정 전에 영속 latch를 확인하고 실패 시 실행하지 않는다. 확정 결과 세션 ID 저장 실패·미확정 요청·이전 문서 preparing은 unknown으로 유지한다. 같은 문서에서 실제 실행 없이 취소한 준비만 해제한다.
+- 검증: focused/native 회귀와 실제 mounted PC 허용·휴대폰 참여·저장 실패 흐름 통과. Android release/lint·웹 build·mobile:check·docs:check 통과. 전체 최종 회귀와 독립 검토/운영 웹 배포를 마무리 중이며 완료 증거는 후속 기록한다.
+- APK 후보: 0.2.3/code6/61993631bytes/SHA2569ec58c88c5972d8b9780101d804800ac46c95d46cc43d4599cc0533c6f6bea40. 실제 package/min24/target35와 기존 signer 동일·apksigner 성공. 공개 APK5와 고정 링크 원본은 게시 승인 전 유지한다.
+- 다음 작업: 최종 검증→웹 production 배포, Android16 로그인/설정 유지 확인. APK 게시/고정 링크 갱신 승인은 질문했으나 아직 응답이 없다. 기존 APK에서 새 제한이 적용됐다고 안내하지 않는다.
+- 관련 파일: mobile App/WebFeatureScreen/mobileWebBridge/useAppUpdate/deviceStudyProbe, web main/deviceStudyActivity, 기존 WebView Java patch 및 회귀 테스트. DB/RLS/집중 모드·출석 정책 변경 없음.
+- 최종 로컬 검증: 전체1102/1102·실패0·생략0(141908.1491ms/exit0), focused84/84·실패0·생략0(2120.0682ms), 독립 scoped C0/I0/M0 PASS. mobile:check·docs24자산/3언어·웹 tsc/Vite·Android release/lint·patch reverse-check·diff 통과.
+- Android16: 실제 동일 서명 APK6 install-r Success, 실제 version0.2.3/code6·로그인 유지·5탭/내페이지·설정 snapshot 재조회 확인. 기존 회복 모달은 닫기만 했고 제출·공부 시작/휴식·권한/DND/피드 생성은 하지 않았다. 실제 설치 gate는 VM/Java/mounted 경계로 검증했으며 더 높은 운영 APK를 이용한 installer E2E는 이번 후보에서 실행하지 않았다.
+- Jev 검증 요청은 외부 metadata 전송 보안 심사에서 차단돼 미실행이다. 우회/재요청 없이 실제 로그·APK 도구 결과·리뷰를 직접 대조했다. 제품 작업은 막히지 않았다.
+
+## 현재 작업 — 2026-10-06 앱 기술 피드 오늘 요약 오류 진단
+
+- 사용자 보고: Android 앱의 ‘오늘 요약·추천 보기’를 누르면 ‘AI 요약 연결을 확인하지 못했어요’가 표시된다. 이번 작업은 원인 진단이며 새 AI 생성/정책 변경/배포는 수행하지 않았다.
+- 확인한 원인: 운영 tech-feed v39의 2026-10-06T12:41:43Z(Asia/Tokyo 21:41) 로그에 OpenRouter HTTP502/1314ms, feed_ai_failed code=upstream/status=502, feed_briefing_rejected why=no_response가 연속 기록됐다. 해당 날짜 브리핑은 대상5건·last_error=unavailable·결과없음이다. 인증/한도 실패가 아니라 공급자가 응답을 거부한 경로로 확인했다. 공급자 내부의 502 발생 원인까지 확인한 것은 아니다.
+- 표시 원인: askFeedAi가 공급자 실패를 null로 바꾸고 runBriefing이 unavailable을 저장하므로 FeedDailyBriefing은 공급자502·설정누락·시간초과·응답검증 실패를 같은 문구로 표시한다. 일반 웹과 Android WebView는 이 공통 API를 사용한다.
+- 검증: 운영 로그/MCP 읽기 조회, Supabase CLI의 시크릿 이름만 확인(OPENROUTER_API_KEY/MODEL 존재), 로컬 briefing/DB/예산 회귀35/35·실패0·생략0(1675.6637ms). 새 모델 호출/할당량 소모/사용자 데이터 변경 없음. Android16 검증 계정은 receiving 중지라 paused 상태를 확인했으며 활성화하거나 사용자 실패를 재현했다고 주장하지 않는다.
+- 제안/다음 작업: 공급자 일시 오류를 로그인/연결 오류와 구분하고 명시적 재시도 경로를 개선한다. 제한된 무료 재시도를 추가하려면 기존 호출 상한/환급/멱등성/캐시 정책을 유지하며 PRD와 테스트를 함께 개정한다. 구현은 후속 사용자 요청 후 진행한다. 앞선 기기 단위 APK 설치 제한 제안도 승인 대기 상태를 유지한다.
+- 변경 범위: 진단 memory-bank 세 문서만 로컬 부분 갱신. 제품 코드·PRD 정책·운영 DB/시크릿·APK·커밋/푸시/배포 미변경.
+
+## 현재 작업 — 2026-10-06 PC 공부 중 Android 업데이트 제한 진단
+
+- 사용자 질문: PC 웹에서 공부 중이고 휴대폰에서는 공부하지 않는데 APK 설치가 차단된다. 어떻게 동작해야 하는지 문의했으며 정책 변경/구현은 아직 요청하지 않았다.
+- 확인한 사실: App.tsx beforeInstallUpdate는 현재 계정의 모든 active study_sessions를 읽고 paused_at=null이 하나라도 있으면 studying을 반환한다. 실행 기기 구분이 없으며 useAppUpdate는 다운로드와 별개로 설치 직전에 이 gate를 적용한다. 기존 PRD의 계정 전체 보호 정책과 일치하지만 사용자 기대에는 과도하다.
+- 제안/미확정: 최신 버전 확인·다운로드는 계속 허용. 실제 공부/카메라를 수행하는 이 휴대폰은 휴식 후 설치, 다른 기기에서만 공부 중이면 웹 세션/기록을 변경하지 않고 설치 허용. 기기 판정 불명/조회 실패/계정 경합은 차단 유지. 연동 집중 모드 사용 시 재시작 안내·서버 상태 재동기화 확인이 필요하다.
+- 구현 주의: 현재 세션 조회/bridge에 공부 실행 기기 정보가 없으므로 단순히 휴대폰 화면의 타이머 상태나 최초 시작 기기만 보고 허용하면 안 된다. 기기 전환/새로고침/설치 재시작까지 검증할 신뢰된 실행 기기 판정이 필요하며 구체 설계는 사용자 승인 후 한다.
+- 검증: 기존 실제 App gate 회귀3/3 통과·실패0·생략0. 운영/DB/사용자 공부 데이터 변경 없이 소스·PRD·기존 회귀로 원인을 확인했다. 제품 코드/PRD 정책/공개 APK/배포는 변경하지 않고 진단 문서만 로컬 갱신했다.
+- 다음 작업: 사용자에게 기기 단위 제한을 제안하고 PRD 개정·구현 승인 확인. 임시 안전 경로는 웹의 잠시 쉬기→설치→공부 계속하기이며 자동 휴식/종료를 수행하지 않는다.
+
 ## 현재 작업 — 2026-10-06 웹·앱 공통 설정 탭
 
 - 작업명/목적: 모바일 다섯번째 메뉴를 설정으로 바꾸고 기존 계정·시간대·화면 구성·알림·휴대폰·앱정보를 모은다. 앱 상단 상시 업데이트 바 제거.

@@ -1,3 +1,11 @@
+## 2026-10-06 — 기기 단위 APK 설치 판정
+
+- App beforeInstallUpdate는 현재 owner/revision을 고정하고 기존 study_sessions를 bounded 읽기 조회한다. 새 DeviceStudyReader가 신뢰된 동일 계정/현재 문서의 로컬 실행을 증명할 때만 allowed를 받는다. 서버 row와 web snapshot이 다르거나 native fallback의 활성 실행을 증명할 수 없으면 unknown이다. DB/RLS/RPC 추가·기존 세션 mutation 없음.
+- 계약: native inject `STUDY_NATIVE_DEVICE_STUDY_CHECK {requestId,userId,session:{id,paused}|null}` → web `STUDY_WEB_DEVICE_STUDY_STATE {requestId,state:'allowed'|'studying'|'unknown'}`. exact schema, true top-frame/origin/document epoch, authenticated owner/revision, current document/navigation/url 및 5초 timeout을 검증한다. iframe/legacy JavascriptInterface는 이 새 응답을 전달할 수 없다.
+- web deviceStudyActivity는 로컬 participation을 카메라 preference와 분리한다. 카메라 획득 전 preparing, 서버 confirm 전 pending write/readback. 확정된 세션 ID는 새로고침/카메라 off 후 유지한다. 큰 기록 실패/미확정 commit/이전 문서 preparing은 불명 잠금으로 보존한다. same-document 미실행 취소만 preparing을 해제하며 카메라/작업 idle 상태에서만 관찰한다.
+- 성공 결과의 세션 ID가 영속화된 이후 확인된 휴식/종료/새 세션은 이전 참여를 해제한다. 미확정 잠금은 시간 경과나 no-session/paused 스냅샷만으로 지우지 않는다. 저장소 실패 시 공부·카메라 새 실행을 중지하고 안내한다. updater가 상태를 임의 해제하거나 공부 mutation을 실행하지 않는다.
+- 기존 updater 다운로드/권한/무결성/동일 서명·패키지·Android 명시적 설치 확인을 그대로 사용한다. 새 네이티브 연결은 APK0.2.3/code6이 필요하며 기존 공개5는 게시 승인 전 유지한다. 유료 서비스·새 키·서버 운영 설정 변경 없음.
+
 ## 2026-10-06 — 웹·앱 공통 설정 탭
 
 - 기존 `#settings`와 서버 저장 handler를 재사용한다. 모바일 오늘·목표·기술 피드·공부 숲·설정, 데스크톱 이름 있는 설정 메뉴를 사용하고 내 페이지의 학습 이력은 유지한다. 시간대 편집·화면 구성·알림 편집은 설정에서 제공한다.

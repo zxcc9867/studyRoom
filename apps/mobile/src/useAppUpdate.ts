@@ -78,7 +78,7 @@ export function useAppUpdate(beforeInstall: () => Promise<InstallGate>): AppUpda
       try { allowed = await gate.current(); } catch { /* A failed read must never grant installation. */ }
       if (!mounted.current || id !== operation.current) return;
       if (AppState.currentState !== "active") allowed = "unknown";
-      if (allowed !== "allowed") { update({ error: allowed === "studying" ? "공부 중에는 설치를 미뤄요. 먼저 기존 휴식 또는 종료 버튼을 사용한 뒤 다시 설치해 주세요." : "현재 공부 상태를 확인하지 못했어요. 상태를 확인한 뒤 다시 설치해 주세요." }); return; }
+      if (allowed !== "allowed") { update({ error: allowed === "studying" ? "이 휴대폰에서 공부 중에는 설치를 미뤄요. 먼저 휴대폰의 휴식 또는 종료 버튼을 사용한 뒤 다시 설치해 주세요." : "이 휴대폰의 공부 상태를 확인하지 못했어요. 공부방 연결을 확인한 뒤 다시 설치해 주세요." }); return; }
       if (!native.canInstall()) { update({ status: "permission_required" }); return; }
       const result = await native.installDownloaded();
       if (mounted.current && id === operation.current) applyNative(result);

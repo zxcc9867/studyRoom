@@ -547,13 +547,60 @@ export const supabase={
 };
 `;
 
-async function withApp(width, run, mode='active') {
+async function withApp(width, run, mode='active', nativeOrigin=false) {
   const built=await build({entryPoints:[fileURLToPath(new URL('../src/main.tsx',import.meta.url))],bundle:true,write:false,outdir:'fixture',platform:'browser',format:'iife',jsx:'automatic',logLevel:'silent',define:{'import.meta.env':'{}'},plugins:[{name:'local-boundaries',setup(b){b.onResolve({filter:/^\.\/supabase$/},()=>({path:'backend',namespace:'fixture'}));b.onLoad({filter:/.*/,namespace:'fixture'},()=>({contents:backend,loader:'js'}));b.onLoad({filter:/bodyPresenceDetection\.mjs$/},()=>({contents:'export async function createUpperBodyPresenceDetector(){return {detect:()=>true,close(){}}}',loader:'js'}));b.onLoad({filter:/[\\/]src[\\/]main\.tsx$/},async({path})=>({contents:(await readFile(path,'utf8')).replace('createRoot(document.getElementById("root")!).render','(window.fixtureRoot = createRoot(document.getElementById("root")!)).render'),loader:'tsx'}));}}]});
   const js=built.outputFiles.find(f=>f.path.endsWith('.js')).text, css=built.outputFiles.find(f=>f.path.endsWith('.css'))?.text||'';
   const server=createServer((req,res)=>{res.setHeader('Content-Type',req.url==='/app.js'?'text/javascript':req.url==='/app.css'?'text/css':'text/html');res.end(req.url==='/app.js'?js:req.url==='/app.css'?css:'<!doctype html><html lang="ko"><head><meta name="viewport" content="width=device-width,initial-scale=1"><link rel="stylesheet" href="/app.css"></head><body><div id="root"></div><script src="/app.js"></script></body></html>');});
   await new Promise(resolve=>server.listen(0,'127.0.0.1',resolve));let browser;
-  try {browser=await chromium.launch({headless:true,executablePath:process.env.FEED_BROWSER_EXECUTABLE||undefined,args:['--use-fake-ui-for-media-stream','--use-fake-device-for-media-stream']});const page=await browser.newPage({viewport:{width,height:960}});page.setDefaultTimeout(5000);const errors=[];page.on('pageerror',e=>errors.push(e.message));await page.clock.install({time:new Date('2026-09-21T14:30:00Z')});await page.goto('http://127.0.0.1:'+server.address().port+'?mode='+mode,{timeout:15000});await page.locator(mode==='login'?'.login-panel':'.topbar-actions button:not([disabled])').first().waitFor();if(mode==='active'||mode==='active-empty'){await page.getByRole('dialog',{name:'카메라 인증 필요'}).waitFor();await page.keyboard.press('Escape');await page.getByRole('dialog').waitFor({state:'detached'});}await run(page);assert.deepEqual(errors,[]);}finally{await browser?.close();await new Promise(resolve=>server.close(resolve));}
+  try {browser=await chromium.launch({headless:true,executablePath:process.env.FEED_BROWSER_EXECUTABLE||undefined,args:['--use-fake-ui-for-media-stream','--use-fake-device-for-media-stream']});const page=await browser.newPage({viewport:{width,height:960}});page.setDefaultTimeout(5000);const errors=[];page.on('pageerror',e=>errors.push(e.message));await page.clock.install({time:new Date('2026-09-21T14:30:00Z')});
+  const base='http://127.0.0.1:'+server.address().port;
+  if(nativeOrigin)await page.route('https://study-room-attendance.vercel.app/**',async route=>{const url=new URL(route.request().url());await route.fulfill({response:await page.request.get(base+url.pathname+url.search)});});
+  await page.goto((nativeOrigin?'https://study-room-attendance.vercel.app/':base)+'?mode='+mode,{timeout:15000});await page.locator(mode==='login'?'.login-panel':'.topbar-actions button:not([disabled])').first().waitFor();if(mode==='active'||mode==='active-empty'){await page.getByRole('dialog',{name:'카메라 인증 필요'}).waitFor();await page.keyboard.press('Escape');await page.getByRole('dialog').waitFor({state:'detached'});}await run(page);assert.deepEqual(errors,[]);}finally{await browser?.close();await new Promise(resolve=>server.close(resolve));}
 }
+
+async function deviceInstallProof(page) {
+ return page.evaluate(()=>{
+  window.deviceInstallReplies=[];
+  window.ReactNativeWebView={postMessage:raw=>{const m=JSON.parse(raw);if(m.type==='STUDY_WEB_DEVICE_STUDY_STATE')deviceInstallReplies.push(m);}};
+  window.dispatchEvent(new CustomEvent('study-room-native-message',{detail:{type:'STUDY_NATIVE_DEVICE_STUDY_CHECK',requestId:'device-check',userId:'owner',session:fixture.sessions[0]?{id:fixture.sessions[0].id,paused:fixture.sessions[0].paused_at!==null}:null}}));
+  return deviceInstallReplies[0]?.state;
+ });
+}
+browserTest('device install: PC-only active timer is allowed without pausing or ending the server session',()=>withApp(375,async page=>{
+ assert.equal(await deviceInstallProof(page),'allowed');
+ assert.equal(await page.evaluate(()=>fixture.sessions[0].paused_at),null);
+ assert.equal(await page.evaluate(()=>fixture.calls.some(c=>/pause_actual|complete_study|confirm_actual/.test(c.name))),false);
+},'active',true));
+browserTest('device install: local camera, camera-off reload and pause enforce device participation',()=>withApp(375,async page=>{
+ const tools=page.locator('.focus-tools');await tools.locator('summary').first().click();
+ await tools.getByRole('button',{name:'카메라 감시 켜기',exact:true}).click();
+ await page.waitForFunction(()=>document.querySelector('video')?.srcObject);
+ assert.equal(await deviceInstallProof(page),'studying');
+ await tools.getByRole('button',{name:'카메라 감시 끄기',exact:true}).click();
+ assert.equal(await deviceInstallProof(page),'studying');
+ await page.reload();await page.locator('.topbar-actions button:not([disabled])').first().waitFor();
+ await page.getByRole('dialog',{name:'카메라 인증 필요'}).waitFor();await page.keyboard.press('Escape');
+ assert.equal(await deviceInstallProof(page),'studying');
+ await page.getByRole('button',{name:'잠시 쉬기',exact:true}).click();
+ await page.getByRole('button',{name:'공부 계속하기',exact:true}).waitFor();
+ assert.equal(await deviceInstallProof(page),'allowed');
+},'active',true));
+
+browserTest('device install: storage failure prevents local camera execution without changing a PC session',()=>withApp(375,async page=>{
+ await page.evaluate(()=>{
+  window.deviceCameraCalls=0;
+  navigator.mediaDevices.getUserMedia=async()=>{deviceCameraCalls++;throw Error('camera must not be requested');};
+  const write=Storage.prototype.setItem;
+  Storage.prototype.setItem=function(key,value){if(key.startsWith('study-room:device-study:'))throw Error('QuotaExceededError');return write.call(this,key,value);};
+ });
+ const tools=page.locator('.focus-tools');await tools.locator('summary').first().click();
+ await tools.getByRole('button',{name:'카메라 감시 켜기',exact:true}).click();
+ await page.getByText('이 기기의 공부 상태를 저장하지 못했어요.',{exact:false}).first().waitFor();
+ assert.equal(await page.evaluate(()=>deviceCameraCalls),0);
+ assert.equal(await page.evaluate(()=>fixture.calls.some(c=>/pause_actual|complete_study|confirm_actual/.test(c.name))),false);
+ assert.equal(await page.evaluate(()=>fixture.sessions[0].paused_at),null);
+ assert.equal(await deviceInstallProof(page),'unknown');
+},'active',true));
 
 
 for(const mode of ['empty-links','completed-links'])browserTest('mounted main: '+mode+' resumes through today selector and cancellation never links',()=>withApp(390,async page=>{

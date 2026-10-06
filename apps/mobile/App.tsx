@@ -37,6 +37,7 @@ import { readAppSettingsSnapshot } from "./src/readAppSettingsSnapshot";
 import type { SettingsTarget } from "./src/nativeAppSettings";
 import { useAppUpdate, type InstallGate } from "./src/useAppUpdate";
 import type { FocusAction, LocalFocusStatus } from "./src/focusStatus";
+import type { DeviceStudyReader } from "./src/deviceStudyProbe";
 
 const retryCooldownMs = 15 * 60 * 1000;
 const emailOtpLength = 8;
@@ -172,6 +173,10 @@ export default function App() {
     sequence: number;
   }>({ running: false, pendingRefresh: false, pendingLogout: null, sequence: 0 });
   const updateOwnerRef = useRef({ owner: session?.user.id ?? null, revision: 0 });
+  const deviceStudyReaderRef = useRef<DeviceStudyReader | null>(null);
+  const installLocalStateRef = useRef({ loading, busy, webFallback });
+  installLocalStateRef.current = { loading, busy, webFallback };
+  const registerDeviceStudyReader = useRef((reader: DeviceStudyReader | null) => { deviceStudyReaderRef.current = reader; }).current;
   const updateOwner = session?.user.id ?? null;
   if (updateOwnerRef.current.owner !== updateOwner) {
     updateOwnerRef.current = { owner: updateOwner, revision: updateOwnerRef.current.revision + 1 };
@@ -205,9 +210,17 @@ export default function App() {
         new Promise<never>((_, reject) => { timer = setTimeout(() => reject(new Error("STUDY_STATE_TIMEOUT")), 12000); }),
       ]);
       if (owner !== updateOwnerRef.current.owner || revision !== updateOwnerRef.current.revision || result.error || !Array.isArray(result.data)) return "unknown";
-      if (result.data.some(row => row.status !== "active" || !(row.paused_at === null || typeof row.paused_at === "string" && Number.isFinite(Date.parse(row.paused_at))))) return "unknown";
-      // An expired or legacy lease is not permission to interrupt a still-active server session.
-      return result.data.some(row => row.paused_at === null) ? "studying" : "allowed";
+      if (result.data.length > 1 || result.data.some(row => typeof row.id !== "string" || !row.id || row.status !== "active" || !(row.paused_at === null || typeof row.paused_at === "string" && Number.isFinite(Date.parse(row.paused_at))))) return "unknown";
+      if (installLocalStateRef.current.loading || installLocalStateRef.current.busy) return "unknown";
+      const row = result.data[0];
+      // Fallback cannot prove which device executes an unpaused session. Never infer from its timer display.
+      if (installLocalStateRef.current.webFallback) return row?.paused_at === null ? "unknown" : "allowed";
+      const reader = deviceStudyReaderRef.current;
+      if (!reader) return "unknown";
+      const proof = await reader(row ? { id: row.id, paused: row.paused_at !== null } : null);
+      if (owner !== updateOwnerRef.current.owner || revision !== updateOwnerRef.current.revision
+        || reader !== deviceStudyReaderRef.current || installLocalStateRef.current.webFallback || installLocalStateRef.current.busy) return "unknown";
+      return ["allowed", "studying", "unknown"].includes(proof) ? proof : "unknown";
     } catch { return "unknown"; }
     finally { if (timer !== undefined) clearTimeout(timer); }
   }
@@ -929,6 +942,7 @@ export default function App() {
         <WebFeatureScreen
           key={session.user.id}
           sessionUserId={session.user.id}
+          onDeviceStudyReader={registerDeviceStudyReader}
           getNativeOwner={() => updateOwnerRef.current.owner}
           getNativeOwnerRevision={() => updateOwnerRef.current.revision}
           readSettingsSnapshot={() => readAppSettingsSnapshot(appUpdate.status)}

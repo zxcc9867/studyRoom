@@ -48,6 +48,7 @@ export function buildTicketInjection(ticket: MobileWebTicket) {
 }
 
 export type NativeBridgeMessage =
+  | { type: "STUDY_WEB_DEVICE_STUDY_STATE"; requestId: string; state: "allowed" | "studying" | "unknown" }
   | { type: "STUDY_WEB_SETTINGS_INFO"; requestId: string }
   | { type: "STUDY_WEB_OPEN_SETTINGS"; requestId: string; target: "update" | "focus" | "permissions" }
   | { type: "STUDY_WEB_CAMERA_PERMISSION"; requestId: string }
@@ -65,6 +66,10 @@ export function parseNativeBridgeMessage(raw: string): NativeBridgeMessage | nul
   if (!value || typeof value !== "object") return null;
   const message = value as Record<string, unknown>;
   const validId = (id: unknown) => typeof id === "string" && id.length > 0 && id.length <= 128;
+  if (message.type === "STUDY_WEB_DEVICE_STUDY_STATE" && validId(message.requestId) && Object.keys(message).length === 3
+    && ["allowed", "studying", "unknown"].includes(message.state as string)) {
+    return { type: message.type, requestId: message.requestId as string, state: message.state as "allowed" | "studying" | "unknown" };
+  }
   if (message.type === "STUDY_WEB_SETTINGS_INFO" && validId(message.requestId) && Object.keys(message).length === 2) {
     return { type: message.type, requestId: message.requestId as string };
   }

@@ -33,7 +33,7 @@ function compile(file, imports = {}) {
     presets: [[req.resolve('@babel/preset-typescript'), { allExtensions: true, isTSX: true }]],
     plugins: [[req.resolve('@babel/plugin-transform-react-jsx'), { runtime: 'automatic' }], req.resolve('@babel/plugin-transform-modules-commonjs')],
   }).code;
-  const context = { exports: {}, URL, require(name) { assert.ok(name in imports, name); return imports[name]; } };
+  const context = { exports: {}, URL, setTimeout, clearTimeout, require(name) { assert.ok(name in imports, name); return imports[name]; } };
   runInNewContext(code, context); return context.exports;
 }
 const bridge = () => compile('apps/mobile/src/mobileWebBridge.ts');
@@ -153,36 +153,68 @@ test('Android WebMessageListener settings policy rejects subframes/untrusted/leg
         System.out.println(settingsBridgeAllowed("STUDY_WEB_OPEN_SETTINGS",origin,null));
         System.out.println(settingsBridgeAllowed("STUDY_WEB_READY","https://evil.test",null));
         System.out.println(settingsBridgeAllowed("STUDY_WEB_CAMERA_PERMISSION",origin,false));
+        System.out.println(settingsBridgeAllowed("STUDY_WEB_DEVICE_STUDY_STATE",origin,true));
+        System.out.println(settingsBridgeAllowed("STUDY_WEB_DEVICE_STUDY_STATE",origin,false));
+        System.out.println(settingsBridgeAllowed("STUDY_WEB_DEVICE_STUDY_STATE","https://evil.test",true));
+        System.out.println(settingsBridgeAllowed("STUDY_WEB_DEVICE_STUDY_STATE",origin,null));
       }
     }`);
     const result = spawnSync(javaCommand('java'), [file], { encoding: 'utf8', timeout: 20000 }); assert.equal(result.status, 0, result.stderr || result.error?.message);
-    assert.deepEqual(result.stdout.trim().split(/\r?\n/), ['true', 'false', 'false', 'false', 'true', 'true']);
+    assert.deepEqual(result.stdout.trim().split(/\r?\n/), ['true', 'false', 'false', 'false', 'true', 'true', 'true', 'false', 'false', 'false']);
   } finally { rmSync(directory, { force: true, recursive: true }); }
 });
 function screenHarness(options = {}) {
-  const values = [], refs = []; let vi = 0, ri = 0, reads = 0, owner = 'user1', documentId = 1; const opened = [], injected = [];
+  const values = [], refs = []; let vi = 0, ri = 0, reads = 0, owner = 'user1', ownerRevision = 1, documentId = 1, deviceReader; const opened = [], injected = [];
   const react = { useState(initial) { const i = vi++; if (!(i in values)) values[i] = initial; return [values[i], value => values[i] = value]; },
-    useRef(initial) { return refs[ri++] ??= { current: initial }; }, useEffect() {} };
+    useRef(initial) { return refs[ri++] ??= { current: initial }; }, useEffect(fn) { fn(); } };
   const rn = Object.fromEntries(['ActivityIndicator', 'Pressable', 'Text', 'View'].map(n => [n, n]));
   Object.assign(rn, { StyleSheet: { create: x => x }, Linking: {}, Alert: {}, Platform: { OS: 'android' }, PermissionsAndroid: {} });
   const { WebFeatureScreen } = compile('apps/mobile/src/WebFeatureScreen.tsx', { react, 'react/jsx-runtime': { jsx: element, jsxs: element }, 'react-native': rn,
     'react-native-webview': { __esModule: true, default: 'WebView' }, 'expo-device': { isDevice: false }, './mobileWebBridge': bridge(),
+    './deviceStudyProbe': compile('apps/mobile/src/deviceStudyProbe.ts'),
     './nativeAppSettings': settings(), './cameraPermission': {}, './supabase': { supabase: { auth: {
       getSession: async () => ({ data: { session: { user: { id: 'user1' } } } }), getUser: async () => ({ data: { user: { id: 'user1' } } }),
     }, functions: { invoke: async () => ({ data: { user_id: 'user1', verification_type: 'magiclink', token_hash: 'test-hash' } }) } } } });
   const renderTree = () => { vi = ri = 0; return WebFeatureScreen({ sessionUserId: 'user1', getNativeOwner: () => owner,
+    getNativeOwnerRevision: () => ownerRevision, onDeviceStudyReader: value => { deviceReader = value; },
     readSettingsSnapshot: async () => { reads++; return options.read ? await options.read() : snapshot; }, onOpenNativeSettings: value => opened.push(value), onStudyStateChanged() {}, onNativeSignOut() {}, onFallback() {} }); };
   const render = () => nodes(renderTree(), n => n.type === 'WebView')[0];
   let view = render(); refs[0].current = { injectJavaScript: value => injected.push(value) };
   view.props.onLoadStart?.({ nativeEvent: { url: 'https://study-room-attendance.vercel.app/#today', studySettingsDocumentId: documentId } });
   const message = async (body, metadata = {}) => { view.props.onMessage({ nativeEvent: { url: 'https://study-room-attendance.vercel.app/', sourceOrigin: 'https://study-room-attendance.vercel.app', isTopFrame: true, studySettingsDocumentId: documentId, data: JSON.stringify(body), ...metadata } }); await new Promise(r => setImmediate(r)); view = render(); };
-  return { render, message, injected, opened, reads: () => reads, owner: value => owner = value, nav: url => view.props.onNavigationStateChange({ url }),
+  return { render, message, injected, opened, reads: () => reads, deviceRead: session => deviceReader(session), owner: value => { if(owner!==value)ownerRevision++;owner = value; }, nav: url => view.props.onNavigationStateChange({ url }),
     load: (url = 'https://study-room-attendance.vercel.app/#settings') => { documentId++; view.props.onLoadStart?.({ nativeEvent: { url, studySettingsDocumentId: documentId } }); view.props.onNavigationStateChange({ url }); },
     hashNav: url => { view.props.onLoadStart?.({ nativeEvent: { url, studySettingsDocumentId: documentId } }); view.props.onNavigationStateChange({ url }); },
     retry() { view.props.onError(); const feedback = renderTree(); const button = nodes(feedback, n => n.type === 'Pressable' && textOf(n) === '다시 열기')[0]; assert.ok(button); button.props.onPress();
       documentId = 1; view = render(); view.props.onLoadStart({ nativeEvent: { url: 'https://study-room-attendance.vercel.app/#today', studySettingsDocumentId: documentId } }); view.props.onNavigationStateChange({ url: 'https://study-room-attendance.vercel.app/#today' }); },
     async auth() { await message({ type: 'STUDY_WEB_READY', requestId: 'auth1' }); await message({ type: 'STUDY_WEB_AUTH_OK', requestId: 'auth1', userId: 'user1' }); } };
 }
+test('actual WebView device reader authenticates and consumes native frame proof without remounting', async () => {
+  const h = screenHarness(); await h.auth();
+  const pending = h.deviceRead({ id: 'pc-session', paused: false });
+  let request;
+  const window = { location: { href: 'https://study-room-attendance.vercel.app/#today' }, dispatchEvent: event => { request = event.detail; } };window.top=window;
+  runInNewContext(h.injected.at(-1), { window, CustomEvent: class { constructor(_name, options) { this.detail = options.detail; } } });
+  assert.ok(request);await h.message({ type: 'STUDY_WEB_DEVICE_STUDY_STATE', requestId: request.requestId, state: 'allowed' });
+  assert.equal(await pending, 'allowed');
+  h.load();assert.equal(await h.deviceRead(null), 'unknown');
+});
+test('actual Java producer attaches frame origin and epoch for both device response dispatch paths', () => {
+  const source=readFileSync(path.join(root,'node_modules/react-native-webview/android/src/main/java/com/reactnativecommunity/webview/RNCWebView.java'),'utf8');
+  const flag=source.match(/final boolean settingsMessage = [\s\S]*?;/)[0];
+  const blocks=[...source.matchAll(/if \(settingsMessage\) \{[\s\S]*?\}/g)].map(m=>m[0]);assert.equal(blocks.length,2);
+  const directory=mkdtempSync(path.join(tmpdir(),'device-frame-producer-'));
+  try {
+    const file=path.join(directory,'DeviceProof.java');
+    writeFileSync(file,`import java.util.*; class WritableMap extends HashMap<String,Object>{void putBoolean(String k,boolean v){put(k,v);}void putString(String k,String v){put(k,v);}void putDouble(String k,double v){put(k,v);}}
+class DeviceProof {public static void main(String[] a){String messageType="STUDY_WEB_DEVICE_STUDY_STATE",sourceUrl="https://study-room-attendance.vercel.app";long settingsDocumentId=7;${flag}
+WritableMap data=new WritableMap(),eventData=new WritableMap();${blocks.join('\n')}
+System.out.println(data.get("isTopFrame")+"|"+data.get("sourceOrigin")+"|"+data.get("studySettingsDocumentId"));System.out.println(eventData.get("isTopFrame")+"|"+eventData.get("sourceOrigin")+"|"+eventData.get("studySettingsDocumentId"));}}`);
+    const compiled=spawnSync(javaCommand('javac'),[file],{encoding:'utf8',timeout:20000});assert.equal(compiled.status,0,compiled.stderr||compiled.error?.message);
+    const result=spawnSync(javaCommand('java'),['-cp',directory,'DeviceProof'],{encoding:'utf8',timeout:20000});assert.equal(result.status,0,result.stderr||result.error?.message);
+    assert.deepEqual(result.stdout.trim().split(/\r?\n/),['true|https://study-room-attendance.vercel.app|7.0','true|https://study-room-attendance.vercel.app|7.0']);
+  }finally{rmSync(directory,{force:true,recursive:true});}
+});
 test('actual WebView settings messages require current authenticated document and native frame proof', async () => {
   const h = screenHarness(); h.nav('https://study-room-attendance.vercel.app/#settings');
   const info = { type: 'STUDY_WEB_SETTINGS_INFO', requestId: 's1' };

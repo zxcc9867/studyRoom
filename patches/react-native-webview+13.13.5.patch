@@ -65,13 +65,14 @@ index 5932fc1..c5a03bd 100644
                }
              };
              WebViewCompat.addWebMessageListener(
-@@ -331,3 +341,19 @@ public class RNCWebView extends WebView implements LifecycleEventListener {
+@@ -331,3 +341,21 @@ public class RNCWebView extends WebView implements LifecycleEventListener {
      public void onMessage(String message, String sourceUrl) {
 +        onMessage(message, sourceUrl, null);
 +    }
 +
 +    public static boolean settingsBridgeAllowed(String type, String sourceOrigin, Boolean isTopFrame) {
-+        if (!"STUDY_WEB_SETTINGS_INFO".equals(type) && !"STUDY_WEB_OPEN_SETTINGS".equals(type)) return true;
++        if (!"STUDY_WEB_SETTINGS_INFO".equals(type) && !"STUDY_WEB_OPEN_SETTINGS".equals(type)
++                && !"STUDY_WEB_DEVICE_STUDY_STATE".equals(type)) return true;
 +        return Boolean.TRUE.equals(isTopFrame)
 +                && ("https://study-room-attendance.vercel.app".equals(sourceOrigin)
 +                    || "https://study-room-attendance.vercel.app/".equals(sourceOrigin));
@@ -81,11 +82,12 @@ index 5932fc1..c5a03bd 100644
 +        String messageType = "";
 +        try { messageType = new JSONObject(message).optString("type"); } catch (JSONException ignored) {}
 +        if (!settingsBridgeAllowed(messageType, sourceUrl, isTopFrame)) return;
-+        final boolean settingsMessage = "STUDY_WEB_SETTINGS_INFO".equals(messageType) || "STUDY_WEB_OPEN_SETTINGS".equals(messageType);
++        final boolean settingsMessage = "STUDY_WEB_SETTINGS_INFO".equals(messageType) || "STUDY_WEB_OPEN_SETTINGS".equals(messageType)
++                || "STUDY_WEB_DEVICE_STUDY_STATE".equals(messageType);
 +        final long settingsDocumentId = getStudySettingsDocumentId();
          ThemedReactContext reactContext = getThemedReactContext();
          RNCWebView mWebView = this;
-@@ -342,3 +368,8 @@ public class RNCWebView extends WebView implements LifecycleEventListener {
+@@ -342,3 +370,8 @@ public class RNCWebView extends WebView implements LifecycleEventListener {
                      }
                      WritableMap data = mRNCWebViewClient.createWebViewEvent(webView, sourceUrl);
                      data.putString("data", message);
@@ -94,7 +96,7 @@ index 5932fc1..c5a03bd 100644
 +                        data.putString("sourceOrigin", sourceUrl);
 +                        data.putDouble("studySettingsDocumentId", settingsDocumentId);
 +                    }
-@@ -353,3 +384,8 @@ public class RNCWebView extends WebView implements LifecycleEventListener {
+@@ -353,3 +386,8 @@ public class RNCWebView extends WebView implements LifecycleEventListener {
          } else {
              WritableMap eventData = Arguments.createMap();
              eventData.putString("data", message);

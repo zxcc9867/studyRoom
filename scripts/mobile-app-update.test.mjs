@@ -264,9 +264,12 @@ function appGuardHarness(result = { data: [], error: null }) {
   render();
   return { render, calls, states, gate: () => guard(), timeout: () => timers.forEach(fn => fn()), owner(id) { states[0] = id ? { user: { id } } : null; render(); } };
 }
-test('app installation guard reads only fresh current-owner active sessions without writes or bulk refresh', async () => {
+test('PC-only active study permits phone installation after fresh device proof without session writes', async () => {
   const h = appGuardHarness({ data: [{ id: 's', status: 'active', paused_at: null, lease_expires_at: null }], error: null });
-  h.owner('owner'); assert.equal(await h.gate(), 'studying');
+  h.owner('owner'); h.states[22] = false;
+  const web = all(h.render(), n => n.type === 'WebFeatureScreen')[0];
+  web.props.onDeviceStudyReader?.(async () => 'allowed');
+  assert.equal(await h.gate(), 'allowed');
   assert.deepEqual(h.calls, [['from', 'study_sessions'], ['select', 'id,status,paused_at,lease_expires_at'], ['eq', 'user_id', 'owner'], ['eq', 'status', 'active']]);
   h.states[22] = false;
   for (const signedIn of [false, true]) for (const fallback of [false, true]) {
@@ -276,9 +279,28 @@ test('app installation guard reads only fresh current-owner active sessions with
 });
 test('logged-out installation needs no server query and paused/no active study allows installation', async () => {
   const loggedOut = appGuardHarness(); assert.equal(await loggedOut.gate(), 'allowed'); assert.equal(loggedOut.calls.length, 0);
-  const empty = appGuardHarness(); empty.owner('owner'); assert.equal(await empty.gate(), 'allowed');
+  const empty = appGuardHarness(); empty.owner('owner'); empty.states[22] = false;
+  all(empty.render(), n => n.type === 'WebFeatureScreen')[0].props.onDeviceStudyReader?.(async () => 'allowed');
+  assert.equal(await empty.gate(), 'allowed');
   const paused = appGuardHarness({ data: [{ id: 's', status: 'active', paused_at: '2026-10-04T10:00:00Z', lease_expires_at: null }], error: null });
-  paused.owner('owner'); assert.equal(await paused.gate(), 'allowed');
+  paused.owner('owner'); paused.states[22] = false;
+  all(paused.render(), n => n.type === 'WebFeatureScreen')[0].props.onDeviceStudyReader?.(async () => 'allowed');
+  assert.equal(await paused.gate(), 'allowed');
+});
+
+test('phone study/camera, missing device proof and stale account proof never allow installation', async () => {
+  for (const proof of ['studying', 'unknown', null]) {
+    const h = appGuardHarness({ data: [{ id: 's', status: 'active', paused_at: null, lease_expires_at: null }], error: null });
+    h.owner('owner'); h.states[22] = false;
+    const web = all(h.render(), n => n.type === 'WebFeatureScreen')[0];
+    web.props.onDeviceStudyReader?.(proof ? async () => proof : null);
+    assert.equal(await h.gate(), proof ?? 'unknown');
+  }
+  let resolve;
+  const h = appGuardHarness(); h.owner('owner'); h.states[22] = false;
+  all(h.render(), n => n.type === 'WebFeatureScreen')[0].props.onDeviceStudyReader?.(() => new Promise(r => resolve = r));
+  const pending = h.gate(); await flush(); h.owner('other'); h.owner('owner'); resolve('allowed');
+  assert.equal(await pending, 'unknown');
 });
 
 test('App loading/login/fallback offer small settings entry while WebView settings use same controller without remount', () => {

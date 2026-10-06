@@ -1,3 +1,72 @@
+## 2026-10-06 — 기기별 설치 판정의 프레임 증명·참여 기록 경합
+
+### 상황과 원인
+
+- 기존 설치 gate는 계정 전체 active/paused_at=null을 차단했다. 사용자 기기 단위 승인 후 새 로컬 proof를 추가했으나 Java producer가 DEVICE_STUDY_STATE에 frame/origin/epoch를 넣지 않아 Android 응답이 항상 unknown이 되는 I1을 실제 producer 회귀로 확인했다.
+- 참여 기록 쓰기 실패를 무시하면 저장소 복구→reload 후 빈 기록을 PC 단독으로 오인한다. 작은 health write는 과거 참여가 기록됐다는 증명이 아니다.
+- pending을 no-session/paused snapshot으로 해제하면 reload 이전의 서버 confirm이 늦게 확정되어 설치 허용으로 바뀔 수 있다. 카메라 준비 preparing도 획득 중 기록 실패 뒤 과거 문서에서 자동 해제하면 동일 문제가 발생한다.
+
+### 해결과 재발 방지
+
+- 실제 Java producer 두 응답 경로와 top/origin/epoch policy에 새 타입을 포함하고 실제 Java source 실행 회귀를 추가했다. tracked patch와 설치 source의 reverse check 성공. 기존 camera/security/settings 경계는 유지한다.
+- 카메라 획득·서버 confirm 전 영속 write-ahead latch를 쓰고 readback한다. 실패 시 새 실행을 시작하지 않는다. 세션 ID 쓰기 실패는 latch가 남아 unknown이다. pending/이전 문서 preparing은 snapshot만으로 해제하지 않으며 현재 문서의 긍정적으로 취소된 미실행 준비만 해제한다.
+- 현재 문서의 camera/pending operation이 idle일 때만 참여 종료 관찰을 수행한다. 계정/문서/탭 경합·외부 frame·누락 증명·timeout은 unknown, 원격 PC 세션은 updater가 변경하지 않는다.
+- RED→GREEN 회귀: native producer, quota recovery/reload, pre-commit snapshot/late commit, acquisition 중 저장 실패/repeated preparation. 실제 mounted PC-only/no mutations·camera-off/reload/pause·unwritable storage/no getUserMedia 흐름3/3 통과. 최종 전체/독립 검토/운영 상태는 progress에 기록한다.
+
+### 검증 도구 오류
+
+- 초기 웹 build TS7016(deviceStudyActivity.mjs 선언 없음) → 대응 d.mts 추가로 해결.
+- 전체1096 중2실패는 mobile-web-features VM harness에 새 deviceStudyProbe import가 없어서였다. 실제 모듈/timer를 연결해 focused81/81·전체1099/1099 통과 후 추가 경합 검증을 진행했다.
+- 새 Java producer harness의 source-launch는 첫 helper class에 main이 없어 실패했다. 플랫폼별 javac→java/-cp로 실제 producer 코드를 실행해 해결했다. patch-package 재생성은 Windows의 generated build long-path로 실패하여 최소 tracked hunk를 직접 갱신하고 reverse-check/Java 회귀로 확인했다.
+- 변경 파일: apps/mobile/{App.tsx,src/deviceStudyProbe.ts,src/WebFeatureScreen.tsx,src/mobileWebBridge.ts,src/useAppUpdate.ts}, apps/web/src/{main.tsx,deviceStudyActivity.mjs,deviceStudyActivity.d.mts}, patches/react-native-webview+13.13.5.patch, 관련 mounted/native/update 테스트.
+- 잔여 제한: 미확정 영속 잠금은 보수적으로 설치를 보류할 수 있다. 이를 조회만으로 idle로 취급하지 않는다. 공개 APK 게시 전 기존 APK의 동작이 변경됐다고 안내하지 않는다. AI502는 이번 수정과 별개다.
+- 추가 legacy 회귀: prepare(false)가 기존 camera intent를 무시하면 실패한 복구를 취소 가능한 새 준비로 오인한다. prepare에서도 read의 legacy fallback을 승계하고 unknown read는 실행하지 않도록 수정했다. 기존 intent→복구 시도 실패→active 관찰 RED/GREEN 포함 최종 scoped C0/I0/M0 및84/84 통과.
+- 최종 전체1102/1102·실패0·생략0, 실제 Android16 삭제 없는 후보6 설치/로그인·설정 snapshot 유지 확인. Jev는 metadata 외부 전송 심사 차단/미실행으로 직접 결과를 대조했다.
+
+## 2026-10-06 — 앱 기술 피드 일일 요약의 일반 연결 오류 문구
+
+### 상황
+
+Android 앱의 ‘오늘 요약·추천 보기’ 요청 후 ‘AI 요약 연결을 확인하지 못했어요’가 표시됐다.
+
+### 에러 메시지와 확인 근거
+
+```txt
+2026-10-06T12:41:43.741Z feed_ai_http {ms:1314,status:502}
+2026-10-06T12:41:43.742Z feed_ai_failed {code:upstream,status:502,ms:1316}
+2026-10-06T12:41:43.742Z feed_briefing_rejected {why:no_response}
+```
+
+- 운영 tech-feed v39 함수에 제한한 MCP 로그 조회로 확인했다. 브리핑 DB는 같은 날짜/Asia/Tokyo/대상5건/last_error=unavailable/생성 결과없음이다.
+- 실제 제공자 호출까지 진행됐으므로 인증/예약 한도 실패가 이번 요청의 원인은 아니다. 해당 브리핑 소유자의 예산 상태는 attempts6/calls8이며 실패 환급 후에도 실제 호출 수는 남는 기존 정책과 부합한다.
+- Supabase CLI에서 OPENROUTER_API_KEY와 OPENROUTER_MODEL의 이름은 존재한다. 값은 조회/출력하지 않았다. 같은 24시간 창에 다른 요약 호출 HTTP200 성공도 확인했지만 현재 새 브리핑 성공을 증명하지는 않는다.
+
+### 원인
+
+OpenRouter가 HTTP502를 반환해 읽을 요약 응답이 없었다. askFeedAi는 공급자 예외를 null로 정리하고 runBriefing은 unavailable로 저장한다. 화면은 설정 누락/공급자 실패/시간초과/응답 검증 실패를 같은 일반 연결 오류로 표시하여 사용자가 로그인 문제로 오해할 수 있다. 공급자 내부에서 왜502가 났는지는 응답본문/공급자 내부 로그 없이 단정하지 않는다.
+
+### 해결 방향과 현재 상태
+
+- 진단만 수행했다. 공급자 일시 실패를 분리한 명확한 안내/사용자 재시도와 제한된 무료 재시도를 후속 제안한다. 무료 모델 강제·실제 호출 상한·환급·동시 생성 잠금·근거 검증을 유지해야 한다.
+- 공급자/시크릿/DB/제품 코드/APK 변경과 새 AI 호출은 수행하지 않았다. APK 재설치가 이 서버 공급자 오류를 해결한다고 안내하지 않는다.
+- 에뮬레이터의 기존 검증 계정은 수신 중지로 paused였다. 그 설정을 바꾸거나 요약 생성 버튼을 눌러 사용자 데이터/할당량을 변경하지 않았다.
+
+### 관련 파일과 검증
+
+- apps/web/src/FeedDailyBriefing.tsx, apps/web/src/techFeed.mjs
+- supabase/functions/_shared/tech-feed-briefing.mjs, tech-feed-store.ts, coach-openrouter.mjs
+- node --test supabase/functions/_shared/tech-feed-briefing.test.mjs supabase/functions/_shared/tech-feed-briefing-db.test.mjs supabase/functions/_shared/tech-feed-ai-budget-db.test.mjs:35/35통과·실패0·생략0(1675.6637ms).
+- MCP unified logs는 메시지가 log_attributes['event_message']가 아니라 최상위 event_message다. 전자는 빈 결과를 반환한다. DESCRIBE/wildcard 조회는 Backend error, body는 Field does not exist로 실패했다. 최상위 event_message와 function_id/시간창으로 제한한 SELECT가 성공했다. 빈 잘못된 필드 조회를 ‘오류 로그 없음’으로 해석하지 않는다.
+
+## 2026-10-06 — PC 단독 공부 중에도 Android 업데이트 설치 차단
+
+- 상황: 사용자가 PC 웹에서만 공부하고 휴대폰은 공부하지 않는데 앱 업데이트 설치가 막힌다고 보고했다.
+- 원인: apps/mobile/App.tsx의 beforeInstallUpdate는 기기 필터 없이 현재 계정의 active study_sessions를 읽고 paused_at=null을 studying으로 판정한다. 실행 기기 정보가 없으며 현재 PRD의 계정 전체 세션 보호를 그대로 구현했다. 최신 버전 확인/파일 다운로드는 이 gate와 별개이며 useAppUpdate.ts는 설치 직전에만 차단한다.
+- 확인: 기존 실제 App harness의 활성 세션 차단·휴식/세션없음/로그아웃 허용·오류/타임아웃/계정 경합 회귀3/3 통과. 실제 서버 데이터 생성/수정·설치 실행은 하지 않았다.
+- 미적용 개선안: 계정 전체 공부 상태와 이 휴대폰의 공부 실행 여부를 분리한다. 이 기기의 공부/카메라 사용은 휴식 후 설치, 다른 기기의 공부는 변경 없이 설치 허용, 실행 기기/서버 상태 불명은 차단한다. 최초 시작 기기만으로 재개/기기 전환을 판정하지 않으며 연동 집중 모드의 설치 후 재동기화도 확인해야 한다.
+- 현재 안전 경로: 사용자가 웹에서 잠시 쉬기→APK 설치→공부 계속하기를 선택한다. 자동 휴식/종료·로그아웃 우회·기기 상태 추정으로 제한을 제거하지 않는다.
+- 상태: 진단/UX 제안만, PRD 개정과 구현은 사용자 승인 후 진행한다. 제품 코드/운영/공개 APK 미변경.
+
 ## 2026-10-06 — Vercel 복원 캐시의 WebView 패치 충돌
 
 - 상황/에러: Actions37461255068의 tests/mobile/docs/Edge/build는 성공했으나 Vercel dpl_Ao54gjpCPRZSeNWwMtfBLTmVmybt에서 `Command "npm install" exited with 1`, patch-package의 react-native-webview+13.13.5.patch 적용 실패로 배포가 중지됐다. 기존 production alias는 이전 READY 배포를 유지한다.

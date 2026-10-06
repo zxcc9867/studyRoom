@@ -56,6 +56,7 @@ import {
 import type { Session } from "@supabase/supabase-js";
 import EmbeddedAuthGate from "./EmbeddedAuthGate";
 import { isEmbeddedStudyApp, postEmbeddedMessage } from "./embeddedAuth.mjs";
+import { bindDeviceStudyCheck, createDeviceStudyTracker, type DeviceStudyState } from "./deviceStudyActivity.mjs";
 
 import { EMAIL_OTP_LENGTH, extractEmailOtpCandidate, isValidEmailOtp, sanitizeEmailOtp } from "./authCode.mjs";
 import { SUCCESS_MESSAGE_AUTO_DISMISS_MS, shouldAutoDismissMessage } from "./appMessage.mjs";
@@ -691,6 +692,13 @@ function DashboardApp() {
   const sessionTodoSuggestionRef = useRef<string | null>(null);
   const recoveryAutoEndInFlightRef = useRef(false);
   const recoveryModalDismissedIdsRef = useRef<Set<string>>(new Set());
+  const deviceStudyTrackerRef = useRef<ReturnType<typeof createDeviceStudyTracker> | null>(null);
+  if (!deviceStudyTrackerRef.current) deviceStudyTrackerRef.current = createDeviceStudyTracker({
+    getItem: (key: string) => window.localStorage.getItem(key),
+    setItem: (key: string, value: string) => window.localStorage.setItem(key, value),
+    removeItem: (key: string) => window.localStorage.removeItem(key),
+  });
+  const readDeviceStudyRef = useRef<() => DeviceStudyState>(() => ({ userId: null, ready: false, session: null, cameraActive: false, operationPending: false }));
 
   async function initializeSession() {
     const attemptId = authInitializationAttemptRef.current + 1;
@@ -854,6 +862,22 @@ function DashboardApp() {
   const calendarMonth = selectedCalendarMonth ?? getStudyMonthKey(new Date(nowMs), timeZone);
   const activeSession = studySessions.find((item) => item.status === "active") ?? null;
   const activeSessionPaused = isStudySessionPaused(activeSession);
+
+  readDeviceStudyRef.current = () => ({
+    userId: session?.user.id ?? null,
+    ready: dashboardReady && !dashboardLoading && !dashboardError && currentUserIdRef.current === session?.user.id,
+    session: activeSession ? { id: activeSession.id, paused: activeSessionPaused } : null,
+    cameraActive: cameraEnabled || Boolean(cameraStreamRef.current?.getTracks().some(track => track.readyState === "live")),
+    operationPending: busy || cameraStatus === "starting" || cameraSessionStartingRef.current || cameraRecoveryInFlightRef.current
+      || Boolean(sessionStartRequestRef.current || actualIntentRef.current),
+  });
+  useEffect(() => bindDeviceStudyCheck(window, () => readDeviceStudyRef.current(), deviceStudyTrackerRef.current!), []);
+  useEffect(() => {
+    const deviceState = readDeviceStudyRef.current();
+    if (session?.user.id && deviceState.ready && !deviceState.cameraActive && !deviceState.operationPending) {
+      deviceStudyTrackerRef.current?.observe(session.user.id, deviceState.session);
+    }
+  }, [session?.user.id, dashboardReady, dashboardLoading, dashboardError, activeSession?.id, activeSessionPaused, cameraEnabled, cameraStatus, busy]);
 
   useEffect(() => {
     if (!session?.user.id || !dashboardReady) return;
@@ -3670,6 +3694,9 @@ function DashboardApp() {
         }
       }
       if (!intent) return false;
+      if (!deviceStudyTrackerRef.current?.prepare(userId)) {
+        throw new Error("이 기기의 공부 상태를 저장하지 못했어요. 저장 공간과 브라우저 설정을 확인한 뒤 다시 시도해 주세요.");
+      }
       const outcome = await flow.confirm(intent, intent.input.action === "start" ? 0 : getActiveCameraExcludedSeconds());
       if (!isCurrent()) return false;
       if (outcome.kind === "review") {
@@ -3959,6 +3986,7 @@ function DashboardApp() {
   }
 
   function rememberCameraMonitoringIntent(sessionId: string) {
+    if (session?.user.id) deviceStudyTrackerRef.current?.mark(session.user.id, sessionId);
     if (!session?.user.id || !sessionId) return;
 
     window.localStorage.setItem(
@@ -4051,6 +4079,14 @@ function DashboardApp() {
         && endSessionInFlightRef.current !== sessionId;
     };
     if (!isCurrentAttempt()) return false;
+    if (!deviceStudyTrackerRef.current?.prepare(owner, false)) {
+      const help = "이 기기의 공부 상태를 저장하지 못했어요. 저장 공간과 브라우저 설정을 확인한 뒤 다시 시도해 주세요.";
+      setCameraStatus("error");
+      setCameraDiagnosticReason(null);
+      setCameraMessage(help);
+      setMessage(help);
+      return false;
+    }
     if (restart) {
       preserveCurrentCameraExcludedSeconds();
       resetPresenceState();

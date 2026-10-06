@@ -2,6 +2,40 @@
 
 ## Timeline
 
+### 2026-10-06 — 기기 단위 APK 설치 제한 구현
+
+#### 완료한 작업
+
+- 사용자 구현 승인으로 prd-android-app-updates의 계정 전체 설치 제한을 기기 단위로 변경했다. PC 단독 공부는 유지하고 휴대폰 공부/카메라/준비/불명 상태만 차단한다.
+- 별도 bounded native→web proof와 strict 응답, native frame/origin/epoch 전달을 추가했다. 소유자/계정 ABA/문서·탭 변경/오류·timeout/legacy 실패는 설치 보류다.
+- 로컬 참여 기록·write-ahead latch를 추가했다. 카메라 끄기/새로고침·저장 실패/늦은 서버 확정으로 이 휴대폰의 참여가 PC 단독으로 오인되지 않게 했다. 미확정 잠금은 조회만으로 해제하지 않는다.
+- updater는 읽기 판정만 수행하며 공부 자동 휴식/종료/재개·DB·기존 출석/DND·APK 무결성/서명/설치 확인 정책을 바꾸지 않았다.
+
+#### 변경된 파일 / 검증 / 남은 작업
+
+- mobile App/app.json/WebFeatureScreen/mobileWebBridge/useAppUpdate, 새 deviceStudyProbe. web main/새 deviceStudyActivity(.mjs/.d.mts), 기존 Java patch, mobile/update/settings/web mounted 회귀와 새 device-study-install 테스트.
+- 실제 실패 RED와 수정 GREEN: PC-only 설치 gate, native proof 생산자 누락, quota→저장소 복구→reload, 미확정 commit의 pre-commit snapshot, 카메라 획득 중 저장 실패. 실제 mounted PC·phone·storage3/3, tracker12/12 통과. 최종 전체/독립 검토는 후속 기록한다.
+- 중간 전체1096 중1094통과/2실패는 새 probe import가 빠진 기존 VM 테스트 harness였다. 실제 모듈 연결 후 전체1099/1099·실패0·생략0 통과했으며 이후 경합 강화 코드를 최종 재검증한다. 제품 실패를 숨기거나 중간 결과를 최종으로 사용하지 않는다.
+- mobile:check·docs24자산/3언어·웹 tsc/Vite 및 Android assembleRelease/lintVitalRelease 성공. APK 후보0.2.3/code6/61993631bytes/SHA2569ec58c88c5972d8b9780101d804800ac46c95d46cc43d4599cc0533c6f6bea40, package/signature 이전 공개5와 동일.
+- active-context/progress/implementation-plan/trouble-shooting/업데이트 PRD 갱신. 기존 진단 이력·사용자 untracked 파일 보존. 웹 배포는 저장소 규칙에 따라 진행, APK 게시와 고정 링크 원본 갱신은 별도 승인 응답 대기.
+- 최종 local: 전체1102/1102·실패0·생략0(141908.1491ms), focused84/84·실패0·생략0(2120.0682ms), scoped 독립 리뷰 C0/I0/M0 PASS. mobile:check·docs24/3언어·tsc/Vite·Android release/lint·tracked patch reverse-check·diff 성공.
+- 실제 Android16: 동일 서명 후보6 삭제 없는 install-r Success, 로그인 유지·오늘/목표/피드/숲/설정·내페이지 메뉴·앱정보 native0.2.3/code6 재조회 확인. 공개 manifest5는 유지되어 새 updater를 사용한6→더 높은 버전 실제 설치 gate E2E는 미실행이다. 사용자 공부/회복 제출/권한/DND 데이터를 변경하지 않았다.
+- Jev 완료 주장 검증은 외부 테스트/APK/에뮬레이터 metadata 전송 보안 심사에서 차단·미실행. 우회 없이 직접 원본과 독립 리뷰 대조. 웹 커밋/배포·운영 상태는 후속 기록한다.
+
+### 2026-10-06 — Android 기술 피드 일일 요약 실패 원인 확인
+
+- 확인: 운영 tech-feed v39의 12:41:43UTC/21:41JST 요약 요청이 OpenRouter HTTP502(code=upstream,1316ms)로 실패했다. no_response 검증 기록과 오늘 대상5건/last_error=unavailable/결과없음 DB 상태가 일치한다. 로그인 전달이나 근거 부족/일일 예산 초과가 이번 요청의 원인은 아니다.
+- 검증: 공급자 호출/DB 쓰기 없이 MCP 로그·브리핑·예산 읽기 및 CLI 시크릿 이름 확인. 관련 브리핑/캐시/RLS/예산 회귀35통과·0실패·0생략(1675.6637ms). 에뮬레이터 검증 계정의 수신 중지 상태는 변경하지 않았다.
+- 제안/남은 작업: unavailable의 세부 사유를 안전하게 전달하고 502 같은 공급자 일시 실패에는 명확한 안내/제한된 무료 재시도를 제공한다. 공급자 내부 장애 원인은 미확정이며 현재 성공 생성 재검증은 하지 않았다. 후속 구현 승인 필요.
+- 변경: active-context/progress/trouble-shooting 진단만 로컬 갱신. 새 AI 호출·사용자 데이터/설정·제품 코드·공개 APK·커밋/푸시/배포 변경 없음.
+
+### 2026-10-06 — PC 공부 중 APK 설치 차단 진단
+
+- 확인: 설치 gate가 현재 계정 전체 active/paused_at=null을 차단하고 기기를 구분하지 않는다(App.tsx193~213/useAppUpdate.ts72~86). 확인/다운로드와 설치 gate는 별개이다.
+- 검증: 기존 App guard·로그아웃/휴식 허용·오류/계정 경합 회귀3/3·실패0·생략0. 사용자 데이터로 재현하거나 설치 제한을 우회하지 않았다.
+- 제안/남은 작업: 이 휴대폰의 실제 공부/카메라 수행 때만 설치를 막고 PC 단독 공부는 유지하며 업데이트 허용. 현재 실행 기기 판정과 집중 모드 재동기화 안전성 설계를 확정하고 기존 PRD를 개정해야 한다. 사용자 구현 승인은 아직 없다.
+- 변경: active-context/progress/trouble-shooting 진단 기록만 로컬 갱신. 제품·PRD 정책·DB·운영·APK 변경/커밋/푸시/재배포 없음.
+
 ### 2026-10-06 — 설정 탭 웹·APK 배포 완료
 
 - 사용자 별도 배포 요청을 확인했다. origin/main과HEAD74d3a754 및 공개 최신0.2.1/code4 확인, 버전 충돌 없음.

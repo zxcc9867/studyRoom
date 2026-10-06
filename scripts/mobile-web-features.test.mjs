@@ -23,12 +23,13 @@ function compile(relativePath, imports) {
       mobileRequire.resolve('@babel/plugin-transform-modules-commonjs'),
     ],
   }).code;
-  const context = { exports: {}, URL, require(name) {
+  const context = { exports: {}, URL, setTimeout, clearTimeout, require(name) {
     if (name === '../../packages/core/src/index.mjs') return studyCore;
     if (name === './src/AppUpdatePanel') return { AppUpdatePanel: 'AppUpdatePanel' };
     if (name === './src/NativeAppSettingsPanel') return { NativeAppSettingsPanel: 'NativeAppSettingsPanel' };
     if (name === './src/readAppSettingsSnapshot') return { readAppSettingsSnapshot: async () => null };
     if (name === './nativeAppSettings') return compile('apps/mobile/src/nativeAppSettings.ts', imports);
+    if (name === './deviceStudyProbe') return compile('apps/mobile/src/deviceStudyProbe.ts', imports);
     if (name === './src/useAppUpdate') return { useAppUpdate: () => ({}) };
     if (name === './src/FocusStatusPanel') return compile('apps/mobile/src/FocusStatusPanel.tsx', imports);
     if (name === './focusStatus') return compile('apps/mobile/src/focusStatus.ts', imports);
