@@ -21,6 +21,9 @@
 - 최종 local: 전체1102/1102·실패0·생략0(141908.1491ms), focused84/84·실패0·생략0(2120.0682ms), scoped 독립 리뷰 C0/I0/M0 PASS. mobile:check·docs24/3언어·tsc/Vite·Android release/lint·tracked patch reverse-check·diff 성공.
 - 실제 Android16: 동일 서명 후보6 삭제 없는 install-r Success, 로그인 유지·오늘/목표/피드/숲/설정·내페이지 메뉴·앱정보 native0.2.3/code6 재조회 확인. 공개 manifest5는 유지되어 새 updater를 사용한6→더 높은 버전 실제 설치 gate E2E는 미실행이다. 사용자 공부/회복 제출/권한/DND 데이터를 변경하지 않았다.
 - Jev 완료 주장 검증은 외부 테스트/APK/에뮬레이터 metadata 전송 보안 심사에서 차단·미실행. 우회 없이 직접 원본과 독립 리뷰 대조. 웹 커밋/배포·운영 상태는 후속 기록한다.
+- 웹 배포 완료: 제품b80aff4309eda7398124f49ad49f44cee25eaece/main·Actions37471677616 success·Vercel dpl_6QSKfLV2Kw5BgD3rEZW5CZt392WS READY/동일SHA/운영alias. HTTP200·새 bundle index-D8jT9AjA.js/DEVICE_STUDY_CHECK·DEVICE_STUDY_STATE·device-study key marker 확인. cache 없는 build로 기존 WebView patch 적용을 유지했다.
+- CI1010통과/실패0/92선택 브라우저 생략·Edge21/21·mobile/docs/build 통과. 실제 browser 포함 로컬1102/1102와 CI 숫자를 구분한다. APK 게시 승인 미응답으로 공개manifest5와 고정307→GitHub5 원본/전체필드(no-store)를 유지했다.
+- 배포 후 Android16 실제 새bundle reload/로그인·메뉴/설정 native0.2.3/code6 재조회·가로 넘침 없음 확인. 초기 로딩 전 메뉴 탐색 오류는 로딩 완료 후 정상 재검증했고 회복 작성·공부 상태·권한·DND/AI 요청은 바꾸지 않았다. 후보 APK6은 로컬/에뮬레이터 검증 파일이며 공개 출시는 승인 후 진행한다.
 
 ### 2026-10-06 — Android 기술 피드 일일 요약 실패 원인 확인
 

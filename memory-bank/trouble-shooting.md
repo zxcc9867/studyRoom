@@ -22,6 +22,8 @@
 - 잔여 제한: 미확정 영속 잠금은 보수적으로 설치를 보류할 수 있다. 이를 조회만으로 idle로 취급하지 않는다. 공개 APK 게시 전 기존 APK의 동작이 변경됐다고 안내하지 않는다. AI502는 이번 수정과 별개다.
 - 추가 legacy 회귀: prepare(false)가 기존 camera intent를 무시하면 실패한 복구를 취소 가능한 새 준비로 오인한다. prepare에서도 read의 legacy fallback을 승계하고 unknown read는 실행하지 않도록 수정했다. 기존 intent→복구 시도 실패→active 관찰 RED/GREEN 포함 최종 scoped C0/I0/M0 및84/84 통과.
 - 최종 전체1102/1102·실패0·생략0, 실제 Android16 삭제 없는 후보6 설치/로그인·설정 snapshot 유지 확인. Jev는 metadata 외부 전송 심사 차단/미실행으로 직접 결과를 대조했다.
+- 배포 도구 확인: Vercel get_deployment에 teamId 없이 요청하면 Internal error였다. 기존 primary .vercel/project.json의 공개 project/org ID를 읽고 teamId를 명시한 list/get은 정상 동작했다. 실제 새 배포READY·제품SHA/alias/HTTP200 확인으로 connector 오프라인이라고 단정하지 않았다.
+- 운영 emulator reload 직후 메뉴/버튼 탐색은 초기 로딩 때문에 Requested menu missing/Enabled button missing으로 실패했다. 로딩 완료 후 같은 실제bundle/로그인/설정 snapshot 재조회 성공, 제품 변경을 추가하지 않았다.
 
 ## 2026-10-06 — 앱 기술 피드 일일 요약의 일반 연결 오류 문구
 

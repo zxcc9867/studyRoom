@@ -6,13 +6,16 @@
 - 완료: 설치 직전 소유자 경계의 서버 세션 조회와 현재 최상위 WebView의 참여/카메라/준비 상태를 함께 검사한다. PC 단독 공부는 변경하지 않고 허용, 이 휴대폰의 실제 실행과 불명 상태는 차단한다. updater에 휴식/종료/재개 RPC를 넣지 않았다.
 - 안전성: true native frame/origin/document epoch·owner/navigation revision 검증, 5초 bounded probe, stale/누락/legacy 응답 차단. 카메라 끄기·새로고침 뒤에도 참여 기록을 유지하며 확정된 참여의 휴식/종료 관찰만 해제한다.
 - 저장 실패: 카메라 획득/서버 확정 전에 영속 latch를 확인하고 실패 시 실행하지 않는다. 확정 결과 세션 ID 저장 실패·미확정 요청·이전 문서 preparing은 unknown으로 유지한다. 같은 문서에서 실제 실행 없이 취소한 준비만 해제한다.
-- 검증: focused/native 회귀와 실제 mounted PC 허용·휴대폰 참여·저장 실패 흐름 통과. Android release/lint·웹 build·mobile:check·docs:check 통과. 전체 최종 회귀와 독립 검토/운영 웹 배포를 마무리 중이며 완료 증거는 후속 기록한다.
+- 검증: focused/native·실제 mounted PC 허용/휴대폰 참여/저장 실패, 전체 회귀·독립 검토·Android release/lint·웹 build·mobile:check·docs:check 모두 통과. 운영 웹 배포도 완료했으며 아래 최종 증거를 기준으로 한다.
 - APK 후보: 0.2.3/code6/61993631bytes/SHA2569ec58c88c5972d8b9780101d804800ac46c95d46cc43d4599cc0533c6f6bea40. 실제 package/min24/target35와 기존 signer 동일·apksigner 성공. 공개 APK5와 고정 링크 원본은 게시 승인 전 유지한다.
-- 다음 작업: 최종 검증→웹 production 배포, Android16 로그인/설정 유지 확인. APK 게시/고정 링크 갱신 승인은 질문했으나 아직 응답이 없다. 기존 APK에서 새 제한이 적용됐다고 안내하지 않는다.
+- 남은 작업: APK 게시/고정 링크 갱신 승인 응답 후 후보6을 공개한다. 웹 배포/Android16 로그인·설정 검증은 완료다. 기존 APK에서 새 제한이 적용됐다고 안내하지 않는다.
 - 관련 파일: mobile App/WebFeatureScreen/mobileWebBridge/useAppUpdate/deviceStudyProbe, web main/deviceStudyActivity, 기존 WebView Java patch 및 회귀 테스트. DB/RLS/집중 모드·출석 정책 변경 없음.
 - 최종 로컬 검증: 전체1102/1102·실패0·생략0(141908.1491ms/exit0), focused84/84·실패0·생략0(2120.0682ms), 독립 scoped C0/I0/M0 PASS. mobile:check·docs24자산/3언어·웹 tsc/Vite·Android release/lint·patch reverse-check·diff 통과.
 - Android16: 실제 동일 서명 APK6 install-r Success, 실제 version0.2.3/code6·로그인 유지·5탭/내페이지·설정 snapshot 재조회 확인. 기존 회복 모달은 닫기만 했고 제출·공부 시작/휴식·권한/DND/피드 생성은 하지 않았다. 실제 설치 gate는 VM/Java/mounted 경계로 검증했으며 더 높은 운영 APK를 이용한 installer E2E는 이번 후보에서 실행하지 않았다.
 - Jev 검증 요청은 외부 metadata 전송 보안 심사에서 차단돼 미실행이다. 우회/재요청 없이 실제 로그·APK 도구 결과·리뷰를 직접 대조했다. 제품 작업은 막히지 않았다.
+- 운영 웹 완료: 제품b80aff4309eda7398124f49ad49f44cee25eaece/main, Actions37471677616 success, Vercel dpl_6QSKfLV2Kw5BgD3rEZW5CZt392WS READY·동일SHA·운영alias. HTTP200/실제bundle index-D8jT9AjA.js의 새 기기 판정 marker 확인. CI1010통과/실패0/92선택 브라우저 생략과 로컬1102/1102를 구분하며 Edge21/21·mobile/docs/build 성공.
+- 공개 APK: 운영 manifest200/no-store의0.2.2/code5/전체필드와 고정APK307의 기존GitHub5 원본이 유지됨을 확인했다. 새APK6 게시 승인은 미응답 상태다. 후보6은 Android16에만 설치됐으며 사용자가 새 APK를 설치하지 않으면 기존 계정 단위 guard는 유지된다.
+- 배포 후 Android16: 실제 새 운영 bundle reload 뒤 로그인/5탭·내페이지/설정·native0.2.3/code6 snapshot 재조회·가로 넘침 없음 확인. 회복 모달은 닫기만 하고 제출하지 않았다. 초기 로딩 전 메뉴/버튼 탐색 실패는 기다린 뒤 정상 확인했으며 제품 기능 오류로 기록하지 않는다.
 
 ## 현재 작업 — 2026-10-06 앱 기술 피드 오늘 요약 오류 진단
 
