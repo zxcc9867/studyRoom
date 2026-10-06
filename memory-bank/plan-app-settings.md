@@ -57,3 +57,6 @@ Ownership: root coordinator의 검증과 memory-bank (worker 코드 변경하지
 
 - 사용자의 별도 ‘배포해줘야지’ 요청으로 출시 단계를 승인했다. 구현 단계의 미배포 기록은 당시 사실로 보존한다.
 - 후보5와 공개4의 버전·동일 signer·실제 크기/해시를 재확인하고, GitHub APK 게시/익명 검증 → main/GitHub Actions → Vercel READY/고정 안내·출시 JSON·APK 검증 순서로 진행한다. private/generated/output 전체는 커밋하거나 공개하지 않는다.
+- [x] 공개 APK0.2.2/code5·고정 안내/JSON/307·운영 웹 배포 완료. 제품890bb587/Actions37461712217 success/Vercel dpl_3yExFk4xX5D3hp1z2SSBY3qPuK45 READY·운영200·실제 설정 bundle·전체 익명61990159bytes/게시SHA256 일치.
+- [x] 로컬browser1084/1084·실패0·생략0, LinuxCI995통과/실패0/89선택생략·Edge21/21·mobile/docs/build 성공. Java 실행명·복원캐시 패치 충돌의 실패와 해결은 trouble-shooting에 보존한다.
+- [x] Android16 실제 운영 웹 reload/로그인 유지·하단5탭·설정에서 실제버전5/네이티브 업데이트·최신공개5 확인·닫기·명시적 재조회 latest 확인. 실공부/DND/실휴대폰/OEM E2E는 미실행이며 기존 제한을 유지한다.

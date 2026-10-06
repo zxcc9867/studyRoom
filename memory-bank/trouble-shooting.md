@@ -1,9 +1,17 @@
+## 2026-10-06 — Vercel 복원 캐시의 WebView 패치 충돌
+
+- 상황/에러: Actions37461255068의 tests/mobile/docs/Edge/build는 성공했으나 Vercel dpl_Ao54gjpCPRZSeNWwMtfBLTmVmybt에서 `Command "npm install" exited with 1`, patch-package의 react-native-webview+13.13.5.patch 적용 실패로 배포가 중지됐다. 기존 production alias는 이전 READY 배포를 유지한다.
+- 확인 근거/판단: Vercel 로그는 이전 dpl_GKGN3d6CvD9n9B64oewXN6pwcHsn의 build cache 복원 후 npm install/postinstall 실패를 보여준다. 같은 소스의 Ubuntu npm ci/patch-package는 통과했으므로 캐시에 남은 이전 패치가 유력한 원인이다. 캐시 없는 빌드 성공 전 확정하지 않는다.
+- 조치: 기존 workflow_dispatch의 clean_build=true로 Actions37461712217을 실행했다. Vercel CLI --force로 캐시 없이 설치하며 patch나 제품 코드·APK 파일·운영 환경변수를 바꾸지 않는다. 결과를 후속 확인한다.
+- 해결 확인: Actions37461712217 success/Vercel dpl_3yExFk4xX5D3hp1z2SSBY3qPuK45 READY. 실제 로그 `Skipping build cache, deployment was triggered without cache.`, `react-native-webview@13.13.5 ✔`, `Deployment completed` 확인. 동일 패치/제품 소스로 clean 설치 성공하므로 이전 patched dependency 캐시 충돌로 판단한다. 모바일 patch 변경 배포에서 같은 실패가 발생하면 기존 clean_build=true를 사용하고 postinstall 검사를 우회하지 않는다.
+
 ## 2026-10-06 — 운영 CI의 Java 테스트 경로 이식성
 
 - 상황/에러: 설정 출시 커밋3e9a91fc의 Actions37460243603이 Ubuntu 테스트 단계에서 실패했다. `spawnSync /usr/lib/jvm/temurin-17-jdk-amd64/bin/java.exe ENOENT` 및 `javac.exe ENOENT`; 992통과/2실패/89선택 브라우저 생략이며 후속 빌드·운영 배포는 실행되지 않았다. 기존 운영 웹은 유지됐다.
 - 원인: 새 실제 Java 회귀 테스트 두 개가 Windows의 실행 파일 이름을 Linux JAVA_HOME에도 적용했다. APK/제품 코드 문제가 아니라 테스트 실행 도구 경로 오류다.
 - 해결: scripts/mobile-app-settings.test.mjs의 도구 경로를 플랫폼별 java/java.exe·javac/javac.exe로 분리하고 JAVA_HOME 없는 Linux는 PATH를 사용한다. Windows/Linux·JAVA_HOME 유무 회귀표에서 기존 구현의 실제 경로 AssertionError RED를 확인한 뒤 GREEN으로 수정했다.
 - 검증/재발 방지: focused native/update/web/camera72/72·실패0·생략0, 실제 Chromium 포함 전체1084/1084·실패0·생략0(143558.3525ms/exit0). 실제 Linux CI를 다시 실행한다. 테스트만 변경하므로 공개 immutable APK5의 제품 바이트·서명·태그는 변경하지 않는다.
+- Linux 결과: Actions37461712217의 실제 Java 실행 포함995통과/실패0/89선택 브라우저 생략. 생략된 browser 검사는 로컬 Chromium1084/1084로 보완했으며 두 결과를 합산하거나 전체 CI 생략0으로 보고하지 않는다.
 
 ## 2026-10-06 — 설정 출시5 메타데이터와 다운로드 테스트 기대값
 

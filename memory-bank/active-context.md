@@ -9,10 +9,15 @@
 - 검증: 실제 Chromium 포함 전체1083/1083·실패0·생략0(157.679초), mobile:check·웹 tsc/Vite1730모듈·docs24자산/3언어·diff 통과. Android release/lint327tasks/27초 성공, 실제0.2.2/code5/기존 signer 일치.
 - Android16: 삭제 없이 install-r/로그인 유지, 새 웹5탭/설정/실제버전5·업데이트/권한/집중창 진입·AndroidAppInfo 복귀·명시적 정보 재조회 확인. 새 웹은 에뮬레이터에서만 local asset interception하여 운영 미변경. 실제 회복 제출·공부 데이터 생성·권한 변경·DND 실행은 하지 않았고 active timer/camera 정책은 mounted/native 회귀로 검증했다.
 - 제한: native 출시 재확인은 기존12초 timeout으로 실패 상태/재시도를 확인했다. OS/modal 복귀 DOM focus0이며 자동 갱신은 보장하지 않는다; ‘앱 정보 다시 확인’은 실제 snapshot을 갱신한다. 실휴대폰/OEM/실제 공부 중 설치·카메라·DND E2E는 별도 확인이 필요하다.
-- 최종 검토: 통합 review C0/I0/M0 PASS, 독립71/71·실패0·생략0 및 patch reverse-check 통과. Jev 완료 근거3건 verified/auto. 현재 HEAD는 기준74d3a754 그대로이며 미커밋 변경과 로컬 증거를 보존한다.
+- 구현 단계 최종 검토: 통합 review C0/I0/M0 PASS, 독립71/71·실패0·생략0 및 patch reverse-check 통과. 당시 Jev 완료 근거3건 verified/auto, 기준HEAD74d3a754에서 미커밋 변경을 보존했다. 후속 배포 결과는 아래 별도 기록한다.
 - 배포 승인/진행: 사용자가 이어서 ‘배포해줘야지’로 웹·새 APK·고정 링크 갱신을 요청했다. GitHub 공개 최신은0.2.1/code4, origin/main과HEAD74d3a754 일치로 충돌 없음을 확인했다. 동일 서명0.2.2/code5 APK 게시·실제 다운로드 검증 후 main을 배포한다. 완료 증거는 후속 기록한다.
 - 배포 직전 재검증: 최종1083/1083·실패0·생략0(161.053초), focused 출시31/31 및 mobile/build/docs/diff 통과. 초기 fixture page.goto의5초 timeout을15초 navigation 한정으로 분리했으며 제품/API/5초 조작 제한은 변경하지 않았다.
 - 게시/CI 상태: 3e9a91fc를 main에 푸시하고 android-v0.2.2-build5 Release를 공개했다. 전체 익명 APK HTTP200·61990159bytes·게시 SHA256 일치 확인. 첫 Actions37460243603은 Linux의 java.exe/javac.exe ENOENT로 테스트2개 실패하여 웹 배포되지 않았다. test-only 플랫폼 경로 수정 focused72/72 및 전체1084/1084·실패0·생략0(143.558초) 통과; CI 재배포·운영 응답 확인을 진행한다. APK 재빌드/태그 변경 없음.
+- 재배포 과정: test-only 수정890bb587 main 푸시. Actions37461255068의 모든 검사는 통과했으나 Vercel 복원 캐시의 patch-package 단계에서 WebView 새 패치가 실패했다(dpl_Ao54gjpCPRZSeNWwMtfBLTmVmybt ERROR). 기존 clean_build=true 옵션으로 Actions37461712217을 실행했으며 최종 성공 결과는 아래와 같다. 제품·APK·환경변수 변경 없음.
+- 배포 완료: Actions37461712217 success, Vercel dpl_3yExFk4xX5D3hp1z2SSBY3qPuK45 READY/운영alias/제품SHA890bb587c76cff65560eaf07f62c2e6514491035 일치. 캐시 미사용·WebView 패치 성공 로그 확인. 웹200/새 설정 bundle index-Cgp3fe--.js, 안내200/no-store, 출시JSON200/no-store/code5·전체필드, 파일307→익명200/61990159bytes/전체SHA256 일치.
+- 배포 후 Android16: 실제 운영 웹을 reload하여 로그인 유지·설정5구역·하단5탭·실제 설치0.2.2/code5 조회, 앱 업데이트 창 열기·명시적 최신버전 다시 확인 성공(최신0.2.2/code5), 닫기·정보 재조회 updaterStatus=latest 확인. 이전 구현 단계의12초 network failure는 이번 실제 공개 출시 조회에서 해소됐지만 OEM/실공부 E2E 검증을 대신하지 않는다. 권한/zen_mode0·공부 데이터 변경 없음.
+- 최종 근거: 로컬1084/1084·실패0·생략0; Linux CI995통과/실패0/89선택 브라우저 생략, Edge21/21·mobile/docs/build 성공. 배포 완료 주장 검증용 Jev 외부 전송은 보안 심사로 차단되어 재시도하지 않았으며 원본 로그/실제 응답/해시/기기 상태를 직접 대조했다. 외부 검증 성공으로 기록하지 않는다.
+- 다음 작업: 웹 새로고침, 기존 Android 앱은 고정 /download/android 안내 또는 기존 updater에서 삭제 없이0.2.2/code5 설치. 새 버전은 설정→앱정보→앱업데이트를 사용한다. 웹 배포만으로 기존 APK 바이너리가 자동 교체되지는 않는다.
 - 주의: 이전 구현 단계의 미배포 제한은 위 별도 배포 요청으로 해제됐다. 공개 대상은 검증 APK 한 개와 제품/출시 메타데이터뿐이며 private/generated/output를 일괄 공개하지 않는다. APK61990159bytes/SHA256b1e98d2899fe6b3b9000a4365ed813707672f4d18c8090c539ed02c4b6ac176f.
 
 

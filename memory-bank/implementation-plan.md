@@ -8,6 +8,8 @@
 - WebView Java 패치가 실제 isMainFrame/sourceOrigin 및 문서 epoch를 제공한다. epoch는 onPageStarted에서만 증가하며 hash/history 이동은 인증을 유지한다. 실제 reload/new-document, 소유자/owner revision, 문서/navigation revision, 오래된/누락 epoch는 새 설정 bridge에서 fail-closed한다. retryKey 재생성 때는 native epoch 기준을 초기화한다. legacy JavascriptInterface는 새 설정 메시지를 거절한다.
 - DB·RLS·인증·출석/4시 공부일·집중 정책·API 스키마 변경 없음. 기존 카메라 Java 정책/무결성·동일 서명·Android 확인 절차를 유지한다.
 - 로컬 후보0.2.2/code5, 기존 패키지/서명 유지. 이번 작업은 커밋/푸시/운영 배포/공개 APK·출시 JSON·고정 링크 변경 없이 검증까지 진행한다. 게시 전 버전 충돌 재확인 및 배포는 별도 사용자 요청이 필요하다.
+- 후속 사용자 배포 승인으로0.2.2/code5 공개 완료: immutable GitHub android-v0.2.2-build5 APK61990159bytes/SHA256b1e98d2899fe6b3b9000a4365ed813707672f4d18c8090c539ed02c4b6ac176f, 고정 안내/JSON/307 같은 파일. 제품890bb587·Actions37461712217 success·Vercel dpl_3yExFk4xX5D3hp1z2SSBY3qPuK45 READY/운영200·실제 설정 bundle/전체 익명 APK 무결성 확인.
+- 배포 도구: JVM 테스트는 Windows/Linux 실행명을 분리한다. WebView patch 변경으로 이전 patched dependency 캐시가 충돌하면 기존 workflow_dispatch clean_build=true로 캐시 없는 Vercel 설치를 실행하고 패치 적용 성공을 확인한다. postinstall/보안 검사를 건너뛰지 않는다.
 
 ## Supabase 변경 이력 — 2026-10-05 공부일 기준
 

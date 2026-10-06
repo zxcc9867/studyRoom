@@ -2,13 +2,19 @@
 
 ## Timeline
 
-### 2026-10-06 — 설정 탭 웹·APK 배포 진행
+### 2026-10-06 — 설정 탭 웹·APK 배포 완료
 
 - 사용자 별도 배포 요청을 확인했다. origin/main과HEAD74d3a754 및 공개 최신0.2.1/code4 확인, 버전 충돌 없음.
 - 실제 APK0.2.2/code5·패키지com.jini9867.studyroomattendance·61990159bytes/SHA256b1e98d2899fe6b3b9000a4365ed813707672f4d18c8090c539ed02c4b6ac176f 재확인. 공개4와 서명SHA256이 동일하며 apksigner 검증 통과.
 - 출시 JSON/고정307/다운로드 안내를 후보5에 맞춰 로컬 갱신한다. 파일 게시·전체 익명 다운로드 검증을 먼저 하고 GitHub Actions main 배포 후 실제 운영 응답을 확인한다. 배포 완료로 미리 기록하지 않는다.
 - 최종 배포 전 검사: browser 포함1083/1083·실패0·생략0(161053.158ms/exit0), focused 출시31/31, mobile:check·docs24자산/3언어·tsc/Vite1730모듈·diff 통과. 중간 metadata 기대값 및 fixture 초기 navigation timeout 실패는 trouble-shooting과 별도 로그로 보존하고 최종 결과와 구분한다.
 - 제품3e9a91fc main 푸시 및 GitHub Release android-v0.2.2-build5 게시 완료. 전체 익명 APK200/61990159bytes/게시 SHA256 일치. 첫 Actions37460243603은 테스트용 Windows Java 실행명으로 Linux에서 ENOENT(992통과/2실패/89선택생략), 운영 웹은 이전 버전 유지. 플랫폼별 테스트 도구 경로 RED/GREEN·focused72/72·전체1084/1084·실패0·생략0(143558.3525ms/exit0)을 확인했고 Linux CI 재실행을 진행한다.
+- 수정890bb587 main/Actions37461255068는 tests/mobile/docs/Edge/build를 통과했으나 Vercel npm install의 WebView patch-package 단계 실패로 ERROR. 이전 cache 복원 로그를 확인하고 기존 workflow clean_build=true로 Actions37461712217 재빌드 중이다. 패치 적용 검사를 생략하거나 APK/서명/제품 코드를 변경하지 않는다.
+- 최종 완료: Actions37461712217 success/제품SHA890bb587c76cff65560eaf07f62c2e6514491035, Vercel dpl_3yExFk4xX5D3hp1z2SSBY3qPuK45 READY·동일SHA·운영alias. 캐시 미사용 후 npm install/WebView patch와 운영 build 모두 성공. GitHub immutable APK5·고정 안내/JSON/307 함께 공개됨.
+- 운영 검증 exit0: 웹200·새 설정 실제bundle index-Cgp3fe--.js, 안내 두 경로200/no-store·0.2.2/code5·설정 안내, JSON200/no-store·실제APK 기반 전체필드, 파일307→익명200·61990159bytes/SHA256b1e98d2899fe6b3b9000a4365ed813707672f4d18c8090c539ed02c4b6ac176f 일치.
+- 배포 후 실제 Android16/운영 웹: reload 로그인 유지·5탭·설정 메뉴·0.2.2/code5 readonly 조회, 설정의 앱업데이트→최신버전 다시확인에서 현재/최신5 성공, 닫기·정보재조회 latest 확인. 실제 권한 부여·공부/회복 데이터 쓰기·DND 실행·새 APK 재설치는 하지 않았다. 실기기/OEM/실공부 중 카메라·설치 검증은 남아 있다.
+- 검증 숫자: 로컬 browser1084/1084·실패0·생략0(143.558초); Linux CI995통과/실패0/89선택생략(47.016초), Edge21/21, mobile/docs/build 통과. Jev 외부 메타데이터 전송 요청은 보안 심사 차단/미실행이며 재시도 없이 원본을 직접 대조했다.
+- 후속 안내: https://study-room-attendance.vercel.app/download/android 고정 페이지를 외부 Chrome·삼성 인터넷에서 열거나 기존 앱 updater로 업데이트한다. 동일 패키지/서명으로 앱 삭제 불필요. 새 버전 진입점은 설정→앱정보이며 자동 무인 설치/OTA를 추가하지 않았다.
 
 ### 2026-10-06 — 웹·앱 공통 설정 탭 구현·로컬 검증
 
