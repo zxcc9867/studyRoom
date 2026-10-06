@@ -24,12 +24,7 @@ export function AppUpdatePanel(props: Props): React.ReactElement | null {
       <Text style={[styles.buttonText, primary && styles.primaryText, disabled && styles.muted]}>{label}</Text>
     </Pressable>
   );
-  return <View>
-    <View style={styles.bar}>
-      <Text style={styles.caption} accessibilityLiveRegion="polite">{c.status === "available" ? "새 버전으로 더 편하게 공부해요" : "앱 버전과 업데이트"}</Text>
-      {button("앱 업데이트", c.open, false, false)}
-    </View>
-    <Modal visible={c.isOpen} transparent animationType="fade" onRequestClose={c.close}>
+  return <Modal visible={c.isOpen} transparent animationType="fade" onRequestClose={c.close}>
       <View style={styles.backdrop}><View style={styles.dialog} accessibilityViewIsModal>
         <View style={styles.heading}><Text accessibilityRole="header" style={styles.title}>앱 업데이트</Text>{button("닫기", c.close, false, false)}</View>
         <ScrollView contentContainerStyle={styles.content}>
@@ -54,12 +49,9 @@ export function AppUpdatePanel(props: Props): React.ReactElement | null {
           <Text style={styles.copy}>다운로드와 설치는 직접 선택할 때만 진행해요. 공부 중에는 먼저 휴식 또는 종료하세요. 기존 앱을 삭제할 필요는 없어요.</Text>
         </ScrollView>
       </View></View>
-    </Modal>
-  </View>;
+    </Modal>;
 }
 const createStyles = (p: StudyPalette) => StyleSheet.create({
-  bar: { paddingHorizontal: 16, paddingVertical: 8, gap: 8, flexDirection: "row", flexWrap: "wrap", alignItems: "center", justifyContent: "space-between", backgroundColor: p.surface, borderBottomWidth: 1, borderColor: p.border },
-  caption: { fontSize: 14, lineHeight: 22, color: p.muted, flexShrink: 1 },
   button: { minHeight: 44, paddingHorizontal: 14, paddingVertical: 10, borderRadius: 10, borderWidth: 1, borderColor: p.border, justifyContent: "center", alignItems: "center", backgroundColor: p.surface },
   buttonText: { fontSize: 14, lineHeight: 22, fontWeight: "600", color: p.primary }, primary: { backgroundColor: p.primary, borderColor: p.primary }, primaryText: { color: p.surface }, disabled: { backgroundColor: p.primarySoft }, muted: { color: p.muted },
   backdrop: { flex: 1, padding: 16, justifyContent: "center", backgroundColor: "rgba(32,52,43,0.5)" },

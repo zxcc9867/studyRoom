@@ -13,15 +13,20 @@ import {
 } from "./mobileWebBridge";
 import { supabase } from "./supabase";
 import { prepareCameraPermission } from "./cameraPermission";
+import { handleNativeSettingsRequest, type SettingsSnapshot, type SettingsTarget } from "./nativeAppSettings";
 
 type Props = {
   sessionUserId: string;
   onStudyStateChanged: () => void;
   onNativeSignOut: () => void;
   onFallback: () => void;
+  getNativeOwner?: () => string | null;
+  getNativeOwnerRevision?: () => number;
+  readSettingsSnapshot?: () => Promise<SettingsSnapshot>;
+  onOpenNativeSettings?: (target: SettingsTarget) => void;
 };
 
-export function WebFeatureScreen({ sessionUserId, onStudyStateChanged, onNativeSignOut, onFallback }: Props) {
+export function WebFeatureScreen({ sessionUserId, onStudyStateChanged, onNativeSignOut, onFallback, getNativeOwner, getNativeOwnerRevision, readSettingsSnapshot, onOpenNativeSettings }: Props) {
   const [failed, setFailed] = useState(false);
   const [connectionError, setConnectionError] = useState("");
   const [retryKey, setRetryKey] = useState(0);
@@ -31,6 +36,15 @@ export function WebFeatureScreen({ sessionUserId, onStudyStateChanged, onNativeS
   const issuedRequestIdRef = useRef<string | null>(null);
   const activeRef = useRef(true);
   const cameraPermissionBusyRef = useRef(false);
+  const settingsPropsRef = useRef({ sessionUserId, getNativeOwner, getNativeOwnerRevision, readSettingsSnapshot, onOpenNativeSettings });
+  settingsPropsRef.current = { sessionUserId, getNativeOwner, getNativeOwnerRevision, readSettingsSnapshot, onOpenNativeSettings };
+  const documentRef = useRef(0);
+  const issuedDocumentRef = useRef<number | null>(null);
+  const authenticatedOwnerRef = useRef<string | null>(null);
+  const authenticatedOwnerRevisionRef = useRef<number | undefined>(undefined);
+  const issuedOwnerRevisionRef = useRef<number | undefined>(undefined);
+  const navigationRef = useRef(0);
+  const nativeDocumentRef = useRef<number | null>(null);
 
   useEffect(() => {
     activeRef.current = true;
@@ -51,10 +65,31 @@ export function WebFeatureScreen({ sessionUserId, onStudyStateChanged, onNativeS
     return false;
   }
 
-  async function receiveMessage(event: { nativeEvent: { data: string; url: string } }) {
+  async function receiveMessage(event: { nativeEvent: { data: string; url: string; isTopFrame?: boolean; sourceOrigin?: string; studySettingsDocumentId?: number } }) {
     if (!isTrustedWebUrl(event.nativeEvent.url)) return;
     const message = parseNativeBridgeMessage(event.nativeEvent.data);
     if (!message) return;
+
+    if (message.type === "STUDY_WEB_SETTINGS_INFO" || message.type === "STUDY_WEB_OPEN_SETTINGS") {
+      if (nativeDocumentRef.current === null || event.nativeEvent.studySettingsDocumentId !== nativeDocumentRef.current) return;
+      if (event.nativeEvent.sourceOrigin !== studyWebOrigin && event.nativeEvent.sourceOrigin !== `${studyWebOrigin}/`) return;
+      const read = settingsPropsRef.current.readSettingsSnapshot;
+      const open = settingsPropsRef.current.onOpenNativeSettings;
+      if (!read || !open) return;
+      try {
+        await handleNativeSettingsRequest(message, event.nativeEvent, {
+          current: () => ({ active: activeRef.current && !failed, owner: settingsPropsRef.current.getNativeOwner?.() ?? null,
+            ownerRevision: settingsPropsRef.current.getNativeOwnerRevision?.(), authenticatedOwnerRevision: authenticatedOwnerRevisionRef.current,
+            authenticatedOwner: authenticatedOwnerRef.current, document: documentRef.current, navigation: navigationRef.current, url: currentUrlRef.current }),
+          read, open,
+          respond: response => {
+            const url = JSON.stringify(currentUrlRef.current);
+            webViewRef.current?.injectJavaScript(`if (window.top === window && window.location.href === ${url}) { window.dispatchEvent(new CustomEvent("study-room-native-message", { detail: ${JSON.stringify(response)} })); } true;`);
+          },
+        });
+      } catch { /* Read failures time out safely in the document; never forward raw errors. */ }
+      return;
+    }
 
     if (message.type === "STUDY_WEB_CAMERA_PERMISSION_CHECK") {
       // Recovery may only read permission, never display an OS prompt or explanation.
@@ -104,12 +139,17 @@ export function WebFeatureScreen({ sessionUserId, onStudyStateChanged, onNativeS
     if (message.type === "STUDY_WEB_READY") {
       if (pendingRequestIdRef.current === message.requestId || issuedRequestIdRef.current === message.requestId) return;
       pendingRequestIdRef.current = message.requestId;
+      authenticatedOwnerRef.current = null;
+      const issuedDocument = documentRef.current;
+      const issuedOwnerRevision = settingsPropsRef.current.getNativeOwnerRevision?.();
       setConnectionError("");
       try {
         const ticket = await requestMobileWebTicket(supabase, sessionUserId);
-        if (!activeRef.current || pendingRequestIdRef.current !== message.requestId) return;
+        if (!activeRef.current || pendingRequestIdRef.current !== message.requestId || documentRef.current !== issuedDocument) return;
         if (!isTrustedWebUrl(currentUrlRef.current) || !webViewRef.current) throw new Error("Web page changed");
         issuedRequestIdRef.current = message.requestId;
+        issuedDocumentRef.current = issuedDocument;
+        issuedOwnerRevisionRef.current = issuedOwnerRevision;
         webViewRef.current.injectJavaScript(buildTicketInjection({
           requestId: message.requestId,
           userId: ticket.userId,
@@ -126,23 +166,30 @@ export function WebFeatureScreen({ sessionUserId, onStudyStateChanged, onNativeS
     }
 
     if (message.type === "STUDY_WEB_AUTH_OK") {
-      if (message.userId === sessionUserId && message.requestId === issuedRequestIdRef.current) {
+      if (message.userId === sessionUserId && message.requestId === issuedRequestIdRef.current && issuedDocumentRef.current === documentRef.current) {
+        authenticatedOwnerRef.current = message.userId;
+        authenticatedOwnerRevisionRef.current = issuedOwnerRevisionRef.current;
         setConnectionError("");
         onStudyStateChanged();
       }
       return;
     }
     if (message.type === "STUDY_WEB_AUTH_FAILED") {
+      authenticatedOwnerRef.current = null;
       if (message.requestId === issuedRequestIdRef.current) setConnectionError("로그인 연결을 다시 시도해 주세요.");
       return;
     }
     if (message.type === "STUDY_WEB_STUDY_STATE_CHANGED") onStudyStateChanged();
-    if (message.type === "STUDY_WEB_SIGN_OUT") onNativeSignOut();
+    if (message.type === "STUDY_WEB_SIGN_OUT") { authenticatedOwnerRef.current = null; onNativeSignOut(); }
   }
 
   function retry() {
     pendingRequestIdRef.current = null;
     issuedRequestIdRef.current = null;
+    authenticatedOwnerRef.current = null;
+    issuedDocumentRef.current = null;
+    ++documentRef.current;
+    nativeDocumentRef.current = null;
     currentUrlRef.current = `${studyWebOrigin}/#today`;
     setConnectionError("");
     setFailed(false);
@@ -172,11 +219,24 @@ export function WebFeatureScreen({ sessionUserId, onStudyStateChanged, onNativeS
           key={retryKey}
           ref={webViewRef}
           source={{ uri: `${studyWebOrigin}/#today` }}
-          injectedJavaScriptBeforeContentLoaded={"window.studyRoomNativeCameraPermission = true; window.studyRoomNativeCameraPermissionCheck = true; true;"}
-          injectedJavaScript={"window.studyRoomNativeCameraPermission = true; window.studyRoomNativeCameraPermissionCheck = true; true;"}
+          injectedJavaScriptBeforeContentLoaded={"if (window.top === window) { window.studyRoomNativeCameraPermission = true; window.studyRoomNativeCameraPermissionCheck = true; window.studyRoomNativeSettings = true; } true;"}
+          injectedJavaScript={"if (window.top === window) { window.studyRoomNativeCameraPermission = true; window.studyRoomNativeCameraPermissionCheck = true; window.studyRoomNativeSettings = true; } true;"}
           originWhitelist={[studyWebOrigin]}
           onShouldStartLoadWithRequest={allowNavigation}
-          onNavigationStateChange={(state) => { currentUrlRef.current = state.url; }}
+          onNavigationStateChange={(state) => { if (currentUrlRef.current !== state.url) ++navigationRef.current; currentUrlRef.current = state.url; }}
+          onLoadStart={(event) => {
+            // Android fires this for hash/history changes too. Only a native page-start epoch proves a new document.
+            const epoch = (event.nativeEvent as typeof event.nativeEvent & { studySettingsDocumentId?: number }).studySettingsDocumentId;
+            const valid = Number.isSafeInteger(epoch) && (epoch as number) > 0;
+            if (valid && epoch === nativeDocumentRef.current) return;
+            if (valid && nativeDocumentRef.current !== null && (epoch as number) < nativeDocumentRef.current) return;
+            nativeDocumentRef.current = valid ? epoch as number : null;
+            ++documentRef.current;
+            authenticatedOwnerRef.current = null;
+            pendingRequestIdRef.current = null;
+            issuedRequestIdRef.current = null;
+            issuedDocumentRef.current = null;
+          }}
           onMessage={(event) => { void receiveMessage(event); }}
           onError={() => setFailed(true)}
           startInLoadingState

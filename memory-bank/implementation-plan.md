@@ -1,3 +1,14 @@
+## 2026-10-06 — 웹·앱 공통 설정 탭
+
+- 기존 `#settings`와 서버 저장 handler를 재사용한다. 모바일 오늘·목표·기술 피드·공부 숲·설정, 데스크톱 이름 있는 설정 메뉴를 사용하고 내 페이지의 학습 이력은 유지한다. 시간대 편집·화면 구성·알림 편집은 설정에서 제공한다.
+- 앱 updater controller와 공부 중 설치 gate는 App 최상위에 유지한다. AppUpdatePanel은 상시 바 없이 기존 modal만 렌더하며 Settings에서 명시적으로 연다. 닫기/탭 이동은 다운로드 controller를 재생성하지 않는다.
+- 네이티브 설정은 PackageManager 실제 설치 버전·카메라/알림/방해금지 권한을 읽기 전용 조회한다. OS 설정·기존 집중 설정·푸시 등록·업데이트는 각각 사용자가 버튼을 선택했을 때만 실행한다. 로그인 전에는 앱 정보/권한 안내만 제공한다.
+- 메시지 계약: `STUDY_WEB_SETTINGS_INFO {requestId}` / `STUDY_WEB_OPEN_SETTINGS {requestId,target:'update'|'focus'|'permissions'}` / `STUDY_NATIVE_SETTINGS_INFO {requestId,snapshot}`. snapshot은 versionName/versionCode/updaterStatus/permissions(camera,notifications,focus)만 포함하며 URL·키·토큰·개인정보를 전달하지 않는다. 웹은 설치/다운로드 명령을 보낼 수 없다.
+- nativeAppSettings helper는 capability/top/#settings와 strict response schema를 검증한다. 미지원은 즉시 unsupported, 실패/timeout은 failure. 일반 웹과 구형 APK는 고정 설치 안내를 제공하고 실제 설치 버전을 가정하지 않는다.
+- WebView Java 패치가 실제 isMainFrame/sourceOrigin 및 문서 epoch를 제공한다. epoch는 onPageStarted에서만 증가하며 hash/history 이동은 인증을 유지한다. 실제 reload/new-document, 소유자/owner revision, 문서/navigation revision, 오래된/누락 epoch는 새 설정 bridge에서 fail-closed한다. retryKey 재생성 때는 native epoch 기준을 초기화한다. legacy JavascriptInterface는 새 설정 메시지를 거절한다.
+- DB·RLS·인증·출석/4시 공부일·집중 정책·API 스키마 변경 없음. 기존 카메라 Java 정책/무결성·동일 서명·Android 확인 절차를 유지한다.
+- 로컬 후보0.2.2/code5, 기존 패키지/서명 유지. 이번 작업은 커밋/푸시/운영 배포/공개 APK·출시 JSON·고정 링크 변경 없이 검증까지 진행한다. 게시 전 버전 충돌 재확인 및 배포는 별도 사용자 요청이 필요하다.
+
 ## Supabase 변경 이력 — 2026-10-05 공부일 기준
 
 - 변경 대상: study_day_at·study_reminder_at, start_study_session, actual_study_private.preview, daily_completed_study_seconds, get_study_period_summary, get_due_reminders, promote_attendance_by_daily_study_total.

@@ -1,7 +1,8 @@
 diff --git a/node_modules/react-native-webview/android/src/main/java/com/reactnativecommunity/webview/RNCWebChromeClient.java b/node_modules/react-native-webview/android/src/main/java/com/reactnativecommunity/webview/RNCWebChromeClient.java
+index 07f73fd..41f6bb0 100644
 --- a/node_modules/react-native-webview/android/src/main/java/com/reactnativecommunity/webview/RNCWebChromeClient.java
 +++ b/node_modules/react-native-webview/android/src/main/java/com/reactnativecommunity/webview/RNCWebChromeClient.java
-@@ -145,6 +145,24 @@ public class RNCWebChromeClient extends WebChromeClient implements LifecycleEv
+@@ -145,6 +145,24 @@ public class RNCWebChromeClient extends WebChromeClient implements LifecycleEven
      @Override
      public void onPermissionRequest(final PermissionRequest request) {
  
@@ -26,9 +27,7 @@ diff --git a/node_modules/react-native-webview/android/src/main/java/com/reactna
          grantedPermissions = new ArrayList<>();
  
          ArrayList<String> requestedAndroidPermissions = new ArrayList<>();
-@@ -171,9 +189,12 @@ public class RNCWebChromeClient extends WebChromeClient implements LifecycleEv
-             // TODO: RESOURCE_MIDI_SYSEX, RESOURCE_PROTECTED_MEDIA_ID.
-             if (androidPermission != null) {
+@@ -173,7 +191,10 @@ public class RNCWebChromeClient extends WebChromeClient implements LifecycleEven
                  if (ContextCompat.checkSelfPermission(this.mWebView.getThemedReactContext(), androidPermission) == PackageManager.PERMISSION_GRANTED) {
                      grantedPermissions.add(requestedResource);
                  } else {
@@ -40,3 +39,86 @@ diff --git a/node_modules/react-native-webview/android/src/main/java/com/reactna
                  }
              }
          }
+diff --git a/node_modules/react-native-webview/android/src/main/java/com/reactnativecommunity/webview/RNCWebView.java b/node_modules/react-native-webview/android/src/main/java/com/reactnativecommunity/webview/RNCWebView.java
+index 5932fc1..c5a03bd 100644
+--- a/node_modules/react-native-webview/android/src/main/java/com/reactnativecommunity/webview/RNCWebView.java
++++ b/node_modules/react-native-webview/android/src/main/java/com/reactnativecommunity/webview/RNCWebView.java
+@@ -254,10 +254,20 @@ public class RNCWebView extends WebView implements LifecycleEventListener {
++    private long studySettingsDocumentId = 0;
++
++    public long getStudySettingsDocumentId() {
++        return studySettingsDocumentId;
++    }
++
++    public void studySettingsDocumentStarted() {
++        ++studySettingsDocumentId;
++    }
++
+     protected void createRNCWebViewBridge(RNCWebView webView) {
+         if (WebViewFeature.isFeatureSupported(WebViewFeature.WEB_MESSAGE_LISTENER)){
+           if (this.bridgeListener == null) {
+             this.bridgeListener = new WebViewCompat.WebMessageListener() {
+               @Override
+               public void onPostMessage(@NonNull WebView view, @NonNull WebMessageCompat message, @NonNull Uri sourceOrigin, boolean isMainFrame, @NonNull JavaScriptReplyProxy replyProxy) {
+-                RNCWebView.this.onMessage(message.getData(), sourceOrigin.toString());
++                RNCWebView.this.onMessage(message.getData(), sourceOrigin.toString(), isMainFrame);
+               }
+             };
+             WebViewCompat.addWebMessageListener(
+@@ -331,3 +341,19 @@ public class RNCWebView extends WebView implements LifecycleEventListener {
+     public void onMessage(String message, String sourceUrl) {
++        onMessage(message, sourceUrl, null);
++    }
++
++    public static boolean settingsBridgeAllowed(String type, String sourceOrigin, Boolean isTopFrame) {
++        if (!"STUDY_WEB_SETTINGS_INFO".equals(type) && !"STUDY_WEB_OPEN_SETTINGS".equals(type)) return true;
++        return Boolean.TRUE.equals(isTopFrame)
++                && ("https://study-room-attendance.vercel.app".equals(sourceOrigin)
++                    || "https://study-room-attendance.vercel.app/".equals(sourceOrigin));
++    }
++
++    public void onMessage(String message, String sourceUrl, Boolean isTopFrame) {
++        String messageType = "";
++        try { messageType = new JSONObject(message).optString("type"); } catch (JSONException ignored) {}
++        if (!settingsBridgeAllowed(messageType, sourceUrl, isTopFrame)) return;
++        final boolean settingsMessage = "STUDY_WEB_SETTINGS_INFO".equals(messageType) || "STUDY_WEB_OPEN_SETTINGS".equals(messageType);
++        final long settingsDocumentId = getStudySettingsDocumentId();
+         ThemedReactContext reactContext = getThemedReactContext();
+         RNCWebView mWebView = this;
+@@ -342,3 +368,8 @@ public class RNCWebView extends WebView implements LifecycleEventListener {
+                     }
+                     WritableMap data = mRNCWebViewClient.createWebViewEvent(webView, sourceUrl);
+                     data.putString("data", message);
++                    if (settingsMessage) {
++                        data.putBoolean("isTopFrame", true);
++                        data.putString("sourceOrigin", sourceUrl);
++                        data.putDouble("studySettingsDocumentId", settingsDocumentId);
++                    }
+@@ -353,3 +384,8 @@ public class RNCWebView extends WebView implements LifecycleEventListener {
+         } else {
+             WritableMap eventData = Arguments.createMap();
+             eventData.putString("data", message);
++            if (settingsMessage) {
++                eventData.putBoolean("isTopFrame", true);
++                eventData.putString("sourceOrigin", sourceUrl);
++                eventData.putDouble("studySettingsDocumentId", settingsDocumentId);
++            }
+diff --git a/node_modules/react-native-webview/android/src/main/java/com/reactnativecommunity/webview/RNCWebViewClient.java b/node_modules/react-native-webview/android/src/main/java/com/reactnativecommunity/webview/RNCWebViewClient.java
+index 251939e..bf3a48e 100644
+--- a/node_modules/react-native-webview/android/src/main/java/com/reactnativecommunity/webview/RNCWebViewClient.java
++++ b/node_modules/react-native-webview/android/src/main/java/com/reactnativecommunity/webview/RNCWebViewClient.java
+@@ -93,3 +93,7 @@ public class RNCWebViewClient extends WebViewClient {
+       RNCWebView reactWebView = (RNCWebView) webView;
++      // Android visited-history callbacks also fire for hashes; only this callback starts a new main document.
++      reactWebView.studySettingsDocumentStarted();
++      reactWebView.dispatchEvent(webView, new TopLoadingStartEvent(
++          RNCWebViewWrapper.getReactTagFromWebView(webView), createWebViewEvent(webView, url)));
+       reactWebView.callInjectedJavaScriptBeforeContentLoaded();
+     }
+@@ -312,5 +316,6 @@ public class RNCWebViewClient extends WebViewClient {
+     protected WritableMap createWebViewEvent(WebView webView, String url) {
+         WritableMap event = Arguments.createMap();
++        event.putDouble("studySettingsDocumentId", ((RNCWebView) webView).getStudySettingsDocumentId());
+         event.putDouble("target", RNCWebViewWrapper.getReactTagFromWebView(webView));
+         // Don't use webView.getUrl() here, the URL isn't updated to the new value yet in callbacks
+         // like onPageFinished

@@ -22,9 +22,158 @@ async function readableText(locator) {
 
 async function designSnapshot(page,name,width) {
  await mkdir('output/playwright',{recursive:true});
+ if(name.startsWith('settings'))await page.evaluate(()=>window.scrollTo({top:0,left:0,behavior:'instant'}));
  const phase=process.env.APP_THEME_SNAPSHOT_PHASE==='before'?'before':'after';
  await page.screenshot({path:`output/playwright/app-theme-${name}-${phase}-${width}.png`,fullPage:true});
 }
+
+for(const width of [375,1440]) browserTest(`app settings: direct navigation and grouped controls preserve study and history at ${width}px`,()=>withApp(width,async page=>{
+ const nav=page.locator(width===375?'.mobile-navigation':'.desktop-navigation');
+ if(width===375)assert.deepEqual(await nav.getByRole('link').allTextContents(),['오늘','목표','기술 피드','공부 숲','설정']);
+ await nav.getByRole('link',{name:'설정',exact:true}).click();
+ const panel=page.locator('#settings');await panel.getByRole('heading',{name:'설정',exact:true}).waitFor();
+ assert.equal(await page.evaluate(()=>location.hash),'#settings');
+ for(const title of ['계정','공부·화면','알림','휴대폰','앱 정보'])assert.equal(await panel.getByRole('heading',{name:title,exact:true}).isVisible(),true);
+ assert.equal(await panel.locator('.settings-notifications').getAttribute('open'),null);
+ assert.equal(await panel.getByRole('combobox',{name:/시간대 검색·선택/}).count(),1);
+ assert.doesNotMatch(await panel.locator('.app-device-settings').textContent(),/설치된 버전/);
+ assert.equal(await panel.getByRole('link',{name:'Android 설치 안내',exact:true}).getAttribute('href'),'/download/android');
+ await panel.getByRole('button',{name:'휴대폰 상태 다시 확인',exact:true}).click();
+ assert.equal(await page.evaluate(()=>fixture.sessions[0].ended_at),null);
+ assert.equal(await page.evaluate(()=>fixture.calls.some(c=>/start_study|pause_actual|confirm_actual/.test(c.name))),false);
+ await designSnapshot(page,'settings',width);
+ await readableGroup(panel.locator('h1,h2,h3,p,dt,dd,summary,button,a'));
+ await touchControls(panel.locator('button,a,summary,input:not([type=checkbox])'));
+ await touchControls(nav.locator('a'));
+ const summary=panel.locator('.settings-notifications > summary');await summary.focus();await page.keyboard.press('Tab');
+ assert.equal(await page.evaluate(()=>getComputedStyle(document.activeElement).outlineStyle!=='none'),true);
+ await panel.getByRole('link',{name:'내 페이지',exact:true}).click();
+ await page.locator('#me').getByRole('heading',{name:'완료한 일 이력'}).waitFor();
+ assert.equal(await page.locator('#me .profile-timezone').count(),0);
+ await page.locator('a[href="#settings"]:visible').first().click();
+ await page.locator('#settings').getByRole('button',{name:'화면 구성',exact:true}).click();
+ await page.getByRole('button',{name:'순서 저장',exact:true}).waitFor();
+ assert.equal(await page.evaluate(()=>location.hash),'#today');
+ await page.locator('a[href="#settings"]:visible').first().click();
+ await page.evaluate(()=>{
+  const elements=[...document.querySelectorAll('h1,h2,h3,p,dt,dd,summary,button,a,input,label,small,span,strong')];
+  const sizes=elements.map(el=>parseFloat(getComputedStyle(el).fontSize)*2);
+  elements.forEach((el,i)=>el.style.fontSize=sizes[i]+'px');
+ });
+ await designSnapshot(page,'settings-enlarged',width);
+ assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),true);
+}));
+
+for(const state of ['ready','failed','failure','legacy']) browserTest(`app settings: native ${state} uses real snapshot or fixed guidance`,()=>withApp(375,async page=>{
+ await page.evaluate(state=>{
+  window.nativeMessages=[];
+  window.studyRoomNativeSettings=state!=='legacy';
+  window.ReactNativeWebView={postMessage(raw){const m=JSON.parse(raw);window.nativeMessages.push(m);if(m.type==='STUDY_WEB_SETTINGS_INFO'&&['ready','failed'].includes(state))window.dispatchEvent(new CustomEvent('study-room-native-message',{detail:{type:'STUDY_NATIVE_SETTINGS_INFO',requestId:m.requestId,snapshot:{versionName:'0.2.2',versionCode:5,updaterStatus:state==='failed'?'failed':'downloading',permissions:{camera:'denied',notifications:'granted',focus:'unknown'}}}}));}};
+ },state);
+ await page.locator('.mobile-navigation a[href="#settings"]').click();
+ const info=page.locator('.app-device-settings');await info.waitFor();
+ if(['ready','failed'].includes(state)){
+  await info.getByText('0.2.2 · 빌드 5',{exact:true}).waitFor();
+  assert.match(await info.textContent(),state==='failed'?/업데이트 확인 실패/:/다운로드 중/);
+  assert.match(await page.locator('.settings-phone').textContent(),/카메라.*미허용/s);
+  await info.getByRole('button',{name:'앱 업데이트 열기',exact:true}).click();
+  await page.getByRole('button',{name:'휴대폰 연결 설정 열기',exact:true}).click();
+  await page.getByRole('button',{name:'앱 권한 설정 열기',exact:true}).click();
+  assert.deepEqual(await page.evaluate(()=>nativeMessages.filter(m=>m.type==='STUDY_WEB_OPEN_SETTINGS').map(m=>m.target)),['update','focus','permissions']);
+ }else{
+  if(state==='failure')await page.clock.runFor(5001);
+  await info.getByRole('link',{name:'Android 설치 안내',exact:true}).waitFor();
+  assert.equal(await info.getByRole('button',{name:'앱 업데이트 열기',exact:true}).count(),0);
+  assert.doesNotMatch(await info.textContent(),/설치된 버전/);
+  assert.match(await info.textContent(),state==='failure'?/확인하지 못했어요/:/새 설정 기능/);
+ }
+ await designSnapshot(page,`settings-native-${state}`,375);
+ assert.equal(await page.evaluate(()=>nativeMessages.some(m=>/CAMERA_PERMISSION_REQUEST|INSTALL|DOWNLOAD/.test(m.type))),false);
+ if(state==='failure'){
+  await page.evaluate(()=>{window.ReactNativeWebView.postMessage=raw=>{const m=JSON.parse(raw);if(m.type==='STUDY_WEB_SETTINGS_INFO')window.dispatchEvent(new CustomEvent('study-room-native-message',{detail:{type:'STUDY_NATIVE_SETTINGS_INFO',requestId:m.requestId,snapshot:{versionName:'0.2.2',versionCode:5,updaterStatus:'failed',permissions:{camera:'unknown',notifications:'unknown',focus:'unknown'}}}}));};});
+  await info.getByRole('button',{name:'앱 정보 다시 확인',exact:true}).click();
+  await info.getByText('0.2.2 · 빌드 5',{exact:true}).waitFor();
+ }
+}));
+
+browserTest('app settings: login guidance has no account queries or invented native version',()=>withApp(375,async page=>{
+ const before=await page.evaluate(()=>fixture.calls.length);
+ await page.getByRole('button',{name:'앱 설정 안내',exact:true}).click();
+ const guide=page.getByRole('dialog',{name:'앱 설정 안내'});await guide.waitFor();
+ assert.equal(await guide.getByRole('link',{name:'Android 설치 안내',exact:true}).isVisible(),true);
+ await designSnapshot(page,'settings-preauth',375);
+ assert.doesNotMatch(await guide.textContent(),/설치된 버전|로그아웃|이메일|내 페이지/);
+ assert.equal(await page.evaluate(()=>fixture.calls.length),before);
+ await page.keyboard.press('Escape');await guide.waitFor({state:'detached'});
+},'login'));
+
+browserTest('app settings: timezone and alarm saves preserve authenticated transport and past study',()=>withApp(375,async page=>{
+ await page.locator('.mobile-navigation a[href="#settings"]').click();
+ const panel=page.locator('#settings');
+ await panel.getByRole('combobox',{name:/시간대 검색·선택/}).fill('Asia/Seoul');
+ await panel.getByRole('button',{name:'시간대 저장',exact:true}).click();
+ await panel.getByText('시간대를 저장했어요. 앞으로의 일정과 알림에 적용됩니다.',{exact:true}).waitFor();
+ assert.deepEqual(await page.evaluate(()=>fixture.calls.find(c=>c.name==='tech-feed'&&c.args.action==='timezone').args),{action:'timezone',time_zone:'Asia/Seoul'});
+ await panel.locator('.settings-notifications > summary').click();
+ await panel.getByRole('button',{name:'알람 편집',exact:true}).click();
+ await panel.getByLabel('평일 알림 시간',{exact:true}).fill('21:15');
+ await panel.getByRole('checkbox',{name:'이메일 보완 알림 사용'}).check();
+ await panel.getByRole('button',{name:'알람 저장',exact:true}).click();
+ await panel.getByRole('button',{name:'알람 편집',exact:true}).waitFor();
+ const saved=await page.evaluate(()=>fixture.calls.filter(c=>c.name==='profiles.upsert').at(-1).args);
+ assert.equal(saved.user_id,'owner');assert.equal(saved.reminder_time,'21:15');assert.equal(saved.email_reminders_enabled,true);
+ assert.equal(await page.evaluate(()=>fixture.sessions[0].ended_at),null);
+ assert.equal(await page.evaluate(()=>fixture.calls.some(c=>/start_study|pause_actual|confirm_actual/.test(c.name))),false);
+ await readableGroup(panel.locator('.settings-notification-content p,.settings-notification-content span,.settings-notification-content label,.settings-notification-content strong'));
+ await touchControls(panel.locator('.settings-notification-content button,.settings-notification-content input:not([type=checkbox])'));
+}));
+
+browserTest('app settings: layout preference save keeps study session then explicit logout uses existing auth',()=>withApp(375,async page=>{
+ await page.locator('.mobile-navigation a[href="#settings"]').click();
+ await page.getByRole('button',{name:'화면 구성',exact:true}).click();
+ await page.getByRole('button',{name:'순서 저장',exact:true}).click();
+ await page.locator('.section-order-editor').waitFor({state:'detached'});
+ const preference=await page.evaluate(()=>fixture.calls.find(c=>c.name==='profiles.upsert'&&Array.isArray(c.args.today_section_order)).args);
+ assert.ok(Array.isArray(preference.today_section_order));assert.equal(preference.user_id,'owner');
+ assert.equal(await page.evaluate(()=>fixture.sessions[0].ended_at),null);
+ await page.locator('.mobile-navigation a[href="#settings"]').click();
+ await page.getByRole('button',{name:'로그아웃',exact:true}).click();
+ await page.locator('.login-panel').waitFor();
+ assert.equal(await page.evaluate(()=>fixture.calls.filter(c=>c.name==='auth.signOut').length),1);
+}));
+
+browserTest('app settings: pending native response cannot display previous account snapshot',()=>withApp(375,async page=>{
+ await page.evaluate(()=>{window.nativeMessages=[];window.studyRoomNativeSettings=true;window.ReactNativeWebView={postMessage(raw){nativeMessages.push(JSON.parse(raw));}};});
+ await page.locator('.mobile-navigation a[href="#settings"]').click();
+ await page.waitForFunction(()=>nativeMessages.some(m=>m.type==='STUDY_WEB_SETTINGS_INFO'));
+ const first=await page.evaluate(()=>nativeMessages.find(m=>m.type==='STUDY_WEB_SETTINGS_INFO').requestId);
+ await page.evaluate(()=>fixture.changeOwner());
+ await page.waitForFunction(()=>nativeMessages.filter(m=>m.type==='STUDY_WEB_SETTINGS_INFO').length>=2);
+ await page.evaluate(requestId=>window.dispatchEvent(new CustomEvent('study-room-native-message',{detail:{type:'STUDY_NATIVE_SETTINGS_INFO',requestId,snapshot:{versionName:'stale-old-account',versionCode:5,updaterStatus:'ready',permissions:{camera:'granted',notifications:'granted',focus:'granted'}}}})),first);
+ await page.clock.runFor(5001);
+ assert.doesNotMatch(await page.locator('.app-device-settings').textContent(),/stale-old-account|설치된 버전/);
+}));
+
+browserTest('app settings: phone recheck shows pending and failure without claiming a local permission change',()=>withApp(375,async page=>{
+ await page.locator('.mobile-navigation a[href="#settings"]').click();
+ await page.evaluate(()=>fixture.holdFocus=true);
+ await page.getByRole('button',{name:'휴대폰 상태 다시 확인',exact:true}).click();
+ const checking=page.getByRole('button',{name:'휴대폰 상태 확인 중',exact:true});await checking.waitFor();
+ assert.equal(await checking.isDisabled(),true);
+ await page.evaluate(()=>{fixture.holdFocus=false;fixture.releaseFocus();});
+ await page.locator('.settings-phone').getByText('휴대폰 적용 상태를 확인하지 못했습니다.',{exact:true}).waitFor();
+ assert.equal(await page.getByRole('button',{name:'휴대폰 상태 다시 확인',exact:true}).isEnabled(),true);
+ assert.equal(await page.evaluate(()=>fixture.sessions[0].ended_at),null);
+}));
+
+browserTest('app settings: failed updater opening has an inline actionable error',()=>withApp(375,async page=>{
+ await page.evaluate(()=>{window.studyRoomNativeSettings=true;window.ReactNativeWebView={postMessage(raw){const m=JSON.parse(raw);if(m.type==='STUDY_WEB_SETTINGS_INFO')window.dispatchEvent(new CustomEvent('study-room-native-message',{detail:{type:'STUDY_NATIVE_SETTINGS_INFO',requestId:m.requestId,snapshot:{versionName:'0.2.2',versionCode:5,updaterStatus:'failed',permissions:{camera:'unknown',notifications:'unknown',focus:'unknown'}}}}));else throw new Error('test transport failure');}};});
+ await page.locator('.mobile-navigation a[href="#settings"]').click();
+ const info=page.locator('.app-device-settings');
+ await info.getByRole('button',{name:'앱 업데이트 열기',exact:true}).click();
+ await info.getByRole('alert').waitFor();
+ assert.match(await info.getByRole('alert').textContent(),/앱을 다시 열고/);
+}));
 
 for(const width of [375,1440]) {
  browserTest(`app theme: recovery dialog is readable, contained and keyboard accessible at ${width}px`,()=>withApp(width,async page=>{
@@ -66,9 +215,9 @@ for(const width of [375,1440]) {
  browserTest(`app theme: all pages share surfaces, readable hierarchy and no direction pad at ${width}px`,()=>withApp(width,async page=>{
   const metrics=[];
   for(const [route,selector] of [['goals','.goals-panel'],['forest','.study-forest-panel'],['feed','.tech-feed'],['me','.my-page-panel'],['settings','.settings-panel']]){
-   if(width===375 && ['me','settings'].includes(route)){
-    await page.getByRole('button',{name:'더 보기',exact:true}).click();
-    await page.getByRole('dialog',{name:'더 보기'}).locator(`a[href="#${route}"]`).click();
+   if(width===375 && route==='me'){
+    await page.locator('.mobile-navigation a[href="#settings"]').click();
+    await page.locator('#settings a[href="#me"]').click();
    }else await page.locator(`a[href="#${route}"]:visible`).first().click();
    await page.waitForTimeout(50);await page.clock.runFor(500);
    const panel=page.locator(selector);await panel.waitFor();
@@ -143,14 +292,10 @@ for (const width of [375, 1440]) browserTest(`dashboard redesign: shared focus h
  const timerBox=await timer.boundingBox();assert.ok(timerBox.y<700,'timer is on the first screen');
  assert.equal(await page.locator('.focus-tools').getAttribute('open'),null);
  if(width===375){
-  const more=page.getByRole('button',{name:'더 보기',exact:true});await more.click();
-  const dialog=page.getByRole('dialog',{name:'더 보기'});await dialog.waitFor();
-  await page.clock.runFor(32);
-  assert.equal(await dialog.getByRole('link',{name:'내 페이지',exact:true}).isVisible(),true);
-  assert.equal(await dialog.getByRole('link',{name:'알림 설정',exact:true}).isVisible(),true);
-  assert.equal(await dialog.getByRole('button',{name:'화면 구성',exact:true}).isVisible(),true);
-  await page.keyboard.press('Escape');await dialog.waitFor({state:'detached'});await page.clock.runFor(32);
-  assert.equal(await more.evaluate(el=>document.activeElement===el),true);
+  await page.locator('.mobile-navigation a[href="#settings"]').click();
+  assert.equal(await page.locator('#settings').getByRole('link',{name:'내 페이지',exact:true}).isVisible(),true);
+  assert.equal(await page.locator('#settings').getByRole('button',{name:'화면 구성',exact:true}).isVisible(),true);
+  await page.locator('.mobile-navigation a[href="#today"]').click();
  }
  await page.getByRole('button',{name:'잠시 쉬기',exact:true}).click();
  await page.getByRole('button',{name:'공부 계속하기',exact:true}).waitFor();
@@ -364,8 +509,10 @@ if(mode==='lease')state.sessions[0].lease_expires_at='2026-09-21T14:34:00Z';
 if(mode==='unknown'){state.current=null;state.sessions[0].paused_at=now;state.todos.forEach(t=>{t.first_started_at=null;t.unknown_allocation=true;t.evaluation_eligible=false;});}
 if(mode==='precheck'){state.sessions=[];state.recoveries=Array.from({length:5},(_,i)=>({id:'submitted-'+i,local_date:'2026-09-21',trigger_type:'missed_attendance',status:'submitted',reason:'일정 조정',makeup_todo_title:'보충 독서',pledge_todo_title:'다시 시작',created_at:now}));}
 const authSession=mode==='login'?null:{access_token:'test-only',user:{id:'owner',email:'fixture@example.test',user_metadata:{}}};
+state.profile={user_id:'owner',time_zone:'Asia/Tokyo',reminder_time:'09:00',email_reminders_enabled:false};
 const track=()=>({session_id:'session',current_todo_id:state.current,tracking_started_at:row.started_at,excluded_seconds:state.excluded,unknown_allocation:false,server_now:now,todos:state.todos.filter(t=>state.links.includes(t.id)).map(t=>({...t,open_started_at:state.sessions[0]?.paused_at||t.id!==state.current?null:row.started_at}))});
 function result(name,args){state.calls.push({name,args});
+ if(name==='get_study_focus_snapshot'&&state.holdFocus)return new Promise(resolve=>{state.releaseFocus=()=>resolve({data:null,error:{message:'test focus failure'}});});
  if(name==='get_study_focus_snapshot')return {data:state.focusError?{device_connected:true,opted_in:true,permission_granted:true,last_error:'휴대폰 연결 테스트 오류'}:null,error:null};
  if(name==='get_actual_study_state')return {data:track(),error:null};
  if(name==='checkpoint_actual_study_exclusion'){state.excluded=Math.max(state.excluded,args.p_excluded_seconds);return {data:track(),error:null};}
@@ -382,11 +529,22 @@ function result(name,args){state.calls.push({name,args});
  if(name==='get_study_period_summary')return {data:{completed_seconds:3600,completed_session_count:1,anomaly_session_count:0,cross_date_session_count:0},error:null};
  return {data:[],error:null};
 }
-function query(table){let single=false,insert=null;const q=new Proxy({}, {get(_,key){if(key==='then')return (resolve,reject)=>Promise.resolve().then(()=>{if(insert && table==='study_todos'){const added={...todo('new',''),...insert[0],id:'new'};state.todos.push(added);return {data:added,error:null};}let data=table==='profiles'?{user_id:'owner',time_zone:'Asia/Tokyo',reminder_time:'09:00',email_reminders_enabled:false}:table==='study_goals'?[{id:'goal',title:'자격증 목표',target_date:'2026-12-31',target_study_seconds:0,status:'active',created_at:now,updated_at:now}]:table==='study_sessions'?state.sessions:table==='study_todos'?state.todos:table==='study_recovery_requests'?state.recoveries:table==='study_session_todos'?state.todos.filter(t=>state.links.includes(t.id)).map(t=>({id:t.id,session_id:'session',todo_id:t.id,user_id:'owner',linked_at:now,completed_during_session:false})):[];return {data:single?(Array.isArray(data)?data[0]??null:data):data,error:null};}).then(resolve,reject);return (...args)=>{if(key==='maybeSingle'||key==='single')single=true;if(key==='insert')insert=args[0];return q;};}});return q;}
+function query(table){let single=false,insert=null;const q=new Proxy({}, {get(_,key){if(key==='then')return (resolve,reject)=>Promise.resolve().then(()=>{if(insert && table==='study_todos'){const added={...todo('new',''),...insert[0],id:'new'};state.todos.push(added);return {data:added,error:null};}let data=table==='profiles'?state.profile:table==='study_goals'?[{id:'goal',title:'자격증 목표',target_date:'2026-12-31',target_study_seconds:0,status:'active',created_at:now,updated_at:now}]:table==='study_sessions'?state.sessions:table==='study_todos'?state.todos:table==='study_recovery_requests'?state.recoveries:table==='study_session_todos'?state.todos.filter(t=>state.links.includes(t.id)).map(t=>({id:t.id,session_id:'session',todo_id:t.id,user_id:'owner',linked_at:now,completed_during_session:false})):[];return {data:single?(Array.isArray(data)?data[0]??null:data):data,error:null};}).then(resolve,reject);return (...args)=>{if(key==='maybeSingle'||key==='single')single=true;if(key==='insert')insert=args[0];if(key==='upsert'){state.calls.push({name:table+'.upsert',args:args[0]});if(table==='profiles')state.profile={...state.profile,...args[0]};}return q;};}});return q;}
 export const isSupabaseConfigured=true,supabaseUrl='https://fixture.invalid',supabaseAnonKey='test';
 const feedArticles=Array.from({length:4},(_,index)=>({id:'article-'+index,title:['실무에서 살펴보는 백엔드 아키텍처','클라우드 운영과 관측 가능성','AI 개발 도구를 안전하게 활용하는 방법','새로운 웹 기술을 작은 프로젝트로 익히기'][index],excerpt:'공개 기술 블로그의 소개를 바탕으로 구현 과정과 실제 적용 시 고려할 점을 살펴봅니다. 원문에서 구체적인 예제와 설계의 근거를 확인할 수 있어요.',url:'https://example.test/article/'+index,published_at:now,discovered_at:now,summary:null,summary_status:'pending',category:'practice',interests:['backend'],topics:['백엔드'],sources:[{id:'source',name:'기술 블로그'}],saved:false,todo_id:null,origin:'rss',matched_topics:[],excerpt_provenance:'source_excerpt'}));
 const feedResponse=action=>action==='state'?{enabled:true,service_available:true,sources:[],interests:[],last_success_at:now,preferences:{prompt:'AI와 백엔드 기술',receiving:true,revision:1},search_status:{state:'ready',last_success_at:now}}:action==='list'?{items:feedArticles,next_cursor:null,total:4}:action==='facets'?{total:4,topics:[],sources:[],languages:[{value:'ko',label:'한국어 원문',count:4}]}:action==='briefing'?{local_date:'2026-09-21',time_zone:'Asia/Tokyo',total:4,source_count:1,categories:[],topics:[{value:'backend',label:'백엔드',count:4}],eligible_count:4,analyzed_count:0,generated_at:null,status:'idle',stale:false,insights:[],highlights:[]}:{};
-export const supabase={from:query,rpc(name,args){const q={then(resolve,reject){return Promise.resolve().then(()=>result(name,args)).then(resolve,reject);},abortSignal(){return q;}};return q;},auth:{getSession:async()=>({data:{session:authSession},error:null}),onAuthStateChange:callback=>{state.changeOwner=()=>{state.sessions=[];state.todos=[];state.reportFail=true;callback('SIGNED_IN',{...authSession,user:{...authSession.user,id:'other'}});};return {data:{subscription:{unsubscribe(){}}}};},getUser:async()=>({data:{user:authSession.user},error:null})},functions:{invoke:async(name,{body}={})=>({data:name==='tech-feed'?feedResponse(body.action):{},error:null})}};
+let authCallback;
+export const supabase={
+ from:query,
+ rpc(name,args){const q={then(resolve,reject){return Promise.resolve().then(()=>result(name,args)).then(resolve,reject);},abortSignal(){return q;}};return q;},
+ auth:{
+  getSession:async()=>({data:{session:authSession},error:null}),
+  signOut:async()=>{state.calls.push({name:'auth.signOut'});authCallback('SIGNED_OUT',null);return {error:null};},
+  onAuthStateChange:callback=>{authCallback=callback;state.changeOwner=()=>{state.sessions=[];state.todos=[];state.reportFail=true;callback('SIGNED_IN',{...authSession,user:{...authSession.user,id:'other'}});};return {data:{subscription:{unsubscribe(){}}}};},
+  getUser:async()=>({data:{user:authSession?.user??null},error:null})
+ },
+ functions:{invoke:async(name,{body}={})=>{state.calls.push({name,args:body});if(name==='tech-feed'&&body.action==='timezone')state.profile.time_zone=body.time_zone;return {data:name==='tech-feed'?feedResponse(body.action):{},error:null};}}
+};
 `;
 
 async function withApp(width, run, mode='active') {
@@ -394,7 +552,7 @@ async function withApp(width, run, mode='active') {
   const js=built.outputFiles.find(f=>f.path.endsWith('.js')).text, css=built.outputFiles.find(f=>f.path.endsWith('.css'))?.text||'';
   const server=createServer((req,res)=>{res.setHeader('Content-Type',req.url==='/app.js'?'text/javascript':req.url==='/app.css'?'text/css':'text/html');res.end(req.url==='/app.js'?js:req.url==='/app.css'?css:'<!doctype html><html lang="ko"><head><meta name="viewport" content="width=device-width,initial-scale=1"><link rel="stylesheet" href="/app.css"></head><body><div id="root"></div><script src="/app.js"></script></body></html>');});
   await new Promise(resolve=>server.listen(0,'127.0.0.1',resolve));let browser;
-  try {browser=await chromium.launch({headless:true,executablePath:process.env.FEED_BROWSER_EXECUTABLE||undefined,args:['--use-fake-ui-for-media-stream','--use-fake-device-for-media-stream']});const page=await browser.newPage({viewport:{width,height:960}});page.setDefaultTimeout(5000);const errors=[];page.on('pageerror',e=>errors.push(e.message));await page.clock.install({time:new Date('2026-09-21T14:30:00Z')});await page.goto('http://127.0.0.1:'+server.address().port+'?mode='+mode);await page.locator(mode==='login'?'.login-panel':'.topbar-actions button:not([disabled])').first().waitFor();if(mode==='active'||mode==='active-empty'){await page.getByRole('dialog',{name:'카메라 인증 필요'}).waitFor();await page.keyboard.press('Escape');await page.getByRole('dialog').waitFor({state:'detached'});}await run(page);assert.deepEqual(errors,[]);}finally{await browser?.close();await new Promise(resolve=>server.close(resolve));}
+  try {browser=await chromium.launch({headless:true,executablePath:process.env.FEED_BROWSER_EXECUTABLE||undefined,args:['--use-fake-ui-for-media-stream','--use-fake-device-for-media-stream']});const page=await browser.newPage({viewport:{width,height:960}});page.setDefaultTimeout(5000);const errors=[];page.on('pageerror',e=>errors.push(e.message));await page.clock.install({time:new Date('2026-09-21T14:30:00Z')});await page.goto('http://127.0.0.1:'+server.address().port+'?mode='+mode,{timeout:15000});await page.locator(mode==='login'?'.login-panel':'.topbar-actions button:not([disabled])').first().waitFor();if(mode==='active'||mode==='active-empty'){await page.getByRole('dialog',{name:'카메라 인증 필요'}).waitFor();await page.keyboard.press('Escape');await page.getByRole('dialog').waitFor({state:'detached'});}await run(page);assert.deepEqual(errors,[]);}finally{await browser?.close();await new Promise(resolve=>server.close(resolve));}
 }
 
 

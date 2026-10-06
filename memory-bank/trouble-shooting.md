@@ -1,3 +1,45 @@
+## 2026-10-06 — 설정 출시5 메타데이터와 다운로드 테스트 기대값
+
+- 상황/에러: 출시 JSON·307·안내를0.2.2/code5로 바꾼 후 focused 다운로드 테스트3개가0.2.1/code4의 URL/버전/날짜를 기대해 AssertionError로 실패했다. 별도 브라우저 확인에도 이전 표시값 기대가 남아 있었다.
+- 원인: 실제 출시 산출물 값에 고정된 회귀 테스트는 새 출시마다 URL·실제 버전·시각·크기·SHA256 및 안내 문자열 기대값을 함께 갱신해야 한다. 제품/설치 안전성 오류가 아니며 실패 검사를 제거하지 않는다.
+- 해결/재발 방지: `scripts/android-download.test.mjs` 기대값을 실제 aapt/apksigner/Get-FileHash 확인 결과와 일치시켰다. 해당 tests와 브라우저 포함 전체 검사를 다시 실행하고 APK 전체 익명 다운로드로 게시 해시/크기를 재검증한다.
+
+### 전체 실행의 초기 브라우저 로딩 제한
+
+- 메타데이터 수정 후 전체 실행은1082통과/1실패/0생략(208.546초). 실패는 업데이트 오류 안내 case의 기능 실행 전 `withApp`의 `page.goto`에서 `Timeout 5000ms exceeded`였으며 버튼/브리지/오류 메시지 단계에 진입하지 않았다. 같은 case 단독 실행은1/1 통과했다.
+- 초기 로컬 fixture 페이지 navigation만15초 제한으로 분리했다. 기존5초 action/locator 제한·네이티브5초 query·제품 코드는 바꾸지 않는다. 전체 재실행으로 setup timeout과 기능 실패를 구분한다.
+
+## 2026-10-06 — 설정 브리지의 실제 프레임 검증과 Windows patch-package
+
+### 상황 / 원인
+
+- Android WebMessageListener는 isMainFrame/sourceOrigin을 알고 있지만 react-native-webview의 기존 JS 이벤트는 해당 정보를 전달하지 않는다. JS에서 top 여부를 주장하는 값만으로 새 설정 브리지를 신뢰하면 서브프레임 검증 근거가 없다.
+- 기존 Android 빌드 산출물이 있는 환경에서 patch-package 전체 스캔은 `Filename too long` / `fatal: adding files failed`를 냈다. Windows 경로에 slash 전용 exclude는 맞지 않았으며 `.cmd`의 pipe 정규식 인자는 `The system cannot find the path specified`로 실패했다.
+
+### 해결 / 재발 방지
+
+- 기존 WebView 패치에 새 설정 메시지 두 종류만 실제 native isTopFrame/sourceOrigin 증명을 전달한다. 외부 출처·서브프레임과 증명 없는 legacy JavascriptInterface 설정 메시지는 거절한다. 기존 카메라·인증 메시지 정책은 유지한다.
+- 생성물을 지우지 않고 Java 소스만 포함하여 직접 실행: `node node_modules/patch-package/index.js react-native-webview --include 'android.src.main.java.com.reactnativecommunity.webview.RNCWeb.*java$'`.
+- 패치 Java 소스 범위, `git apply --check --reverse`, patch-package 재적용 및 실제 `:react-native-webview:compileReleaseJavaWithJavac` 성공을 확인했다. 최종 패치는 기존 카메라 파일과 WebView/WebViewClient 세 파일이며 빌드 산출물을 포함하지 않는다. 테스트의 프레임 값만으로 native 컴파일을 대신하지 않는다.
+- 관련: `patches/react-native-webview+13.13.5.patch`, `apps/mobile/src/WebFeatureScreen.tsx`, `nativeAppSettings.ts`, `scripts/mobile-app-settings.test.mjs`. 소유자·문서·탭 revision을 확인하여 A-B-A 계정/탭 전환 중 늦은 조회 결과도 폐기한다.
+- 남은 검증: 전체 웹·Android APK 통합 및 에뮬레이터는 현재 구현 작업의 별도 완료 게이트이며 운영 배포와 구분한다.
+
+### 검토 중 발견한 hash 이동 회귀 / 수정
+
+- 첫 구현은 onLoadStart마다 인증·문서 증명을 폐기했다. 그러나 Android doUpdateVisitedHistory도 TopLoadingStartEvent를 발생시키며 RN은 onLoadStart 다음 navigation 콜백을 호출한다. 따라서 정상 `#today→#settings`도 인증이 지워져 설정 조회·열기가 거절되었다. nav만 단독 호출하는 초기 테스트는 이를 놓쳤다.
+- 실제 onPageStarted에서만 증가하는 네이티브 문서 epoch를 loading/navigation·새 설정 메시지에 전달하여 동일 문서 hash/history 이동과 실제 새 문서·동일 URL reload를 구분한다. 탭 이동은 auth를 유지하고 navigation revision으로 늦은 결과를 폐기한다. 새 문서·누락/오래된 epoch는 fail-closed한다.
+- WebView 다시 열기에서는 native epoch가1부터 다시 시작하므로 nativeDocumentRef도 초기화한다. 실제 실패 화면 버튼·재생성 epoch3→1을 검증했으며 초기화 제거의 in-memory mutation은 실패를 재현했다.
+- RED4→최종 focused113/113, 모바일 tsc, 실제 Java 컴파일 성공. 초기 review C0/I1/M0의 I1을 수정했으며 별도 scoped 재검토·최종 APK 검증을 진행한다. 실제 사용자 로그인이나 데이터를 초기화하여 해결하지 않는다.
+
+### 최종 검증 도구 / 환경
+
+- 전체 diff 검사에서 새 patch 파일의 공백만 있는 context 줄을 trailing whitespace로 검출했다. Java 동작을 바꾸지 않고 context를 줄여 정규 patch-package 적용/집중2/2/diff 검사에 통과했다. 세 Java postimage 해시가 동일하여 APK 재빌드가 필요하지 않았다. 최종 역적용 검사는 `git apply --check --reverse --unidiff-zero patches/react-native-webview+13.13.5.patch`를 사용한다. 기본 Git 역검사의 no-trailing-context 거부는 패치 적용 실패와 구분한다.
+- 격리 worktree에 웹 `.env.local`이 없어 환경값 없는 로컬 빌드가 example Supabase fallback을 사용해 에뮬레이터 인증 연결을 실패시켰다. 비공개 기존 public-app-config의 공개 URL/anon 설정을 빌드 프로세스 환경에만 전달해 재빌드했다. 환경 파일·운영 설정·토큰/키 기록 변경 없음.
+- 실제 앱 연결은 처음6초 스냅샷에서 아직 연결 중이었다. 정상 완료 후의 실제 설정5구역·로그인 유지·설치버전5를 확인했다. 초기 연결중 UI를 최종 로그인 실패로 세지 않는다.
+- 네이티브 최신 출시 재확인은 기존12초 제한에서 확인 실패 상태를 표시했다. 이를 새 버전 성공 확인으로 보고하지 않으며 기존 재시도/안내를 유지한다. 공개 최신 metadata는 여전히4이고 설치된 로컬 후보는5이다.
+- native/OS modal 복귀의 DOM focus event는 이 에뮬레이터에서0이었다. 자동focus 갱신을 보장하지 않고 실제 ‘앱 정보 다시 확인’ 버튼으로 버전·권한 snapshot을 갱신하는 경로를 확인했다. 로그인·권한·zen_mode0은 유지되었고 회복 제출·공부 데이터 생성·권한 부여는 하지 않았다.
+- Task2 최초 localhost 브라우저 실행의 `net::ERR_NETWORK_ACCESS_DENIED`는 샌드박스 환경 실패였다. 허용된 escalation으로 재실행하여 기능 RED6을 확인했다. 추가 fixture의 brace/초기 profile upsert 선택/combobox role 오류는 제품 기능 수정과 구분해 정정했다.
+
 ## 2026-10-05 — 자정 분할로 야간 공부 출석과 날짜 집계 불일치
 
 ### 상황 / 원인

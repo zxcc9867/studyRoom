@@ -2,6 +2,42 @@
 
 ## Timeline
 
+### 2026-10-06 — 설정 탭 웹·APK 배포 진행
+
+- 사용자 별도 배포 요청을 확인했다. origin/main과HEAD74d3a754 및 공개 최신0.2.1/code4 확인, 버전 충돌 없음.
+- 실제 APK0.2.2/code5·패키지com.jini9867.studyroomattendance·61990159bytes/SHA256b1e98d2899fe6b3b9000a4365ed813707672f4d18c8090c539ed02c4b6ac176f 재확인. 공개4와 서명SHA256이 동일하며 apksigner 검증 통과.
+- 출시 JSON/고정307/다운로드 안내를 후보5에 맞춰 로컬 갱신한다. 파일 게시·전체 익명 다운로드 검증을 먼저 하고 GitHub Actions main 배포 후 실제 운영 응답을 확인한다. 배포 완료로 미리 기록하지 않는다.
+- 최종 배포 전 검사: browser 포함1083/1083·실패0·생략0(161053.158ms/exit0), focused 출시31/31, mobile:check·docs24자산/3언어·tsc/Vite1730모듈·diff 통과. 중간 metadata 기대값 및 fixture 초기 navigation timeout 실패는 trouble-shooting과 별도 로그로 보존하고 최종 결과와 구분한다.
+
+### 2026-10-06 — 웹·앱 공통 설정 탭 구현·로컬 검증
+
+#### 완료한 작업
+
+- 승인된 설정 PRD/기존 업데이트 PRD 개정. 모바일 오늘·목표·기술 피드·공부 숲·설정, 데스크톱 이름 있는 설정, #settings 유지. 계정·공부/화면·접힌 알림·휴대폰·앱정보5구역과 로그인 전 안내 구현.
+- 시간대 editor만 설정으로 이동하고 내 페이지의 학습/회복/완료 이력 보존. 기존 알림·timezone·layout·signout handler/API·DB/인증·출석·집중 정책 유지.
+- root updater controller와 설치 gate 유지, 상단 상시 업데이트 바 제거. 실제 설치 버전·읽기 전용 권한, 명시적 native modal 열기, 일반 웹/구형 APK/failure 안내·재시도 지원.
+- 새 설정 bridge strict schema/true native frame·origin·document epoch·owner revision/stale 응답 방지. 초기 Android hash onLoadStart/auth 회귀 I1을 실제 이벤트 RED→GREEN 수정했고 source 재검토 C0/I0/M0. Task2 C0/I0/M0.
+
+#### 변경된 파일 / 문서
+
+- mobile App/app.json/AppUpdatePanel/WebFeatureScreen/mobileWebBridge, 새 NativeAppSettingsPanel/nativeAppSettings/readAppSettingsSnapshot, 기존 WebView Java patch.
+- web DashboardNavigation/main/appTheme, 새 AppDeviceSettings/nativeAppSettings(.mjs/.d.mts), mounted browser 및 mobile bridge/updater/import 경계 회귀 테스트.
+- prd-app-settings/plan-app-settings/prd-android-app-updates, active-context/progress/implementation-plan/trouble-shooting. 기존 문서 이력·사용자 untracked 파일 유지.
+
+#### 검증 방법
+
+- 실제 Chromium 전체1083/1083,0실패/0생략,157679.3388ms. 기준선977통과/77선택생략/0실패와 최종을 구분한다. focused native113/113, task1 재검토71/71, web29/29+unit10/10+최종settings12/12.
+- mobile:check·웹 tsc/Vite1730모듈·docs:check(24자산/3언어)·diff 성공. root lint 스크립트 없음; Android lintVitalRelease/assembleRelease327tasks27초 성공. patch-package 적용 및 최종 역적용 --unidiff-zero/집중2/2, Java 해시 불변.
+- 375/1440px·실제 글자 크기200%·AA 대비·44px·키보드 포커스/가로 넘침 검사. output/playwright/app-theme-settings-{before,after}-{375,1440}.png와 enlarged/native ready/failed/timeout/legacy/preauth 캡처.
+- 로컬 APK0.2.2/code5/61990159bytes/SHA256b1e98d2899fe6b3b9000a4365ed813707672f4d18c8090c539ed02c4b6ac176f, 기존 패키지·signer 일치. Android16 install-r 성공/로그인 유지; 실제 앱정보/권한/업데이트·집중 modal/AndroidAppInfo 복귀/명시적 snapshot 재확인. 새 웹은 이 emulator에서만 local dist interception, 운영 배포 없음.
+
+#### 남은 작업 / 다음 우선순위
+
+- 별도 배포 요청 후 버전 충돌 확인·커밋/푸시/운영 웹/새 APK 게시·고정 설치 안내·출시 JSON 갱신. 현재 공개0.2.1/code4/고정 링크는 바꾸지 않았다.
+- 실제 공부 데이터를 생성하거나 회복을 제출하지 않았으므로 live active timer/camera/DND E2E는 미실행; 해당 정책은 실제 mounted/native 회귀로 확인했다. 실휴대폰/OEM 검증은 별도이다.
+- Native 출시 재확인은 기존12초 timeout/failure·재시도를 확인했고 성공했다고 주장하지 않는다. 이 emulator의 native/OS 복귀 DOM focus0; 명시적 ‘앱 정보 다시 확인’으로 갱신 가능. 관련 환경/검토/patch 서식 오류는 trouble-shooting에 기록했다.
+- 최종 통합 리뷰 C0/I0/M0 PASS, 독립71/71·실패0·생략0 및 patch reverse-check 통과. Jev 완료 주장3건 verified/auto이며 추가 반복 호출하지 않았다. linked worktree·미커밋 변경·로컬 증거를 보존한다. 사용자 요청 없이 커밋·push·배포·삭제하지 않는다.
+
 ### 2026-10-05 — 새벽 4시 공부일과 세션 전체 귀속
 
 #### 완료한 작업

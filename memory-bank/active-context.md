@@ -1,5 +1,20 @@
 # Active Context
 
+## 현재 작업 — 2026-10-06 웹·앱 공통 설정 탭
+
+- 작업명/목적: 모바일 다섯번째 메뉴를 설정으로 바꾸고 기존 계정·시간대·화면 구성·알림·휴대폰·앱정보를 모은다. 앱 상단 상시 업데이트 바 제거.
+- 관련 PRD/계획: prd-app-settings.md, plan-app-settings.md, prd-android-app-updates.md 개정. 기존 linked worktree codex/recovery-consistency에서 작업하고 기존 untracked 파일을 보존한다.
+- 최근 결정: 기존 저장/API/정책 유지, updater controller 최상위 유지, 새 bridge는 읽기/명시적 native 설정창 열기만. 실제 Android 프레임/출처·문서 epoch와 소유자 revision으로 외부/오래된 요청을 거절한다. hash 이동의 onLoadStart 회귀 I1을 RED/GREEN 수정·재검토했다.
+- 완료: 공통 설정5구역/하단5탭·데스크톱 설정, 시간대 편집 이동/내 페이지 이력 보존, 접힌 알림 편집·기존 로그아웃/화면 구성, 실제 앱 버전/업데이트/권한·구형 안내·로그인 전 안내. 상단 상시 업데이트 바 제거.
+- 검증: 실제 Chromium 포함 전체1083/1083·실패0·생략0(157.679초), mobile:check·웹 tsc/Vite1730모듈·docs24자산/3언어·diff 통과. Android release/lint327tasks/27초 성공, 실제0.2.2/code5/기존 signer 일치.
+- Android16: 삭제 없이 install-r/로그인 유지, 새 웹5탭/설정/실제버전5·업데이트/권한/집중창 진입·AndroidAppInfo 복귀·명시적 정보 재조회 확인. 새 웹은 에뮬레이터에서만 local asset interception하여 운영 미변경. 실제 회복 제출·공부 데이터 생성·권한 변경·DND 실행은 하지 않았고 active timer/camera 정책은 mounted/native 회귀로 검증했다.
+- 제한: native 출시 재확인은 기존12초 timeout으로 실패 상태/재시도를 확인했다. OS/modal 복귀 DOM focus0이며 자동 갱신은 보장하지 않는다; ‘앱 정보 다시 확인’은 실제 snapshot을 갱신한다. 실휴대폰/OEM/실제 공부 중 설치·카메라·DND E2E는 별도 확인이 필요하다.
+- 최종 검토: 통합 review C0/I0/M0 PASS, 독립71/71·실패0·생략0 및 patch reverse-check 통과. Jev 완료 근거3건 verified/auto. 현재 HEAD는 기준74d3a754 그대로이며 미커밋 변경과 로컬 증거를 보존한다.
+- 배포 승인/진행: 사용자가 이어서 ‘배포해줘야지’로 웹·새 APK·고정 링크 갱신을 요청했다. GitHub 공개 최신은0.2.1/code4, origin/main과HEAD74d3a754 일치로 충돌 없음을 확인했다. 동일 서명0.2.2/code5 APK 게시·실제 다운로드 검증 후 main을 배포한다. 완료 증거는 후속 기록한다.
+- 배포 직전 재검증: 최종1083/1083·실패0·생략0(161.053초), focused 출시31/31 및 mobile/build/docs/diff 통과. 초기 fixture page.goto의5초 timeout을15초 navigation 한정으로 분리했으며 제품/API/5초 조작 제한은 변경하지 않았다.
+- 주의: 이전 구현 단계의 미배포 제한은 위 별도 배포 요청으로 해제됐다. 공개 대상은 검증 APK 한 개와 제품/출시 메타데이터뿐이며 private/generated/output를 일괄 공개하지 않는다. APK61990159bytes/SHA256b1e98d2899fe6b3b9000a4365ed813707672f4d18c8090c539ed02c4b6ac176f.
+
+
 ## 현재 작업 — 2026-10-05 새벽 4시 공부일·자정 이후 출석 합산
 
 ### 현재 작업

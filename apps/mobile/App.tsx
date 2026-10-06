@@ -32,6 +32,9 @@ import { supabase } from "./src/supabase";
 import { WebFeatureScreen } from "./src/WebFeatureScreen";
 import { FocusStatusPanel } from "./src/FocusStatusPanel";
 import { AppUpdatePanel } from "./src/AppUpdatePanel";
+import { NativeAppSettingsPanel } from "./src/NativeAppSettingsPanel";
+import { readAppSettingsSnapshot } from "./src/readAppSettingsSnapshot";
+import type { SettingsTarget } from "./src/nativeAppSettings";
 import { useAppUpdate, type InstallGate } from "./src/useAppUpdate";
 import type { FocusAction, LocalFocusStatus } from "./src/focusStatus";
 
@@ -174,6 +177,21 @@ export default function App() {
     updateOwnerRef.current = { owner: updateOwner, revision: updateOwnerRef.current.revision + 1 };
   }
   const appUpdate = useAppUpdate(beforeInstallUpdate);
+  const [nativeSettingsOpen, setNativeSettingsOpen] = useState(false);
+
+  function openNativeSettings(target: SettingsTarget) {
+    if (target === "update") { setNativeSettingsOpen(false); appUpdate.open(); }
+    else if (target === "focus" && session?.user.id) { setNativeSettingsOpen(false); setFocusSettingsOpen(true); }
+    else if (target === "permissions") setNativeSettingsOpen(true);
+  }
+  const settingsPanel = <NativeAppSettingsPanel visible={nativeSettingsOpen} userId={session?.user.id ?? null}
+    palette={mobilePalette} readSnapshot={() => readAppSettingsSnapshot(appUpdate.status)} onClose={() => setNativeSettingsOpen(false)}
+    onUpdate={() => openNativeSettings("update")} onFocus={() => openNativeSettings("focus")}
+    onAppSettings={() => { void Linking.openSettings().catch(() => Alert.alert("설정 열기 실패", "휴대폰 설정 → 앱 → 독서실 → 권한에서 확인해 주세요.")); }}
+    onRegisterPush={() => void enablePush()} busy={busy} />;
+  const settingsEntry = <Pressable accessibilityRole="button" style={styles.ghostButton} onPress={() => setNativeSettingsOpen(true)}>
+    <Text style={styles.ghostButtonText}>설정</Text>
+  </Pressable>;
 
   async function beforeInstallUpdate(): Promise<InstallGate> {
     const { owner, revision } = updateOwnerRef.current;
@@ -245,6 +263,7 @@ export default function App() {
 
   useEffect(() => {
     setWebFallback(false);
+    setNativeSettingsOpen(false);
     setFocusSettingsOpen(false);
     setFocusAction(null);
     if (session?.user.id) {
@@ -835,6 +854,7 @@ export default function App() {
       <SafeAreaView style={styles.center}>
         <StatusBar barStyle="dark-content" backgroundColor={mobilePalette.canvas} />
         <AppUpdatePanel palette={mobilePalette} beforeInstall={beforeInstallUpdate} controller={appUpdate} />
+        {settingsEntry}{settingsPanel}
         <ActivityIndicator color={mobilePalette.primary} />
       </SafeAreaView>
     );
@@ -845,6 +865,7 @@ export default function App() {
       <SafeAreaView style={styles.screen}>
         <StatusBar barStyle="dark-content" backgroundColor={mobilePalette.canvas} />
         <AppUpdatePanel palette={mobilePalette} beforeInstall={beforeInstallUpdate} controller={appUpdate} />
+        {settingsEntry}{settingsPanel}
         <ScrollView contentContainerStyle={styles.loginContent} keyboardShouldPersistTaps="handled">
         <View style={styles.loginPanel}>
           <Text style={styles.kicker}>STUDY ROOM</Text>
@@ -899,6 +920,7 @@ export default function App() {
       <SafeAreaView style={styles.screen}>
         <StatusBar barStyle="dark-content" backgroundColor={mobilePalette.canvas} />
         <AppUpdatePanel palette={mobilePalette} beforeInstall={beforeInstallUpdate} controller={appUpdate} />
+        {settingsPanel}
         <FocusStatusPanel snapshot={focusSnapshot} local={localFocusStatus} error={focusError} action={focusAction}
           paused={activeSessionPaused} nowMs={nowMs} palette={mobilePalette} settingsOpen={focusSettingsOpen}
           onOpenSettings={() => setFocusSettingsOpen(true)} onCloseSettings={() => setFocusSettingsOpen(false)}
@@ -907,6 +929,10 @@ export default function App() {
         <WebFeatureScreen
           key={session.user.id}
           sessionUserId={session.user.id}
+          getNativeOwner={() => updateOwnerRef.current.owner}
+          getNativeOwnerRevision={() => updateOwnerRef.current.revision}
+          readSettingsSnapshot={() => readAppSettingsSnapshot(appUpdate.status)}
+          onOpenNativeSettings={openNativeSettings}
           onStudyStateChanged={() => {
             void refreshData(session.user.id);
             void refreshFocus(session.user.id);
@@ -926,6 +952,7 @@ export default function App() {
     <SafeAreaView style={styles.screen}>
       <StatusBar barStyle="dark-content" backgroundColor={mobilePalette.canvas} />
       <AppUpdatePanel palette={mobilePalette} beforeInstall={beforeInstallUpdate} controller={appUpdate} />
+      {settingsEntry}{settingsPanel}
       <View style={styles.webNativeBar}>
         <Text style={styles.webNativeStatus}>네이티브 공부방 · 웹 화면을 열 수 없을 때 사용</Text>
         <Pressable accessibilityRole="button" style={styles.webNativeAction} onPress={() => setWebFallback(false)}>

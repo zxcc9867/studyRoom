@@ -147,10 +147,10 @@ test('initial check once, manual check and progress/cancel preserve a usable ent
   h.emit({ phase: 'downloading', downloadedBytes: 500, totalBytes: 1000 }); c = h.render();
   assert.equal(c.progress, 50); c.cancel(); assert.equal(h.render().status, 'cancelled');
 });
-test('foreground native idle retains available release notice and usable explicit download', async () => {
+test('foreground native idle retains available modal status and usable explicit download', async () => {
   const h = harness(); h.render(); await flush(); h.render().open(); h.render();
   h.foreground(); const c = h.render(), tree = h.panel();
-  assert.equal(c.status, 'available'); assert.match(textOf(tree), /새 버전으로 더 편하게 공부해요/);
+  assert.equal(c.status, 'available'); assert.match(textOf(tree), /새 버전이 있어요/);
   const button = all(tree, n => n.type === 'Pressable').find(n => textOf(n) === '업데이트 다운로드');
   assert.ok(button); assert.equal(button.props.disabled, false); assert.equal(h.counts().downloads, 0);
   assert.equal(h.counts().checks, 1); await button.props.onPress(); assert.equal(h.counts().downloads, 1);
@@ -231,6 +231,14 @@ test('actual panel renders scrolling accessible details and explicit user action
   all(h.panel(), n => n.type === 'Modal')[0].props.onRequestClose(); assert.equal(h.render().isOpen, false);
 });
 
+test('closed updater has no persistent status bar or entry but existing controller opens its modal', async () => {
+  const h = harness(); h.render(); await flush(); h.render();
+  assert.equal(h.panel().type, 'Modal'); assert.equal(h.panel().props.visible, false);
+  h.render().open(); h.render(); assert.equal(h.panel().props.visible, true);
+  h.emit({ phase: 'downloading', downloadedBytes: 500, totalBytes: 1000 }); h.render().close();
+  h.render().open(); assert.equal(h.render().progress, 50); assert.equal(h.counts().downloads, 0);
+});
+
 function appGuardHarness(result = { data: [], error: null }) {
   const states = [], refs = []; let si = 0, ri = 0, guard;
   const calls = [], timers = [];
@@ -246,6 +254,8 @@ function appGuardHarness(result = { data: [], error: null }) {
     'expo-web-browser': { maybeCompleteAuthSession() {} }, './src/mobileOAuth': {}, './src/notifications': {},
     './src/focus': { getLocalFocusStatus: () => null }, './src/FocusStatusPanel': { FocusStatusPanel: 'FocusStatusPanel' },
     './src/WebFeatureScreen': { WebFeatureScreen: 'WebFeatureScreen' }, './src/AppUpdatePanel': { AppUpdatePanel: 'AppUpdatePanel' },
+    './src/NativeAppSettingsPanel': { NativeAppSettingsPanel: 'NativeAppSettingsPanel' },
+    './src/readAppSettingsSnapshot': { readAppSettingsSnapshot: async () => null },
     './src/useAppUpdate': { useAppUpdate(fn) { guard = fn; return {}; } },
     './src/supabase': { supabase: { from(table) { calls.push(['from', table]); assert.equal(table, 'study_sessions'); return query; } } },
   };
@@ -269,6 +279,19 @@ test('logged-out installation needs no server query and paused/no active study a
   const empty = appGuardHarness(); empty.owner('owner'); assert.equal(await empty.gate(), 'allowed');
   const paused = appGuardHarness({ data: [{ id: 's', status: 'active', paused_at: '2026-10-04T10:00:00Z', lease_expires_at: null }], error: null });
   paused.owner('owner'); assert.equal(await paused.gate(), 'allowed');
+});
+
+test('App loading/login/fallback offer small settings entry while WebView settings use same controller without remount', () => {
+  const h = appGuardHarness();
+  for (const [loading, owner, fallback] of [[true, null, false], [false, null, false], [false, 'owner', true]]) {
+    h.states[22] = loading; h.owner(owner); h.states[33] = fallback; const tree = h.render();
+    assert.ok(all(tree, n => n.type === 'Pressable' && textOf(n) === '설정').length);
+    assert.equal(all(tree, n => n.type === 'NativeAppSettingsPanel').length, 1);
+  }
+  h.states[33] = false; const tree = h.render(); const web = all(tree, n => n.type === 'WebFeatureScreen')[0];
+  assert.equal(typeof web.props.onOpenNativeSettings, 'function'); web.props.onOpenNativeSettings('permissions');
+  const after = h.render(); assert.equal(all(after, n => n.type === 'WebFeatureScreen')[0].props.sessionUserId, 'owner');
+  assert.equal(all(after, n => n.type === 'NativeAppSettingsPanel')[0].props.visible, true);
 });
 test('read error, malformed response, timeout and account changes fail closed', async () => {
   for (const result of [{ data: null, error: { message: 'secret' } }, { data: null, error: null }, { data: [{}], error: null }]) {

@@ -16,7 +16,7 @@
       "src": "/download/android\\.apk",
       "status": 307,
       "headers": {
-        "Location": "https://github.com/zxcc9867/studyRoom/releases/download/android-v0.2.1-build4/study-room-0.2.1-build4.apk",
+        "Location": "https://github.com/zxcc9867/studyRoom/releases/download/android-v0.2.2-build5/study-room-0.2.2-build5.apk",
         "Cache-Control": "no-store"
       }
     },

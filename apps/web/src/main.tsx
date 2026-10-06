@@ -18,6 +18,7 @@ import AppNotice from "./AppNotice";
 import { createTechFeedClient, feedTodoDraft } from "./techFeed.mjs";
 import type { FeedArticle } from "./techFeedTypes";
 import TimeZonePicker from "./TimeZonePicker";
+import AppDeviceSettings, { AppInstallGuidance } from "./AppDeviceSettings";
 import {
   Bell,
   Rss,
@@ -543,6 +544,7 @@ function DashboardApp() {
   const [studySessions, setStudySessions] = useState<StudySession[]>([]);
   const [focusSnapshot, setFocusSnapshot] = useState<FocusSnapshot | null>(null);
   const [focusStatusError, setFocusStatusError] = useState("");
+  const [focusStatusRechecking, setFocusStatusRechecking] = useState(false);
   const [studyTodos, setStudyTodos] = useState<StudyTodo[]>([]);
   const [studySessionTodoLinks, setStudySessionTodoLinks] = useState<StudySessionTodoLink[]>([]);
   const [studyGoals, setStudyGoals] = useState<StudyGoal[]>([]);
@@ -597,6 +599,7 @@ function DashboardApp() {
     ...DEFAULT_TODAY_SECTION_ORDER,
   ]);
   const [sectionOrderEditing, setSectionOrderEditing] = useState(false);
+  const [loginSettingsOpen, setLoginSettingsOpen] = useState(false);
   const [draggingSectionId, setDraggingSectionId] = useState<TodaySectionId | null>(null);
   const [selectedPlannerTodoId, setSelectedPlannerTodoId] = useState<string | null>(null);
   const [planCopyModalOpen, setPlanCopyModalOpen] = useState(false);
@@ -778,6 +781,7 @@ function DashboardApp() {
     setStudySessions([]);
     setFocusSnapshot(null);
     setFocusStatusError("");
+    setFocusStatusRechecking(false);
     setStudyTodos([]);
     setStudySessionTodoLinks([]);
     setStudyGoals([]);
@@ -4908,6 +4912,7 @@ function DashboardApp() {
     return (
       <main className="login-shell">
         <section className="login-panel" onPaste={handleLoginPaste}>
+          <button type="button" className="plain login-settings-entry" onClick={() => setLoginSettingsOpen(true)}>앱 설정 안내</button>
           <p className="eyebrow">forced attendance</p>
           <h1>독서실에 로그인</h1>
           <p className="login-copy">
@@ -4981,21 +4986,17 @@ function DashboardApp() {
           </div>
           <AppNotice message={message} />
         </section>
+        {loginSettingsOpen && <AccessibleDialog className="login-settings-dialog" ariaLabel="앱 설정 안내" onClose={() => setLoginSettingsOpen(false)} closeOnBackdrop>
+          <div className="settings-guide-heading"><h2>앱 설정 안내</h2><button type="button" className="secondary" aria-label="앱 설정 안내 닫기" onClick={() => setLoginSettingsOpen(false)}><X size={20} aria-hidden="true" /></button></div>
+          <AppInstallGuidance />
+        </AccessibleDialog>}
       </main>
     );
   }
 
   return (
     <main className="dashboard-shell dashboard-redesign">
-      <DashboardNavigation activeSection={activeSection} onLayout={() => {
-        window.location.hash = "today";
-        setDraftTodaySectionOrder(todaySectionOrder);
-        setSectionOrderEditing(true);
-      }} onSignOut={() => {
-          if (!postEmbeddedMessage(window, { type: "STUDY_WEB_SIGN_OUT" })) {
-            void supabase.auth.signOut();
-          }
-      }} />
+      <DashboardNavigation activeSection={activeSection} />
 
       <section className={activeSection === "feed" ? "workspace feed-workspace" : "workspace"}>
         {(dashboardLoading || dashboardError) && (
@@ -6442,20 +6443,6 @@ function DashboardApp() {
 
           <GoalAchievementBadges goals={studyGoals} />
 
-          <TimeZonePicker key={session.user.id} value={timeZone} onSave={async zone => {
-            const userId = session.user.id;
-            const { data: before } = await supabase.auth.getSession();
-            if (before.session?.user.id !== userId) throw new Error('로그인 상태가 변경되었어요. 다시 시도해 주세요.');
-            await createTechFeedClient(supabase, userId)('timezone', { time_zone: zone });
-            const { data: after } = await supabase.auth.getSession();
-            if (after.session?.user.id !== userId) return;
-            setProfile(current => current?.user_id === userId ? { ...current, time_zone: zone } : current);
-            const localToday = getLocalDateKey(new Date(), zone);
-            setCalendarMonth(localToday.slice(0, 7));
-            setSelectedTodoDate(localToday);
-            await loadDashboard(userId);
-          }} />
-
           <div className="profile-summary-grid" aria-label="나의 정보">
             <div>
               <span>이메일</span>
@@ -6529,11 +6516,43 @@ function DashboardApp() {
         )}
 
         {activeSection === "settings" && (
-        <section id="settings" className="settings-panel">
+        <section id="settings" className="settings-panel app-settings-panel">
+          <header className="app-settings-heading"><h1>설정</h1><p>계정과 공부 환경, 알림과 앱 정보를 한곳에서 확인하세요.</p></header>
+          <section className="settings-group" aria-labelledby="settings-account-title">
+            <h2 id="settings-account-title">계정</h2>
+            <dl className="settings-values"><div><dt>이메일</dt><dd>{session.user.email ?? profile?.email ?? "등록 없음"}</dd></div><div><dt>로그인 방식</dt><dd>{formatAuthProvider(session.user.app_metadata?.provider)}</dd></div></dl>
+            <div className="settings-actions"><a href="#me">내 페이지</a><button type="button" className="plain" onClick={() => {
+              if (!postEmbeddedMessage(window, { type: "STUDY_WEB_SIGN_OUT" })) void supabase.auth.signOut();
+            }}><LogOut size={18} aria-hidden="true" />로그아웃</button></div>
+          </section>
+          <section className="settings-group" aria-labelledby="settings-study-title">
+            <h2 id="settings-study-title">공부·화면</h2>
+            <TimeZonePicker key={session.user.id} value={timeZone} onSave={async zone => {
+              const userId = session.user.id;
+              const { data: before } = await supabase.auth.getSession();
+              if (before.session?.user.id !== userId) throw new Error('로그인 상태가 변경되었어요. 다시 시도해 주세요.');
+              await createTechFeedClient(supabase, userId)('timezone', { time_zone: zone });
+              const { data: after } = await supabase.auth.getSession();
+              if (after.session?.user.id !== userId) return;
+              setProfile(current => current?.user_id === userId ? { ...current, time_zone: zone } : current);
+              const localToday = getLocalDateKey(new Date(), zone);
+              setCalendarMonth(localToday.slice(0, 7));
+              setSelectedTodoDate(localToday);
+              await loadDashboard(userId);
+            }} />
+            <div className="settings-layout-row"><div><h3>오늘 화면 구성</h3><p>오늘 화면의 섹션 순서를 바꿀 수 있습니다.</p></div><button type="button" className="secondary" onClick={() => {
+              window.location.hash = "today";
+              setDraftTodaySectionOrder(todaySectionOrder);
+              setSectionOrderEditing(true);
+            }}>화면 구성</button></div>
+          </section>
+          <details className="settings-group settings-notifications">
+            <summary><h2>알림</h2><span>알람·이메일·Slack·브라우저·적응형 알림</span></summary>
+            <div className="settings-notification-content">
           <div className="settings-header">
             <div>
               <p className="eyebrow">notification</p>
-              <h2>알림</h2>
+              <h3>알림 상태</h3>
             </div>
             <div className="notification-state-list">
               <div className={`notification-state ${notificationStatusClass(webPushStatus)}`}>
@@ -6704,6 +6723,20 @@ function DashboardApp() {
               {"Telegram \ub4f1 \ub808\uac70\uc2dc \ucc44\ub110\uc740 \uc774\uc804 \uae30\ub85d\uc73c\ub85c\ub9cc \ubcf4\uc874\ub429\ub2c8\ub2e4. \ud604\uc7ac \uc11c\ubc84 \uc54c\ub9bc\uc740 Slack Channel ID \uc800\uc7a5 \uc5ec\ubd80\ub97c \uae30\uc900\uc73c\ub85c \ubcf4\ub0c5\ub2c8\ub2e4."}
             </p>
           </div>
+            </div>
+          </details>
+          <AppDeviceSettings key={session.user.id} phoneStatus={<div className="settings-phone-status" aria-live="polite">
+            <p><strong>집중 모드 · {focusStatusLabel(focusSnapshot)}</strong></p>
+            <p>{focusStatusError || (focusSnapshot?.device_connected ? "연결된 휴대폰의 서버 상태입니다. 실제 적용은 앱에서 확인하세요." : "서버에서 연결된 휴대폰을 확인하지 못했습니다.")}</p>
+            <button type="button" className="secondary" disabled={focusStatusRechecking} onClick={async () => {
+              if (focusStatusRechecking) return;
+              const userId = session.user.id;
+              setFocusStatusRechecking(true);
+              try { await refreshFocusStatus(userId); }
+              catch { if (currentUserIdRef.current === userId) setFocusStatusError("휴대폰 적용 상태를 확인하지 못했습니다."); }
+              finally { if (currentUserIdRef.current === userId) setFocusStatusRechecking(false); }
+            }}>{focusStatusRechecking ? "휴대폰 상태 확인 중" : "휴대폰 상태 다시 확인"}</button>
+          </div>} />
         </section>
         )}
 

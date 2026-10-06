@@ -48,6 +48,8 @@ export function buildTicketInjection(ticket: MobileWebTicket) {
 }
 
 export type NativeBridgeMessage =
+  | { type: "STUDY_WEB_SETTINGS_INFO"; requestId: string }
+  | { type: "STUDY_WEB_OPEN_SETTINGS"; requestId: string; target: "update" | "focus" | "permissions" }
   | { type: "STUDY_WEB_CAMERA_PERMISSION"; requestId: string }
   | { type: "STUDY_WEB_CAMERA_PERMISSION_CHECK"; requestId: string }
   | { type: "STUDY_WEB_OPEN_APP_SETTINGS"; requestId: string }
@@ -63,6 +65,13 @@ export function parseNativeBridgeMessage(raw: string): NativeBridgeMessage | nul
   if (!value || typeof value !== "object") return null;
   const message = value as Record<string, unknown>;
   const validId = (id: unknown) => typeof id === "string" && id.length > 0 && id.length <= 128;
+  if (message.type === "STUDY_WEB_SETTINGS_INFO" && validId(message.requestId) && Object.keys(message).length === 2) {
+    return { type: message.type, requestId: message.requestId as string };
+  }
+  if (message.type === "STUDY_WEB_OPEN_SETTINGS" && validId(message.requestId) && Object.keys(message).length === 3
+    && ["update", "focus", "permissions"].includes(message.target as string)) {
+    return { type: message.type, requestId: message.requestId as string, target: message.target as "update" | "focus" | "permissions" };
+  }
   if (["STUDY_WEB_CAMERA_PERMISSION", "STUDY_WEB_CAMERA_PERMISSION_CHECK", "STUDY_WEB_OPEN_APP_SETTINGS"].includes(message.type as string)
     && validId(message.requestId) && Object.keys(message).length === 2) {
     return { type: message.type as "STUDY_WEB_CAMERA_PERMISSION" | "STUDY_WEB_CAMERA_PERMISSION_CHECK" | "STUDY_WEB_OPEN_APP_SETTINGS", requestId: message.requestId as string };

@@ -1,5 +1,42 @@
 /* One visual contract for all authenticated pages and their dialogs.
    Data, study policies and the forest's rendered environment stay unchanged. */
+
+/* Settings reuse the dashboard's paper surfaces and existing controls. */
+.dashboard-redesign .app-settings-panel { width: min(100%, 960px); align-self: center; display: flex; flex-direction: column; gap: var(--study-space-6); }
+.app-settings-heading h1 { margin: 0; font-size: var(--study-text-2xl); letter-spacing: -.6px; }
+.dashboard-redesign .app-settings-heading p { margin: 8px 0 0; color: var(--study-muted); }
+.dashboard-redesign .settings-group { min-width: 0; padding-top: var(--study-space-6); border-top: 1px solid var(--study-border); }
+.dashboard-redesign .settings-group h2 { margin: 0 0 var(--study-space-4); font-size: var(--study-text-lg); }
+.dashboard-redesign .settings-group h3 { margin: 0 0 var(--study-space-2); font-size: var(--study-text-base); }
+.dashboard-redesign .settings-group p { margin: var(--study-space-3) 0; color: var(--study-muted); font-size: var(--study-text-sm); }
+.dashboard-redesign .settings-values { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--study-space-4); margin: 0 0 var(--study-space-4); }
+.dashboard-redesign .settings-values div { min-width: 0; }
+.dashboard-redesign .settings-values dt { color: var(--study-muted); font-size: var(--study-text-xs); }
+.dashboard-redesign .settings-values dd { margin: 4px 0 0; color: var(--study-ink); font-weight: 600; overflow-wrap: anywhere; }
+.settings-actions { display: flex; flex-wrap: wrap; gap: var(--study-space-3); align-items: center; }
+:is(.dashboard-redesign, .login-shell) :is(.settings-actions a, .app-install-guidance a) { display: inline-flex; align-items: center; min-width: 44px; min-height: 44px; padding: 8px 12px; border-radius: var(--study-control-radius); color: var(--study-primary); text-underline-offset: 4px; font-weight: 600; }
+.dashboard-redesign .settings-group .profile-timezone { padding: 0; margin: 0 0 var(--study-space-6); border: 0; background: transparent; box-shadow: none; }
+.settings-layout-row { display: flex; align-items: center; justify-content: space-between; gap: var(--study-space-4); }
+.dashboard-redesign .settings-notifications > summary { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: var(--study-space-2); min-height: 44px; cursor: pointer; color: var(--study-primary); }
+.dashboard-redesign .settings-notifications > summary h2 { margin: 0; }
+.dashboard-redesign .settings-notifications > summary span { font-size: var(--study-text-xs); color: var(--study-muted); }
+.dashboard-redesign .settings-notifications > summary::after { content: '＋'; font-size: var(--study-text-lg); }
+.dashboard-redesign .settings-notifications[open] > summary::after { content: '−'; }
+.settings-notification-content { display: flex; flex-direction: column; gap: var(--study-space-4); padding-top: var(--study-space-6); }
+.dashboard-redesign .settings-group [role=alert] { color: var(--study-danger); }
+.login-shell .login-settings-entry { align-self: flex-end; min-height: 44px; margin: -8px 0 4px auto; }
+.login-shell .login-settings-dialog { width: min(560px, calc(100% - 32px)); max-height: calc(100dvh - 32px); overflow: auto; padding: var(--study-space-6); border: 1px solid var(--study-border); border-radius: var(--study-radius); background: var(--study-surface); color: var(--study-ink); }
+.settings-guide-heading { display: flex; align-items: center; justify-content: space-between; gap: var(--study-space-4); }
+.settings-guide-heading h2 { margin: 0; font-size: var(--study-text-xl); }
+.settings-guide-heading button { min-height: 44px; min-width: 44px; }
+.login-settings-dialog p { font-size: var(--study-text-sm); color: var(--study-muted); line-height: var(--study-line); }
+@media (max-width: 800px) {
+  .dashboard-redesign .app-settings-panel { padding: var(--study-space-4); gap: var(--study-space-4); }
+  .dashboard-redesign .settings-values { grid-template-columns: 1fr; }
+  .settings-layout-row { align-items: flex-start; flex-direction: column; }
+  .dashboard-redesign .settings-notifications > summary { gap: 8px; }
+  .dashboard-redesign .settings-notifications > summary span { flex-basis: calc(100% - 32px); }
+}
 :root {
   --study-text-xs: 14px;
   --study-text-sm: 15px;

@@ -3,7 +3,7 @@
     "name": "Study Room Attendance",
     "slug": "study-room-attendance",
     "scheme": "studyroom",
-    "version": "0.2.1",
+    "version": "0.2.2",
     "icon": "./assets/study-room-icon.png",
     "orientation": "portrait",
     "userInterfaceStyle": "light",
@@ -15,7 +15,7 @@
     },
     "android": {
       "package": "com.jini9867.studyroomattendance",
-      "versionCode": 4,
+      "versionCode": 5,
       "permissions": [
         "CAMERA"
       ],

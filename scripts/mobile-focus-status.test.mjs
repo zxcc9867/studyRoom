@@ -21,6 +21,8 @@ function compile(relative, imports, globals = {}) {
     require(name) {
       if (name === '../../packages/core/src/index.mjs') return studyCore;
       if (name === './src/AppUpdatePanel') return { AppUpdatePanel: 'AppUpdatePanel' };
+      if (name === './src/NativeAppSettingsPanel') return { NativeAppSettingsPanel: 'NativeAppSettingsPanel' };
+      if (name === './src/readAppSettingsSnapshot') return { readAppSettingsSnapshot: async () => null };
       if (name === './src/useAppUpdate') return { useAppUpdate: () => ({}) };
       if (name in imports) return imports[name];
       if (name === './src/FocusStatusPanel') return compile('apps/mobile/src/FocusStatusPanel.tsx', imports);
