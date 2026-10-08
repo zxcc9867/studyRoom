@@ -1,5 +1,15 @@
 # Active Context
 
+## 현재 작업 — 2026-10-08 APK 0.2.3 게시 승인
+
+- 작업명/목적: 사용자 ‘그럼 게시를 해줘’ 승인으로 기기 단위 설치 제한 APK6을 GitHub Releases와 고정 설치/업데이트 정보에 공개한다. 새 기능·DB·AI 공급자 변경은 없다.
+- 관련 PRD/파일: prd-android-app-updates.md, prd-android-download.md, apps/web/public/download/{android-release.json,android.html}, vercel.json, scripts/android-download.test.mjs.
+- 최근 결정: 검증된 기존 APK 후보6을 재빌드 없이 게시한다. 패키지·서명·로그인/기록 보존, 기존 APK5는 유지하며 고정 최신 주소만 바꾼다. 앱 내부 다운로드→Android 명시적 설치 확인을 사용한다.
+- 재확인: origin/main과HEAD33b2e773 일치, 공개 최신5/운영JSON200·0.2.2/code5. 후보6의 실제0.2.3/code6·61993631bytes·SHA2569ec58c88c5972d8b9780101d804800ac46c95d46cc43d4599cc0533c6f6bea40, 공개5와 signer8052acacaccf524b0672a27b6b79e957476b8d2dc5da564562ddb2948c12c8e9 동일·apksigner 성공.
+- 현재 상태: 출시/안내/redirect/기대값을6으로 갱신, focused31/31·실패0·생략0 및 실제375/1440px 안내 검증 성공. 전체 회귀·게시·웹배포·운영 다운로드 검증 진행 중이며 완료로 미리 기록하지 않는다.
+- 게시/검증: GitHub android-v0.2.3-build6에 APK 한 개 공개(2026-10-08T03:15:08Z/제품b80aff4). 익명 전체 파일200/61993631bytes/SHA2569ec58c88c5972d8b9780101d804800ac46c95d46cc43d4599cc0533c6f6bea40 일치. 최종 local 전체1102/1102·실패0·생략0(130815.2592ms), focused31/31·실패0·생략0(1631.8947ms), mobile:check·docs24/3언어·tsc/Vite1731·diff 성공. 첫 전체1101/1 로딩 실패는 trouble-shooting에 별도 보존했다. 고정JSON/안내/307 운영 반영을 위한 main 배포는 아직 진행 중이다.
+- 주의: 새 제한은6 설치 후 적용된다. 기존5의 계정 전체 guard로 첫 앱 내부 업데이트가 막히면 PC 잠시 쉬기 또는 고정 페이지 수동 업데이트를 안내한다. 설치자는 앱을 삭제할 필요가 없지만 Android 확인은 직접 승인한다. 오늘의 ADB 읽기 검사에서 실행 중 에뮬레이터가 없어 실제 앱 UI 검증은 새로 수행하지 않았다.
+
 ## 현재 작업 — 2026-10-06 기기 단위 APK 설치 제한
 
 - 작업 목적/승인: 사용자 ‘기기단위로 제한을 수정해줘’. 기존 PC 단독 공부 차단 진단의 승인 대기 상태를 대체하며 prd-android-app-updates를 개정했다. AI 일일 요약 오류는 이번 구현 범위 밖이다.

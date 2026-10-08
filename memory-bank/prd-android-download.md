@@ -21,6 +21,7 @@
 - [x] 배포 후 안내 HTTP200·APK307·목적지 HTTP200/파일 형식/크기를 확인한다.
 
 ## 5. Dependencies / Rollout / Release Maintenance
+- 2026-10-08 사용자 승인으로 검증된0.2.3/code6을 공개한다. 고정 안내/JSON/APK307은 같은 GitHub6 파일을 가리키며 기존5는 immutable 이력으로 유지한다. 실제 결과는 progress에 기록한다.
 - Vite public 정적 파일, 기존 vercel.json routes, 기존 GitHub Actions production 배포. Supabase/새 비밀값/계정은 필요하지 않다.
 - 매번 동일 서명 로컬 release 빌드 성공 또는 EAS FINISHED와 공개 다운로드·기존 서명·기능 검증을 통과한 뒤에만 공개 출시 JSON/고정 APK route Location/안내 페이지를 함께 갱신하고 웹을 배포한다.
 - 기존 EAS 링크 자체는 덮어쓰지 않는다. 고정 주소가 가장 최근에 검증·게시한 APK를 가리키는 방식이며 새 빌드 완료만으로 자동 갱신되지는 않는다.

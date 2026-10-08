@@ -1,3 +1,9 @@
+## 2026-10-08 — APK6 게시 승인
+
+- 검증된0.2.3/code6을 기존 공개 GitHub Releases에 immutable android-v0.2.3-build6/study-room-0.2.3-build6.apk로 게시한다. 새 서명/빌드/DB/서비스는 추가하지 않는다.
+- 실제 APK 기반 공개JSON과 고정307/안내를 함께 갱신한다. 파일 전체 익명 다운로드·해시 일치 후 main 배포하고 Actions/Vercel/HTTP를 확인한다. 앱은 고정JSON의 높은 실제 versionCode를 읽어 명시적 다운로드·설치를 제공한다.
+- 첫5→6 업데이트에는 기존5의 계정 guard가 적용된다. 설치 후6부터 기기 단위 정책을 사용하며 원격 공부를 updater가 변경하지 않는다. 최종 공개/배포 증거는 progress/active-context에 기록한다.
+
 ## 2026-10-06 — 기기 단위 APK 설치 판정
 
 - App beforeInstallUpdate는 현재 owner/revision을 고정하고 기존 study_sessions를 bounded 읽기 조회한다. 새 DeviceStudyReader가 신뢰된 동일 계정/현재 문서의 로컬 실행을 증명할 때만 allowed를 받는다. 서버 row와 web snapshot이 다르거나 native fallback의 활성 실행을 증명할 수 없으면 unknown이다. DB/RLS/RPC 추가·기존 세션 mutation 없음.

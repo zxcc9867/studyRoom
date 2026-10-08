@@ -2,6 +2,13 @@
 
 ## Timeline
 
+### 2026-10-08 — APK 0.2.3 게시 진행
+
+- 사용자 새 APK 게시 승인 확인. GitHub 최신5와 main/HEAD33b2e773을 재확인하고 버전 충돌 없음. 후보6의 크기/SHA256/패키지/버전/동일 서명 재검증 성공.
+- 공개 출시JSON·고정APK307·안내·게시 회귀 기대값을6으로 갱신. focused31/31·실패0·생략0, 실제375/1440px·키보드·4.5대비·44px 안내 검증 성공. 전체 회귀/mobile/docs/웹build 진행 중이다.
+- 다음 순서: 실제APK 하나 GitHub Releases 게시→익명 전체 다운로드/해시→main 웹배포→Actions/Vercel READY/운영JSON/안내/307/파일 일치 확인. 새APK는 앱 내부 업데이트로 설치하며 자동 무인 설치가 아니다.
+- 완료 증거(게시/로컬): GitHub Release android-v0.2.3-build6 공개2026-10-08T03:15:08Z, 실제APK61993631bytes/SHA2569ec58c88c5972d8b9780101d804800ac46c95d46cc43d4599cc0533c6f6bea40와 익명 전체200 다운로드 일치. 같은 package/서명 유지. 최종 전체1102/1102·실패0·생략0(130815.2592ms), focused31/31(1631.8947ms), mobile 타입·docs24/3언어·웹tsc/Vite1731·diff 통과. 첫 로딩 실패1101/1과 단독5/5는 trouble-shooting에 보존했다. 운영 웹배포/최신JSON 확인은 진행 중이다.
+
 ### 2026-10-06 — 기기 단위 APK 설치 제한 구현
 
 #### 완료한 작업
