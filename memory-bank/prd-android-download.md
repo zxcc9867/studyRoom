@@ -40,3 +40,9 @@
 
 - updater0.2.0/code3의 고정 안내/JSON/alias를 dfc44c3로 게시했다. Actions37214626793 success/Vercel dpl_8LrYU7JzJHAoKPHYDMeVa2AYs7j1 READY. 고정 JSON200/application-json/no-store/전체 필드 일치·안내200·파일307/no-store→공개 GitHub Release android-v0.2.0-build3 APK200.
 - 실제 파일61,975,731bytes/SHA256 c077f6815fc80be82dfb4cddc393797574df4543665108688219cca45d392b62 일치. 앱 안에서 이 파일을 다운로드하여 Android16 OS 승인으로2→3 업데이트/동일 로그인6메뉴 유지까지 확인했다. 최초 updater APK 한 번 수동 설치 후 앱 버튼을 사용하며 강제/무인 설치는 없다.
+
+## 최신 출시 확인 — 2026-10-08
+
+- 공개0.2.3/code6 GitHub Release android-v0.2.3-build6·APK61993631bytes/SHA2569ec58c88c5972d8b9780101d804800ac46c95d46cc43d4599cc0533c6f6bea40, 기존 signer/패키지 동일. 고정 안내/JSON/307을 같은GitHub6파일로 갱신했다.
+- main3422df35/Actions37721915811 success/Vercel dpl_2kJxzFg3ytsWohr8XVNgCJ3LomtN READY. 운영 안내 두 경로200/no-store·0.2.3/code6, JSON200/application-json/no-store·전체필드, 파일307/no-store→익명 전체200·크기/해시 일치 확인. 앱 설정→앱정보→앱업데이트에서 새 버전을 확인한다.
+- 첫5→6은 기존guard가 적용되어 PC공부 중 막히면 잠시 쉬거나 이 안내를 사용한다. 설치 이후6은 기기 단위 제한이다. 새 실기기 설치 검증·무인 설치/OTA를 추가하지 않았다.

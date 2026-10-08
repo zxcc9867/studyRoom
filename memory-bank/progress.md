@@ -2,12 +2,15 @@
 
 ## Timeline
 
-### 2026-10-08 — APK 0.2.3 게시 진행
+### 2026-10-08 — APK 0.2.3 게시·운영 반영 완료
 
 - 사용자 새 APK 게시 승인 확인. GitHub 최신5와 main/HEAD33b2e773을 재확인하고 버전 충돌 없음. 후보6의 크기/SHA256/패키지/버전/동일 서명 재검증 성공.
 - 공개 출시JSON·고정APK307·안내·게시 회귀 기대값을6으로 갱신. focused31/31·실패0·생략0, 실제375/1440px·키보드·4.5대비·44px 안내 검증 성공. 전체 회귀/mobile/docs/웹build 진행 중이다.
 - 다음 순서: 실제APK 하나 GitHub Releases 게시→익명 전체 다운로드/해시→main 웹배포→Actions/Vercel READY/운영JSON/안내/307/파일 일치 확인. 새APK는 앱 내부 업데이트로 설치하며 자동 무인 설치가 아니다.
 - 완료 증거(게시/로컬): GitHub Release android-v0.2.3-build6 공개2026-10-08T03:15:08Z, 실제APK61993631bytes/SHA2569ec58c88c5972d8b9780101d804800ac46c95d46cc43d4599cc0533c6f6bea40와 익명 전체200 다운로드 일치. 같은 package/서명 유지. 최종 전체1102/1102·실패0·생략0(130815.2592ms), focused31/31(1631.8947ms), mobile 타입·docs24/3언어·웹tsc/Vite1731·diff 통과. 첫 로딩 실패1101/1과 단독5/5는 trouble-shooting에 보존했다. 운영 웹배포/최신JSON 확인은 진행 중이다.
+- 최종 운영 완료: main 제품3422df3539e2d69309135ee03118ec253d1f3a19, Actions37721915811 success(2분44초), Vercel dpl_2kJxzFg3ytsWohr8XVNgCJ3LomtN READY·동일SHA·production alias. CI1010통과/실패0/선택브라우저92생략, Edge/mobile/docs/build 성공. 운영 웹200·새Settings/device proof bundle, 안내 두 경로200/no-store·빌드6, JSON200/no-store·실제APK 전체필드, 고정APK307/no-store→익명 전체파일200/해시 일치 확인.
+- 변경 파일10개: 공개JSON/안내/vercel route/게시 회귀, active-context/progress/implementation-plan/trouble-shooting/업데이트·다운로드 PRD. APK·private/generated/output는 Git에 추가하지 않았고 기존 사용자 untracked를 보존했다. 새APK는 GitHub의 한 파일로만 공개했다.
+- 후속: 앱 설정→앱정보→앱업데이트→최신버전 다시확인으로6을 다운로드/설치한다. 구버전 guard가 막으면 이번5→6만 PC 잠시쉬기 또는 고정 안내 수동 업데이트. 동일 package/서명으로 삭제 불필요. 실행 중 에뮬레이터가 없어 이번 실제 설치/UI는 미실행이며 이전 Android16 install-r 검증과 구분한다. 런타임 로그 오류 스캔은 이번 정적 출시 점검 범위에서 수행하지 않았다.
 
 ### 2026-10-06 — 기기 단위 APK 설치 제한 구현
 
