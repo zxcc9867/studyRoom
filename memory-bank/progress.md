@@ -2,6 +2,25 @@
 
 ## Timeline
 
+### 2026-10-08 — 변경사항 화면 APK 0.2.4 게시
+
+#### 완료한 작업
+
+- 사용자 새 APK 게시 승인과 공개 최신6/운영JSON/main cbcf551·새7 태그 없음·claim 충돌 없음을 확인했다. 기존6 파일은 유지한다.
+- Expo 설정과 로컬 native 빌드 버전을0.2.4/code7로 올려 동일 서명 assembleRelease/lintVitalRelease를32초/327tasks로 완료했다. 실제 package com.jini9867.studyroomattendance·min24/target35·기존 signer8052acacaccf524b0672a27b6b79e957476b8d2dc5da564562ddb2948c12c8e9 일치·apksigner 성공.
+- 최종APK61994067bytes/SHA256a473233cd309f5e69e8ceb071e7a45f628873b977a28f075da92fdddfb42218b 확인, APK 내부 bundle에도 새 변경사항/설치안내/빈요약 문구 포함 확인. 실제 APK 바이트로 JSON builder와 고정307을 대조했다.
+- 새7 링크·버전 기대값으로 RED4 확인 후 JSON/307/안내/회귀를 함께 갱신했다. focused107/107·실패0·생략0(2231.672ms), mobile 타입·docs24자산/3언어·설정된 웹tsc/Vite1731·diff 검사 성공. 전체 검사/게시/운영 결과는 후속 기록한다.
+- 최종 로컬 전체1104/1104·실패0·생략0(130254.9397ms) 통과. 실제 Chromium·375/1440px 검사 포함이다. 출시 APK/웹 변경은 이 검증 소스와 일치하며 공개·운영 검증을 진행한다.
+
+#### 변경된 파일
+
+- apps/mobile/app.json, apps/web/public/download/android-release.json·android.html, vercel.json, scripts/android-download.test.mjs, active-context·본progress·업데이트/다운로드 PRD. 로컬 native build.gradle과 비공개 설정을 읽는 output 빌드/검증 도구는 게시 파일에 포함하지 않는다.
+
+#### 남은 작업
+
+- 전체 회귀→새GitHub7 APK 한 개 게시→익명 전체 다운로드/해시→main 웹배포→Actions/Vercel READY/운영JSON·안내·307 일치 확인.
+- 현재 ADB 연결 기기가 없고 이번 작업은 실제 Android UI/OS 설치 E2E를 새로 수행하지 않았다. 사용자는 설정→앱정보→앱업데이트→다운로드/설치→Android 승인으로 업데이트한다.
+
 ### 2026-10-08 — 버전별 업데이트 내용과 설치 안내 분리
 
 #### 완료한 작업

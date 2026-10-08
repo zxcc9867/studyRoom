@@ -67,7 +67,7 @@ test("fixed APK address redirects temporarily to a public APK without caching an
   assert.equal(route?.status, 307);
   const target = new URL(route.headers.Location);
   assert.equal(target.origin, "https://github.com");
-  assert.equal(target.pathname, "/zxcc9867/studyRoom/releases/download/android-v0.2.3-build6/study-room-0.2.3-build6.apk");
+  assert.equal(target.pathname, "/zxcc9867/studyRoom/releases/download/android-v0.2.4-build7/study-room-0.2.4-build7.apk");
   assert.equal(target.search, "");
   assert.equal(route.headers["Cache-Control"], "no-store");
   assert.ok(config.routes.indexOf(route) < config.routes.findIndex(item => item.handle === "filesystem"));
@@ -92,11 +92,11 @@ test("public release manifest matches the actual final APK contract and stable r
   const bytes = await readFile(new URL("download/android-release.json", publicRoot));
   assert.ok(bytes.length <= 16 * 1024);
   const release = validateAndroidRelease(JSON.parse(bytes));
-  assert.equal(release.versionName, "0.2.3");
-  assert.equal(release.versionCode, 6);
-  assert.equal(release.releasedAt, "2026-10-08T03:06:47Z");
-  assert.equal(release.sizeBytes, 61993631);
-  assert.equal(release.sha256, "9ec58c88c5972d8b9780101d804800ac46c95d46cc43d4599cc0533c6f6bea40");
+  assert.equal(release.versionName, "0.2.4");
+  assert.equal(release.versionCode, 7);
+  assert.equal(release.releasedAt, "2026-10-08T06:07:54Z");
+  assert.equal(release.sizeBytes, 61994067);
+  assert.equal(release.sha256, "a473233cd309f5e69e8ceb071e7a45f628873b977a28f075da92fdddfb42218b");
   assert.equal(release.apkUrl, firstRoute("/download/android.apk").headers.Location);
   assert.ok(release.sizeBytes > 11, "Production metadata must not contain the APK test fixture");
   assert.notEqual(release.sha256, "3934be6f0ca5c6c3efc3576bb846f79a8512db715c6a8103b034cb29e676fd8e");
@@ -126,7 +126,7 @@ test("configured public JSON and APK routes deliver matching responses ahead of 
     const page = await fetch(`${origin}/download/android`);
     assert.equal(page.status, 200);
     assert.equal(page.headers.get("cache-control"), "no-store");
-    assert.match(await page.text(), /0\.2\.3 · 빌드 6/);
+    assert.match(await page.text(), /0\.2\.4 · 빌드 7/);
     const api = await fetch(`${origin}/api/not-found`);
     assert.equal(api.status, 404);
   } finally { await new Promise(resolve => server.close(resolve)); }
@@ -160,7 +160,7 @@ test("install page offers one stable download link, readable instructions and ke
       assert.equal(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), true);
       assert.ok(await page.getByText("기존 앱을 삭제하지 마세요.", { exact: false }).isVisible());
       assert.ok(await page.getByText("자동 설치나 자동 업데이트는 아니에요.", { exact: false }).isVisible());
-      assert.ok(await page.getByText("0.2.3 · 빌드 6", { exact: false }).isVisible());
+      assert.ok(await page.getByText("0.2.4 · 빌드 7", { exact: false }).isVisible());
       const changes = page.getByRole("region", { name: "이번 업데이트 내용" });
       assert.equal(await changes.count(), 1);
       const release = JSON.parse(await readFile(new URL("download/android-release.json", publicRoot), "utf8"));

@@ -1,5 +1,14 @@
 # Active Context
 
+## 현재 작업 — 2026-10-08 변경사항 화면 APK7 게시
+
+- 승인/목적: 사용자 ‘게시해줘. 그러면 앱에서 업데이트하면되지?’로 새 APK를 공개하고 기존 앱 내부 업데이트 경로에 반영한다. 이전 네이티브 게시 응답 대기 상태를 대체한다.
+- 범위/결정: 0.2.4/code7 신규 immutable APK·기존 패키지/서명, 출시JSON/고정307/안내 일치. 실제 변경사항 화면 개선만 releaseNotes에 작성하며 기존6/서명키/공부·AI 정책은 변경하지 않는다.
+- 재확인: 실제 worktree codex/recovery-consistency의 HEAD와 origin/main cbcf551 일치, GitHub/운영 최신0.2.3/code6, tag android-v0.2.4-build7 없음, claim 충돌 없음. 실행 중 ADB 기기 없음.
+- 진행 중: 버전7 동일 서명 release/lint 빌드→실제 APK 무결성/서명 검사→테스트→GitHub 게시/운영 배포→익명 파일·JSON·안내 확인. 게시 완료는 후속 증거로만 판단한다.
+- 로컬 준비 완료: Android release/lint32초 성공, 실제0.2.4/code7·61994067bytes/SHA256a473233cd309f5e69e8ceb071e7a45f628873b977a28f075da92fdddfb42218b·기존 signer 일치. APK native bundle의 새 구역 문구까지 확인했다. 전체1104/1104·실패0·생략0(130254.9397ms), focused107/107·생략0·mobile/docs/설정된웹 build·diff 성공. 게시/운영 완료 확인을 진행한다.
+- 주의: 기존 공개6 파일을 덮어쓰지 않는다. 사용자의 실제 Android 설치 승인을 자동 수행하거나 새 APK 설치까지 완료됐다고 안내하지 않는다. DB/RLS/출석/집중 모드·AI 변경 없음.
+
 ## 현재 작업 — 2026-10-08 버전별 업데이트 변경사항 표시
 
 - 작업명/목적: 사용자 승인에 따라 ‘이번 업데이트에서 무엇이 바뀌었는지’를 설치 방법과 구분해 보여준다. 관련 PRD는 prd-android-app-updates.md다.
