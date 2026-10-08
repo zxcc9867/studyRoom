@@ -161,9 +161,15 @@ test("install page offers one stable download link, readable instructions and ke
       assert.ok(await page.getByText("기존 앱을 삭제하지 마세요.", { exact: false }).isVisible());
       assert.ok(await page.getByText("자동 설치나 자동 업데이트는 아니에요.", { exact: false }).isVisible());
       assert.ok(await page.getByText("0.2.3 · 빌드 6", { exact: false }).isVisible());
+      const changes = page.getByRole("region", { name: "이번 업데이트 내용" });
+      assert.equal(await changes.count(), 1);
+      const release = JSON.parse(await readFile(new URL("download/android-release.json", publicRoot), "utf8"));
+      assert.deepEqual(await changes.getByRole("listitem").allTextContents(), release.releaseNotes);
+      assert.equal(await changes.getByRole("link").count(), 0);
+      assert.ok((await changes.boundingBox()).y < (await page.getByRole("heading", { name: "첫 업데이트는 한 번 수동으로" }).boundingBox()).y);
       assert.ok(await page.getByRole("heading", { name: "첫 업데이트는 한 번 수동으로" }).isVisible());
       assert.ok(await page.getByRole("heading", { name: "다음 버전부터는 앱에서" }).isVisible());
-      assert.ok(await page.getByText("앱 업데이트", { exact: false }).isVisible());
+      assert.ok(await page.locator("#app-update-title + ol").getByText("앱 업데이트", { exact: false }).isVisible());
       assert.ok(await page.locator("#app-update-title + ol").getByText("설치 확인", { exact: false }).isVisible());
       assert.equal(await page.locator("script").count(), 0);
       const size = await download.boundingBox();

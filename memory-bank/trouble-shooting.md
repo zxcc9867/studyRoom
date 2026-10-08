@@ -1,3 +1,16 @@
+## 2026-10-08 — 업데이트 변경사항과 설치 안내 혼동
+
+### 상황과 원인
+
+- 사용자 요구는 해당 버전에서 무엇이 추가·개선·수정됐는지였으나 공개6 releaseNotes에 로그인/데이터 유지 등 공통 설치 안내가 섞여 있었다. native 창도 별도 변경사항 제목 없이 목록을 표시했다.
+
+### 해결과 재발 방지
+
+- 실제 공개6 코드 변경을 근거로 요약을 두 항목으로 정리하고, 앱 창의 ‘이번 업데이트 내용’과 ‘설치 안내’ 구획을 분리했다. 고정 설치 페이지도 같은 출시 요약을 표시한다.
+- 새 RN 구역/미제공 안내2건과 실제 브라우저 구역 RED→GREEN 검증. 구현 후 기존 페이지 테스트의 `getByText('앱 업데이트')`가 변경사항과 설치 방법을 동시에 매칭해 strict mode violation이 발생했다. 검사 대상을 실제 설치 방법 구역으로 좁혀 focused107/107 통과했다. 제품 문구를 테스트 때문에 삭제하지 않았다.
+- 관련 파일: AppUpdatePanel.tsx, 공개 android-release.json/android.html, mobile-app-update/android-download 테스트, prd-android-app-updates.md.
+- 네이티브 제목 변경은 웹 JSON 갱신만으로 기존 APK에 적용되지 않는다. 같은 versionCode의 파일을 덮어쓰지 않고 새 APK 공개 여부를 별도로 확인한다.
+
 ## 2026-10-08 — APK 출시 검사의 로컬 네트워크 권한
 
 - APK6 출시 기대값을 먼저 바꾼 RED 검사에서 기존5 metadata 불일치2건과 샌드박스 localhost fetch의 `connect EACCES 127.0.0.1`을 확인했다. metadata 실패는 의도한 출시 검증이며 제품 오류로 분류하지 않는다.

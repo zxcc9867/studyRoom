@@ -2,6 +2,21 @@
 
 ## Timeline
 
+### 2026-10-08 — 버전별 업데이트 내용과 설치 안내 분리
+
+#### 완료한 작업
+
+- AppUpdatePanel에 다운로드 전 ‘이번 업데이트 내용’을 보여주고 ‘설치 안내’를 별도 구역으로 분리했다. 변경사항은 기본 텍스트 색상이며, 빈 요약은 미제공 안내를 표시한다.
+- 공개0.2.3/code6의 releaseNotes를 실제 기기 단위 설치 제한 수정·개선으로 정리하고 고정 설치 페이지에 동일한 변경사항 목록을 추가했다. 기존 APK·버전·해시·설치 controller와 guard는 변경하지 않았다.
+- PRD에 버전별 실제 변경만 작성하는 규칙과 미포함 기능/공통 설치 안내를 섞지 않는 기준을 기록했다.
+
+#### 변경된 파일 / 검증 / 남은 작업
+
+- apps/mobile/src/AppUpdatePanel.tsx, apps/web/public/download/{android-release.json,android.html}, scripts/{mobile-app-update,android-download}.test.mjs, active-context/progress/trouble-shooting/업데이트 PRD.
+- TDD: 새 RN 구역/빈 요약2건과 실제 브라우저 구역1건 RED→GREEN. focused107/107·실패0·생략0(2327.8403ms), 실제375/1440px 가독성·키보드·44px·대비 검사 포함.
+- 검증 완료: 전체1104/1104·실패0·생략0(134345.0189ms), mobile:check·docs24자산/3언어·설정된 웹 tsc/Vite 빌드·Android assembleRelease/lintVitalRelease 성공(1분58초). 이 네이티브 빌드는 현재6의 로컬 검사 파일이며 게시하지 않았다. 실제 Android UI/installer 검증은 이번에 실행하지 않았다.
+- 웹 production 배포는 진행 중이다. 새 APK 게시 별도 질문에 응답 대기이며 native 구획 적용은 새 APK 설치가 필요하다. 기존 공개6을 같은 버전의 다른 파일로 덮어쓰지 않는다.
+
 ### 2026-10-08 — APK 0.2.3 게시·운영 반영 완료
 
 - 사용자 새 APK 게시 승인 확인. GitHub 최신5와 main/HEAD33b2e773을 재확인하고 버전 충돌 없음. 후보6의 크기/SHA256/패키지/버전/동일 서명 재검증 성공.

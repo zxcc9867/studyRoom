@@ -118,6 +118,38 @@ function all(tree, predicate, found = []) { if (!tree || typeof tree !== 'object
   for (const child of [tree.props?.children].flat(Infinity)) all(child, predicate, found); return found; }
 const textOf = node => typeof node === 'string' || typeof node === 'number' ? String(node) : node && typeof node === 'object' ? [node.props?.children].flat(Infinity).map(textOf).join('') : '';
 
+test('release changes are readable in their own section before download, separate from installation guidance', async () => {
+  const notes = ['[추가] 공부 기록을 한눈에 확인할 수 있어요.', '[수정] 일정 표시 오류를 해결했어요.'];
+  const h = harness({ fetch: async () => release({ releaseNotes: notes }) });
+  h.render(); await flush(); h.render().open(); h.render();
+  const tree = h.panel();
+  const section = title => all(tree, n => n.type === 'View').find(n =>
+    [n.props?.children].flat(Infinity).some(child => child?.type === 'Text' && child.props.accessibilityRole === 'header' && textOf(child) === title));
+  const changes = section('이번 업데이트 내용'), guidance = section('설치 안내');
+  assert.ok(changes, 'version-specific changes need a named section');
+  assert.ok(guidance, 'common installation guidance needs a separate section');
+  for (const note of notes) {
+    const rendered = all(changes, n => n.type === 'Text').find(n => textOf(n) === `• ${note}`);
+    assert.ok(rendered, 'the publisher-provided change is shown as plain text');
+    assert.ok([rendered.props.style].flat(Infinity).some(style => style?.color === '#28372e' && style?.lineHeight >= 24));
+    assert.ok(!textOf(guidance).includes(note));
+  }
+  assert.ok(!textOf(changes).includes('기존 앱을 삭제할 필요'));
+  assert.ok(textOf(guidance).includes('이 휴대폰'));
+  const content = all(tree, n => n.type === 'ScrollView')[0].props.children.flat(Infinity).filter(Boolean);
+  assert.ok(content.indexOf(changes) < content.findIndex(n => n.type === 'Pressable' && textOf(n) === '업데이트 다운로드'));
+  assert.equal(h.counts().downloads, 0); assert.equal(h.counts().installs, 0); assert.equal(h.counts().settings, 0);
+});
+
+test('missing release changes are disclosed without inventing improvements', async () => {
+  const h = harness({ fetch: async () => release({ releaseNotes: [] }) });
+  h.render(); await flush(); h.render().open(); h.render();
+  const tree = h.panel();
+  assert.ok(textOf(tree).includes('이번 업데이트 내용'));
+  assert.ok(textOf(tree).includes('이 버전의 변경 내용이 아직 제공되지 않았어요.'));
+  assert.equal(h.counts().downloads, 0); assert.equal(h.counts().installs, 0);
+});
+
 for (const phase of ['failed', 'permission_required']) test(`fixed install guide in ${phase} opens only by user choice`, async () => {
   const h = harness(); h.render(); await flush(); h.render().open();
   h.emit({ phase, errorCode: phase === 'failed' ? 'install_unavailable' : null }); h.render();

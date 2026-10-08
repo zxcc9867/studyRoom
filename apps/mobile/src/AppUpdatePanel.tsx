@@ -33,7 +33,10 @@ export function AppUpdatePanel(props: Props): React.ReactElement | null {
           {c.release ? <View style={styles.release}>
             <Text style={styles.subtitle}>최신 버전 {c.release.versionName} · 빌드 {c.release.versionCode}</Text>
             <Text style={styles.copy}>출시 {new Date(c.release.releasedAt).toLocaleDateString("ko-KR", { year: "numeric", month: "long", day: "numeric" })} · {(c.release.sizeBytes / 1024 / 1024).toFixed(1)} MB</Text>
-            {c.release.releaseNotes.map((note, i) => <Text key={i} style={styles.copy}>• {note}</Text>)}
+            <Text accessibilityRole="header" style={styles.subtitle}>이번 업데이트 내용</Text>
+            {c.release.releaseNotes.length
+              ? c.release.releaseNotes.map((note, i) => <Text key={i} style={styles.change}>• {note}</Text>)
+              : <Text style={styles.copy}>이 버전의 변경 내용이 아직 제공되지 않았어요.</Text>}
           </View> : null}
           {c.error ? <Text accessibilityRole="alert" style={styles.warning}>{c.error}</Text> : null}
           {c.status === "downloading" || c.status === "verifying" ? button("다운로드 취소", c.cancel, false, false) : null}
@@ -46,7 +49,10 @@ export function AppUpdatePanel(props: Props): React.ReactElement | null {
           {c.status === "install_pending" ? <Text style={styles.copy}>설치 화면 진입은 완료가 아니에요. Android 확인을 마친 뒤 실제 설치 버전을 다시 확인해요.</Text> : null}
           {button("최신 버전 다시 확인", c.check, false, c.busy || c.status === "install_pending")}
           {button("설치 안내 보기", openInstallGuide, false, false)}
-          <Text style={styles.copy}>다운로드와 설치는 직접 선택할 때만 진행해요. 공부 중에는 먼저 휴식 또는 종료하세요. 기존 앱을 삭제할 필요는 없어요.</Text>
+          <View style={styles.guide}>
+            <Text accessibilityRole="header" style={styles.subtitle}>설치 안내</Text>
+            <Text style={styles.copy}>다운로드와 설치는 직접 선택할 때만 진행해요. 이 휴대폰에서 공부·카메라·시작 준비 중이면 먼저 휴식 또는 종료하세요. 기존 앱을 삭제할 필요는 없어요.</Text>
+          </View>
         </ScrollView>
       </View></View>
     </Modal>;
@@ -60,5 +66,7 @@ const createStyles = (p: StudyPalette) => StyleSheet.create({
   title: { fontSize: 20, lineHeight: 29, fontWeight: "700", color: p.text, flexShrink: 1 }, content: { padding: 16, gap: 14 },
   statusRow: { flexDirection: "row", alignItems: "center", gap: 8 }, status: { fontSize: 16, lineHeight: 25, fontWeight: "700", color: p.primary, flexShrink: 1 },
   subtitle: { fontSize: 16, lineHeight: 25, fontWeight: "700", color: p.text }, copy: { fontSize: 15, lineHeight: 25, color: p.muted }, warning: { fontSize: 15, lineHeight: 25, color: p.coral },
+  change: { fontSize: 15, lineHeight: 25, color: p.text },
+  guide: { gap: 8, paddingTop: 14, borderTopWidth: 1, borderColor: p.border },
   release: { padding: 14, gap: 8, borderRadius: 12, backgroundColor: p.canvas, borderWidth: 1, borderColor: p.border },
 });
