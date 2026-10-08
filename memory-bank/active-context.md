@@ -7,7 +7,8 @@
 - 구현: AppUpdatePanel의 ‘이번 업데이트 내용’/‘설치 안내’ 구획·읽기 쉬운 본문·빈 요약 안내, 고정 설치 페이지의 동일 변경사항 구역. 다운로드/설치 controller·guard·서명·공부 데이터 동작은 유지한다.
 - 검증: 새 RN 표시2건과 실제 브라우저 구역 RED 확인 후 구현. 업데이트/공개페이지/설정/기기 설치 회귀107/107·실패0·생략0 통과(2327.8403ms). 실제375/1440px 페이지의 오버플로·키보드·44px 링크·대비 검사 포함이다.
 - 검증 완료: 전체1104/1104·실패0·생략0(134345.0189ms), mobile:check·docs24자산/3언어·설정된 웹 tsc/Vite 빌드, Android assembleRelease/lintVitalRelease 성공(1분58초). 네이티브 빌드는 현재6 설정의 로컬 검사 파일이며 공개6 원본은 교체하지 않았고 실제 Android UI/installer는 이번에 실행하지 않았다.
-- 진행 중: 웹 production 출시 정보 갱신. 새 APK 게시 질문은 응답 대기이며 native 구획이 기존6에 적용됐다고 안내하지 않는다.
+- 운영 완료: main 제품080a9519714a58419c9639c09e739e4a03ac6845, Actions37734679894 success, Vercel dpl_GfgtMCDJ4FK9GHyd2t7bvTsBvE8s READY·동일SHA·production alias. CI1012통과/실패0/선택브라우저92생략이며 mobile/docs/Edge/build 성공. 운영 웹200·안내 두 경로200/no-store·변경사항 구역/요약2건, JSON200/no-store·수정된 전체필드, 고정APK307·익명 전체61993631bytes/SHA256 기존6 일치 확인.
+- 남은 작업: 새 APK 게시 질문에 응답 대기. 기존 앱의 ‘최신 버전 다시 확인’으로 수정된 releaseNotes를 읽을 수 있지만 ‘이번 업데이트 내용’/‘설치 안내’ 제목·구획 변경은 새 APK 이후다. 공개6 원본을 교체하거나 native 구획까지 운영 적용됐다고 안내하지 않는다.
 - 주의: 기존 공개 APK6의 파일·해시·버전/immutable URL을 유지한다. AI 요약 오류 등 무관한 수정을 이번 릴리스 내용에 포함하지 않는다.
 
 ## 현재 작업 — 2026-10-08 APK 0.2.3 게시·운영 반영 완료

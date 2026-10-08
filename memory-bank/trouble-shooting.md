@@ -10,6 +10,7 @@
 - 새 RN 구역/미제공 안내2건과 실제 브라우저 구역 RED→GREEN 검증. 구현 후 기존 페이지 테스트의 `getByText('앱 업데이트')`가 변경사항과 설치 방법을 동시에 매칭해 strict mode violation이 발생했다. 검사 대상을 실제 설치 방법 구역으로 좁혀 focused107/107 통과했다. 제품 문구를 테스트 때문에 삭제하지 않았다.
 - 관련 파일: AppUpdatePanel.tsx, 공개 android-release.json/android.html, mobile-app-update/android-download 테스트, prd-android-app-updates.md.
 - 네이티브 제목 변경은 웹 JSON 갱신만으로 기존 APK에 적용되지 않는다. 같은 versionCode의 파일을 덮어쓰지 않고 새 APK 공개 여부를 별도로 확인한다.
+- 최종 전체1104/1104·실패0·생략0, 모바일/웹/문서/Android 빌드 검증과 운영 출시 정보 반영 완료. CI/Vercel/운영 HTTP 및 실제APK 일치 결과는 progress에 기록했다. Vercel list_deployments의 limit을 문자열로 보내면 INVALID_ARGUMENT이 발생하며 숫자5로 전달해 정상 READY 조회했다. 배포 문제로 오해하지 않는다.
 
 ## 2026-10-08 — APK 출시 검사의 로컬 네트워크 권한
 

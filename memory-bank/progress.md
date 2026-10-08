@@ -15,7 +15,8 @@
 - apps/mobile/src/AppUpdatePanel.tsx, apps/web/public/download/{android-release.json,android.html}, scripts/{mobile-app-update,android-download}.test.mjs, active-context/progress/trouble-shooting/업데이트 PRD.
 - TDD: 새 RN 구역/빈 요약2건과 실제 브라우저 구역1건 RED→GREEN. focused107/107·실패0·생략0(2327.8403ms), 실제375/1440px 가독성·키보드·44px·대비 검사 포함.
 - 검증 완료: 전체1104/1104·실패0·생략0(134345.0189ms), mobile:check·docs24자산/3언어·설정된 웹 tsc/Vite 빌드·Android assembleRelease/lintVitalRelease 성공(1분58초). 이 네이티브 빌드는 현재6의 로컬 검사 파일이며 게시하지 않았다. 실제 Android UI/installer 검증은 이번에 실행하지 않았다.
-- 웹 production 배포는 진행 중이다. 새 APK 게시 별도 질문에 응답 대기이며 native 구획 적용은 새 APK 설치가 필요하다. 기존 공개6을 같은 버전의 다른 파일로 덮어쓰지 않는다.
+- 운영 배포 완료: 제품080a9519714a58419c9639c09e739e4a03ac6845/main, Actions37734679894 success, Vercel dpl_GfgtMCDJ4FK9GHyd2t7bvTsBvE8s READY/동일SHA/production alias. CI1012통과·0실패·92선택브라우저 생략, mobile/docs/Edge/build 성공. 운영 웹200·안내 두 경로200/no-store·변경사항 구역/2건, 출시JSON200/no-store/전체필드·APK307·익명 전체파일61993631bytes/기존SHA256 일치.
+- 새 APK 게시 질문은 응답 대기다. 기존 updater 앱은 ‘최신 버전 다시 확인’으로 수정된 요약을 읽고, native 구획 변경은 새 APK 설치가 필요하다. 현재 공개6 원본은 교체하지 않았다. 실제 Android UI/installer는 이번에 미실행이며 같은versionCode의 로컬 빌드 검사를 공개 업데이트로 사용하지 않는다.
 
 ### 2026-10-08 — APK 0.2.3 게시·운영 반영 완료
 
