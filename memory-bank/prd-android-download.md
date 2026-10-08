@@ -1,5 +1,11 @@
 # PRD: 고정 Android 다운로드 주소
 
+## 최신 출시 확인 — 2026-10-08 0.2.4/code7
+
+- 공개 GitHub android-v0.2.4-build7 APK61994067bytes/SHA256a473233cd309f5e69e8ceb071e7a45f628873b977a28f075da92fdddfb42218b·기존 package/signer 동일. 공개6 파일은 유지하고 고정 안내/JSON/307만7로 함께 갱신했다.
+- 제품96a47086/Actions37736495450 success/Vercel dpl_E2fGguFGbUem9PJ4agrjxPvbbKJC READY/production alias·동일SHA. 운영 웹200/실제Settings bundle, 안내 두 경로200/no-store·이번변경사항3건, JSON200/application-json/no-store·실제APK 전체필드, 파일307/no-store→같은GitHub7 APK·익명 전체200/크기/해시 일치 확인.
+- 기존 앱 설정→앱정보→앱업데이트→최신버전 다시확인→다운로드/설치→Android 승인을 사용한다. 이 고정 안내 링크도 계속 유지되며 앱 삭제/무인 설치/OTA는 없다. 실제 기기 UI/installer는 이번 게시에서 새로 실행하지 않았다.
+
 ## 1. Problem / Target Users
 - APK 빌드별 Expo 링크가 바뀌어 설치자가 최신 주소를 다시 받아야 한다. 기존·신규 Android 사용자가 같은 주소에서 최신 검증 APK를 다운로드한다.
 

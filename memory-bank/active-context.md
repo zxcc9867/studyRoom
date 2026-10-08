@@ -1,12 +1,14 @@
 # Active Context
 
-## 현재 작업 — 2026-10-08 변경사항 화면 APK7 게시
+## 현재 작업 — 2026-10-08 변경사항 화면 APK7 게시·운영 반영 완료
 
 - 승인/목적: 사용자 ‘게시해줘. 그러면 앱에서 업데이트하면되지?’로 새 APK를 공개하고 기존 앱 내부 업데이트 경로에 반영한다. 이전 네이티브 게시 응답 대기 상태를 대체한다.
 - 범위/결정: 0.2.4/code7 신규 immutable APK·기존 패키지/서명, 출시JSON/고정307/안내 일치. 실제 변경사항 화면 개선만 releaseNotes에 작성하며 기존6/서명키/공부·AI 정책은 변경하지 않는다.
 - 재확인: 실제 worktree codex/recovery-consistency의 HEAD와 origin/main cbcf551 일치, GitHub/운영 최신0.2.3/code6, tag android-v0.2.4-build7 없음, claim 충돌 없음. 실행 중 ADB 기기 없음.
-- 진행 중: 버전7 동일 서명 release/lint 빌드→실제 APK 무결성/서명 검사→테스트→GitHub 게시/운영 배포→익명 파일·JSON·안내 확인. 게시 완료는 후속 증거로만 판단한다.
+- 완료: 버전7 동일 서명 release/lint 빌드·실제 APK 무결성/서명·테스트·GitHub 게시·운영 배포·익명 파일/JSON/안내 검증을 모두 수행했다. 사용자의 설치 완료와는 구분한다.
 - 로컬 준비 완료: Android release/lint32초 성공, 실제0.2.4/code7·61994067bytes/SHA256a473233cd309f5e69e8ceb071e7a45f628873b977a28f075da92fdddfb42218b·기존 signer 일치. APK native bundle의 새 구역 문구까지 확인했다. 전체1104/1104·실패0·생략0(130254.9397ms), focused107/107·생략0·mobile/docs/설정된웹 build·diff 성공. 게시/운영 완료 확인을 진행한다.
+- 공개/운영 완료: GitHub android-v0.2.4-build7 공개2026-10-08T06:13:39Z·제품96a47086e99b98f8e6fb6e0c216fed07fece02c8·APK 한 개. Actions37736495450 success, Vercel dpl_E2fGguFGbUem9PJ4agrjxPvbbKJC READY·동일SHA·production alias. 운영 웹200/Settings·기기 판정 bundle index-D8jT9AjA.js, 안내 두 경로200/no-store·이번 변경사항3건, JSON200/application-json/no-store·실제7 전체필드, 고정APK307/no-store→같은GitHub7파일·익명 전체200/61994067bytes/게시SHA256 일치 확인.
+- 검증 구분/다음 작업: 로컬1104/1104·생략0과 CI1012통과/실패0/선택 브라우저92생략을 구분한다. CI mobile/docs/Edge/build·무료 코칭 smoke 성공. 실제 기기 UI/installer·별도 운영 runtime 오류 로그scan은 이번에 수행하지 않았다. 기존 앱 설정→앱정보→앱업데이트→최신버전 다시확인→다운로드/설치→Android 승인, 재실행 뒤 실제0.2.4/code7 확인. 기존 앱 삭제/데이터 초기화 없음.
 - 주의: 기존 공개6 파일을 덮어쓰지 않는다. 사용자의 실제 Android 설치 승인을 자동 수행하거나 새 APK 설치까지 완료됐다고 안내하지 않는다. DB/RLS/출석/집중 모드·AI 변경 없음.
 
 ## 현재 작업 — 2026-10-08 버전별 업데이트 변경사항 표시
