@@ -1,5 +1,13 @@
 # Progress
 
+## 2026-10-10 — tech-feed AI error recovery
+
+- Backend and frontend implemented in separate worktrees and integrated with an independent reviewer (C/I/M 0/0/0). Added bounded 502/503/504 retry, classified failure metadata, cooldown and explicit manual retry UI. No paid fallback, automatic view-triggered generation or APK change.
+- DB migration 20261010102102 applied; service-role-only RPC privileges and columns checked remotely. Server 44 unit/SQL checks and Edge 23 checks passed. Config recovery and final-attempt error regressions fixed before integration.
+- Updated English/Korean/Japanese README, design and PRD; actual mounted UI screenshot uses synthetic input. Added same-runtime free-provider synthetic CI check, whose unavailable result is recovery evidence rather than a successful-generation claim.
+- Fresh validation: 1034 passed, 0 failed, 96 optional-browser skipped (1130 total); web build1731/mobile checks/docs passed. Concurrency2 avoided seven baseline VM timeout failures; failure logs retained. Edge v40/worker v38 ACTIVE and anonymous401 confirmed; web rollout pending. See docs/tech-feed/ai-retry.md for final evidence.
+
+
 ## Timeline
 
 ### 2026-10-08 — 변경사항 화면 APK 0.2.4 게시

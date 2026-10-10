@@ -1,5 +1,12 @@
 ## 2026-10-08 — 업데이트 변경사항과 설치 안내 혼동
 
+## 2026-10-10 — OpenRouter 502 and stale local dependencies
+
+- Production tech-feed v39 log showed upstream HTTP502 (1314ms), not an authentication or quota error. The old briefing swallowed failures and displayed generic connection guidance. Added classified failure metadata, a single bounded transient retry and manual cooldown; raw provider bodies/keys are never logged.
+- Review found two edge cases: a second attempt retained the first 502 classification, and a recovered configuration stayed permanently blocked. Both have focused regressions and are fixed in main 548897c/77a181d.
+- Initial full validation failed on missing fast-xml-parser and native async-storage mismatch because the earlier 102-commit fast-forward did not refresh node_modules. Reinstall from the tracked lockfile rather than alter dependencies or application behavior. Preserve failed output/feed-ai-retry-full-test.log and distinguish it from the final validation.
+
+
 ### 상황과 원인
 
 - 사용자 요구는 해당 버전에서 무엇이 추가·개선·수정됐는지였으나 공개6 releaseNotes에 로그인/데이터 유지 등 공통 설치 안내가 섞여 있었다. native 창도 별도 변경사항 제목 없이 목록을 표시했다.

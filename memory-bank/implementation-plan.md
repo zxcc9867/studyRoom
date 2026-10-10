@@ -1,5 +1,13 @@
 ## 2026-10-08 — APK6 게시 승인
 
+## 2026-10-10 — tech-feed briefing recovery contract
+
+- Keep the existing free OpenRouter client and budgets. Retry one fast 502/503/504 after 500ms only with enough of the 30s overall deadline; each call stays capped at 20s and reserves a new attempt. Retry-After suppresses automatic retry and controls manual cooldown (maximum one hour).
+- Persist failure_reason/retry_at/retry_count/reserved_date. New reserve/retry/complete RPCs atomically settle the lease, original-date reservation and refund; only service_role executes. Explicit reads can permit retry after configuration recovery without generating AI.
+- UI provides error-specific messages, countdown/disabled retry and status refresh; scope/request cancellation and source permission checks remain. Tests cover double clicks, auth/config/429/timeout, budget rejection, midnight and stale responses.
+- Applied operational migration version 20261010102102. Deploy tech-feed and shared-code worker with verify_jwt=true, then normal main GitHub Actions production pipeline and exact-SHA Vercel/HTTP verification. No new APK is needed for hosted UI/API.
+
+
 - 검증된0.2.3/code6을 기존 공개 GitHub Releases에 immutable android-v0.2.3-build6/study-room-0.2.3-build6.apk로 게시한다. 새 서명/빌드/DB/서비스는 추가하지 않는다.
 - 실제 APK 기반 공개JSON과 고정307/안내를 함께 갱신한다. 파일 전체 익명 다운로드·해시 일치 후 main 배포하고 Actions/Vercel/HTTP를 확인한다. 앱은 고정JSON의 높은 실제 versionCode를 읽어 명시적 다운로드·설치를 제공한다.
 - 첫5→6 업데이트에는 기존5의 계정 guard가 적용된다. 설치 후6부터 기기 단위 정책을 사용하며 원격 공부를 updater가 변경하지 않는다. 최종 공개/배포 증거는 progress/active-context에 기록한다.

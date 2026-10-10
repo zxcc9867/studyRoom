@@ -1,5 +1,14 @@
 # Active Context
 
+## Current task — 2026-10-10 tech-feed AI retry
+
+- Authorized scope: improve OpenRouter 502 guidance and retry while retaining free-only policy; verify and deploy web/Edge. APK remains 0.2.4/code7.
+- Integrated main commits: 020a31b (server), 548897c (review fixes), 77a181d (UI). Independent review C/I/M 0/0/0; server unit/real-SQL 44 passed, Edge suite 23 passed. UI browser fixtures cover manual retry/cooldown/account changes; screenshot docs/images/tech-feed-ai-retry.png is synthetic, not a live provider success.
+- Contract: one bounded automatic retry for fast 502/503/504 only; manual cooldown, Retry-After, reason-specific errors; no AI on read/focus/countdown. Free router/pricing, 2048 tokens, 20s per attempt and shared budgets unchanged. Atomic reservations/refunds and original budget dates prevent duplicate charging and date bypass.
+- Operational DB: applied tech_feed_briefing_retry version 20261010102102; new columns and service-role-only RPC ACL verified. Existing study records preserved. Edge tech-feed v40 and worker v38 are ACTIVE with JWT checks; anonymous HTTP401 verified. Web rollout pending.
+- Local full test initially failed because node_modules predates the 102-commit fast-forward (XML parser missing, native async-storage wrong version). npm ci restored lockfile dependencies and the native patch. Final full suite: 1130 total, 1034 passed, 0 failed, 96 optional-browser skipped; concurrency2 avoided pre-existing 1s VM resource timeouts. Web build/mobile/docs passed; deployment evidence follows. No dependency/lock changes.
+
+
 ## 현재 작업 — 2026-10-08 변경사항 화면 APK7 게시·운영 반영 완료
 
 - 승인/목적: 사용자 ‘게시해줘. 그러면 앱에서 업데이트하면되지?’로 새 APK를 공개하고 기존 앱 내부 업데이트 경로에 반영한다. 이전 네이티브 게시 응답 대기 상태를 대체한다.

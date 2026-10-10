@@ -78,6 +78,13 @@ jobs:
           OPENROUTER_MODEL: ${{ vars.OPENROUTER_MODEL }}
         run: node scripts/check-free-coaching-live.mjs
 
+
+      - name: Verify free feed briefing with synthetic input
+        env:
+          OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
+          OPENROUTER_MODEL: ${{ vars.OPENROUTER_MODEL }}
+        run: node scripts/check-free-feed-briefing-live.mjs
+
       - name: Deploy to Vercel production
         env:
           CLEAN_BUILD: ${{ inputs.clean_build }}
