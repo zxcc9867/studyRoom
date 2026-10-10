@@ -5,9 +5,11 @@
 - 실제 DeepL 무료 Developer 전체1000000자/499034자 사용 확인. 기존500000자 clamp로 잔여966자로 제한되는 원인 및 PRD 충돌을 알리고, 사용자에게 무료 Developer 지원 승인받았다.
 - provider 명시 요금제 opt-in/unknown fail-closed/1M clamp, 카드 상태 안내, 환경 예시와 PRD/설계/번역 문서/오류 기록 갱신. 기존 앱 월450000자 예산·키·DB·유료전환 금지 유지.
 - TDD:27개 관련 테스트 중4개 RED→27/27 GREEN. 전체1137/1137·실패0·생략0(175062ms, 실제Chrome/concurrency2), Edge23/23, 웹1731·mobile·docs27/3언어·Dune2파일/1경계·diff 통과. 제한환경 실패 로그는 보존하고 정상환경 전체 재실행으로 검증했다.
-- Supabase: 서버 DEEPL_API_PLAN=developer·tech-feed42/worker40 ACTIVE/JWT true, 번역3건/POST1회3232자 저장·provider ready/13:26:01UTC 확인. ready261→264·failed58→55, 자체예산49206→52438/450000자. 번역 테이블 브라우저SELECT/예산UPDATE=false·service_roleUPDATE=true 유지.
-- 실제 웹에서 새 글 확인과 배너 반영 후 한국어 제목·소개·영어 원문 접기·링크 확인. 웹 배포는 작업 브랜치의 workflow_dispatch로 진행하며 main 직접 푸시/PR머지하지 않는다.
-- 실제 계정 웹 피드/기존 요약·추천 확인. 저장/할 일/Android 실기기 동기화 조작은 아직 완료하지 않았다. 사용 중 공부 세션은 변경하지 않는다.
+- Supabase: 서버 DEEPL_API_PLAN=developer·tech-feed42/worker40 ACTIVE/JWT true·익명401. 초기 worker 번역3건/POST1회3232자 후 실제 새 글 확인에서 추가3건 성공: 최종ready267·POST2회6692자·provider ready/13:27:12.818271UTC, 자체예산49206→55898/450000자·20→22시도. 번역 테이블 브라우저SELECT/예산UPDATE=false·service_roleUPDATE=true 유지.
+- 실제 계정에서 새 글 배너·한국어 제목/소개·접힌 영어 원문·원문 URL과 기존 오늘 요약/하이라이트를 확인했다. 저장→저장 목록 서버 재조회→저장 해제 및 할 일 편집창 제목/날짜/원문 연결 확인·취소 완료. 최종 저장0/새 할 일 연결0으로 테스트 상태 복원. 할 일을 실제 생성하거나 앱에서 동기화를 검증한 것은 아니다.
+- 제품0053ee16aa1a3bd7316473b7c8860fa119cc3310을 codex/recovery-consistency에만 커밋·푸시했다. 기존 workflow_dispatch Actions38056061319 success → Vercel dpl_BTkMuMZXo3D3AKy6ysfd11SZHKMM READY/production/동일SHA/alias 확인. 운영 웹200, index-BkZHM76t.js·TechFeedSection-DpIlNWRy.js200/새 안내문구 확인. main 직접 푸시/PR머지 없음.
+- 새 production 실제 로그인 화면에서 한국어 카드 재확인·증거 output/feed-translation-developer-production-20261010.jpg 저장. 추가 검증 탭을 닫고 원래 공부 탭의 공부 중/타이머 지속을 읽기 전용으로 확인했다. unload 종료 의심은 기존 guard와 production 함수·회귀4/4로 반증돼 별도 코드 수정하지 않았다.
+- 남은 작업: ADB 연결 기기 없음으로 Android 실제 동기화/DND/카메라 수용은 미확인. 기존APK0.2.4/code7의 hosted UI에는 이번 웹/API 변경이 새 APK 없이 반영된다. 기능 브랜치의 기본 브랜치 통합은 별도 PR/머지 요청 시 수행한다.
 
 ## 2026-10-10 — 다음 작업 우선순위 읽기 전용 분석
 

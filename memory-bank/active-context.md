@@ -6,9 +6,11 @@
 - 최근 결정: 계정 UI/공식 문서로 무료 Developer 전체100만 자를 확인했다. 사용499034자지만 기존50만clamp가 잔여966자로 막았다. 사용자가 PRD 개정/무료 Developer 지원을 승인했다.
 - 구현: 서버의 명시적 DEEPL_API_PLAN=developer만100만 적용. 기본free50만, 앱UTC월45만·고정무료endpoint·유료전환금지·기존키/데이터 유지. 카드에 번역 중단 이유 표시.
 - 현재 상태: 관련27개 회귀 RED→GREEN, 전체1137/1137·실패0·생략0(175062ms, 실제Chrome/concurrency2), Edge23/23, 웹빌드1731 modules·mobile·docs27/3언어·Dune2파일1경계·diff 통과. 제한 환경의 브라우저 로딩 실패는 원본 로그에 보존하고 정상 환경 재실행으로 확인했다.
-- 운영: DEEPL_API_PLAN=developer 적용, tech-feed42/worker40 ACTIVE/JWT true. 정상 worker HTTP200 후 번역ready261→264·3건, 예약49206→52438자·20→21시도(POST1회3232자), provider ready/2026-10-10T13:26:01Z 확인. 키·결제·DB스키마/권한·출석Cron 변경 없음. 실제 웹 ‘새 글 확인→새 글 배너’에서 한국어 제목/소개·원문 링크·접힌 원문 확인.
-- Git/출시: 최신 사용자 규칙에 따라 codex/recovery-consistency에만 커밋·푸시하며 main 직접 푸시/PR머지는 하지 않는다. 웹 production은 검증된 작업 브랜치의 기존 workflow_dispatch로 배포한다. 웹 배포와 저장/할 일 검증은 진행 중이며 Android 실기기 수용은 미확인.
-- 주의: 사용자는 웹에서 공부 중이다. 공부 탭과 인증된 추가 피드 탭을 새로고침/닫지 않는다. 별도 세션 unload 소유권 위험은 이번 범위에서 임의 수정하지 않는다.
+- 운영: DEEPL_API_PLAN=developer 적용, tech-feed42/worker40 ACTIVE/JWT true·익명401. 정상 worker와 실제 ‘새 글 확인’으로 번역ready261→267·6건, 예약49206→55898/450000자·20→22시도(POST2회6692자), provider ready/2026-10-10T13:27:12.818271Z 확인. 키·결제·DB스키마/권한·출석Cron 변경 없음.
+- 실제 계정: 새 글 배너·한국어 제목/소개·원문 링크·접힌 원문, 기존 오늘 요약/하이라이트, 저장→저장 목록 서버 재조회→해제를 확인했다. 할 일 편집창의 제목/날짜/원문 연결을 확인하고 저장하지 않아 테스트 할 일은 생성하지 않았다. 최종 bookmarks0/new todo links0으로 검증 상태를 복원했다.
+- Git/출시 완료: codex/recovery-consistency의 제품0053ee16aa1a3bd7316473b7c8860fa119cc3310을 커밋·푸시했다. main 직접 푸시/PR머지 없음. Actions38056061319 success, Vercel dpl_BTkMuMZXo3D3AKy6ysfd11SZHKMM production READY·동일SHA·alias 확인, 운영 웹/새 feed JS HTTP200. 실제 새 배포에서 번역 카드 재확인 및 output/feed-translation-developer-production-20261010.jpg 저장.
+- 남은 검증: ADB 연결 기기가 없어 Android 실기기 동기화/DND/카메라 수용은 미확인이다. hosted WebView 공통 UI/API 변경이므로 새 APK는 필요하지 않다. 일부 번역 대기 글은 최대3건 묶음의 순차 처리이며 즉시 전체 번역을 보장하지 않는다.
+- 주의: 사용자 공부 탭은 새로고침/닫기/세션 변경하지 않았다. 추가 피드 탭 종료 위험을 의심했으나 sessionExit의 pagehide/beforeunload/visibilitychange 차단, 실제 production 함수와 회귀4/4로 종료 요청이 없음을 확인했다. 검증용 피드/DeepL 탭만 닫고 원래 탭의 공부 중·타이머 지속을 확인했다.
 
 ## 현재 작업 — 2026-10-10 다음 작업 우선순위 분석
 

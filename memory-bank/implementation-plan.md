@@ -10,8 +10,8 @@
 - 변경 대상/내용: Edge server-only DEEPL_API_PLAN=developer, tech-feed42 / tech-feed-worker40 배포(ACTIVE, verify_jwt=true).
 - 이유/기능: 실제 무료 Developer 전체100만 자에 맞춰 한국어 번역 중단 복구. 공급자 계정·결제·키는 그대로다.
 - 마이그레이션 파일: 없음. DB 스키마/RLS/RPC·기존 출석Cron 변경 없음.
-- 확인: CLI2.120.0, 배포 source의 developer clamp, 정상 worker HTTP200/번역3건 ready 및3232자 예약 증가, 브라우저 직접 번역SELECT/예산UPDATE 금지 유지.
-- 주의: Developer 전체한도는 초기화하지 않는다. 기존 provider backoff/lease와450000자 월예산을 우회하지 않았다. 웹 배포는 별도 검증·기능 브랜치 workflow로 진행한다.
+- 확인: CLI2.120.0, 배포 source의 developer clamp, 정상 worker+수동 새 글 확인에서 총6건 ready/POST2회6692자 예약 증가, 최종55898/450000자·provider ready. 브라우저 직접 번역SELECT/예산UPDATE 금지·익명Edge401 유지.
+- 주의: Developer 전체한도는 초기화하지 않는다. 기존 provider backoff/lease와450000자 월예산을 우회하지 않았다. 기능 브랜치 제품0053ee16의 기존 workflow_dispatch로 웹 production READY/HTTP200·실계정 카드 검증까지 완료했으며 새 APK는 필요 없다.
 
 ## 2026-10-08 — APK6 게시 승인
 

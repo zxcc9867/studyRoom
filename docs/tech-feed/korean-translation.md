@@ -64,6 +64,16 @@
 
 ## 배포 기록
 
+### 2026-10-10 — 승인된 무료 Developer 지원 및 운영 복구
+
+- 실제 계정은 API Developer / Free / 전체1000000자였으며 사용499034자에서 기존500000자 clamp 때문에 묶음 번역이 중단됐다. 사용자 승인으로 명시적 DEEPL_API_PLAN=developer만1000000자까지 지원했다. 기본 Free500000·앱UTC월450000·고정 무료 endpoint·유료전환 금지는 유지한다. Developer 전체한도는 매월 초기화되지 않는다.
+- tech-feed42/worker40 ACTIVE·JWT true/익명401. 정상 worker와 실제 새 글 확인으로 총6건/POST2회6692자 성공, ready261→267·자체예산49206→55898/450000자·provider ready 확인. 키/요금제/결제/DB스키마/RLS/출석Cron·기존 카운터 변경 없음.
+- 제품0053ee16aa1a3bd7316473b7c8860fa119cc3310은 codex/recovery-consistency에 커밋·푸시했다. Actions [38056061319](https://github.com/zxcc9867/studyRoom/actions/runs/38056061319) success, Vercel dpl_BTkMuMZXo3D3AKy6ysfd11SZHKMM production READY·동일SHA·[운영 URL](https://study-room-attendance.vercel.app) HTTP200. main 직접 푸시/PR머지 없음.
+- 전체1137/1137·실패0·생략0, Edge23/23, build/mobile/docs/Dune 및 실제 계정 한국어 카드·원문 접기/링크·저장 재조회/해제·할 일 편집창 확인/취소 완료. 실제 새 할 일은 생성하지 않았다. 증거: output/feed-translation-developer-production-20261010.jpg. ADB 기기 없음으로 실제 Android 동기화는 미확인이다. hosted UI/API 수정이므로 새 APK는 필요 없다.
+- 아래 2026-09-13 당시 웹 배포 미실행 기록은 역사이며 현재 미배포 상태를 의미하지 않는다. 번역은 최대3건씩 순차 처리하고 모든 글의 즉시 번역을 보장하지 않는다.
+
+### 2026-09-13 — 최초 번역 구현 당시 기록
+
 - 사용자 명시적 운영 배포 승인 후 DB `20260913140137_tech_feed_korean_translation.sql`과 서버 함수를 적용했다. 출석/피드 Cron은 유지했고 번역테이블3개 RLS 및 브라우저 직접 접근차단을 확인했다.
 - 전체591개 테스트·Edge8개·웹 빌드·모바일·README 및 독립 최종 리뷰 통과.
 - 14:17UTC 일반Cron에서 실제 번역3건 저장, POST1회/3007자 기록. 잔여4건은 순차처리. Free 응답의 큰 문자상한을 무조건 거부하던 버그는500000자clamp로 수정했으며 무료 상한을 높이지 않았다.

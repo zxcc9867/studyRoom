@@ -11,10 +11,10 @@
 - 회귀 RED:27개 중4개 실패(Developer잔여량966≠500966, 잘못된 요금제 허용, 번역중단, 카드대기문구). 수정 후27/27 GREEN. 실제 운영 저장/배포와 전체 검증은 후속 기록으로 구분한다.
 - CLI 준비 중 sandbox 네트워크 ENOTFOUND 후 권한 경로로 재확인했다. 존재하지 않는 supabase@2.79.4 ETARGET은 실제 npm 버전2.120.0을 확인한 뒤 도움말 조회로 해결했다. 제품 의존성/lockfile은 바꾸지 않는다.
 - 관련 파일: tech-feed-translation.mjs/provider.test.mjs, TechFeedSection.tsx/techFeedSearchCard.test.mjs, docs/tech-feed/korean-translation.md.
-- 실제 공부 탭은 새로고침/종료하지 않는다. 인증된 추가 피드 탭의 unload가 서버 세션을 종료할 수 있는 별도 위험은 이번 번역 수정 범위 밖이다.
+- 실제 공부 탭은 새로고침/종료하지 않았다. 추가 피드 탭의 unload 종료 위험을 의심했으나 sessionExit.mjs는 pagehide/beforeunload/visibilitychange에 false를 반환한다. 실제 production 함수와 sessionExit.test.mjs4/4로 종료 요청 차단을 확인했으므로 이 의심을 제품 결함으로 기록하거나 임의 수정하지 않는다. 검증 탭 종료 뒤 원래 공부 중/타이머 지속을 확인했다.
 - 전체 Chrome 검사가 sandbox에서 로딩 시간 초과를 반복했다. 같은 단일 테스트가 정상 환경에서 통과함을 확인한 뒤, 사용자 브라우저와 분리된 임시 Chrome으로 전체1137/1137·생략0 재실행했다. 실패 로그 output/translation-developer-full-test-20261010.log와 성공 로그 output/translation-developer-full-test-verified-20261010.log를 구분한다.
 - Dune 초기 규칙에 필수 forbidden_modules 필드 누락으로 invalid가 발생했다. 빈 배열을 명시하고 실제 서버 금지 경계는 유지하여2파일/1경계 통과했다. Jev gate는 제공 근거 부족/낮은 확신으로 일부 주장을 자동 승인하지 않았으므로 source·27개 실제 회귀·전체/Edge 출력·실제 저장 결과를 직접 대조했다. Jev 자동 승인으로 보고하지 않는다.
-- 운영 복구: 무료 Developer 설정/Edge42·40 배포 후 정상 worker HTTP200, 번역3건/3232자/POST1회 저장·provider ready·실제 한국어 카드 표시 확인. 기존 카운터를 초기화하지 않았다.
+- 운영 복구: 무료 Developer 설정/Edge42·40 배포 후 정상 worker HTTP200·3건/3232자/POST1회, 실제 새 글 확인으로 추가3건/3460자/POST1회 성공. 최종ready267·예산55898/450000자·22시도·provider ready 확인. 기존 카운터를 초기화하지 않았다. 제품0053ee16 웹 READY/200과 실제 한국어 카드·저장/편집창 연결도 확인했다.
 
 ## 2026-10-10 — 기술 피드 번역 한도 상태와 영어 원문 표시
 

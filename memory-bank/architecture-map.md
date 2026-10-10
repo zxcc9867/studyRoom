@@ -29,7 +29,7 @@
 
 - 타입/테스트/빌드: npm.cmd test, npm.cmd run test:edge, npm.cmd run mobile:check, npm.cmd run build, npm.cmd run docs:check. 별도 린트 스크립트는 없다.
 - 의존성 경계: ai.ps1 dune check --project <actual-checkout>.
-- 실제 플로우: 로그인 → 기술 피드 → 한국어 제목/소개·접힌 원문·원문 링크 → 저장/공부할 일 연결. 실제 세션 진행 중 새 탭 unload가 세션을 종료할 수 있으므로 사용자의 공부 탭을 새로고침/닫지 않는다.
+- 실제 플로우: 로그인 → 기술 피드 → 한국어 제목/소개·접힌 원문·원문 링크 → 저장/공부할 일 연결. 사용자의 공부 탭은 조작하지 않는다. 기존 sessionExit는 pagehide/beforeunload/visibilitychange 종료 요청을 막으며 production 함수와 관련 회귀4/4로 확인했다. 추가 검증 탭을 닫는 것을 서버 세션 종료로 추정하지 않는다.
 - CI: 기존 vercel-production.yml이 Node/Edge/mobile/docs/build를 실행한다. Dune은 로컬 검사이며 CI를 새로 연결하지 않았다.
 
 ## 예외와 아키텍처 변경
