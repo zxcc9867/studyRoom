@@ -40,10 +40,9 @@ export function feedStructuredIntroduction(value) {
 export function feedExcerptView(value) {
   const full=typeof value==='string'?value.trim():'';
   // Search snippets sometimes flatten Markdown headings into one paragraph.
-  // Clean card text only; keep the original unchanged for expanded reading.
-  const cardText=full.replace(/(^|\s)#{1,6}\s+/gu,'$1');
-  const plain=feedMarkdownPreview(cardText,2000);
-  const preview=feedMarkdownPreview(cardText,260)+(Array.from(plain).length>260?'…':'');
+  // Shared Markdown cleanup protects code and also applies to expanded reading.
+  const plain=feedMarkdownPreview(full,2000);
+  const preview=feedMarkdownPreview(full,260)+(Array.from(plain).length>260?'…':'');
   const expandable=Array.from(plain).length>260 || /\n|\*\*|\x60|^#{1,6} |\[[^\]]+\]\(/m.test(full);
   return {full,preview,expandable};
 }

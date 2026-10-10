@@ -63,3 +63,12 @@ test('collapsed dynamic filter renders a topic beyond page twenty, hosts and fil
  assert.match(html,/host:engineering.example.com/);assert.match(html,/초기화/);
  assert.doesNotMatch(html,/<details[^>]* open|전체 분야|웹·프론트엔드/);
 });
+
+test('expanded translated introductions do not leak flattened heading syntax',()=>{
+ const text='씬 분할이 개선되었습니다. ##### `pinholeOpenCV` 투영 정확도 #### RTX 센서 ##### 보정 차트로 구성합니다.';
+ const html=render(FeedArticleText,{text:presentation.feedStructuredIntroduction(text)});
+ assert.doesNotMatch(html,/#{2,}/);
+ assert.match(html,/<code>pinholeOpenCV<\/code>/);
+ assert.match(html,/투영 정확도/);
+ assert.match(html,/보정 차트로 구성합니다/);
+});

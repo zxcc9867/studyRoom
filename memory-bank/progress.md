@@ -1,5 +1,14 @@
 # Progress
 
+## 2026-10-10 — 피드 본문 마크다운 제목 기호 제거
+
+- 운영 Omniverse 번역 소개의 확장 화면에서 문장 중간 `#####`/`####` 노출을 재현했다. 미리보기/확장 경로 차이와 미리보기의 fenced-code 손상을 회귀5개 RED로 확인했다.
+- core feedMarkdown 표시 정리를 공통화하고 feedPresentation의 선행 정규식을 제거했다. 저장 원문·URL·언어/주제 태그·코드·번역/요약 API는 유지했다.
+- 관련30/30 및 실제 FeedArticleCard의 375/1440px 미리보기→확장→영어 원문→AI 요약 통과. 브라우저 첫 실패는 테스트의 요약 버튼명 오류였으며 실제 ‘AI 요약 펼치기’로 수정하고 재실행했다.
+- 변경: packages/core/src/feedMarkdown.mjs와 test, apps/web/src/feedPresentation.mjs와 presentation/reading/browser test, 관련 memory-bank. 검증 스크린샷은 합성 소개를 쓴 output/feed-markdown-20261010/feed-markdown-{375,1440}.png이며 운영 증거와 구분한다.
+- 전체1143/1143·실패0·생략0(211402ms/실제 테스트Chrome/concurrency2), Edge23/23, 웹tsc/Vite1731·mobile·docs27/3언어·Dune2파일/1경계·diff 통과. Jev 보조 gate는 표시/보존 주장에 낮은 확신을 반환해 자동 승인으로 쓰지 않았으며 코드·실제 테스트 출력과 직접 대조했다.
+- 기능 브랜치 커밋/푸시·자동 production 배포 및 실제 운영 재확인은 진행 중이다.
+
 ## 2026-10-10 — 무료 Developer 번역 복구
 
 - 실제 DeepL 무료 Developer 전체1000000자/499034자 사용 확인. 기존500000자 clamp로 잔여966자로 제한되는 원인 및 PRD 충돌을 알리고, 사용자에게 무료 Developer 지원 승인받았다.

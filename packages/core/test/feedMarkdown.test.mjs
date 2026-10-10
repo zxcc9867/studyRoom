@@ -174,3 +174,30 @@ test('preview cleans code wrappers beyond the AST token cap before truncation', 
   assert.equal(feedMarkdownPreview(source, 2000), `${'* '.repeat(300)}TAIL`);
   assert.equal(feedMarkdownPreview(source, 7), '* * * *');
 });
+
+test('flattened headings are readable in both previews and expanded paragraphs', () => {
+  const source = '안정성이 개선되었습니다. ##### pinholeOpenCV 투영 정확도 높은 왜곡 계수를 지원합니다. #### RTX 센서 ##### 보정 차트';
+  const expected = '안정성이 개선되었습니다. pinholeOpenCV 투영 정확도 높은 왜곡 계수를 지원합니다. RTX 센서 보정 차트';
+  assert.equal(markdown.feedMarkdownPreview(source, 2000), expected);
+  assert.deepEqual(markdown.parseFeedMarkdown(source), [
+    {type: 'paragraph', children: [{type: 'text', text: expected}]},
+  ]);
+});
+
+test('heading cleanup preserves code literals, language names, hashtags and link fragments', () => {
+  const source = '설명 ##### 예제 `##### literal` C# #include #AI [문서](https://example.com/guide#section)\n\n```c\n##### literal\n#include <stdio.h>\n```';
+  const blocks = markdown.parseFeedMarkdown(source);
+  assert.equal(blocks[0].children[0].text, '설명 예제 ');
+  assert.equal(blocks[0].children[1].text, '##### literal');
+  assert.equal(blocks[0].children[2].text, ' C# #include #AI ');
+  assert.equal(blocks[0].children[3].href, 'https://example.com/guide#section');
+  assert.equal(blocks[1].text, '##### literal\n#include <stdio.h>');
+  assert.equal(markdown.feedMarkdownPreview(source, 2000), '설명 예제 ##### literal C# #include #AI 문서 ##### literal #include <stdio.h>');
+});
+
+test('real headings keep their semantic level but do not show closing heading markers', () => {
+  assert.deepEqual(markdown.parseFeedMarkdown('### 원문 제목 ###\n\n- 항목 ##### 세부 설명'), [
+    {type: 'heading', level: 3, children: [{type: 'text', text: '원문 제목 '}]},
+    {type: 'list', ordered: false, start: null, items: [[{type: 'text', text: '항목 세부 설명'}]]},
+  ]);
+});

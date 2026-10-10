@@ -11,6 +11,7 @@
 | 기능 | 담당 폴더 | 공개 진입점 | 의존할 수 있는 계층 | 관련 PRD |
 |---|---|---|---|---|
 | 피드 화면 | apps/web/src/TechFeedSection.tsx, FeedDailyBriefing.tsx | techFeed.mjs 인증 클라이언트 | 공개 core helpers, 웹 client | prd-tech-feed.md |
+| 피드 본문 표시 | packages/core/src/feedMarkdown.mjs, apps/web/src/feedPresentation.mjs, FeedArticleText.tsx | feedMarkdownPreview / parseFeedMarkdown | 공개 core 표시 helpers | prd-tech-feed.md |
 | 피드 API/수집 | supabase/functions/tech-feed, tech-feed-worker | Edge handler / runFeedWorker | _shared 서버 어댑터, service_role RPC | prd-tech-feed.md |
 | 무료 번역 | supabase/functions/_shared/tech-feed-translation.mjs, tech-feed-translation-worker.mjs | createDeepLTranslation / runTranslationWorker | 고정 무료 endpoint, store RPC | prd-tech-feed.md, docs/tech-feed/korean-translation.md |
 | Android 공통 화면 | apps/mobile/App.tsx | 인증된 hosted WebView | 웹 화면과 동일 서버 API | prd-android-web-parity.md |

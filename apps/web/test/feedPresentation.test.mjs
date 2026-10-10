@@ -48,3 +48,10 @@ test('continuous view keeps every loaded article in order without skipping earli
  assert.deepEqual(presentation.feedContinuousView(rows,null,true).items.map(row=>row.id),rows.slice(1).map(row=>row.id));
  assert.equal(presentation.feedContinuousView(rows,'next').hasNext,true);
 });
+
+test('card preview removes headings without stripping literal markers inside code',()=>{
+ const original='설명 ##### 제목 `##### literal` C# #include\n\n```c\n##### literal\n```';
+ const view=presentation.feedExcerptView(original);
+ assert.equal(view.preview,'설명 제목 ##### literal C# #include ##### literal');
+ assert.equal(view.full,original);
+});

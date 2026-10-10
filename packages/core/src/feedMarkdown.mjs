@@ -18,6 +18,12 @@ function safeMarkdownHref(value) {
   }
 }
 
+// Search/translation snippets can flatten headings into the middle of prose.
+// Only remove standalone heading markers; C#, #include and #AI remain literal.
+function cleanHeadingMarkers(text) {
+  return text.replace(/(^|\s)#{1,6}(?:[ \t]+|(?=\n|$))/gmu, '$1');
+}
+
 function appendText(tokens, text) {
   if (!text) return;
   const last = tokens.at(-1);
@@ -39,7 +45,7 @@ function parseInline(value, formatting = true) {
   let cursor = 0;
   let plainStart = 0;
   const flush = (end) => {
-    appendText(tokens, source.slice(plainStart, end));
+    appendText(tokens, cleanHeadingMarkers(source.slice(plainStart, end)));
   };
 
   while (cursor < source.length) {
@@ -116,7 +122,7 @@ function parseInline(value, formatting = true) {
     }
     cursor += 1;
   }
-  if (cursor < source.length) appendText(tokens, source.slice(plainStart));
+  if (cursor < source.length) appendText(tokens, cleanHeadingMarkers(source.slice(plainStart)));
   else flush(source.length);
   return tokens;
 }
@@ -226,8 +232,7 @@ function previewBlockSegments(value) {
 
 function cleanPreviewMarkdown(text) {
   const unwrap = (_match, text) => text;
-  let cleaned = text
-    .replace(/^\s{0,3}#{1,6}\s+/gmu, '')
+  let cleaned = cleanHeadingMarkers(text)
     .replace(/^\s{0,3}(?:[-+*]|\d{1,6}[.)])\s+/gmu, '')
     .replace(/!\[([^\]\n]*)\]\([^\n)]*\)/gu, unwrap)
     .replace(/\[([^\]\n]*)\]\([^\n)]*\)/gu, unwrap);
