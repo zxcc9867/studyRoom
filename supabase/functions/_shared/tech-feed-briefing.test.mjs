@@ -174,3 +174,49 @@ test('slow gateway failures and cancellation during backoff cannot start another
  g.f.ask=async(_m,_s,reserve)=>{await reserve();calls++;setTimeout(()=>controller.abort(),20);return{failure:briefingAiFailure({code:'upstream',status:502})};};
  await runBriefing({...g.f,env,generate:true,signal:controller.signal});assert.equal(calls,1);assert.equal(g.state.refunds,1);assert.equal(g.state.completed.at(-1).result,null);
 });
+
+test('502 followed by a hung second attempt reports timeout rather than retaining the first gateway error',async()=>{
+ const {briefingAiFailure}=await import('./tech-feed-briefing.mjs'),{f,state}=retryFixture();
+ const timeout=AbortSignal.timeout;let calls=0;
+ AbortSignal.timeout=ms=>timeout.call(AbortSignal,ms===20000?25:ms);
+ try{
+  f.ask=async(_messages,_signal,reserve)=>{
+   assert.ok(await reserve());calls++;
+   if(calls===1)return{failure:briefingAiFailure({code:'upstream',status:502})};
+   return new Promise(()=>{});
+  };
+  const result=await runBriefing({...f,env,generate:true});
+  assert.equal(calls,2);assert.equal(result.failure_reason,'timeout');assert.equal(state.completed.at(-1).error,'timeout');assert.equal(state.refunds,2);
+ }finally{AbortSignal.timeout=timeout;}
+});
+
+test('an expired provider authentication error allows explicit retry after read while disabled local config stays blocked',async()=>{
+ const {briefingAiFailure}=await import('./tech-feed-briefing.mjs'),{f,state}=retryFixture();
+ const success=f.ask;let providerCalls=0;
+ f.ask=async(_m,_s,reserve)=>{assert.ok(await reserve());providerCalls++;return{failure:briefingAiFailure({code:'upstream',status:401})};};
+ let result=await runBriefing({...f,env,generate:true});
+ assert.equal(result.failure_reason,'configuration_error');assert.equal(result.can_retry,false);assert.equal(providerCalls,1);assert.equal(state.retries,0);
+ result=await runBriefing({...f,env});assert.equal(result.can_retry,false);assert.equal(providerCalls,1);
+ f.snapshot.retry_at='2000-01-01T00:00:00Z';
+ result=await runBriefing({...f,env});assert.equal(result.failure_reason,'configuration_error');assert.equal(result.can_retry,true);assert.equal(providerCalls,1);
+ for(const config of [{...env,OPENROUTER_API_KEY:''},{...env,OPENROUTER_MODEL:'bad model'}]){
+  result=await runBriefing({...f,env:config});assert.equal(result.failure_reason,'configuration_error');assert.equal(result.can_retry,false);assert.equal(providerCalls,1);
+ }
+ f.snapshot.receiving=false;assert.equal((await runBriefing({...f,env})).can_retry,false);f.snapshot.receiving=true;
+ f.ask=async(...args)=>{providerCalls++;return success(...args);};
+ f.store.completeBriefing=async(lease,result,error,...args)=>{if(result){f.snapshot.last_error=null;f.snapshot.failure_reason=null;f.snapshot.retry_at=null;}return f.store.finishBriefing(lease,result,error,...args);};
+ result=await runBriefing({...f,env,generate:true});assert.equal(result.status,'ready');assert.equal(result.failure_reason,null);assert.equal(providerCalls,2);
+});
+
+test('retry reservation/storage and rejected completion failures do not inherit the first 502 reason',async()=>{
+ const {briefingAiFailure}=await import('./tech-feed-briefing.mjs');
+ for(const phase of ['reserve','complete']){
+  const{f,state}=retryFixture(),success=f.ask;let calls=0;
+  const reserve=f.store.reserveBriefing;
+  if(phase==='reserve')f.store.reserveBriefing=async(...args)=>{if(args[2]===1)throw Error('storage_failed');return reserve(...args);};
+  const complete=f.store.completeBriefing;
+  if(phase==='complete')f.store.completeBriefing=async(lease,result,...args)=>{if(result)return false;return complete(lease,result,...args);};
+  f.ask=async(...args)=>{if(++calls===1){assert.ok(await args[2]());return{failure:briefingAiFailure({code:'upstream',status:502})};}return success(...args);};
+  const out=await runBriefing({...f,env,generate:true});assert.equal(out.failure_reason,'unknown');assert.equal(state.completed.at(-1).error,'unknown');assert.equal(state.retries,1);
+ }
+});

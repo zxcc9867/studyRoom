@@ -100,7 +100,7 @@ function parseHighlights(value,articles){
   return{article_id:item.article_id,reason:item.reason.trim(),learning:item.learning.trim()};
  });
 }
-export function briefingView(snapshot,{status,paused=false,failure_reason,retry_at}={}){
+export function briefingView(snapshot,{status,paused=false,failure_reason,retry_at,configurationRetryAllowed=false}={}){
  const eligible=eligibleArticles(snapshot);let insights=[],highlights=[],generated_at=null,analyzed_count=0,stale=false;
  if(snapshot.cache?.result){
   try{
@@ -113,7 +113,7 @@ export function briefingView(snapshot,{status,paused=false,failure_reason,retry_
   }catch{/* A cache is still untrusted at its API boundary. */}
  }
  return{local_date:snapshot.local_date,time_zone:snapshot.time_zone,...statistics(snapshot),eligible_count:eligible.length,analyzed_count,generated_at,
- status:status||(paused||snapshot.receiving===false?'paused':snapshot.generating?'generating':insights.length?'ready':eligible.length<2?'insufficient':snapshot.last_error||'idle'),stale,insights,highlights,...failureMetadata(snapshot,{status:status||(paused||snapshot.receiving===false?'paused':snapshot.generating?'generating':insights.length?'ready':eligible.length<2?'insufficient':snapshot.last_error||'idle'),failure_reason,retry_at})};
+ status:status||(paused||snapshot.receiving===false?'paused':snapshot.generating?'generating':insights.length?'ready':eligible.length<2?'insufficient':snapshot.last_error||'idle'),stale,insights,highlights,...failureMetadata(snapshot,{status:status||(paused||snapshot.receiving===false?'paused':snapshot.generating?'generating':insights.length?'ready':eligible.length<2?'insufficient':snapshot.last_error||'idle'),failure_reason,retry_at,configurationRetryAllowed})};
 }
 function bounded(promise,signal){
  if(signal.aborted)return Promise.reject(Error('cancelled'));
@@ -139,11 +139,11 @@ export function briefingAiFailure(error){
  const retry_after_ms=Number.isFinite(error?.retry_after_ms)&&error.retry_after_ms>0?Math.min(error.retry_after_ms,3600000):null;
  return{failure_reason,can_retry:failure_reason!=='configuration_error',automatic_retry:[502,503,504].includes(status)&&!retry_after_ms,retry_after_ms};
 }
-function failureMetadata(snapshot,{status,failure_reason,retry_at}={}){
+function failureMetadata(snapshot,{status,failure_reason,retry_at,configurationRetryAllowed=false}={}){
  const reason=FAILURE_REASONS.has(failure_reason)?failure_reason:FAILURE_REASONS.has(snapshot.failure_reason)?snapshot.failure_reason:null;
  const value=retry_at??snapshot.retry_at;
  return{failure_reason:reason,retry_at:typeof value==='string'&&Number.isFinite(Date.parse(value))?value:null,
- can_retry:!['paused','quota_exhausted','generating','insufficient'].includes(status)&&reason!=='configuration_error'};
+ can_retry:!['paused','quota_exhausted','generating','insufficient'].includes(status)&&(reason!=='configuration_error'||configurationRetryAllowed)};
 }
 function waitForRetry(signal){
  return new Promise((resolve,reject)=>{
@@ -160,7 +160,11 @@ export async function runBriefing({store,ask,env,generate=false,signal:parentSig
  const signal=AbortSignal.any([deadline,...(parentSignal?[parentSignal]:[])]);
  let snapshot=await bounded(store.briefingSnapshot(BRIEFING_ANALYZER_VERSION,signal),signal),lease=null;
  const paused=()=>env.TECH_FEED_ENABLED!=='true'||snapshot.receiving===false;
- const view=briefingView(snapshot,{paused:paused()});
+ // A persisted provider auth failure can recover after operator key repair.
+ // Reading never probes AI: only valid local settings plus an expired stored
+ // cooldown offer one explicit retry; missing/malformed local settings stay blocked.
+ const configurationRetryAllowed=providerEnabled(env)&&snapshot.failure_reason==='configuration_error'&&typeof snapshot.retry_at==='string'&&Number.isFinite(Date.parse(snapshot.retry_at))&&Date.parse(snapshot.retry_at)<=Date.now();
+ const view=briefingView(snapshot,{paused:paused(),configurationRetryAllowed});
  if((view.status==='idle'||view.status==='unavailable')&&!providerEnabled(env))return briefingView(snapshot,{status:'unavailable',failure_reason:'configuration_error'});
  if(!generate||paused()||snapshot.generating||view.status==='insufficient'||view.insights.length&&!view.stale)return view;
  let failure='unavailable',failureReason=null,reserved=false,charged=false,attempt=0,retryAfterMs=null;
@@ -195,13 +199,13 @@ export async function runBriefing({store,ask,env,generate=false,signal:parentSig
     if(reserved&&attempt===0&&response.failure.automatic_retry===true&&Date.now()-attemptStarted<=5000&&Date.now()-startedAt<=7500&&store.retryBriefing){
      const retry=await bounded(store.retryBriefing(lease,signal),signal);
      if(retry.status==='retry'){
-      reserved=false;attempt=1;await waitForRetry(signal);continue;
+      reserved=false;attempt=1;failureReason=null;retryAfterMs=null;await waitForRetry(signal);continue;
      }
      if(['paused','quota_exhausted','generating','insufficient'].includes(retry.status))failure=retry.status;
     }
     throw {code:'briefing_failure'};
    }
-   break;
+   failureReason=null;retryAfterMs=null;break;
   }
   let answer=null;
   if(reserved&&response&&!response.deferred&&typeof response.text==='string'&&response.text.length<=12000)answer=parseModelJson(response.text);
@@ -217,7 +221,7 @@ export async function runBriefing({store,ask,env,generate=false,signal:parentSig
   charged=true;lease=null;snapshot=await bounded(store.briefingSnapshot(BRIEFING_ANALYZER_VERSION,signal),signal);
   return briefingView(snapshot,{status:paused()?'paused':snapshot.cache?'ready':'unavailable'});
  }catch(cause){
-  if(!failureReason)failureReason=briefingAiFailure(cause).failure_reason;
+  if(cause?.code!=='briefing_failure'||!failureReason)failureReason=briefingAiFailure(cause).failure_reason;
   // Parent cancellation still permits bounded cleanup. The overall 30s deadline
   // never extends; an expired tracked lease is settled by the next DB claim.
   const cleanupSignal=deadline;
