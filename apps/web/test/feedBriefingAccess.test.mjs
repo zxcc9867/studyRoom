@@ -20,3 +20,13 @@ test('a failed cache revalidation hides previously cited content while retaining
  assert.equal(mod.exports.feedBriefingAfterError(null),null);
  assert.equal(previous.insights.length,1);
 });
+
+test('failed access revalidation discards obsolete provider cooldown and requires state refresh first',()=>{
+ const previous={local_date:'2026-10-10',time_zone:'Asia/Seoul',total:5,source_count:2,categories:[],topics:[],eligible_count:5,analyzed_count:0,generated_at:null,status:'unavailable',stale:false,insights:[],failure_reason:'provider_unavailable',can_retry:true,retry_at:'2026-10-10T01:01:00Z'};
+ const result=mod.exports.feedBriefingAfterError(previous);
+ assert.equal(result.failure_reason,'unknown');assert.equal(result.retry_at,null);assert.equal(result.can_retry,false);
+ assert.equal(mod.exports.feedBriefingRetryState(result).canGenerate,false);
+ assert.equal(previous.failure_reason,'provider_unavailable');assert.equal(previous.can_retry,true);
+ const html=renderToStaticMarkup(React.createElement(mod.exports.FeedBriefingContent,{data:result,busy:false,error:'다시 확인해 주세요.',onGenerate(){},onReload(){}}));
+ assert.match(html,/상태를 다시 확인해 주세요/);assert.match(html,/브리핑 상태 다시 확인/);assert.doesNotMatch(html,/OpenRouter|요약 다시 시도/);
+});

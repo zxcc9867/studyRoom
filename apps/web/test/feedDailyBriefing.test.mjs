@@ -63,3 +63,51 @@ test('daily briefing surfaces quick topics while leaving detailed counts and ins
  assert.match(html,/<summary>콘텐츠 유형과 주제 전체 보기<\/summary>/);
  assert.match(html,/<summary>오늘의 인사이트 자세히 보기<\/summary>/);
 });
+
+test('provider outages show a distinct retry message while keeping available statistics and cited cache',()=>{
+ const html=renderToStaticMarkup(React.createElement(mod.exports.FeedBriefingContent,{data:{...data,status:'unavailable',failure_reason:'provider_unavailable',can_retry:true,retry_at:null},busy:false,error:'',onGenerate(){},onReload(){}}));
+ assert.match(html,/OpenRouter.*일시적인 오류/);assert.match(html,/요약 다시 시도/);
+ assert.match(html,/브리핑 상태 다시 확인/);assert.match(html,/실제 소개의 경향/);
+ assert.doesNotMatch(html,/AI 요약 연결을 확인하지 못했어요/);
+});
+test('failure reasons explain rate limit, timeout, invalid response and network failure without raw provider details',()=>{
+ for(const [reason,notice]of [['rate_limited',/요청이 잠시 몰렸어요/],['timeout',/응답이 늦어/],['invalid_response',/응답을 검증하지 못했어요/],['network_error',/AI 서비스에 연결하지 못했어요/],['unknown',/요약을 완료하지 못했어요/]]){
+  const html=renderToStaticMarkup(React.createElement(mod.exports.FeedBriefingContent,{data:{...data,status:'unavailable',failure_reason:reason,can_retry:true},busy:false,error:'',onGenerate(){},onReload(){}}));
+  assert.match(html,notice);assert.match(html,/요약 다시 시도/);
+ }
+});
+test('configuration failures block retry until the server explicitly confirms recovery',()=>{
+ const dto={...data,status:'unavailable',failure_reason:'configuration_error',can_retry:false};
+ assert.equal(mod.exports.feedBriefingRetryState(dto).canGenerate,false);
+ const html=renderToStaticMarkup(React.createElement(mod.exports.FeedBriefingContent,{data:dto,busy:false,error:'',onGenerate(){},onReload(){}}));
+ assert.match(html,/AI 요약 설정을 확인하지 못했어요/);assert.match(html,/브리핑 상태 다시 확인/);
+ assert.doesNotMatch(html,/요약 다시 시도|오늘 요약·추천 보기/);
+ const recovered={...dto,can_retry:true,retry_at:null};
+ assert.equal(mod.exports.feedBriefingRetryState(recovered).canGenerate,true);
+ const recoveredHtml=renderToStaticMarkup(React.createElement(mod.exports.FeedBriefingContent,{data:recovered,busy:false,error:'',onGenerate(){},onReload(){}}));
+ assert.match(recoveredHtml,/다시 요약을 시도할 수 있어요/);assert.match(recoveredHtml,/요약 다시 시도/);
+ assert.equal(mod.exports.feedBriefingRetryState({...dto,can_retry:undefined}).canGenerate,false);
+});
+test('retry deadline blocks generation until expiry while legacy DTOs remain compatible',()=>{
+ const deadline=Date.parse('2026-10-10T01:01:00Z');
+ const dto={...data,status:'unavailable',failure_reason:'provider_unavailable',retry_at:new Date(deadline).toISOString(),can_retry:true};
+ assert.deepEqual(mod.exports.feedBriefingRetryState(dto,deadline-60000),{remainingSeconds:60,unavailableBlocked:false,canGenerate:false});
+ assert.equal(mod.exports.feedBriefingRetryState(dto,deadline-1).remainingSeconds,1);
+ assert.equal(mod.exports.feedBriefingRetryState(dto,deadline).canGenerate,true);
+ assert.equal(mod.exports.feedBriefingRetryState({...dto,can_retry:false},deadline+1).canGenerate,false);
+ assert.equal(mod.exports.feedBriefingRetryState({...data,status:'unavailable'}).canGenerate,true);
+ assert.equal(mod.exports.feedBriefingRetryState({...dto,retry_at:'invalid'}).remainingSeconds,0);
+ for(const status of ['paused','generating','quota_exhausted','insufficient'])assert.equal(mod.exports.feedBriefingRetryState({...data,status}).canGenerate,false);
+ assert.equal(mod.exports.feedBriefingRetryState(null).canGenerate,false);
+});
+test('cooldown countdown is outside the live status and keeps state refresh available',()=>{
+ const dto={...data,status:'unavailable',failure_reason:'provider_unavailable',can_retry:true,retry_at:new Date(Date.now()+60000).toISOString()};
+ const html=renderToStaticMarkup(React.createElement(mod.exports.FeedBriefingContent,{data:dto,busy:false,error:'',onGenerate(){},onReload(){}}));
+ assert.ok(html.includes('<button class="primary" type="button" disabled="">요약 다시 시도 (60초 후)</button>'));
+ assert.ok(html.includes('<button class="secondary" type="button">브리핑 상태 다시 확인</button>'));
+ assert.doesNotMatch(html,/<p[^>]*role="status"[^>]*>[^<]*초 후/);
+});
+test('busy generation explains bounded free-provider retry instead of implying a login problem',()=>{
+ const html=renderToStaticMarkup(React.createElement(mod.exports.FeedBriefingContent,{data,busy:true,generating:true,error:'',onGenerate(){},onReload(){}}));
+ assert.match(html,/무료 모델로 요약을 만들고 있어요/);assert.match(html,/최대 한 번/);
+});

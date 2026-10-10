@@ -15,17 +15,24 @@ import React from 'react';
 import {createRoot} from 'react-dom/client';
 import {FeedDailyBriefing} from '../src/FeedDailyBriefing';
 const root=createRoot(document.getElementById('root'));
-const state={owner:'owner-a',revision:0,timeZone:'Asia/Tokyo',total:32,fail:false,calls:[],pendingGeneration:false,generationAborted:false,releaseGeneration:null,date:'2026-09-15'};
+const state={owner:'owner-a',revision:0,timeZone:'Asia/Tokyo',total:32,fail:false,calls:[],pendingGeneration:false,generationAborted:false,releaseGeneration:null,date:'2026-09-15',failureReason:null,retryAt:null,canRetry:undefined,clearCached:false};
 const dto=()=>({local_date:state.date,time_zone:state.timeZone,total:state.total,source_count:3,categories:[{value:'news',label:'기술 소식',count:state.total}],topics:[{value:'Rust',label:'Rust',count:12}],eligible_count:29,analyzed_count:24,generated_at:'2026-09-15T01:00:00Z',status:'ready',stale:false,highlights:[{reason:'실제 장애 복구 과정과 설계 선택을 확인할 수 있어요.',learning:'타임아웃과 재시도의 기준',source:{id:'a',title:'CACHED_PRIVATE_HIGHLIGHT — 장애에서 배우는 백엔드 설계',url:'https://example.com/architecture'}},{reason:'새 도구의 구체적인 활용 예시가 있어요.',learning:'작은 프로젝트에 적용하기',source:{id:'b',title:'CACHED_PRIVATE_HIGHLIGHT — 개발 도구 활용',url:'https://example.com/tools'}},{reason:'성능 측정 방법을 비교할 수 있어요.',learning:'측정 조건과 한계 확인',source:{id:'c',title:'CACHED_PRIVATE_HIGHLIGHT — 시스템 성능 분석',url:'https://example.com/performance'}}],insights:[{title:'CACHED_PRIVATE_TITLE',body:'CACHED_PRIVATE_BODY',study_angle:'study',sources:[{id:'a',title:'CACHED_PRIVATE_SOURCE',url:'https://example.com/source'}]}]});
+const responseDto=()=>{
+ const result=dto();
+ if(state.failureReason){result.status='unavailable';if(state.failureReason!=='legacy'){result.failure_reason=state.failureReason;result.retry_at=state.retryAt;result.can_retry=state.canRetry;}}
+ if(state.clearCached){result.insights=[];result.highlights=[];result.analyzed_count=0;result.generated_at=null;}
+ return result;
+};
 const api=async(action,payload,signal)=>{
  state.calls.push({action,payload,owner:state.owner});
  if(action==='briefing_generate'&&state.pendingGeneration){
-   const result=dto();
+   const result=responseDto();
    signal.addEventListener('abort',()=>{state.generationAborted=true;},{once:true});
    return await new Promise(resolve=>{state.releaseGeneration=()=>resolve(result);});
  }
  if(state.fail)throw new Error('FIXTURE_READ_FAILED');
- return dto();
+ if(action==='briefing_generate'){state.failureReason=null;state.retryAt=null;state.canRetry=undefined;state.clearCached=false;}
+ return responseDto();
 };
 function render(){root.render(<FeedDailyBriefing api={api} userId={state.owner} timeZone={state.timeZone} revision={state.revision}/>);}
 window.fixture={state,render,reactivate(){window.dispatchEvent(new Event('focus'));document.dispatchEvent(new Event('visibilitychange'));window.dispatchEvent(new Event('focus'));}};
@@ -40,7 +47,7 @@ async function withMounted(run,width=1280){
  let browser;
  try{
   browser=await chromium.launch({headless:true,executablePath:process.env.FEED_BROWSER_EXECUTABLE||undefined});
-  const page=await browser.newPage({viewport:{width,height:900}});page.setDefaultTimeout(2000);
+  const page=await browser.newPage({viewport:{width,height:900}});page.setDefaultTimeout(2000);page.setDefaultNavigationTimeout(15000);
   const errors=[];page.on('pageerror',error=>errors.push(error.message));
   await page.clock.install({time:new Date('2026-09-15T03:00:00Z')});
   await page.goto('http://127.0.0.1:'+server.address().port);
@@ -116,3 +123,79 @@ browserTest('mounted highlights show three sourced picks on desktop and mobile t
   }
  },width);
 });
+
+browserTest('mounted provider retry countdown blocks new calls, expires without automatic AI and keeps status quiet',async()=>{
+ for(const width of [1280,390])await withMounted(async page=>{
+  await page.evaluate(()=>{fixture.state.failureReason='provider_unavailable';fixture.state.canRetry=true;fixture.state.retryAt=new Date(Date.now()+60000).toISOString();fixture.state.clearCached=true;fixture.state.revision++;fixture.render();});
+  const retry=page.getByRole('button',{name:/요약 다시 시도/});
+  await retry.waitFor();
+  assert.equal(await retry.isDisabled(),true);
+  const message=await page.getByRole('status').textContent();
+  assert.match(message,/OpenRouter.*일시적인 오류/);
+  assert.equal(await page.getByRole('button',{name:'브리핑 상태 다시 확인',exact:true}).isEnabled(),true);
+  assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),'no horizontal overflow during provider outage');
+  if(process.env.FEED_CAPTURE_DIR){
+   mkdirSync(process.env.FEED_CAPTURE_DIR,{recursive:true});
+   await page.locator('.feed-daily-briefing').screenshot({path:process.env.FEED_CAPTURE_DIR+'/tech-feed-ai-retry-'+width+'.png'});
+  }
+  await page.clock.runFor(59000);
+  assert.equal(await retry.isDisabled(),true);assert.match(await retry.textContent(),/1초 후/);
+  assert.equal(await page.getByRole('status').textContent(),message);
+  assert.deepEqual(await page.evaluate(()=>fixture.state.calls.map(call=>call.action)),['briefing','briefing']);
+  await page.clock.runFor(1000);
+  assert.equal(await retry.isEnabled(),true);
+  assert.equal(await retry.textContent(),'요약 다시 시도');
+  assert.deepEqual(await page.evaluate(()=>fixture.state.calls.map(call=>call.action)),['briefing','briefing']);
+  await retry.evaluate(button=>{button.click();button.click();});
+  await page.getByRole('button',{name:'오늘 요약·추천 다시 보기',exact:true}).waitFor();
+  assert.equal(await page.evaluate(()=>fixture.state.calls.filter(call=>call.action==='briefing_generate').length),1);
+ },width);
+});
+
+browserTest('mounted configuration failure retries only after a server-confirmed recovery read and explicit click',async()=>withMounted(async page=>{
+ await page.evaluate(()=>{fixture.state.failureReason='configuration_error';fixture.state.canRetry=false;fixture.state.revision++;fixture.render();});
+ await page.getByRole('button',{name:'브리핑 상태 다시 확인',exact:true}).waitFor();
+ assert.equal(await page.getByRole('button',{name:/요약 다시 시도/}).count(),0);
+ assert.match(await page.getByRole('status').textContent(),/AI 요약 설정/);
+ await page.getByRole('button',{name:'브리핑 상태 다시 확인',exact:true}).click();
+ assert.deepEqual(await page.evaluate(()=>fixture.state.calls.map(call=>call.action)),['briefing','briefing','briefing']);
+ await page.evaluate(()=>{fixture.state.canRetry=true;});
+ await page.getByRole('button',{name:'브리핑 상태 다시 확인',exact:true}).click();
+ const retry=page.getByRole('button',{name:'요약 다시 시도',exact:true});await retry.waitFor();
+ assert.equal(await retry.isEnabled(),true);assert.match(await page.getByRole('status').textContent(),/다시 요약을 시도할 수 있어요/);
+ assert.equal(await page.evaluate(()=>fixture.state.calls.filter(call=>call.action==='briefing_generate').length),0);
+ await retry.click();await page.waitForFunction(()=>fixture.state.calls.some(call=>call.action==='briefing_generate'));
+ assert.equal(await page.evaluate(()=>fixture.state.calls.filter(call=>call.action==='briefing_generate').length),1);
+}));
+
+browserTest('mounted provider cooldown is discarded on account, time zone and local-day changes',async()=>{
+ for(const change of ['account','day','timezone'])await withMounted(async page=>{
+  await page.evaluate(()=>{fixture.state.failureReason='provider_unavailable';fixture.state.canRetry=true;fixture.state.retryAt=new Date(Date.now()+60000).toISOString();fixture.state.revision++;fixture.render();});
+  await page.getByRole('button',{name:/요약 다시 시도/}).waitFor();
+  if(change==='day')await page.clock.setFixedTime(new Date('2026-09-16T03:00:00Z'));
+  await page.evaluate(change=>{
+   fixture.state.failureReason=null;fixture.state.retryAt=null;fixture.state.canRetry=undefined;
+   if(change==='account'){fixture.state.owner='owner-b';fixture.render();}
+   if(change==='timezone'){fixture.state.timeZone='America/Los_Angeles';fixture.render();}
+   if(change==='day'){fixture.state.date='2026-09-16';fixture.reactivate();}
+  },change);
+  await page.getByRole('button',{name:'오늘 요약·추천 다시 보기',exact:true}).waitFor();
+  assert.doesNotMatch(await page.getByRole('status').textContent(),/OpenRouter/);
+  assert.equal(await page.getByRole('button',{name:/요약 다시 시도/}).count(),0);
+  await page.clock.runFor(61000);
+  assert.equal(await page.evaluate(()=>fixture.state.calls.filter(call=>call.action==='briefing_generate').length),0);
+ });
+});
+
+browserTest('mounted legacy unavailable response retains an explicit retry action and free generation busy state',async()=>withMounted(async page=>{
+ await page.evaluate(()=>{fixture.state.failureReason='legacy';fixture.state.canRetry=undefined;fixture.state.pendingGeneration=true;fixture.state.revision++;fixture.render();});
+ const retry=page.getByRole('button',{name:'요약 다시 시도',exact:true});await retry.waitFor();assert.equal(await retry.isEnabled(),true);
+ await retry.click();await page.waitForFunction(()=>Boolean(fixture.state.releaseGeneration));
+ assert.match(await page.getByRole('status').textContent(),/무료 모델로 요약을 만들고 있어요/);
+ assert.match(await page.getByRole('status').textContent(),/최대 한 번/);
+ await page.evaluate(()=>fixture.reactivate());await page.waitForTimeout(400);
+ assert.equal(await page.evaluate(()=>fixture.state.generationAborted),false);
+ assert.equal(await page.evaluate(()=>fixture.state.calls.filter(call=>call.action==='briefing_generate').length),1);
+ await page.evaluate(()=>fixture.state.releaseGeneration());await page.waitForTimeout(400);
+ assert.equal(await page.evaluate(()=>fixture.state.calls.filter(call=>call.action==='briefing_generate').length),1);
+}));

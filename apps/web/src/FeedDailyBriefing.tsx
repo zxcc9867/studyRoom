@@ -21,12 +21,52 @@ const statusText:Record<FeedBriefing['status'],string>={
   generating:'같은 계정의 요약을 생성 중이에요. 잠시 후 상태를 확인해 주세요.',
   insufficient:'요약할 소개가 충분한 글이 2건 미만이에요. 아래 원문을 직접 읽어 보세요.',
   quota_exhausted:'오늘의 무료 AI 공유 한도를 모두 사용했어요. 기존 요약과 글은 계속 읽을 수 있어요.',
-  unavailable:'AI 요약 연결을 확인하지 못했어요. 통계와 원문을 먼저 읽어 주세요.',
+  unavailable:'AI 요약을 완료하지 못했어요. 잠시 후 다시 시도해 주세요. 통계와 원문은 계속 볼 수 있어요.',
   paused:'소식 수신 또는 서비스가 중지되어 새 요약을 생성하지 않아요.',
 };
 
-export function FeedBriefingContent({data,busy,error,onGenerate,onReload}:{data:FeedBriefing|null;busy:boolean;error:string;onGenerate:()=>void;onReload:()=>void}) {
+const failureText:Record<NonNullable<FeedBriefing['failure_reason']>,string>={
+  provider_unavailable:'OpenRouter의 무료 모델 공급자에서 일시적인 오류가 발생했어요. 잠시 후 요약을 다시 시도해 주세요. 통계와 원문은 계속 볼 수 있어요.',
+  rate_limited:'무료 AI 요청이 잠시 몰렸어요. 대기 시간이 끝나면 요약을 다시 시도해 주세요.',
+  timeout:'AI 요약 응답이 늦어 요청을 중단했어요. 잠시 후 다시 시도해 주세요.',
+  configuration_error:'AI 요약 설정을 확인하지 못했어요. 잠시 후 브리핑 상태를 다시 확인해 주세요.',
+  invalid_response:'AI 요약 응답을 검증하지 못했어요. 잠시 후 다시 시도해 주세요.',
+  network_error:'AI 서비스에 연결하지 못했어요. 잠시 후 다시 시도해 주세요.',
+  unknown:statusText.unavailable,
+};
+
+// Legacy servers omit retry metadata. New servers allow the error type separately from its cooldown.
+export function feedBriefingRetryState(data:FeedBriefing|null,now=Date.now()) {
+  const retryAt=data?.retry_at ? Date.parse(data.retry_at) : NaN;
+  const remainingSeconds=Number.isFinite(retryAt)?Math.max(0,Math.ceil((retryAt-now)/1000)):0;
+  const status=data?.status;
+  const unavailableBlocked=status==='unavailable'&&(data?.can_retry===false||(data?.failure_reason==='configuration_error'&&data?.can_retry!==true));
+  return {remainingSeconds,unavailableBlocked,canGenerate:Boolean(data)&&!unavailableBlocked&&remainingSeconds===0&&status!=='paused'&&status!=='generating'&&status!=='quota_exhausted'&&status!=='insufficient'};
+}
+
+export function FeedBriefingContent({data,busy,error,generating=false,onGenerate,onReload}:{data:FeedBriefing|null;busy:boolean;error:string;generating?:boolean;onGenerate:()=>void;onReload:()=>void}) {
   const status=data?.status || 'idle';
+  const [now,setNow]=useState(()=>Date.now());
+  const retryAt=data?.retry_at;
+  useEffect(()=>{
+    let timer:ReturnType<typeof setTimeout>;
+    const deadline=retryAt?Date.parse(retryAt):NaN;
+    function update(){
+      const current=Date.now();setNow(current);
+      if(Number.isFinite(deadline)&&deadline>current)timer=setTimeout(update,Math.min(1000,deadline-current));
+    }
+    update();
+    return()=>clearTimeout(timer);
+  },[retryAt]);
+  const retry=feedBriefingRetryState(data,Math.max(now,Date.now()));
+  const failureMessage=data?.failure_reason?failureText[data.failure_reason]:null;
+  let message=statusText[status];
+  if(status==='unavailable'){
+    if(data?.failure_reason==='configuration_error'&&data.can_retry===true&&retry.remainingSeconds===0)message='설정 문제로 요약이 실패했어요. 다시 요약을 시도할 수 있어요.';
+    else if(retry.unavailableBlocked&&data?.failure_reason==='unknown')message='브리핑 상태를 확인하지 못했어요. 상태를 다시 확인해 주세요.';
+    else if(typeof failureMessage==='string')message=failureMessage;
+  }
+  const generateText=status==='unavailable'?'요약 다시 시도':data?.stale?'요약·추천 갱신':status==='ready'?'오늘 요약·추천 다시 보기':'오늘 요약·추천 보기';
   const generated=data?.generated_at && Number.isFinite(Date.parse(data.generated_at)) ? new Intl.DateTimeFormat('ko-KR',{timeZone:data.time_zone,dateStyle:'short',timeStyle:'short'}).format(new Date(data.generated_at)) : null;
   return <section className="feed-daily-briefing" aria-label="오늘의 기술 브리핑" aria-busy={busy}>
     <header><p className="feed-kicker">DAILY READING NOTE</p><h3>오늘 수집된 내 피드</h3><p>최초 수집 시각 기준 · {data ? `${data.local_date} · ${data.time_zone}` : '날짜와 통계 확인 중'}</p></header>
@@ -40,7 +80,7 @@ export function FeedBriefingContent({data,busy,error,onGenerate,onReload}:{data:
         <p className="feed-budget">한 글이 여러 주제에 포함될 수 있어요. 저장함·목록 필터와 무관한 전체 통계예요.</p>
       </details>
     </>}
-    <p className="feed-briefing-status" role="status">{busy?'오늘의 브리핑을 확인하고 있어요…':data?statusText[status]:error?'통계를 확인하지 못했어요.':'통계를 불러오고 있어요…'}</p>
+    <p className="feed-briefing-status" role="status">{busy?generating?'무료 모델로 요약을 만들고 있어요. 일시적인 공급자 오류는 최대 한 번 더 확인해요…':'오늘의 브리핑을 확인하고 있어요…':data?message:error?'통계를 확인하지 못했어요.':'통계를 불러오고 있어요…'}</p>
     {error&&<p className="feed-notice feed-error" role="alert">{error}</p>}
     {data?.stale&&<p className="feed-briefing-stale">새 글이 추가되거나 내용이 바뀌었어요 · 요약 갱신</p>}
     {data&&data.insights.length>0&&<>
@@ -61,15 +101,15 @@ export function FeedBriefingContent({data,busy,error,onGenerate,onReload}:{data:
       </details>
     </>}
     <div className="feed-briefing-actions">
-      {data&&<button className="primary" type="button" disabled={busy||status==='paused'||status==='generating'||status==='quota_exhausted'||status==='insufficient'} onClick={onGenerate}>{busy?'확인 중…':data.stale?'요약·추천 갱신':status==='ready'?'오늘 요약·추천 다시 보기':'오늘 요약·추천 보기'}</button>}
-      {(error||status==='generating'||status==='paused'||status==='quota_exhausted'||status==='insufficient')&&<button className="secondary" type="button" disabled={busy} onClick={onReload}>브리핑 상태 다시 확인</button>}
+      {data&&!retry.unavailableBlocked&&<button className="primary" type="button" disabled={busy||!retry.canGenerate} onClick={()=>{if(!busy&&feedBriefingRetryState(data).canGenerate)onGenerate();}}>{busy?'확인 중…':generateText}{!busy&&retry.remainingSeconds>0&&<> ({retry.remainingSeconds}초 후)</>}</button>}
+      {(error||status==='unavailable'||status==='generating'||status==='paused'||status==='quota_exhausted'||status==='insufficient')&&<button className="secondary" type="button" disabled={busy} onClick={onReload}>브리핑 상태 다시 확인</button>}
     </div>
     <p className="feed-budget">요약 생성은 코칭과 하루 무료 AI 호출 한도를 공유해요. 같은 결과 재사용에는 새 AI 호출이 없어요.</p>
   </section>;
 }
 
 export function feedBriefingAfterError(data:FeedBriefing|null):FeedBriefing|null {
-  return data ? {...data,insights:[],highlights:[],generated_at:null,analyzed_count:0,status:'unavailable'} : null;
+  return data ? {...data,insights:[],highlights:[],generated_at:null,analyzed_count:0,status:'unavailable',failure_reason:'unknown',retry_at:null,can_retry:false} : null;
 }
 
 export function FeedDailyBriefing({api,userId,timeZone,revision}:{api:FeedApi;userId:string;timeZone:string;revision:number}) {
@@ -91,6 +131,7 @@ export function FeedDailyBriefing({api,userId,timeZone,revision}:{api:FeedApi;us
 
   async function load(generate:boolean,force=false) {
     if((lock.current&&!force)||!scope.current||scope.current.signal.aborted)return;
+    if(generate&&(dataScope!==scopeKey||!feedBriefingRetryState(data).canGenerate))return;
     active.current?.abort();
     const controller=new AbortController();active.current=controller;
     const signal=AbortSignal.any([controller.signal,scope.current.signal]);
@@ -165,5 +206,5 @@ export function FeedDailyBriefing({api,userId,timeZone,revision}:{api:FeedApi;us
     boundary();window.addEventListener('focus',reactivate);document.addEventListener('visibilitychange',reactivate);
     return()=>{clearTimeout(timer);clearTimeout(activation);window.removeEventListener('focus',reactivate);document.removeEventListener('visibilitychange',reactivate);};
   },[timeZone]);
-  return <FeedBriefingContent data={dataScope===scopeKey?data:null} busy={busy} error={error} onGenerate={()=>void load(true)} onReload={()=>void load(false)}/>;
+  return <FeedBriefingContent key={scopeKey} data={dataScope===scopeKey?data:null} busy={busy} generating={generating.current} error={error} onGenerate={()=>void load(true)} onReload={()=>void load(false)}/>;
 }
