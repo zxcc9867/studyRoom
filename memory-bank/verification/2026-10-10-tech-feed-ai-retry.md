@@ -26,3 +26,10 @@ Fresh full suite completed: 1130 total, 1034 passed, 0 failed, 96 optional-brows
 
 ## Final integrated browser evidence
 23 scenarios exercised with installed Chromium, no skipped tests: 22 passed in the complete run; the first navigation exceeded its existing 15s deadline during cold startup. That isolated scenario passed 1/1 on rerun without code/test-timeout changes (see output/feed-ai-retry-browser-cold-start-rerun.log). Retry countdown, no automatic generation, recovered config, double-click protection and scope changes passed in the complete run. The README screenshot was recaptured from integrated main at390px with synthetic input; no user data/provider-success claim.
+
+## Operational completion
+- Product SHA bdd91162db7e40b4a9ef03e781cc07cdc1ce3e38; Actions38045602474 completed success. CI matches local totals:1034 passed,0 failed,96 optional browser skipped; mobile/docs/Edge/build steps successful.
+- Vercel dpl_7GcgWBB31tC4GnVQ3S5rWJY24i5m READY, same Git SHA, production alias https://study-room-attendance.vercel.app. HTTP200/index-DNK2EAMX.js/TechFeedSection-COPY15eD.js checked; new provider message, retry label and DTO contract present. Public release JSON remains0.2.4/code7.
+- Actual free provider check at2026-10-10T10:40:37Z: status ready, configured and response model google/gemma-4-26b-a4b-it:free, calls1/refunds0. Synthetic input/no user data/no DB writes; this verifies the provider client and briefing pipeline, not authenticated operating-account Edge generation. No fixed-model or always-best guarantee.
+- Edge v40/v38 ACTIVE/JWT enabled/unauthenticated401; all22 files in each remotely deployed function equal the tested local bundle. DB migration/ACL previously verified.
+- Remaining scope: optional signed-in operating-account end-to-end confirmation and real Android interaction were not performed. No known unresolved code/review/test finding; supplier availability can still vary. Rollback can restore archived prior Edge bundles (v39/v37) and the prior Vercel deployment while keeping compatible additive DB changes.

@@ -10,6 +10,8 @@ The briefing distinguishes OpenRouter provider errors (including HTTP 502), rate
 
 OpenRouter remains free-only: `OPENROUTER_MODEL` defaults to `openrouter/free` or an explicit `:free` model, with zero-price provider limits and no paid fallback. Feed limits remain 2,048 output tokens and 20 seconds per attempt. The existing shared budget is 15 reservations/user/day (workers at most 12); wasted failed reservations are refunded, with a non-refundable ceiling of 40 attempts. Each retry reserves again; cache reads use no AI. [Recovery and verification](docs/tech-feed/ai-retry.md).
 
+Verified example (2026-10-10): a synthetic live API check returned a valid briefing in one call, with configured and actual model `google/gemma-4-26b-a4b-it:free`. This records that CI check, not a fixed production model or quality guarantee; the selected free model/router remains environment-controlled.
+
 ![Implemented briefing with a temporary provider error and retry wait](docs/images/tech-feed-ai-retry.png)
 
 Actual React screen with synthetic data and a simulated provider error; this does not demonstrate a live outage or model generation success.

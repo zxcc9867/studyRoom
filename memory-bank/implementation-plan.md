@@ -5,7 +5,7 @@
 - Keep the existing free OpenRouter client and budgets. Retry one fast 502/503/504 after 500ms only with enough of the 30s overall deadline; each call stays capped at 20s and reserves a new attempt. Retry-After suppresses automatic retry and controls manual cooldown (maximum one hour).
 - Persist failure_reason/retry_at/retry_count/reserved_date. New reserve/retry/complete RPCs atomically settle the lease, original-date reservation and refund; only service_role executes. Explicit reads can permit retry after configuration recovery without generating AI.
 - UI provides error-specific messages, countdown/disabled retry and status refresh; scope/request cancellation and source permission checks remain. Tests cover double clicks, auth/config/429/timeout, budget rejection, midnight and stale responses.
-- Applied operational migration version 20261010102102. Deploy tech-feed and shared-code worker with verify_jwt=true, then normal main GitHub Actions production pipeline and exact-SHA Vercel/HTTP verification. No new APK is needed for hosted UI/API.
+- Applied operational migration version 20261010102102. Deployed tech-feed40/worker38 with verify_jwt=true, anonymous401 and all22 source files per function matched. Main Actions38045602474 success; product bdd91162db7e40b4a9ef03e781cc07cdc1ce3e38 / Vercel dpl_7GcgWBB31tC4GnVQ3S5rWJY24i5m READY and operating alias HTTP200 verified. No new APK is needed for hosted UI/API.
 
 
 - 검증된0.2.3/code6을 기존 공개 GitHub Releases에 immutable android-v0.2.3-build6/study-room-0.2.3-build6.apk로 게시한다. 새 서명/빌드/DB/서비스는 추가하지 않는다.

@@ -30,7 +30,9 @@ OpenRouter 공용 서버 모듈을 재사용한다. OPENROUTER_MODEL은 기본 o
 
 브라우저는 전체 실행 22건 통과 후 첫 화면 이동 타임아웃 사례를 단독 재검증해 1건 통과했다. 오류 대기·명시적 재시도·설정 복구·계정 변경을 확인했다.
 
-운영 DB 마이그레이션 20261010102102 적용 및 서비스 역할 전용 권한 확인. tech-feed v40·tech-feed-worker v38 ACTIVE, JWT 검사 유지·비인증 요청 401 확인. 웹 배포와 실제 무료 공급자 응답은 후속 기록한다. 로그인 계정의 실제 요약 성공이나 Android 실기기 수신을 확인한 것으로 표시하지 않는다.
+운영 DB 마이그레이션 20261010102102 적용 및 서비스 역할 전용 권한 확인. tech-feed v40·tech-feed-worker v38 ACTIVE, JWT 검사 유지·비인증 요청 401 확인. 운영 웹 배포 완료: [Actions 38045602474](https://github.com/zxcc9867/studyRoom/actions/runs/38045602474) success, 제품 bdd91162db7e40b4a9ef03e781cc07cdc1ce3e38, Vercel dpl_7GcgWBB31tC4GnVQ3S5rWJY24i5m READY·동일 커밋·운영 주소 HTTP 200. 실제 TechFeedSection-COPY15eD.js에 오류 안내와 재시도 계약을 확인했다.
+
+2026-10-10 실제 무료 API 검증: 합성 입력에서 status=ready, 호출 1회, 설정 및 응답 모델 google/gemma-4-26b-a4b-it:free. 이 확인 시점의 모델 예시이며 고정·최고 성능 모델로 보장하지 않는다. 운영 사용자의 데이터나 DB를 쓰지 않은 API 검사이며 로그인 계정 흐름 검증과 구분한다. 로그인 계정의 실제 요약 성공이나 Android 실기기 수신을 확인한 것으로 표시하지 않는다.
 
 검증 범위: 502→성공, 502 반복, 429/설정/시간초과/형식오류, 예산 거절, 중복 예약·환급, 자정·시간대 변경, 대기 시간 우회, 부모 취소·늦은 결과, 무료 정책, 390px와 데스크톱 오류/재시도 흐름.
 
