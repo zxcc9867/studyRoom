@@ -12,6 +12,7 @@
 - 브라우저 검사의 첫 timeout은 요약 카드에도 ‘내용 더 보기’를 찾은 테스트 오류였다. 실제 버튼명 ‘AI 요약 펼치기’로 수정 후 통과했다. 제품 timeout을 변경하지 않았다.
 - code literals/C#/#include/#AI/링크 fragment, 정상 제목 수준, 안전한 HTML 처리와 기존 크기 제한 회귀를 유지한다. 본문 안의 일반 단어에 붙은 단일 #는 제목 기호로 추측해 일괄 삭제하지 않는다.
 - 최종 로컬 전체1143/1143 및 Edge23/23 통과. Jev gate의 일부 표시/보존 주장은 근거 부족/낮은 확신으로 자동 승인되지 않았다. 같은 판단을 반복 호출하지 않고 직접 소스·RED/GREEN·실제 브라우저 검증과 대조했다.
+- 운영2782dda / Actions38057984174 success / Vercel dpl_GqqguL8PZfGz447w772qgSwFAod9 READY·HTTP200. 실제 Omniverse 한국어 본문과 영어 원문 확장에서 반복 제목 기호 미노출·코드/출처 URL 유지 확인. 처음 클릭 직후 캡처는 반영 전 화면이었으므로 실제 aria-expanded=true/본문 visible/markers=false를 다시 확인하고 최종 스크린샷을 저장했다.
 
 ## 2026-10-10 — 무료 Developer 계정을 기존 Free 한도로 제한한 번역 중단
 

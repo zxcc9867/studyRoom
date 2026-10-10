@@ -5,7 +5,9 @@
 - 작업명/목적: 사용자 요청에 따라 기술 피드의 `#####` 같은 제목 기호 노출을 없앤다. 관련 PRD: prd-tech-feed.md.
 - 원인: 운영 Omniverse 카드에서 ‘내용 더 보기’ 후 문장 중간의 `#####`/`####`를 재현했다. 기존 미리보기만 별도 정규식으로 정리했고, 확장 렌더러는 줄 시작 제목만 처리했다.
 - 결정/범위: 공개 core Markdown 표시 helper에서 코드 밖의 독립 제목 기호만 정리한다. 미리보기의 중복 정규식을 제거해 fenced/inline code를 보존한다. 번역문·원문·AI 요약이 같은 표시 경로를 사용한다.
-- 완료: 회귀5개 RED→관련30/30 GREEN, 실제 컴포넌트 375/1440px 펼치기·원문·요약 브라우저 통과. 전체1143/1143·실패0·생략0(211402ms), Edge23/23, tsc/Vite1731·mobile·docs27/3언어·Dune2파일/1경계·diff 통과. 기능 브랜치 커밋/푸시와 운영 배포는 진행 중이다.
+- 완료: 회귀5개 RED→관련30/30 GREEN, 실제 컴포넌트 375/1440px 펼치기·원문·요약 브라우저 통과. 전체1143/1143·실패0·생략0(211402ms), Edge23/23, tsc/Vite1731·mobile·docs27/3언어·Dune2파일/1경계·diff 통과.
+- 운영 완료: 제품2782dda28c60a67f12ac6aa139af5a98783456c1을 codex/recovery-consistency에 커밋/푸시하고 기존 workflow_dispatch Actions38057984174 success로 배포했다. Vercel dpl_GqqguL8PZfGz447w772qgSwFAod9 production READY·동일SHA·alias/HTTP200·index-Bto2nWrA.js 확인. CI1044pass/99optional-browser skip/0fail이며 로컬에서는 생략 없이 검증했다.
+- 실제 화면: 같은 Omniverse 카드의 한국어 확장 본문·영어 원문에서 반복 제목 기호가 없고 코드/원문 URL이 유지됨을 확인했다. output/feed-markdown-20261010/production-before.jpg와 production-after.jpg를 같은 뷰포트로 저장했다. 해당 배포 최근10분 error/fatal Vercel 로그 조회는 빈 결과였다. 검증용 탭만 닫았고 원래 공부 탭은 조작하지 않았다.
 - 주의: 원문 데이터/링크·C#/#include/코드·언어/주제 해시태그·무료 예산·수집·세션은 변경하지 않는다. DB/Edge/네이티브 변경이 없으며 hosted Android UI도 새 APK 없이 반영된다.
 
 ## 현재 작업 — 2026-10-10 무료 Developer 번역 복구 및 피드 검증

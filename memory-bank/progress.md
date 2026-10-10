@@ -7,7 +7,9 @@
 - 관련30/30 및 실제 FeedArticleCard의 375/1440px 미리보기→확장→영어 원문→AI 요약 통과. 브라우저 첫 실패는 테스트의 요약 버튼명 오류였으며 실제 ‘AI 요약 펼치기’로 수정하고 재실행했다.
 - 변경: packages/core/src/feedMarkdown.mjs와 test, apps/web/src/feedPresentation.mjs와 presentation/reading/browser test, 관련 memory-bank. 검증 스크린샷은 합성 소개를 쓴 output/feed-markdown-20261010/feed-markdown-{375,1440}.png이며 운영 증거와 구분한다.
 - 전체1143/1143·실패0·생략0(211402ms/실제 테스트Chrome/concurrency2), Edge23/23, 웹tsc/Vite1731·mobile·docs27/3언어·Dune2파일/1경계·diff 통과. Jev 보조 gate는 표시/보존 주장에 낮은 확신을 반환해 자동 승인으로 쓰지 않았으며 코드·실제 테스트 출력과 직접 대조했다.
-- 기능 브랜치 커밋/푸시·자동 production 배포 및 실제 운영 재확인은 진행 중이다.
+- 제품2782dda28c60a67f12ac6aa139af5a98783456c1을 기능 브랜치 codex/recovery-consistency에만 커밋/푸시했다. Actions38057984174 success(3m9s, CI1044pass/99optional-browser skip/0fail, Edge23/23) → Vercel dpl_GqqguL8PZfGz447w772qgSwFAod9 production READY·동일SHA·alias 확인, 웹HTTP200/index-Bto2nWrA.js. main 직접 푸시나 PR/머지는 하지 않았다.
+- 실제 운영 Omniverse ‘릴리스 노트’의 확장된 한국어 소개와 영어 원문에서 반복 제목 기호 제거·pinholeOpenCV 코드·원문 URL 유지 확인. 같은 뷰포트의 output/feed-markdown-20261010/production-before.jpg 및 production-after.jpg 저장. 검증 탭만 닫고 원래 공부 탭은 조작하지 않았다. 새 배포 최근10분 error/fatal 로그 조회는 빈 결과였으며 장기 모니터링/실제 Android 기기 검증을 대신하지 않는다.
+- 새 APK/DB/Edge 배포는 필요하지 않다. 일반 단어에 붙은 단일 #는 임의 삭제하지 않고 코드·태그와 구분한다. 기본 브랜치 통합은 별도 PR/머지 요청 시 진행한다.
 
 ## 2026-10-10 — 무료 Developer 번역 복구
 
