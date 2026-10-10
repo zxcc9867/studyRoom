@@ -503,7 +503,8 @@ const state=window.fixture={calls:[],todos:[todo('a','집중 독서'),todo('b','
 state.links=['a','b'];
 const mode=new URLSearchParams(location.search).get('mode');
 if(['empty-links','completed-links','active-empty'].includes(mode)){state.links=mode==='completed-links'?['a']:[];state.current=null;state.sessions[0].paused_at=mode==='active-empty'?null:now;state.todos[0].is_completed=mode==='completed-links';state.todos[1].local_date='2026-09-21';state.todos.forEach(t=>{t.first_started_at=null;t.unknown_allocation=true;t.evaluation_eligible=false;});}
-if(mode==='start'||mode==='recovery'){state.sessions=[];state.todos.forEach(t=>t.local_date='2026-09-21');}
+if(mode==='start'||mode==='recovery'||mode==='start-reflection'){state.sessions=[];state.todos.forEach(t=>t.local_date='2026-09-21');}
+state.reflections=mode==='start-reflection'?[{id:'past-reflection',session_id:'past-session',next_action:'장고245페이지',created_at:'2026-08-01T01:00:00Z'}]:[];
 state.recoveries=mode==='recovery'?[{id:'recovery',local_date:'2026-09-20',covered_start_date:'2026-09-20',covered_end_date:'2026-09-20',covered_missed_days:1,trigger_type:'missed_attendance',status:'pending',reason:null,makeup_todo_title:null,pledge_todo_title:null,created_at:now}]:[];
 if(mode==='lease')state.sessions[0].lease_expires_at='2026-09-21T14:34:00Z';
 if(mode==='unknown'){state.current=null;state.sessions[0].paused_at=now;state.todos.forEach(t=>{t.first_started_at=null;t.unknown_allocation=true;t.evaluation_eligible=false;});}
@@ -529,7 +530,7 @@ function result(name,args){state.calls.push({name,args});
  if(name==='get_study_period_summary')return {data:{completed_seconds:3600,completed_session_count:1,anomaly_session_count:0,cross_date_session_count:0},error:null};
  return {data:[],error:null};
 }
-function query(table){let single=false,insert=null;const q=new Proxy({}, {get(_,key){if(key==='then')return (resolve,reject)=>Promise.resolve().then(()=>{if(insert && table==='study_todos'){const added={...todo('new',''),...insert[0],id:'new'};state.todos.push(added);return {data:added,error:null};}let data=table==='profiles'?state.profile:table==='study_goals'?[{id:'goal',title:'자격증 목표',target_date:'2026-12-31',target_study_seconds:0,status:'active',created_at:now,updated_at:now}]:table==='study_sessions'?state.sessions:table==='study_todos'?state.todos:table==='study_recovery_requests'?state.recoveries:table==='study_session_todos'?state.todos.filter(t=>state.links.includes(t.id)).map(t=>({id:t.id,session_id:'session',todo_id:t.id,user_id:'owner',linked_at:now,completed_during_session:false})):[];return {data:single?(Array.isArray(data)?data[0]??null:data):data,error:null};}).then(resolve,reject);return (...args)=>{if(key==='maybeSingle'||key==='single')single=true;if(key==='insert')insert=args[0];if(key==='upsert'){state.calls.push({name:table+'.upsert',args:args[0]});if(table==='profiles')state.profile={...state.profile,...args[0]};}return q;};}});return q;}
+function query(table){let single=false,insert=null;const q=new Proxy({}, {get(_,key){if(key==='then')return (resolve,reject)=>Promise.resolve().then(()=>{if(insert && table==='study_todos'){const added={...todo('new',''),...insert[0],id:'new'};state.todos.push(added);return {data:added,error:null};}let data=table==='profiles'?state.profile:table==='study_goals'?[{id:'goal',title:'자격증 목표',target_date:'2026-12-31',target_study_seconds:0,status:'active',created_at:now,updated_at:now}]:table==='study_sessions'?state.sessions:table==='study_todos'?state.todos:table==='study_session_reflections'?state.reflections:table==='study_recovery_requests'?state.recoveries:table==='study_session_todos'?state.todos.filter(t=>state.links.includes(t.id)).map(t=>({id:t.id,session_id:'session',todo_id:t.id,user_id:'owner',linked_at:now,completed_during_session:false})):[];return {data:single?(Array.isArray(data)?data[0]??null:data):data,error:null};}).then(resolve,reject);return (...args)=>{if(key==='maybeSingle'||key==='single')single=true;if(key==='insert')insert=args[0];if(key==='upsert'){state.calls.push({name:table+'.upsert',args:args[0]});if(table==='profiles')state.profile={...state.profile,...args[0]};}return q;};}});return q;}
 export const isSupabaseConfigured=true,supabaseUrl='https://fixture.invalid',supabaseAnonKey='test';
 const feedArticles=Array.from({length:4},(_,index)=>({id:'article-'+index,title:['실무에서 살펴보는 백엔드 아키텍처','클라우드 운영과 관측 가능성','AI 개발 도구를 안전하게 활용하는 방법','새로운 웹 기술을 작은 프로젝트로 익히기'][index],excerpt:'공개 기술 블로그의 소개를 바탕으로 구현 과정과 실제 적용 시 고려할 점을 살펴봅니다. 원문에서 구체적인 예제와 설계의 근거를 확인할 수 있어요.',url:'https://example.test/article/'+index,published_at:now,discovered_at:now,summary:null,summary_status:'pending',category:'practice',interests:['backend'],topics:['백엔드'],sources:[{id:'source',name:'기술 블로그'}],saved:false,todo_id:null,origin:'rss',matched_topics:[],excerpt_provenance:'source_excerpt'}));
 const feedResponse=action=>action==='state'?{enabled:true,service_available:true,sources:[],interests:[],last_success_at:now,preferences:{prompt:'AI와 백엔드 기술',receiving:true,revision:1},search_status:{state:'ready',last_success_at:now}}:action==='list'?{items:feedArticles,next_cursor:null,total:4}:action==='facets'?{total:4,topics:[],sources:[],languages:[{value:'ko',label:'한국어 원문',count:4}]}:action==='briefing'?{local_date:'2026-09-21',time_zone:'Asia/Tokyo',total:4,source_count:1,categories:[],topics:[{value:'backend',label:'백엔드',count:4}],eligible_count:4,analyzed_count:0,generated_at:null,status:'idle',stale:false,insights:[],highlights:[]}:{};
@@ -794,6 +795,33 @@ for (const width of [375, 1440]) browserTest(`mounted session plan: readable, ac
  assert.equal(await dialog.locator('input[type="time"][aria-label="새 할 일 시작 시간 선택"]').count(),1);
  assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),true);
 } ,'start'));
+
+for (const width of [375, 1440]) browserTest(`mounted session plan: old reflection cannot prefill a new task at ${width}px`, () => withApp(width, async page => {
+ const start=page.getByRole('button',{name:'이어서 준비하기',exact:true});
+ await start.click();
+ await page.getByRole('button',{name:'카메라 켜고 시작',exact:true}).click();
+ const dialog=page.getByRole('dialog',{name:'이번 세션에서 할 일'});
+ await dialog.waitFor();
+ const input=dialog.getByRole('textbox',{name:'새 할 일',exact:true});
+ await mkdir('output/playwright',{recursive:true});
+ const phase=process.env.SESSION_PLAN_DRAFT_PHASE==='before'?'before':'after';
+ await page.screenshot({path:`output/playwright/session-plan-draft-${phase}-${width}.png`,fullPage:false});
+ assert.equal(await input.inputValue(),'');
+ assert.equal(await dialog.getByText('장고245페이지',{exact:true}).count(),0);
+ await input.fill('오늘의 FastAPI 공부');
+ assert.equal(await input.inputValue(),'오늘의 FastAPI 공부');
+ await dialog.getByRole('button',{name:'세션 할 일 선택 닫기'}).click();
+ await dialog.waitFor({state:'detached'});
+ await start.click();
+ await page.getByRole('button',{name:'카메라 켜고 시작',exact:true}).click();
+ await dialog.waitFor();
+ assert.equal(await input.inputValue(),'');
+ assert.equal(await dialog.getByRole('checkbox',{name:/집중 독서/}).count(),1);
+ assert.equal(await page.evaluate(()=>fixture.reflections[0].next_action),'장고245페이지');
+ assert.equal(await page.evaluate(()=>fixture.todos.length),2);
+ assert.equal(await page.evaluate(()=>fixture.calls.some(c=>/confirm_actual_study_action/.test(c.name))),false);
+ assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),true);
+},'start-reflection'));
 
 for (const width of [375, 1440]) browserTest(`mounted actual study panel: secondary text stays readable at ${width}px`, () => withApp(width, async page => {
  const panel=page.locator('.session-todo-panel.actual-study-panel');

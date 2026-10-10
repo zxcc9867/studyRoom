@@ -1,4 +1,20 @@
-## 2026-10-08 — 업데이트 변경사항과 설치 안내 혼동
+## 2026-10-10 — 기술 피드 번역 한도 상태와 영어 원문 표시
+
+### 상황 / 확인한 사실
+
+- 사용자 질문: 영어 원문은 API로 한국어 번역하는 기능이 아니었는가. 실제 배포된 tech-feed-worker v37은 api-free.deepl.com의 제목/소개 번역을 사용하고 웹은 ready 결과를 한국어로 표시한다.
+- 운영 provider는 quota_exhausted이며 마지막 번역 성공2026-10-02T13:00:05.752972Z다. ready261/failed57, 10월 앱 budget49206자/20시도. 자체 상한450000자 미도달이다.
+
+### 원인 확인 범위 / 미해결
+
+- ready 번역이 없으면 영어 원문과 번역 대기 문구를 표시하는 기존 fallback 경로다. 서버가 현재 한도 소진으로 처리 중인 것은 확인했지만 DeepL 실제 usage/계정 초기화일을 조회하지 않았으므로 공급자 한도 소진의 세부 원인을 확정하지 않는다.
+- 코드상 quota_exhausted는 공급자 usage 잔여량 부족·HTTP456·앱 reserve 예산 초과에서 나온다. 이번 운영 상태와 10월 앱 예산만으로 초기화일이나 제공업체의 실제 잔여 문자를 추정하지 않는다.
+- 새 번역/유료 전환/키 수정/월예산 초기화 없이 설명과 기록만 수행했다. 추가 진단은 공급자 usage와 해당 실행의 안전한 오류 코드를 확인해야 한다.
+
+### 관련 파일 / 재발 방지
+
+- supabase/functions/_shared/tech-feed-translation.mjs, tech-feed-translation-worker.mjs, apps/web/src/TechFeedSection.tsx, docs/tech-feed/korean-translation.md.
+- 수집 completed와 번역 성공을 구분하고 원문 언어 해시태그를 화면 번역 상태로 오인하지 않는다. ‘앱 예산’과 ‘DeepL 계정 예산’을 별도로 확인한다.
 
 ## 2026-10-10 — OpenRouter 502 and stale local dependencies
 
@@ -6,6 +22,8 @@
 - Review found two edge cases: a second attempt retained the first 502 classification, and a recovered configuration stayed permanently blocked. Both have focused regressions and are fixed in main 548897c/77a181d.
 - Initial full validation failed on missing fast-xml-parser and native async-storage mismatch because the earlier 102-commit fast-forward did not refresh node_modules. Reinstall from the tracked lockfile rather than alter dependencies or application behavior. Preserve failed output/feed-ai-retry-full-test.log and distinguish it from the final validation.
 
+
+## 2026-10-08 — 업데이트 변경사항과 설치 안내 혼동
 
 ### 상황과 원인
 
@@ -6102,3 +6120,22 @@ Error: GraphQL request failed.
 
 ### Retry task final environment result (2026-10-10)
 Tracked-lockfile install resolved dependency failures. Seven old1s VM cases passed without changing code/timeouts under test concurrency2; full1034 pass/0fail/96 optional skipped, mirrored by CI38045602474. Browser cold navigation had one15s timeout, isolated rerun1/1 passed; all retry scenarios verified. Actual free API synthetic briefing ready in1call; operational deployment completed, see verification/2026-10-10-tech-feed-ai-retry.md.
+## 2026-10-10 — 세션 새 할 일에 지난 회고 문구가 계속 표시됨
+
+### 상황 / 원인
+
+- ‘이번 세션에서 할 일’ 모달을 열 때 새 제목에 ‘장고245페이지’가 계속 나타났다. 하드코딩된 기본값이 아니라 최근 non-null 회고 next_action에서 시작 제안을 받고, 오늘의 동일 할 일이 없으면 그 제안을 새 제목으로 자동 입력하던 동작이었다.
+- 과거 회고는 그대로 남으므로 모달을 반복해서 열어도 같은 제목이 다시 채워졌다. 사용자 요청은 기존 기록 삭제가 아니라 새 입력칸의 반복 표시 제거다.
+
+### 해결 / 재발 방지
+
+- openSessionTodoSelection에서 setSessionTodoDraft("")로 항상 빈 새 입력을 제공한다. 기존 회고·할 일·일치하는 오늘 할 일 미리 선택과 공부 시작 게이트는 보존한다.
+- 실제 main 마운트 회귀를 375/1440px에 추가했다. 오래된 회고 제목으로 RED 2건을 확인한 뒤 빈 입력·직접 입력 유지·닫고 재열기 초기화·데이터 보존을 검증한다. 별도 fixture 화면만으로 완료를 판단하지 않는다.
+- 관련 파일: apps/web/src/main.tsx, apps/web/test/actualStudyMounted.test.mjs, memory-bank/prd-daily-habit-loop.md.
+
+### 검증 도구 / 통합 주의
+
+- 샌드박스 localhost의 net::ERR_NETWORK_ACCESS_DENIED는 제품 실패나 RED 근거가 아니다. 허용된 브라우저 실행에서 실제 값 ‘장고245페이지’와 기대 빈 값 불일치로 RED를 확인했다.
+- 최초 전체 실행은 1105통과/1실패/생략0이었다. 실패는 기존 1440px 가독성 시나리오의 첫 page.goto 15초 초과이며, 실행 도중 원격 최신 코드가 병합되어 최종 검증으로 사용하지 않는다. timeout이나 제품 기능을 바꾸지 않고 최신 통합본에서 concurrency2로 다시 검사한다.
+- Git의 샌드박스 DNS 실패와 dry-run non-fast-forward 거절을 인증 실패로 단정하지 않는다. 실제 fetch에서 origin/main 9e51742의 새 커밋 5개를 확인하고 scoped stash→fast-forward→재적용했다. active-context의 양쪽 상단 추가와 이전 번역 진단 기록을 모두 보존해 충돌을 해결했다.
+- 최신 통합본 전체 재검사1132/1132·실패0·생략0(244553ms), 웹/모바일/문서 검사 성공. 기존 초기 페이지 로딩 timeout은 재발하지 않았으며 별도 timeout 완화나 제품 변경을 추가하지 않았다.

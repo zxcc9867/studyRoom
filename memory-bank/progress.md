@@ -10,6 +10,32 @@
 
 ## Timeline
 
+### 2026-10-10 — GitHub 최신 반영과 세션 새 할 일 자동 입력 제거
+
+#### 완료한 작업 / 변경된 파일
+
+- 작업용 codex/recovery-consistency에서 GitHub origin/main 9e517428749ba9bdf22a82b827645634d8bfbe68의 새 커밋 5개를 fast-forward로 반영했다. 기존 로컬 번역 진단 문서와 미추적 파일은 보존했고, 문서 상단 충돌은 양쪽 기록을 유지해 해소했다.
+- apps/web/src/main.tsx에서 새 할 일 제목의 지난 회고 자동 입력 한 줄을 제거했다. 회고·할 일 데이터, 오늘의 동일 할 일 선택, 카메라·회복·타이머 게이트는 그대로다.
+- apps/web/test/actualStudyMounted.test.mjs에 실제 모달 375/1440px 회귀 2건을 추가했다. prd-daily-habit-loop.md를 빈 입력 동작으로 개정하고 active-context/progress/trouble-shooting에 원인·범위를 기록했다.
+
+#### 검증 / 남은 작업
+
+- TDD: 실제 오래된 회고 제목과 기대 빈 값 불일치로 RED 2건 확인 → 입력/기존 체크박스 focused 4/4 통과. 최신 통합본 웹 tsc/Vite1731 modules, mobile:check 호환성/타입, docs:check27자산/3언어 통과.
+- 첫 전체 실행은 실행 중 기준 코드가 변경됐고 기존 브라우저 초기 page.goto가 시간 초과하여 최종 근거로 사용하지 않는다. 최신 기준 전체 검증은 concurrency2·실제 Chrome으로1132/1132·실패0·생략0(244553ms) 통과했다. 기존 timeout이나 제품 동작을 바꾸지 않았다. output/session-draft-latest-full-tests-20261010.log 및 PC/모바일 before/after 스크린샷을 로컬 증거로 남겼다.
+- 로컬 AGENTS의 사용자 표시 웹 변경 자동 배포 규칙에 따라 최종 검증 후 main 커밋/푸시·Actions·Vercel READY·운영 HTTP를 확인한다. 새 APK나 DB 배포는 필요 없다.
+
+### 2026-10-10 — 기술 피드 한국어 번역 구현·운영 상태 확인
+
+#### 완료한 작업
+
+- 번역 PRD/운영 안내와 실제 웹 표시 조건, 배포된 worker v37의 DeepL Free 번역 경로를 대조했다. 제목·소개 번역과 AI 요약·원문 언어 필터·외부 원문 읽기를 구분했다.
+- Supabase MCP 읽기 전용 조회: 번역 provider quota_exhausted, 마지막 성공10월2일22:00(Asia/Tokyo), ready261/failed57. 10월 앱 예산49206자/20시도로 자체450000자 한도 미도달. 최신 시간별 수집은 completed이며 번역 성공을 뜻하지 않는다.
+
+#### 변경된 파일 / 검증 / 남은 작업
+
+- active-context.md, progress.md, trouble-shooting.md에 진단 기록만 추가했다. 제품 코드·운영 설정·키·DB 데이터는 변경하지 않았고 새 번역/AI 호출도 실행하지 않았다.
+- 코드/배포 함수/상태 SQL을 읽기 전용으로 검증했다. 제품 변경이 없어 테스트/빌드는 재실행하지 않았다. DeepL 실제 사용량과 초기화일, 앱 예산과 공급자 상태가 다른 이유는 미확정이다. 커밋·푸시·배포 없음.
+
 ### 2026-10-08 — 변경사항 화면 APK 0.2.4 게시
 
 #### 완료한 작업

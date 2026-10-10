@@ -1,5 +1,13 @@
 # Active Context
 
+## 현재 작업 — 2026-10-10 세션 새 할 일 입력 초기화
+
+- 요청/목적: GitHub 최신 변경을 가져오고, ‘이번 세션에서 할 일’의 새 입력칸에 과거 ‘장고245페이지’가 반복 표시되지 않게 한다.
+- 결정/범위: 모달을 열 때 새 할 일 입력을 항상 비운다. 과거 회고 next_action과 기존 할 일은 삭제하지 않고, 일치하는 오늘 할 일의 선택 동작은 유지한다. prd-daily-habit-loop.md의 자동 입력 규칙을 사용자 요청에 맞게 개정했다.
+- 현재 상태: origin/main의 새 커밋 5개를 9e51742까지 fast-forward로 반영했다. 기존 로컬 진단 문서와 이번 수정은 보존했으며 active-context의 동시 상단 추가 충돌을 양쪽 내용 유지로 해소한다.
+- 검증 완료: 실제 main을 마운트한 375/1440px 회귀에서 과거 회고 자동 입력을 RED로 확인한 뒤 빈 입력·직접 입력 유지·재진입 초기화·기존 데이터 보존을 GREEN으로 확인했다. 최신 통합본 전체1132/1132·실패0·생략0(244553ms, concurrency2/실제Chrome), 웹 tsc/Vite1731 modules·mobile 호환성/타입·docs27자산/3언어·diff 검사 통과. 커밋/푸시 및 웹 배포 확인은 진행 중이다.
+- 주의: DB/번역/AI 정책과 카메라·출석·세션 시작 정책은 변경하지 않는다. Android는 같은 웹 화면을 사용하므로 이번 입력 수정에 새 APK가 필요하지 않다.
+
 ## Current task — 2026-10-10 tech-feed AI retry
 
 - Authorized scope: improve OpenRouter 502 guidance and retry while retaining free-only policy; verify and deploy web/Edge. APK remains 0.2.4/code7.
@@ -8,6 +16,13 @@
 - Operational DB: applied tech_feed_briefing_retry version 20261010102102; new columns and service-role-only RPC ACL verified. Existing study records preserved. Edge tech-feed v40 and worker v38 are ACTIVE with JWT checks; anonymous HTTP401 verified. Web production READY: bdd91162db7e40b4a9ef03e781cc07cdc1ce3e38 / Actions38045602474 success / Vercel dpl_7GcgWBB31tC4GnVQ3S5rWJY24i5m, alias HTTP200. Feed asset TechFeedSection-COPY15eD.js contains new error/retry contract.
 - Local full test initially failed because node_modules predates the 102-commit fast-forward (XML parser missing, native async-storage wrong version). npm ci restored lockfile dependencies and the native patch. Final full suite: 1130 total, 1034 passed, 0 failed, 96 optional-browser skipped; concurrency2 avoided pre-existing 1s VM resource timeouts. Web build/mobile/docs passed; deployment evidence follows. No dependency/lock changes. Integrated browser22 passed plus isolated cold-navigation rerun1/1; no remaining failed scenario. Actual free API synthetic input status ready, 1call; configured/actual google/gemma-4-26b-a4b-it:free on2026-10-10 (not a fixed-model guarantee). Operating-account authenticated generation was not exercised; APK0.2.4/code7 retained.
 
+
+## 현재 작업 — 2026-10-10 기술 피드 한국어 번역 상태 진단
+
+- 요청/범위: 영어 원문의 API 한국어 번역이 구현돼 있는지 설명한다. 구현·배포·새 번역 호출·한도 변경은 요청되지 않았다.
+- 조사 당시 확인: 운영 bqohkdzvxbrokkmuhysx의 tech-feed-worker v37 ACTIVE에는 DeepL API Free 전용 제목/소개 번역이 포함돼 있었다. 이후 위 AI 재시도 배포 기록은 worker v38이다. 웹은 ready 번역을 기본 표시하며 원문 언어 해시태그는 번역 뒤에도 원문 기준이다. 외부 원문 전체를 번역하는 기능은 아니다.
+- 운영 읽기 결과: provider quota_exhausted, 마지막 성공 2026-10-02T13:00:05.752972Z(Asia/Tokyo 22:00). 번역 상태 ready261/failed57, 10월 앱 예산49206자/20시도(상한450000). 현재 앱 월예산 소진은 아니며 DeepL 실제 잔여량/초기화일은 별도 조회하지 않아 공급자 계정 한도 원인을 단정하지 않는다.
+- 현재 상태/다음: 수집은 10월10일 시간별 completed 기록이 있고 번역 상태와 구분한다. 서버가 한도 소진으로 처리하는 이유와 공급자 잔여량을 추가 확인해야 한다. 유료 전환·키 조회/교체·예산 초기화·AI 대체는 하지 않았다. 이번에는 진단 문서만 로컬 갱신하며 커밋/푸시/배포하지 않는다.
 
 ## 현재 작업 — 2026-10-08 변경사항 화면 APK7 게시·운영 반영 완료
 

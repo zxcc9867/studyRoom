@@ -2376,7 +2376,7 @@ function DashboardApp() {
     setSelectedSessionTodoIds(matchingTodo ? [matchingTodo.id] : []);
     setCurrentSessionTodoId(matchingTodo?.id ?? null);
     setSessionTodoTimeEnabled(false);
-    setSessionTodoDraft(suggestedTodoTitle && !matchingTodo ? suggestedTodoTitle : "");
+    setSessionTodoDraft("");
     setSessionTodoStartTime(suggestedSchedule.startTime);
     setSessionTodoEndTime(suggestedSchedule.endTime);
     sessionTodoSuggestionRef.current = null;
