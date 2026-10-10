@@ -60,3 +60,27 @@ Deno.test('a refund always targets an owner: bound for a user store, explicit fo
  await createFeedStore(admin,null).refundAiCall(owner);
  assert.equal(calls[1].body.p_user_id,owner);
 });
+
+Deno.test('briefing-only errors preserve safe provider classification, free routing and Retry-After hints',async()=>{
+ const admin=client(async()=>{throw Error('a supplied reservation callback must be used');});
+ for(const [status,hint,reason,retry]of [[502,null,'provider_unavailable',true],[503,'180','provider_unavailable',false],[429,'180','rate_limited',false],[401,null,'configuration_error',false]] as const){
+  let calls=0,reservations=0;
+  const provider:typeof fetch=async(_input,init)=>{
+   calls++;const body=JSON.parse(String(init?.body));assert.equal(body.model,'openrouter/free');assert.deepEqual(body.provider.max_price,{prompt:0,completion:0,request:0});
+   return new Response('private-provider-body synthetic-secret',{status,headers:hint?{'Retry-After':hint}:{}});
+  };
+  const result=await askFeedAi(admin,owner,[{role:'user',content:'Synthetic public excerpt'}],undefined,env,provider,async()=>{reservations++;return true;},{reportFailure:true});
+  assert.equal(result?.failure?.failure_reason,reason);assert.equal(result?.failure?.automatic_retry,retry);assert.equal(result?.failure?.can_retry,status!==401);
+  if(hint)assert.equal(result?.failure?.retry_after_ms,180000);
+  assert.equal(calls,1);assert.equal(reservations,1);assert.equal(JSON.stringify(result).includes('synthetic-secret'),false);
+ }
+});
+Deno.test('new attempt and completion RPCs bind owner, attempt number and retry delay while legacy finish stays compatible',async()=>{
+ const calls:any[]=[];
+ const admin=client(async(input,init)=>{calls.push({url:new URL(String(input)),body:JSON.parse(String(init?.body||'{}'))});return new Response('true',{headers:{'Content-Type':'application/json'}});});
+ const store=createFeedStore(admin,owner);await store.reserveBriefing('lease',undefined,1);await store.retryBriefing('lease');await store.completeBriefing('lease',null,'provider_unavailable',undefined,1,180000);
+ assert.equal(calls[0].url.pathname,'/rest/v1/rpc/tech_feed_briefing_reserve_attempt');assert.equal(calls[0].body.p_attempt,1);
+ assert.equal(calls[1].url.pathname,'/rest/v1/rpc/tech_feed_briefing_retry');
+ assert.equal(calls[2].url.pathname,'/rest/v1/rpc/tech_feed_briefing_complete');assert.equal(calls[2].body.p_retry_after_ms,180000);assert.equal(calls[2].body.p_attempt,1);
+ assert.ok(calls.every(x=>x.body.p_user_id===owner));
+});

@@ -21,7 +21,7 @@ test('0/1 eligible articles, readonly, paused, cached and active lease never tri
 test('successful response is cited using server URLs and cached with no second call; internal fields never leak',async()=>{
  const f=fixture();let result=await runBriefing({...f,env,generate:true});assert.equal(result.status,'ready');assert.equal(result.analyzed_count,2);
  assert.deepEqual(result.insights[0].sources.map(x=>x.url),['https://example.test/0','https://example.test/1']);
- assert.deepEqual(Object.keys(result).sort(),['analyzed_count','categories','eligible_count','generated_at','highlights','insights','local_date','source_count','stale','status','time_zone','topics','total'].sort());
+ assert.deepEqual(Object.keys(result).sort(),['failure_reason','retry_at','can_retry','analyzed_count','categories','eligible_count','generated_at','highlights','insights','local_date','source_count','stale','status','time_zone','topics','total'].sort());
  result=await runBriefing({...f,env,generate:true});assert.equal(result.status,'ready');assert.equal(f.calls,1);assert.equal(f.reservations,1);
 });
 test('malformed output, unknown citations, forged URLs and provider failure reject whole insight result',async()=>{
@@ -122,4 +122,55 @@ test('language counts and filters use every visible original before the 20-item 
  assert.equal(facets.languages.find(x=>x.value==='ko').count,2);
  assert.equal(facets.languages.find(x=>x.value==='en').count,30);
  assert.equal(classifyListItem(korean[0]).original_language,'ko');
+});
+
+
+test('provider errors are classified safely and only fast gateway failures permit automatic retry',async()=>{
+ const {briefingAiFailure,briefingRetryAfter}=await import('./tech-feed-briefing.mjs');
+ const cases=[[{code:'upstream',status:502},'provider_unavailable',true],[{code:'upstream',status:503},'provider_unavailable',true],[{code:'upstream',status:504},'provider_unavailable',true],[{code:'rate_limit',status:429},'rate_limited',false],[{code:'upstream',status:401},'configuration_error',false],[{code:'timeout'},'timeout',false],[{code:'invalid_response'},'invalid_response',false],[{code:'network'},'network_error',false]];
+ for(const [cause,reason,retry]of cases){const out=briefingAiFailure({...cause,message:'private raw body',token:'synthetic-secret'});assert.equal(out.failure_reason,reason);assert.equal(out.automatic_retry,retry);assert.equal(JSON.stringify(out).includes('synthetic-secret'),false);}
+ const now=Date.parse('2026-10-10T00:00:00Z');
+ assert.equal(briefingRetryAfter('180',now),180000);assert.equal(briefingRetryAfter('Sat, 10 Oct 2026 00:02:00 GMT',now),120000);
+ for(const value of [null,'invalid','-1','0','Fri, 09 Oct 2026 00:00:00 GMT'])assert.equal(briefingRetryAfter(value,now),null);
+ assert.equal(briefingRetryAfter('999999',now),3600000);
+ assert.equal(briefingAiFailure({code:'upstream',status:503,retry_after_ms:180000}).automatic_retry,false);
+});
+function retryFixture(){
+ const f=fixture(),state={refunds:0,retries:0,completed:[]};f.store.retryBriefing=async()=>{state.refunds++;state.retries++;return{status:'retry'};};
+ f.store.completeBriefing=async(lease,result,error,_signal,attempt,hint)=>{
+  state.completed.push({result,error,attempt,hint});
+  if(error){if(f.reservations>state.refunds)state.refunds++;f.snapshot.last_error='unavailable';f.snapshot.failure_reason=error;f.snapshot.retry_at='2099-10-10T00:01:00Z';return true;}
+  return f.store.finishBriefing(lease,result,error);
+ };
+ return{f,state};
+}
+test('502 retries once in the same lease, reserves each call, and stores the successful answer',async()=>{
+ const {briefingAiFailure}=await import('./tech-feed-briefing.mjs');const{f,state}=retryFixture(),success=f.ask;let calls=0;
+ f.ask=async(...args)=>{if(++calls===1){assert.ok(await args[2]());return{failure:briefingAiFailure({code:'upstream',status:502})};}return success(...args);};
+ const result=await runBriefing({...f,env,generate:true});assert.equal(result.status,'ready');assert.equal(calls,2);assert.equal(f.reservations,2);assert.equal(state.refunds,1);assert.equal(state.retries,1);assert.equal(state.completed[0].attempt,1);assert.equal(result.failure_reason,null);
+});
+test('two gateway failures refund both reservations, stop retrying, and report the persisted cooldown on read',async()=>{
+ const {briefingAiFailure}=await import('./tech-feed-briefing.mjs');const{f,state}=retryFixture();let calls=0;
+ f.ask=async(_m,_s,reserve)=>{assert.ok(await reserve());calls++;return{failure:briefingAiFailure({code:'upstream',status:502})};};
+ const out=await runBriefing({...f,env,generate:true});assert.equal(out.status,'unavailable');assert.equal(out.failure_reason,'provider_unavailable');assert.equal(out.can_retry,true);assert.equal(calls,2);assert.equal(state.refunds,2);assert.equal(state.retries,1);
+ const read=await runBriefing({...f,env});assert.equal(read.retry_at,out.retry_at);assert.equal(read.failure_reason,out.failure_reason);assert.equal(calls,2);
+});
+test('429, authentication, malformed answers, timeout, network and Retry-After 503 do not automatically call again',async()=>{
+ const {briefingAiFailure}=await import('./tech-feed-briefing.mjs');
+ for(const cause of [{code:'rate_limit',status:429},{code:'upstream',status:401},{code:'invalid_response'},{code:'timeout'},{code:'network'},{code:'upstream',status:503,retry_after_ms:180000}]){
+  const{f,state}=retryFixture();let calls=0;f.ask=async(_m,_s,reserve)=>{await reserve();calls++;return{failure:briefingAiFailure(cause)};};
+  const out=await runBriefing({...f,env,generate:true});assert.equal(calls,1);assert.equal(state.retries,0);assert.equal(state.refunds,1);assert.equal(out.failure_reason,briefingAiFailure(cause).failure_reason);assert.equal(out.can_retry,cause.status!==401);
+  if(cause.retry_after_ms)assert.equal(state.completed[0].hint,180000);
+ }
+});
+test('slow gateway failures and cancellation during backoff cannot start another provider call',async()=>{
+ const {briefingAiFailure}=await import('./tech-feed-briefing.mjs');
+ const{f,state}=retryFixture();const realNow=Date.now;let clock=realNow();Date.now=()=>clock;
+ try{
+  f.ask=async(_m,_s,reserve)=>{await reserve();clock+=5001;return{failure:briefingAiFailure({code:'upstream',status:502})};};
+  await runBriefing({...f,env,generate:true});assert.equal(state.retries,0);
+ }finally{Date.now=realNow;}
+ const g=retryFixture(),controller=new AbortController();let calls=0;
+ g.f.ask=async(_m,_s,reserve)=>{await reserve();calls++;setTimeout(()=>controller.abort(),20);return{failure:briefingAiFailure({code:'upstream',status:502})};};
+ await runBriefing({...g.f,env,generate:true,signal:controller.signal});assert.equal(calls,1);assert.equal(g.state.refunds,1);assert.equal(g.state.completed.at(-1).result,null);
 });

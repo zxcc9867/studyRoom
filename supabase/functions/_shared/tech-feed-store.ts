@@ -1,6 +1,6 @@
 import {createClient,type SupabaseClient} from "jsr:@supabase/supabase-js@2.57.4";
 import {createOpenRouterClient,getOpenRouterConfig} from "./coach-openrouter.mjs";
-import {classifyListItem,feedFacets,matchingFeedArticleIds} from "./tech-feed-briefing.mjs";
+import {classifyListItem,feedFacets,matchingFeedArticleIds,briefingAiFailure,briefingRetryAfter} from "./tech-feed-briefing.mjs";
 import {feedAccess} from "./tech-feed-topics.mjs";
 
 function checked(result:{data:any;error:any}):any {
@@ -23,7 +23,9 @@ export function createFeedStore(admin:SupabaseClient,owner:string|null){
   finishClassificationBatch:(items:unknown[])=>rpc("tech_feed_classification_finish_batch",{p_items:items}),
   briefingSnapshot:(version:number,signal?:AbortSignal)=>rpc("tech_feed_briefing_snapshot",{p_user_id:owner,p_version:version},signal),
   claimBriefing:(version:number,hash:string,ids:string[],signal?:AbortSignal)=>rpc("tech_feed_briefing_claim",{p_user_id:owner,p_version:version,p_hash:hash,p_ids:ids},signal),
-  reserveBriefing:(lease:string,signal?:AbortSignal)=>rpc("tech_feed_briefing_reserve",{p_user_id:owner,p_lease:lease},signal),
+  reserveBriefing:(lease:string,signal?:AbortSignal,attempt=0)=>rpc("tech_feed_briefing_reserve_attempt",{p_user_id:owner,p_lease:lease,p_attempt:attempt},signal),
+  retryBriefing:(lease:string,signal?:AbortSignal)=>rpc("tech_feed_briefing_retry",{p_user_id:owner,p_lease:lease},signal),
+  completeBriefing:(lease:string,result:unknown,error:string|null,signal?:AbortSignal,attempt=0,retryAfterMs:number|null=null)=>rpc("tech_feed_briefing_complete",{p_user_id:owner,p_lease:lease,p_result:result,p_error:error,p_attempt:attempt,p_retry_after_ms:retryAfterMs},signal),
   finishBriefing:(lease:string,result:unknown,error:string|null,signal?:AbortSignal)=>rpc("tech_feed_briefing_finish",{p_user_id:owner,p_lease:lease,p_result:result,p_error:error},signal),
   facets:async(view:string)=>feedFacets(await rpc("tech_feed_filter_candidates",{p_user_id:owner,p_view:view})),
   claimMedia:(recipients:string[],limit=3)=>rpc("tech_feed_media_claim",{p_recipients:recipients,p_limit:limit}),
@@ -83,7 +85,7 @@ export async function authenticateFeed(request:Request,admin=feedAdmin()){
  if(error||!data.user||data.user.is_anonymous)throw Error("unauthorized");
  return{id:data.user.id,store:createFeedStore(admin,data.user.id)};
 }
-export async function askFeedAi(admin:SupabaseClient,user:string,messages:unknown[],signal?:AbortSignal,env:Record<string,string>=Deno.env.toObject(),fetchImpl:typeof fetch=globalThis.fetch,reserve?:()=>Promise<boolean>){
+export async function askFeedAi(admin:SupabaseClient,user:string,messages:unknown[],signal?:AbortSignal,env:Record<string,string>=Deno.env.toObject(),fetchImpl:typeof fetch=globalThis.fetch,reserve?:()=>Promise<boolean>,options:{reportFailure?:boolean}={}){
  if(signal?.aborted||env.TECH_FEED_ENABLED!=='true'||!feedAccess(user,env))return{deferred:true};
  try{
   const config=getOpenRouterConfig(env);
@@ -95,11 +97,12 @@ export async function askFeedAi(admin:SupabaseClient,user:string,messages:unknow
  // leg separately from the whole attempt shows whether the provider never answered
  // or answered fast and the result was rejected afterwards. The credential lives in
  // a request header, so none of these fields can carry it.
- const startedAt=Date.now();
+ const startedAt=Date.now();let retryAfterMs:number|null=null;
  const timed:typeof fetch=async(input,init)=>{
   const sentAt=Date.now();
   try{
    const response=await fetchImpl(input,init);
+   if([429,503].includes(response.status))retryAfterMs=briefingRetryAfter(response.headers.get('Retry-After'));
    console.log("feed_ai_http",JSON.stringify({ms:Date.now()-sentAt,status:response.status}));
    return response;
   }catch(cause){
@@ -114,6 +117,6 @@ export async function askFeedAi(admin:SupabaseClient,user:string,messages:unknow
  }catch(error){
   const failure=error as {code?:string;status?:number};
   console.error("feed_ai_failed",JSON.stringify({code:failure?.code??"unknown",status:failure?.status??null,ms:Date.now()-startedAt}));
-  return null;
+  return options.reportFailure?{failure:briefingAiFailure({...failure,retry_after_ms:retryAfterMs})}:null;
  }
 }

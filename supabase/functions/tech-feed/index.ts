@@ -4,6 +4,6 @@ import {publicTransport} from '../_shared/tech-feed-transport.mjs';
 
 declare const EdgeRuntime:{waitUntil(work:Promise<unknown>):void};
 export const handler=createTechFeedHandler({authenticate:authenticateFeed,env:()=>Deno.env.toObject(),transport:publicTransport,
- askBriefing:(user:string,messages:unknown[],signal:AbortSignal,config:Record<string,string>,reserve:()=>Promise<boolean>)=>askFeedAi(feedAdmin(),user,messages,signal,config,globalThis.fetch,reserve),
+ askBriefing:(user:string,messages:unknown[],signal:AbortSignal,config:Record<string,string>,reserve:()=>Promise<boolean>)=>askFeedAi(feedAdmin(),user,messages,signal,config,globalThis.fetch,reserve,{reportFailure:true}),
  scheduleEnrichment:(work:Promise<unknown>)=>EdgeRuntime.waitUntil(work)});
 if(import.meta.main)Deno.serve(handler);

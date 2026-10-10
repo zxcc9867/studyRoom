@@ -18,7 +18,7 @@ before(async()=>{
  grant all on profiles,study_todos,study_goals to service_role;
  insert into auth.users values('${owner}'),('${other}');insert into profiles values('${owner}','Asia/Tokyo'),('${other}','Asia/Tokyo');`);
  await db.exec(readFileSync('supabase/migrations/20260906083030_studyroom_v2_coach.sql','utf8'));
- for(const name of readdirSync('supabase/migrations').filter(n=>/_tech_feed(?:_web_search|_manual_refresh|_immediate_refresh|_korean_translation|_media|_daily_briefing|_ai_budget|_discovery_order|_fresh_views)?\.sql$/.test(n)).sort())await db.exec(readFileSync('supabase/migrations/'+name,'utf8'));
+ for(const name of readdirSync('supabase/migrations').filter(n=>/_tech_feed(?:_web_search|_manual_refresh|_immediate_refresh|_korean_translation|_media|_daily_briefing|_ai_budget|_discovery_order|_fresh_views|_briefing_retry)?\.sql$/.test(n)).sort())await db.exec(readFileSync('supabase/migrations/'+name,'utf8'));
 });
 after(async()=>db?.close());
 async function tx(work){await db.exec(`begin;set local role service_role`);try{await work();}finally{await db.exec('rollback');}}
@@ -214,4 +214,76 @@ test('cache is stale on new content but hidden after access removal, and owner t
  }
  await db.exec(`set local role authenticated;set local "request.uid"='${other}'`);assert.equal((await db.query('select user_id from tech_feed_briefings')).rows.length,0);
  assert.equal((await db.query("select has_column_privilege('authenticated','tech_feed_briefings','result','SELECT')ok")).rows[0].ok,false);
+}));
+
+
+function attemptStore(){
+ return{briefingSnapshot:version=>rpc('tech_feed_briefing_snapshot',owner,version),
+ claimBriefing:(version,hash,ids)=>rpc('tech_feed_briefing_claim',owner,version,hash,ids),
+ reserveBriefing:(lease,_signal,attempt=0)=>rpc('tech_feed_briefing_reserve_attempt',owner,lease,attempt),
+ retryBriefing:lease=>rpc('tech_feed_briefing_retry',owner,lease),
+ completeBriefing:(lease,result,error,_signal,attempt=0,hint=null)=>rpc('tech_feed_briefing_complete',owner,lease,result,error,attempt,hint)};
+}
+const usage=async()=>{const rows=(await db.query('select attempts,calls from coach_ai_usage where user_id=$1',[owner])).rows;return rows;};
+test('attempt reservations and retry/refund are lease-bound, atomic, and capped at two actual calls',()=>tx(async()=>{
+ const {ids}=await todaySeed();const s=await rpc('tech_feed_briefing_snapshot',owner,1),claim=await rpc('tech_feed_briefing_claim',owner,1,s.input_hash,ids),lease=claim.lease;
+ assert.equal((await rpc('tech_feed_briefing_reserve_attempt',owner,lease,1)).status,'unavailable');
+ assert.equal((await rpc('tech_feed_briefing_reserve_attempt',owner,lease,0)).status,'reserved');
+ assert.equal((await rpc('tech_feed_briefing_reserve_attempt',owner,lease,0)).status,'generating');assert.deepEqual(await usage(),[{attempts:1,calls:1}]);
+ assert.equal((await rpc('tech_feed_briefing_retry',other,lease)).status,'unavailable');
+ assert.equal((await rpc('tech_feed_briefing_retry',owner,lease)).status,'retry');assert.deepEqual(await usage(),[{attempts:0,calls:1}]);
+ assert.equal((await rpc('tech_feed_briefing_retry',owner,lease)).status,'unavailable');assert.deepEqual(await usage(),[{attempts:0,calls:1}]);
+ assert.equal((await rpc('tech_feed_briefing_reserve_attempt',owner,lease,0)).status,'unavailable');
+ assert.equal((await rpc('tech_feed_briefing_reserve_attempt',owner,lease,1)).status,'reserved');assert.deepEqual(await usage(),[{attempts:1,calls:2}]);
+ assert.equal(await rpc('tech_feed_briefing_complete',owner,lease,null,'provider_unavailable',0,null),false);assert.deepEqual(await usage(),[{attempts:1,calls:2}]);
+ assert.equal(await rpc('tech_feed_briefing_complete',owner,lease,null,'provider_unavailable',1,null),true);assert.deepEqual(await usage(),[{attempts:0,calls:2}]);
+ assert.equal(await rpc('tech_feed_briefing_complete',owner,lease,null,'provider_unavailable',1,null),false);assert.deepEqual(await usage(),[{attempts:0,calls:2}]);
+}));
+test('real SQL 502 retry stores success once, charges only the successful reservation and clears failure',()=>tx(async()=>{
+ await todaySeed();let calls=0;const store=attemptStore();
+ const ask=async(messages,_signal,reserve)=>{assert.equal(await reserve(),true);if(++calls===1)return{failure:{failure_reason:'provider_unavailable',automatic_retry:true}};const input=JSON.parse(messages[1].content);
+ return{text:JSON.stringify({highlights:[],insights:[{title:'릴리즈',body:'실제 소개의 변경',study_angle:'구현 비교',source_ids:[input.articles[0].id]}]})};};
+ const env={TECH_FEED_ENABLED:'true',OPENROUTER_API_KEY:'synthetic',OPENROUTER_MODEL:'openrouter/free'};
+ const result=await runBriefing({store,ask,env,generate:true});assert.equal(result.status,'ready');assert.equal(result.failure_reason,null);assert.equal(calls,2);assert.deepEqual(await usage(),[{attempts:1,calls:2}]);
+ assert.equal((await runBriefing({store,ask,env,generate:true})).status,'ready');assert.equal(calls,2);
+}));
+test('durable provider cooldown prevents repeated claims, timezone changes and quota consumption',()=>tx(async()=>{
+ const {ids}=await todaySeed(),s=await rpc('tech_feed_briefing_snapshot',owner,1),c=await rpc('tech_feed_briefing_claim',owner,1,s.input_hash,ids);
+ await rpc('tech_feed_briefing_reserve_attempt',owner,c.lease,0);await rpc('tech_feed_briefing_complete',owner,c.lease,null,'provider_unavailable',0,null);
+ const failed=await rpc('tech_feed_briefing_snapshot',owner,1);assert.equal(failed.last_error,'unavailable');assert.equal(failed.failure_reason,'provider_unavailable');assert.ok(Date.parse(failed.retry_at)>Date.now());
+ for(let i=0;i<3;i++)assert.equal((await rpc('tech_feed_briefing_claim',owner,1,failed.input_hash,ids)).status,'unavailable');
+ await db.query("update profiles set time_zone='Asia/Seoul'where user_id=$1",[owner]);const changed=await rpc('tech_feed_briefing_snapshot',owner,1);
+ assert.equal(changed.failure_reason,'provider_unavailable');assert.equal((await rpc('tech_feed_briefing_claim',owner,1,changed.input_hash,ids)).status,'unavailable');assert.deepEqual(await usage(),[{attempts:0,calls:1}]);
+ await db.query("update tech_feed_briefings set retry_at=now()-interval '1 second'where user_id=$1",[owner]);
+ assert.equal((await rpc('tech_feed_briefing_claim',owner,1,changed.input_hash,ids)).status,'claimed');
+}));
+test('429 and valid Retry-After use the longer server cooldown without changing refundable quota',()=>tx(async()=>{
+ const {ids}=await todaySeed(),s=await rpc('tech_feed_briefing_snapshot',owner,1),c=await rpc('tech_feed_briefing_claim',owner,1,s.input_hash,ids);
+ await rpc('tech_feed_briefing_reserve_attempt',owner,c.lease,0);
+ await rpc('tech_feed_briefing_complete',owner,c.lease,null,'rate_limited',0,180000);
+ const row=(await db.query("select extract(epoch from retry_at-now())seconds from tech_feed_briefings where user_id=$1",[owner])).rows[0];assert.equal(Number(row.seconds),180);
+ assert.deepEqual(await usage(),[{attempts:0,calls:1}]);
+}));
+test('tracked refund targets original date after midnight/timezone changes, leaving a new day reservation intact',()=>tx(async()=>{
+ const {ids}=await todaySeed(),s=await rpc('tech_feed_briefing_snapshot',owner,1),c=await rpc('tech_feed_briefing_claim',owner,1,s.input_hash,ids);
+ await rpc('tech_feed_briefing_reserve_attempt',owner,c.lease,0);
+ await db.query("update coach_ai_usage set local_date=local_date-1 where user_id=$1",[owner]);
+ await db.query("update tech_feed_briefings set reserved_date=reserved_date-1 where user_id=$1",[owner]);
+ await db.query("insert into coach_ai_usage(user_id,local_date,attempts,calls)select $1,(now()at time zone 'Asia/Tokyo')::date,1,1",[owner]);
+ await rpc('tech_feed_briefing_complete',owner,c.lease,null,'timeout',0,null);
+ const rows=(await db.query('select attempts,calls from coach_ai_usage where user_id=$1 order by local_date',[owner])).rows;assert.deepEqual(rows,[{attempts:0,calls:1},{attempts:1,calls:1}]);
+}));
+test('expired tracked reservations recover once on claim, while untracked legacy reservations remain charged',()=>tx(async()=>{
+ const {ids}=await todaySeed(),s=await rpc('tech_feed_briefing_snapshot',owner,1),c=await rpc('tech_feed_briefing_claim',owner,1,s.input_hash,ids);
+ await rpc('tech_feed_briefing_reserve_attempt',owner,c.lease,0);await db.query("update tech_feed_briefings set lease_until=now()-interval '1 second'where user_id=$1",[owner]);
+ const replacement=await rpc('tech_feed_briefing_claim',owner,1,s.input_hash,ids);assert.equal(replacement.status,'claimed');assert.deepEqual(await usage(),[{attempts:0,calls:1}]);
+ assert.equal((await rpc('tech_feed_briefing_claim',owner,1,s.input_hash,ids)).status,'generating');assert.deepEqual(await usage(),[{attempts:0,calls:1}]);
+ await rpc('tech_feed_briefing_reserve',owner,replacement.lease);await db.query("update tech_feed_briefings set lease_until=now()-interval '1 second'where user_id=$1",[owner]);
+ assert.equal((await rpc('tech_feed_briefing_claim',owner,1,s.input_hash,ids)).status,'claimed');assert.deepEqual(await usage(),[{attempts:1,calls:2}]);
+}));
+test('new reservation and settlement RPCs expose no browser execution grant or failure metadata column grant',()=>tx(async()=>{
+ for(const fn of ['tech_feed_briefing_reserve_attempt(uuid,uuid,integer)','tech_feed_briefing_retry(uuid,uuid)','tech_feed_briefing_complete(uuid,uuid,jsonb,text,integer,integer)']){
+  for(const role of ['anon','authenticated'])assert.equal((await db.query('select has_function_privilege($1,$2,\'EXECUTE\') allowed',[role,fn])).rows[0].allowed,false);
+ }
+ for(const col of ['failure_reason','retry_at','retry_count','reserved_date'])assert.equal((await db.query('select has_column_privilege(\'authenticated\',\'tech_feed_briefings\',$1,\'SELECT\')allowed',[col])).rows[0].allowed,false);
 }));

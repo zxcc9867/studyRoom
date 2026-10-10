@@ -100,7 +100,7 @@ function parseHighlights(value,articles){
   return{article_id:item.article_id,reason:item.reason.trim(),learning:item.learning.trim()};
  });
 }
-export function briefingView(snapshot,{status,paused=false}={}){
+export function briefingView(snapshot,{status,paused=false,failure_reason,retry_at}={}){
  const eligible=eligibleArticles(snapshot);let insights=[],highlights=[],generated_at=null,analyzed_count=0,stale=false;
  if(snapshot.cache?.result){
   try{
@@ -113,7 +113,7 @@ export function briefingView(snapshot,{status,paused=false}={}){
   }catch{/* A cache is still untrusted at its API boundary. */}
  }
  return{local_date:snapshot.local_date,time_zone:snapshot.time_zone,...statistics(snapshot),eligible_count:eligible.length,analyzed_count,generated_at,
- status:status||(paused||snapshot.receiving===false?'paused':snapshot.generating?'generating':insights.length?'ready':eligible.length<2?'insufficient':snapshot.last_error||'idle'),stale,insights,highlights};
+ status:status||(paused||snapshot.receiving===false?'paused':snapshot.generating?'generating':insights.length?'ready':eligible.length<2?'insufficient':snapshot.last_error||'idle'),stale,insights,highlights,...failureMetadata(snapshot,{status:status||(paused||snapshot.receiving===false?'paused':snapshot.generating?'generating':insights.length?'ready':eligible.length<2?'insufficient':snapshot.last_error||'idle'),failure_reason,retry_at})};
 }
 function bounded(promise,signal){
  if(signal.aborted)return Promise.reject(Error('cancelled'));
@@ -122,57 +122,117 @@ function bounded(promise,signal){
   signal.addEventListener('abort',abort,{once:true});Promise.resolve(promise).then(value=>{cleanup();resolve(value);},error=>{cleanup();reject(error);});
  });
 }
+
+const FAILURE_REASONS=new Set(['provider_unavailable','rate_limited','timeout','configuration_error','invalid_response','network_error','unknown']);
+export function briefingRetryAfter(value,now=Date.now()){
+ if(typeof value!=='string'||!value.trim())return null;
+ const raw=value.trim(),ms=/^\d+$/.test(raw)?Number(raw)*1000:Date.parse(raw)-now;
+ return Number.isFinite(ms)&&ms>0?Math.min(ms,3600000):null;
+}
+export function briefingAiFailure(error){
+ const status=error?.status,code=error?.code;
+ const failure_reason=[401,402,403].includes(status)||['configuration','disabled','invalid_input'].includes(code)?'configuration_error':
+ status===429||code==='rate_limit'?'rate_limited':
+ code==='timeout'||code==='cancelled'?'timeout':
+ code==='invalid_response'?'invalid_response':code==='network'?'network_error':
+ code==='upstream'||[502,503,504].includes(status)?'provider_unavailable':'unknown';
+ const retry_after_ms=Number.isFinite(error?.retry_after_ms)&&error.retry_after_ms>0?Math.min(error.retry_after_ms,3600000):null;
+ return{failure_reason,can_retry:failure_reason!=='configuration_error',automatic_retry:[502,503,504].includes(status)&&!retry_after_ms,retry_after_ms};
+}
+function failureMetadata(snapshot,{status,failure_reason,retry_at}={}){
+ const reason=FAILURE_REASONS.has(failure_reason)?failure_reason:FAILURE_REASONS.has(snapshot.failure_reason)?snapshot.failure_reason:null;
+ const value=retry_at??snapshot.retry_at;
+ return{failure_reason:reason,retry_at:typeof value==='string'&&Number.isFinite(Date.parse(value))?value:null,
+ can_retry:!['paused','quota_exhausted','generating','insufficient'].includes(status)&&reason!=='configuration_error'};
+}
+function waitForRetry(signal){
+ return new Promise((resolve,reject)=>{
+  const cleanup=()=>signal.removeEventListener('abort',abort);
+  const timer=setTimeout(()=>{cleanup();resolve();},500);
+  const abort=()=>{clearTimeout(timer);cleanup();reject({code:'cancelled'});};
+  signal.addEventListener('abort',abort,{once:true});if(signal.aborted)abort();
+ });
+}
+
 function providerEnabled(env){try{return getOpenRouterConfig(env).enabled;}catch{return false;}}
 export async function runBriefing({store,ask,env,generate=false,signal:parentSignal}){
- const signal=AbortSignal.any([AbortSignal.timeout(30000),...(parentSignal?[parentSignal]:[])]);
+ const startedAt=Date.now(),deadline=AbortSignal.timeout(30000);
+ const signal=AbortSignal.any([deadline,...(parentSignal?[parentSignal]:[])]);
  let snapshot=await bounded(store.briefingSnapshot(BRIEFING_ANALYZER_VERSION,signal),signal),lease=null;
  const paused=()=>env.TECH_FEED_ENABLED!=='true'||snapshot.receiving===false;
  const view=briefingView(snapshot,{paused:paused()});
- // A missing or malformed provider setting is a standing condition: report it on read
- // instead of offering a button that can only fail. Cached, paused and insufficient views keep their status.
- if(view.status==='idle'&&!providerEnabled(env))return briefingView(snapshot,{status:'unavailable'});
+ if((view.status==='idle'||view.status==='unavailable')&&!providerEnabled(env))return briefingView(snapshot,{status:'unavailable',failure_reason:'configuration_error'});
  if(!generate||paused()||snapshot.generating||view.status==='insufficient'||view.insights.length&&!view.stale)return view;
- let failure='unavailable',reserved=false,charged=false;
+ let failure='unavailable',failureReason=null,reserved=false,charged=false,attempt=0,retryAfterMs=null;
+ const finish=(result,error,cleanupSignal)=>store.completeBriefing?store.completeBriefing(lease,result,error,cleanupSignal,attempt,retryAfterMs):store.finishBriefing(lease,result,error,cleanupSignal);
  try{
-  if(!getOpenRouterConfig(env).enabled)return briefingView(snapshot,{status:'unavailable'});
+  if(!providerEnabled(env))return briefingView(snapshot,{status:'unavailable',failure_reason:'configuration_error'});
   const input=buildBriefingInput(snapshot);if(input.articles.length<2)return briefingView(snapshot,{status:'insufficient'});
   const claim=await bounded(store.claimBriefing(BRIEFING_ANALYZER_VERSION,snapshot.input_hash,input.articles.map(a=>a.id),signal),signal);
   if(claim.status!=='claimed'){
    snapshot=await bounded(store.briefingSnapshot(BRIEFING_ANALYZER_VERSION,signal),signal);return briefingView(snapshot,{status:claim.status});
   }
   lease=claim.lease;
-  const aiSignal=AbortSignal.any([signal,AbortSignal.timeout(20000)]);
-  const response=await bounded(ask(input.messages,aiSignal,async()=>{
-   aiSignal.throwIfAborted();const reservation=await bounded(store.reserveBriefing(lease,aiSignal),aiSignal);
-   reserved=reservation.status==='reserved';if(!reserved)failure=reservation.status;return reserved;
-  }),aiSignal);
-  signal.throwIfAborted();
-  let answer=null;
-  if(reserved&&response&&!response.deferred&&typeof response.text==='string'&&response.text.length<=12000){
-   answer=parseModelJson(response.text);
+  let response;
+  for(;;){
+   const attemptStarted=Date.now(),attemptTimeout=AbortSignal.timeout(20000),aiSignal=AbortSignal.any([signal,attemptTimeout]);
+   try{
+    response=await bounded(ask(input.messages,aiSignal,async()=>{
+     aiSignal.throwIfAborted();const reservation=await bounded(store.reserveBriefing(lease,aiSignal,attempt),aiSignal);
+     reserved=reservation.status==='reserved';if(!reserved)failure=reservation.status;return reserved;
+    }),aiSignal);
+   }catch(cause){
+    if(aiSignal.aborted)throw {code:'timeout'};
+    response={failure:briefingAiFailure(cause)};
+   }
+   signal.throwIfAborted();
+   if(response?.failure){
+    failureReason=FAILURE_REASONS.has(response.failure.failure_reason)?response.failure.failure_reason:'unknown';
+    retryAfterMs=response.failure.retry_after_ms??null;
+    // Only a fast gateway failure leaves enough time for a second full 20s attempt.
+    // Every real attempt has its own atomic reservation; the retry RPC refunds the
+    // failed attempt exactly once without lowering the non-refundable call counter.
+    if(reserved&&attempt===0&&response.failure.automatic_retry===true&&Date.now()-attemptStarted<=5000&&Date.now()-startedAt<=7500&&store.retryBriefing){
+     const retry=await bounded(store.retryBriefing(lease,signal),signal);
+     if(retry.status==='retry'){
+      reserved=false;attempt=1;await waitForRetry(signal);continue;
+     }
+     if(['paused','quota_exhausted','generating','insufficient'].includes(retry.status))failure=retry.status;
+    }
+    throw {code:'briefing_failure'};
+   }
+   break;
   }
-  // A reservation that bought no readable answer is returned to the owner; the
-  // non-refundable call counter is what keeps a retry loop finite.
-  // The provider answered but the result was unusable. The named gate is enough to
-  // tell a verbose model from one inventing a citation, so the answer itself is not
-  // copied into the log.
-  const reject=why=>{try{console.error('feed_briefing_rejected',JSON.stringify({why}));}catch{/* a log must not mask the failure */}};
-  if(!reserved||answer===null){if(reserved)reject(response?'not_json':'no_response');throw Error('invalid_response');}
+  let answer=null;
+  if(reserved&&response&&!response.deferred&&typeof response.text==='string'&&response.text.length<=12000)answer=parseModelJson(response.text);
+  const reject=why=>{try{console.error('feed_briefing_rejected',JSON.stringify({why}));}catch{/* Logging must not mask a failure. */}};
+  if(!reserved||answer===null){if(reserved){failureReason=response?'invalid_response':'unknown';reject(response?'not_json':'no_response');}throw {code:'briefing_failure'};}
   let insights,highlights;
-  try{if(Object.keys(answer).sort().join(',')!=='highlights,insights')throw Error('root_keys');insights=parseInsights({insights:answer.insights},input.articles);highlights=parseHighlights(answer.highlights,input.articles);}catch(cause){reject('shape:'+String(cause?.message??'').slice(0,140));throw cause;}
+  try{
+   if(Object.keys(answer).sort().join(',')!=='highlights,insights')throw Error('root_keys');
+   insights=parseInsights({insights:answer.insights},input.articles);highlights=parseHighlights(answer.highlights,input.articles);
+  }catch(cause){failureReason='invalid_response';reject('shape:'+String(cause?.message??'').slice(0,140));throw {code:'briefing_failure'};}
   const result={insights,highlights,analyzed_count:input.articles.length};
-  if(!await bounded(store.finishBriefing(lease,result,null,signal),signal))throw Error('stale_result');
-  charged=true;
-  lease=null;snapshot=await bounded(store.briefingSnapshot(BRIEFING_ANALYZER_VERSION,signal),signal);
+  if(!await bounded(finish(result,null,signal),signal))throw {code:'briefing_failure'};
+  charged=true;lease=null;snapshot=await bounded(store.briefingSnapshot(BRIEFING_ANALYZER_VERSION,signal),signal);
   return briefingView(snapshot,{status:paused()?'paused':snapshot.cache?'ready':'unavailable'});
- }catch{
-  // Any reservation that did not end in a stored result is returned, including one
-  // lost to a timeout before the response was ever inspected. The non-refundable
-  // call counter is what keeps a retry loop finite.
-  if(reserved&&!charged&&store.refundAiCall&&!signal.aborted)try{await bounded(store.refundAiCall(),signal);}catch{/* the ceiling still bounds retries */}
-  if(lease&&!signal.aborted)try{await bounded(store.finishBriefing(lease,null,failure,signal),signal);}catch{/* lease expiration permits an explicit retry */}
-  if(!signal.aborted)try{snapshot=await bounded(store.briefingSnapshot(BRIEFING_ANALYZER_VERSION,signal),signal);}catch{snapshot={...snapshot,cache:null};}
+ }catch(cause){
+  if(!failureReason)failureReason=briefingAiFailure(cause).failure_reason;
+  // Parent cancellation still permits bounded cleanup. The overall 30s deadline
+  // never extends; an expired tracked lease is settled by the next DB claim.
+  const cleanupSignal=deadline;
+  if(!charged&&lease&&!cleanupSignal.aborted){
+   try{
+    if(store.completeBriefing)await bounded(finish(null,['paused','quota_exhausted','generating','insufficient'].includes(failure)?failure:failureReason,cleanupSignal),cleanupSignal);
+    else{
+     if(reserved&&store.refundAiCall)await bounded(store.refundAiCall(),cleanupSignal);
+     await bounded(store.finishBriefing(lease,null,failure,cleanupSignal),cleanupSignal);
+    }
+   }catch{/* DB-tracked expired leases are refunded once on the next claim. */}
+  }
+  if(!cleanupSignal.aborted)try{snapshot=await bounded(store.briefingSnapshot(BRIEFING_ANALYZER_VERSION,cleanupSignal),cleanupSignal);}catch{snapshot={...snapshot,cache:null};}
   else snapshot={...snapshot,cache:null};
-  return briefingView(snapshot,{status:['paused','quota_exhausted','generating','insufficient'].includes(failure)?failure:'unavailable'});
+  const status=['paused','quota_exhausted','generating','insufficient'].includes(failure)?failure:'unavailable';
+  return briefingView(snapshot,{status,failure_reason:failureReason});
  }
 }
