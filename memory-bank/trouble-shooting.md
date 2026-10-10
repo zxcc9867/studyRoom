@@ -6139,3 +6139,4 @@ Tracked-lockfile install resolved dependency failures. Seven old1s VM cases pass
 - 최초 전체 실행은 1105통과/1실패/생략0이었다. 실패는 기존 1440px 가독성 시나리오의 첫 page.goto 15초 초과이며, 실행 도중 원격 최신 코드가 병합되어 최종 검증으로 사용하지 않는다. timeout이나 제품 기능을 바꾸지 않고 최신 통합본에서 concurrency2로 다시 검사한다.
 - Git의 샌드박스 DNS 실패와 dry-run non-fast-forward 거절을 인증 실패로 단정하지 않는다. 실제 fetch에서 origin/main 9e51742의 새 커밋 5개를 확인하고 scoped stash→fast-forward→재적용했다. active-context의 양쪽 상단 추가와 이전 번역 진단 기록을 모두 보존해 충돌을 해결했다.
 - 최신 통합본 전체 재검사1132/1132·실패0·생략0(244553ms), 웹/모바일/문서 검사 성공. 기존 초기 페이지 로딩 timeout은 재발하지 않았으며 별도 timeout 완화나 제품 변경을 추가하지 않았다.
+- 운영 파일 첫 대조는 빌드마다 압축 변수명이 달라 문자열 일치가 실패했다. 초기 이름 정규화도 PowerShell 기본 Hashtable이 fn/Fn을 같은 키로 처리해 잘못된 불일치를 만들었다. JavaScript의 대소문자를 구분하는 Ordinal Dictionary로 정규화하여 함수 구조 동등성과 빈 제목 초기화를 확인했다. 실제 배포 문제로 오인하지 않으며 제품 코드는 바꾸지 않았다. 운영 웹/asset200, 같은 제품SHA의 READY 배포와 Actions success는 progress에 기록했다.

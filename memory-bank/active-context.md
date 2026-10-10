@@ -5,7 +5,8 @@
 - 요청/목적: GitHub 최신 변경을 가져오고, ‘이번 세션에서 할 일’의 새 입력칸에 과거 ‘장고245페이지’가 반복 표시되지 않게 한다.
 - 결정/범위: 모달을 열 때 새 할 일 입력을 항상 비운다. 과거 회고 next_action과 기존 할 일은 삭제하지 않고, 일치하는 오늘 할 일의 선택 동작은 유지한다. prd-daily-habit-loop.md의 자동 입력 규칙을 사용자 요청에 맞게 개정했다.
 - 현재 상태: origin/main의 새 커밋 5개를 9e51742까지 fast-forward로 반영했다. 기존 로컬 진단 문서와 이번 수정은 보존했으며 active-context의 동시 상단 추가 충돌을 양쪽 내용 유지로 해소한다.
-- 검증 완료: 실제 main을 마운트한 375/1440px 회귀에서 과거 회고 자동 입력을 RED로 확인한 뒤 빈 입력·직접 입력 유지·재진입 초기화·기존 데이터 보존을 GREEN으로 확인했다. 최신 통합본 전체1132/1132·실패0·생략0(244553ms, concurrency2/실제Chrome), 웹 tsc/Vite1731 modules·mobile 호환성/타입·docs27자산/3언어·diff 검사 통과. 커밋/푸시 및 웹 배포 확인은 진행 중이다.
+- 검증 완료: 실제 main을 마운트한 375/1440px 회귀에서 과거 회고 자동 입력을 RED로 확인한 뒤 빈 입력·직접 입력 유지·재진입 초기화·기존 데이터 보존을 GREEN으로 확인했다. 최신 통합본 전체1132/1132·실패0·생략0(244553ms, concurrency2/실제Chrome), 웹 tsc/Vite1731 modules·mobile 호환성/타입·docs27자산/3언어·diff 검사 통과.
+- 운영 완료: 제품38aafa124d3e956e3a26d79e6ce499946b438d8e를 main에 푸시했다. Actions38051290741의 테스트/mobile/docs/Edge/build/배포 단계 모두 success, Vercel dpl_4EKqA6Spx9Ezbb73BVvbMiRCfpmv READY·같은SHA·production alias 확인. 운영 웹/asset index-CdJb_X58.js HTTP200, 빈 새 제목 초기화와 검증된 로컬 함수의 구조 동등성 확인. 공개 APK는0.2.4/code7 그대로다. 실제 운영 계정의 모달 조작은 별도로 수행하지 않았다.
 - 주의: DB/번역/AI 정책과 카메라·출석·세션 시작 정책은 변경하지 않는다. Android는 같은 웹 화면을 사용하므로 이번 입력 수정에 새 APK가 필요하지 않다.
 
 ## Current task — 2026-10-10 tech-feed AI retry
