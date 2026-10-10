@@ -1,3 +1,17 @@
+## 2026-10-10 개정 — 무료 API Developer 지원
+
+- 실제 로그인 계정에서 API Developer / Free / 전체 1000000자, 사용499034자를 확인했다. 이전 500000자 clamp가 잔여966자로 계산해 묶음 번역을 중단한 것이 원인이다.
+- 사용자 승인으로 `DEEPL_API_PLAN=developer`인 서버만 전체1000000자까지 인정한다. 누락/`free`는 기존500000자 제한을 유지하고 미지원/유료 요금제 설정은 호출하지 않는다. 계정 요금제·결제·키·사용량은 변경하지 않는다.
+- Developer의100만 자는 **전체 이용 기간 한도이며 매월 초기화되지 않는다**. 앱 자체 공용 UTC월450000자 예산은 별도로 유지한다. 무료 잔여량이 부족하면 원문을 제공하며 유료로 전환하지 않는다.
+- 카드에는 한도·일시중지·미연결·서비스 확인 상태를 구분한다. 기존 성공 번역과 한국어 원문은 계속 표시한다.
+- 검증/운영 반영 결과는 아래 후속 기록에 남긴다. 이전 배포 기록은 당시 이력이다.
+
+### 현재 복구 검증
+
+- 관련27개 RED→GREEN, 전체1137/1137·생략0·실패0, Edge23/23·웹/build·mobile·docs·Dune 통과.
+- 운영 서버 developer 설정과 tech-feed42/worker40 ACTIVE/JWT true 확인. 정상 worker HTTP200 뒤3건/POST1회3232자 번역 저장, provider ready/2026-10-10T13:26:01Z 확인. 월예산52438/450000자이며 초기화하지 않았다.
+- 실제 로그인 웹에서 새 글 확인 → 새 글 배너 → 한국어 제목·소개/원문 접기·원문 URL 보존 확인. 웹 상태 문구의 새 배포와 Android 실기기 동기화 수용은 별도 확인한다. APK0.2.4/code7은 변경하지 않는다.
+
 ## 현재 운영 상태 — 2026-09-14
 
 - 한국어 기본표시와 페이지형 피드 웹 배포 완료. 기능 커밋 b4ed456, [자동 배포 성공](https://github.com/zxcc9867/studyRoom/actions/runs/34764366095), Vercel dpl_FCNMA6k5hHrybKEsnT3QrteMeLGr READY.
@@ -8,16 +22,16 @@
 
 ## 사용 흐름
 
-- 제목·소개는 DeepL API Free로 번역하고, 준비되면 한국어를 기본 표시한다. `원문 텍스트 보기`는 접힌 상태이며 원문 사이트 링크는 그대로다.
+- 제목·소개는 DeepL의 무료 API(기존 Free 또는 승인된 Developer)로 번역하고, 준비되면 한국어를 기본 표시한다. `원문 텍스트 보기`는 접힌 상태이며 원문 사이트 링크는 그대로다.
 - AI 요약은 별도 기능이다. 번역은 기존 코칭/요약의 공유 AI 호출 예산(2026-09-15 개정 기준 하루15회)을 사용하지 않는다. 본문 전체 크롤링이나 원문 사이트 자체 번역은 하지 않는다.
 - 수동 `새 글 확인`과 정기 작업이 기존 글을 포함해 한 번에 최대3개씩 번역한다. 공유된 기사 성공 결과를 재사용한다. 모든 글의 즉시 번역을 보장하지 않는다.
 - 원문 변경 시 오래된 번역을 숨긴다. 키 미등록·한도·장애 시 원문과 상태를 표시하고 RSS/API/검색은 유지한다.
 
 ## 운영자 설정
 
-1. [DeepL API Free](https://www.deepl.com/en/developers)에서 앱 전용 무료 키를 준비한다. 유료 API Pro 키는 지원하지 않는다.
+1. [DeepL API](https://www.deepl.com/en/developers)에서 앱 전용 무료 키를 준비한다. 실제 계정이 무료인지 확인하며 유료 API 키는 지원하지 않는다.
 2. 연결된 Supabase 프로젝트 `bqohkdzvxbrokkmuhysx`의 Edge Functions → Secrets에 `DEEPL_API_KEY`로 등록한다. 키 값은 채팅·Git·프론트엔드 환경변수에 넣지 않는다. 일반 이용자의 계정 연동이나 개인 키는 필요 없다.
-3. `TECH_FEED_TRANSLATION_ENABLED=false`가 있다면 운영자 승인 후 제거하거나 true로 바꾼다. 기본은 키가 준비되었을 때 동작하며 전체 피드 중지 스위치도 존중한다.
+3. 기본 `DEEPL_API_PLAN=free`는 기존 Free 월500000자다. 무료 API Developer임을 확인한 경우에만 운영자 승인 후 `developer`로 설정한다(전체1000000자, 초기화 없음). 다른 값은 안전하게 중단한다. `TECH_FEED_TRANSLATION_ENABLED=false`가 있다면 운영자 승인 후 제거하거나 true로 바꾼다. 전체 피드 중지 스위치도 존중한다.
 4. 기존 앱에서 `새 글 확인`을 누르고 한국어 제목/소개, 원문 접기, 원문 URL을 확인한다. 기술용어 정확도는 실제 표본으로 확인한다. 기존 키 누락 상태에서는 이 실검증을 완료할 수 없다.
 
 2026-09-13 사용자가 Free 키를 서버에 등록했고, 명시적 배포 승인 후 실제 번역 저장을 확인했다. 아래 배포 기록이 최종 상태다.
@@ -25,8 +39,8 @@
 ## 무료 한도와 보안
 
 - 고정 endpoint는 `https://api-free.deepl.com/v2/usage`와 `/v2/translate`뿐이다. 키 suffix `:fx` 확인, Pro/임의 URL/유료 fallback/POST 자동 재시도 금지.
-- DeepL Free 월500000자와 별개로 앱은 공용 UTC월450000자를 원자적으로 예약한다. Unicode codepoint 기준이며 실패 POST도 환급하지 않는다. 사용량 조회는 번역 문자 예산을 차감하지 않는다.
-- 실제 무료 잔여량을 POST 전에 확인한다. 제공자가 더 큰 상한을 반환해도 잔여량 계산에는 최대500000자만 인정하며 앱의450000자 예약 제한도 유지한다. 공급자 사용량은 수분 지연될 수 있고 공급자 기간과 UTC월은 다를 수 있어 두 제한을 모두 적용한다. 이 앱만 사용하는 Free 키를 권장한다.
+- 공급자 Free 월500000자 또는 Developer 전체1000000자와 별개로 앱은 공용 UTC월450000자를 원자적으로 예약한다. Unicode codepoint 기준이며 실패 POST도 환급하지 않는다. 사용량 조회는 번역 문자 예산을 차감하지 않는다.
+- 실제 무료 잔여량을 POST 전에 확인한다. 제공자 상한과 선택한 무료 요금제 상한 중 작은 값을 인정한다. 응답이 더 커도 `free`는500000자, 명시적 `developer`는1000000자를 넘지 않는다. Pro 응답·알 수 없는 사용량은 거부한다. 공급자 사용량은 수분 지연될 수 있고 공급자 기간과 UTC월은 다르므로 두 제한을 모두 적용한다. 이 앱만 사용하는 무료 키를 권장한다.
 - 제공자90초 lease로 동시 호출을 합치고 요청12초/응답128KiB/최대6텍스트를 제한한다. 작업 중지·사용자 구독/원문 변경·만료 lease를 재검증한다. 실패는 재시도 대기하며 서버 오류/키는 노출하지 않는다.
 - 테이블과 RPC는 service_role 전용이다. 번역은 이미 허용된 원문을 볼 수 있는 사용자에게만 기존 목록 조회 경로로 제공한다. 외부 텍스트를 명령으로 실행하거나 새 링크를 만들지 않는다.
 - 출처 RSS 재가공 승인은 기존 `summary_allowed`/승인 상태를 재사용한다. 이번 변경은 출처 허가를 자동으로 확대하지 않는다.
@@ -46,6 +60,7 @@
 - [번역 요청과 응답](https://developers.deepl.com/api-reference/translate/request-translation)
 - [사용량과 조회 지연](https://developers.deepl.com/api-reference/usage-and-quota/check-usage-and-limits)
 - [무료 문자 한도](https://developers.deepl.com/docs/resources/usage-limits)
+- [API 요금제: Developer 전체 한도와 기존 Free 월 한도](https://support.deepl.com/hc/en-us/articles/360021200939-DeepL-API-plans)
 
 ## 배포 기록
 

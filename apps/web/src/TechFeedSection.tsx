@@ -16,11 +16,12 @@ import {feedOriginalLanguage,FEED_LANGUAGE_LABELS} from '../../../packages/core/
 import './techFeed.css';
 
 type Props = {supabase:SupabaseClient;userId:string;timeZone:string;onPlan:(article:FeedArticle)=>void;linkedTodo?:{userId:string;articleId:string;todoId:string}|null};
-export function FeedArticleCard({article,onSave,onPlan,busy,timeZone}:{article:FeedArticle;onSave:()=>void;onPlan:()=>void;busy:boolean;timeZone:string}) {
+export function FeedArticleCard({article,onSave,onPlan,busy,timeZone,translationService}:{article:FeedArticle;onSave:()=>void;onPlan:()=>void;busy:boolean;timeZone:string;translationService?:FeedState['translation_service']}) {
   const [expanded,setExpanded] = useState(false);
   const contentId = useId();
   const originalLanguage = feedOriginalLanguage(article.title,article.excerpt);
   const translated = originalLanguage !== 'ko' && article.translation_status === 'ready' && Boolean(article.title_ko?.trim()) && typeof article.excerpt_ko === 'string';
+  const translationNotice = originalLanguage==='ko' ? '한국어로 작성된 원문' : translated ? 'DeepL 자동 번역 · 원문 확인 권장' : `${translationService==='quota_exhausted'?'무료 번역 한도에 도달':translationService==='paused'?'한국어 번역 일시 중지':translationService==='unavailable'?'번역 서비스 확인 필요':translationService==='not_configured'?'한국어 번역 미연결':originalLanguage==='en'?'한국어 번역 대기':'원문 언어 확인 필요 · 번역 대기'} · ${originalLanguage==='en'?'영어 원문 표시':'원문 표시'}`;
   const link = safeFeedUrl(article.url);
   const host = feedSourceHost(article.url);
   const sourceNames = article.origin === 'web_search' ? ['웹 검색',host] : [...article.sources.map(source=>source.name),host];
@@ -53,7 +54,7 @@ export function FeedArticleCard({article,onSave,onPlan,busy,timeZone}:{article:F
       </div>
       {expandable && <button type="button" className="feed-expand" aria-expanded={expanded} aria-controls={contentId} onClick={()=>setExpanded(value=>!value)}>{expanded?'내용 접기':hasSummary?'AI 요약 펼치기':'내용 더 보기'}<ChevronRight size={14}/></button>}
       {link && <div className="feed-citation"><span>{article.origin === 'web_search' ? '검색 소개 출처' : '발췌 출처'}</span><a href={link} target="_blank" rel="noopener noreferrer">{host || sourceName}<ExternalLink size={15}/></a></div>}
-      <div className="feed-evidence"><p>{video ? '영상 원문 링크 · 본문 요약 없음' : summaryLabel(article)}</p><p>{originalLanguage==='ko' ? '한국어로 작성된 원문' : translated ? 'DeepL 자동 번역 · 원문 확인 권장' : originalLanguage==='en' ? '한국어 번역 대기 · 영어 원문 표시' : '원문 언어 확인 필요 · 번역 대기'}</p></div>
+      <div className="feed-evidence"><p>{video ? '영상 원문 링크 · 본문 요약 없음' : summaryLabel(article)}</p><p>{translationNotice}</p></div>
       {translated && !video && <details className="feed-original-text"><summary>원문 텍스트 보기</summary><p>{article.title}</p><FeedArticleText text={feedStructuredIntroduction(article.excerpt)}/></details>}
       <p className="feed-sources">{sourceLine}</p>
       <div className="feed-card-actions">
@@ -344,7 +345,7 @@ export default function TechFeed({supabase,userId,timeZone,onPlan,linkedTodo=nul
     </>}
     {state?.enabled && !loading && <div className="feed-page-heading"><h3 ref={pageHeading} tabIndex={-1}>{view==='saved'?'저장한 글':view==='deep_read'?'깊이 읽기':'최신 기술 소식'}</h3><p>{view==='latest'?'최근 30일 이내 원문 날짜가 확인된 글이에요.':'차례대로 아래로 읽어 보세요.'}</p></div>}
     {newAvailable && view==='latest' && !loading && <button type="button" className="feed-new-banner" onClick={()=>{setNewAvailable(false);setRevision(value=>value+1);pageHeading.current?.scrollIntoView({block:'start'});}}>새 글이 도착했어요 · 위에서 보기</button>}
-    {loading ? <p className="feed-empty" role="status">새로운 배움을 불러오고 있어요…</p> : state?.enabled && continuousView.items.length===0 && !cursor && !error ? <div className="feed-empty"><BookOpen size={32}/><h3>{view==='saved'?'나중에 읽을 글을 모아 보세요':view==='deep_read'?'이전 자료가 아직 없어요':language==='ko'?'한국어 원문이 아직 없어요':language==='en'?'영어 원문이 아직 없어요':'최근 글이 아직 없어요'}</h3><p>{view==='saved'?'관심 있는 글의 저장 버튼을 눌러 주세요.':view==='latest'?'새 글 확인으로 다시 찾아보거나 깊이 읽기에서 이전 자료를 살펴보세요.':'다른 필터를 선택해 주세요.'}</p></div> : <div className="feed-list" aria-busy={loadingMore}>{(state?.enabled?continuousView.items:[]).map(article=><FeedArticleCard key={article.id} article={article} timeZone={timeZone} busy={Boolean(busy)} onSave={()=>save(article)} onPlan={()=>onPlan(article)}/>)}</div>}
+    {loading ? <p className="feed-empty" role="status">새로운 배움을 불러오고 있어요…</p> : state?.enabled && continuousView.items.length===0 && !cursor && !error ? <div className="feed-empty"><BookOpen size={32}/><h3>{view==='saved'?'나중에 읽을 글을 모아 보세요':view==='deep_read'?'이전 자료가 아직 없어요':language==='ko'?'한국어 원문이 아직 없어요':language==='en'?'영어 원문이 아직 없어요':'최근 글이 아직 없어요'}</h3><p>{view==='saved'?'관심 있는 글의 저장 버튼을 눌러 주세요.':view==='latest'?'새 글 확인으로 다시 찾아보거나 깊이 읽기에서 이전 자료를 살펴보세요.':'다른 필터를 선택해 주세요.'}</p></div> : <div className="feed-list" aria-busy={loadingMore}>{(state?.enabled?continuousView.items:[]).map(article=><FeedArticleCard key={article.id} article={article} timeZone={timeZone} translationService={state?.translation_service} busy={Boolean(busy)} onSave={()=>save(article)} onPlan={()=>onPlan(article)}/>)}</div>}
     {state?.enabled && cursor && !loading && <div className="feed-more" ref={bottomSentinel}><button className="secondary" type="button" disabled={loadingMore||Boolean(busy)} onClick={()=>void loadMore()}>{loadingMore?'이전 글 불러오는 중…':'이전 글 더 보기'}</button></div>}
     </>}
   </section>;

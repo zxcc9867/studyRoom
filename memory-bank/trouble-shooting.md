@@ -1,3 +1,21 @@
+## 2026-10-10 — 무료 Developer 계정을 기존 Free 한도로 제한한 번역 중단
+
+### 상황 / 원인
+
+- 실제 로그인 계정의 API Developer / Free / 전체1000000자 /499034자 사용을 확인했다. 서버의 고정500000자 clamp가 잔여966자로 계산해 최대3개 묶음 번역을 quota_exhausted로 중단했다. 자체10월49206/450000자 예산은 원인이 아니다.
+- [공식 요금제 문서](https://support.deepl.com/hc/en-us/articles/360021200939-DeepL-API-plans)의 Developer 전체 한도와 기존 Free 월 한도를 구분했다. UI의 사용 기간 표시를 Developer 월 초기화로 해석하지 않는다.
+
+### 해결 / 재발 방지
+
+- 사용자 승인 후 명시적 `DEEPL_API_PLAN=developer`에 한해1000000자 clamp. 기본 free/미설정500000 유지, 미지원/유료 설정·Pro 응답은 fail closed. 월450000 예약·무료 endpoint·캐시·원문·POST 재시도 금지 유지.
+- 회귀 RED:27개 중4개 실패(Developer잔여량966≠500966, 잘못된 요금제 허용, 번역중단, 카드대기문구). 수정 후27/27 GREEN. 실제 운영 저장/배포와 전체 검증은 후속 기록으로 구분한다.
+- CLI 준비 중 sandbox 네트워크 ENOTFOUND 후 권한 경로로 재확인했다. 존재하지 않는 supabase@2.79.4 ETARGET은 실제 npm 버전2.120.0을 확인한 뒤 도움말 조회로 해결했다. 제품 의존성/lockfile은 바꾸지 않는다.
+- 관련 파일: tech-feed-translation.mjs/provider.test.mjs, TechFeedSection.tsx/techFeedSearchCard.test.mjs, docs/tech-feed/korean-translation.md.
+- 실제 공부 탭은 새로고침/종료하지 않는다. 인증된 추가 피드 탭의 unload가 서버 세션을 종료할 수 있는 별도 위험은 이번 번역 수정 범위 밖이다.
+- 전체 Chrome 검사가 sandbox에서 로딩 시간 초과를 반복했다. 같은 단일 테스트가 정상 환경에서 통과함을 확인한 뒤, 사용자 브라우저와 분리된 임시 Chrome으로 전체1137/1137·생략0 재실행했다. 실패 로그 output/translation-developer-full-test-20261010.log와 성공 로그 output/translation-developer-full-test-verified-20261010.log를 구분한다.
+- Dune 초기 규칙에 필수 forbidden_modules 필드 누락으로 invalid가 발생했다. 빈 배열을 명시하고 실제 서버 금지 경계는 유지하여2파일/1경계 통과했다. Jev gate는 제공 근거 부족/낮은 확신으로 일부 주장을 자동 승인하지 않았으므로 source·27개 실제 회귀·전체/Edge 출력·실제 저장 결과를 직접 대조했다. Jev 자동 승인으로 보고하지 않는다.
+- 운영 복구: 무료 Developer 설정/Edge42·40 배포 후 정상 worker HTTP200, 번역3건/3232자/POST1회 저장·provider ready·실제 한국어 카드 표시 확인. 기존 카운터를 초기화하지 않았다.
+
 ## 2026-10-10 — 기술 피드 번역 한도 상태와 영어 원문 표시
 
 ### 상황 / 확인한 사실

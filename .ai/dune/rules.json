@@ -1,0 +1,25 @@
+{
+  "schema_version": 2,
+  "required_files": [
+    "AGENTS.md",
+    "CLAUDE.md",
+    "memory-bank/design-document.md",
+    "memory-bank/active-context.md",
+    "memory-bank/implementation-plan.md",
+    "memory-bank/progress.md",
+    "memory-bank/trouble-shooting.md",
+    "memory-bank/prd-user-profile.md",
+    "memory-bank/architecture-map.md"
+  ],
+  "python_import_boundaries": [],
+  "javascript_import_boundaries": [
+    {
+      "id": "feed-ui-server-boundary",
+      "sources": ["apps/web/src/TechFeedSection.tsx", "apps/web/src/FeedDailyBriefing.tsx"],
+      "forbidden_modules": [],
+      "forbidden_paths": ["supabase/functions", "server"],
+      "runtime_only": true,
+      "use_instead": "Use the authenticated techFeed client. Server-only provider keys, quota reservations and writes belong to the Edge/store modules."
+    }
+  ]
+}

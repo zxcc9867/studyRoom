@@ -18,8 +18,8 @@ const article={
   excerpt:'This is the provider result snippet.',excerpt_provenance:'search_snippet',origin:'web_search',
   matched_topics:['PostgreSQL 성능'],category:null,interests:['backend'],saved:false,todo_id:null,
 };
-const render=value=>renderToStaticMarkup(React.createElement(mod.exports.FeedArticleCard,{
-  article:value,timeZone:'Asia/Seoul',busy:false,onSave(){},onPlan(){},
+const render=(value,translationService)=>renderToStaticMarkup(React.createElement(mod.exports.FeedArticleCard,{
+  article:value,translationService,timeZone:'Asia/Seoul',busy:false,onSave(){},onPlan(){},
 }));
 
 test('web-search card identifies search-result evidence and the original host',()=>{
@@ -45,6 +45,20 @@ test('ready Korean translation is default and original text stays in a collapsed
 });
 test('failed or pending translations preserve English originals without claiming translation',()=>{
  for(const translation_status of ['pending','failed']){const html=render({...article,translation_status,title_ko:'stale',excerpt_ko:'stale'});assert.match(html,/<h3><a[^>]*>PostgreSQL query planning<\/a><\/h3>/);assert.doesNotMatch(html,/stale/);assert.match(html,/번역.*대기/);}
+});
+
+test('untranslated cards explain the global translation status instead of a misleading generic queue',()=>{
+ for(const [state,label]of [['quota_exhausted','무료 번역 한도에 도달'],['paused','한국어 번역 일시 중지'],['unavailable','번역 서비스 확인 필요'],['not_configured','한국어 번역 미연결']]){
+  const html=render({...article,translation_status:'failed'},state);
+  assert.match(html,new RegExp(label));assert.match(html,/영어 원문 표시/);assert.doesNotMatch(html,/한국어 번역 대기/);
+ }
+});
+
+test('cached Korean translations and Korean originals remain readable when the provider quota is exhausted',()=>{
+ const translated=render({...article,translation_status:'ready',title_ko:'쿼리 계획',excerpt_ko:'번역된 소개'},'quota_exhausted');
+ assert.match(translated,/쿼리 계획/);assert.match(translated,/DeepL 자동 번역/);assert.doesNotMatch(translated,/무료 번역 한도에 도달/);
+ const original=render({...article,title:'백엔드 데이터베이스 쿼리 계획',excerpt:'한국어로 작성한 기술 소개입니다.'},'quota_exhausted');
+ assert.match(original,/한국어로 작성된 원문/);assert.doesNotMatch(original,/무료 번역 한도에 도달/);
 });
 test('translation output is escaped and cannot replace the original URL',()=>{
  const html=render({...article,translation_status:'ready',title_ko:'번역 <script>bad</script>',excerpt_ko:'<img src=x onerror=bad>'});

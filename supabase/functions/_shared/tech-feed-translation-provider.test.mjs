@@ -74,3 +74,35 @@ test('a larger reported Free limit is capped, never treated as additional spenda
  }
  assert.deepEqual(await createDeepLTranslation({env,fetchImpl:async()=>json({character_count:500001,character_limit:1250000})}).checkUsage(),{remaining:0});
 });
+
+test('verified free Developer plan supports its lifetime quota only with explicit server opt-in',async()=>{
+ for(const [plan,remaining]of [[undefined,966],['free',966],['developer',500966]]){
+  const p=createDeepLTranslation({env:{...env,...(plan?{DEEPL_API_PLAN:plan}:{})},fetchImpl:async()=>json({character_count:499034,character_limit:1000000})});
+  assert.deepEqual(await p.checkUsage(),{remaining});
+ }
+ for(const limit of [1000001,1250000,1000000000000]){
+  const p=createDeepLTranslation({env:{...env,DEEPL_API_PLAN:'developer'},fetchImpl:async()=>json({character_count:999999,character_limit:limit})});
+  assert.deepEqual(await p.checkUsage(),{remaining:1});
+ }
+ assert.deepEqual(await createDeepLTranslation({env:{...env,DEEPL_API_PLAN:'developer'},fetchImpl:async()=>json({character_count:1000000,character_limit:1000000})}).checkUsage(),{remaining:0});
+});
+
+test('unknown and paid plans fail closed without requesting usage or translation',async()=>{
+ for(const plan of ['pro','growth','enterprise','1000000','', 'Developer']){
+  let calls=0;const p=createDeepLTranslation({env:{...env,DEEPL_API_PLAN:plan},fetchImpl:async()=>{calls++;throw Error('unexpected');}});
+  assert.equal(p.availability(),'unavailable');await assert.rejects(()=>p.checkUsage());await assert.rejects(()=>p.translate(['Title']));assert.equal(calls,0);
+ }
+ for(const field of ['products','api_key_character_count','api_key_character_limit']){
+  await assert.rejects(()=>createDeepLTranslation({env:{...env,DEEPL_API_PLAN:'developer'},fetchImpl:async()=>json({character_count:0,character_limit:1000000,[field]:0})}).checkUsage(),/unavailable/);
+ }
+});
+
+test('Developer resumes a batch past the old ceiling while retaining the monthly app reservation and single free POST',async()=>{
+ const jobs=[{id:'a',lease:'l',title:'A'.repeat(500),excerpt:'B'.repeat(500)},{id:'b',lease:'l',title:'Second',excerpt:'Details'},{id:'c',lease:'l',title:'Third',excerpt:''}];
+ const calls=[];let saved,reservations=0;
+ const store={claimTranslations:async()=>jobs,reserveTranslation:async(ids,lease,cap)=>{assert.deepEqual(ids,['a','b','c']);assert.equal(lease,'l');assert.equal(cap,450000);reservations++;return{state:'reserved'};},finishTranslation:async(ids,lease,items,error)=>{assert.equal(error,null);saved=items;return true;}};
+ const translator=createDeepLTranslation({env:{...env,DEEPL_API_PLAN:'developer'},fetchImpl:async(url,init)=>{calls.push([url,init.method]);return url.endsWith('/usage')?json({character_count:499034,character_limit:1000000}):json({translations:[{text:'첫 제목'},{text:'첫 소개'},{text:'둘째 제목'},{text:'둘째 소개'},{text:'셋째 제목'}]});}});
+ const result=await runTranslationWorker({store,pilotIds:['owner'],translator});
+ assert.equal(result.translated,3);assert.equal(result.characters,1018);assert.equal(reservations,1);
+ assert.equal(saved.length,3);assert.deepEqual(calls,[['https://api-free.deepl.com/v2/usage','GET'],['https://api-free.deepl.com/v2/translate','POST']]);
+});

@@ -1,5 +1,28 @@
 # Progress
 
+## 2026-10-10 — 무료 Developer 번역 복구
+
+- 실제 DeepL 무료 Developer 전체1000000자/499034자 사용 확인. 기존500000자 clamp로 잔여966자로 제한되는 원인 및 PRD 충돌을 알리고, 사용자에게 무료 Developer 지원 승인받았다.
+- provider 명시 요금제 opt-in/unknown fail-closed/1M clamp, 카드 상태 안내, 환경 예시와 PRD/설계/번역 문서/오류 기록 갱신. 기존 앱 월450000자 예산·키·DB·유료전환 금지 유지.
+- TDD:27개 관련 테스트 중4개 RED→27/27 GREEN. 전체1137/1137·실패0·생략0(175062ms, 실제Chrome/concurrency2), Edge23/23, 웹1731·mobile·docs27/3언어·Dune2파일/1경계·diff 통과. 제한환경 실패 로그는 보존하고 정상환경 전체 재실행으로 검증했다.
+- Supabase: 서버 DEEPL_API_PLAN=developer·tech-feed42/worker40 ACTIVE/JWT true, 번역3건/POST1회3232자 저장·provider ready/13:26:01UTC 확인. ready261→264·failed58→55, 자체예산49206→52438/450000자. 번역 테이블 브라우저SELECT/예산UPDATE=false·service_roleUPDATE=true 유지.
+- 실제 웹에서 새 글 확인과 배너 반영 후 한국어 제목·소개·영어 원문 접기·링크 확인. 웹 배포는 작업 브랜치의 workflow_dispatch로 진행하며 main 직접 푸시/PR머지하지 않는다.
+- 실제 계정 웹 피드/기존 요약·추천 확인. 저장/할 일/Android 실기기 동기화 조작은 아직 완료하지 않았다. 사용 중 공부 세션은 변경하지 않는다.
+
+## 2026-10-10 — 다음 작업 우선순위 읽기 전용 분석
+
+### 완료한 분석 / 근거
+
+- 필수 memory-bank와 관련 PRD/코드를 최신 완료 기록 기준으로 대조했다. 새 할 일 입력 초기화, 설정/앱 업데이트, 웹 로그인 공유, AI 재시도 등을 중복 구현 대상으로 잡지 않는다.
+- Supabase MCP 조회(21:50 Asia/Tokyo): 최근24시간 공통 신규 기사6건·마지막 발견21:00, 브리핑 최근48시간 결과1건·마지막 생성20:10. 수집 run 완료와 사용자 피드 노출·AI 성공·번역 성공은 별개다.
+- 번역 quota_exhausted·마지막 성공10월2일22:00·ready261/failed58, 앱 예산49206/450000자·20시도. DeepL 실제 잔여 사용량/갱신일은 미확정이므로 다음 진단의 우선 대상으로 제안했다.
+- 보안 advisor의 search_path 경고2개를 확인했다. 서버 전용 RLS 무정책 및 인증 사용자용 RPC 경고는 설계 의도를 검토하기 전 취약점으로 단정하지 않는다.
+
+### 다음 후보 / 검증 범위
+
+- 우선순위: 무료 번역 복구 조건 확인 → 실제 계정의 피드·요약·저장/할 일 연결 웹/앱 E2E → 실제 Android DND/카메라·백그라운드/권한 복귀 → 좁은 DB 보안 보완 → 운영 건강 점검 정리. 아직 구현 승인이나 완료 상태가 아니다.
+- 변경 파일은 active-context.md와 progress.md뿐이다. 운영 읽기 전용 조회와 소스/문서 대조를 수행했으며, 제품 코드·운영 설정·DB 쓰기·새 AI/번역 호출·커밋·푸시·배포는 하지 않는다. 제품 변경이 없어 전체 테스트·빌드는 재실행하지 않는다.
+
 ## 2026-10-10 — tech-feed AI error recovery
 
 - Backend and frontend implemented in separate worktrees and integrated with an independent reviewer (C/I/M 0/0/0). Added bounded 502/503/504 retry, classified failure metadata, cooldown and explicit manual retry UI. No paid fallback, automatic view-triggered generation or APK change.

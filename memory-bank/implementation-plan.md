@@ -1,3 +1,18 @@
+## 2026-10-10 — 무료 Developer 번역 경계
+
+- `createDeepLTranslation`은 `DEEPL_API_PLAN=free|developer`만 허용한다. 미설정은 free500000, 승인된 developer는1000000 total. 공급자 usage 상한과 더 작은 값을 사용하고 자체 월450000 예약은 그대로다. Developer 사용량은 로컬에서 초기화하지 않는다.
+- 고정 무료 endpoint/:fx 키/Pro 응답 거부/POST1회 정책 유지. 키·원문응답은 클라이언트로 노출하지 않는다. 요금제·결제·키·DB/RLS/출석 변경 없음.
+- 웹 카드가 state.translation_service를 받아 한도/일시중지/미연결/확인 필요를 구분한다. 번역 캐시가 ready이면 전역 한도와 관계없이 한국어를 표시한다.
+- 실제 checkout의 architecture-map과 Dune 경계에 피드 UI→서버 직접 import 금지를 연결한다. 기존 인증 client/store RPC가 공식 수정 경로다.
+
+### Supabase 변경 이력 — 2026-10-10
+
+- 변경 대상/내용: Edge server-only DEEPL_API_PLAN=developer, tech-feed42 / tech-feed-worker40 배포(ACTIVE, verify_jwt=true).
+- 이유/기능: 실제 무료 Developer 전체100만 자에 맞춰 한국어 번역 중단 복구. 공급자 계정·결제·키는 그대로다.
+- 마이그레이션 파일: 없음. DB 스키마/RLS/RPC·기존 출석Cron 변경 없음.
+- 확인: CLI2.120.0, 배포 source의 developer clamp, 정상 worker HTTP200/번역3건 ready 및3232자 예약 증가, 브라우저 직접 번역SELECT/예산UPDATE 금지 유지.
+- 주의: Developer 전체한도는 초기화하지 않는다. 기존 provider backoff/lease와450000자 월예산을 우회하지 않았다. 웹 배포는 별도 검증·기능 브랜치 workflow로 진행한다.
+
 ## 2026-10-08 — APK6 게시 승인
 
 ## 2026-10-10 — tech-feed briefing recovery contract
