@@ -1,5 +1,11 @@
 # Active Context
 
+## 현재 작업 — 2026-10-11 GitHub 최신 코드 통합
+
+- `main` 최신 2개 커밋을 pull하고, 사용자의 추가 요청에 따라 운영 최신 `codex/recovery-consistency`의 4개 커밋을 fast-forward 통합했다. 제품 코드는 운영 `2782dda`와 동일하며 새 할 일 빈 입력, 무료 Developer 번역 한도, Markdown 표시 수정이 포함된다.
+- 기존 미커밋 DUNE·README·CLAUDE·검증 기록을 보존했다. README 3개 언어와 아키텍처 문서의 실제 동작·검사 경로를 보완하고 독립 리뷰를 받았다. 공용 DUNE 변경은 이번 커밋에 포함하지 않는다.
+- 이번 검증과 GitHub 반영·운영 상태는 [동기화 기록](verification/2026-10-11-github-sync.md)을 따른다. 이전 날짜의 기본 브랜치 미통합 기록은 당시 이력이다.
+
 ## 현재 작업 — 2026-10-10 피드 본문 마크다운 가독성
 
 - 작업명/목적: 사용자 요청에 따라 기술 피드의 `#####` 같은 제목 기호 노출을 없앤다. 관련 PRD: prd-tech-feed.md.
