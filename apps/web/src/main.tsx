@@ -305,6 +305,7 @@ const SessionReflectionModal = lazy(() => import("./SessionReflectionModal"));
 const StudyReportSection = lazy(() => import("./StudyReportSection"));
 const TechFeed = lazy(() => import("./TechFeedSection"));
 const TeamStudy = lazy(() => import("./TeamStudySection"));
+const PublicTagSettings = lazy(() => import("./PublicTagSettings"));
 const AdaptiveReminderCard = lazy(() => import("./AdaptiveReminderCard"));
 type TodoRepeatMode = "single" | "weekly";
 type CameraSetupPrompt = {
@@ -5070,6 +5071,13 @@ function DashboardApp() {
             <TechFeed key={session.user.id} supabase={supabase} userId={session.user.id} timeZone={timeZone} onPlan={openFeedPlan} linkedTodo={feedLinkedTodo} />
           </Suspense>
         )}
+        {(activeSection === "today" || activeSection === "together") && <div className="study-navigation">
+          {activeSection === "today" && <TodayDomainTabs activeDomain={todayDomain} onChange={setTodayDomain} />}
+          <nav className="study-mode-tabs" aria-label="공부 방식">
+            <a href="#today" aria-current={activeSection === "today" ? "page" : undefined} onClick={() => setTodayDomain("focus")}>내 공부</a>
+            <a href="#together" aria-current={activeSection === "together" ? "page" : undefined}>팀 공부</a>
+          </nav>
+        </div>}
         {activeSection === "together" && (
           <Suspense fallback={<p role="status">함께 공부방을 불러오고 있어요…</p>}>
             <TeamStudy key={session.user.id} supabase={supabase} userId={session.user.id} registered={!session.user.is_anonymous} inviteToken={teamInviteToken} onClearInvite={() => setTeamInviteToken(null)}
@@ -5080,10 +5088,6 @@ function DashboardApp() {
         {activeSection === "today" && (
           <>
             <div className="dashboard-page-heading"><div><p>{todayDateKey} 공부일 · 새벽 4시 기준{activeSession && todayDateKey !== getStudyDateKey(new Date(nowMs), timeZone) ? " · 시작한 공부일로 계속 기록 중" : ""}</p><h1>오늘의 공부</h1></div><span className="dashboard-attendance">{dashboardReady ? activeSession ? activeSession.paused_at ? "휴식 중" : "공부 중" : attendanceDays.find(day => day.local_date === todayDateKey)?.status === "present" ? "출석 완료" : "시작 준비" : "기록 확인 중"}</span></div>
-            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 16, flexWrap: "wrap", order: -3 }}>
-              <TodayDomainTabs activeDomain={todayDomain} onChange={setTodayDomain} />
-              <a className="focus-record-link" style={{ display: "inline-flex", alignItems: "center" }} href="#together">함께 공부방 보기</a>
-            </div>
             {sectionOrderEditing && renderTodaySectionOrderEditor()}
           </>
         )}
@@ -6596,6 +6600,9 @@ function DashboardApp() {
               clearTeamInvite(getTeamInviteStorage()); setTeamInviteToken(null);
               if (!postEmbeddedMessage(window, { type: "STUDY_WEB_SIGN_OUT" })) void supabase.auth.signOut();
             }}><LogOut size={18} aria-hidden="true" />로그아웃</button></div>
+            <Suspense fallback={<p role="status">공개 태그 설정을 불러오고 있어요…</p>}>
+              <PublicTagSettings key={session.user.id} supabase={supabase} userId={session.user.id} registered={!session.user.is_anonymous} />
+            </Suspense>
           </section>
           <section className="settings-group" aria-labelledby="settings-study-title">
             <h2 id="settings-study-title">공부·화면</h2>

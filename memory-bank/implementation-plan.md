@@ -1,7 +1,8 @@
 ## 2026-10-13 — 함께 공부방 경계
 
 - 등록 계정 전용·팀6명/1팀·링크+정확한 공개 태그 초대. 기존 인증·출석·회복·개인 카메라·DND 정책을 변경하지 않는다. 세부 계약은 prd-social-study-room.md와 docs/team-study/server-contract.md를 따른다.
-- 개인 오늘 기본 화면과 전역5개 메뉴를 유지하고 #together에서 전용 팀 화면을 연다. hosted Android도 같은 웹 화면/API를 사용하며 별도 native 화면·APK 변경 없음.
+- 개인 오늘 기본 화면과 전역5개 메뉴를 유지하고 `내 공부 / 팀 공부` 진입 탭의 #together에서 생성/초대/참여·전용 팀 화면을 연다. 내 공부 탭은 집중 화면으로 돌아가며 개인 기본 화면은 팀 RPC를 선행하지 않는다. hosted Android도 같은 웹 화면/API를 사용하며 별도 native 화면·APK 변경 없음.
+- 공개 태그 편집은 PublicTagSettings가 `설정 → 계정`에서 기존 teamStudyClient snapshot/set_tag를 재사용한다. 팀 화면은 필요한 설정 링크만 제공한다. 쓰기 후 인증 소유자와 컴포넌트 controller identity를 재확인하고 종료/계정 전환 뒤 늦은 성공·오류를 표시하지 않는다. DB/API/초대 정책 변경 없음.
 - 새 guarded RPC/팀 private schema가 영속 상태를 소유한다. 멤버 최소 snapshot과 민감정보 없는 revision 신호만 client에 공유한다. 이메일/회복/기본 비공개 제목/전체 이력을 팀 경유로 조회하지 않는다.
 - explicit 연결/퇴장 때 실제 공부 segment checkpoint로 경계를 분리한다. 개인 인정 총합/시작일은 유지, 활성 기여는 잠정, 개인 종료·카메라 제외 정산 후만 숲 확정. 120분/나무, 자동 reset 없음.
 - 공식 CLI local migration20261012143354_team_study_room.sql만 MCP 적용했다. 실제 원격 version20261012235920/name team_study_room과 대응한다. 자동 원격 버전 차이를 기록하며 파일명 변경·과거 이력 repair·전체 db push는 하지 않는다.

@@ -1,0 +1,33 @@
+.public-tag-settings {
+  margin-top: var(--study-space-6);
+  padding-top: var(--study-space-4);
+  border-top: 1px solid var(--study-border);
+  min-width: 0;
+}
+.public-tag-settings form {
+  display: flex;
+  flex-direction: column;
+  gap: var(--study-space-2);
+  max-width: 36rem;
+}
+.public-tag-settings label {
+  color: var(--study-ink);
+  font-size: var(--study-text-sm);
+  font-weight: 600;
+}
+.public-tag-settings input {
+  box-sizing: border-box;
+  width: 100%;
+  min-height: 44px;
+  padding: var(--study-space-3);
+  border: 1px solid var(--study-border);
+  border-radius: var(--study-control-radius);
+  color: var(--study-ink);
+  background: var(--study-surface);
+  font: inherit;
+}
+.public-tag-settings :is(input,button):focus-visible {
+  outline: 3px solid var(--study-primary);
+  outline-offset: 3px;
+}
+.public-tag-settings button { min-height: 44px; }

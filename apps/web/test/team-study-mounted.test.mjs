@@ -94,7 +94,7 @@ for(const width of [375,1440])mounted(`team mounted Dashboard ${width}: teamless
  await panel.getByRole('button',{name:'팀 숲',exact:true}).click();await panel.getByRole('heading',{name:'함께 키우는 숲',exact:true}).waitFor();await capture(page,'forest-empty',width);
  await readableTeamText(page,['.team-forest-scene h3','.team-forest-scene p'],width);
  await page.evaluate(()=>{fixture.team.forest={accepted_seconds:7800,pending_sessions:1,trees:1,progress_seconds:600};fixture.signal();});await page.clock.runFor(250);await panel.getByText('1그루',{exact:true}).waitFor();assert.match(await panel.textContent(),/정산 대기 1/);await capture(page,'forest',width);
- await panel.getByRole('button',{name:'공부방',exact:true}).click();await panel.getByRole('button',{name:'친구 초대',exact:true}).click();await panel.getByLabel('공개 사용자 태그',{exact:true}).fill(' A스타#지니 ');await panel.getByRole('button',{name:'태그 저장',exact:true}).click();await panel.getByLabel('초대할 전체 태그',{exact:true}).fill('친구#독서');await panel.getByRole('button',{name:'친구 확인',exact:true}).click();await panel.getByRole('button',{name:'이 친구에게 초대 보내기',exact:true}).click();
+ await panel.getByRole('button',{name:'공부방',exact:true}).click();await panel.getByRole('button',{name:'친구 초대',exact:true}).click();assert.equal(await panel.getByLabel('공개 사용자 태그',{exact:true}).count(),0);await panel.getByLabel('초대할 전체 태그',{exact:true}).fill('친구#독서');await panel.getByRole('button',{name:'친구 확인',exact:true}).click();await panel.getByRole('button',{name:'이 친구에게 초대 보내기',exact:true}).click();
  await panel.getByRole('button',{name:'초대 링크 만들기',exact:true}).click();await panel.getByLabel('발급한 초대 링크',{exact:true}).waitFor();await capture(page,'invite',width);await panel.getByRole('button',{name:'링크 철회',exact:true}).click();assert.equal(await panel.getByLabel('발급한 초대 링크',{exact:true}).count(),0);
  await page.evaluate(()=>fixture.teamError=true);await panel.getByRole('button',{name:'상태 다시 확인',exact:true}).click();await panel.getByRole('alert').first().waitFor();assert.doesNotMatch(await panel.textContent(),/PRIVATE_RAW_EXCEPTION/);
  assert.equal(await panel.getByRole('button',{name:'잠시 쉬기',exact:true}).isDisabled(),false);assert.equal(await panel.getByRole('button',{name:'개인 공부 마무리',exact:true}).isDisabled(),false);
@@ -102,7 +102,7 @@ for(const width of [375,1440])mounted(`team mounted Dashboard ${width}: teamless
  await page.evaluate(()=>fixture.teamError=false);await panel.getByRole('button',{name:'상태 다시 확인',exact:true}).click();
  for(const el of await panel.locator('button,input:not([type=checkbox]),a').all()){if(await el.isVisible()){const box=await el.boundingBox();assert.ok(box.height>=44,await el.textContent());}}
  await page.evaluate(()=>{for(const el of document.querySelectorAll('#together h1,#together h2,#together p,#together label,#together button,#together strong,#together span'))el.style.fontSize=parseFloat(getComputedStyle(el).fontSize)*2+'px';});assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),true);
- await nav.locator('a[href="#today"]').click();await page.getByRole('heading',{name:'오늘의 공부',exact:true}).waitFor();assert.equal(await page.evaluate(()=>fixture.sessions[0].ended_at),null);assert.ok(await page.evaluate(()=>fixture.removed>=1));assert.equal(await page.getByRole('link',{name:'함께 공부방 보기',exact:true}).count(),1);
+ await nav.locator('a[href="#today"]').click();await page.getByRole('heading',{name:'오늘의 공부',exact:true}).waitFor();assert.equal(await page.evaluate(()=>fixture.sessions[0].ended_at),null);assert.ok(await page.evaluate(()=>fixture.removed>=1));assert.equal(await page.getByRole('link',{name:'팀 공부',exact:true}).count(),1);
 }));
 mounted('team full Dashboard login preserves invite and explicit join clears it without auto-join',()=>withDashboard(375,'login','#together?invite='+token,async page=>{
  await page.getByText('함께 공부방 초대가 도착했어요.',{exact:true}).waitFor();assert.doesNotMatch(await page.locator('.login-panel').textContent(),new RegExp(token));assert.equal(await page.evaluate(()=>location.hash),'#together');
@@ -137,9 +137,9 @@ mounted('team full Dashboard identity swap cannot display a late old-team snapsh
  const panel=page.locator('#together');await panel.getByLabel('팀 이름',{exact:true}).fill('이전 계정 책방');await panel.getByRole('button',{name:'팀 만들기',exact:true}).click();await panel.getByRole('heading',{name:'이전 계정 책방',exact:true}).waitFor();await page.evaluate(()=>fixture.holdTeam=true);await panel.getByRole('button',{name:'상태 다시 확인',exact:true}).click();await page.waitForFunction(()=>!!fixture.releaseTeam);await page.evaluate(()=>{fixture.holdTeam=false;fixture.changeOwner();fixture.releaseTeam();});await panel.getByRole('heading',{name:'함께 공부방',exact:true}).waitFor();assert.doesNotMatch(await panel.textContent(),/이전 계정 책방/);
 }));
 mounted('team full Dashboard keeps private live camera node through Today and team navigation',()=>withDashboard(375,'active','#today',async page=>{
- const entry=page.getByRole('link',{name:'함께 공부방 보기',exact:true});await entry.waitFor();const entryBox=await entry.boundingBox();console.log('Today Team entry first-load touch box '+JSON.stringify(entryBox));assert.ok(entryBox.height>=44&&entryBox.width>=44);
+ const entry=page.getByRole('link',{name:'팀 공부',exact:true});await entry.waitFor();const entryBox=await entry.boundingBox();console.log('Today Team entry first-load touch box '+JSON.stringify(entryBox));assert.ok(entryBox.height>=44&&entryBox.width>=44);
  const tools=page.locator('.focus-tools');await tools.locator('summary').click();await tools.getByRole('button',{name:'카메라 감시 켜기',exact:true}).click();await page.waitForFunction(()=>document.querySelector('video')?.srcObject?.getVideoTracks()[0]?.readyState==='live');
- await page.evaluate(()=>window.initialVideo=document.querySelector('video'));await page.getByRole('link',{name:'함께 공부방 보기',exact:true}).click();await page.locator('#together h1').waitFor();
+ await page.evaluate(()=>window.initialVideo=document.querySelector('video'));await page.getByRole('link',{name:'팀 공부',exact:true}).click();await page.locator('#together h1').waitFor();
  assert.equal(await page.evaluate(()=>document.querySelector('video')===window.initialVideo),true);assert.equal(await page.evaluate(()=>document.querySelector('video')?.srcObject?.getVideoTracks()[0]?.readyState),'live');assert.equal(await tools.isVisible(),true);assert.equal(await tools.locator('.focus-control').isVisible(),false);assert.equal(await page.locator('video').isVisible(),false);
  await page.waitForFunction(()=>document.querySelector('video')?.videoWidth>0);await page.clock.runFor(3000);assert.equal(await page.evaluate(()=>document.querySelector('video')?.srcObject?.getVideoTracks()[0]?.readyState),'live');
  await page.locator('.mobile-navigation a[href="#today"]').click();assert.equal(await tools.isVisible(),true);assert.equal(await page.evaluate(()=>document.querySelector('video')===window.initialVideo),true);assert.equal(await page.evaluate(()=>fixture.calls.some(c=>c.name==='pause_actual_study_session')),false);
@@ -171,7 +171,7 @@ for(const delayed of [false,true])mounted(`team invitation preview is token-boun
  await panel.getByRole('button',{name:'초대 내용 확인',exact:true}).click();await panel.getByRole('heading',{name:'두 번째 책방',exact:true}).waitFor();await panel.getByRole('button',{name:'이 팀에 참여',exact:true}).click();await page.waitForFunction(()=>fixture.calls.some(c=>c.name==='team_study_action'&&c.args.p_action==='accept_invite'));assert.deepEqual(await page.evaluate(()=>fixture.calls.find(c=>c.name==='team_study_action'&&c.args.p_action==='accept_invite').args.p_payload),{token:b});
 }));
 for(const width of [375,1440])mounted(`team Today entry preserves first-screen personal hierarchy at ${width}px`,()=>withDashboard(width,'active','#today',async page=>{
- const entry=page.getByRole('link',{name:'함께 공부방 보기',exact:true}),timer=page.getByRole('timer',{name:'이번 세션 공부시간',exact:true});await timer.waitFor();
+ const entry=page.getByRole('link',{name:'팀 공부',exact:true}),timer=page.getByRole('timer',{name:'이번 세션 공부시간',exact:true});await timer.waitFor();
  const entryBox=await entry.boundingBox(),timerBox=await timer.boundingBox();console.log('Today hierarchy '+width+'px '+JSON.stringify({entryBox,timerBox}));
  assert.ok(entryBox.width>=44&&entryBox.height>=44);assert.ok(timerBox.y<700,'personal timer stays on the first screen');
  assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),true);
@@ -184,4 +184,65 @@ for(const width of [375,1440])mounted(`team operational lease and DND warnings r
  const lease=page.locator('.session-lease');await lease.waitFor();assert.equal(await lease.isVisible(),true);assert.equal(await lease.getByRole('button',{name:'+1시간 연장',exact:true}).isEnabled(),true);
  assert.deepEqual(await page.evaluate(()=>fixture.calls.filter(c=>c.name==='extend_study_session_lease').map(c=>c.args)),[{p_session_id:'session',p_extension_minutes:60}]);assert.equal(await page.evaluate(()=>fixture.sessions[0].ended_at),null);assert.deepEqual(await page.evaluate(()=>fixture.calls.filter(c=>['pause_actual_study_session','confirm_actual_study_action','end_study_session','complete_study_session'].includes(c.name)).map(c=>c.name)),[]);
  await warning.getByText('휴대폰 집중 모드 · 휴대폰 연결 테스트 오류',{exact:true}).waitFor();await capture(page,'lease-extended',width);
+}));
+
+for(const width of [375,1440])mounted(`personal-first study tabs and account-only tag editing at ${width}px`,()=>withDashboard(width,'active','',async page=>{
+ const modes=page.getByRole('navigation',{name:'공부 방식'});
+ await page.getByRole('timer',{name:'이번 세션 공부시간',exact:true}).waitFor();
+ assert.equal(await modes.getByRole('link',{name:'내 공부',exact:true}).getAttribute('aria-current'),'page');
+ assert.equal(await page.getByLabel('공개 사용자 태그',{exact:true}).count(),0);
+ assert.equal(await page.evaluate(()=>fixture.calls.some(c=>c.name.startsWith('team_study_'))),false);
+ await modes.getByRole('link',{name:'팀 공부',exact:true}).click();
+ const panel=page.locator('#together');await panel.getByLabel('팀 이름',{exact:true}).waitFor();
+ assert.equal(await modes.getByRole('link',{name:'팀 공부',exact:true}).getAttribute('aria-current'),'page');
+ await readableTeamText(page,['.study-mode-tabs a'],width);
+ assert.equal(await panel.getByLabel('공개 사용자 태그',{exact:true}).count(),0);
+ assert.equal(await panel.getByRole('button',{name:'개인 공부 시작',exact:true}).count(),0);
+ await capture(page,'settings-navigation-teamless',width);
+ await page.evaluate(()=>fixture.team.tag='기존이름#독서');
+ await panel.getByRole('link',{name:'공개 태그 설정하기',exact:true}).click();
+ const account=page.getByRole('region',{name:'계정',exact:true});
+ const tag=account.getByLabel('공개 사용자 태그',{exact:true});await page.waitForFunction(()=>document.querySelector('#settings-public-tag')?.value==='기존이름#독서');
+ assert.equal(await tag.inputValue(),'기존이름#독서');
+ await tag.fill(' A스타#지니 ');await account.getByRole('button',{name:'태그 저장',exact:true}).click();
+ await account.getByText('공개 태그를 저장했어요.',{exact:true}).waitFor();
+ assert.equal(await tag.inputValue(),'a스타#지니');
+ assert.deepEqual(await page.evaluate(()=>fixture.calls.filter(c=>c.name==='team_study_action').map(c=>[c.args.p_action,c.args.p_payload])),[['set_tag',{tag:'a스타#지니'}]]);
+ await capture(page,'settings-public-tag',width);
+ for(const el of await account.locator('button,input,a').all()){const box=await el.boundingBox();assert.ok(box.height>=44);}
+ await readableTeamText(page,['.public-tag-settings label','.public-tag-settings p'],width);
+ await tag.focus();await page.keyboard.press('Tab');assert.equal(await account.getByRole('button',{name:'태그 저장',exact:true}).evaluate(el=>el===document.activeElement),true);
+ const nav=page.locator(width===375?'.mobile-navigation':'.desktop-navigation');await nav.locator('a[href="#today"]').click();
+ await modes.getByRole('link',{name:'팀 공부',exact:true}).click();await panel.getByLabel('팀 이름',{exact:true}).waitFor();
+ await panel.getByLabel('팀 이름',{exact:true}).fill('함께하는 책방');await panel.getByRole('button',{name:'팀 만들기',exact:true}).click();
+ await panel.getByRole('button',{name:'친구 초대',exact:true}).click();
+ await panel.getByLabel('초대할 전체 태그',{exact:true}).waitFor();assert.equal(await panel.getByLabel('공개 사용자 태그',{exact:true}).count(),0);
+ assert.equal(await page.evaluate(()=>fixture.sessions[0].ended_at),null);assert.equal(await page.evaluate(()=>fixture.calls.some(c=>c.name==='pause_actual_study_session')),false);
+}));
+
+mounted('public tag settings validate input and preserve draft after save failure',()=>withDashboard(375,'active','#settings',async page=>{
+ const account=page.getByRole('region',{name:'계정',exact:true}),tag=account.getByLabel('공개 사용자 태그',{exact:true});await tag.waitFor();
+ await tag.fill('잘못된태그');await account.getByRole('button',{name:'태그 저장',exact:true}).click();
+ await account.getByRole('alert').waitFor();assert.equal(await page.evaluate(()=>fixture.calls.some(c=>c.name==='team_study_action')),false);
+ await tag.fill('내이름#독서');await page.evaluate(()=>fixture.actionError='TAG_TAKEN');await account.getByRole('button',{name:'태그 저장',exact:true}).click();
+ await account.getByRole('alert').waitFor();assert.equal(await tag.inputValue(),'내이름#독서');assert.equal(await account.getByText('공개 태그를 저장했어요.',{exact:true}).count(),0);
+ await page.evaluate(()=>fixture.actionError=null);await account.getByRole('button',{name:'태그 저장',exact:true}).click();await account.getByText('공개 태그를 저장했어요.',{exact:true}).waitFor();
+}));
+
+mounted('public tag settings loading failure retries without changing study or exposing raw errors',()=>withDashboard(375,'active','#today',async page=>{
+ await page.getByRole('timer',{name:'이번 세션 공부시간',exact:true}).waitFor();await page.evaluate(()=>fixture.teamError=true);
+ await page.locator('.mobile-navigation a[href="#settings"]').click();const account=page.getByRole('region',{name:'계정',exact:true});
+ await account.getByRole('alert').waitFor();assert.doesNotMatch(await account.textContent(),/PRIVATE_RAW_EXCEPTION/);
+ assert.equal(await account.getByRole('button',{name:'태그 저장',exact:true}).isDisabled(),true);
+ await page.evaluate(()=>{fixture.teamError=false;fixture.team.tag='읽기성공#독서';});await account.getByRole('button',{name:'태그 다시 확인',exact:true}).click();
+ await page.waitForFunction(()=>document.querySelector('#settings-public-tag')?.value==='읽기성공#독서');
+ assert.equal(await page.evaluate(()=>fixture.calls.some(c=>c.name==='team_study_action')),false);assert.equal(await page.evaluate(()=>fixture.sessions[0].ended_at),null);
+}));
+
+mounted('public tag settings late save is discarded on account switch',()=>withDashboard(375,'active','#settings',async page=>{
+ const account=page.getByRole('region',{name:'계정',exact:true}),tag=account.getByLabel('공개 사용자 태그',{exact:true});await tag.fill('이전계정#독서');
+ await page.evaluate(()=>fixture.holdAction=true);await account.getByRole('button',{name:'태그 저장',exact:true}).click();await page.waitForFunction(()=>!!fixture.releaseAction);
+ await page.evaluate(()=>{fixture.currentAuth={...fixture.currentAuth,user:{...fixture.currentAuth.user,id:'other'}};fixture.holdAction=false;fixture.changeOwner();fixture.releaseAction();});
+ await page.waitForFunction(()=>document.querySelector('#settings-public-tag')&&!document.querySelector('#settings-public-tag').disabled);
+ assert.equal(await tag.inputValue(),'');assert.equal(await account.getByText('공개 태그를 저장했어요.',{exact:true}).count(),0);
 }));

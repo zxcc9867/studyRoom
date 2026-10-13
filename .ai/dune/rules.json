@@ -23,7 +23,7 @@
     },
     {
       "id": "team-ui-server-native-boundary",
-      "sources": ["apps/web/src/TeamStudySection.tsx", "apps/web/src/teamStudy*.mjs"],
+      "sources": ["apps/web/src/TeamStudySection.tsx", "apps/web/src/PublicTagSettings.tsx", "apps/web/src/teamStudy*.mjs"],
       "forbidden_modules": ["node:fs", "fs", "node:crypto", "crypto"],
       "forbidden_paths": ["supabase/functions", "server", "apps/mobile"],
       "runtime_only": true,

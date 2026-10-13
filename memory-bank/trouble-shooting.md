@@ -1,3 +1,11 @@
+## 2026-10-13 — 공개 태그 편집이 공부 대시보드를 차지함
+
+- 증상/원인: 팀 없음·친구 초대 구역에 계정 공개 태그 편집 폼을 함께 렌더해 공부/초대와 개인정보 설정 동선이 섞였다.
+- 해결: PublicTagSettings를 설정 계정 구역으로 분리하고 기존 guarded snapshot/set_tag를 재사용한다. 개인/팀 진입은 명확한 두 탭으로 구분하고 정상 팀 없음에는 생성/받은 초대를 우선한다.
+- 재발 방지: 실제 mounted Dashboard에서 개인 초기 진입의 팀 RPC 없음, 팀 폼 부재, 설정 저장·입력 검증·실패 재시도·늦은 계정 전환, 기존 카메라/lease 보존을 검사한다.
+- 테스트 주의: 기존 개인 fixture의 onAuthStateChange가 changeOwner를 재정의한다. 계정 전환 시 서버 getSession fixture의 currentAuth도 실제 새 사용자와 맞춰야 하며 인증 guard를 완화해 테스트를 통과시키지 않는다.
+- 관련: apps/web/src/PublicTagSettings.tsx, TeamStudySection.tsx, main.tsx, apps/web/test/team-study-mounted.test.mjs.
+
 ## 2026-10-12 — 팀 연결 checkpoint의 소수 초 정산
 
 - 증상: 팀 연결/해제에서 실제 공부 segment를 나누면 기존 정수 초 내림 때문에 배분 합계가 개인 종료 합계보다 1초 작을 수 있다.

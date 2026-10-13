@@ -2,6 +2,12 @@
    Data, study policies and the forest's rendered environment stay unchanged. */
 
 /* Settings reuse the dashboard's paper surfaces and existing controls. */
+.study-navigation { display: flex; align-items: center; justify-content: space-between; gap: var(--study-space-4); flex-wrap: wrap; order: -3; }
+.study-mode-tabs { display: flex; gap: var(--study-space-1); padding: var(--study-space-1); background: var(--study-soft); border-radius: var(--study-control-radius); }
+.study-mode-tabs a { display: inline-flex; align-items: center; justify-content: center; min-height: 44px; min-width: 44px; padding: 0 var(--study-space-4); border-radius: var(--study-control-radius); color: var(--study-muted); font-size: var(--study-text-sm); font-weight: 600; text-decoration: none; }
+.study-mode-tabs a[aria-current=page] { color: var(--study-primary); background: var(--study-surface); }
+.study-mode-tabs a:hover { color: var(--study-ink); }
+.study-mode-tabs a:focus-visible { outline: 3px solid var(--study-primary); outline-offset: 3px; }
 .dashboard-redesign .app-settings-panel { width: min(100%, 960px); align-self: center; display: flex; flex-direction: column; gap: var(--study-space-6); }
 .app-settings-heading h1 { margin: 0; font-size: var(--study-text-2xl); letter-spacing: -.6px; }
 .dashboard-redesign .app-settings-heading p { margin: 8px 0 0; color: var(--study-muted); }

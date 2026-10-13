@@ -17,6 +17,7 @@
 | 무료 번역 | supabase/functions/_shared/tech-feed-translation.mjs, tech-feed-translation-worker.mjs | createDeepLTranslation / runTranslationWorker | 고정 무료 endpoint, store RPC | prd-tech-feed.md, docs/tech-feed/korean-translation.md |
 | Android 공통 화면 | apps/mobile/App.tsx | 인증된 hosted WebView | 웹 화면과 동일 서버 API | prd-android-web-parity.md |
 | 함께 공부방 화면 | apps/web/src/TeamStudySection.tsx, teamStudyClient.mjs, teamStudyInvite.mjs, teamStudyPresentation.mjs | team_study_snapshot / team_study_action 인증 RPC | 웹 공개 client·표시 helpers·Dashboard 개인 콜백 | prd-social-study-room.md |
+| 계정 공개 태그 편집 | apps/web/src/PublicTagSettings.tsx, PublicTagSettings.css | 설정 계정 구역→기존 teamStudyClient의 snapshot / set_tag | guarded 인증 RPC·공개 태그 정규화 helper | prd-app-settings.md, prd-social-study-room.md |
 | 팀 권한·초대·공동 집중·숲 | supabase/migrations/20261012143354_team_study_room.sql | guarded team_study_action / team_study_snapshot | team private 상태·기존 서버 실제 공부 segment checkpoint | prd-social-study-room.md |
 
 ## 영속 상태의 수정 경로
@@ -33,6 +34,8 @@
 팀 연결 경계의 checkpoint는 세션→actual tracking 순서로 잠그고 기존 close_segment를 통해 구간을 분리하는 공식 서버 경로를 사용한다. 개인 시작/재개/휴식/종료·카메라/회복 검증은 DashboardApp의 기존 액션이 소유한다. 팀 모듈은 이 상태를 직접 수정하지 않는다. 운영 DB version20261012235920 권한/RLS/RPC/publication 및 제품b9ab3ec 웹 feature-ref 배포 완료. 실계정/기기 수용은 docs/team-study/verification-20261013.md의 미확인 범위를 따른다.
 
 같은 상태를 여러 곳에서 직접 수정하지 않는다. 파일 claim은 편집 충돌을 줄이는 수단이며 실행 중 상태의 단일 수정 경로를 보장하지는 않는다.
+
+태그 편집은 설정 화면에만 마운트하며 클라이언트 인증 소유자·dispose 검증을 재사용한다. DashboardApp은 개인/팀 진입 탭과 설정 컴포넌트를 연결할 뿐 태그 영속 상태를 소유하지 않는다. 개인 기본 화면은 팀 RPC를 요구하지 않고 기존 공식 공부 시작을 바로 제공한다. 팀 없는 정상 snapshot에는 생성/받은 초대만 보이며, 팀 조회 실패 때는 기존 개인 제어·운영 경고를 유지한다.
 
 ## 검증 명령
 
