@@ -20,6 +20,21 @@
       "forbidden_paths": ["supabase/functions", "server"],
       "runtime_only": true,
       "use_instead": "Use the authenticated techFeed client. Server-only provider keys, quota reservations and writes belong to the Edge/store modules."
+    },
+    {
+      "id": "team-ui-server-native-boundary",
+      "sources": ["apps/web/src/TeamStudySection.tsx", "apps/web/src/teamStudy*.mjs"],
+      "forbidden_modules": ["node:fs", "fs", "node:crypto", "crypto"],
+      "forbidden_paths": ["supabase/functions", "server", "apps/mobile"],
+      "runtime_only": true,
+      "use_instead": "Use teamStudyClient guarded authenticated RPCs and existing Dashboard study callbacks. Team persistence and accepted-time aggregation belong to the server; hosted mobile reuses this screen."
     }
+  ],
+  "verify": [
+    "npm.cmd test",
+    "npm.cmd run test:edge",
+    "npm.cmd run mobile:check",
+    "npm.cmd run build",
+    "npm.cmd run docs:check"
   ]
 }

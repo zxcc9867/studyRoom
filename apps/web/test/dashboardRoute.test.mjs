@@ -5,6 +5,8 @@ import { getDashboardSectionFromHash } from "../src/dashboardRoute.mjs";
 
 test("maps dashboard hash routes to page sections", () => {
   assert.equal(getDashboardSectionFromHash("#today"), "today");
+  assert.equal(getDashboardSectionFromHash("#together"), "together");
+  assert.equal(getDashboardSectionFromHash("#together?invite=" + "a".repeat(64)), "together");
   assert.equal(getDashboardSectionFromHash("#goals"), "goals");
   assert.equal(getDashboardSectionFromHash("#forest"), "forest");
   assert.equal(getDashboardSectionFromHash("#me"), "me");

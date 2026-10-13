@@ -9,16 +9,17 @@ const destinations = [
 ];
 
 export default function DashboardNavigation({ activeSection }: { activeSection: string }) {
+  const current = activeSection === "together" ? "today" : activeSection;
   return <>
     <header className="dashboard-navigation">
       <a className="dashboard-brand" href="#today" aria-label="독서실 오늘"><Leaf size={23} aria-hidden="true" />독서실</a>
       <nav className="desktop-navigation" aria-label="대시보드 섹션">
-        {destinations.map(({ id, label }) => <a key={id} href={`#${id}`} aria-current={activeSection === id ? "page" : undefined}>{label}</a>)}
+        {destinations.map(({ id, label }) => <a key={id} href={`#${id}`} aria-current={current === id ? "page" : undefined}>{label}</a>)}
         <a href="#me" aria-current={activeSection === "me" ? "page" : undefined}>내 페이지</a>
       </nav>
     </header>
     <nav className="mobile-navigation" aria-label="대시보드 섹션">
-      {destinations.map(({ id, label, icon: Icon }) => <a key={id} href={`#${id}`} aria-current={activeSection === id ? "page" : undefined}><Icon size={21} aria-hidden="true" /><span>{label}</span></a>)}
+      {destinations.map(({ id, label, icon: Icon }) => <a key={id} href={`#${id}`} aria-current={current === id ? "page" : undefined}><Icon size={21} aria-hidden="true" /><span>{label}</span></a>)}
     </nav>
   </>;
 }

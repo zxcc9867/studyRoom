@@ -1,3 +1,16 @@
+## 2026-10-12 — 팀 연결 checkpoint의 소수 초 정산
+
+- 증상: 팀 연결/해제에서 실제 공부 segment를 나누면 기존 정수 초 내림 때문에 배분 합계가 개인 종료 합계보다 1초 작을 수 있다.
+- 원인: 기존 close_segment가 구간별 초를 floor한다. 팀 기능에서 이를 보상하면 카메라 제외 시간을 임의로 인정할 위험이 있다.
+- 대응: 개인 세션 duration/출석 정책은 그대로 유지하고 팀 숲은 확정 segment만 보수적으로 합산한다. 실제 SQL 소수 경계 테스트에서 개인1800초·segment1799초·팀599초를 확인했다.
+- 관련: supabase/migrations/20261012143354_team_study_room.sql, packages/core/test/team-study-db.test.mjs. 개인 합계가 감소하면 이 접근을 배포하지 않는다.
+
+## 2026-10-12 — 새 worktree의 Windows 도구 sandbox 실패
+
+- 증상: npm ci의 Exit handler never called, Git Bash helper의 NtCreateDirectoryObject 오류.
+- 대응: 같은 명령을 허용된 권한 경로로 한 번 재실행해 설치/장부 helper 성공을 확인했다. package/lockfile·제품 동작을 바꿔 해결하지 않는다.
+- 검증: npm ci --prefer-offline --no-audit --no-fund 및 기존 전체 Chrome1143/1143 기준선 통과. 권한 문제와 제품 오류를 구분한다.
+
 ## 2026-10-10 — 펼친 기술 피드의 `#####` 제목 기호 노출
 
 ### 상황 / 원인
@@ -6174,3 +6187,23 @@ Tracked-lockfile install resolved dependency failures. Seven old1s VM cases pass
 - Git의 샌드박스 DNS 실패와 dry-run non-fast-forward 거절을 인증 실패로 단정하지 않는다. 실제 fetch에서 origin/main 9e51742의 새 커밋 5개를 확인하고 scoped stash→fast-forward→재적용했다. active-context의 양쪽 상단 추가와 이전 번역 진단 기록을 모두 보존해 충돌을 해결했다.
 - 최신 통합본 전체 재검사1132/1132·실패0·생략0(244553ms), 웹/모바일/문서 검사 성공. 기존 초기 페이지 로딩 timeout은 재발하지 않았으며 별도 timeout 완화나 제품 변경을 추가하지 않았다.
 - 운영 파일 첫 대조는 빌드마다 압축 변수명이 달라 문자열 일치가 실패했다. 초기 이름 정규화도 PowerShell 기본 Hashtable이 fn/Fn을 같은 키로 처리해 잘못된 불일치를 만들었다. JavaScript의 대소문자를 구분하는 Ordinal Dictionary로 정규화하여 함수 구조 동등성과 빈 제목 초기화를 확인했다. 실제 배포 문제로 오인하지 않으며 제품 코드는 바꾸지 않았다. 운영 웹/asset200, 같은 제품SHA의 READY 배포와 Actions success는 progress에 기록했다.
+
+## 팀 태그 정규식과 비UTF8 테스트 응답
+
+- 증상: 기존 actualStudyMounted의 설정/테마 화면이 모두 mount 전 시작 버튼 대기에서 timeout.
+- 원인: 새 JavaScript 정규식의 한글 문자 범위가 charset 없는 테스트 script 응답에서 잘못 디코딩되어 Range out of order 구문 오류. 카메라/인증 게이트 문제는 아님.
+- 해결: teamStudyPresentation.mjs의 같은 한글 범위를 ASCII Unicode escape로 표현한다. 기존 harness 대기·개인 정책을 약화하지 않는다.
+- 재발 방지: 팀 집중 테스트 외에도 기존 main 전체 Chrome 회귀를 실행하고, mounted fixture 추출 경계를 검사한다. 처리 상태/최종 검증은 verification 문서를 따른다.
+
+## 팀 진입 UI·테스트 시계·리뷰 캡처
+
+- 증상: 새44px 진입 링크가 기존1440 첫화면 타이머를700px 아래로 밀었고, 새 공동 타이머 테스트가25:00/24:58 표시를 놓침.
+- 원인/해결: 별도 flex 행을 기존 탭과 같은 wrapping 행으로 합친다. 테스트는 벽시계가 아니라 고정 clock과 연결 시각/기간으로 fixture 종료를 계산하며 원래 exact-second/개인 무변경 검증을 유지한다.
+- 재발 방지: 기존 main 화면 회귀와 새44px/타이머 위치/만료 검증을 함께 실행. 최종 Chrome1203/1203·0실패·0생략.
+- 도구 주의: 큰 소스의 출력 제한이 before snapshot을 잘라 리뷰 diff를 오염시킬 수 있다. truncation marker를 거절하고 lossless read 또는 기록된 실제 patch의 명시적 재구성 provenance로 검사한다. 가짜 원본 snapshot으로 기록하지 않는다.
+## Supabase migration response unknown — 2026-10-13
+
+- 증상: MCP apply_migration이 Invalid or expired requestState를 반환했다.
+- 원인: 요청 상태 만료; 응답만으로 DB 적용 여부를 추측하지 않는다.
+- 해결: list_migrations와 to_regnamespace/to_regclass/to_regprocedure로 미적용 확인 후 동일 SQL1회 재시도. 실제 remote20261012235920 확인.
+- 재발 방지: 알 수 없는 결과에서 즉시 중복 DDL을 보내지 말고 이력·schema를 확인. local20261012143354/remoteversion 대응은 implementation-plan에 기록.

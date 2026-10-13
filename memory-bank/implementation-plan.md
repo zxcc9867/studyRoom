@@ -1,3 +1,14 @@
+## 2026-10-13 — 함께 공부방 경계
+
+- 등록 계정 전용·팀6명/1팀·링크+정확한 공개 태그 초대. 기존 인증·출석·회복·개인 카메라·DND 정책을 변경하지 않는다. 세부 계약은 prd-social-study-room.md와 docs/team-study/server-contract.md를 따른다.
+- 개인 오늘 기본 화면과 전역5개 메뉴를 유지하고 #together에서 전용 팀 화면을 연다. hosted Android도 같은 웹 화면/API를 사용하며 별도 native 화면·APK 변경 없음.
+- 새 guarded RPC/팀 private schema가 영속 상태를 소유한다. 멤버 최소 snapshot과 민감정보 없는 revision 신호만 client에 공유한다. 이메일/회복/기본 비공개 제목/전체 이력을 팀 경유로 조회하지 않는다.
+- explicit 연결/퇴장 때 실제 공부 segment checkpoint로 경계를 분리한다. 개인 인정 총합/시작일은 유지, 활성 기여는 잠정, 개인 종료·카메라 제외 정산 후만 숲 확정. 120분/나무, 자동 reset 없음.
+- 공식 CLI local migration20261012143354_team_study_room.sql만 MCP 적용했다. 실제 원격 version20261012235920/name team_study_room과 대응한다. 자동 원격 버전 차이를 기록하며 파일명 변경·과거 이력 repair·전체 db push는 하지 않는다.
+- 운영 확인: private7테이블 RLS/직접 권한 차단, public신호 authenticated/member SELECT만,3trigger·Realtime publication,2guarded RPC 빈 search_path·anon/PUBLIC EXECUTE차단. 등록되지 않은 UUID는2RPC 모두 ACCOUNT_REQUIRED; transaction rollback·실제 계정/팀 생성 없음.
+- security advisor 신규7개 RLS/no-policy INFO는 private RPC전용 deny-by-default 경계이고,2개 authenticated definer WARN은 의도된 guarded RPC다. 기존 search_path2/pg_net1/비밀번호보호1/기존definer17 경고는 그대로이며 ‘모든 advisor 깨끗함’으로 기록하지 않는다. 상세/수정 안내는 docs/team-study/verification-20261013.md.
+- 테스트: PGlite 실제 SQL/권한 + React 실제 Chrome375/1440 + npm test/test:edge/mobile:check/build/docs:check. 실계정2개·Android16 검증은 fixture 결과와 구분한다.
+
 ## 2026-10-10 — 무료 Developer 번역 경계
 
 - `createDeepLTranslation`은 `DEEPL_API_PLAN=free|developer`만 허용한다. 미설정은 free500000, 승인된 developer는1000000 total. 공급자 usage 상한과 더 작은 값을 사용하고 자체 월450000 예약은 그대로다. Developer 사용량은 로컬에서 초기화하지 않는다.

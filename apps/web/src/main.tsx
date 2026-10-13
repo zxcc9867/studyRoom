@@ -152,6 +152,8 @@ import BreakReturnPlan from "./BreakReturnPlan";
 import { getWeeklyHabitRhythm } from "./weeklyHabit.mjs";
 import TodayDomainTabs, { type TodayDomain } from "./TodayDomainTabs";
 import DashboardNavigation from "./DashboardNavigation";
+import { captureTeamInvite, clearTeamInvite, getTeamInviteStorage } from "./teamStudyInvite.mjs";
+import { canConnectPersonalSession } from "./teamStudyPresentation.mjs";
 import WeeklyHabitRhythmPanel from "./WeeklyHabitRhythmPanel";
 import { getPendingReflectionSessions } from "./reflectionInbox.mjs";
 import ReflectionInbox from "./ReflectionInboxCard";
@@ -302,6 +304,7 @@ const StudyForestSection = lazy(() => import("./StudyForestSection"));
 const SessionReflectionModal = lazy(() => import("./SessionReflectionModal"));
 const StudyReportSection = lazy(() => import("./StudyReportSection"));
 const TechFeed = lazy(() => import("./TechFeedSection"));
+const TeamStudy = lazy(() => import("./TeamStudySection"));
 const AdaptiveReminderCard = lazy(() => import("./AdaptiveReminderCard"));
 type TodoRepeatMode = "single" | "weekly";
 type CameraSetupPrompt = {
@@ -520,6 +523,8 @@ VITE_WEB_PUSH_VAPID_PUBLIC_KEY=your-vapid-public-key`}</pre>
 }
 
 function DashboardApp() {
+  const [teamInviteToken, setTeamInviteToken] = useState(() => captureTeamInvite({ hash: window.location.hash, storage: getTeamInviteStorage(), replaceHash: hash => window.history.replaceState(null, "", window.location.pathname + window.location.search + hash) }));
+  const teamInviteReturnRef = useRef(Boolean(teamInviteToken && isAuthCallbackUrl(window.location.href)));
   const [session, setSession] = useState<Session | null>(null);
   const [sessionInitialized, setSessionInitialized] = useState(false);
   const [authInitializationError, setAuthInitializationError] = useState("");
@@ -814,14 +819,23 @@ function DashboardApp() {
   }, [session?.user.id]);
 
   useEffect(() => {
-    if (!session) return;
-
-    const syncRoute = () => setActiveSection(getDashboardSectionFromHash(window.location.hash));
+    const syncRoute = () => {
+      const invitation = captureTeamInvite({ hash: window.location.hash, storage: getTeamInviteStorage(), replaceHash: hash => window.history.replaceState(null, "", window.location.pathname + window.location.search + hash) });
+      setTeamInviteToken(invitation);
+      setActiveSection(getDashboardSectionFromHash(window.location.hash));
+    };
     syncRoute();
     window.addEventListener("hashchange", syncRoute);
 
     return () => window.removeEventListener("hashchange", syncRoute);
-  }, [session]);
+  }, []);
+
+  useEffect(() => {
+    if (!sessionInitialized || !session?.user.id || !teamInviteToken || !teamInviteReturnRef.current) return;
+    teamInviteReturnRef.current = false;
+    window.location.hash = "together";
+    setActiveSection("together");
+  }, [sessionInitialized, session?.user.id, teamInviteToken]);
 
   useEffect(() => {
     if (!session?.user.id || activeSection !== "me") {
@@ -1227,6 +1241,9 @@ function DashboardApp() {
     primaryActionLabel: weeklyHabitRhythm.primaryActionLabel,
     fallbackTodoTitle: incompleteTodayTodos[0]?.title,
   });
+  function requestAdaptiveStudyStart() {
+    void startTimer(false, undefined, studyStartAction.suggestedTodoTitle);
+  }
   const activeSessionTodos = useMemo(
     () =>
       getSessionLinkedTodos({
@@ -4951,6 +4968,7 @@ function DashboardApp() {
           <button type="button" className="plain login-settings-entry" onClick={() => setLoginSettingsOpen(true)}>앱 설정 안내</button>
           <p className="eyebrow">forced attendance</p>
           <h1>독서실에 로그인</h1>
+          {teamInviteToken && <div className="auth-recovery-notice"><strong>함께 공부방 초대가 도착했어요.</strong><p>로그인하거나 가입한 뒤 팀명과 공유 범위를 확인하고 직접 참여할 수 있어요.</p><button type="button" className="secondary" onClick={() => { clearTeamInvite(getTeamInviteStorage()); setTeamInviteToken(null); }}>초대 취소</button></div>}
           <p className="login-copy">
             이메일로 받은 8자리 코드를 입력하면 로그인됩니다. 알림 후 30분 안에 타이머를 시작하거나,
             오늘 목표 시간을 채우면 출석으로 인정됩니다.
@@ -5052,10 +5070,20 @@ function DashboardApp() {
             <TechFeed key={session.user.id} supabase={supabase} userId={session.user.id} timeZone={timeZone} onPlan={openFeedPlan} linkedTodo={feedLinkedTodo} />
           </Suspense>
         )}
+        {activeSection === "together" && (
+          <Suspense fallback={<p role="status">함께 공부방을 불러오고 있어요…</p>}>
+            <TeamStudy key={session.user.id} supabase={supabase} userId={session.user.id} registered={!session.user.is_anonymous} inviteToken={teamInviteToken} onClearInvite={() => setTeamInviteToken(null)}
+              personal={{ ready: dashboardReady, busy: busy || Boolean(actualIntent) || Boolean(activeSession && actualTracking?.session_id !== activeSession.id), sessionId: activeSession?.id ?? null, paused: activeSessionPaused, canConnect: canConnectPersonalSession(activeSession, actualTracking, nowMs), seconds: currentSessionSeconds, startLabel: studyStartAction.label }}
+              onStart={requestAdaptiveStudyStart} onResume={requestResumeTimer} onPause={() => void pauseTimer()} onEnd={() => void openEndSessionCompletionModal()} />
+          </Suspense>
+        )}
         {activeSection === "today" && (
           <>
             <div className="dashboard-page-heading"><div><p>{todayDateKey} 공부일 · 새벽 4시 기준{activeSession && todayDateKey !== getStudyDateKey(new Date(nowMs), timeZone) ? " · 시작한 공부일로 계속 기록 중" : ""}</p><h1>오늘의 공부</h1></div><span className="dashboard-attendance">{dashboardReady ? activeSession ? activeSession.paused_at ? "휴식 중" : "공부 중" : attendanceDays.find(day => day.local_date === todayDateKey)?.status === "present" ? "출석 완료" : "시작 준비" : "기록 확인 중"}</span></div>
-            <TodayDomainTabs activeDomain={todayDomain} onChange={setTodayDomain} />
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 16, flexWrap: "wrap", order: -3 }}>
+              <TodayDomainTabs activeDomain={todayDomain} onChange={setTodayDomain} />
+              <a className="focus-record-link" style={{ display: "inline-flex", alignItems: "center" }} href="#together">함께 공부방 보기</a>
+            </div>
             {sectionOrderEditing && renderTodaySectionOrderEditor()}
           </>
         )}
@@ -5073,7 +5101,7 @@ function DashboardApp() {
                   type="button"
                   onClick={() => {
                     if (!activeSession) {
-                      void startTimer(false, undefined, studyStartAction.suggestedTodoTitle);
+                      requestAdaptiveStudyStart();
                     } else if (activeSessionPaused) {
                       requestResumeTimer();
                     } else {
@@ -6191,7 +6219,7 @@ function DashboardApp() {
           </AccessibleDialog>
         )}
 
-        {activeSection === "today" && todayDomain === "focus" && (
+        {((activeSection === "today" && todayDomain === "focus") || activeSection === "together") && (
         <>
         {(focusSnapshot?.last_error || focusStatusError || (!activeSessionPaused && cameraMessage && cameraStatus !== "watching") || (activeSession && sessionLeaseRemainingSeconds <= 300)) && <section className="focus-status-warning" role="status" style={{ order: -1 }}>
           {(!activeSessionPaused && cameraMessage && cameraStatus !== "watching") && <p>{cameraMessage}</p>}
@@ -6207,7 +6235,7 @@ function DashboardApp() {
             <div><strong>휴대폰 집중 모드 · {focusStatusLabel(focusSnapshot)}</strong><p>{focusSnapshot?.device_connected ? "Android 앱에서 확인한 방해금지 상태예요. 지연되면 앱을 열어 동기화하세요." : "Android 앱에서 같은 계정으로 로그인하고 휴대폰 집중 모드를 연결하세요."}</p>{focusSnapshot?.last_ack_at && <small>마지막 휴대폰 확인: {new Date(focusSnapshot.last_ack_at).toLocaleString("ko-KR")}</small>}</div>
             <button type="button" className="secondary" onClick={() => void refreshFocusStatus(session.user.id)}>상태 다시 확인</button>
           </section>
-          <div className="focus-control">
+          <div className="focus-control" style={{ display: activeSection === "together" ? "none" : undefined }}>
             <div className={`camera-monitor camera-monitor-${cameraStatus}${activeSessionPaused ? " camera-monitor-break" : ""}`}>
               <div className="camera-monitor-head">
                 <strong>
@@ -6218,7 +6246,13 @@ function DashboardApp() {
               </div>
               <div className="camera-monitor-body">
                 <video
-                  ref={videoRef}
+                  ref={element => {
+                    videoRef.current = element;
+                    if (element && cameraStreamRef.current && element.srcObject !== cameraStreamRef.current) {
+                      element.srcObject = cameraStreamRef.current;
+                      void element.play().catch(() => undefined);
+                    }
+                  }}
                   className={`camera-preview ${cameraEnabled ? "" : "camera-preview-idle"}`}
                   muted
                   playsInline
@@ -6268,8 +6302,9 @@ function DashboardApp() {
               )}
             </div>
           </div>
-          {activeSession && activeSessionLeaseDeadlineMs !== null && <div className="session-lease"><div><span>세션 유지 남은 시간</span><strong>{formatTimerClock(sessionLeaseRemainingSeconds)}</strong><small>누를 때마다 1시간 연장됩니다. 남은 시간은 현재 시각 기준 최대 2시간입니다.</small></div><button className="secondary" type="button" onClick={extendSessionLease} disabled={busy}><Clock3 size={18} />+1시간 연장</button></div>}
+          {activeSection !== "together" && activeSession && activeSessionLeaseDeadlineMs !== null && <div className="session-lease"><div><span>세션 유지 남은 시간</span><strong>{formatTimerClock(sessionLeaseRemainingSeconds)}</strong><small>누를 때마다 1시간 연장됩니다. 남은 시간은 현재 시각 기준 최대 2시간입니다.</small></div><button className="secondary" type="button" onClick={extendSessionLease} disabled={busy}><Clock3 size={18} />+1시간 연장</button></div>}
         </details>
+        {activeSection === "together" && activeSession && activeSessionLeaseDeadlineMs !== null && <div className="session-lease"><div><span>세션 유지 남은 시간</span><strong>{formatTimerClock(sessionLeaseRemainingSeconds)}</strong><small>누를 때마다 1시간 연장됩니다. 남은 시간은 현재 시각 기준 최대 2시간입니다.</small></div><button className="secondary" type="button" onClick={extendSessionLease} disabled={busy}><Clock3 size={18} />+1시간 연장</button></div>}
         </>
         )}
 
@@ -6558,6 +6593,7 @@ function DashboardApp() {
             <h2 id="settings-account-title">계정</h2>
             <dl className="settings-values"><div><dt>이메일</dt><dd>{session.user.email ?? profile?.email ?? "등록 없음"}</dd></div><div><dt>로그인 방식</dt><dd>{formatAuthProvider(session.user.app_metadata?.provider)}</dd></div></dl>
             <div className="settings-actions"><a href="#me">내 페이지</a><button type="button" className="plain" onClick={() => {
+              clearTeamInvite(getTeamInviteStorage()); setTeamInviteToken(null);
               if (!postEmbeddedMessage(window, { type: "STUDY_WEB_SIGN_OUT" })) void supabase.auth.signOut();
             }}><LogOut size={18} aria-hidden="true" />로그아웃</button></div>
           </section>
