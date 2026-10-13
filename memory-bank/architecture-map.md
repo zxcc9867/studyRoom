@@ -38,6 +38,8 @@
 
 태그 편집은 설정 화면에만 마운트하며 클라이언트 인증 소유자·dispose 검증을 재사용한다. DashboardApp은 개인/팀 진입 탭과 설정 컴포넌트를 연결할 뿐 태그 영속 상태를 소유하지 않는다. 개인 기본 화면은 팀 RPC를 요구하지 않고 기존 공식 공부 시작을 바로 제공한다. 팀 없는 정상 snapshot에는 생성/받은 초대만 보이며, 팀 조회 실패 때는 기존 개인 제어·운영 경고를 유지한다.
 
+무제한/직접 시간·선택적 팀 목표는 추가 migration local20261013081052→remote20261013084053과 웹9cffc74 운영 배포로 제공한다. 개인 종료는 기존 onEnd 경로, 시간 완료는 팀 공통 UI 알림만이며 영구 membership 변경은 guarded leave_team에 한정한다. 적용/권한 감사·1220개 회귀·실계정 미확인 범위는 docs/team-study/focus-options-20261013.md를 따른다.
+
 ## 검증 명령
 
 - 타입/테스트/빌드: npm.cmd test, npm.cmd run test:edge, npm.cmd run mobile:check, npm.cmd run build, npm.cmd run docs:check. 별도 린트 스크립트는 없다.

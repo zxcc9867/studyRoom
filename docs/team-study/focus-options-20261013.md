@@ -27,4 +27,23 @@
 - 최종 ai.ps1 verify PASS: Dune0위반, npm test/test:edge/mobile:check/build/docs:check 모두 exit0. 별도 lint 명령 없음.
 - 운영 DB 적용 성공: local20261013081052→remote20261013084053(team_focus_options). nullable duration과1~1440 check,160자 goal/share_goal=false, public RPC authenticated 허용/anon 거절, private mutate_focus 두 역할 모두 실행 불가, opt-in goal projection과 dispatch를 MCP로 확인했다. 개인/팀 사용자 데이터 생성·변경 없음.
 - Security advisor는 기존 경고를 유지한다. 팀 private [RLS no-policy](https://supabase.com/docs/guides/database/database-linter?lint=0008_rls_enabled_no_policy)와 guarded public [definer 실행](https://supabase.com/docs/guides/database/database-linter?lint=0029_authenticated_security_definer_function_executable)은 직접 권한/인증 감사와 구분한다. ‘all clean’으로 보고하지 않는다.
-- 운영 웹 출시 결과는 완료 후 갱신한다. 새 native/APK 빌드가 필요한 변경은 아니다.
+- 운영 웹 출시 완료: 제품9cffc74fc782b37539e419d285e14dd3e5672e95, [Actions38371768257](https://github.com/zxcc9867/studyRoom/actions/runs/38371768257) success, Vercel dpl_6qvESW5Tjj3io7ZKqH3M4dDhgNuR READY/exactSHA. 기존 production alias https://study-room-attendance.vercel.app 연결·HTTP200. Vercel framework 설정은null이며 기존 Vite 웹 빌드 사용, buildingAt→ready49.641초.
+- 운영 공개 실제 Chrome375/1440: 초대 로그인 필요/명시적 취소 확인. TeamStudySection-DY4jysCG.js HTTP200와 시간 제한 없음/직접 설정/오늘 공부 종료/팀 관리/목표 공유/알림 닫기 표시 코드 제공 확인. 인증 후 운영2계정 저장/동기화 수용은 하지 않았고 완료로 보고하지 않는다.
+- 새 deployment의2026-10-13T08:51:19Z 이후 error/fatal runtime 로그 그룹 조회는 행이 없었다. 출시 직후 짧은 관찰이며 실제 장시간 이용/모든 RPC 성공 증명은 아니다.
+- feature 브랜치 commit/push·기존 workflow_dispatch만 수행. main 직접 수정/머지 없음. native/APK/서명/다운로드 manifest 변경 없음. 기존0.2.4/code7 hosted WebView는 새 웹 로드 시 반영하며 새 APK 설치는 필요 없다.
+
+## 변경 파일
+
+- 화면: apps/web/src/TeamStudySection.tsx, TeamStudySection.css — 집중 설정·공통 완료 알림·일일 종료/팀 관리·목표/현재 공부.
+- 안전한 조회와 타입: apps/web/src/teamStudyClient.mjs, teamStudyClient.d.mts — 회원 목표 최소 projection와 자기 목표 편집 허용.
+- 표시 helper와 선언: apps/web/src/teamStudyPresentation.mjs, teamStudyPresentation.d.mts — 서버 시각 기준 유한 집중 완료 판정.
+- DB: supabase/migrations/20261013081052_team_focus_options.sql — 추가형 nullable duration·목표/공유·guarded dispatch/snapshot.
+- 검증: apps/web/test/team-study-client.test.mjs, team-study-presentation.test.mjs, team-study-mounted.test.mjs; packages/core/test/team-study-db.test.mjs, fixtures/team-study-db.mjs — 사생활·시간·숲 탭 알림·일일 종료·다음 날 팀 유지.
+- 계약/결정/인계: docs/team-study/server-contract.md, 본 문서; memory-bank/active-context.md, progress.md, prd-social-study-room.md, architecture-map.md, trouble-shooting.md.
+
+## 실행한 완료 게이트
+
+- `& C:/jini-dev/.ai/scripts/ai.ps1 verify --project C:/jini-dev/worktrees/study-room-team`: Dune 및 선언5명령 PASS.
+- `node --test --test-concurrency=2 packages/core/test/*.test.mjs apps/web/test/*.test.mjs server/ai/*.test.mjs scripts/*.test.mjs supabase/functions/_shared/*.test.mjs`: FEED_BROWSER_MODULE/EXECUTABLE에 기존 설치 Playwright/Chrome을 명시,1220/1220.
+- `node output/team-study/focus-release-public-check.mjs`: 운영 HTTP200/새 chunk/375·1440 공개 로그인·초대 취소 PASS. 산출물은 Git에 넣지 않았다.
+- `git diff --check`, `npm.cmd run docs:check`: 문서 후속 변경 포함 PASS. 실제2계정 Realtime/Android16/동시 PostgreSQL은 별도 미확인.

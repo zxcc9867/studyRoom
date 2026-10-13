@@ -10,17 +10,17 @@
 | 개인/팀 진입·공개 태그 설정 분리 | 운영 배포 완료 | 개인 기본은 팀 RPC 선행 없음. 내 공부/팀 공부 탭, 팀 없음 생성/받은 초대, 설정 계정에서만 태그 편집.0165b38·최종 Chrome1210/1210·팀27/27·독립 검토PASS |
 | 등록 계정 전용 팀·링크/공개 태그 초대 | 운영 배포 완료 | migration remote20261012235920·권한/auth audit·제품b9ab3ec·공개 로그인/취소 확인 |
 | 팀원 서버 상태·선택적 제목 공유 | 운영 배포 완료·실계정 수용 대기 | 개인 세션 status/pause/lease가 권위. 연결 끊김을 자리비움/회복으로 처리하지 않음 |
-| 함께 집중 무제한/직접 시간·인정 시간 팀 숲 | DB 적용·웹 출시 대기 | 제한 없음/1~1440분·25/50 빠른 선택. 종료 알림만, 공부/팀 유지. local20261013081052→remote20261013084053. 기존 checkpoint/정산 불변 |
-| 오늘 공부 종료와 영구 팀 관리 분리·팀 목표 | 검증 완료·웹 출시 대기 | 개인 회고/종료 후 멤버·목표·숲 유지·다음 날 연결 SQL 검증. 목표/현재 제목 opt-in, 전체 개인 이력 비공개 |
+| 함께 집중 무제한/직접 시간·인정 시간 팀 숲 | 운영 배포 완료·실계정 수용 대기 | 제한 없음/1~1440분·25/50 빠른 선택. 종료 알림만, 공부/팀 유지. local20261013081052→remote20261013084053. 기존 checkpoint/정산 불변 |
+| 오늘 공부 종료와 영구 팀 관리 분리·팀 목표 | 운영 배포 완료·실계정 수용 대기 | 개인 회고/종료 후 멤버·목표·숲 유지·다음 날 연결 SQL 검증. 목표/현재 제목 opt-in, 전체 개인 이력 비공개 |
 | 신규 팀 화면 실사용 검증 | 부분 | 실제 React/Chrome375·1440 팀30/30,44px·대표 대비7.6968:1 이상. 최종 전체 Chrome1220/1220. 실제2계정·Android16 수용 별도 |
-| 팀 운영 배포 | 완료 | 현재0165b38/Actions38346320013 success/Vercel dpl_4n8SfxP7bYeWxxFHkPgSxN1nEbr5 READY·exactSHA·HTTP200. 기존DB 배포·native 불변 |
+| 팀 운영 배포 | 완료 | 현재9cffc74/Actions38371768257 success/Vercel dpl_6qvESW5Tjj3io7ZKqH3M4dDhgNuR READY·exactSHA·HTTP200. 추가DB 감사 완료·native 불변 |
 
 ## 검증 상태
 
 - 새 worktree 기본 npm.cmd test:1044통과/99선택 브라우저 생략/0실패(1143개). 실제 Chrome 포함 같은 전체 목록 concurrency2 재실행1143/1143·실패0·생략0(183559ms). 아직 새 팀 기능 완료 근거가 아니다.
 - 의존성 설치 sandbox npm 실패는 escalation clean install로 성공. lockfile/패키지 버전 변경 없음.
-- 최종 ai.ps1 verify 통과: Dune0위반, npm test/test:edge/mobile:check/build/docs:check exit0. 전체 실제 Chrome1220/1220·실패0·생략0·199276ms. 팀30/30·신규 SQL/controller/helper45/45·기존 카메라/lease 검사 유지. 독립 재검토PASS. 운영 추가 DB 권한/함수/제약 감사 완료·웹 출시 대기.
-- 운영 공개 Chrome375/1440 HTTP200·초대 로그인 필요·명시적 취소·새 개인/팀·공개 태그 설정 파일 HTTP200 확인. 실계정 저장/팀 변경은 하지 않음. 실제2계정 Realtime/Android16/동시PostgreSQL 검증은 미확인. native/APK 변경 없음. 추가 Jev 전송은 정책 차단으로 결과 없음.
+- 최종 ai.ps1 verify 통과: Dune0위반, npm test/test:edge/mobile:check/build/docs:check exit0. 전체 실제 Chrome1220/1220·실패0·생략0·199276ms. 팀30/30·신규 SQL/controller/helper45/45·기존 카메라/lease 검사 유지. 독립 재검토PASS. 운영 추가 DB 권한/함수/제약 감사·웹 출시 완료.
+- 운영 공개 Chrome375/1440 HTTP200·초대 로그인 필요·명시적 취소·새 집중/목표/종료 UI chunk HTTP200 확인. 새 deployment 출시 직후 error/fatal 그룹 조회 행 없음은 장시간 수용과 구분. 실계정 저장/팀 변경은 하지 않음. 실제2계정 Realtime/Android16/동시PostgreSQL 검증은 미확인. native/APK 변경 없음. 이전 추가 Jev 전송은 정책 차단으로 결과 없음.
 
 ## 보관
 
