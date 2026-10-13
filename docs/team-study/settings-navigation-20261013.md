@@ -7,6 +7,15 @@
 - 공개 태그의 현재 값·편집·저장은 설정의 계정 구역으로 옮긴다. 팀 대시보드에는 편집 폼 없이 필요한 설정 링크만 제공한다.
 - 기존 전역5메뉴·초대·개인 인증/회복/카메라/DND/lease/출석 정책을 보존한다. DB/RPC/native/APK 변경 없음.
 
+## 변경 파일
+
+- apps/web/src/main.tsx: 개인/팀 공부 진입 탭과 설정 계정의 공개 태그 컴포넌트 연결.
+- apps/web/src/TeamStudySection.tsx: 태그 편집 폼 제거, 정상 팀 없음의 생성/초대 우선 흐름, 기존 개인 제어 콜백 보존.
+- apps/web/src/PublicTagSettings.tsx·PublicTagSettings.css: 기존 인증 RPC로 조회·저장하는 접근성·오류·계정 전환 보호 폼.
+- apps/web/src/appTheme.css: 기존 토큰을 사용하는 공부 방식 탭 스타일.
+- apps/web/test/team-study-mounted.test.mjs: 기존22건 유지·신규5건, .ai/dune/rules.json: 새 컴포넌트에 기존 서버/native 경계 적용.
+- memory-bank/active-context.md·progress.md·prd-social-study-room.md·prd-app-settings.md·architecture-map.md·implementation-plan.md·trouble-shooting.md: 승인 범위·구조·검증·인계 정리.
+
 ## 검증
 
 - RED: 실제 Chrome 새 요구사항3건이 공부 방식 탭/설정 입력 부재로 실패함을 확인한 뒤 구현했다.
@@ -25,4 +34,9 @@
 
 ## 출시
 
-프로젝트 AGENTS의 자동 웹 배포 규칙에 따라 검증 완료 뒤 기능 브랜치 workflow_dispatch로 출시한다. Vercel 대상 study-room-attendance / production / 기존 운영 alias를 재확인했다. 이번엔 기존 DB 배포나 APK 게시를 반복하지 않는다. 운영 결과는 완료 후 이 문서와 인계 메모에 기록한다.
+- 제품 커밋0165b38469760bce37ffadac734996ce73ec3d10을 feat/team-study-room에 푸시했다. main 직접 커밋·푸시·머지 없음.
+- [GitHub Actions38346320013](https://github.com/zxcc9867/studyRoom/actions/runs/38346320013) completed/success. 기존 테스트·mobile:check·docs:check·Edge·build·무료 AI synthetic·배포 단계 모두 성공.
+- Vercel study-room-attendance / production: dpl_4n8SfxP7bYeWxxFHkPgSxN1nEbr5 READY. githubCommitSha가 제품 커밋과 동일하며 운영 alias에 연결됨을 MCP로 확인했다.
+- [운영 사이트](https://study-room-attendance.vercel.app) HTTP200. 실제 공개 Chrome375/1440에서 초대 로그인 필요·명시적 취소 확인. 새 개인/팀 진입 메인 파일·공개 태그 lazy chunk 존재 및 chunk HTTP200 확인.
+- 공개 검사는 실계정 태그 저장이나 팀 변경을 하지 않았다. 앱의 hosted WebView에도 동일 웹이 반영되므로 새 APK·서명·DB·설치 링크 변경 없음. 실제2계정 Realtime/Android16 수용은 별도다.
+- 로컬 공개 검사: output/team-study/settings-release-public-check.mjs, production-settings-invite-login-{375,1440}.png. 산출물은 Git에 넣지 않는다. 출시 근거만 문서 후속 커밋에 남긴다.
