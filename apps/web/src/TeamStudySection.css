@@ -204,8 +204,52 @@
   flex-wrap:wrap;
   gap:8px
 }
+.team-round-notice {
+  padding:var(--study-space-4,16px);
+  border-left:3px solid var(--study-primary);
+  background:var(--study-soft);
+  color:var(--study-ink)
+}
+.team-round-form {
+  flex:0 1 380px;
+  width:100%
+}
+.team-duration-field {
+  display:grid;
+  gap:var(--study-space-2,8px)
+}
+.team-study .team-round-form button {
+  align-self:auto
+}
+.team-goal {
+  padding-top:var(--study-space-4,16px);
+  border-top:1px solid var(--study-border)
+}
+.team-member-study {
+  display:grid;
+  gap:var(--study-space-3,12px);
+  margin:var(--study-space-3,12px) 0 0;
+  text-align:left;
+  font-size:var(--study-text-sm)
+}
+.team-member-study dt {
+  color:var(--study-muted);
+  font-size:var(--study-text-xs)
+}
+.team-member-study dd {
+  margin:var(--study-space-1,4px) 0 0;
+  overflow-wrap:anywhere;
+  line-height:1.5;
+  font-weight:500
+}
+.team-membership .danger {
+  color:var(--study-danger);
+  border-color:var(--study-danger);
+  background:var(--study-danger-bg)
+}
 .team-desks {
   min-width:0;
+  align-self:start;
   background:var(--study-surface);
   border-radius:var(--study-radius);
   padding:24px

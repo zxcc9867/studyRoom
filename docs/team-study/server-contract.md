@@ -1,6 +1,6 @@
 # Team Study server contract
 
-Local implementation: `supabase/migrations/20261012143354_team_study_room.sql`. Production application is controller-owned and not established by this document.
+Local implementation: `supabase/migrations/20261012143354_team_study_room.sql` plus additive `20261013081052_team_focus_options.sql`. Production application is controller-owned and not established by this document.
 
 ## Access boundary
 
@@ -25,7 +25,8 @@ Only registered `auth.users` with `is_anonymous=false` and the current `auth.uid
 | respond_invite | `{invite_id,accept:boolean}` | Accept/decline; same response retry succeeds, accepted invitation cannot rejoin a departed user |
 | leave_team | `{successor_id?}` or `{close:true}` | Member departure; owner must select another current member or explicitly close, including a solo owner |
 | set_share_title | `{share:boolean}` | Default false; shares only the current todo title |
-| propose_round | `{duration_minutes:25\|50}` | One open proposal, expired proposal replaced |
+| propose_round | `{duration_minutes:null\|integer}` | Explicit null means unlimited; integer 1–1440 minutes. One open proposal, completed finite proposal replaced |
+| set_goal | `{goal:string\|null,share:boolean}` | Caller-owned team-only goal, trimmed to null if blank, maximum160 characters; private by default |
 | cancel_round | `{}` | Proposer/owner only; does not stop/pause/disconnect personal study |
 | connect | `{session_id}` | Caller-owned active, unpaused, unexpired, actual-tracked session required; repeat is idempotent |
 | disconnect | `{}` | Idempotent; closes team contribution only, no personal stop/pause |
@@ -44,7 +45,7 @@ Safe error codes: `ACCOUNT_REQUIRED`, `INVALID_ACTION`, `INVALID_PAYLOAD`, `INVA
 {
  tag: string|null,
  team: null|{id,name,owner_id,time_zone,member_count},
- members: [{user_id,display_name,state,title,share_title,started_at,paused_seconds,paused_at}],
+ members: [{user_id,display_name,state,title,share_title,goal,share_goal,started_at,paused_seconds,paused_at}],
  invitations: [{id,team_name,member_count,expires_at}],
  invite_links: [{id,expires_at}],
  round: null|{id,duration_minutes,proposed_by,started_at,ends_at,joined},
@@ -57,6 +58,10 @@ Safe error codes: `ACCOUNT_REQUIRED`, `INVALID_ACTION`, `INVALID_PAYLOAD`, `INVA
 `invite_links` is owner-only active link metadata; others receive `[]`. `invitations` contains only caller-received pending targeted invites; a team-less user must poll snapshots within bounded intervals because they cannot access that team's signal. Member display names derive from public tags (fallback `팀원`), never private profile fields. `state` is `ready` when no unexpired active session exists, `resting` when paused, otherwise `studying`. Transport connectivity is separate. Title is null unless explicitly shared, linked to a caller-owned actual current todo, and the personal session is still valid. `share_title` and `paused_at` are safe additional UI fields. No email, recovery routine, original study rows, camera exclusions, total private history or raw tokens/hash are returned. Unauthorized/account-less snapshot returns `{ok:false,error:'ACCOUNT_REQUIRED'}`.
 
 ## Authority, contribution and invalidation
+
+`goal` is returned to its author for editing, but to other team members only when `share_goal=true`. The client additionally filters unshared goals belonging to other users. This is a separate short team goal, not automatic publication of private goal lists or historical study. Opt-out invalidates the team's minimal revision signal and removes the shared projection.
+
+Unlimited rounds have `duration_minutes=null` and `ends_at=null`; existing personal lease limits still apply. A finite completed round stays in the snapshot until a new proposal or explicit cancellation, so an elapsed notification survives refresh. Completion never stops/pause/disconnects study or removes membership. `오늘 공부 종료` opens the existing personal reflection/end callback; permanent departure/owner dissolution live only in explicit team management. Teams, goals and historical forest survive daily study end and are reusable the next day.
 
 Personal start/resume/pause/end continues through existing official callbacks/RPCs. A team action never edits `study_sessions` duration/status/pause/day/lease or attendance. Explicit connect/disconnect/departure uses session→tracking row locks and the existing `actual_study_private.close_segment` function, reopening the current segment only while active/unpaused/unexpired. Connection boundaries are server timestamps. Already-connected retries do not checkpoint again; connection ends automatically on personal session end. Closing a team checkpoints current connections but leaves all personal sessions and records intact.
 

@@ -28,6 +28,16 @@ test('snapshot exposes only member projection and realtime cleanup follows route
 test('transport exceptions never expose raw backend exception text',async()=>{
  const api=boundary(),seen=[],client=team.createTeamStudyController(api,'one',{onState:s=>seen.push(s)});api.rpc=async()=>{throw new Error('PRIVATE_BACKEND_SQL');};await client.refresh();assert.doesNotMatch(seen.at(-1).error,/PRIVATE_BACKEND_SQL/);client.dispose();
 });
+test('goal projection keeps own draft but never exposes another unshared goal',async()=>{
+ const api=boundary(),seen=[],client=team.createTeamStudyController(api,'one',{onState:s=>seen.push(s)});
+ const request=client.refresh();await new Promise(r=>setImmediate(r));
+ api.pending[0]({data:{...snapshot,members:[
+  {user_id:'one',display_name:'나',state:'ready',share_title:false,share_goal:false,goal:'내 비공개 목표'},
+  {user_id:'two',display_name:'친구',state:'ready',share_title:false,share_goal:false,goal:'다른 비공개 목표'},
+  {user_id:'three',display_name:'팀원',state:'ready',share_title:false,share_goal:true,goal:'공유 목표'}
+ ]},error:null});await request;
+ assert.deepEqual(seen.at(-1).snapshot.members.map(m=>m.goal),['내 비공개 목표',null,'공유 목표']);client.dispose();
+});
 test('healthy realtime still polls membership loss; fallback and disposal are bounded',async t=>{
  t.mock.timers.enable({apis:['setTimeout','setInterval','Date'],now:Date.parse('2026-10-13T00:00:00Z')});
  const api=boundary(),seen=[];let current={...snapshot,team:{id:'team',name:'책방',owner_id:'one',member_count:1,time_zone:'Asia/Tokyo'}};

@@ -18,7 +18,7 @@
 | Android 공통 화면 | apps/mobile/App.tsx | 인증된 hosted WebView | 웹 화면과 동일 서버 API | prd-android-web-parity.md |
 | 함께 공부방 화면 | apps/web/src/TeamStudySection.tsx, teamStudyClient.mjs, teamStudyInvite.mjs, teamStudyPresentation.mjs | team_study_snapshot / team_study_action 인증 RPC | 웹 공개 client·표시 helpers·Dashboard 개인 콜백 | prd-social-study-room.md |
 | 계정 공개 태그 편집 | apps/web/src/PublicTagSettings.tsx, PublicTagSettings.css | 설정 계정 구역→기존 teamStudyClient의 snapshot / set_tag | guarded 인증 RPC·공개 태그 정규화 helper | prd-app-settings.md, prd-social-study-room.md |
-| 팀 권한·초대·공동 집중·숲 | supabase/migrations/20261012143354_team_study_room.sql | guarded team_study_action / team_study_snapshot | team private 상태·기존 서버 실제 공부 segment checkpoint | prd-social-study-room.md |
+| 팀 권한·초대·공동 집중·목표·숲 | supabase/migrations/20261012143354_team_study_room.sql, 20261013081052_team_focus_options.sql | guarded team_study_action / team_study_snapshot | team private 상태·기존 서버 실제 공부 segment checkpoint. 무제한/1~1440분 제안, 회원 본인 목표의 opt-in 공유 | prd-social-study-room.md |
 
 ## 영속 상태의 수정 경로
 
@@ -29,6 +29,7 @@
 | 공급자 무료 요금제 선택 | Edge runtime 환경 | DEEPL_API_PLAN=free 또는 명시적 developer | createDeepLTranslation | 임의 숫자 상한·유료 endpoint·월별 lifetime 초기화 |
 | 팀·멤버십·태그·초대·round·연결 | Supabase team private 경계 | team_study_action | 팀 전용 web client | 직접 테이블 쓰기·타 계정 세션 시작/종료·전체 개인 조회 |
 | 팀 공부/휴식 표시 | 기존 study_sessions와 actual tracking | team_study_snapshot의 멤버 제한 projection | 팀 전용 화면 | 웹 로컬 타이머를 인정시간으로 저장·연결 손실을 자리비움으로 추정 |
+| 팀 목표·완료 알림 | private members의 goal/share_goal, private rounds의 서버 종료 시각 | guarded set_goal/propose_round → 회원 제한 snapshot | TeamStudySection과 표시 helper. 목표 기본 비공개, 지정 시간 완료는 알림만 | 개인 목표 목록 자동 공유·시간 만료로 개인 공부 종료·매일 팀 탈퇴 |
 | 공동 숲 확정 기여 | 서버 종료/정산된 study_todo_segments + 팀 연결 경계 | member-only snapshot aggregate | 팀 숲 한 곳 | 활성 잠정 시간으로 성장 확정·과거/중복 시간 합산 |
 
 팀 연결 경계의 checkpoint는 세션→actual tracking 순서로 잠그고 기존 close_segment를 통해 구간을 분리하는 공식 서버 경로를 사용한다. 개인 시작/재개/휴식/종료·카메라/회복 검증은 DashboardApp의 기존 액션이 소유한다. 팀 모듈은 이 상태를 직접 수정하지 않는다. 운영 DB version20261012235920 권한/RLS/RPC/publication 및 제품b9ab3ec 웹 feature-ref 배포 완료. 실계정/기기 수용은 docs/team-study/verification-20261013.md의 미확인 범위를 따른다.

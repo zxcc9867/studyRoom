@@ -87,6 +87,61 @@ test('one shared proposal starts once on valid connection, never changes persona
   assert.equal((await f.action('connect',{session_id:s.id})).ok,true); assert.equal((await f.snapshot()).round.started_at,r.started_at);
   await f.action('cancel_round'); assert.equal((await f.snapshot()).round,null); assert.equal(await f.scalar('select status value from study_sessions where id=$1',[s.id]),'active');
 }));
+test('custom focus duration uses one server deadline and completion only notifies', () => fixture(async () => {
+  const team=await create(); const s=await f.start();
+  assert.equal((await f.action('propose_round',{duration_minutes:37})).ok,true);
+  await f.action('connect',{session_id:s.id});
+  assert.equal((await f.snapshot()).round.ends_at,'2026-10-12T09:37:00+00:00');
+  await f.at('2026-10-12T09:37:00Z'); const completed=await f.snapshot();
+  assert.equal(completed.round.duration_minutes,37); assert.equal(completed.round.joined,true);
+  assert.equal(completed.team.id,team.id); assert.equal(completed.connection.session_id,s.id);
+  assert.equal(await f.scalar('select status value from study_sessions where id=$1',[s.id]),'active');
+  assert.equal((await f.action('propose_round',{duration_minutes:12})).ok,true);
+  assert.equal((await f.snapshot()).round.started_at,null);
+}));
+test('unlimited focus starts without deadline and remains until explicitly finished', () => fixture(async () => {
+  await create(); const s=await f.start();
+  assert.equal((await f.action('propose_round',{duration_minutes:null})).ok,true);
+  await f.action('connect',{session_id:s.id});
+  const round=(await f.snapshot()).round; assert.equal(round.started_at,'2026-10-12T09:00:00+00:00');
+  assert.equal(round.duration_minutes,null); assert.equal(round.ends_at,null);
+  await f.at('2026-10-13T09:00:00Z'); assert.equal((await f.snapshot()).round.id,round.id);
+  assert.equal((await f.action('propose_round',{duration_minutes:25})).error,'ROUND_EXISTS');
+  await f.action('cancel_round'); assert.equal((await f.snapshot()).round,null);
+}));
+test('focus duration rejects malformed or unbounded numeric input before creating a round', () => fixture(async () => {
+  await create();
+  for(const payload of [{},{duration_minutes:0},{duration_minutes:-1},{duration_minutes:1441},{duration_minutes:1.5},{duration_minutes:'25'},{duration_minutes:true},{duration_minutes:{}}]) {
+    assert.equal((await f.action('propose_round',payload)).error,'INVALID_PAYLOAD',JSON.stringify(payload));
+    assert.equal((await f.snapshot()).round,null);
+  }
+  assert.equal((await f.action('propose_round',{duration_minutes:1440})).ok,true);
+}));
+test('team goal stays private until opted in and persists after today study ends', () => fixture(async () => {
+  const team=await create(); const i=await invite(); await join(i.token); await f.auth();
+  assert.equal((await f.action('set_goal',{goal:'백엔드 취업 준비',share:false})).ok,true);
+  assert.equal((await f.snapshot()).members.find(m=>m.user_id===users[0]).goal,'백엔드 취업 준비');
+  await f.auth(users[1]); assert.equal((await f.snapshot()).members.find(m=>m.user_id===users[0]).goal,null);
+  await f.auth(); await f.action('set_goal',{goal:'백엔드 취업 준비',share:true});
+  await f.auth(users[1]); assert.equal((await f.snapshot()).members.find(m=>m.user_id===users[0]).goal,'백엔드 취업 준비');
+  await f.auth(); const s=await f.start(); await f.action('connect',{session_id:s.id});
+  await f.at('2026-10-12T09:30:00Z'); await f.scalar('select to_jsonb(end_study_session($1,0)) value',[s.id]);
+  const ended=await f.snapshot(); assert.equal(ended.team.id,team.id); assert.equal(ended.members.length,2);
+  assert.equal(ended.connection,null); assert.equal(ended.members.find(m=>m.user_id===users[0]).state,'ready');
+  assert.equal(ended.members.find(m=>m.user_id===users[0]).goal,'백엔드 취업 준비');
+  await f.at('2026-10-13T09:00:00Z'); const next=await f.start(users[0],users[7],'2026-10-13');
+  assert.equal((await f.action('connect',{session_id:next.id})).ok,true); assert.equal((await f.snapshot()).team.id,team.id);
+}));
+test('team goal input is member-owned, bounded and share can be revoked', () => fixture(async () => {
+  await create();
+  for(const payload of [{goal:'x',share:'yes'},{goal:12,share:true},{goal:'x'.repeat(161),share:true}])
+    assert.equal((await f.action('set_goal',payload)).error,'INVALID_PAYLOAD');
+  await f.action('set_goal',{goal:'  독서 습관  ',share:true});
+  assert.equal((await f.snapshot()).members[0].goal,'독서 습관');
+  await f.action('set_goal',{goal:'독서 습관',share:false}); assert.equal((await f.snapshot()).members[0].share_goal,false);
+  await f.auth(users[1]); assert.equal((await f.action('set_goal',{goal:'접근 금지',share:true})).error,'TEAM_REQUIRED');
+  await f.auth(); await f.action('set_goal',{goal:' ',share:true}); assert.equal((await f.snapshot()).members[0].goal,null);
+}));
 test('checkpointed contribution excludes pre-join, pause, camera deduction and reconnect gaps', () => fixture(async () => {
   await create(); const s=await f.start(); await f.at('2026-10-12T09:10:00Z'); await f.action('connect',{session_id:s.id});
   assert.equal((await f.snapshot()).forest.pending_sessions,1); assert.equal((await f.snapshot()).forest.accepted_seconds,0);

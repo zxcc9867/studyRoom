@@ -4,11 +4,11 @@ const pick = (value, keys) => Object.fromEntries(keys.map(key => [key, value?.[k
 class TeamError extends Error {
 }
 const failure = code => new TeamError(teamStudyErrorMessage(code));
-function safeSnapshot(data) {
+function safeSnapshot(data, userId) {
     if (!data || !Array.isArray(data.members) || !data.forest)
         throw failure();
     return { tag: data.tag ?? null, team: data.team ? pick(data.team, ['id', 'name', 'owner_id', 'time_zone', 'member_count']) : null,
-        members: data.members.map(row => ({ ...pick(row, ['user_id', 'display_name', 'state', 'share_title', 'started_at', 'paused_seconds', 'paused_at']), title: row.share_title === true ? row.title ?? null : null })),
+        members: data.members.map(row => ({ ...pick(row, ['user_id', 'display_name', 'state', 'share_title', 'share_goal', 'started_at', 'paused_seconds', 'paused_at']), title: row.share_title === true ? row.title ?? null : null, goal: row.user_id === userId || row.share_goal === true ? row.goal ?? null : null })),
         invitations: (data.invitations ?? []).map(row => pick(row, ['id', 'team_name', 'member_count', 'expires_at'])), invite_links: (data.invite_links ?? []).map(row => pick(row, ['id', 'expires_at'])),
         round: data.round ? pick(data.round, ['id', 'duration_minutes', 'proposed_by', 'started_at', 'ends_at', 'joined']) : null, connection: data.connection ? pick(data.connection, ['id', 'session_id']) : null,
         forest: pick(data.forest, ['accepted_seconds', 'pending_sessions', 'trees', 'progress_seconds']), server_now: data.server_now };
@@ -66,7 +66,7 @@ export function createTeamStudyController(api, userId, { onState = () => { } } =
                 }
                 throw failure(data?.error);
             }
-            const snapshot = safeSnapshot(data);
+            const snapshot = safeSnapshot(data, userId);
             emit({ snapshot, loading: false, error: '', syncedAt: Date.now() });
             subscribe(snapshot.team?.id ?? null);
         }

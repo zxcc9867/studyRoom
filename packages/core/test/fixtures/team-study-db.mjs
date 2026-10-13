@@ -56,12 +56,15 @@ export async function createTeamDb({ teamMigration = true } = {}) {
   for (const name of ['pause_study_session','resume_study_session']) await db.exec(existing('20260719134726_add_study_session_breaks.sql', name));
   for (const name of ['end_study_session','close_expired_study_sessions']) await db.exec(existing('20260804133546_enforce_session_lease_expiry.sql', name));
   await db.exec(readFileSync('supabase/migrations/20260921095213_actual_study_tracking.sql', 'utf8'));
-  if (teamMigration) await db.exec(readFileSync('supabase/migrations/20261012143354_team_study_room.sql', 'utf8'));
+  if (teamMigration) {
+    await db.exec(readFileSync('supabase/migrations/20261012143354_team_study_room.sql', 'utf8'));
+    await db.exec(readFileSync('supabase/migrations/20261013081052_team_focus_options.sql', 'utf8'));
+  }
   await auth();
   const action = (name, payload = {}) => scalar('select public.team_study_action($1,$2::jsonb) value', [name, JSON.stringify(payload)]);
   const snapshot = () => scalar('select public.team_study_snapshot() value');
-  const start = async (user = users[0], id = todoId) => {
-    await admin(() => db.query("insert into study_todos(id,user_id,local_date,title) values($1,$2,'2026-10-12','Private title')", [id, user]));
+  const start = async (user = users[0], id = todoId, localDate = '2026-10-12') => {
+    await admin(() => db.query("insert into study_todos(id,user_id,local_date,title) values($1,$2,$3,'Private title')", [id, user, localDate]));
     await auth(user);
     const p = await scalar("select preview_actual_study_action('start',$1::uuid[],$2,null,0) value", [[id], id]);
     return (await scalar('select confirm_actual_study_action($1::jsonb,gen_random_uuid()) value', [JSON.stringify(p)])).session;
