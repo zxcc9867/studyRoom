@@ -7,18 +7,18 @@
 | APK 내부 업데이트·고정 공개 링크 | 기존 운영 연결 |0.2.4/code7·기기 단위 설치 제한·변경 요약. 이번 native 변경 없음 |
 | 기술 피드 한국어 번역·요약 재시도·Markdown 표시 | 기존 운영 연결 | 무료 Developer 한도·월45만 유지. 본문 기호 개선 운영2782dda, main통합 f363eca |
 | 카메라 없는 팀 공부 목업 | 설계 승인 | 개인 기본 진입·팀 책상·집중 시간 제안·숲 단일 탭. 기존 별도 작업 공간 목업 보존 |
-| 등록 계정 전용 팀·링크/공개 태그 초대 | 구현·DB 운영 적용 | 추가 migration remote20261012235920 권한/auth audit 완료, 웹 배포 대기 |
-| 팀원 서버 상태·선택적 제목 공유 | 로컬 구현·검증 완료 | 개인 세션 status/pause/lease가 권위. 연결 끊김을 자리비움/회복으로 처리하지 않음 |
-| 공동25/50분 집중·인정 시간 팀 숲 | 로컬 구현·검증 완료 | 기존 공식 콜백·checkpoint·종료 후 정산, 중복/휴식/제외 실제 SQL75/75 |
+| 등록 계정 전용 팀·링크/공개 태그 초대 | 운영 배포 완료 | migration remote20261012235920·권한/auth audit·제품b9ab3ec·공개 로그인/취소 확인 |
+| 팀원 서버 상태·선택적 제목 공유 | 운영 배포 완료·실계정 수용 대기 | 개인 세션 status/pause/lease가 권위. 연결 끊김을 자리비움/회복으로 처리하지 않음 |
+| 공동25/50분 집중·인정 시간 팀 숲 | 운영 배포 완료·실계정 수용 대기 | 기존 공식 콜백·checkpoint·종료 후 정산, 중복/휴식/제외 실제 SQL75/75 |
 | 신규 팀 화면 실사용 검증 | 부분 | 실제 React/Chrome375·1440 집중22/22,44px·200%·대표 대비 최소5.7066:1. 최종 전체 Chrome1205/1205. 실제 2계정·Android16 별도·adb 연결0 |
-| 팀 운영 배포 | 진행 | 신규 migration만 MCP 적용/audit 완료 → feature branch Actions 배포 → READY/HTTP200 |
+| 팀 운영 배포 | 완료 | b9ab3ec/Actions38325255408 success/Vercel dpl_42PCK6fVoqU6CMXx1YrtSCRyeciu READY·exactSHA·HTTP200 |
 
 ## 검증 상태
 
 - 새 worktree 기본 npm.cmd test:1044통과/99선택 브라우저 생략/0실패(1143개). 실제 Chrome 포함 같은 전체 목록 concurrency2 재실행1143/1143·실패0·생략0(183559ms). 아직 새 팀 기능 완료 근거가 아니다.
 - 의존성 설치 sandbox npm 실패는 escalation clean install로 성공. lockfile/패키지 버전 변경 없음.
-- 최종 fix 후 ai.ps1 verify 통과: Dune0위반, npm test/test:edge/mobile:check/build/docs:check exit0. 전체 실제 Chrome1205/1205·실패0·생략0·289651ms. 팀 집중22/22·helper16/16·기존 카메라/lease6/6. Task1·Task2·최종fix 재검토PASS. 운영 DB 적용/audit 완료; 웹 배포 필요.
-- 실기기/배포 검증은 완료 후 갱신한다. Git·DB·APK·production을 확인 없이 완료로 표시하지 않는다.
+- 최종 fix 후 ai.ps1 verify 통과: Dune0위반, npm test/test:edge/mobile:check/build/docs:check exit0. 전체 실제 Chrome1205/1205·실패0·생략0·289651ms. 팀 집중22/22·helper16/16·기존 카메라/lease6/6. Task1·Task2·최종fix 재검토PASS. 운영 DB 감사·웹 배포 완료.
+- 운영 공개 Chrome375/1440 HTTP200·새 초대 UI·로그인 필요·명시적 취소 확인. 실제2계정 Realtime/Android16/동시PostgreSQL 검증은 미확인. native/APK 변경 없음. 추가 Jev 전송은 정책 차단으로 결과 없음.
 
 ## 보관
 

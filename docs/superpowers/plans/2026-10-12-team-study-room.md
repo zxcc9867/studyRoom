@@ -55,5 +55,5 @@
 - [x] Run full npm.cmd test, test:edge, mobile:check, build, docs:check and available Dune gate. Capture actual375/1440 UI; inspect Android16 availability and report real-vs-fixture acceptance accurately.
 - [x] Apply only verified migration through Supabase MCP; verify actual schema/RPC/RLS/grants/realtime publication and security advisors. No Auth users/sample teams created in production.
 - [x] Update actual project memory bank, preserving archived/history documents. Compact oversized active/progress with archives, not deletion.
-- [ ] Commit own files to feat/team-study-room; push this branch; workflow_dispatch production using feature ref, not main direct commit/merge. Verify action success, READY and productionHTTP200.
-- [ ] Report scope, files, actual checks/deployment and remaining two-real-account/Android acceptance if unavailable. No new APK unless native change proves necessary.
+- [x] Commit own files to feat/team-study-room; push this branch; workflow_dispatch production using feature ref, not main direct commit/merge. Verify action success, READY and productionHTTP200.
+- [x] Report scope, files, actual checks/deployment and remaining two-real-account/Android acceptance if unavailable. No new APK unless native change proves necessary.

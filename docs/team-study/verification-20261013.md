@@ -1,7 +1,7 @@
 # Together study room verification
 
 Worktree: C:/jini-dev/worktrees/study-room-team · branch feat/team-study-room · base f363eca.
-Status: final operational-visibility fix, complete local regression, and fresh scoped spec/quality review passed. Production DB applied/audited; web release pending.
+Status: implementation/final scoped spec+quality review/full local regression passed; production DB and web applied/verified. Real two-account Realtime/Android16/concurrent PostgreSQL acceptance remains unverified.
 
 Target verified read-only: public production origin https://study-room-attendance.vercel.app respondedHTTP200 and its built asset uses https://bqohkdzvxbrokkmuhysx.supabase.co. Vercel project study-room-attendance/prj_u2Q9FKwNeVjwwtVOjuXNMZRpkR3g in team_LaN4bwvH4msrzoQtIw3fqsUj. This is a pre-release target check, not evidence of the new feature deployed.
 
@@ -39,7 +39,7 @@ The close guard is tested with real SQL set containment and a controlled failure
 - Task2 rounds1/2 scoped re-reviews PASS; full Chrome and ai.ps1 verify passed.
 - Final independent whole-feature review found one Important operational-visibility issue; sole final fix, complete local gate and fresh scoped spec/quality review PASS. Dense JSX remains a nonblocking maintenance deferral.
 - Reviewed migration alone applied with Supabase MCP; actual functions/auth checks/grants/RLS/publication/advisors verified with zero team rows and no production Auth/team creation.
-- Feature-ref GitHub workflow_dispatch success, Vercel READY for exact code commit, productionHTTP200 and deployed public UI availability.
+- Feature-ref GitHub workflow_dispatch success, Vercel READY for exact code commit, productionHTTP200 and deployed public invite/login UI verified below.
 - Real two-account Realtime and Android16 acceptance remain unverified if no accounts/device are available. Fixture transport cannot establish these.
 
 ## Operational audit intent
@@ -70,6 +70,14 @@ No raw invite token, credential, private user data or service key is recorded he
 - Existing WARNs unchanged: mutable search_path2, public pg_net1, leaked-password protection disabled1. Follow [search_path guidance](https://supabase.com/docs/guides/database/database-linter?lint=0011_function_search_path_mutable), [extension guidance](https://supabase.com/docs/guides/database/database-linter?lint=0014_extension_in_public), and [password protection guidance](https://supabase.com/docs/guides/auth/password-security#password-strength-and-leaked-password-protection). Unrelated configuration was not changed; this is not an all-clean advisor claim.
 - Rollback candidate before release: dpl_GqqguL8PZfGz447w772qgSwFAod9 (code2782dda28c60a67f12ac6aa139af5a98783456c1). Retain team data if rolling back the web.
 
+## Production web release
+
+- Product commit b9ab3ec6bc154d983865b13588417c306154afdc pushed to feat/team-study-room; main not directly changed or merged. Existing [Actions38325255408](https://github.com/zxcc9867/studyRoom/actions/runs/38325255408) completed success for exact headSha in2m48s.
+- Vercel dpl_42PCK6fVoqU6CMXx1YrtSCRyeciu READY; meta.githubCommitSha matches product commit, aliases include study-room-attendance.vercel.app. Production [Together entry](https://study-room-attendance.vercel.app/#together) respondedHTTP200.
+- Isolated real Chrome public check at375/1440: new invite asset/notice present, invite requires login, explicit cancel removes notice. Used a synthetic non-real invite in an unauthenticated new browser; no sign-in/email/account/team mutation. Screenshots output/team-study/production-invite-login-{375,1440}.png are local/uncommitted.
+- CI tests/Edge/mobile/docs/build and existing synthetic free coaching/briefing checks all passed. Annotation about Node20 action metadata running on Node24 and upcoming Ubuntu26 label remains informational; workflow unchanged.
+- No APK/native/runtime/release JSON/signature change. Existing hosted Android receives the common web feature on reload. This does not establish Android16/device or actual two-account transport acceptance.
+- Additional Jev completion check was policy-rejected for sending internal deployment/database metadata to an external destination. No result or bypass; direct checks and independent reviewers remain the completion evidence. No private records/credentials were included in documents.
 
 ## Evidence limitations and corrected artifacts
 

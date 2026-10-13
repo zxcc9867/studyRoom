@@ -30,7 +30,7 @@
 | 팀 공부/휴식 표시 | 기존 study_sessions와 actual tracking | team_study_snapshot의 멤버 제한 projection | 팀 전용 화면 | 웹 로컬 타이머를 인정시간으로 저장·연결 손실을 자리비움으로 추정 |
 | 공동 숲 확정 기여 | 서버 종료/정산된 study_todo_segments + 팀 연결 경계 | member-only snapshot aggregate | 팀 숲 한 곳 | 활성 잠정 시간으로 성장 확정·과거/중복 시간 합산 |
 
-팀 연결 경계의 checkpoint는 세션→actual tracking 순서로 잠그고 기존 close_segment를 통해 구간을 분리하는 공식 서버 경로를 사용한다. 개인 시작/재개/휴식/종료·카메라/회복 검증은 DashboardApp의 기존 액션이 소유한다. 팀 모듈은 이 상태를 직접 수정하지 않는다. 운영 DB version20261012235920의 권한/RLS/RPC/publication 확인 완료; 웹 feature-ref 배포와 실계정/기기 수용은 별도 근거를 따른다.
+팀 연결 경계의 checkpoint는 세션→actual tracking 순서로 잠그고 기존 close_segment를 통해 구간을 분리하는 공식 서버 경로를 사용한다. 개인 시작/재개/휴식/종료·카메라/회복 검증은 DashboardApp의 기존 액션이 소유한다. 팀 모듈은 이 상태를 직접 수정하지 않는다. 운영 DB version20261012235920 권한/RLS/RPC/publication 및 제품b9ab3ec 웹 feature-ref 배포 완료. 실계정/기기 수용은 docs/team-study/verification-20261013.md의 미확인 범위를 따른다.
 
 같은 상태를 여러 곳에서 직접 수정하지 않는다. 파일 claim은 편집 충돌을 줄이는 수단이며 실행 중 상태의 단일 수정 경로를 보장하지는 않는다.
 

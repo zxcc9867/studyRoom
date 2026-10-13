@@ -8,6 +8,7 @@
 - 운영 확인: private7테이블 RLS/직접 권한 차단, public신호 authenticated/member SELECT만,3trigger·Realtime publication,2guarded RPC 빈 search_path·anon/PUBLIC EXECUTE차단. 등록되지 않은 UUID는2RPC 모두 ACCOUNT_REQUIRED; transaction rollback·실제 계정/팀 생성 없음.
 - security advisor 신규7개 RLS/no-policy INFO는 private RPC전용 deny-by-default 경계이고,2개 authenticated definer WARN은 의도된 guarded RPC다. 기존 search_path2/pg_net1/비밀번호보호1/기존definer17 경고는 그대로이며 ‘모든 advisor 깨끗함’으로 기록하지 않는다. 상세/수정 안내는 docs/team-study/verification-20261013.md.
 - 테스트: PGlite 실제 SQL/권한 + React 실제 Chrome375/1440 + npm test/test:edge/mobile:check/build/docs:check. 실계정2개·Android16 검증은 fixture 결과와 구분한다.
+- 출시: 제품b9ab3ec6/feature-ref Actions38325255408 success/Vercel dpl_42PCK6fVoqU6CMXx1YrtSCRyeciu READY·동일SHA·운영 alias HTTP200. 공개 로그인/초대취소 확인, native/APK 변경 없음. rollback은 이전 웹만 복원하며 새 팀 데이터는 보존한다.
 
 ## 2026-10-10 — 무료 Developer 번역 경계
 
