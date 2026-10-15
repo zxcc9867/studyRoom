@@ -1,6 +1,6 @@
 # Team Study server contract
 
-Local implementation: `supabase/migrations/20261012143354_team_study_room.sql` plus additive `20261013081052_team_focus_options.sql`. Production application is controller-owned and not established by this document.
+Local implementation: `supabase/migrations/20261012143354_team_study_room.sql`, additive `20261013081052_team_focus_options.sql` and `20261015035420_team_automatic_study.sql`. See automatic-study-20261015.md for current verification/deployment evidence.
 
 ## Access boundary
 
@@ -59,11 +59,13 @@ Safe error codes: `ACCOUNT_REQUIRED`, `INVALID_ACTION`, `INVALID_PAYLOAD`, `INVA
 
 ## Authority, contribution and invalidation
 
-`goal` is returned to its author for editing, but to other team members only when `share_goal=true`. The client additionally filters unshared goals belonging to other users. This is a separate short team goal, not automatic publication of private goal lists or historical study. Opt-out invalidates the team's minimal revision signal and removes the shared projection.
+`goal` is returned to its author for editing, but to others only when `share_goal=true`. New `set_goal {goal}` saves default to shared; explicit legacy `{goal,share:boolean}` remains supported. No old private value is backfilled/publicized. Empty saves clear the shared goal. The client additionally filters other users' unshared goals. Current todo title still requires opt-in; private goal lists/history are not published.
 
 Unlimited rounds have `duration_minutes=null` and `ends_at=null`; existing personal lease limits still apply. A finite completed round stays in the snapshot until a new proposal or explicit cancellation, so an elapsed notification survives refresh. Completion never stops/pause/disconnects study or removes membership. `오늘 공부 종료` opens the existing personal reflection/end callback; permanent departure/owner dissolution live only in explicit team management. Teams, goals and historical forest survive daily study end and are reusable the next day.
 
 Personal start/resume/pause/end continues through existing official callbacks/RPCs. A team action never edits `study_sessions` duration/status/pause/day/lease or attendance. Explicit connect/disconnect/departure uses session→tracking row locks and the existing `actual_study_private.close_segment` function, reopening the current segment only while active/unpaused/unexpired. Connection boundaries are server timestamps. Already-connected retries do not checkpoint again; connection ends automatically on personal session end. Closing a team checkpoints current connections but leaves all personal sessions and records intact.
+
+Membership contribution now connects automatically from authoritative actual focus/segment creation and AFTER-session resume. Team UI need not be mounted. Creating/joining during study checkpoints at acceptance; deployment initializes existing active members at the release checkpoint, never session start. Proposing a round attaches already-studying members after prelocking their ordered sessions/tracking. Initial INSERT session revisions wait until connection has taken its team lock; paused focus changes without a connection wait for the AFTER-resume signal. Existing connections bypass segment auto-connect. These rules preserve session→tracking→team→signal acquisition where automatic connection is needed. Legacy manual connect validates own session and delegates idempotently without the old recursive checkpoint insertion. Current membership is rechecked under the team lock. Legacy untracked sessions are never credited.
 
 The first valid connect starts a proposal once; late joiners share its end timestamp. A round expiring/cancelling does not end personal study or team contribution. If already connected, connect can attach that same connection to a new round without another segment split.
 

@@ -1,21 +1,16 @@
 # Active Context
 
-- 갱신: 2026-10-13 17:53 · 도구: codex
-- 브랜치: feat/team-study-room · 제품 커밋:9cffc74fc782b37539e419d285e14dd3e5672e95 · 출시 근거는 문서 후속 커밋으로 기록. 기존 .serena/output 보존.
-- 목표 / 완료 기준: 팀 집중 무제한/직접 시간, 지정 시간 종료는 알림만. 오늘 공부 종료와 영구 탈퇴 분리·팀 목표/현재 공부 opt-in 공유. 실제 브라우저/SQL·전체 게이트·독립 검토·운영 DB/웹 출시 확인.
-- 완료: 무제한 또는1~1440분 직접 설정·25/50 빠른 선택. 개인 공부를 자동 종료하지 않음. 완료 알림은 공부방/팀 숲 공통·재조회 유지·소유자/제안자 닫기.
-- 완료: 오늘 공부 종료는 기존 회고/onEnd. 세션 종료 후 팀 가입·목표·공동 숲 유지, 다음 날 같은 팀 재연결. 영구 탈퇴/해산은 접힌 팀 관리에서 별도 확인.
-- 완료: 별도160자 팀 목표·기본 비공개·공유 체크. 서버 회원 제한 projection와 client 추가 필터. 현재 공부는 기존 현재 할 일 제목 공유 사용. 개인 전체 목표/이력 자동 공개 없음.
-- 보존: 개인 오늘 기본/전역5메뉴·설정 계정 공개 태그. 기존 개인 lease/04시 공부일/출석/카메라/회복/DND·팀 초대 정원/권한/숲 인정시간 정책 불변.
-- 검증: 최종 ai.ps1 verify PASS(Dune0위반·npm test/test:edge/mobile:check/build/docs:check exit0). 전체 실제 Chrome1220/1220·실패0·생략0·199276ms, 팀30/30·신규 SQL/controller/helper45/45.375/1440·44px·대표 대비7.6968:1 이상. 독립 재검토PASS.
-- 검증 주의: 최초 sandbox EACCES/ENOTFOUND·helper 선언 누락 수정 후 동일 게이트 통과. 최초 팀 mounted29/30의 이전 문구 기대를 숲 만료/닫기·개인/팀 보존 검사로 강화했다.
-- DB 완료: Supabase bqohkdzvxbrokkmuhysx에 검증 추가 migration만 적용 local20261013081052→remote20261013084053. 실제 constraint/columns/public/private 함수 권한/search_path/goal projection/dispatch MCP 감사. 전체 db push/이력 repair/사용자 데이터 생성·변경 없음.
-- 완료: feature push→Actions38371768257 success→Vercel dpl_6qvESW5Tjj3io7ZKqH3M4dDhgNuR READY/exactSHA/운영 alias HTTP200. 기존 workflow만 사용, main 직접 변경/머지 없음.
-- 완료: 운영 공개 Chrome375/1440 로그인 필요·초대 취소·새 집중/목표/종료 chunk HTTP200. 새 deployment 출시 직후 error/fatal 그룹 행 없음; 장시간/실계정 수용과 구분. 사용자 팀 저장·변경 없이 확인.
-- 다음 단계: 본인+초대받은 정식 계정으로 목표 공유/해제·실제 Realtime·무제한/직접 시간·일일 종료 후 다음 날 같은 팀 재연결을 수용 검증. Android16 실제 환경은 별도.
-- 이전 운영 웹:0165b384 / Actions38346320013 / dpl_4n8SfxP7bYeWxxFHkPgSxN1nEbr5. 이전 팀 DB remote20261012235920/local20261012143354 유지. 롤백은 데이터 삭제 없이 검증된 웹 재배포.
-- 미확인: 실계정2개 Realtime/실제 Android16·동시 PostgreSQL 수용. fixture/메타데이터 검사는 실계정 수용을 대신하지 않음. 팀 숲은 세션 종료 후 확정, 과거 공부 소급 없음.
-- 주의: 기존 정수 segment내림으로 split당1초 미만 손실 가능·개인 시간/출석 불변. security advisor 기존 WARN/INFO 유지, 직접 권한/인증 감사와 분리. 기존 추가 Jev 정책 차단 결과 없음/우회 없음.
-- 앱: 기존0.2.4/code7 authenticated hosted WebView에 웹 공통 반영. native/APK/서명/공개 설치 정보 변경 없음.
-- 문서: prd-social-study-room, architecture-map, progress, trouble-shooting, docs/team-study/server-contract·focus-options-20261013. 이전 settings-navigation·verification·서버 검증 근거 보존.
-- 작업 공간: C:/jini-dev/worktrees/study-room-team. 기존 study-room-recovery-audit/목업/별도 세션 건드리지 않음. [202610 보관본](archive/active-context-202610.md) 보존.
+- 갱신: 2026-10-15 · 도구: codex
+- 브랜치: feat/team-study-room · 기준 HEAD2e3646e / 이전 제품9cffc74. 미커밋 변경 있음. 기존 .serena/output 보존.
+- 목표 / 완료 기준: 회원 개인 공부 자동 팀 집계·목표 저장 즉시 공유·팀장 표시·탈퇴 모달. 기존 개인 라이프사이클 보존·SQL/실제Chrome/전체게이트·독립 검토·DB/웹 배포 확인.
+- 완료(로컬): 기존 private 연결/실제 공부 구간 재사용. 팀 화면 미마운트에도 시작/재개 자동 반영, 공부 중 가입/생성은 checkpoint부터. 출시 당시 활성 회원도 출시 이후만 집계.
+- 완료(로컬): 목표 입력/저장만, 새 저장은 공유. 이전 비공개 목표·현재 할 일 제목 opt-in·개인 전체 이력 비공개 유지. 긴 안내/수동 연결 삭제, 팀장 배지, AccessibleDialog 탈퇴/위임/해산.
+- 보존: 개인 오늘 기본·전역5메뉴·공개 태그는 설정. 개인 카메라/회복/lease/04시 공부일/출석/DND·실제 인정 시간·종료 회고·회원 유지 불변. native/APK0.2.4/code7 변경 없음.
+- 검증: 새 SQL13/13 PASS(초기 red7)·최신04시 시작/preview. 모달4/4(초기 red2), 전체 실제 Chrome1237/1237·실패0·생략0·272313ms. 최종 ai.ps1 verify PASS(Dune0·5명령 exit0). 독립 검토 잠금 역순/가입 경합 보완 후 재검토PASS.
+- 서버 보강: INSERT/가입 공통 사용자 advisory, UPDATE에는 적용 금지. 개인 BEFORE 재개 후 AFTER 자동 연결. 시작 신호는 팀 잠금 이후. 사전 잠금 외 세션 발견 시 RETRY와 전체 mutation rollback.
+- DB 적용: 추가 local20261015035420→remote20261015041209. 실제 grants/search_path/trigger/guards 감사·계정 없는 요청 거절 확인. advisors 전후 WARN/INFO 건수 불변. 실계정/팀 테스트 데이터 생성 없음.
+- 다음 단계: 기능 브랜치 commit/push→기존 workflow_dispatch→Vercel READY/exactSHA/HTTP200→문서 후속 커밋. main 직접 수정/머지 금지.
+- 미확인: 실제2계정 Realtime·Android16·동시 PostgreSQL 연결 수용. PGlite 역할/인위적 경합·mounted fixture를 실제 수용과 혼동하지 않음.
+- 이전 운영: Actions38371768257 / dpl_6qvESW5Tjj3io7ZKqH3M4dDhgNuR / https://study-room-attendance.vercel.app. main 직접 변경/머지 없음.
+- 문서: prd-social-study-room·architecture-map·server-contract·automatic-study-20261015·progress. 6천 줄 troubleshooting은 archive/trouble-shooting-202610.md로 보존하고 요약본 사용.
+- 작업 공간: C:/jini-dev/worktrees/study-room-team. owner codex-team-auto-20261015 claim. 다른 worktree/목업 보존. [기존 Active 보관본](archive/active-context-202610.md).

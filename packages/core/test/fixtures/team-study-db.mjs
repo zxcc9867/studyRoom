@@ -3,7 +3,7 @@ import { PGlite } from '@electric-sql/pglite';
 
 export const users = Array.from({ length: 9 }, (_, i) => `00000000-0000-4000-8000-${String(i + 101).padStart(12, '0')}`);
 export const todoId = '00000000-0000-4000-8000-000000000201';
-export async function createTeamDb({ teamMigration = true } = {}) {
+export async function createTeamDb({ teamMigration = true, automaticTeams = false } = {}) {
   const db = new PGlite();
   const sql = async (query, params = []) => (await db.query(query, params)).rows;
   const scalar = async (query, params = []) => (await sql(query, params))[0]?.value;
@@ -14,9 +14,9 @@ export async function createTeamDb({ teamMigration = true } = {}) {
     await db.exec(`set role ${role}`);
   };
   const admin = async work => { await db.exec('reset role'); try { return await work(); } finally { await auth(); } };
-  const existing = (file, name) => {
+  const existing = (file, name, schema = 'public') => {
     const source = readFileSync(`supabase/migrations/${file}`, 'utf8');
-    const match = source.match(new RegExp(`create(?: or replace)? function public\\.${name}\\([\\s\\S]*?\\$\\$;`, 'i'));
+    const match = source.match(new RegExp(`create(?: or replace)? function ${schema}\\.${name}\\([\\s\\S]*?\\$\\$;`, 'i'));
     if (!match) throw new Error(`Missing real SQL fixture function ${name}`);
     return match[0];
   };
@@ -56,9 +56,15 @@ export async function createTeamDb({ teamMigration = true } = {}) {
   for (const name of ['pause_study_session','resume_study_session']) await db.exec(existing('20260719134726_add_study_session_breaks.sql', name));
   for (const name of ['end_study_session','close_expired_study_sessions']) await db.exec(existing('20260804133546_enforce_session_lease_expiry.sql', name));
   await db.exec(readFileSync('supabase/migrations/20260921095213_actual_study_tracking.sql', 'utf8'));
+  if (automaticTeams) {
+    for (const name of ['study_day_at','study_reminder_at','start_study_session'])
+      await db.exec(existing('20261005131830_study_day_four_am.sql', name));
+    await db.exec(existing('20261005131830_study_day_four_am.sql', 'preview', 'actual_study_private'));
+  }
   if (teamMigration) {
     await db.exec(readFileSync('supabase/migrations/20261012143354_team_study_room.sql', 'utf8'));
     await db.exec(readFileSync('supabase/migrations/20261013081052_team_focus_options.sql', 'utf8'));
+    if (automaticTeams) await db.exec(readFileSync('supabase/migrations/20261015035420_team_automatic_study.sql', 'utf8'));
   }
   await auth();
   const action = (name, payload = {}) => scalar('select public.team_study_action($1,$2::jsonb) value', [name, JSON.stringify(payload)]);

@@ -18,7 +18,7 @@
 | Android 공통 화면 | apps/mobile/App.tsx | 인증된 hosted WebView | 웹 화면과 동일 서버 API | prd-android-web-parity.md |
 | 함께 공부방 화면 | apps/web/src/TeamStudySection.tsx, teamStudyClient.mjs, teamStudyInvite.mjs, teamStudyPresentation.mjs | team_study_snapshot / team_study_action 인증 RPC | 웹 공개 client·표시 helpers·Dashboard 개인 콜백 | prd-social-study-room.md |
 | 계정 공개 태그 편집 | apps/web/src/PublicTagSettings.tsx, PublicTagSettings.css | 설정 계정 구역→기존 teamStudyClient의 snapshot / set_tag | guarded 인증 RPC·공개 태그 정규화 helper | prd-app-settings.md, prd-social-study-room.md |
-| 팀 권한·초대·공동 집중·목표·숲 | supabase/migrations/20261012143354_team_study_room.sql, 20261013081052_team_focus_options.sql | guarded team_study_action / team_study_snapshot | team private 상태·기존 서버 실제 공부 segment checkpoint. 무제한/1~1440분 제안, 회원 본인 목표의 opt-in 공유 | prd-social-study-room.md |
+| 팀 권한·초대·공동 집중·목표·숲 | supabase/migrations/20261012143354_team_study_room.sql, 20261013081052_team_focus_options.sql, 20261015035420_team_automatic_study.sql | guarded team_study_action / team_study_snapshot | team private 상태·실제 공부 checkpoint. 무제한/1~1440분, 회원 공부 자동 기여·새 목표 저장 시 공유 | prd-social-study-room.md |
 
 ## 영속 상태의 수정 경로
 
@@ -29,7 +29,7 @@
 | 공급자 무료 요금제 선택 | Edge runtime 환경 | DEEPL_API_PLAN=free 또는 명시적 developer | createDeepLTranslation | 임의 숫자 상한·유료 endpoint·월별 lifetime 초기화 |
 | 팀·멤버십·태그·초대·round·연결 | Supabase team private 경계 | team_study_action | 팀 전용 web client | 직접 테이블 쓰기·타 계정 세션 시작/종료·전체 개인 조회 |
 | 팀 공부/휴식 표시 | 기존 study_sessions와 actual tracking | team_study_snapshot의 멤버 제한 projection | 팀 전용 화면 | 웹 로컬 타이머를 인정시간으로 저장·연결 손실을 자리비움으로 추정 |
-| 팀 목표·완료 알림 | private members의 goal/share_goal, private rounds의 서버 종료 시각 | guarded set_goal/propose_round → 회원 제한 snapshot | TeamStudySection과 표시 helper. 목표 기본 비공개, 지정 시간 완료는 알림만 | 개인 목표 목록 자동 공유·시간 만료로 개인 공부 종료·매일 팀 탈퇴 |
+| 팀 목표·완료 알림 | private members의 goal/share_goal, private rounds의 서버 종료 시각 | guarded set_goal/propose_round → 회원 제한 snapshot | TeamStudySection과 표시 helper. 새 목표 저장 시 공유·이전 비공개 보존, 지정 시간 완료는 알림만 | 개인 전체 목표 자동 공유·시간 만료로 개인 공부 종료·매일 팀 탈퇴 |
 | 공동 숲 확정 기여 | 서버 종료/정산된 study_todo_segments + 팀 연결 경계 | member-only snapshot aggregate | 팀 숲 한 곳 | 활성 잠정 시간으로 성장 확정·과거/중복 시간 합산 |
 
 팀 연결 경계의 checkpoint는 세션→actual tracking 순서로 잠그고 기존 close_segment를 통해 구간을 분리하는 공식 서버 경로를 사용한다. 개인 시작/재개/휴식/종료·카메라/회복 검증은 DashboardApp의 기존 액션이 소유한다. 팀 모듈은 이 상태를 직접 수정하지 않는다. 운영 DB version20261012235920 권한/RLS/RPC/publication 및 제품b9ab3ec 웹 feature-ref 배포 완료. 실계정/기기 수용은 docs/team-study/verification-20261013.md의 미확인 범위를 따른다.
@@ -38,7 +38,7 @@
 
 태그 편집은 설정 화면에만 마운트하며 클라이언트 인증 소유자·dispose 검증을 재사용한다. DashboardApp은 개인/팀 진입 탭과 설정 컴포넌트를 연결할 뿐 태그 영속 상태를 소유하지 않는다. 개인 기본 화면은 팀 RPC를 요구하지 않고 기존 공식 공부 시작을 바로 제공한다. 팀 없는 정상 snapshot에는 생성/받은 초대만 보이며, 팀 조회 실패 때는 기존 개인 제어·운영 경고를 유지한다.
 
-무제한/직접 시간·선택적 팀 목표는 추가 migration local20261013081052→remote20261013084053과 웹9cffc74 운영 배포로 제공한다. 개인 종료는 기존 onEnd 경로, 시간 완료는 팀 공통 UI 알림만이며 영구 membership 변경은 guarded leave_team에 한정한다. 적용/권한 감사·1220개 회귀·실계정 미확인 범위는 docs/team-study/focus-options-20261013.md를 따른다.
+무제한/직접 시간은 local20261013081052→remote20261013084053·웹9cffc74로 제공한다. 자동 기여 확장은 추가20261015035420_team_automatic_study.sql의 private auto_connect·실제 구간/초점/재개 trigger와 기존 team_study_action이 소유한다. 시작/재개는 개인 공식 경로, 팀 가입/집중 제안은 ordered session/tracking prelock 후 checkpoint를 사용한다. 최초 start signal은 팀 잠금 이후 발행해 signal→team 역순을 피한다. 최종 인정 segment·출석 정책은 불변이다. 목표 저장 기본 공유(과거 비공개 보존), 팀장 배지·AccessibleDialog 탈퇴는 TeamStudySection에서 처리한다. 개인 종료는 onEnd, 영구 가입 변경은 leave_team에 한정한다. 검증/출시는 docs/team-study/automatic-study-20261015.md 참고.
 
 ## 검증 명령
 

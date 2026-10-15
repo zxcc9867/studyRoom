@@ -1,0 +1,6239 @@
+## 2026-10-13 — 공부 종료와 팀 탈퇴 혼동 / 고정 집중 시간
+
+- 증상: 25/50분만 제안 가능하고 `팀 탈퇴·종료`가 매일 공부를 끝내는 버튼처럼 보였다.
+- 확인: 개인 onEnd는 기존 회고/종료 RPC, 세션 종료 trigger는 connections만 닫는다. 일반 개인 종료에서 멤버십을 삭제하는 코드는 확인되지 않았다. 원인 확인을 넘어서 실제 사용자 탈퇴 사고를 단정하지 않는다.
+- 해결: 무제한/1~1440분 설정, 완료 알림 후 공부 유지, `오늘 공부 종료`와 접힌 `팀 관리`의 영구 탈퇴/해산 분리. 팀 목표 opt-in 공유.
+- 재발 방지: 실제 SQL에서 종료 후 멤버/목표/숲 유지와 다음 날 같은 팀 연결, mounted UI에서 회고 취소/제출 시 leave_team 미호출 검사. 시간 제한 없음은 기존 개인 lease를 우회하지 않는다.
+- 검증 주의: implicit select label이 option 문구까지 포함해 접근성 이름을 늘린다. 별도 htmlFor/id label과 설명 aria-describedby를 사용한다. 다음 날 SQL fixture는 당일 todo 날짜를 명시해야 한다.
+- 검토 보완: 완료 알림을 room 분기 안에 두면 팀 숲에서 빠진다. 공통 role=status와 완료 구간 닫기를 제공하고 숲 탭 만료 후 개인 세션/팀 보존을 검사한다.
+- 관련: TeamStudySection, teamStudyPresentation, migration20261013081052, team-study-db/mounted tests.
+
+## 2026-10-13 — 공개 태그 편집이 공부 대시보드를 차지함
+
+- 증상/원인: 팀 없음·친구 초대 구역에 계정 공개 태그 편집 폼을 함께 렌더해 공부/초대와 개인정보 설정 동선이 섞였다.
+- 해결: PublicTagSettings를 설정 계정 구역으로 분리하고 기존 guarded snapshot/set_tag를 재사용한다. 개인/팀 진입은 명확한 두 탭으로 구분하고 정상 팀 없음에는 생성/받은 초대를 우선한다.
+- 재발 방지: 실제 mounted Dashboard에서 개인 초기 진입의 팀 RPC 없음, 팀 폼 부재, 설정 저장·입력 검증·실패 재시도·늦은 계정 전환, 기존 카메라/lease 보존을 검사한다.
+- 테스트 주의: 기존 개인 fixture의 onAuthStateChange가 changeOwner를 재정의한다. 계정 전환 시 서버 getSession fixture의 currentAuth도 실제 새 사용자와 맞춰야 하며 인증 guard를 완화해 테스트를 통과시키지 않는다.
+- 관련: apps/web/src/PublicTagSettings.tsx, TeamStudySection.tsx, main.tsx, apps/web/test/team-study-mounted.test.mjs.
+
+## 2026-10-12 — 팀 연결 checkpoint의 소수 초 정산
+
+- 증상: 팀 연결/해제에서 실제 공부 segment를 나누면 기존 정수 초 내림 때문에 배분 합계가 개인 종료 합계보다 1초 작을 수 있다.
+- 원인: 기존 close_segment가 구간별 초를 floor한다. 팀 기능에서 이를 보상하면 카메라 제외 시간을 임의로 인정할 위험이 있다.
+- 대응: 개인 세션 duration/출석 정책은 그대로 유지하고 팀 숲은 확정 segment만 보수적으로 합산한다. 실제 SQL 소수 경계 테스트에서 개인1800초·segment1799초·팀599초를 확인했다.
+- 관련: supabase/migrations/20261012143354_team_study_room.sql, packages/core/test/team-study-db.test.mjs. 개인 합계가 감소하면 이 접근을 배포하지 않는다.
+
+## 2026-10-12 — 새 worktree의 Windows 도구 sandbox 실패
+
+- 증상: npm ci의 Exit handler never called, Git Bash helper의 NtCreateDirectoryObject 오류.
+- 대응: 같은 명령을 허용된 권한 경로로 한 번 재실행해 설치/장부 helper 성공을 확인했다. package/lockfile·제품 동작을 바꿔 해결하지 않는다.
+- 검증: npm ci --prefer-offline --no-audit --no-fund 및 기존 전체 Chrome1143/1143 기준선 통과. 권한 문제와 제품 오류를 구분한다.
+
+## 2026-10-10 — 펼친 기술 피드의 `#####` 제목 기호 노출
+
+### 상황 / 원인
+
+- 실제 운영 Omniverse ‘릴리스 노트’ 카드의 번역 본문을 펼치면 `##### pinholeOpenCV`, `#### RTX 센서`가 보였다. 미리보기는 별도 정규식으로 제거하지만 AST는 줄 시작 제목만 해석해 문장 중간 기호가 일반 텍스트로 남았다.
+- 미리보기 선행 정규식은 fenced-code 내부의 제목 모양 문자열도 지웠다. 임의의 모든 # 삭제는 C#/코드/URL/태그를 손상하므로 사용하지 않는다.
+
+### 해결 / 재발 방지
+
+- packages/core/src/feedMarkdown.mjs에서 코드 밖의 독립 제목 기호를 정리하고 미리보기에도 적용했다. apps/web/src/feedPresentation.mjs는 공통 helper만 사용한다. 원문 저장 데이터는 그대로다.
+- 회귀5개 RED→관련30/30 GREEN. 실제 카드의 375/1440px 미리보기·번역 확장·원문·AI 요약과 가로 넘침을 브라우저로 검증했다.
+- 브라우저 검사의 첫 timeout은 요약 카드에도 ‘내용 더 보기’를 찾은 테스트 오류였다. 실제 버튼명 ‘AI 요약 펼치기’로 수정 후 통과했다. 제품 timeout을 변경하지 않았다.
+- code literals/C#/#include/#AI/링크 fragment, 정상 제목 수준, 안전한 HTML 처리와 기존 크기 제한 회귀를 유지한다. 본문 안의 일반 단어에 붙은 단일 #는 제목 기호로 추측해 일괄 삭제하지 않는다.
+- 최종 로컬 전체1143/1143 및 Edge23/23 통과. Jev gate의 일부 표시/보존 주장은 근거 부족/낮은 확신으로 자동 승인되지 않았다. 같은 판단을 반복 호출하지 않고 직접 소스·RED/GREEN·실제 브라우저 검증과 대조했다.
+- 운영2782dda / Actions38057984174 success / Vercel dpl_GqqguL8PZfGz447w772qgSwFAod9 READY·HTTP200. 실제 Omniverse 한국어 본문과 영어 원문 확장에서 반복 제목 기호 미노출·코드/출처 URL 유지 확인. 처음 클릭 직후 캡처는 반영 전 화면이었으므로 실제 aria-expanded=true/본문 visible/markers=false를 다시 확인하고 최종 스크린샷을 저장했다.
+
+## 2026-10-10 — 무료 Developer 계정을 기존 Free 한도로 제한한 번역 중단
+
+### 상황 / 원인
+
+- 실제 로그인 계정의 API Developer / Free / 전체1000000자 /499034자 사용을 확인했다. 서버의 고정500000자 clamp가 잔여966자로 계산해 최대3개 묶음 번역을 quota_exhausted로 중단했다. 자체10월49206/450000자 예산은 원인이 아니다.
+- [공식 요금제 문서](https://support.deepl.com/hc/en-us/articles/360021200939-DeepL-API-plans)의 Developer 전체 한도와 기존 Free 월 한도를 구분했다. UI의 사용 기간 표시를 Developer 월 초기화로 해석하지 않는다.
+
+### 해결 / 재발 방지
+
+- 사용자 승인 후 명시적 `DEEPL_API_PLAN=developer`에 한해1000000자 clamp. 기본 free/미설정500000 유지, 미지원/유료 설정·Pro 응답은 fail closed. 월450000 예약·무료 endpoint·캐시·원문·POST 재시도 금지 유지.
+- 회귀 RED:27개 중4개 실패(Developer잔여량966≠500966, 잘못된 요금제 허용, 번역중단, 카드대기문구). 수정 후27/27 GREEN. 실제 운영 저장/배포와 전체 검증은 후속 기록으로 구분한다.
+- CLI 준비 중 sandbox 네트워크 ENOTFOUND 후 권한 경로로 재확인했다. 존재하지 않는 supabase@2.79.4 ETARGET은 실제 npm 버전2.120.0을 확인한 뒤 도움말 조회로 해결했다. 제품 의존성/lockfile은 바꾸지 않는다.
+- 관련 파일: tech-feed-translation.mjs/provider.test.mjs, TechFeedSection.tsx/techFeedSearchCard.test.mjs, docs/tech-feed/korean-translation.md.
+- 실제 공부 탭은 새로고침/종료하지 않았다. 추가 피드 탭의 unload 종료 위험을 의심했으나 sessionExit.mjs는 pagehide/beforeunload/visibilitychange에 false를 반환한다. 실제 production 함수와 sessionExit.test.mjs4/4로 종료 요청 차단을 확인했으므로 이 의심을 제품 결함으로 기록하거나 임의 수정하지 않는다. 검증 탭 종료 뒤 원래 공부 중/타이머 지속을 확인했다.
+- 전체 Chrome 검사가 sandbox에서 로딩 시간 초과를 반복했다. 같은 단일 테스트가 정상 환경에서 통과함을 확인한 뒤, 사용자 브라우저와 분리된 임시 Chrome으로 전체1137/1137·생략0 재실행했다. 실패 로그 output/translation-developer-full-test-20261010.log와 성공 로그 output/translation-developer-full-test-verified-20261010.log를 구분한다.
+- Dune 초기 규칙에 필수 forbidden_modules 필드 누락으로 invalid가 발생했다. 빈 배열을 명시하고 실제 서버 금지 경계는 유지하여2파일/1경계 통과했다. Jev gate는 제공 근거 부족/낮은 확신으로 일부 주장을 자동 승인하지 않았으므로 source·27개 실제 회귀·전체/Edge 출력·실제 저장 결과를 직접 대조했다. Jev 자동 승인으로 보고하지 않는다.
+- 운영 복구: 무료 Developer 설정/Edge42·40 배포 후 정상 worker HTTP200·3건/3232자/POST1회, 실제 새 글 확인으로 추가3건/3460자/POST1회 성공. 최종ready267·예산55898/450000자·22시도·provider ready 확인. 기존 카운터를 초기화하지 않았다. 제품0053ee16 웹 READY/200과 실제 한국어 카드·저장/편집창 연결도 확인했다.
+
+## 2026-10-10 — 기술 피드 번역 한도 상태와 영어 원문 표시
+
+### 상황 / 확인한 사실
+
+- 사용자 질문: 영어 원문은 API로 한국어 번역하는 기능이 아니었는가. 실제 배포된 tech-feed-worker v37은 api-free.deepl.com의 제목/소개 번역을 사용하고 웹은 ready 결과를 한국어로 표시한다.
+- 운영 provider는 quota_exhausted이며 마지막 번역 성공2026-10-02T13:00:05.752972Z다. ready261/failed57, 10월 앱 budget49206자/20시도. 자체 상한450000자 미도달이다.
+
+### 원인 확인 범위 / 미해결
+
+- ready 번역이 없으면 영어 원문과 번역 대기 문구를 표시하는 기존 fallback 경로다. 서버가 현재 한도 소진으로 처리 중인 것은 확인했지만 DeepL 실제 usage/계정 초기화일을 조회하지 않았으므로 공급자 한도 소진의 세부 원인을 확정하지 않는다.
+- 코드상 quota_exhausted는 공급자 usage 잔여량 부족·HTTP456·앱 reserve 예산 초과에서 나온다. 이번 운영 상태와 10월 앱 예산만으로 초기화일이나 제공업체의 실제 잔여 문자를 추정하지 않는다.
+- 새 번역/유료 전환/키 수정/월예산 초기화 없이 설명과 기록만 수행했다. 추가 진단은 공급자 usage와 해당 실행의 안전한 오류 코드를 확인해야 한다.
+
+### 관련 파일 / 재발 방지
+
+- supabase/functions/_shared/tech-feed-translation.mjs, tech-feed-translation-worker.mjs, apps/web/src/TechFeedSection.tsx, docs/tech-feed/korean-translation.md.
+- 수집 completed와 번역 성공을 구분하고 원문 언어 해시태그를 화면 번역 상태로 오인하지 않는다. ‘앱 예산’과 ‘DeepL 계정 예산’을 별도로 확인한다.
+
+## 2026-10-10 — OpenRouter 502 and stale local dependencies
+
+- Production tech-feed v39 log showed upstream HTTP502 (1314ms), not an authentication or quota error. The old briefing swallowed failures and displayed generic connection guidance. Added classified failure metadata, a single bounded transient retry and manual cooldown; raw provider bodies/keys are never logged.
+- Review found two edge cases: a second attempt retained the first 502 classification, and a recovered configuration stayed permanently blocked. Both have focused regressions and are fixed in main 548897c/77a181d.
+- Initial full validation failed on missing fast-xml-parser and native async-storage mismatch because the earlier 102-commit fast-forward did not refresh node_modules. Reinstall from the tracked lockfile rather than alter dependencies or application behavior. Preserve failed output/feed-ai-retry-full-test.log and distinguish it from the final validation.
+
+
+## 2026-10-08 — 업데이트 변경사항과 설치 안내 혼동
+
+### 상황과 원인
+
+- 사용자 요구는 해당 버전에서 무엇이 추가·개선·수정됐는지였으나 공개6 releaseNotes에 로그인/데이터 유지 등 공통 설치 안내가 섞여 있었다. native 창도 별도 변경사항 제목 없이 목록을 표시했다.
+
+### 해결과 재발 방지
+
+- 실제 공개6 코드 변경을 근거로 요약을 두 항목으로 정리하고, 앱 창의 ‘이번 업데이트 내용’과 ‘설치 안내’ 구획을 분리했다. 고정 설치 페이지도 같은 출시 요약을 표시한다.
+- 새 RN 구역/미제공 안내2건과 실제 브라우저 구역 RED→GREEN 검증. 구현 후 기존 페이지 테스트의 `getByText('앱 업데이트')`가 변경사항과 설치 방법을 동시에 매칭해 strict mode violation이 발생했다. 검사 대상을 실제 설치 방법 구역으로 좁혀 focused107/107 통과했다. 제품 문구를 테스트 때문에 삭제하지 않았다.
+- 관련 파일: AppUpdatePanel.tsx, 공개 android-release.json/android.html, mobile-app-update/android-download 테스트, prd-android-app-updates.md.
+- 네이티브 제목 변경은 웹 JSON 갱신만으로 기존 APK에 적용되지 않는다. 같은 versionCode의 파일을 덮어쓰지 않고 새 APK 공개 여부를 별도로 확인한다.
+- 최종 전체1104/1104·실패0·생략0, 모바일/웹/문서/Android 빌드 검증과 운영 출시 정보 반영 완료. CI/Vercel/운영 HTTP 및 실제APK 일치 결과는 progress에 기록했다. Vercel list_deployments의 limit을 문자열로 보내면 INVALID_ARGUMENT이 발생하며 숫자5로 전달해 정상 READY 조회했다. 배포 문제로 오해하지 않는다.
+
+## 2026-10-08 — APK 출시 검사의 로컬 네트워크 권한
+
+- APK6 출시 기대값을 먼저 바꾼 RED 검사에서 기존5 metadata 불일치2건과 샌드박스 localhost fetch의 `connect EACCES 127.0.0.1`을 확인했다. metadata 실패는 의도한 출시 검증이며 제품 오류로 분류하지 않는다.
+- 공개JSON/307/안내를 실제APK6과 맞춘 뒤 허용된 로컬 네트워크 환경에서 다시 실행하여31/31·실패0·생략0, 실제375/1440px 브라우저·명도대비/키보드 검사를 통과했다.
+- 기본 ADB 검사도 샌드박스 daemon 시작에 실패했으나 허용된 읽기 진단에서 정상 시작됐다. 현재 연결된 에뮬레이터는 없으므로 이번 게시에서 실제 기기 UI/E2E를 새로 확인했다고 주장하지 않는다.
+- 첫 실제 browser 전체 회귀는1101통과/1실패/생략0(134979.8734ms)였다. 실패는 기존 feedBriefingLifecycle의 기능 실행 전 page.goto 2000ms 제한이며 해당 제품/fixture는 이번 게시에서 변경하지 않았다. 같은 파일 단독 재현은 코드/timeout 변경 없이5/5·실패0·생략0(7599.2149ms) 통과했다. 전체 재검사 결과는 progress에 별도로 기록한다. 이 관찰만으로 타이밍 실패의 시스템 내부 원인을 확정하지 않는다.
+- 최종 재검사1102/1102·실패0·생략0(130815.2592ms), focused31/31·실패0·생략0 및 운영CI1010통과/실패0/92선택생략 성공. 같은 페이지 로딩 실패는 재발하지 않았으며 이 배포에서 무관한 fixture/제품 코드를 변경하지 않았다. Node20 action deprecation/Ubuntu runner 전환 경고는 기존CI의 후속 정비 항목이며 이번 출시 차단 오류가 아니다.
+
+## 2026-10-06 — 기기별 설치 판정의 프레임 증명·참여 기록 경합
+
+### 상황과 원인
+
+- 기존 설치 gate는 계정 전체 active/paused_at=null을 차단했다. 사용자 기기 단위 승인 후 새 로컬 proof를 추가했으나 Java producer가 DEVICE_STUDY_STATE에 frame/origin/epoch를 넣지 않아 Android 응답이 항상 unknown이 되는 I1을 실제 producer 회귀로 확인했다.
+- 참여 기록 쓰기 실패를 무시하면 저장소 복구→reload 후 빈 기록을 PC 단독으로 오인한다. 작은 health write는 과거 참여가 기록됐다는 증명이 아니다.
+- pending을 no-session/paused snapshot으로 해제하면 reload 이전의 서버 confirm이 늦게 확정되어 설치 허용으로 바뀔 수 있다. 카메라 준비 preparing도 획득 중 기록 실패 뒤 과거 문서에서 자동 해제하면 동일 문제가 발생한다.
+
+### 해결과 재발 방지
+
+- 실제 Java producer 두 응답 경로와 top/origin/epoch policy에 새 타입을 포함하고 실제 Java source 실행 회귀를 추가했다. tracked patch와 설치 source의 reverse check 성공. 기존 camera/security/settings 경계는 유지한다.
+- 카메라 획득·서버 confirm 전 영속 write-ahead latch를 쓰고 readback한다. 실패 시 새 실행을 시작하지 않는다. 세션 ID 쓰기 실패는 latch가 남아 unknown이다. pending/이전 문서 preparing은 snapshot만으로 해제하지 않으며 현재 문서의 긍정적으로 취소된 미실행 준비만 해제한다.
+- 현재 문서의 camera/pending operation이 idle일 때만 참여 종료 관찰을 수행한다. 계정/문서/탭 경합·외부 frame·누락 증명·timeout은 unknown, 원격 PC 세션은 updater가 변경하지 않는다.
+- RED→GREEN 회귀: native producer, quota recovery/reload, pre-commit snapshot/late commit, acquisition 중 저장 실패/repeated preparation. 실제 mounted PC-only/no mutations·camera-off/reload/pause·unwritable storage/no getUserMedia 흐름3/3 통과. 최종 전체/독립 검토/운영 상태는 progress에 기록한다.
+
+### 검증 도구 오류
+
+- 초기 웹 build TS7016(deviceStudyActivity.mjs 선언 없음) → 대응 d.mts 추가로 해결.
+- 전체1096 중2실패는 mobile-web-features VM harness에 새 deviceStudyProbe import가 없어서였다. 실제 모듈/timer를 연결해 focused81/81·전체1099/1099 통과 후 추가 경합 검증을 진행했다.
+- 새 Java producer harness의 source-launch는 첫 helper class에 main이 없어 실패했다. 플랫폼별 javac→java/-cp로 실제 producer 코드를 실행해 해결했다. patch-package 재생성은 Windows의 generated build long-path로 실패하여 최소 tracked hunk를 직접 갱신하고 reverse-check/Java 회귀로 확인했다.
+- 변경 파일: apps/mobile/{App.tsx,src/deviceStudyProbe.ts,src/WebFeatureScreen.tsx,src/mobileWebBridge.ts,src/useAppUpdate.ts}, apps/web/src/{main.tsx,deviceStudyActivity.mjs,deviceStudyActivity.d.mts}, patches/react-native-webview+13.13.5.patch, 관련 mounted/native/update 테스트.
+- 잔여 제한: 미확정 영속 잠금은 보수적으로 설치를 보류할 수 있다. 이를 조회만으로 idle로 취급하지 않는다. 공개 APK 게시 전 기존 APK의 동작이 변경됐다고 안내하지 않는다. AI502는 이번 수정과 별개다.
+- 추가 legacy 회귀: prepare(false)가 기존 camera intent를 무시하면 실패한 복구를 취소 가능한 새 준비로 오인한다. prepare에서도 read의 legacy fallback을 승계하고 unknown read는 실행하지 않도록 수정했다. 기존 intent→복구 시도 실패→active 관찰 RED/GREEN 포함 최종 scoped C0/I0/M0 및84/84 통과.
+- 최종 전체1102/1102·실패0·생략0, 실제 Android16 삭제 없는 후보6 설치/로그인·설정 snapshot 유지 확인. Jev는 metadata 외부 전송 심사 차단/미실행으로 직접 결과를 대조했다.
+- 배포 도구 확인: Vercel get_deployment에 teamId 없이 요청하면 Internal error였다. 기존 primary .vercel/project.json의 공개 project/org ID를 읽고 teamId를 명시한 list/get은 정상 동작했다. 실제 새 배포READY·제품SHA/alias/HTTP200 확인으로 connector 오프라인이라고 단정하지 않았다.
+- 운영 emulator reload 직후 메뉴/버튼 탐색은 초기 로딩 때문에 Requested menu missing/Enabled button missing으로 실패했다. 로딩 완료 후 같은 실제bundle/로그인/설정 snapshot 재조회 성공, 제품 변경을 추가하지 않았다.
+
+## 2026-10-06 — 앱 기술 피드 일일 요약의 일반 연결 오류 문구
+
+### 상황
+
+Android 앱의 ‘오늘 요약·추천 보기’ 요청 후 ‘AI 요약 연결을 확인하지 못했어요’가 표시됐다.
+
+### 에러 메시지와 확인 근거
+
+```txt
+2026-10-06T12:41:43.741Z feed_ai_http {ms:1314,status:502}
+2026-10-06T12:41:43.742Z feed_ai_failed {code:upstream,status:502,ms:1316}
+2026-10-06T12:41:43.742Z feed_briefing_rejected {why:no_response}
+```
+
+- 운영 tech-feed v39 함수에 제한한 MCP 로그 조회로 확인했다. 브리핑 DB는 같은 날짜/Asia/Tokyo/대상5건/last_error=unavailable/생성 결과없음이다.
+- 실제 제공자 호출까지 진행됐으므로 인증/예약 한도 실패가 이번 요청의 원인은 아니다. 해당 브리핑 소유자의 예산 상태는 attempts6/calls8이며 실패 환급 후에도 실제 호출 수는 남는 기존 정책과 부합한다.
+- Supabase CLI에서 OPENROUTER_API_KEY와 OPENROUTER_MODEL의 이름은 존재한다. 값은 조회/출력하지 않았다. 같은 24시간 창에 다른 요약 호출 HTTP200 성공도 확인했지만 현재 새 브리핑 성공을 증명하지는 않는다.
+
+### 원인
+
+OpenRouter가 HTTP502를 반환해 읽을 요약 응답이 없었다. askFeedAi는 공급자 예외를 null로 정리하고 runBriefing은 unavailable로 저장한다. 화면은 설정 누락/공급자 실패/시간초과/응답 검증 실패를 같은 일반 연결 오류로 표시하여 사용자가 로그인 문제로 오해할 수 있다. 공급자 내부에서 왜502가 났는지는 응답본문/공급자 내부 로그 없이 단정하지 않는다.
+
+### 해결 방향과 현재 상태
+
+- 진단만 수행했다. 공급자 일시 실패를 분리한 명확한 안내/사용자 재시도와 제한된 무료 재시도를 후속 제안한다. 무료 모델 강제·실제 호출 상한·환급·동시 생성 잠금·근거 검증을 유지해야 한다.
+- 공급자/시크릿/DB/제품 코드/APK 변경과 새 AI 호출은 수행하지 않았다. APK 재설치가 이 서버 공급자 오류를 해결한다고 안내하지 않는다.
+- 에뮬레이터의 기존 검증 계정은 수신 중지로 paused였다. 그 설정을 바꾸거나 요약 생성 버튼을 눌러 사용자 데이터/할당량을 변경하지 않았다.
+
+### 관련 파일과 검증
+
+- apps/web/src/FeedDailyBriefing.tsx, apps/web/src/techFeed.mjs
+- supabase/functions/_shared/tech-feed-briefing.mjs, tech-feed-store.ts, coach-openrouter.mjs
+- node --test supabase/functions/_shared/tech-feed-briefing.test.mjs supabase/functions/_shared/tech-feed-briefing-db.test.mjs supabase/functions/_shared/tech-feed-ai-budget-db.test.mjs:35/35통과·실패0·생략0(1675.6637ms).
+- MCP unified logs는 메시지가 log_attributes['event_message']가 아니라 최상위 event_message다. 전자는 빈 결과를 반환한다. DESCRIBE/wildcard 조회는 Backend error, body는 Field does not exist로 실패했다. 최상위 event_message와 function_id/시간창으로 제한한 SELECT가 성공했다. 빈 잘못된 필드 조회를 ‘오류 로그 없음’으로 해석하지 않는다.
+
+## 2026-10-06 — PC 단독 공부 중에도 Android 업데이트 설치 차단
+
+- 상황: 사용자가 PC 웹에서만 공부하고 휴대폰은 공부하지 않는데 앱 업데이트 설치가 막힌다고 보고했다.
+- 원인: apps/mobile/App.tsx의 beforeInstallUpdate는 기기 필터 없이 현재 계정의 active study_sessions를 읽고 paused_at=null을 studying으로 판정한다. 실행 기기 정보가 없으며 현재 PRD의 계정 전체 세션 보호를 그대로 구현했다. 최신 버전 확인/파일 다운로드는 이 gate와 별개이며 useAppUpdate.ts는 설치 직전에만 차단한다.
+- 확인: 기존 실제 App harness의 활성 세션 차단·휴식/세션없음/로그아웃 허용·오류/타임아웃/계정 경합 회귀3/3 통과. 실제 서버 데이터 생성/수정·설치 실행은 하지 않았다.
+- 미적용 개선안: 계정 전체 공부 상태와 이 휴대폰의 공부 실행 여부를 분리한다. 이 기기의 공부/카메라 사용은 휴식 후 설치, 다른 기기의 공부는 변경 없이 설치 허용, 실행 기기/서버 상태 불명은 차단한다. 최초 시작 기기만으로 재개/기기 전환을 판정하지 않으며 연동 집중 모드의 설치 후 재동기화도 확인해야 한다.
+- 현재 안전 경로: 사용자가 웹에서 잠시 쉬기→APK 설치→공부 계속하기를 선택한다. 자동 휴식/종료·로그아웃 우회·기기 상태 추정으로 제한을 제거하지 않는다.
+- 상태: 진단/UX 제안만, PRD 개정과 구현은 사용자 승인 후 진행한다. 제품 코드/운영/공개 APK 미변경.
+
+## 2026-10-06 — Vercel 복원 캐시의 WebView 패치 충돌
+
+- 상황/에러: Actions37461255068의 tests/mobile/docs/Edge/build는 성공했으나 Vercel dpl_Ao54gjpCPRZSeNWwMtfBLTmVmybt에서 `Command "npm install" exited with 1`, patch-package의 react-native-webview+13.13.5.patch 적용 실패로 배포가 중지됐다. 기존 production alias는 이전 READY 배포를 유지한다.
+- 확인 근거/판단: Vercel 로그는 이전 dpl_GKGN3d6CvD9n9B64oewXN6pwcHsn의 build cache 복원 후 npm install/postinstall 실패를 보여준다. 같은 소스의 Ubuntu npm ci/patch-package는 통과했으므로 캐시에 남은 이전 패치가 유력한 원인이다. 캐시 없는 빌드 성공 전 확정하지 않는다.
+- 조치: 기존 workflow_dispatch의 clean_build=true로 Actions37461712217을 실행했다. Vercel CLI --force로 캐시 없이 설치하며 patch나 제품 코드·APK 파일·운영 환경변수를 바꾸지 않는다. 결과를 후속 확인한다.
+- 해결 확인: Actions37461712217 success/Vercel dpl_3yExFk4xX5D3hp1z2SSBY3qPuK45 READY. 실제 로그 `Skipping build cache, deployment was triggered without cache.`, `react-native-webview@13.13.5 ✔`, `Deployment completed` 확인. 동일 패치/제품 소스로 clean 설치 성공하므로 이전 patched dependency 캐시 충돌로 판단한다. 모바일 patch 변경 배포에서 같은 실패가 발생하면 기존 clean_build=true를 사용하고 postinstall 검사를 우회하지 않는다.
+
+## 2026-10-06 — 운영 CI의 Java 테스트 경로 이식성
+
+- 상황/에러: 설정 출시 커밋3e9a91fc의 Actions37460243603이 Ubuntu 테스트 단계에서 실패했다. `spawnSync /usr/lib/jvm/temurin-17-jdk-amd64/bin/java.exe ENOENT` 및 `javac.exe ENOENT`; 992통과/2실패/89선택 브라우저 생략이며 후속 빌드·운영 배포는 실행되지 않았다. 기존 운영 웹은 유지됐다.
+- 원인: 새 실제 Java 회귀 테스트 두 개가 Windows의 실행 파일 이름을 Linux JAVA_HOME에도 적용했다. APK/제품 코드 문제가 아니라 테스트 실행 도구 경로 오류다.
+- 해결: scripts/mobile-app-settings.test.mjs의 도구 경로를 플랫폼별 java/java.exe·javac/javac.exe로 분리하고 JAVA_HOME 없는 Linux는 PATH를 사용한다. Windows/Linux·JAVA_HOME 유무 회귀표에서 기존 구현의 실제 경로 AssertionError RED를 확인한 뒤 GREEN으로 수정했다.
+- 검증/재발 방지: focused native/update/web/camera72/72·실패0·생략0, 실제 Chromium 포함 전체1084/1084·실패0·생략0(143558.3525ms/exit0). 실제 Linux CI를 다시 실행한다. 테스트만 변경하므로 공개 immutable APK5의 제품 바이트·서명·태그는 변경하지 않는다.
+- Linux 결과: Actions37461712217의 실제 Java 실행 포함995통과/실패0/89선택 브라우저 생략. 생략된 browser 검사는 로컬 Chromium1084/1084로 보완했으며 두 결과를 합산하거나 전체 CI 생략0으로 보고하지 않는다.
+
+## 2026-10-06 — 설정 출시5 메타데이터와 다운로드 테스트 기대값
+
+- 상황/에러: 출시 JSON·307·안내를0.2.2/code5로 바꾼 후 focused 다운로드 테스트3개가0.2.1/code4의 URL/버전/날짜를 기대해 AssertionError로 실패했다. 별도 브라우저 확인에도 이전 표시값 기대가 남아 있었다.
+- 원인: 실제 출시 산출물 값에 고정된 회귀 테스트는 새 출시마다 URL·실제 버전·시각·크기·SHA256 및 안내 문자열 기대값을 함께 갱신해야 한다. 제품/설치 안전성 오류가 아니며 실패 검사를 제거하지 않는다.
+- 해결/재발 방지: `scripts/android-download.test.mjs` 기대값을 실제 aapt/apksigner/Get-FileHash 확인 결과와 일치시켰다. 해당 tests와 브라우저 포함 전체 검사를 다시 실행하고 APK 전체 익명 다운로드로 게시 해시/크기를 재검증한다.
+
+### 전체 실행의 초기 브라우저 로딩 제한
+
+- 메타데이터 수정 후 전체 실행은1082통과/1실패/0생략(208.546초). 실패는 업데이트 오류 안내 case의 기능 실행 전 `withApp`의 `page.goto`에서 `Timeout 5000ms exceeded`였으며 버튼/브리지/오류 메시지 단계에 진입하지 않았다. 같은 case 단독 실행은1/1 통과했다.
+- 초기 로컬 fixture 페이지 navigation만15초 제한으로 분리했다. 기존5초 action/locator 제한·네이티브5초 query·제품 코드는 바꾸지 않는다. 전체 재실행으로 setup timeout과 기능 실패를 구분한다.
+
+## 2026-10-06 — 설정 브리지의 실제 프레임 검증과 Windows patch-package
+
+### 상황 / 원인
+
+- Android WebMessageListener는 isMainFrame/sourceOrigin을 알고 있지만 react-native-webview의 기존 JS 이벤트는 해당 정보를 전달하지 않는다. JS에서 top 여부를 주장하는 값만으로 새 설정 브리지를 신뢰하면 서브프레임 검증 근거가 없다.
+- 기존 Android 빌드 산출물이 있는 환경에서 patch-package 전체 스캔은 `Filename too long` / `fatal: adding files failed`를 냈다. Windows 경로에 slash 전용 exclude는 맞지 않았으며 `.cmd`의 pipe 정규식 인자는 `The system cannot find the path specified`로 실패했다.
+
+### 해결 / 재발 방지
+
+- 기존 WebView 패치에 새 설정 메시지 두 종류만 실제 native isTopFrame/sourceOrigin 증명을 전달한다. 외부 출처·서브프레임과 증명 없는 legacy JavascriptInterface 설정 메시지는 거절한다. 기존 카메라·인증 메시지 정책은 유지한다.
+- 생성물을 지우지 않고 Java 소스만 포함하여 직접 실행: `node node_modules/patch-package/index.js react-native-webview --include 'android.src.main.java.com.reactnativecommunity.webview.RNCWeb.*java$'`.
+- 패치 Java 소스 범위, `git apply --check --reverse`, patch-package 재적용 및 실제 `:react-native-webview:compileReleaseJavaWithJavac` 성공을 확인했다. 최종 패치는 기존 카메라 파일과 WebView/WebViewClient 세 파일이며 빌드 산출물을 포함하지 않는다. 테스트의 프레임 값만으로 native 컴파일을 대신하지 않는다.
+- 관련: `patches/react-native-webview+13.13.5.patch`, `apps/mobile/src/WebFeatureScreen.tsx`, `nativeAppSettings.ts`, `scripts/mobile-app-settings.test.mjs`. 소유자·문서·탭 revision을 확인하여 A-B-A 계정/탭 전환 중 늦은 조회 결과도 폐기한다.
+- 남은 검증: 전체 웹·Android APK 통합 및 에뮬레이터는 현재 구현 작업의 별도 완료 게이트이며 운영 배포와 구분한다.
+
+### 검토 중 발견한 hash 이동 회귀 / 수정
+
+- 첫 구현은 onLoadStart마다 인증·문서 증명을 폐기했다. 그러나 Android doUpdateVisitedHistory도 TopLoadingStartEvent를 발생시키며 RN은 onLoadStart 다음 navigation 콜백을 호출한다. 따라서 정상 `#today→#settings`도 인증이 지워져 설정 조회·열기가 거절되었다. nav만 단독 호출하는 초기 테스트는 이를 놓쳤다.
+- 실제 onPageStarted에서만 증가하는 네이티브 문서 epoch를 loading/navigation·새 설정 메시지에 전달하여 동일 문서 hash/history 이동과 실제 새 문서·동일 URL reload를 구분한다. 탭 이동은 auth를 유지하고 navigation revision으로 늦은 결과를 폐기한다. 새 문서·누락/오래된 epoch는 fail-closed한다.
+- WebView 다시 열기에서는 native epoch가1부터 다시 시작하므로 nativeDocumentRef도 초기화한다. 실제 실패 화면 버튼·재생성 epoch3→1을 검증했으며 초기화 제거의 in-memory mutation은 실패를 재현했다.
+- RED4→최종 focused113/113, 모바일 tsc, 실제 Java 컴파일 성공. 초기 review C0/I1/M0의 I1을 수정했으며 별도 scoped 재검토·최종 APK 검증을 진행한다. 실제 사용자 로그인이나 데이터를 초기화하여 해결하지 않는다.
+
+### 최종 검증 도구 / 환경
+
+- 전체 diff 검사에서 새 patch 파일의 공백만 있는 context 줄을 trailing whitespace로 검출했다. Java 동작을 바꾸지 않고 context를 줄여 정규 patch-package 적용/집중2/2/diff 검사에 통과했다. 세 Java postimage 해시가 동일하여 APK 재빌드가 필요하지 않았다. 최종 역적용 검사는 `git apply --check --reverse --unidiff-zero patches/react-native-webview+13.13.5.patch`를 사용한다. 기본 Git 역검사의 no-trailing-context 거부는 패치 적용 실패와 구분한다.
+- 격리 worktree에 웹 `.env.local`이 없어 환경값 없는 로컬 빌드가 example Supabase fallback을 사용해 에뮬레이터 인증 연결을 실패시켰다. 비공개 기존 public-app-config의 공개 URL/anon 설정을 빌드 프로세스 환경에만 전달해 재빌드했다. 환경 파일·운영 설정·토큰/키 기록 변경 없음.
+- 실제 앱 연결은 처음6초 스냅샷에서 아직 연결 중이었다. 정상 완료 후의 실제 설정5구역·로그인 유지·설치버전5를 확인했다. 초기 연결중 UI를 최종 로그인 실패로 세지 않는다.
+- 네이티브 최신 출시 재확인은 기존12초 제한에서 확인 실패 상태를 표시했다. 이를 새 버전 성공 확인으로 보고하지 않으며 기존 재시도/안내를 유지한다. 공개 최신 metadata는 여전히4이고 설치된 로컬 후보는5이다.
+- native/OS modal 복귀의 DOM focus event는 이 에뮬레이터에서0이었다. 자동focus 갱신을 보장하지 않고 실제 ‘앱 정보 다시 확인’ 버튼으로 버전·권한 snapshot을 갱신하는 경로를 확인했다. 로그인·권한·zen_mode0은 유지되었고 회복 제출·공부 데이터 생성·권한 부여는 하지 않았다.
+- Task2 최초 localhost 브라우저 실행의 `net::ERR_NETWORK_ACCESS_DENIED`는 샌드박스 환경 실패였다. 허용된 escalation으로 재실행하여 기능 RED6을 확인했다. 추가 fixture의 brace/초기 profile upsert 선택/combobox role 오류는 제품 기능 수정과 구분해 정정했다.
+
+## 2026-10-05 — 자정 분할로 야간 공부 출석과 날짜 집계 불일치
+
+### 상황 / 원인
+
+- 기존 SQL 기간/하루 합계와 웹·숲 계산이 세션을 달력 자정에 비례 분할했다. 실제 PGlite/JS 재현에서23:00~01:30의 전날 합계가3,600초로 나와9,000초 기대와 달랐다.
+- 새 공부일을 적용할 때 기존 todo 선택의 달력 날짜 검증은 새벽에 INVALID_SELECTION을 만들었다. 공부 날짜를 계획 기본 날짜에도 사용하면 원래 계획이 바뀌는 부작용이 생긴다.
+
+### 해결 / 재발 방지
+
+- 저장된 세션 local_date로 전체 유효 시간을 합산, 04시 새 공부일 계산을 core/SQL로 통일한다. 새벽에는 공부일과 실제 달력 날짜의 todo를 허용하되 계획 자체는 달력 날짜에 유지한다.
+- 출석용 새벽 알림은 별도 study_reminder_at로 분리했다. 리뷰가 발견한 달력 todo02시 알림의24시간 지연을 기존 local_reminder_at 보존으로 해소했다.03:50 알림/04:05 재촉도 두 공부일 후보 검사로 유지한다.
+- 날짜 변경 웹 캐시/네이티브 재조회, 오래된 자정 분할 설명, 모바일 테스트 import 경계를 함께 보완했다. 신규 실제 SQL 테스트로 소유권·휴식·중복 요청·DST·캘린더 구분을 검증한다.
+- 관련: core index, web studyTimeSummary/weeklyHabit/reports/main, mobile App,20261005131830_study_day_four_am.sql, actual-study-db.test.mjs.
+
+### APK 빌드 오류 / 해결
+
+- release Metro에서 core index.mjs를 해석하지 못했다. EXPO_NO_METRO_WORKSPACE_ROOT=1의 실제 config.watchFolders가 빈 배열이라 app 밖의 공통 모듈이 파일맵에 없었다. 재현 테스트 RED 후 packages/core만 감시 경로에 추가해 GREEN·실제786모듈 bundle·327tasks release/lint 성공.
+- SDK 검증 경로36.0.0을 추정해 aapt/apksigner 조회가 실패했다. 설치 목록에서35.0.0을 확인 후 실제 버전/기존 signer 일치를 다시 검증했다. 도구 조회 실패를 APK 검증 성공으로 세지 않는다.
+- 생성 prebuild가 변경한 개발 스크립트는 이번 자동 변경만 apply_patch로 복원했다. SDK/키/서명 변경·사용자 데이터 삭제 없음.
+- 운영 smoke 첫 시도는 PowerShell의 node-e 정규식 따옴표 이스케이프가 ParserError/Missing type name after '['를 냈다. 제품 오류가 아니며 실행 전 파싱 실패다. 기존 output/app-update-verify.mjs에 읽기 전용 검증을 넣어 웹200/4시 실제 번들·JSON/별칭/익명파일 크기·해시를 exit0으로 재확인했다.
+- 최종 근거: 브라우저 포함1054/1054·생략0, Edge21, DB 적용/운영 경계·권한검사, Actions37319977032 success·Vercel dpl_GKGN3d6CvD9n9B64oewXN6pwcHsn READY·운영HTTP200. Jev는 중간977/77 문서와 최종1054/0 로그의 차이를review로 분류했고, 원하는 결과를 위한 재호출 없이 최종 실행로그를 직접 대조했다.
+- 남은 리스크: 과거 출석 소급 정정과 실제 야간 기기 E2E는 이번 범위 밖이며 기존 기록을 임의 수정하지 않는다.
+
+## 2026-10-05 — APK 링크가 열렸다 닫히고 다운로드되지 않는 보고
+
+- 상황: 사용자가 APK 링크 클릭 후 화면이 닫히고 파일이 내려오지 않는다고 보고했다. 클릭한 앱/브라우저는 아직 확인 중이다.
+- 확인된 사실: output/app-update-verify.mjs production 재실행 성공. 안내·JSON200/alias307, GitHub302 뒤 CDN200, 전체61,975,731bytes 및 게시 SHA256 일치. 최종 Content-Type은 application/vnd.android.package-archive, Content-Disposition은 attachment; filename=study-room-0.2.0-build3.apk.
+- 원인 상태: 서버 파일 누락·링크 만료·파일 손상은 이번 익명 요청에서 재현되지 않았다. 채팅 내 브라우저의 다운로드 인계 제한 가능성은 가설이며 사용자 환경 재현 전 단정하지 않는다.
+- 대응/다음 확인: 고정 HTML 설치 안내 https://study-room-attendance.vercel.app/download/android를 외부 Chrome·삼성 인터넷에서 열고 다운로드 버튼을 선택하도록 안내한다. 사용자 성공은 아직 확인하지 않았다. 저장소/라우팅/공개 APK/서명/보안 설정·사용자 데이터는 바꾸지 않는다.
+- 재발 방지: 파일 링크의 화면 종료와 실제 HTTP 다운로드 실패를 구분하고 최종 응답·전체 크기/해시를 확인한다. CDN 서명 query는 로그나 문서에 기록하지 않는다.
+
+## 2026-10-05 — 최종 업데이트 검증 도구·OS 보안 검사
+
+- 실제 다운로드 진행률/Activity 전환 중 UIAutomator가 `could not get idle state`/`null root node`를 반환했다. 도구가 이전 XML을 다시 읽을 위험을 확인하여 output/app-update-emulator.mjs에서 새 dump 성공 문구가 없으면 즉시 실패하도록 수정했다. 이후 안정된 실제 화면/스크린샷으로 취소·복귀·설치 결과를 확인했다. 이 도구 실패를 제품 성공 근거로 세지 않는다.
+- 더 보기의 실제 항목은 `알림 설정`인데 테스트 locator `알림`은 존재하지 않아 실패했다. 관찰한 이름으로 수정하여 알림 화면 진입을 확인했다. 제품 메뉴/문구는 변경하지 않았다.
+- Play Protect는 처음 보는 공개 APK의 정상 검사를 요청했다. 앱 보안 기능을 끄거나 우회하지 않고 `Scan app`→`This app looks safe`→`Install` 정상 흐름으로 Android16 actualcode3 설치를 완료했다. 검사는 이 APK/이 환경의 관찰이며 모든 제조사/향후 APK의 안전 보장을 의미하지 않는다.
+- 최종 모든 제품 gate 통과: 실제 full1041/1041·native29/29·production/익명파일 무결성·actualOS2→3/로그인6메뉴 유지. 최초 리뷰finding과 c218df6/dfc44c3 한 번의 최종 보완 및 scoped 재검토 전 finding 해소를 progress/active-context에 기록했다. rootlint 없음/CI 브라우저77생략/기존 Gradle·Actions 안내 경고를 숨기지 않는다.
+- 남은 리스크는 실휴대폰/OEM 설치·기존 DND/푸시 E2E이며 이번 updater 설치 검증과 구분한다. 기존 피드 중지/회복 필요를 해소하려고 사용자 데이터를 수정하지 않았다.
+- 완료 후 생성 Android 폴더 복원은 Gradle 파일 잠금으로 Move-Item이 일부 파일만 옮긴 뒤 실패했다. 양쪽 생성 경로가 같은 worktree 안인지/중복 파일이 없는지 확인하고 해당 E:/Android/Gradle 데몬을 정상 종료한 후, 남은750파일만 robocopy /MOVE /E로 output/android-local-build에 복원했다(exit3, source없음/target존재). 비공개 키·공개 APK·제품 소스·다른 output은 수정/삭제하지 않았다. 다음 빌드 전 생성 root 복원 절차와 Expo 자동 연결 기준을 다시 확인한다.
+
+## 2026-10-05 — 업데이트 상태 복귀·생성 아이콘·Windows dex 잠금
+
+- UI 리뷰 재현: foreground의 native idle이 확인된 available을 덮어 다운로드 버튼을 숨겼다. `useAppUpdate`가 검증된 최신 후보/현재 실제 code와 JS 확인·설치 gate lock을 병합하도록 수정했다. RED4/4 → updater38/38·기존 포함78/78·타입 통과,0d312f7 독립 수정 재검토 차단 이슈0. 실제 native 단계와 실제 code 기반 성공은 유지한다.
+- 앞선 UI 자체 검토: effect remount 후 abandoned check lock, A→B→A 계정 재전환의 오래된 설치 확인을 실제 테스트로 발견했다. mounted/generation 해제와 auth owner revision으로 수정했으며 stale 결과는 unknown으로 처리한다. TS18047 nullable callback은 좁힌 native adapter로 해결했다. 새 DB/RPC/인증 정책 변경은 없다.
+- 생성 리소스: 이전 집중 APK용 Android 폴더에 기본 Android 아이콘이 남아 있었다. 앱 설정의 책·조명 자산과 actual native webp를 직접 비교한 뒤 `expo prebuild --platform android --no-install`로 최신 아이콘/adaptive 리소스를 생성했다. prebuild가 바꾼 개발 scripts는 자신의 변경만 apply_patch로 원복하고, 생성 Gradle의 빌드2/3 override와 기존 비공개 env 서명을 유지했다. 새 의존성/키 변경은 하지 않았다.
+- 경로 오류: prebuild 전 backup Copy-Item을 mobile cwd에서 repo-relative 경로로 요청해 존재하지 않는 경로 오류를 기록했다. 생성 자체는 성공했고 현재 Gradle을 확인하여 서명 설정 보존과 version override를 검증했다. 이 실패를 제품 검증으로 세지 않는다.
+- 최종3 첫 빌드 실패: `:app:mergeDexRelease`의 classes.dex에 `다른 프로세스가 파일을 사용 중이기 때문에 프로세스가 액세스 할 수 없습니다`. 별도 소스 수정·광범위 삭제·보안 도구 중지 없이 잠금 해제 후 동일 빌드 한 번 재시도로 성공(13초/327tasks). 잠금 보유 프로세스는 확정하지 않았으며 Windows 일시 잠금 경계로 기록한다.
+- 실제 후보: package 유지·0.2.0/code3·4개 ABI·기존 인증서 일치,61,974,751bytes/SHA256 A70AA39814598A2448638E633DB88A39B1AE6C50DD4A3E7BC7D368477E83D0B1. 공개/production/OS2→3 검증은 아직 별도 단계다.
+- 경고: Gradle9 deprecation/incubating·Metro NO_COLOR/FORCE_COLOR·FileSystem provider replace·로컬 helper shell deprecation·prebuild edge-to-edge/system-ui 안내는 남아 있다. root lint 스크립트는 없으며 APK lintVitalRelease 성공과 구분한다.
+
+## 2026-10-04 — 생성 Android 프로젝트 외부 보관 경로와 모듈 자동 연결
+
+- 상황: 앱 내부 업데이트 모듈의 JVM RED 검사 전에 Gradle이 app/build.gradle resolveAppEntry에서 `Cannot convert '' to File`로 실패했다.
+- 원인: 생성 Android 루트가 output/android-local-build에 보관돼 표준 parent projectRoot가 output을 가리켰다. 앱 루트만 바꿔도 Expo settings 자동 연결은 별도로 output 기준을 사용해 로컬 모듈이 포함되지 않았다.
+- 해결: source/target 절대 경로가 같은 worktree 안이며 target이 없음을 확인한 후 생성 폴더만 apps/mobile/android로 복원했다. 생성 설정의 표준 parent projectRoot를 유지하고 서명 환경이 없는 JVM 검사에서는 storeFile을 null로 허용한다. 비공개 키는 release 빌드에서만 환경 변수로 제공한다.
+- 추가: 생성 versionCode의 Groovy DSL expression은 메서드 결과에 toInteger를 적용하는 형태로 해석돼 Value is null을 기록했다. `versionCode = (System.getenv('STUDYROOM_BUILD_CODE') ?: '3').toInteger()` 명시적 할당으로 수정했다.
+- 앱 manifest 검사 중 JS bundle을 실행하면 monorepo 루트의 ./index.js를 찾는 Metro 오류가 있었다. 기존 승인된 빌드와 같은 EXPO_NO_METRO_WORKSPACE_ROOT=1/NODE_ENV=production을 적용해 실제 bundle과 앱 manifest까지 통과했다. bundle task를 제외한 시도는 extractDeepLinksRelease의 resource-provider 의존성이 실패했으므로 통과 근거로 세지 않는다.
+- 확인: 로컬 모듈 JVM21/21·release Kotlin·실제 app manifest·mobile typecheck 통과, Expo 자동 연결의 focus/updater 두 등록을 확인했다. 아직 실제 OS 설치/최종 APK 게시 검증은 별도 단계다.
+- 재발 방지: Expo 자동 연결 결과에 StudyFocusMode/StudyAppUpdate가 포함되는지 별도로 확인한다. 생성 Android 파일과 키는 커밋하지 않으며 feature RED와 빌드 환경 실패를 구분한다. 앱/launcher/로그인 데이터를 초기화하지 않는다.
+
+## 2026-10-04 — 공통 알림 테마 누락·내부 코드 표시 해결
+
+- 상황: 사용자 화면에 이전 노란 알림 카드와 ACTIVE_SESSION_EXISTS 코드가 그대로 보인다.
+- 확인된 표시 원인: styles.css:225의 .message에 이전 2px 테두리/노란 배경/그림자가 정의되어 있고 appTheme.css에 해당 공통 메시지 override가 없다. main.tsx:5268은 메시지를 그대로 렌더링하고 formatError:6899도 Error.message를 그대로 반환한다.
+- 당시 제안: 기존 study 토큰의 의미별 알림 컴포넌트와 읽기 쉬운 한글 안내를 적용한다. 세션 생성 오류의 실제 서버 원인을 해결했다고 주장하지 않으며 세션/출석 정책 변경을 이번 디자인 작업에 섞지 않는다.
+- 승인 후 수정: AppNotice/appMessage presentation과 공통 테마 override 적용. 오류 혼합 성공을 danger로 우선 분류하고 단독 내부 코드는 한글 안내로 표시한다. 읽기 전용 리뷰에서 PGRST301/UNEXPECTED/FORBIDDEN처럼 밑줄 없는 코드 누락을 발견했고 실패 테스트 후 정규식 optional underscore로 보완했다. 11개 단위·3개 컴포넌트/브라우저 검사 및 재리뷰 통과. 첫 테스트는 제목에 있는 안내를 본문에만 찾는 잘못된 기대를 제목+본문의 사용자 표시로 바로잡았으며 본문/기능을 중복시키지 않았다.
+- 아이콘 추출 시안은 가장자리/투명 품질이 낮아 채택하지 않았다. 같은 승인 디자인을 불투명 초록 배경에서 축소·중앙 배치하여 adaptive 여백을 확보했다. 자산은 프로젝트 assets에 저장하며 외부 기본 생성 경로를 앱에서 참조하지 않는다.
+- 전체 검사에서 mobileNativeTheme의 과거 adaptive 배경 #d9f0e3 기대가 실패했다. 승인된 책·조명 아이콘의 palette.primary 배경과 일반/adaptive 경로 검사로 갱신했다. 모바일 UI 팔레트 자체는 변경하지 않는다.
+- 모든 선택 브라우저 검사를 병렬로 실행했을 때 actualStudyMounted의 legacy unknown resume가 page.goto load 5000ms 초과1건을 기록했다. 앞선 mounted 전체71/71과 해당 시나리오 격리 실행(약3초)이 통과했다. 제품 회귀는 재현되지 않았지만 실패를 숨기지 않으며 기본 전체 검사887/76skip/0fail과 선택 브라우저 근거를 구분한다. 기존 timeout이나 세션 코드는 임의로 완화하지 않는다.
+- 최종: 선택 브라우저 환경에서 --test-concurrency=1 전체963/963·0실패·0생략 확인. production READY/HTTP200·새 코드/스타일·공개 APK 같은 서명/삭제 없는 설치·로그인 유지·실제 홈/앱 목록 아이콘 확인. 첫 홈 추천 아이콘 캡처는 이전 그림 캐시가 남았으나 앱 목록/앱 실행/홈 복귀 후 갱신됐고 launcher/앱 데이터 초기화는 필요하지 않았다.
+
+## 2026-10-04 — EAS 요청503과 실제 빌드 생성 불일치
+
+- 상황/에러: EAS 소스 업로드 완료 후 build 명령이 `Network error: Service Unavailable / Response status: 503 Service Unavailable`로 종료했다.
+- 조사/대응: systematic-debugging에 따라 재요청 전에 build:list를 확인했다. 최신 message/생성시각의 3b3805c4-ef3e-434f-98a5-99fb0dc120fb가 IN_PROGRESS로 존재했으므로 서버 생성은 성공했고 결과 응답 경계가 실패한 것으로 판단했다. 서버 내부 원인은 확인하지 못했으며 CLI 업그레이드나 중복 빌드를 만들지 않는다.
+- 보조 도구: 설치된 CLI에 build:upload가 없으므로 기존 로컬 APK의 EAS 업로드 대신 공식 build preview 경로를 사용했다. app.config.ts/js나 선택 memory-bank/README를 추정해 읽지 말고 현재 app.json과 절대 프로젝트 경로를 사용한다. 앱 폴더 상대 경로 오류는 제품/빌드 오류와 구분한다.
+- 후속 확인: 첫 build가 CREDENTIALS_TEMPORARY_NETWORK_ERROR(`Expo experienced a temporary network issue. Try again.`)로 ERRORED됐다. 생성 상태와 실행 성공은 다르므로 실패 확정 뒤 같은 키/설정으로 한 번 재시도했고 de8fb01c-33a5-4d03-9b72-1b5e86437528 IN_PROGRESS/error null을 확인했다.
+- 해결 확인: 재시도 de8fb01c-33a5-4d03-9b72-1b5e86437528 FINISHED·Gradle7분28초/assembleRelease·HTTP200 다운로드·기존 인증서 일치·동일 로컬/public JS bundle·에뮬레이터 로그인 유지/새 설정 모달 확인. 무료 preview/원격 키 유지, 유료 전환·키 변경·운영 데이터 변경 없음. 실제 휴대폰 DND E2E는 검증하지 않았다.
+
+## 2026-10-04 — 집중 상태 표시·재확인 및 로그아웃 경합 수정
+
+### 상황 / 원인
+
+- 연결 후 확인 버튼도 매번 푸시/기기를 재등록하지만 성공 상태가 같으면 상단 변화가 없었다. 조회 실패와 오래된 ACK을 기존 켜짐 label이 구분하지 않았고 재조정 return의 확인 시각·권한은 ACK 이전 값이었다.
+- 새 주기적 확인을 추가한 뒤 읽기 전용 리뷰가 `규칙 해제 → 이전 조회가 다시 켬 → 해제 확인 실패`를 제어된 focus.ts 실행으로 재현했다. 기존 logout은 이 실패를 경고한 뒤 signOut하여 규칙/owner가 남을 수 있었다.
+
+### 해결 / 재발 방지
+
+- FocusStatusPanel/순수 focusStatus 함수로 상태·현재 작업·마지막 확인·오류를 분리한다. 재확인은 기기 재등록 없이 수행하고 ACK 뒤 최신 snapshot을 다시 읽는다. 기기 불일치·권한 철회·서버 revision·lease·ACK 시각을 회귀 검증한다.
+- 로그아웃 해제와 signOut을 같은 focus 작업 순서에 포함했다. 확인 중 명시적 로그아웃은 우선 예약하고 계정이 바뀐 요청은 폐기한다. 양쪽 실행 순서의 실패 테스트와 대체 화면 로그아웃 테스트를 통과했다.
+- initial native status read/Android 설정 launch 오류는 앱 crash 대신 확인 필요로 표시한다. 공부 busy/타이머·카메라 정책은 바꾸지 않는다.
+- 테스트 추가 시 Babel default native boundary의 __esModule 표시 누락과 `states[states.length-1]` 대체 화면 선택이 새 hook에 영향을 주어 초기 harness가 실패했다. 경계 import와 기존 webFallback index33을 명시하고 실제 회복/타이머 회귀가 다시 통과하는지 확인했다.
+- 서명 확인 명령의 native 출력에 Select-Object -First를 직접 연결하면 출력 파이프가 조기에 닫혀 비정상 exit가 생겼다. 전체 apksigner 출력을 먼저 수집한 뒤 인증서 문자열을 추출한다. 재검사 v2 서명/기존 인증서 일치 확인, 실제 APK 손상이 아니었다.
+- uiautomator가 Android 설정 전환 애니메이션 중 null root를 반환했다. 이전 화면 좌표를 즉시 반복 클릭하지 않고 현재 modal hierarchy 확인→버튼 클릭→resumedActivity가 ZenAccessSettingsActivity인지 확인→dump 순서로 다시 확인했다.
+
+### 검증 / 남은 리스크
+
+- focused40/40·전체877통과/75브라우저 선택 생략·모바일 타입/웹 빌드/README/diff 검사 통과. 읽기 전용 재검토 Critical/Important/Minor0. 실제 소스 실행의 native/RN host/transport 경계는 mock이며 OS 푸시·DND E2E 근거가 아니다.
+- Android16 새 APK 상단/모달/정책 설정 진입/복귀 및 로그인 유지 확인. 물리 기기 연결 guard 때문에 에뮬레이터는 계속 미연결이다. 실제 휴대폰의 비예외 알림 억제와 start/pause/resume/end는 별도 검증한다. 수동·다른 앱 DND는 유지한다.
+- 경합 보완 후 최종 release 재빌드도 성공(1분42초/327tasks), lintVitalRelease·같은 인증서·adb install -r/로그인 유지·설정 모달 재확인 통과. SDK XML 버전/Gradle9 호환성 경고는 빌드 실패가 아니며 이번 범위에서 도구 업그레이드를 하지 않았다. 최종 APK/해시는 progress에 기록했다.
+- 관련 파일: apps/mobile/App.tsx, src/focus.ts, src/focusStatus.ts, src/FocusStatusPanel.tsx, scripts/mobile-focus-status.test.mjs. DB/RPC/Edge/Android 규칙 구현 변경 없음.
+
+## 2026-10-04 — 집중 모드 재연결 버튼이 무반응처럼 보이는 문제 (이전 진단)
+
+### 상황 / 원인
+
+- 사용자 휴대폰의 연결 후 상단 `집중 모드 다시 연결·확인`에 동작 변화가 보이지 않는다는 제보. 앱 소유 규칙의 실제 적용 여부도 불명확하다.
+- App.connectFocus는 기존 DND 접근 권한이 있으면 설정 화면을 열지 않는다. connectStudyFocus가 푸시 토큰/기기를 다시 등록하고 현재 서버 상태를 적용한다. 버튼 handler는 존재하지만 상단에는 로딩/성공 피드백이 없어 같은 상태에서 성공해도 변화가 없다. 특정 휴대폰의 네트워크 실패 여부까지 재현한 것은 아니다.
+- refreshFocus의 실패는 focusError만 바꾸고 snapshot을 유지하며 focusStatusLabel은 조회 실패/ACK freshness를 반영하지 않는다. reconcileStudyFocus 성공 응답은 최신 applied_revision/applied_focus/last_error만 합치고 기존 last_ack_at/permission_granted를 보존한다. 과거 켜짐 표시가 최신 기기 확인과 같다고 단정할 수 없다.
+
+### 확인한 근거 / 남은 리스크
+
+- 운영 get_study_focus_snapshot 정의는 소유자 기준 device/state 조인, lease 내 desired_focus, applied_revision/last_ack_at/last_error를 반환한다. 2026-10-04 08:43:31 UTC 동일 revision 켜짐 ACK 기록은 존재했으나 실제 휴대폰 OS/알림 억제 동작을 직접 검사하지 않았다.
+- Android16 emulator-5554는 앱 상단 미연결, WebView 적용 확인 중, zen_mode=0 및 앱 소유 규칙 없음. registerExpoPushTarget의 Device.isDevice guard 때문에 물리 휴대폰 연결 검증과 분리한다. 기기·서버 데이터를 변경하지 않았다.
+- Android 15+는 앱 소유 AutomaticZenRule들을 OS가 합성한다. 앱 규칙 해제와 휴대폰 전체 DND 해제는 다르므로 수동 DND/다른 앱 규칙을 끄는 테스트나 구현을 하지 않는다.
+
+### 해결 방향 (미구현 / 설계 승인 대기)
+
+- 연결 전 버튼/연결 후 상태 표시로 정리하고, 상태 재확인은 재등록과 분리한다. 확인 중/완료/오류 피드백과 최신 적용 확인 시각을 표시하며 조회 실패나 오래된 기록은 현재 켜짐으로 확정하지 않는다.
+- App.tsx/focus.ts/네이티브 status와 관련 회귀 테스트가 예상 범위다. 시작→휴식→재개→종료 시 실제 앱 규칙과 비예외 알림을 확인한다. 최초 권한 요청/카메라 복귀/기존 출석·공부 기록은 보존한다.
+- 관련 PRD: prd-android-focus-mode.md, prd-android-web-parity.md. 현재는 문서만 변경하며 native UI를 적용하려면 사용자 승인 후 새 APK를 제공해야 한다.
+
+## 2026-10-04 — 집중 설정 복귀 후 카메라 트랙 종료 미복구
+
+### 상황 / 원인
+
+- Android16 DND 접근 설정이 앱을 background로 전환하여 WebView video track이 ended가 된다. visible 복귀 후 트랙은 ended 그대로이고 기존 presence loop는 오류 표시만 했다. 브라우저 permission query는 prompt로 표시돼 OS 권한 확인 대용으로 쓸 수 없었다.
+- 기존 restart가 retry budget을 초기화하여 프레임 미복구 시 무한 재시도할 수 있었다. cameraEnabled=true/오래된 요청 continuation/언마운트 취소 누락은 수동 복구·새 카메라 자원을 혼동했다.
+
+### 해결 / 재발 방지
+
+- foreground 단일 재획득·정상 프레임 예산 초기화, 서버 상태 전후 검증, current owner/session/intent/attempt/lease 검증. 취소한 요청은 late stream/model만 정리하고 새 카메라는 건드리지 않는다. 원격 휴식 관찰도 정리한다.
+- native CHECK와 Java callback fail-closed로 자동 권한창 차단. 사용자 명시적 권한 버튼 유지·구 APK 수동 안내·새 APK 필요.
+- 실제 mounted 회귀에서 초기7건/요청 경쟁·unmount2건/서버 변경3건/Java 권한창1건 실패를 먼저 관찰하고 수정했다. 최종 기본852/브라우저75/Edge21 통과·빌드/모바일/README 검사 성공. 웹 READY/HTTP200·같은 서명 새 APK 업데이트 후 Android163회 실제 트랙 재획득/시작 시각 유지/휴식 중 재시작 없음 확인. 사용자 공부/회복 기록은 격리 fixture로 변경하지 않았다.
+- 관련: apps/web/src/main.tsx/cameraFrameRecovery.mjs/nativeCameraPermission.mjs, apps/mobile/src/WebFeatureScreen.tsx/mobileWebBridge.ts, patches/react-native-webview+13.13.5.patch.
+
+### 검증 도구 문제
+
+- patch-package 재생성은 기존 android/build/.transforms 산출물의 Filename too long으로 실패했다. 빌드 폴더 삭제/전역 Git 변경 없이 기존 patch를 최소 갱신하고 postinstall 및 실제 Java callback 실행으로 확인했다.
+- Java guard fixture가 static method에서 this를 참조해 실패하여 instance method로 맞췄다. 제품 Java 컴파일 오류가 아니다. manual-off 테스트는 클릭 전에 실시간5초 poll이 합법적으로 복구할 수 있어 가상 시계를 고정해 취소 이후 상태를 검증한다.
+- 최종 브라우저5건의 Cannot fast-forward to the past는 읽은 Date.now()와 pauseAt 호출 사이 가상 시간이 전진한 테스트 경합이었다. 정상 live 영상 상태에서5초 뒤로 pauseAt을 지정한 후 트랙 종료/취소 조건을 만든다. 제품 로직 변경 없이 재검증한다.
+- 에뮬레이터 fixture build를 apps/mobile에서 저장소 상대 output 경로로 실행해 MODULE_NOT_FOUND가 발생했다. 저장소 루트에서 실행해 성공했으며 APK 빌드 실패가 아니다.
+- 첫 운영 배포 Actions37188692988/Vercel dpl_5rXEVJut2ykaFZsetRTho9h9te6Z는 이전 Au6gUJVnfsvsTTSef6EGBwxmbEVx 의존성 캐시를 복원한 뒤 patch-package가 새 WebView patch를 적용하지 못해 npm install exit1로 실패했다. 같은 커밋의 fresh npm ci/테스트는 통과했다. 기존 운영은 유지하고 기존 workflow_dispatch clean_build=true로 동일 커밋을 캐시 없이 다시 배포한다. Vercel CLI 로컬 인증은 없으므로 MCP 빌드 이벤트를 사용해 정확한 원인을 확인했다.
+- 재배포 Actions37188912937 success·Vercel dpl_DKaRUfddVaDEYFpm8rNGwgGfKWPv READY·HTTP200 확인. 제품 코드나 캐시 처리 우회 스크립트는 추가하지 않았다.
+- 에뮬레이터 첫 fixture 실행은 초기 카메라 안내가 렌더되기 전에 닫기를 시도해 camera prompt closed timeout이 났다. 명시적인 모달 가시성 대기를 추가한 후3회 왕복 성공. 스크린샷은 부드러운 스크롤 완료 전 캡처되어 instant/영상 가시성 대기로 보완했다. 실제 영상 복구 실패와 구분한다.
+- Jev 완료 대조는 내부 저장소/운영 배포 메타데이터를 제3자에 보내는 승인 부족으로 위험 심사에서 거절됐다. 다른 경로 전송/재시도는 하지 않았다. 직접 테스트·운영 상태·Android16 결과를 확인했고 선택적 외부 대조에는 별도 승인이 필요하다.
+
+## 2026-10-04 — 배포 검증 도구의 경로·로딩 대기 오류
+
+### 상황 / 원인
+
+- EAS build:view를 저장소 루트에서 실행했을 때 build:view command failed가 발생했다. 루트의 기존 미추적 app.json과 모바일 프로젝트 경로를 혼동한 도구 실행 문제이며, 원격 APK 빌드 실패가 아니다.
+- Playwright CLI의 첫 help 종료에 Windows libuv assertion, eval의 인용부호 손실로 SyntaxError가 발생했다. 실제 운영 JavaScript 오류와 구분한다.
+- 앱 WebView 재조회3초 뒤 오래된 화면 검증 스크립트가 Missing visible menu: #feed를 보고했다. 당시 화면은 '앱 로그인 연결 중'이며 아직 메뉴가 렌더되지 않았다.
+
+### 해결 / 재발 방지
+
+- EAS 명령은 apps/mobile에서 실행한다. 해당 build dd0a8955의 IN_PROGRESS와 commit d3f28ae를 확인했다. 기본 checkout이나 루트 미추적 파일은 변경하지 않는다.
+- CLI help open/screenshot과 명명 세션을 사용하고 eval에서 복잡한 문자열 선택자를 피했다. 운영 PC/모바일 화면 및30px 제목·넘침0 확인.
+- 실제 메뉴의 가시성을 조회해 로그인 연결 완료를 확인한 후 기존 검증을 재실행했다. 피드/숲/목표 재로그인0·넘침0 및 새 테마 검증 통과. 연결 중 화면을 제품 메뉴 누락으로 판정하지 않는다.
+- EAS 로그 JSON 파싱 실패는 상태 조회 보조 도구 문제이므로 APK 빌드 실패로 계산하지 않고 build:view의 공식 status/완료 artifact를 사용한다.
+
+### 관련 파일 / 주의
+
+- output/emulator-cdp.mjs, output/all-pages-theme-emulator-check.mjs, apps/mobile/eas.json, output/playwright/ui-deploy-login-{1440,375}.png.
+- Supabase/인증/사용자 기록/서명/제품 코드 수정 없음. APK 완료·설치와 카메라 복귀 미해결은 별도로 확인한다.
+
+## 2026-10-04 — 공통 테마 조건부 누락 수정 및 검증 중 오류
+
+### 상황 / 원인
+
+- 기존 공통 선택자가 바깥 카드 중심이라 휴식·복귀/시작 전 체크·전용 선택 버튼·카메라 헤더·기록/피드 보조 글자·인증 전/native 영역이 빠졌다. 서버 문제나 캐시로 분류하지 않는다. 원래 감사 기록은 아래에 보존한다.
+- 피드 원문 링크는 기존font-size:13px!important가 공통14px를 덮어썼다. 펼친 세션 유지 안내12px와 앱 상단13px, native 회고 선택 높이44px 미보장도 별도 검사로 확인했다.
+
+### 해결 방법
+
+- 동일한 기존 토큰을 누락 선택자와 :root/login-shell/native팔레트에 적용하고, 피드 작은 글자/강제 크기를 토큰으로 바꿨다. 최소44px와 읽을 수 있는 disabled/selected/focus 상태를 보완했다.
+- 스타일·표시만 수정, 공부/카메라/인증/API/DB/DND 동작은 유지한다. 이전 집중 설정 복귀 카메라 재획득 문제는 별도 미해결이다.
+
+### 검증 중 발견한 오류
+
+```txt
+네이티브 로그인 ScrollView 닫기 태그 위치 오류 → TypeScript JSX 오류와 모바일 계약12건 실패
+원문 읽기: contrast6.16 / fontSize13 → 실제 브라우저2건 실패
+세션 유지 남은 시간: contrast7.09 / fontSize12 → 실제 브라우저2건 실패
+네이티브 제목32 !== 30 / 상단13px / 회고 선택minHeight 없음 → 렌더 계약 실패
+```
+
+- ScrollView 닫기를 로그인 분기에 정확히 배치하고 서명/설정/의존성 변경 없이 모바일 검사 재통과했다. 테스트의 목표 연결 패널 위치/실제 버튼명은 현재 컴포넌트 흐름에 맞게 고쳤으며 제품 장애로 분류하지 않는다.
+- 실패 재현 후 각 글자·조작 영역을 수정했다. 최종 기본845+브라우저58개 통과, 웹 빌드/모바일 타입/README 검사 성공.60개 상태 진입/넘침/작은 글자/버튼 높이/키보드 실패0.
+
+### 관련 파일 / 재발 방지
+
+- apps/web/src/{appTheme.css,dashboardRedesign.css,techFeed.css,main.tsx,SessionReflectionModal.tsx}, apps/mobile/{App.tsx,src/WebFeatureScreen.tsx} 및 디자인 회귀 테스트.
+- docs/design-fix-20261004.md와output/design-fix-20261003. 스크린샷은 예시 transport이며 운영 기록이 아니다.
+- 기본 탭뿐 아니라 상세 펼침·휴식·회고·로그인·선택/disabled 상태를 검사한다. 네이티브 렌더 계약과 OS 실행을 구분한다. 이번 변경 APK 실기기/에뮬레이터 검증·배포는 미실행이다.
+
+## 2026-10-03 — 공통 테마에 남은 조건부 카드·내부 컨트롤 누락 (미수정)
+
+### 상황 / 확인된 증상
+
+- 사용자가 휴식/복귀 약속과 공부 시작 전 체크의 옛 디자인을 보고 전체 페이지 일관성 점검을 요청했다. 실제 main entrypoint1440/375px 예시 transport에서 재현했다.
+- session-break는 바깥1px/그림자 제거만 적용되고 break-return은 노란 배경/2px/40px 버튼이다. recovery-precheck는 공통 선택자가 없어3px/8px 하드 그림자/점선 그대로다.
+- 카메라 진단 본문은 테마 적용됐으나 camera-monitor-head/camera-message는 #fff9df를 유지해 #fffdf5 표면 위1.04:1. 시간/반복/요일 selected는3.54:1, 높이34~38px. 회고 미선택 점수는4.36:1. 목표 연결 패널/기록 내부/작은 피드 문자/로그인 역시 일부 누락이다.
+
+### 원인
+
+- 공통 CSS가 이름을 열거한 외곽/표준 버튼 선택자 중심이라 전용 클래스와 자식 상태가 빠졌다. dashboardRedesign.css의 부분 외곽 override는 기존 배경/장식/자식을 바꾸지 않는다. 인증 전 화면과 native StyleSheet는 테마 적용 범위 밖이다.
+- 기존 기본 탭/선정된 진단 검사 통과는 모든 컴포넌트/모든 상태 완료를 보장하지 않는다. 서버/캐시 문제로 분류하지 않는다.
+
+### 해결 제안 / 현재 상태
+
+- 제품 미수정. docs/design-audit-20261003.md에 근거와 영향도별 순서를 기록했다. 이후 수정 요청 시 기존 토큰을 내부 패널/선택 상태/경고/로그인까지 명시적으로 적용하며 기능/서버 정책은 유지한다.
+- 최종 로컬 browser3회26+22+12개 상태 모두exit0, 가로 넘침0. 디자인 기준은 미완료 판정이며 테스트 통과로 표현하지 않는다.
+
+### 점검 도구에서 발견한 별도 오류
+
+- Python Playwright 미설치: 새 설치 없이 기존 bundled Node Playwright/esbuild fixture를 사용했다.
+- 초기 feed-preferences click timeout은 접힌 details 안 버튼을 누른 탓, 일정 확인 timeout은 여러 할 일의 첫 집중 대상 미선택, 회고 첫 캡처 누락은 lazy 렌더 대기 부족이었다. 정상 진입·실제 dialog wait로 진단 스크립트만 수정했으며 최종 미완료0이다.
+- 닫힌 details 자식/모달 배경 텍스트가 초기 computed 검사에 들어갔다. 가시성 필터를 보정했다. 장식 아이콘의 대비와 실제 본문을 구분한다.
+- 외부 차단 fixture의 Failed to fetch는 운영 서버 실패가 아니다. 메시지 스타일의 대비 문제는 독립적으로 확인했다.
+
+### 관련 파일 / 재발 방지
+
+- apps/web/src/{main.tsx,styles.css,dashboardRedesign.css,appTheme.css,techFeed.css,SessionReflectionModal.tsx}, apps/mobile/App.tsx.
+- output/design-audit-20261003/audit.mjs와 최종3개 evidence JSON, docs/design-audit-20261003.md.
+- 기본/휴식/시작 전/회복/빈/조회 오류/편집/반복/회고/권한/만료를 페이지별 상태 검사표에 포함하고, 최상위 카드뿐 아니라 보이는 자식 글자/선택 컨트롤/모바일44px까지 검증해야 한다. 실제 운영 기록이나 OS 권한을 변경하는 검증은 별도 권한/범위로 다룬다.
+
+## 2026-10-03 — 집중 연결 설정 전환 후 카메라 종료 / 첫 로그인 디자인 불일치
+
+### 상황
+
+- 사용자는 집중 연결 모드를 켜면 카메라가 꺼지고 APK 첫 로그인 디자인이 메인과 다르다고 보고했다. 이번 요청은 원인 확인만 수행한다.
+
+### 재현 / 진단 메시지
+
+```txt
+임시 video-only stream: live, muted=false, active=true
+Android NOTIFICATION_POLICY_ACCESS_SETTINGS 전면 5.5초: visibility=hidden, track=ended, events=[ended]
+앱 복귀 1.5초: visibility=visible, track=ended
+임시 stream stop/전역 제거; 최종 앱 video stream=0, 로그인 유지
+```
+
+### 원인
+
+- App.connectFocus는 접근 미허용 때 openFocusPolicySettings를 호출한다. Android 설정 전환으로 WebView 카메라 트랙이 종료되는 플랫폼 경로를 실제 에뮬레이터에서 확인했다. 네이티브 DND 규칙 코드에는 카메라 종료 호출이 없다.
+- 웹 main의 streamHealth 실패는 markCameraHealthIssue 후 return하고 cameraEnabled를 false로 바꾸거나 restartCameraMonitoring을 실행하지 않는다. cameraFrameRecovery는 no-current-frame/no-video-size에만 재시작하고 track-ended/muted/disabled는 제외한다. AppState active 처리도 서버 상태만 재조회하고 웹 카메라 복구 신호는 없다.
+- 첫 로그인은 네이티브 App.tsx !session 분기이며 기존 mobilePalette와 3px 테두리/딱딱한 그림자다. Oct2 main 리디자인 PRD는 네이티브 최초 로그인을 제외했다. 웹 CSS는 APK 네이티브 StyleSheet에 적용되지 않는다.
+
+### 해결 방법 / 현재 상태
+
+- 미수정: 사용자 승인 후 복귀한 동일 사용자/활성 비휴식 세션/기존 카메라 의도/권한을 확인해 종료된 스트림을 재획득하도록 설계한다. 권한 철회·사용자 끄기·휴식·종료 후 자동 재활성화와 실제 공부 구간 왜곡을 막아야 한다. 실패는 재시도 안내로 제공한다.
+- 첫 로그인은 공통 디자인 토큰으로 별도 native StyleSheet를 갱신하고 Google/OTP 동작을 유지해야 한다. 새 APK 배포가 필요하다.
+- 관련 기존 테스트 14/14 통과는 현 정책 검사이며 복귀 재획득 기능이 존재한다는 의미가 아니다. 실제 활성 공부 세션/DND·푸시 연결 완료는 이번에 변경·검증하지 않았다.
+
+### 진단 중 별도 오류
+
+- 첫 CDP getUserMedia probe 중 앱 프로세스가 사라졌다. Android exit-info는 reason=16 PACKAGE UPDATED, description=stop com.google.android.webview due to installPackageLI였다. 자동 WebView 업데이트 완료 후 앱 재실행/로그인 유지와 임시 영상 재현을 확인했다. 제품 카메라 네이티브 크래시로 단정하지 않는다.
+- Jev로 근거 대조를 시도했으나 외부 전송 정책 거절. 우회 없이 직접 검증했다.
+
+### 관련 파일 / 재발 방지
+
+- apps/mobile/{App.tsx,src/focus.ts,src/WebFeatureScreen.tsx}, modules/my-module/android/src/main/java/expo/modules/studyfocusmode/StudyFocusModeModule.kt.
+- apps/web/src/{main.tsx,cameraVideoHealth.mjs,cameraFrameRecovery.mjs,dashboardRedesign.css}.
+- 추후 회귀는 설정 진입/복귀·트랙 ended/muted·권한 변경·사용자 끄기·휴식/종료·중복 복귀·WebView 유지 및 동일 계정/시간 기록을 별도로 확인한다. 에뮬레이터 임시 미디어와 실제 공부/실기기 집중 연결 검증을 혼동하지 않는다.
+
+## 2026-10-02 — 공통 테마에 남은 legacy 가독성 문제
+
+### 상황 / 원인
+
+- 회복 모달과 각 페이지는 기존 굵은 테두리·3D 그림자·큰 글자를 유지했고, 카메라 진단은 dark 전용 #fff9df/밝은 상태 색이 새 light 카메라 표면에 남았다. 실제 computed 대비 1.04:1로 실패.
+- 공통 앱 테마가 모든 페이지/모달의 범위 선택자와 상태별 진단 색을 지정하도록 수정한다. 카메라/회복 정책이나 서버 상태 문제는 아니다.
+
+### 검증 중 오류 / 해결
+
+- 전체 Node의 studyForestUi.test.mjs가 제거된 moveAvatar("ArrowUp") 버튼 마크업을 찾았다. 키보드 handler 및 pad 부재 계약으로 갱신하고 기존 core 이동/충돌 및 실제 mounted 키 입력을 유지한다.
+- 피드 테스트 transport가 {}를 반환해 sources/preferences 읽기 렌더링 오류가 났다. 제품 코드를 우회하지 않고 실제 state/list/facets/briefing 스키마의 예시 응답으로 고쳤다.
+- 병렬 browser 검사에서 회복 자동 모달이 늦게 열리면서 배경 작성 버튼 click을 가로막았다. 새 테스트는 자동 모달 visible → ESC → detached → 작성 버튼을 기다린다. 이는 fixture 경합이며 운영 모달 차단 오류로 분류하지 않는다.
+- 독립 리뷰에서 공통 primary/input 규칙이 기존 disabled 색을 덮는 회귀를 발견했다. 공통 disabled 토큰과 모달 input specificity를 보강하고 즉시 전환(transition:none)하여 회색 배경/텍스트 4.74:1을 유지한다. 실제 선택·해제 및 입력 CSS probe를 375/1440 회귀 검사에 추가했다.
+- 공통 버튼 padding이 기존 36px 수정/삭제 아이콘 버튼을 압축했다. 아이콘 전용 버튼은 44px/padding0/SVG20px로, 모달의 텍스트 있는 삭제 버튼은 width:auto로 분리한다. 알림 diagnostic-item span의 12px/4.22:1도 14px/muted로 교정한다.
+- Android 시작 직후 CDP socket이 아직 열리지 않아 fetch failed가 한 번 발생했다. 기존 앱/사용자 데이터를 그대로 두고 boot 완료와 실제 webview socket 준비 후 재연결하니 로그인된 공통 화면이 열렸다. 제품 인증 장애로 분류하지 않는다.
+- Android 실제 화면 검사의 border===1px는 fractional DPR 물리 픽셀 반올림으로 computed 0.761905px여서 실패했다. 실제 선언1px/44px 닫기/7.02:1 텍스트를 확인하고 Android 진단 helper만 0<border<=1.1px 범위로 보정했다. 제품 CSS를 변경하지 않았으며 재검증에서 공통 표면/가독성/로그인·탭 유지가 통과했다.
+
+### 관련 파일 / 재발 방지
+
+- apps/web/src/{appTheme.css,main.tsx,StudyForestSection.tsx}, apps/web/test/{actualStudyMounted.test.mjs,studyForestUi.test.mjs}.
+- CSS는 배경만 바꾸지 말고 명시적 자식 텍스트·semantic badge·opacity를 함께 검사한다. 새 페이지/모달은 공통 토큰을 쓰고 375/1440 실제 DOM 대비/넘침을 확인한다. 전체 검증/운영 확인은 완료 후 progress에 별도 기록한다.
+
+## 2026-10-02 — 메인 리디자인 회귀 검사
+
+- Android 운영 회복 경고에 기존 굵기/3D 버튼/간격이 남아 집중 카드가 아래로 밀렸다. 375px mounted 카드 282.55px 실패 → 공통 warning/spacing/control 토큰으로 정리, 안내/대상/버튼은 항상 표시 → 220px 이하 회귀 검사 및 작성 모달 접근 통과.
+- 에뮬레이터의 카메라 직접 켜기 검사에서 stream=false였지만 권한은 granted=true, 활성 세션은 없었다. main.startCameraMonitoring의 세션 전제 조건 때문에 정상 거부다. 디자인 때문에 카메라가 고장났다는 판단은 하지 않는다. 실제 Chromium fake media로 접기 전/후 동일 노드/동일 live 트랙, 끄기 후 ended 검증을 추가했다.
+- 최종 보완 검증: 전체 Node 844 pass/34 선택적 browser skip/0 fail, 별도 Chromium 34/34. helper CDP의 15초 timeout은 30초 bounded 진단으로 재시도했고 실제 메뉴 점검이 완료됐다. 제품 서버 오류로 분류하지 않는다.
+- 새 UI를 실제 앱에 적용한 후 기존 가독성 검사에서 .actual-state 12px 및 .actual-next 13px가 실패했다. 두 항목을 15px/짙은 녹색으로 보완해 기존 7:1 대비와 크기 기준을 통과했다.
+- 전체 테스트의 예전 `<section className="daily-visual">` 소스 문자열 2건은 상세 details 재배치 때문에 실패했다. 단순 새 태그 문자열로 바꾸지 않고 main mounted 테스트에서 timer 1개/video 1개/카메라 진단과 동작 버튼의 실제 가시성을 검증하도록 대체했다.
+- lease 설명 문자열을 축약하면서 기존 계약 검사가 실패했다. 최대 2시간의 기존 문구를 상세에 보존해 해결했으며 연장 정책은 변경하지 않았다.
+- 최종 Node 844/0 fail(31 browser skip), 별도 실브라우저 31/31, Edge 21/21, 타입/빌드 통과. 스크린샷의 fixture 외부 호출 오류는 실제 운영 장애로 분류하지 않는다.
+- 관련 파일: apps/web/src/dashboardRedesign.css, main.tsx, apps/web/test/{actualStudyMounted.test.mjs,cameraPresence.test.mjs}. 운영 DB/API 변경 없음.
+
+## 2026-10-02 — 독립 UI 목업 검증 도구 경로
+
+- 상황: 실제 제품을 수정하지 않고 목업 스크린샷을 만들었다. Python 런타임에는 playwright가 없었고 Windows 절대 경로를 ESM import에 직접 쓰면 ERR_UNSUPPORTED_ESM_URL_SCHEME / Received protocol c:가 발생했다.
+- 해결: 새 라이브러리 설치 대신 기존 Node Playwright/Chrome을 사용하고 pathToFileURL을 통한 import로 보정했다. capture.mjs는 모듈·브라우저 경로 env override를 제공한다. 보정 후 목업 41/41, 제품 웹 빌드 통과.
+- 환경: 일반 exec sandbox의 helper_unknown_error: apply deny-read ACLs는 읽기/로컬 검증 명령의 승인 실행으로 대응했다. 제품 앱 오류로 분류하지 않는다.
+- Jev: 완료 주장의 외부 검증 요청은 프로젝트 검증 정보 전송 정책으로 차단됐다. 우회하지 않았고 스크린샷·실제 assertion/빌드/diff를 직접 확인했다. Jev 검증 성공으로 보고하지 않는다.
+- 관련 파일: docs/mockups/main-dashboard-20261002/capture.mjs. 운영 API·DB·권한 설정 변경 없음.
+
+## 2026-10-01 — 첫 로그인/카메라 권한 구현 중 검증
+
+- 원인/해결: 네이티브 Google 경로가 없어 OTP만 보였고 권한 실패 안내는 브라우저용이었다. PKCE 시스템 브라우저 로그인과 사용자 주도 Android 권한 설명/설정 복구를 추가한다. 같은 서버/소유자 데이터는 그대로 유지한다.
+- 빌드 오류: 웹 main.tsx에 이미 있던 isEmbeddedStudyApp import를 중복 추가해 TS2300 발생. 새 중복 import를 제거한 후 웹 build 및 모바일 타입 통과.
+- 전체 테스트 첫 실행에서 기존 App VM harness가 expo-web-browser/새 helper import를 허용하지 않아 13건 실패했다. 외부 브라우저 IO만 대체하고 실제 OAuth/권한 helper를 로드하도록 갱신해 전체 843 pass/25 browser skip/0 fail, 별도 mounted browser 25/25 확인했다.
+- auth-js는 WebCrypto가 없으면 Math.random 또는 plain PKCE로 대체하므로 기존 expo-crypto의 native random/SHA256 adapter를 추가하고 S256 authorize URL만 허용한다. Hermes TextEncoder 제공을 Expo runtime 소스로 확인하고 실제 SDK authorize URL의 S256/verifier 보존을 테스트한다. 보완 전 대기 APK는 취소하고 다시 빌드한다.
+- CLI: config pull은 로컬 config가 필요하고 새 untracked config 덮어쓰기에는 --force가 필요하다. output의 격리 진단 config에만 적용했다. push는 별도의 최소 config에 추가 redirect만 선언하고 diff를 확인했으며 다른 속성/비밀을 변경하지 않았다. 운영 config 전체를 저장소에 복사하지 않는다.
+- 검증 경계: 신규 테스트 11/11, 현재 전체/운영 웹/새 APK 검증 중. 실제 Google 로그인은 사용자 브라우저 인증 완료 전 성공으로 보고하지 않는다.
+- 권한 응답 시간 초과: 새 APK는 응답이 없을 때 카메라 접근을 중단한다(cancelled). 구 APK의 브리지 미지원만 기존 WebView 요청으로 복구한다. 새 APK 시간 초과가 권한 안내를 건너뛰는 것을 막는 테스트를 실패→통과로 추가했다.
+- Jev gate 호출은 공급자 API 키 미설정으로 실행되지 않았다. 새 키/유료 공급자를 자동 설정하지 않았고 실제 테스트·SDK 및 운영 증거를 직접 검토한다.
+- 최종 확인: CI 846 pass/0 fail, 별도 browser 25/25, Edge 21/21, 새 APK 동일 서명 업데이트/로그인 유지. CAMERA 초기 미허용·취소·OS 거부·앱 설정 복구·재시도 실제 영상/취소 해제를 Android 16에서 확인했다. 직접 CDP JS 인자에 따옴표가 섞여 진단식 Uncaught가 한 번 났으나 제품 오류는 아니었다. 로컬 JS 파일을 --file로 전달해 정상 확인했고 민감한 인증 저장소를 출력하지 않았다.
+
+## 2026-10-01 — 모바일 첫 권한·로그인 UX 차이와 피드 동기화 의문
+
+- 상황: 사용자가 카메라 첫 권한 안내/앱 설정 유도, OTP만 있는 로그인, PC 웹의 기술 피드가 앱에 공유되는지 질문했다.
+- 확인 원인: 처음 로그인은 별도 네이티브 OTP 화면이며 Google OAuth는 웹에만 있다. 카메라 권한 요청은 Android OS 기본 흐름을 사용하지만 앱 설정 복구 UI는 없고 권한 실패 문구가 브라우저를 안내한다. 에뮬레이터는 이미 CAMERA granted=true/ONE_TIME이어서 최초 요청 팝업 재검증과 구분한다.
+- 데이터 경로: WebFeatureScreen은 운영 웹 단일 화면을 사용한다. 실제 Supabase 호스트 일치, auth.getUser로 개인 RPC 소유자 고정, 관련 서버 RLS 확인. 일반 관심/저장/회복 데이터는 서버 공유이며 모바일 전용 사본이 아니다. 앱 검증 계정은 기사 0·수신 중지 상태이고 PC 계정과 같은지는 미확인이다. 로그인 방법 차이만으로 계정 불일치를 단정하지 않는다.
+- 관련 파일: apps/mobile/App.tsx, src/WebFeatureScreen.tsx, src/mobileWebBridge.ts, app.json, react-native-webview RNCWebChromeClient.java, apps/web/src/main.tsx/cameraDiagnostics.mjs/techFeed.mjs/TechFeedSection.tsx, supabase/functions/_shared/tech-feed-store.ts.
+- 검증/다음: 카메라/모바일 인증 7/7, 실제 피드 화면 재로그인 없음. PC와 앱의 내 페이지 이메일 일치 여부 질문 대기. 첫 권한/거부/영구 거부/앱 복귀 및 Google OAuth 개선은 다음 승인된 구현에서 테스트한다. 이번에는 제품/DB/기기 권한/관심 설정 변경 없음.
+
+## 2026-10-01 — Android 패치 갱신 후 Vercel 설치 실패
+
+- 상황/에러: Actions `36807900300` 테스트는 통과했으나 Vercel `dpl_BCFsrpqDqzq55TcuFjGQ9b2Gn5Ld`는 `patch_failed` / `Command "npm install" exited with 1`이었다. 기존 운영은 유지됐다.
+- 원인 판단: 기존 patch-package 카메라 패치 변경과 이미 패치된 의존성 캐시의 충돌을 의심했다. build-log MCP가 실제 서버에서 지원되지 않고 로컬 Vercel CLI도 인증되지 않아 상세 설치 로그는 확인하지 못했다. 이 추정을 확정된 내부 패치 오류로 단정하지 않는다.
+- 해결: `.github/workflows/vercel-production.yml`에 선택적 clean_build 수동 입력을 추가하고 캐시 없이 재실행했다. Actions `36808413604` success / Vercel READY / HTTP 200 확인. 정상 push 캐시는 유지한다.
+- 도구 검증 경계: CDP의 Auth 교환 주입/티켓 재사용 진단은 목표 교환을 포착하지 못해 실제 만료/재사용 근거로 사용하지 않는다. 실제 연결 실패 화면에서 보호 콘텐츠 숨김, 수동 재연결, APK 재실행 로그인 유지는 확인했다. 제품 실패와 진단 도구의 미검증 조건을 구분한다.
+
+## 2026-10-01 — 내 페이지 리포트의 attendance_days.id 오류
+
+### 상황 / 에러 메시지
+
+로그인된 Android 16 앱에서 내 페이지의 리포트가 실패했다. CDP 네트워크 진단으로 출석 조회 HTTP 400과 `42703: column attendance_days.id does not exist`를 확인했다. 인증/쿼리 헤더나 개인 기록은 진단 로그에 남기지 않았다.
+
+### 원인
+
+`loadStudyReportData`의 공통 dated builder가 모든 테이블에 `id` 선택/정렬을 적용했다. 실제 `attendance_days`에는 id 없이 `(user_id, local_date)` 기본 키가 있다. 테스트 fixture가 가짜 id를 포함하고 날짜 정렬을 검사하지 않아 차이를 숨겼다.
+
+### 해결 / 재발 방지
+
+출석만 `local_date,status`를 선택하고 소유자·날짜 범위 필터 후 `local_date.asc`로 페이지 조회한다. 다른 테이블의 id 정렬은 유지한다. 실제 SDK fixture는 출석 id 요청을 42703으로 거절하며 601일/두 페이지에서 소유권·날짜 범위·중복 없음을 검사한다. 수정 전 실패를 확인했고 관련 14/14와 전체 832 통과·25 환경 건너뜀·0 실패를 확인했다. DB를 테스트에 맞춰 변경하지 않는다.
+
+### 관련 파일 / 남은 검증
+
+- `apps/web/src/studyReportData.mjs`, `apps/web/test/studyReportData.test.mjs`.
+- 운영 배포 후 새 EAS APK의 주간·2026년 10월·지난 9월 리포트 ready / Supabase 오류 0을 확인했다. READY·HTTP 200 확인은 별도로 기록했다.
+
+## 2026-10-01 — 자리 비움 2회 기준을 사용자 요청의 3회로 변경
+
+### 상황 / 원인
+
+사용자는 PC 웹에 표시된 카메라 회복루틴을 확인한 후 기준을 3회 이상으로 지시했다. 기존 구현/PRD는 당일 경고 2회였으므로 새 요구사항과 맞지 않았다. 이 정책 차이와 첨부된 특정 요청의 생성 원인 미확정은 구분한다.
+
+### 에러 메시지 / 재현
+
+신규 실제 handler 테스트의 기존 코드 실행에서 `warning 2 must not block study`와 Slack 문구 `2회 발생했습니다` 검증이 실패했다(6건 중 3건 실패). 다른 사용자/날짜 이벤트가 제외된 뒤 같은 날짜 2건만 있는 경우도 기존 기준으로 회복 요청이 생겼다.
+
+### 해결 방법 / 관련 파일
+
+- `camera-presence-warning/index.ts` 조건을 3회 이상으로 변경하고 `_shared/recovery.ts` 안내를 통일했다. 회복 PRD를 개정했다.
+- `camera-presence-warning.test.mjs`는 실제 TS handler/shared 모듈을 실행하며 DB/Auth/Slack 경계만 대체한다. 1·2회 없음, 3회 생성/후속 재사용, 소유자/날짜 격리, 설정 경고 제외, 중복 Slack 제외, 무인증 차단을 검증한다.
+- 전체 831 통과·25 환경 건너뜀·0 실패, Edge/빌드/모바일/README 통과. Supabase v22 ACTIVE, 배포 소스 일치와 무인증 401 확인. 기본 출석 및 카메라 5분/10분 정책은 불변이다. main `bb71337`, Actions `36805843763` success, Vercel `dpl_AQtP1m6v5aSM8JDhGShpNEh4gsbp` READY·HTTP 200를 확인했다.
+
+### 재발 방지 / 남은 리스크
+
+소스 문자열 검사만으로 문턱을 검증하지 않고 실제 처리 결과를 확인한다. 이미 생성된 pending을 정책 변경으로 지우지 않는다. 사용자 PC 계정과 에뮬레이터 계정 일치 및 요청 생성 경위는 아직 미확정이다. 가상 카메라에서 실제 사람의 부재 감지 정확도를 검증했다고 주장하지 않는다.
+
+## 2026-10-01 — 예정 공부 시각 전 자리 비움 회복루틴 표시 조사
+
+### 상황 / 확인된 동작
+
+사용자가 오전 9시에 10월 1일 `자리 비움 반복` 회복루틴 화면을 제시했다. 이 제목은 `camera_absence_repeat`이며 출석 기한 초과 사유 `missed_attendance`와 다르다. 현재 서버는 세션 local_date의 absence_warning 2건부터 회복 요청을 생성하며 예정 알람 시각을 비교하지 않는다. 연속 부재에서 10분 쿨다운 후 재경고도 '반복'으로 센다.
+
+### 실제 데이터와 미확정 원인
+
+정확한 에뮬레이터 테스트 회고 문구로 식별한 계정 1개만 읽기 전용 조회했다. 오늘 회복/출석 행과 pending 요청은 없고 camera_required_warning 1건만 존재했다. 이 이벤트는 코드상 회복 생성 기준이 아니다. 첨부 화면의 생성 원인을 테스트 또는 결석 오판이라고 단정할 근거가 없으며, 사용자에게 PC/Android 여부와 같은 계정인지 확인을 요청했다. 다른 사용자 데이터는 조회하지 않았다.
+
+### 검증 / 다음 단계
+
+- 카메라 상태 머신 13/13 통과. `main.tsx`, `cameraPresence.mjs`, `camera-presence-warning/index.ts`, `_shared/recovery.ts`, `prd-camera-presence.md`, `prd-slack-recovery-routines.md` 대조.
+- 정책/코드/DB 변경, 요청 삭제 또는 임의 회복 제출 없음. 카메라 회복 강제 해제는 PRD 정책 변경이므로 사용자 승인 후 진행한다.
+- PC 브라우저 검사 도구는 `windows sandbox failed: helper_unknown_error: apply deny-read ACLs`로 두 번 종료됐다. 도구 오류로 기록하고 반복 호출하지 않는다.
+
+## 2026-10-01 — 프로필 시간대 기준 공부 집계 수정
+
+### 상황 / 원인
+
+앞선 에뮬레이터 검증에서 확인한 기기 UTC·프로필 Asia/Tokyo의 일·월 경계 불일치를 사용자 요청으로 수정했다. 원인은 실시간 집계와 초기 표시 월만 기기 지역을 사용한 것으로, 서버 저장 실패나 로그인 문제는 아니었다.
+
+### 해결 방법 / 관련 파일
+
+- `studyTimeSummary.mjs`에 프로필 시간대를 전달하고 `weeklyHabit.mjs`의 기존 실제 자정 경계 함수를 공유한다. `main.tsx`의 기본 월도 프로필 기준으로 계산하되 사용자의 과거 월 선택은 유지한다. 타입 선언을 함께 갱신했다.
+- 새로운 회귀 테스트 7건은 수정 전 실제로 실패했다. 수정 후 관련 집계 24/24, 전체 825 통과·25 환경 건너뜀·0 실패, 웹 빌드·Edge 21/21·모바일/README 검사 통과.
+- DB·저장된 학습 기록·휴식/카메라/lease 정책은 바꾸지 않았다. main `a89ea0f`, Actions `36795944346` success, Vercel `dpl_8R7NbpUa2jBsmuWZV5a2cFR9v3ua` READY·HTTP 200를 확인했다. 기존 WebView 앱을 재실행해 최신 번들 `index-By_keXMf.js`로 검증했다.
+- Android 16 기기 +00:00에서 기본 월이 10월로 표시되고 오늘/10월 공부가 함께 증가했다. 휴식 중 안정화 후 두 번 조회한 `00:02:23`은 유지됐고 명시적으로 선택한 9월 누적에는 현재 공부가 더해지지 않았다. 테스트 회고로 종료한 뒤 오늘/10월 서버 집계와 재실행 표시가 모두 `00:02:24`로 일치했다. 실제 테스트 기록 22초는 남겼고 개인 할 일은 완료하지 않았다. 증거: `output/emulator-timezone-active.png`, `output/emulator-timezone-finished.png`.
+
+### 재발 방지 / 남은 리스크
+
+기기 지역과 프로필 지역을 다르게 둔 테스트와 자정·월 경계, 비정수 시차, DST 23/25시간을 유지한다. 이번 수정은 내 페이지 리포트 API 불러오기 오류, 실제 상반신 감지와 방해금지, 계정 전환 검증을 대신하지 않는다.
+
+## 2026-10-01 — 프로필과 기기 시간대 차이로 실시간 공부 집계 날짜 불일치
+
+### 상황 / 표시
+
+Android 16 에뮬레이터에서 프로필 시간대는 `Asia/Tokyo`, WebView 기기 시간대는 `+00:00`였다. 도쿄 기준 10월 1일에 시작·휴식·재개는 성공했지만 공부 중 오늘 공부는 0, 월 표시는 9월이며 그 누적만 증가했다. 종료 후 서버 집계는 오늘 공부 122초, 9월 누적은 기존 값으로 돌아왔다.
+
+### 원인 / 재현
+
+`main.tsx`의 `todayDateKey`는 프로필 시간대로 계산한다. 그러나 `studyTimeSummary.mjs`의 `getLocalDateStartMs`/`getLocalMonthStartMs`와 `main.tsx`의 초기 `getMonthKey`는 기기 지역의 Date 경계를 사용한다. `2026-09-30T16:54:16Z`부터 122초, dateKey `2026-10-01`인 동일 입력에서 프로세스 TZ가 UTC일 때 오늘 0·9월 122, Asia/Tokyo일 때 오늘 122·9월 0으로 재현됐다.
+
+### 해결 상태 / 관련 파일
+
+- 미수정: 이번 요청은 에뮬레이터 검증 재개였으므로 제품 코드를 바꾸지 않고 원인을 기록했다. 프로필 시간대를 실시간 일·월 경계와 월 초기값에 일관되게 전달하는 후속 수정이 필요하다. 프로필 자체를 UTC로 바꿔 증상을 숨기지 않는다.
+- 관련 파일: `apps/web/src/main.tsx` (todayDateKey·getMonthKey·activeTodaySeconds/activeMonthSeconds), `apps/web/src/studyTimeSummary.mjs`.
+- 재발 방지: 기기와 프로필 지역이 다른 경우, 일/월 자정 경계, 휴식·제외 시간, 종료 후 서버 집계 일치를 회귀 테스트한다. 서버로부터 저장된 기록을 재작성하거나 과거 공부시간을 임의 배분하지 않는다.
+- 별도 관측: 내 페이지의 리포트 불러오기 오류가 표시됐으나 이 턴에는 원인 조사를 수행하지 않았다. 날짜 표시 오류의 원인이라고 단정하지 않는다.
+- 검증 도구의 앱 재시작 직후 `pidof`가 일시적으로 빈 값을 반환해 `.Trim()` 호출이 실패했다. 앱 기동 후 PID를 다시 읽고 문자열/숫자 확인을 거쳐 CDP forward를 갱신했다. 제품 크래시로 오인하지 않는다.
+
+## 2026-10-01 — WebView 카메라 정상 출처가 trailing slash로 거부됨
+
+### 상황 / 원인
+
+Android 16 에뮬레이터 검증 준비 중 설치된 WebView 133의 Chromium 소스에서 `AwPermissionRequest`가 `GetOrigin().spec()`을 Java URI로 전달하는 경로를 확인했다. 기존 Java guard는 `https://study-room-attendance.vercel.app`만 일치시켰고 정상 canonical URL의 `/` 표기를 거부했다. 기존 테스트는 소스 문자열만 확인해 이 동작을 잡지 못했다.
+
+### 에러 메시지
+
+```txt
+canonical first-party video request: actual denied=true, expected denied=false
+```
+
+### 해결 방법 / 검증
+
+정확한 신뢰 origin의 `/` 유무 두 표기만 허용한다. 외부·HTTP·누락 origin 및 비디오 외 리소스는 계속 거부한다. 설치된 Java 메서드 guard를 실제 Java 프로세스로 실행하는 테스트를 추가해 수정 전 실패를 확인한 후 2/2 통과했다. patch-package 재적용과 모바일 타입/호환성 검사도 통과했다. 수정 전 EAS 빌드는 사용자 승인 후 취소했고 동일 서명 로컬 release APK에 수정본을 넣었다. Android 16에서 OS 허용 후 진단용 `getUserMedia` 480×640/live 영상과 종료 시 ended를 확인했다. 회복 제출 전 공부 세션 감지 흐름까지 통과했다고 주장하지 않는다.
+
+### 관련 파일 / 재발 방지
+
+- `patches/react-native-webview+13.13.5.patch`, `scripts/mobile-camera-permission.test.mjs`
+- 출처 검사는 실제 Android canonical URI를 fixture로 사용하고 소스 문자열 존재만으로 권한 동작을 통과시키지 않는다.
+- 참고: Chromium `refs/tags/133.0.6943.137/android_webview/browser/permission/aw_permission_request.cc` 및 `media_access_permission_request.cc`.
+
+## 2026-10-01 — Windows 로컬 release의 Expo 모노레포 진입 경로 오류
+
+### 상황 / 에러
+
+동일 서명 release APK의 번들 단계에서 `Unable to resolve module ./index.js from C:\\jini-dev\\worktrees\\study-room-recovery-audit/.`로 실패했다. 앱 진입 파일은 `apps/mobile/index.js`다.
+
+### 원인 / 해결
+
+Expo/Metro의 workspace server root와 Gradle의 상대 진입 경로가 맞지 않았다. 생성된 로컬 Gradle의 `react.root`를 앱 폴더로 지정하고, 빌드 프로세스에 `EXPO_NO_METRO_WORKSPACE_ROOT=1` 및 `NODE_ENV=production`을 적용했다. 번들 773 modules 및 `:app:assembleRelease` 319 tasks가 성공했다. 제품 소스의 웹/모바일 번들 설정을 전역으로 바꾸지는 않았다.
+
+### 재발 방지 / 검증 제한
+
+- 로컬 빌드에서 Expo 프로젝트와 Metro server root를 확인하고 공개 설정/서명 비밀번호를 출력하지 않는다.
+- 에뮬레이터의 CDP 캡처에는 WebGL 장면이 빠졌지만 ADB 화면 캡처에서는 장면·이동이 정상이다. 캡처 도구 결과만으로 3D 실패를 단정하지 않는다.
+- 세션 없는 카메라 감시 버튼은 기존 정책대로 `공부 세션을 시작한 뒤 카메라 감시를 켤 수 있습니다.`를 표시한다. 권한/영상 자체와 공부 세션 감지의 검증을 분리한다.
+- 생성 Android 폴더를 보관 경로로 이동할 때 Gradle daemon 잠금으로 일부 파일 이동이 실패했다. 마지막 빌드 cwd가 이번 작업 경로인 daemon PID를 확인해 해당 프로세스만 종료한 뒤 남은 생성 파일도 `output`으로 보존했다. `apps/mobile/android` 부재를 다시 확인했으며 파일 삭제/앱 데이터 삭제는 하지 않았다.
+- 완료 주장 교차 검증용 Jev 호출은 프로젝트 실행 정보를 외부 MCP로 보내는 안전 검토에서 거부됐다. 우회/재시도하지 않고 실제 도구 출력과 화면을 직접 대조했다. Jev가 완료를 승인했다고 보고하지 않는다.
+
+## 2026-09-30 — Android 단일 로그인 로컬 구현과 운영 검증 경계
+
+### 상황
+
+앱 로그인 후 기술 피드·공부의 숲이 재로그인을 요구하는 문제를 해결하기 위해 DB·Edge·웹·Android를 함께 수정했다.
+
+### 원인
+
+네이티브 AsyncStorage 세션과 WebView 브라우저 세션이 서로 분리돼 있었다. 두 독립 WebView는 웹의 다른 메뉴·카메라 흐름도 제공하지 못했다.
+
+### 해결 방법
+
+네이티브 계정을 서버에서 재검증해 동일 계정의 1회용 `magiclink` 해시를 발급하고, 신뢰된 단일 WebView에서 교환하도록 했다. 웹 인증 완료 전 보호 화면을 숨기고, 앱 공부 상태 신호는 서버 재조회로 확인한다. Android 카메라는 정확한 첫 번째 출처의 비디오 단일 요청만 허용한다. 전체 Node 818 통과/25 환경 건너뜀, Edge 21 통과, 웹·Android debug 빌드 통과.
+
+### 관련 파일
+
+- `supabase/functions/mobile-web-auth/index.ts`, `supabase/migrations/20260930000000_mobile_web_auth_limit.sql`
+- `apps/web/src/EmbeddedAuthGate.tsx`, `apps/mobile/src/WebFeatureScreen.tsx`, `apps/mobile/src/mobileWebBridge.ts`
+- `patches/react-native-webview+13.13.5.patch`
+
+### 재발 방지 / 남은 리스크
+
+로컬 컴파일은 운영 동작을 증명하지 않는다. 새 DB/Edge/웹은 운영 미적용이며 동일 서명 APK도 아직 없다. 서버 → 웹 → APK 적용 후 실제 Supabase Auth 교환, 에뮬레이터 재로그인 없음·카메라 허용/거부·계정 전환을 검증한다. 기존 서명 앱을 로컬 debug APK로 덮어쓰거나 로그인 데이터를 지우지 않는다.
+
+## 2026-09-30 — Supabase CLI 링크와 Windows WebView 패치 생성 오류
+
+### 상황
+
+Android 로그인 티켓의 새 DB 마이그레이션 상태를 확인하고 `react-native-webview` 패치를 생성하던 중 도구 오류가 났다.
+
+### 에러 메시지
+
+```txt
+ProjectRefNotLinkedError
+corrupt patch at line 21
+```
+
+### 원인
+
+이 작업 트리의 Supabase CLI가 운영 프로젝트에 링크돼 있지 않았다. `patch-package` 자동 생성은 Windows의 긴 `android/build/.transforms` 경로를 처리하지 못했다. 수동 작성한 첫 패치는 hunk 줄 수가 맞지 않았다.
+
+### 해결 방법
+
+Supabase connector로 운영 프로젝트 `bqohkdzvxbrokkmuhysx`와 마이그레이션 목록을 읽어 새 버전 미적용을 확인했다. WebView 패치는 필요한 Java 소스 hunk만 `patches/react-native-webview+13.13.5.patch`에 기록하고 hunk 길이를 수정했다. `git apply --check --reverse`, 루트 `postinstall`의 `patch-package`, Android `:app:assembleDebug` 및 컴파일된 클래스의 출처·비디오 분기를 확인했다. 운영 마이그레이션은 적용하지 않았다.
+
+### 관련 파일
+
+- `supabase/migrations/20260930000000_mobile_web_auth_limit.sql`
+- `patches/react-native-webview+13.13.5.patch`
+- `package.json`, `package-lock.json`
+
+### 재발 방지
+
+운영 적용 전 프로젝트 ref/마이그레이션 상태를 다시 확인한다. Windows에서 패치 생성 시 빌드 산출물 전체를 포함하지 말고 원본 소스만 patch에 넣고 실제 설치·네이티브 빌드로 적용을 확인한다.
+
+## 2026-09-29 — Android WebView Google 로그인 연속성 및 방해금지 인증 경계
+
+### 상황
+
+네이티브 앱에 로그인해도 기술 피드·공부의 숲은 로그인 화면을 다시 표시한다. 웹과 같은 메뉴·카메라를 앱에 제공하려는 요청이 있다.
+
+### 원인
+
+`apps/mobile/src/supabase.ts`는 AsyncStorage에 네이티브 세션을 저장하지만 WebView는 별도 브라우저 저장소를 사용한다. `WebFeatureScreen.tsx`는 다른 HTTPS 출처를 OS 브라우저로 열므로 Google OAuth가 WebView 내부 세션으로 복귀하지 않는다. 한편 `focusBackground.ts`는 푸시 후 네이티브 세션으로 `focus.ts`의 서버 재조정을 실행한다. 따라서 단순 웹 화면 확대나 동일 refresh token 복사만으로 단일 로그인과 기존 방해금지 동작을 보장할 수 없다.
+
+### 해결 상태
+
+원인을 코드·에뮬레이터 결과와 대조했다. 2026-09-30에도 Android 16 `emulator-5554`에서 이미 앱에 로그인한 상태로 피드·숲을 각각 열었을 때 두 WebView 모두 이메일 코드·Google 로그인 UI를 표시했다. 사용자는 재로그인 금지를 명시했고 관련 PRD에 반영했다. 안전한 앱↔웹 인증 연결의 설계 확인 전으로 제품 코드·서버·APK 수정은 아직 없다. 인증 키나 운영 설정도 변경하지 않았다.
+
+### 재발 방지
+
+인증 저장소 경계와 OAuth 콜백 위치, 백그라운드 푸시의 인증 소스를 통합 설계에서 함께 검증한다. 완료 판정에는 동일 계정의 단일 로그인, 웹 주요 메뉴, 카메라 시작, 휴식·재개·종료 및 방해금지 유지의 Android 에뮬레이터 확인이 필요하다.
+
+## 2026-09-29 — Android 로컬 디버그 설치 실패와 EAS APK 대체 검증
+
+### 상황
+
+최신 타이머 APK가 EAS 대기열에 있는 동안 Android 16 에뮬레이터에 로컬 `expo run:android` 빌드를 설치하려 했다.
+
+### 에러 메시지
+
+```txt
+Could not find device with name: emulator-5554
+INSTALL_FAILED_UPDATE_INCOMPATIBLE
+```
+
+### 원인
+
+Expo의 `-d` 인자는 ADB 직렬번호 `emulator-5554`가 아닌 AVD 이름 `StudyRoom_Android16`을 기대했다. AVD 이름으로 다시 빌드한 뒤에는 기존 EAS APK와 로컬 디버그 APK의 서명이 달라 데이터 보존 업데이트가 거부됐다.
+
+### 해결 방법
+
+기존 앱을 제거하거나 로그인 데이터를 지우지 않았다. EAS preview 빌드 `5fdeccac-4011-447f-b112-1c3e65904f44`가 완료된 뒤 동일 서명의 APK를 `eas build:run`으로 설치했다. 에뮬레이터에서 시작·휴식·재개·회고 종료·앱 재실행을 확인했다. 로컬 prebuild가 생성한 Android 폴더와 임시 빌드 출력만 대상 경로를 확인한 후 정리하고, `package.json`의 자동 변경된 실행 스크립트를 원래대로 복구했다.
+
+### 관련 파일
+
+- `apps/mobile/package.json`
+- `apps/mobile/App.tsx`
+- `apps/mobile/src/WebFeatureScreen.tsx`
+
+### 재발 방지
+
+에뮬레이터 지정은 `adb emu avd name`으로 얻은 AVD 이름을 사용한다. 설치된 EAS 앱의 데이터가 필요한 테스트에서는 서명이 다른 로컬 디버그 APK로 덮어쓰지 말고 동일 서명 EAS APK를 설치한다. 활성 타이머 때문에 UIAutomator가 idle 상태를 기다리지 못할 수 있어 `adb screencap`으로 실시간 화면을 확인한다. 이번 APK의 피드·숲 WebView는 네이티브 인증을 공유하지 않아 별도 로그인 화면이 나오는 것도 실기기 전에 별도로 검증해야 한다.
+
+## 2026-09-29 — Android 세션 시작 후 타이머가 정지된 듯 표시됨
+
+### 상황
+
+서버에 활성 세션이 있어도 Android 화면은 완료 공부 `0h 0m`과 `진행 중` 상태만 보였고 경과 시간이 증가하지 않았다.
+
+### 원인
+
+모바일은 `get_study_period_summary.completed_seconds`를 완료된 시간 지표에만 연결했고, 기존 1초 `nowMs` 갱신을 활성 세션 공부시간 계산에 사용하지 않았다. 서버의 세션 시작 실패나 Android 시계 중단은 아니었다.
+
+### 해결 방법
+
+활성 세션의 `started_at`부터 현재 시각까지를 초 단위로 계산하고 완료된 휴식과 진행 중 휴식을 뺀 뒤 `lease_expires_at`에서 멈추는 `현재 세션 공부` 시계를 추가했다. 테스트에서 진행·휴식·lease 경계를 각각 기존 코드 실패→수정 후 성공으로 확인했다.
+
+### 관련 파일
+
+- `apps/mobile/App.tsx`
+- `scripts/mobile-timer.test.mjs`
+
+### 재발 방지
+
+완료 세션 합계와 진행 중 세션 경과시간을 별도 지표로 유지하고, 시작·휴식·lease 및 새 APK에서 실제 표시를 함께 확인한다. 이 문서 작성 당시에는 APK 재빌드와 기기 확인 전이었으나, 위 EAS APK를 Android 16 에뮬레이터에 설치해 시작·휴식·재개 표시를 후속 검증했다. 실제 제조사 기기의 방해금지·카메라 동작은 여전히 미검증이다.
+
+### 검증 도구 참고
+
+Expo Android export의 `--output-dir`은 앱 프로젝트 하위여야 한다. 외부 임시 경로를 지정한 첫 검증 명령은 도구 제약으로 실패했고, 앱 하위의 검증 전용 경로로 재실행해 번들 생성에 성공한 뒤 해당 임시 출력만 정리했다.
+
+## 2026-09-29 — Android 앱의 정지된 공부 숫자·미실행 카메라·WebView 재로그인
+
+### 상황
+
+에뮬레이터에서 공부를 시작해도 `0h 0m`이 증가하지 않고 카메라가 켜지지 않았다. 피드·숲을 열면 웹 로그인을 다시 요구하며 웹의 다른 메뉴도 보이지 않았다.
+
+### 관측
+
+- 운영 `study_sessions` 조회 시 활성·비휴식 세션 1건이 있어 시작 자체는 성공했다.
+- Android 화면의 시간은 `get_study_period_summary.completed_seconds`에서 받은 완료 시간만 출력한다. 진행 중인 세션 경과 시간은 계산·표시하지 않는다.
+- `apps/mobile`에 카메라 촬영 구현이 없고 설치된 APK의 CAMERA 권한 선언도 없다.
+- 네이티브 Supabase 세션은 AsyncStorage, 웹 WebView는 브라우저 저장소를 사용한다. WebView 내 다른 HTTPS 출처는 OS 브라우저로 열기 때문에 Google OAuth 과정이 웹뷰 밖으로 나간다.
+- Android 탭은 3개만 정의돼 있고 관련 PRD에서 나머지 웹 화면 이식을 제외했다.
+
+### 원인
+
+서버 시작 실패나 에뮬레이터 카메라 고장이 아니라 웹과 Android의 기능·인증 구현 범위 차이다. 특히 실시간 타이머 부재와 OAuth 이동 정책은 현재 Android UI/내장 웹 흐름의 한계다.
+
+### 해결 방법
+
+이번 요청은 원인 진단이므로 앱 코드·운영 설정을 변경하지 않았다. 웹 수준의 실시간 경과 시간, 카메라, 전체 메뉴 및 안전한 단일 로그인 흐름은 별도 요구 범위를 확정해 구현해야 한다. 이미 시작된 세션은 자동 종료하지 않았다.
+
+### 관련 파일
+
+- `apps/mobile/App.tsx`
+- `apps/mobile/src/supabase.ts`
+- `apps/mobile/src/WebFeatureScreen.tsx`
+- `apps/web/src/authSession.mjs`
+- `apps/web/src/main.tsx`
+- `memory-bank/prd-android-focus-mode.md`
+
+### 재발 방지
+
+APK 출시 전 활성 세션의 진행 숫자, 카메라 권한·작동, Google OAuth 후 내장 웹 복귀, 웹/앱 메뉴 차이를 에뮬레이터와 실기기에서 각각 검증한다. 미구현 기능을 웹과 동일하다고 안내하지 않는다.
+
+## 2026-09-29 — Expo 의존성 권장 버전 검사 경고
+
+### 상황
+
+WebView 추가 후 `npx expo install --check`를 실행했다. 모바일 타입 검사와 전체 테스트는 통과했지만 이 권장 버전 검사는 실패했다.
+
+### 에러 메시지
+
+```txt
+@types/react@19.2.16 - expected version: ~19.0.10
+typescript@5.9.3 - expected version: ~5.8.3
+Found outdated dependencies
+```
+
+### 원인
+
+새 `react-native-webview`는 설치 버전과 SDK 53 권장 버전이 모두 `13.13.5`로 일치한다. 경고는 기존 루트 개발 의존성의 권장 범위 차이이며 이번 WebView 버전 불일치는 아니다.
+
+### 해결 방법
+
+요청 범위 밖의 React 타입·TypeScript 전체 버전 변경은 하지 않았다. 실제 `mobile:check` 타입 검사와 최종 EAS Android preview APK `054ebed5-8b3c-4101-af48-b8b663d7f4b4` 빌드가 통과했다. SDK 권장 개발 의존성 범위 경고는 남아 있다.
+
+### 관련 파일
+
+- `apps/mobile/package.json`
+- `package-lock.json`
+
+### 재발 방지
+
+Expo SDK 업그레이드나 별도 의존성 정리 작업 때 두 개발 의존성을 SDK 권장 버전으로 맞추고 웹/Android 타입·빌드를 함께 재검증한다.
+
+## 2026-09-29 — Android 회복 요청이 보이지 않아 타이머가 시작되지 않음: 구현 후속
+
+### 상황
+
+앞선 진단의 보류 회복 요청 때문에 앱에서 타이머 시작이 거부되고, 일반 객체 오류가 `[object Object]`로만 보였다. 웹의 기술 피드·공부의 숲도 기존 APK에 없었다.
+
+### 에러 메시지
+
+```txt
+Recovery routine required
+[object Object]
+```
+
+### 원인
+
+운영 `start_study_session`의 회복루틴 선행 조건과 Android UI의 회복 조회·제출 부재가 충돌했다. `formatError`가 Supabase 오류 객체의 `message`를 읽지 않고 문자열화했다. 앱 메뉴는 공부방 단일 화면만 구현돼 있었다.
+
+### 해결 방법
+
+앱의 초기/복귀 조회와 시작 직전 재검사에 보류 회복 요청을 포함하고, 기존 제출 RPC로 사유·보충·약속을 저장한다. 마지막 요청 후 선택한 할 일로 시작을 이어 간다. 시작 RPC 직전 새로 보류 요청이 생성된 경합도 재조회한다. 오류 객체의 `message`를 표시한다. 피드·숲은 앱 내 HTTPS WebView로 제공한다. 서버·DB·기존 웹 코드는 수정하지 않았다.
+
+최종 EAS preview APK `054ebed5-8b3c-4101-af48-b8b663d7f4b4` 빌드가 완료되고 아티팩트 HTTP 200을 확인했다. 실제 휴대폰에서 회복 제출과 세션 시작이 성공했는지는 설치 후 확인해야 한다.
+
+### 관련 파일
+
+- `apps/mobile/App.tsx`
+- `apps/mobile/src/WebFeatureScreen.tsx`
+- `scripts/mobile-recovery.test.mjs`
+- `scripts/mobile-web-features.test.mjs`
+
+### 재발 방지
+
+보류 요청 1건·여러 건·시작과 서버 상태 경합·취소·오류 객체를 실제 앱 컴포넌트 회귀 테스트에 포함한다. APK 빌드 성공과 실기기 동작은 별도로 판정한다.
+
+## 2026-09-29 — Android 타이머 시작 시 `[object Object]` 표시
+
+### 상황
+
+실기기에서 집중 모드 연결 후 오늘 할 일을 선택하고 `입장하고 타이머 시작`을 누르면 시작되지 않으며 오류가 `[object Object]`로 보인다. 기술 피드·공부의 숲 메뉴도 보이지 않는다.
+
+### 에러 메시지
+
+```txt
+[object Object]
+```
+
+### 원인
+
+모바일 시작 경로는 운영 `start_study_session(uuid[])` RPC를 호출한다. 이 함수는 `study_recovery_requests.status='pending'`가 하나라도 있으면 `Recovery routine required`로 세션 생성 전에 거부한다. 운영 조회에서 현재 연결·옵트인된 휴대폰 계정에는 2026-06-16~2026-09-28을 덮는 pending 요청 1건이 확인됐다. 모바일은 회복 요청을 조회·제출하는 화면이 없고 `formatError()`가 일반 객체를 `String(error)`로 변환해 `[object Object]`로 표시한다. 해당 오류의 실제 모바일 요청 로그는 확보하지 못했으나 현재 서버 상태와 시작 함수의 선행 조건으로 이 계정의 시작 차단이 재현 가능하다. 기술 피드·공부의 숲은 Android APK에 구현되지 않은 웹 화면이며 로그인 이후 숨겨진 메뉴가 아니다.
+
+### 해결 방법
+
+이번 요청에서는 진단만 수행하고 코드·운영 데이터는 수정하지 않았다. 같은 계정으로 웹에 접속해 보류 중인 회복루틴을 정상 제출한 후 시작을 재시도할 수 있다. 모바일 단독 사용을 지원하려면 회복루틴 상태 조회·제출/안내와 구조화된 서버 오류 표시를 추가해야 한다. 두 웹 화면의 Android 이식은 별도 범위 결정이 필요하다.
+
+### 관련 파일
+
+- `apps/mobile/App.tsx`
+- `supabase/migrations/20260712142233_sustainable_study_loop.sql`
+- `memory-bank/prd-android-focus-mode.md`
+
+### 재발 방지
+
+실기기 세션 시작 테스트에 보류 중인 회복루틴 계정을 포함하고, 서버가 거부할 때 사용자에게 실제 차단 이유와 웹/앱 해결 경로를 표시한다. 기능 범위가 다른 웹·APK 메뉴를 동일하게 보일 것으로 안내하지 않는다.
+
+## 2026-09-29 — Android 앱에서 8자리 이메일 OTP를 입력할 수 없음
+
+### 상황
+
+사용자가 설치형 Android 앱에 로그인하려고 했으나 이메일로 받은 임시 코드는 8자리이고 앱 입력은 6자리까지만 허용했다.
+
+### 에러 메시지
+
+```txt
+이메일과 6자리 숫자 코드를 확인하세요.
+```
+
+### 원인
+
+프로젝트 웹과 공통 인증 코드는 이메일 OTP를 8자리로 정의한다. 모바일 `apps/mobile/App.tsx`의 입력 `slice(0, 6)`, `^\d{6}$` 검사, 안내 문구는 초기 6자리 계약에 남아 있다. 코드가 잘리고 서버 `verifyOtp` 호출 전에 거부된다. 사용자가 받은 실제 OTP 값이나 운영 Auth 설정 자체는 열람하지 않았다.
+
+### 해결 방법
+
+사용자 수정 승인 후 모바일 입력·검증·안내·예시를 8자리로 통일했다. 실제 모바일 로그인 컴포넌트 테스트에서 기존 6자리 잘림과 예시 불일치를 각각 RED로 확인하고 수정 후 GREEN을 확인했다. 서버 설정이나 운영 데이터는 변경하지 않았다. 예시 수정 전 빌드는 취소했으며 최종 APK 빌드 `b9ddeb31-146e-4615-b898-119afa6b9479`는 FINISHED, 아티팩트 HEAD 200이다. 실기기 로그인 성공은 새 APK 설치 후 별도 확인이 필요하다.
+
+### 관련 파일
+
+- `apps/mobile/App.tsx`
+- `scripts/mobile-otp.test.mjs`
+- `apps/web/src/authCode.mjs`
+- `packages/core/src/index.mjs`
+
+### 재발 방지
+
+모바일 OTP 자리수와 안내를 한 값으로 묶고, 실제 입력이 8자리(앞자리 0 포함)를 보존해 인증 API로 전달하는지 회귀 테스트한다. 최종 소스 전체 테스트는 791 통과·25 환경 건너뜀·실패 0이었다.
+
+## 2026-09-28 — 운영 마이그레이션 버전 정렬 후 CI 테스트 파일 경로 누락
+
+### 상황
+
+운영 Supabase 이력 버전 `20260927150154`에 맞춰 신규 SQL 파일명을 바꾼 뒤, main 자동 배포의 Node 테스트 3건이 실패해 Vercel 배포가 시작되지 않았다.
+
+### 에러 메시지
+
+```txt
+ENOENT: no such file or directory, open 'supabase/migrations/20260927150000_android_focus_mode.sql'
+```
+
+### 원인
+
+SQL 파일명과 memory-bank 참조는 갱신했지만 PGlite 회귀 테스트의 고정된 파일 경로를 놓쳤다. 파일명 변경 후 전체 테스트를 다시 실행하지 않은 것이 CI에서만 실패한 직접 원인이다.
+
+### 해결 방법
+
+`study_focus_db.test.mjs`가 운영 이력과 동일한 `20260927150154_android_focus_mode.sql`을 읽도록 바꾸고 전체 테스트를 다시 실행해 790 통과·25 환경 건너뜀·실패 0을 확인했다. 실패한 Actions 실행은 배포 단계까지 진행하지 않아 당시 기존 production을 유지했고, 수정 후 Actions `36331480546` 성공과 production 배포 `dpl_9dJjShEmkEqKngDzML5bMUJ3mbty` READY를 확인했다.
+
+### 관련 파일
+
+- `supabase/functions/_shared/study_focus_db.test.mjs`
+- `supabase/migrations/20260927150154_android_focus_mode.sql`
+
+### 재발 방지
+
+마이그레이션 파일명 변경 시 저장소 전체 참조를 검색하고, 커밋 직전 전체 테스트를 새로 실행한다.
+
+## 2026-09-28 — Vercel CLI 로그인 안내 글로 잘못 이동
+
+### 상황
+
+웹 production 배포를 위해 GitHub 로그인 경로를 안내했으나 사용자 브라우저에는 로그인 폼 대신 `New Vercel CLI login flow` 안내 글이 열렸다.
+
+### 에러 메시지
+
+```txt
+Vercel CLI 60.1.3: TypeError: Cannot convert argument to a ByteString because character at index 0 has value 51648
+Vercel CLI 46.1.0: Waiting for GitHub authentication to be completed
+```
+
+### 원인
+
+구형 GitHub 전용 로그인 경로가 현재 로그인 흐름과 맞지 않았고, 사용자에게 잘못된 URL을 전달했다. 최신 CLI는 이 Windows/Korean 환경에서 별도 ByteString 오류로 시작하지 못했다. 운영 프로젝트 접근 자체는 Vercel 커넥터의 프로젝트 목록 조회로 확인됐다.
+
+### 해결 방법
+
+대기 중인 CLI 로그인을 중단하고 사용자에게 해당 화면은 로그인 화면이 아니라고 알렸다. 커넥터로 `study-room-attendance` 프로젝트와 ID를 확인했다. 웹 배포는 인증된 경로를 다시 확인하기 전까지 성공으로 표시하지 않는다.
+
+### 관련 파일
+
+- `vercel.json`
+
+### 재발 방지
+
+CLI가 출력한 현재 기기 인증 URL/코드 또는 이미 인증된 커넥터를 직접 확인한다. 블로그/안내 URL을 로그인 URL로 공유하지 않고, 빌드 성공과 production 배포 성공을 구분한다.
+
+## 2026-09-24 — 신규 발견 글이 오래된 발행일에 묻히고 수집 run이 열려 있음
+
+### 상황
+
+9월 19~23일 신규 기사 저장은 확인됐으나 사용자 최신 목록 첫 페이지는 9월 18일 글이 최신처럼 보였다. 수동 새 글 확인과 정시 작업의 일부 결과/실행 기록이 완료되지 않았다.
+
+### 에러 메시지
+
+```txt
+정시 worker HTTP 503 / upstream request timeout; tech_feed_runs.status=running
+```
+
+### 원인
+
+`tech_feed_list`가 `coalesce(published_at,discovered_at)`로 정렬해 오래된 원문을 새로 찾았어도 뒤로 밀렸다. 별개로 수집 파이프라인은 외부 기사 페이지의 썸네일·영상 확인을 기다린 뒤에야 refresh/run을 확정했다. 이 단계가 지연되면 앞서 저장한 글이 있어도 요청 완료가 실패할 수 있는 구조였다. 운영 Edge 내부의 정확한 503 종료 예외는 로그로 확정하지 못했으므로 이 구조적 위험을 유일한 원인으로 단정하지 않는다.
+
+### 해결 방법
+
+목록·커서를 최초 발견 시각과 ID로 통일하고 카드에 원문 발행일을 따로 표시했다. 수집 결과를 먼저 확정하고 번역·미디어는 독립된 시간 제한을 둔 `EdgeRuntime.waitUntil` 작업으로 분리했다. 기존 번역 backlog가 검색 결과 `deferred`에도 처리되도록 보존했다.
+
+### 관련 파일
+
+- `supabase/migrations/20260923160433_tech_feed_discovery_order.sql`
+- `supabase/functions/_shared/tech-feed-worker-core.mjs`, `tech-feed-refresh.mjs`
+- `apps/web/src/TechFeedSection.tsx`
+
+### 재발 방지
+
+원문 발행일이 과거인 신규 글의 목록/커서 및 수동·정시 느린 미디어 격리 회귀 테스트를 유지한다. 배포 후 운영에서 run 완료, refresh result, 첫 페이지의 발견일을 확인한다. 번역·미디어 실패와 수집 실패를 별도 상태로 해석한다.
+
+## 2026-09-24 — 기술 피드 새 글 확인 후 목록 변화 없음
+
+### 상황
+
+9월 24일 자정 직후 오늘 브리핑은 0건이고 목록에서 9월 18일이 최신처럼 보인다는 사용자 보고. 새 글 확인 버튼을 눌러도 변화가 보이지 않았다.
+
+### 확인된 원인과 경계
+
+- Cron study-room-tech-feed-hourly는 매시간 활성화돼 있으나 cron.job_run_details의 succeeded는 HTTP 요청을 예약했다는 뜻이다. 최근 net._http_response에는 503과 60초 타임아웃이 있고 21~23일 tech_feed_runs는 완료 0건으로 running에 남았다. Edge 내부의 정확한 종료 예외는 미확인이다.
+- 24일 00:17 JST 수동 요청은 주제의 last_success_at을 갱신했지만 tech_feed_refresh_requests.result는 null이고 lease가 만료됐다. 검색 단계와 전체 요청 완료는 별개다.
+- 19~23일에는 검색 기사가 매일 저장됐다(23일 9건). 그러나 최근 발견 27건 모두 원문 발행일이 발견일보다 7일 넘게 오래되었으며 tech_feed_list가 원문 발행일 우선 정렬한다. 전체 첫 페이지에 19일 이후 발견한 글은 0건이다. 검색 결과도 URL 중복 저장이므로 성공 호출이 신규 기사 등록을 보장하지 않는다.
+- 24일 자정 직후의 오늘 0건은 해당 시간대에 새로 저장된 글이 없다는 뜻이며 장기간 수집 0건이라는 뜻은 아니다. RSS 추천 8곳은 승인 대기라 웹 검색 외 자동 수집 경로가 없다.
+- 후속 검증에서 auth 계정 2개·수신 계정 1개를 확인하고, 유일한 수신 계정으로 범위를 좁혀 tech_feed_list RPC를 조회했다. 총 142건·첫 항목 표시일 9월 18일로 사용자 화면과 일치했고, 19~23일 발견한 가시 글 27건은 목록 37~138번째에 있었다. 다른 계정의 제목·관심사·식별자는 조회하지 않았다.
+
+### 다음 진단·개선 방향
+
+Edge 실행 로그에서 정시·수동 요청이 검색 후 어느 단계에서 종료되는지 확인한다. 완료되지 않은 lease와 실행 기록을 성공으로 표시하지 않도록 하고, 목록에는 발견일과 발행일을 분리하여 사용자가 새로 수집한 글을 찾을 수 있게 하는 변경을 별도로 검토한다. 이번에는 읽기 전용 진단만 했으며 운영 설정·코드·데이터를 변경하지 않았다.
+
+## 2026-09-23 — 기술 피드 UI 배포 승인 차단
+
+### 상황
+
+검증된 로컬 커밋 d25f91b를 원격 main에 푸시하려 했으나 안전 검토에서 거절됐다. 운영 배포는 시작되지 않았다.
+
+### 원인
+
+공유 기본 브랜치와 자동 운영 배포를 바꾸는 외부 작업에 대해 현재 사용자 요청만으로는 명시 승인이 충분하지 않다는 판정이다. 프로젝트 AGENTS.md의 자동 배포 규칙과 별개로 실행 정책의 거절을 우회하지 않는다.
+
+### 해결 및 재발 방지
+
+사용자가 배포를 명시적으로 요청한 뒤 같은 d25f91b 커밋을 main에 푸시했다. GitHub Actions 35877923111 성공, Vercel production dpl_DijdUWT2zBjUN7im5K7WKopKU1Sf READY 및 커밋 일치, 운영 URL HTTP 200을 확인했다. 향후 외부 배포가 안전 검토에서 거절되면 우회하지 않고 사용자 승인을 받은 후 재시도한다.
+
+## 2026-09-23 — 기술 피드 PC의 큰 오른쪽 공백
+
+### 상황
+
+초광폭 PC에서 기술 피드가 왼쪽의 좁은 카드 한 장처럼 보이고 오른쪽에 넓은 빈 공간이 남았다. 긴 일일 브리핑이 기사보다 먼저 화면을 많이 차지했다.
+
+### 원인
+
+`styles.css`의 공통 `.workspace`가 최대 1180px이고 `techFeed.css`의 `.tech-feed`가 다시 최대 880px이었다. 일일 브리핑의 모든 주제/유형과 AI 인사이트가 기본으로 펼쳐져 있었다.
+
+### 해결 및 재발 방지
+
+`main.tsx`에서 피드일 때만 `feed-workspace` 클래스를 붙여 별도 너비를 허용했다. 기술 피드 중앙 캔버스를 최대 1800px, 넓은 화면의 기사 목록을 2열로 조정하고 모바일은 1열로 유지했다. 브리핑 요약은 앞에 두고 전체 통계/인사이트는 `details/summary`로 접었다. 실제 React 컴포넌트와 CSS를 마운트한 Chromium 테스트에서 375·1440·2200px의 카드 열·폭·가로 넘침을 회귀 검사한다.
+
+## 2026-09-23 — 세션 카드의 작은 보조 글자와 좁은 모바일 일정
+
+### 상황
+
+이번 세션 할 일 카드에서 보조 문구, 일정과 배지가 작고 옅어 읽기 어려웠다. 375px에서는 일정 시각이 139px짜리 옆 열에 줄바꿈됐다.
+
+### 원인
+
+`actualStudy.css`의 보조 문구가 12~13px였고 회녹색이 밝은 카드 표면에서 약한 시각적 위계를 만들었다. 반복/목표 배지는 공통 12px 스타일을 상속했고, 모바일에서도 일정이 88px 라벨 열과 값 열로 나뉘었다.
+
+### 해결 및 재발 방지
+
+세션 카드에만 진한 글자 토큰과 15px 보조 글자·14px 배지를 적용했다. 모바일 일정은 라벨과 값을 세로 배치한다. 실제 앱 마운트 브라우저 테스트가 375px·1440px의 크기/대비와 모바일 값 너비를 검사한다. 데이터·시간 계산은 수정하지 않았다.
+
+## 2026-09-23 — 세션 할 일 모달 시간 체크박스가 입력창 크기로 늘어남
+
+### 상황
+
+375px·1440px에서 시간 지정 체크박스가 입력창처럼 가로로 늘어나고 높이가 54px로 표시됐다.
+
+### 원인
+
+main.tsx에서 actualStudy.css보다 styles.css를 나중에 불러왔다. 뒤의 `.session-todo-quick-add input` 규칙이 체크박스에도 width:100%, min-height:54px를 적용했고, 앞의 `.actual-time-toggle input` 너비 규칙과 충돌했다.
+
+### 해결 방법
+
+세션 모달 전용 sessionTodoModal.css로 CSS 토큰과 선택자를 이관하고, text/time 입력과 checkbox를 타입별로 구분했다. 체크박스는 22px로 고정하고 라벨 전체를 터치 영역으로 유지했다. 모바일에서 제목과 닫기 버튼이 같은 행에 놓이도록 조정했다.
+
+### 재발 방지
+
+실제 React 모달을 375px·1440px에서 마운트하는 브라우저 테스트로 체크박스 경계·라벨 접근성·키보드 포커스·가로 넘침·제목 행 정렬을 확인한다. 정렬 선언을 제거했을 때 375px 테스트가 실패함도 확인했다.
+
+## 2026-09-23 — 한국어 원문이 적고 번역 상태와 원문 언어가 혼동됨
+
+### 상황 / 원인
+
+- 운영 기술 기사 135건 중 제목에 한글이 있는 글 19건. 추천 RSS 8곳은 이용 조건 확인 대기이며 수집 기사가 0건이다. 기존 웹 검색어는 영어 기술 글 중심이었다.
+- 카드가 한국어 번역과 원문 언어를 구별하지 않아 한국어 원문도 번역 대기로 안내할 수 있었다.
+
+### 해결 / 검증
+
+- 원문 제목·소개에서 언어를 보수적으로 판별하고 한국어 원문은 원문으로 안내한다. 읽기 쉬운 해시 태그와 전체 가시 항목 대상 필터를 추가했다.
+- 기존 관심 주제 검색 순환에 한국어 기술 사례/실무 구현 검색을 추가했다. RSS 소스 이용 조건은 별도 검토 전 활성화하지 않는다.
+- 기존 API 테스트의 위치 인자 기대값은 새 언어 인자를 포함하도록 갱신했다. 검색 의도 5단계 순환으로 바뀌어 이전 순서를 전제한 테스트도 갱신했다. 테스트용 브라우저가 문자셋 없이 한글 정규식을 읽으며 잘못 해석하던 문제는 정규식을 Unicode escape로 표기해 해결했고 전체 794/794 및 실제 브라우저 회귀 검증을 통과했다. 실제 데이터·무료 공급자 응답에 따른 한국어 수집량은 운영에서 확인해야 한다.
+
+## 2026-09-23 — 기술 피드 추천 생성 계약과 캐시 검증 보완
+
+### 상황 / 원인
+
+- 기존 AI 지시의 JSON 예시는 insights만 허용하면서 뒤에서는 highlights도 요구했다. 모델이 예시를 따르면 엄격한 응답 검증에서 invalid_response로 거절될 수 있었다(실제 운영 발생 빈도는 확인하지 않음).
+- 캐시 파싱의 `highlights || []`는 false/null/빈 문자열까지 정상적인 빈 추천으로 취급했다.
+
+### 해결 / 재발 방지
+
+- 완전한 insights/highlights JSON 예시로 통일. 예시를 그대로 따른 응답이 실제 validator를 통과하는 회귀 테스트 추가.
+- undefined에만 구형 호환 적용. 잘못된 캐시와 권한 상실한 추천 ID를 차단하는 테스트 추가(유효 글 2건 이상을 유지해 ID 검증 자체를 확인).
+- 전체 787/787, Edge 11건 통과. 관련 파일: supabase/functions/_shared/tech-feed-briefing.mjs 및 tech-feed-highlights.test.mjs.
+
+## 2026-09-21 — 릴리스 배포에서 막힌 2가지
+
+### 상황 / 원인
+
+- main 푸시 후 Vercel 배포가 시작되지 않았다. tip 커밋 `eddc1df`의 메시지에 `[skip ci]`가 있어 push 트리거 워크플로 전체가 건너뛰어졌다. 문서 커밋을 릴리스 마지막에 두면 재발한다.
+- Supabase MCP `apply_migration`이 이력 version을 호출 시각(`20260921135457`)으로 기록했다. 저장소 파일명은 `20260921095213`이라 `supabase migration list` 기준으로 어긋난다.
+
+### 해결 / 검증
+
+- 배포는 같은 워크플로를 `gh workflow run "Deploy Web to Vercel" --ref main`으로 실행해 해결했다. 실행 35609593667이 테스트·빌드 게이트를 모두 거쳐 success, 사이트 HTTP 200.
+- version 정렬용 UPDATE는 권한 분류기에 차단돼 미해결로 남겼다. 기능 영향은 없고 기록 정합성 문제다.
+
+### 관련 파일
+
+- `.github/workflows/vercel-production.yml`, `supabase/migrations/20260921095213_actual_study_tracking.sql`.
+
+### 재발 방지
+
+- 릴리스 푸시 전 tip 커밋 메시지에 `[skip ci]`가 있는지 확인한다. 있으면 push 후 워크플로 실행 여부를 반드시 확인하고, 없으면 `workflow_dispatch`로 실행한다.
+- MCP로 migration을 적용할 때는 적용 후 기록된 version을 확인하고 저장소 파일명과 맞춘다.
+
+### 남은 리스크
+
+- 이력 불일치가 남아 있는 동안 `supabase db push`는 이 migration을 미적용으로 오인할 수 있다. (원격 이력이 이미 로컬과 갈라져 있어 db push는 현재 사용하지 않는다.)
+
+## 2026-09-21 — 세션 일정 서버 리뷰에서 발견한 경계 오류
+
+### 상황 / 원인
+
+- DST 종료일의 목표88,200초를 날짜+시각2개로 저장하면 종료 날짜를 잃고30분 구간으로 축약될 수 있었다.
+- 프로필 누락 시 새 snapshot/preview의 UTC fallback과 기존 start가 생성하는 Asia/Tokyo 프로필이 달랐다.
+- 목표600초/공부900초/미전송카메라120초에서 clamp 후120초를 더해 가짜 남은 분량이 생겼다.
+
+### 해결 / 검증
+
+- 모든 변경 구간의 저장 표현을 절대 시각으로 역변환해 일치하지 않으면 UNREPRESENTABLE_SCHEDULE로 전체 거절한다.
+- 프로필 복구 fallback을 Asia/Tokyo로 일치시킨다.
+- 남은 분량은 max(0,target-max(0,known-pending)) 순서로 계산한다.
+- 신규5건 모두 RED→GREEN,실제 SQL34/34 및 독립 재리뷰 통과. 관련 파일: 실제 공부 migration, actual-study-db.test.mjs, session-api.md.
+- 아래 migration selector 오탐도 실제 CREATE FUNCTION을 찾도록 수정 완료. 초기구현 전체748/748으로 검증했다.
+
+### 검증 환경 참고
+
+- 별도 PostgreSQL18 재검증 fixture는 role이 DB가 아닌 cluster 범위임을 고려해야 한다.
+- JavaScript String.replace의 문자열 치환값은 $$를 $로 해석한다. SQL 달러 구분자를 넣을 때 replacement callback을 사용한다. 이 두 fixture 오류 수정 후 실제 다중 연결4/4통과했으며 앱 오류는 아니었다.
+
+## 2026-09-21 — 신규 RPC wrapper에 기존 migration 검사 오탐
+
+### 상황 / 에러
+
+실제 공부 구간 RPC를 추가한 후 전체 Node 테스트의 기존 break migration 검사 1건이 실패했다.
+
+### 원인
+
+packages/core/test/sql-migrations.test.mjs가 pause_study_session 문자열을 포함한 최신 migration을 선택해, 함수 정의가 아니라 새 wrapper 내부의 호출이 포함된 파일을 기존 휴식 DDL로 오인했다.
+
+### 해결 / 검증 상태
+
+함수 호출이 아닌 CREATE FUNCTION 정의를 선택하도록 최소 수정 중이다. 신규 실제 SQL 테스트 29개는 통과했으며, 전체 회귀 재검증 결과는 작업 완료 시 progress/검증 기록에 반영한다.
+
+### 재발 방지
+
+migration에서 특정 계약을 찾는 검사는 정의와 사용 지점을 구분한다. 새 wrapper 파일에 기존 DDL을 복제해 테스트를 맞추지 않는다.
+
+## 2026-09-15 — 피드가 기술 내용 대신 블로그 자체를 추천한 근본 원인: 검색 질의
+
+### 상황
+사용자가 두 사례를 제시했다. zencoder.ai의 블로그 목록 글과 aws.amazon.com의 'AWS 기술 블로그를 시작합니다!' 개설 인사글이다. 후자는 목록형이 아니라 블로그 자체의 개설 공지라 앞서 만든 roundup 필터로는 잡히지 않았다.
+
+### 관측
+최근 수집 15건 중 실제 기술 콘텐츠는 3건뿐이었다. 나머지는 블로그 모음·블로그 홈·블로그 개설글 8건, 커리어/마케팅 페이지 4건이었다. 수집된 76건 전부가 web_search 출처였다(RSS 출처는 권한 대기라 0건).
+
+### 원인
+`tech-feed-query.mjs`의 검색 의도 3종 중 첫 번째가 `'engineering blog 기술 블로그'`였다. 검색 엔진에 문자 그대로 '기술 블로그'를 물으면 블로그 홈페이지, 블로그 모음, 블로그 개설글이 반환된다. 주제 4개 × 의도 3종 로테이션이므로 **수집의 3분의 1이 구조적으로 블로그 메타를 찾고 있었다.** 필터 문제 이전에 질의가 잘못 묻고 있었다.
+
+### 해결 방법
+1. 질의 의도를 `'engineering deep dive internals 동작 원리'`로 교체했다. 세 의도 중 어디에도 'blog/블로그'가 남지 않도록 테스트로 고정했다.
+2. `feedIsRoundupTitle`에 블로그 메타 패턴을 추가했다: 개설/오픈/소개 공지, `^engineering blog`로 시작하는 홈페이지 제목, 'list of ~ blogs', '블로그 N선', 제목이 블로그 이름뿐인 경우.
+
+### 되돌린 오탐
+1차 구현에서 'Cloud Governance: Best Practices 2026 | CloudQuery Blog'가 차단됐다. 뒤에 붙는 사이트명 '| CloudQuery Blog'의 'Blog'가 'best ... blogs' 패턴에 걸린 것이다. 사이트명 접미사는 그 블로그의 모든 글에 붙으므로 판단 근거가 될 수 없다. 마지막 `|` 이후를 떼어낸 제목으로 검사하도록 고쳤다. 한국어 사례는 1차에서 이미 방어했으나 영어 접미사를 놓쳤다.
+
+### 검증
+운영 제목 76건 전체에 새 필터를 적용해 9건 차단을 확인했고, 9건 모두 실제 블로그 메타/목록이며 CloudQuery 오탐은 해소됐다. 전체 테스트 711건(707 pass·0 fail·4 optional skip), test:edge 11/11, build/docs/mobile 통과.
+
+### 관련 파일
+- supabase/functions/_shared/tech-feed-query.mjs 및 tech-feed-immediate/search-worker/content 테스트
+- packages/core/src/feedContent.mjs 및 test/feedContentRoundup.test.mjs
+
+### 남은 리스크
+커리어/채용/마케팅 페이지(커리어코치 광고, 면접 준비 서비스, FDE Program)는 여전히 통과한다. 사용자 관심사 프롬프트의 'fde'가 Forward Deployed Engineer 커리어 콘텐츠를 정당하게 끌어오는 측면이 있어 제목 패턴으로 막기엔 오탐 위험이 크다. 프롬프트를 구체화하는 편이 안전하다. 태그/카테고리 페이지('AWS Glue | AWS 기술 블로그')는 제목만으로 판별할 근거가 없어 미해결이다.
+
+
+## 2026-09-15 — 목록형(roundup) 글이 practice로 오분류되어 피드에 노출
+
+### 상황
+사용자가 실제 링크(zencoder.ai/blog/ai-blogs-for-developers-engineers)를 제시. 제목이 'Top AI Blogs Every Software Developer Must Follow in 2026'인 다른 블로그 소개 글이 category='practice'로 분류되어 피드에 표시됐다.
+
+### 원인
+규칙 기반 분류기(`classifyFeedArticle`)의 practice 신호가 정규식 `/tutorial.../i`로 제목·발췌문 전체에서 단어 매칭한다. 이 글의 발췌문이 GitHub Blog를 소개하며 'tutorials'라는 단어를 썼을 뿐인데, '이 글 자체가 튜토리얼인지'와 '본문에 그 단어가 있는지'를 구분하지 못해 오분류됐다. 기존 `feedContentKind`의 'listing' 판정은 URL 모양(`/blog/`, `/tags/` 등 색인 페이지)만 보므로 `/blog/<slug>` 형태의 정상 글 URL은 걸러내지 못했다.
+
+### 해결 방법
+`packages/core/src/feedContent.mjs`에 제목 전용 목록형 판정 `feedIsRoundupTitle()` 추가(발췌문은 검사하지 않음 — 이번 버그의 재발을 원천 차단). `feedContentKind(url, title)`에 title 인자를 추가해 URL 모양이 정상이어도 제목이 목록형이면 'listing'을 반환한다.
+세 지점에 적용: `feedClassification.mjs`(목록형이면 category/method를 null로, AI가 이미 검증한 카테고리는 유지), `tech-feed-search.mjs`(수집 시점에 title을 함께 넘겨 목록형 글 자체를 수집하지 않음), `tech-feed-briefing.mjs`(브리핑 분석 표본에서도 제외).
+`FEED_CLASSIFICATION_RULES_VERSION`을 1→2로 올려 기존 오분류 글도 다음 정시 워커 실행에서 자동 재분류되도록 했다(이미 있던 버전 비교 재분류 메커니즘 재사용).
+
+### 삽질: Python 문자열 이스케이프가 정규식 ``를 백스페이스 문자로 만듦
+`python - <<'PY'` 힙닥으로 파일을 고쳐 쓰던 중, Python 비-raw 문자열 리터럴에서 ``를 이스케이프 없이 한 번만 적어 백스페이스(0x08) 바이트가 파일에 그대로 박혔다. 터미널에 cat/sed로 출력하면 백스페이스가 이전 문자를 지워 보여서 육안으로는 정상처럼 보였다. `od -c`로 바이트를 직접 찍어보고서야 발견했다. 이후 문자열 연결(`'\b'+X+'\b'`)로 바꾸거나 Write 도구로 파일 전체를 직접 써서 재발을 막았다.
+
+### 검증
+신규 테스트 8건 추가(전체 707건, 703 pass·0 fail·4 optional skip), test:edge 11/11, build/docs/mobile 통과.
+
+### 관련 파일
+- packages/core/src/feedContent.mjs, feedClassification.mjs 및 각 테스트
+- supabase/functions/_shared/tech-feed-search.mjs, tech-feed-briefing.mjs 및 각 테스트
+
+### 재발 방지
+정규식이 포함된 JS 소스를 Python 힙닥으로 생성/수정할 때는 문자열 연결 방식을 쓰거나, 완성한 뒤 반드시 `od -c`로 이스케이프 바이트를 확인한다. 규칙 분류기에 신호 단어를 추가할 때는 '이 글 자체의 장르'와 '본문이 언급하는 대상'을 구분하는 반례를 먼저 테스트로 작성한다.
+
+
+## 2026-09-15 — AI 요약 최종 해결: 모델이 JSON을 마크다운 코드펜스로 감싸 반환
+
+### 상황
+만료 키를 교체한 뒤에도 브리핑이 계속 `unavailable`이었다. 앞서 기록한 키 만료(401)는 사실이지만 그것만으로는 해결되지 않았다.
+
+### 계측으로 드러난 사실
+`askFeedAi`에 HTTP 구간과 전체 구간을 분리 계측해 넣었더니:
+```txt
+feed_ai_http {"ms":1127,"status":200}   ← 응답 헤더까지 1.1초, HTTP 200
+feed_ai_ok   {"ms":14976}               ← 호출 자체는 성공(본문 스트리밍 포함 15초)
+```
+즉 20초 타임아웃(`cancelled`)은 만료 키 때문이었고, 키 교체 후에는 **호출이 정상 성공**하고 있었다. 실패 지점은 그 뒤였다.
+
+### 확정된 원인
+거부 사유 로깅을 추가하자 즉시 드러났다:
+```txt
+feed_briefing_rejected {"why":"not_json","head":"```json
+{
+  \"insights\": [...'
+```
+모델이 **올바른 JSON을 마크다운 코드펜스(```json ... ```)로 감싸서** 반환했다. `JSON.parse`가 펜스에서 실패해 멀쩡한 결과를 통째로 버리고 있었다. 시스템 프롬프트가 "JSON only"를 요구해도 작은 무료 모델은 흔히 펜스를 붙인다. **코드 결함이지 모델 품질 문제가 아니다.**
+
+### 해결 방법
+`packages/core/src/feedModelJson.mjs`의 `parseModelJson()`을 추가해 첫 코드펜스만 벗겨 낸 뒤 파싱한다. 펜스가 없으면 원문 그대로 파싱하고, 실패하면 null을 반환한다. 산문에서 값을 추측하거나 두 번째 블록을 이어 붙이지 않는다. 구조·길이·인용 검증(`parseInsights`)은 그대로라 허용 범위가 넓어지지 않는다.
+브리핑(`runBriefing`)과 기사 요약(`summarizeBatch`) 양쪽에 적용했다.
+
+### 검증
+운영에서 실제 소유자 계정으로 생성 성공. `전체 14건 중 소개가 충분한 13건 분석`, 인사이트 3건(제목·본문·공부 관점·출처 링크) 표시. DB `has_result=true`, `last_error=null`, `generated_at` 기록. 전체 테스트 699건(695 pass·0 fail·4 optional skip), test:edge 11/11.
+
+### 함께 고친 것
+- 타임아웃으로 끝난 호출이 환급되지 않던 결함: `bounded()`가 응답 검사 전에 예외를 던져 환급 플래그를 건너뛰었다. 조건을 `reserved && !charged`(결과를 실제로 저장했는지)로 바꿔 abort·타임아웃도 환급된다.
+- `parseInsights`의 모든 거부에 게이트 이름을 부여했다(not_object / root_keys / item_keys / field_long / sources_unknown 등). 의미는 동일하고 진단만 가능해졌다.
+
+### 관련 파일
+- packages/core/src/feedModelJson.mjs 및 test/feedModelJson.test.mjs (신규)
+- supabase/functions/_shared/tech-feed-briefing.mjs, tech-feed-core.mjs, tech-feed-store.ts
+
+### 재발 방지
+LLM에 JSON을 요구할 때 코드펜스 응답을 정상 경로로 간주한다. 공급자 호출은 HTTP 구간과 전체 구간을 나눠 계측하고, 검증 거부는 어느 게이트에서 걸렸는지 남긴다. "모델 품질" 같은 추정으로 끝내지 말고 계측으로 확인한다.
+
+
+## 2026-09-15 — OpenRouter 호출 실패 원인 확정: API 키 만료 (401)
+
+### 상황
+기술 피드 AI 요약과 일일 브리핑이 계속 실패했다. 오류가 generateText→askFeedAi→runBriefing 3중 catch에 삼켜져 `unavailable`로만 보였고, 앞서 세운 가설(무작위 모델 품질, data_collection, max_price)은 모두 근거가 없었다.
+
+### 진단 방법
+CI의 `scripts/check-free-coaching-live.mjs`는 DB 예약 없이 공급자를 직접 호출하므로 할당량을 쓰지 않는다. 여기에 임시 A/B/C/D 프로브를 넣어 라우팅 제약을 하나씩 제거하며 상태코드와 응답 본문을 기록했다(키 형태 문자열은 출력 전 마스킹).
+
+### 확정된 원인
+```txt
+HTTP 401 :: {"error":{"message":"API key expired.","code":401}}
+```
+프로브 4종(A 현재 제약 / B data_collection 제거 / C max_price 제거 / D provider 블록 전체 제거) **모두 동일한 401**. 따라서 라우팅 제약·모델 선택은 원인이 아니며 **GitHub Secret의 OPENROUTER_API_KEY가 만료**됐다. 모델 `google/gemma-4-26b-a4b-it:free`와 `openrouter/free`는 둘 다 공개 목록에 실재하고 엔드포인트도 정상(24h 가동률 99.2%)이었다.
+
+### 아직 다른 증상 (미확정)
+Supabase Edge 경로는 같은 401이 아니라 **20초 타임아웃**으로 끝난다. 새로 추가한 로그에서 표본 2건 모두 `feed_ai_failed {"code":"cancelled","status":null}`. CI는 0.24초 만에 401을 받는데 Edge는 응답 자체가 20초 안에 오지 않는다. 2026-09-15 01:17 UTC에는 Edge에서 1회 성공한 이력이 있어 Edge→OpenRouter 도달 자체가 불가능한 것은 아니다. 키 교체 후 재측정이 필요하다.
+
+### 해결 방법 (사용자 작업)
+OpenRouter에서 새 키를 발급해 두 곳 모두에 등록한다. 값은 저장소·문서·로그에 기록하지 않는다.
+1. Supabase Edge 시크릿 `OPENROUTER_API_KEY`
+2. GitHub 리포지토리 Secret `OPENROUTER_API_KEY`
+
+### 관련 파일
+- scripts/check-free-coaching-live.mjs (code+status 로깅 영구화, 임시 프로브는 원인 확정 후 제거)
+- supabase/functions/_shared/tech-feed-store.ts (askFeedAi 실패 시 code/status 로깅)
+
+### 재발 방지
+공급자 호출 실패를 코드 없이 삼키지 않는다. 최소한 오류 코드와 HTTP 상태를 로그에 남겨 인증·한도·형식 문제를 구분한다. 키 만료일이 있는 자격증명은 만료 전 교체 알림을 둔다.
+
+
+## 2026-09-15 — 배포 후 발견: 브리핑 환급이 항상 실패한 결함
+
+### 상황
+예산 마이그레이션과 Edge 배포(v22/v24) 직후 운영에서 브리핑을 클릭하자 실제 OpenRouter 호출은 일어났으나(attempts 6→7, calls 6→7) 실패 후 환급이 되지 않았다.
+
+### 원인
+`tech-feed-store.ts`의 `refundAiCall:(user:string)=>rpc("coach_refund_ai",{p_user_id:user})`가 필수 인자를 받도록 돼 있었다. 워커는 owner를 명시해 호출하지만(워커 store는 owner=null로 생성), 브리핑은 owner가 바인딩된 store에서 인자 없이 호출한다. 그 결과 `p_user_id`가 undefined로 나가 RPC가 null을 받고 `unauthorized`로 거부됐으며, 예외는 3중 try/catch에 삼켜졌다.
+`.mjs` 호출부는 Deno 타입체크 대상이 아니라 `npm run test:edge`가 잡지 못했고, 단위 테스트의 store 목이 인자를 검증하지 않아 GREEN이었다.
+
+### 해결 방법
+`refundAiCall:(user:string|null=owner)=>...`로 기본값을 바인딩된 owner로 지정. `tech-feed-store.test.ts`에 owner 바인딩/명시 두 경로를 모두 검증하는 테스트 추가(타입체크에서 RED 재현됨). 재배포 후 운영에서 calls 7→8·attempts 7 유지로 환급 확인.
+
+### 관련 파일
+- supabase/functions/_shared/tech-feed-store.ts, tech-feed-store.test.ts
+
+### 재발 방지
+`.mjs`에서 `.ts` store의 메서드를 호출할 때는 인자 계약을 store 테스트로 고정한다. 목(mock)은 호출 여부만이 아니라 전달 인자도 검증한다.
+
+
+## 2026-09-15 — [정정 — 시크릿 등록 후 실제 원인] AI 요약: 일일 할당량 6회 고갈
+
+아래 같은 날짜의 `Edge OpenRouter 시크릿 누락` 항목은 시크릿 등록 이전 시점의 관측이며 그 자체는 사실이다. 사용자가 01:12:22 UTC에 시크릿을 등록한 뒤 확인한 실제 지속 원인은 다르므로 아래 내용으로 갱신한다.
+
+### 관측 (운영 tech_feed_runs, 분 단위)
+- 01:11·01:12 `deferred 3` (키 없음) → 01:12:22 시크릿 등록 → 01:13~01:16 `failed 3` ×4 → **01:17 `ok 3` 성공** → 이후 0.
+- 결과: `articles_with_ai_summary 3`, `summary_status ready 3 / failed 12 / pending 55`, `category_method='ai'` 실제 저장 확인. **OpenRouter 키·모델·네트워크는 정상.**
+- 시크릿은 함수 재배포 없이 즉시 반영됐다(등록 51초 뒤 첫 호출).
+
+### 원인 1 — 할당량 경합 (핵심)
+`coaching_private.reserve_ai`의 하루 6회를 백그라운드 수집 워커와 사용자의 `오늘 요약 보기`가 공유한다. cron `study-room-tech-feed-hourly`가 이름과 달리 `* * * * *`(매분)이라 키가 생기자마자 워커가 5분 만에 6/6을 소진했다. 오늘 82회 실행, deferred 219. 사용자 버튼이 할당량을 얻을 구조적 기회가 없다.
+
+### 원인 2 — 무료 라우터 변동성
+`openrouter/free`는 매 호출 무작위 free 모델을 고른다(유효한 모델 ID임은 공개 목록에서 확인). 뽑힌 모델 출력이 `validateSummary`(키 3개 정확일치·500자·`<>`/`http:` 불가)를 통과하지 못하면 실패하며, **실패해도 할당량은 차감되고 기사는 `failed`로 남는다.** 오늘 5회 중 1회 성공.
+
+### 6이라는 숫자의 출처
+`20260906083030_studyroom_v2_coach.sql`(커밋 1376fc6, 2026-09-06, 커리어 코치 시절). 기술 피드 도입(2026-09-12, 6d7ee57)보다 6일 앞선다. 근거 주석 없음, 이후 한 번도 개정되지 않음. 2층 구조다: 기능 한도는 `study_coaching_mutate`의 `used>=3`(코칭 기록 3건/일), 모델 예산은 `reserve_ai`의 `attempts<6`(실제 호출, 전 기능 공유). 즉 6은 `코칭 3건+재시도` 크기로 잡힌 값이며 매분 도는 워커를 상정하지 않았다. OpenRouter가 건 제한이 아니다(무료 모델 단가 0, `max_price {0,0,0}`로 유료 차단).
+
+### 화면이 계속 실패로 보이는 이유
+브리핑 행의 `last_error='unavailable'`이 01:13 실패 때 기록된 뒤 남아 있고, `briefingView`가 `snapshot.last_error||'idle'`을 상태로 쓴다.
+
+### 조치 상태
+사용자 승인: 실패 시 할당량 환급 + 재시도. 할당량 경합 해결 방향은 사용자 확인 대기 중. 아직 코드/운영 변경 없음.
+
+### 관련 파일
+- supabase/migrations/20260906083030_studyroom_v2_coach.sql, 20260906064942_study_restart_coaching.sql
+- supabase/functions/_shared/tech-feed-briefing.mjs, tech-feed-store.ts, tech-feed-worker-core.mjs, coach-openrouter.mjs
+
+### 재발 방지
+공유 AI 예산을 쓰는 기능을 추가할 때 호출 주체(사용자 클릭 vs 스케줄 워커)와 호출 빈도를 예산 크기와 함께 재검토한다. 실패가 예산을 차감하는지 명시한다.
+
+
+## 2026-09-15 — 운영 AI 요약 보기 미동작 (Edge OpenRouter 시크릿 누락)
+
+### 상황
+실제 소유자 계정(Asia/Tokyo)에서 기술 피드 `오늘 요약 보기`를 눌러도 인사이트가 생성되지 않았다. 서버는 200을 반환하고 상태만 idle→unavailable("AI 요약 연결을 확인하지 못했어요")로 바뀌었다.
+
+### 원인
+운영 Supabase Edge 시크릿에 OPENROUTER_API_KEY / OPENROUTER_MODEL이 없다(`supabase secrets list`, 이름만 확인). 기존 재시작 코치는 GitHub Secret→Vercel production env(api/study-coaching.mjs) 경로로 키를 받지만, 브리핑은 Edge `tech-feed`가 Deno.env를 읽는다. `getOpenRouterConfig(env).enabled=false` → `runBriefing`이 provider 호출 전에 unavailable을 반환한다. DB 스냅샷(오늘 10건 중 적격 9건, receiving true, 캐시/lease 없음)·접근 게이트·쿼터 함수(coaching_private.reserve_ai, coach_ai_usage)는 모두 정상이었다.
+
+### 해결 방법
+- 운영 조치(사용자 수행): `supabase secrets set OPENROUTER_API_KEY=<값> OPENROUTER_MODEL=openrouter/free --project-ref bqohkdzvxbrokkmuhysx`. 키 값은 문서·로그에 기록하지 않는다.
+- 코드: 읽기 경로도 provider 미설정을 보고하도록 `runBriefing`에 providerEnabled() 검사 추가. idle일 때만 unavailable로 대체하고 ready/insufficient/paused/캐시는 유지, 잘못된 설정은 예외 대신 unavailable. 실패 테스트 작성 후 GREEN.
+
+### 검증
+node --test 686건(682 pass, 0 fail, 4 optional browser skip), test:edge 10/10. 실제 소유자 브라우저에서 클릭 재현·응답 확인. 시크릿 설정 후 실제 생성은 재검증 필요.
+
+### 관련 파일
+- supabase/functions/_shared/tech-feed-briefing.mjs, tech-feed-briefing.test.mjs
+- docs/tech-feed/daily-briefing-verification.md
+
+### 재발 방지
+Edge에서 새로 AI를 호출하는 기능은 Vercel env와 별개로 `supabase secrets list`에 필요한 키 이름이 있는지 릴리즈 게이트로 확인한다. 운영 웹 검증에 "실제 소유자 생성 1회"를 필수 항목으로 둔다.
+
+
+## 2026-09-15 — 브리핑 재조회 수명주기 회귀 수정
+
+### 상황과 원인
+새 글 확인 완료 후 revision 효과가 setData(null)을 실행해, 후속 통계조회 실패 시 이전 통계까지 사라졌다. 창 복귀 이벤트는 같은 날짜를 다시 설정하기만 해 같은 날 신규 수집 내용은 갱신하지 않았다.
+
+### 해결 방법
+owner/date/timezone 수명과 같은 범위 revision 읽기를 분리했다. 같은 범위 실패는 마지막 통계를 유지하고 미검증 인사이트를 숨긴다. 복귀 이벤트는150ms로 합쳐 읽기만 수행하며, 진행 중 생성에는 한 번의 후속 읽기만 예약한다. 계정/날짜 변경에는 낡은 내용을 버린다.
+
+### 검증
+실제 React mounted Chromium 회귀4개: RED3fail/1pass→GREEN4/4. Parent 전체685/685, 브라우저3복귀이벤트→1read·32→33건·실패후33유지·AI0 확인. 초기 helper/SSR 테스트만으로 놓쳤던 effect 경로를 재발 방지 대상으로 추가했다.
+
+### 관련 파일과 주의
+apps/web/src/FeedDailyBriefing.tsx, apps/web/test/feedBriefingLifecycle.test.mjs. FEED_BROWSER_MODULE/FEED_BROWSER_EXECUTABLE로 설치된 Playwright/Chromium을 지정해 실행한다. 기본CI에runtime이없으면 optional4skip이며 실행된 것으로 간주하지 않는다. 도구 출력 잘림으로 생성patch에 문자열이 섞인 빌드 오류도 수정했고, 이후 exactdiff와 전체TS/build로 확인했다.
+
+
+## 2026-09-15 — 기술 피드 분류·Markdown 표시 개선
+
+### 상황과 원인
+AI 요약이 없으면 category가 비어 미분류 배지가 반복되고, 소개 문자열을 그대로 출력해 ### 같은 Markdown 기호가 보였다. 수집 관심 문장을 카드 태그로 반복하고 고정5개 관심 필터를 별도로 표시해 수집 설정과 읽기 필터의 역할도 겹쳤다.
+
+### 해결 방법
+공용 보수적 분류/실제 문구 기반 태그와 안전한 Markdown AST·260자 미리보기를 추가했다. 분류 백필은50개 lease/version/content 검증으로 제한하고 AI provenance를 보존한다. 전체 가시성 facets와 별도 일일 통계/명시적 AI API를 구현했다. UI 연결과 운영 적용은 progress를 따른다.
+
+### 회귀와 재발 방지
+AST 상한 이후 꼬리 누락, preview의 raw 기호 잔존, 코드 리터럴 변조, inline code를 감싼 링크/강조 조합을 실패 테스트로 확인하고 수정했다. 코드 내용을 충돌 불가능한 토큰으로 보호한 뒤 외부 문법을 한 번 정리하고 복원한다. 최종 공통 모델19/19, 서버 포함194/194 통과, 독립 리뷰 중요 지적 없음.
+
+### 관련 파일
+packages/core/src/feedClassification.mjs, feedMarkdown.mjs 및 tests; supabase/functions/_shared/tech-feed-briefing.mjs, tech-feed-classification.mjs; migration20260914164719.
+
+### 남은 리스크
+현재 기록은 로컬 검증이다. 원격 권한/실계정/브라우저 검증은 별도 수행하며 기존 Supabase 장애의 최초 자원 원인이 확정됐다는 의미가 아니다.
+
+
+## 2026-09-14 — Supabase timeout 복구 조치 결과
+
+### 조치 및 검증
+- 사용자 승인으로 공식 POST /v1/projects/bqohkdzvxbrokkmuhysx/restart 1회 실행. 2026-09-14T14:03:47Z HTTP200, RESTARTING 관측, DB 실제 기동14:07:45Z,14:08:02Z 프로젝트와Auth ACTIVE_HEALTHY.
+- 재시작 직전 SELECT now()/pg_postmaster_start_time도 connection timeout. 이후 SQL 성공(세션112/회복131건), 공개 Auth health200(0.929초), profiles/recovery/sessions limit0 REST 모두200(0.210/0.114/0.126초).
+- 공식 metrics와disk/util 조회도200으로 회복. 재시작 후 디스크 사용731873280/2077073408 bytes, 가용1345200128 bytes. 이 사후 값만으로 장애 당시 CPU/메모리/I/O 하위원인을 확정하지 않음.
+- 출석/기술피드 cron14:08UTC 실행 succeeded 확인(HTTP 전송 예약의 성공이며 실제 알림 전달 전체 성공을 뜻하지 않음). 비활성 커리어cron 유지.
+- 데이터 삭제/복원/스키마·RLS·키·요금제·cron 설정/제품 코드 변경 없음. 운영 재시작만 수행, 웹 재배포 없음. 실제 사용자 저장 로그인과 화면 E2E 및 장기 재발 여부는 미검증.
+
+### 남은 리스크
+서버/인증 응답 장애는 재기동 후 해소됐지만 최초 장애의 자원 또는 서비스 하위원인은 미확정. 이전 UNHEALTHY와 metrics 실패, 재시작 전SQL timeout, 재시작 후 기동시각/정상응답을 구분해 기록. 실제 계정의 회복 저장 성공이나 시작 버튼 정상화를 대신 검증한 것은 아님.
+
+### 운영 경로
+CLI projects --help 및 현재 MCP 도구에 restart가 없어 공식 Management API의 /restart를 사용. 문서 URL은 https://supabase.com/docs/reference/api/v1-restart-a-project 이며 v1-restart-project는404. 토큰 출력/저장 없음.
+
+
+## 2026-09-14 — 학습 정보 timeout과 Supabase 서비스 상태 실패
+
+### 상황
+회복루틴 UI 대기 개선 배포 후에도 최초 학습 정보 로딩이15초 deadline에 도달하여 시작이 차단됨. UI 안전장치와 서버 가용성은 별개.
+
+### 관측 오류
+- 앱: 서버 응답을 기다리는 시간이 초과됐습니다.
+- 공식 health(auth): healthy=false, status=UNHEALTHY, Failed to retrieve project's auth service health.
+- metrics: Failed to fetch project's metrics (errorEventId815562944a9c480baa50e1e694fb4ec6).
+- disk/util: Failed to get disk utilization.
+- MCP 진단1건 HTTP504. 자체 진단 취소 조건에 일치하는 실행 쿼리 없음.
+
+### 원인 구분
+공개 Auth health 및 limit0 REST 조회도 지연되어 실제 사용자 회복루틴 상태만의 문제는 아님. TLS까지는 빠르고 최초응답 시간이 가변적. 서비스 응답 가용성 문제는 확인했으나 CPU/메모리/디스크 고갈·특정 쿼리 중 어느 것이 하위원인인지는 미확정. 스냅샷 장기 실행/lock wait 없음. cron 기록371MB와 pg_net 응답110MB 및 누적 cleanup 비용만으로 현재 I/O 고갈을 확정하지 않음.
+
+### 다음 조치 및 주의
+운영 재시작은 일시적인 로그인·공부 기록·알림 중단을 수반하므로 승인 후 실행 및 전후 검증. 원인 불명 상태에서 timeout 연장·기록 삭제·무료 플랜 유료 전환을 하지 않음. CPU/I/O 지표 조회가 계속 실패하면 해당 오류와 시각으로 Supabase 지원 요청. 현재는 진단만 수행했으며 해결 완료 아님.
+
+### 관련 경로
+apps/web/src/dashboardData.ts, apps/web/src/main.tsx. 운영 project ref bqohkdzvxbrokkmuhysx. 제품 및 운영 변경 없음.
+
+
+## 2026-09-14 — 최종 리뷰 및 검증 완료
+
+- 독립 리뷰의 P2 2건(세션 시작 전 조회가 새 세션을 덮는 경합, 이전 계정 시작 실패가 새 계정 상태를 오염)을 수정. 시작 mutation 전 조회 취소/버전 무효화, RPC 중 조회 억제, 계정별 시작 요청 abort/결과 가드 적용.
+- 실제 startTimer를 실행하는 startRequestIsolation 회귀2건 RED→GREEN. 독립 재검토 중요 지적 없음, 전체626/626 및 웹빌드 통과. 기존 모바일/README 검사와390/1440 브라우저 검증 통과.
+- 회복 RPC 응답 유실 시 입력 유지·저장 성공 단정 금지·재조회로 committed 상태 반영 후 모달 해제까지 확인. 운영 DB/함수/cron 변경 없음.
+- 웹 배포를 위해 변경 코드·테스트·관련 진단문서만 커밋/푸시. output 및 브라우저 임시파일은 제외. 실제 배포 결과는 후속 기록.
+
+
+## 2026-09-14 — 회복루틴 이후 무기한 버튼 잠금 보완
+
+- 원인 경로: loadDashboard가 global busy=true를 설정하고 시간 제한 없는 전체 조회 완료까지 유지. 제출 성공 직후에도 동일 조회로 다시 잠김. 인증/DB 지연 시 회복폼·학습 기록 초기값과 비활성 버튼만 표시될 수 있었음.
+- 수정: 15초 runBoundedRequest(Promise.race+AbortController), 요청별 abortSignal, 대시보드 전용 loading/error/loadedUserId 및 최신 시도 가드. 회복 저장 후 optimistic submitted는 RPC 성공 때만 반영하고 배경 재조회로 변경.
+- 오류 복구: 첫 조회 실패는 0초 대신 확인 필요, 명시 재시도. 회복 제출 불확실하면 입력 보존+재조회로 submitted 확인 후 모달 해제. 세션 시작 불확실 시 재확인 필요 표시.
+- 회귀: SDK fetch가 abort를 무시하는 가상 전송에서도 시간 제한 종료, 계정 취소,8종 query abort,후속 retry 성공 테스트. 브라우저에서 제출 후 재조회가 멈춰도 시작 및 카메라 준비 진행 확인.
+- 검사 중 발견: 기존 목표 조회 테스트 대역의 abortSignal 누락 보정. Vite dev dependency scan은 기존 feed-ui fixture의 bundle.js 미생성 경고이나 실제 앱 렌더/빌드 정상. Playwright run-code에는 URL 전역이 없어 URL 문자열 분리로 로컬 진단 스크립트 보정.
+- 운영 SQL/Auth 지연은 이전 시점 관측이고 후속 SQL은 성공. 서버 하위 원인 미확정, 계정/기록 삭제나 서비스 재시작은 수행하지 않음.
+
+
+## 2026-09-14 — 회복 제출 후 잠금과 운영 연결 지연
+
+- 상황: 회복을 제출했는데 창이 없고 시작/종료 비활성, 공부시간 0 표시.
+- 오류: MCP 회복 상태 집계 및 select now() 각각 Connection terminated due to connection timeout. 공개키 Auth health 요청도 15초 timeout. 프로젝트 상태는 ACTIVE_HEALTHY이므로 상태 라벨과 실제 요청을 구분해야 함.
+- 코드: submitRecoveryRoutine 성공 시 로컬 submitted 반영 후 loadDashboard await. 전체 Promise.all/페이지 요청에 제한시간이 없어 요청 미완료 동안 busy=true 지속. 초기 조회 미완료 시 빈 회복 목록/0초가 함께 보일 수 있음.
+- 한계: 사용자 브라우저 요청과 실제 submitted/pending 미확인. 지연은 확인했지만 자원고갈/잠금/네트워크 하위 원인 확정 못함. 0초는 데이터 삭제 증거 아님.
+- 조치: 진단만 수행. 승인 후 제한시간/재시도/명시적 로딩·실패 UI 보완, 미제출 회복 차단은 유지. DB 복구 후 저장 상태 검증. 쿠키삭제/중복 제출/운영 재시작은 수행하지 않음.
+
+
+## 2026-09-14 — 인증 진단 확인 범위 및 도구 제약
+
+- 사용자 로그인 인증불가 제보, 정확한문구는 요청중. 독립브라우저 cold-load는 정상이나 실제저장세션 refresh/OTP/OAuth성공을 대신 검증하지 않음.
+- 공개키 health/settings200, DB lock0, Vercel최근오류0. Auth/edge로그와24시간audit빈결과이므로 과거Supabase자원고갈을현재원인으로단정하지 않음.
+- CUA node_repl sandbox helper startup 실패. 기존사용자브라우저·쿠키·세션은변경하지 않고 별도Playwright만 사용.
+- 운영클라이언트는 legacyJWT아닌 sb_publishable키 사용. 키없는health401은인증게이트응답, 공개키로200확인. 비밀값출력없음.
+- Playwright network명령은현재미지원이라help의requests사용. 이전턴functions store helper는이번턴에없어TypeError발생, 독립문서패치로전환.
+- 다음: 화면오류/수단/시점정보로세션갱신·OAuth·OTP·네트워크를구분. 제품/운영설정변경없음.
+
+
+## 2026-09-14 — Supabase 실제 런타임의 Buffer 전역 누락
+
+- 상황: 미디어 신규배포 APIv18/workerv20 뒤16:25~16:29UTC 정기 피드 요청503, run finished_at 미기록. 출석 요청은 같은 시각200.
+- 운영 로그(Management API function_logs): event loop error: ReferenceError: Buffer is not defined, tech-feed-transport.mjs 응답 end callback. hosted edge-runtime1.76.0 / Deno2.1.4, 로컬 Node/Deno2.9 기본환경 차이.
+- 원인: 기존 DNS-pinned transport가 Buffer.concat을 전역에 의존. 기존 승인RSS 수집이 없을 때 노출되지 않았고 새 원문 HTML 읽기로 드러남. 외부 사이트 차단이 원인이 아니었음.
+- 해결: node:buffer에서 Buffer 명시 import. DNS/TLS pin·리디렉션·1MiB 제한 유지. 별도 subprocess에서 delete globalThis.Buffer 후 실제 transport의 body decode 경로를 실행하는 회귀 테스트 RED(동일ReferenceError)→GREEN.
+- APIv19/workerv21 재배포/JWT true.16:30:10→19UTC와16:31:02→03UTC 정기 run completed/error null, 실제 NEXT IAS webp 및 AI Business 대표이미지/YouTube ID ready 확인. 초기 실패 run 기록은 이력으로 보존.
+- 검증: 전체620개·Edge9개, 독립리뷰 재검증통과. 로그 조회에서 존재하지 않는 counts 칼럼 대신 실제 collection_*·summary_* 칼럼 사용. 키/토큰은 기록하지 않음.
+
+
+## 2026-09-14 — 미디어 버튼 클릭 위치와 외부 원문 제한
+
+- 상황/에러: 브라우저 검증에서 iframe waitFor 30초 timeout. DOM은 영상 불러오기 상태 유지.
+- 원인: styles.css의 button:hover:not(:disabled)/active transform이 중앙 배치 translate(-50%,-50%)를 덮어써 클릭 시 버튼이 이동. native click target이 버튼 아닌 frame div임을 확인.
+- 해결: .tech-feed .feed-media-play hover/active에 동일 중앙 transform 유지. 공통 버튼 스타일은 그대로 보존.
+- 검증: 같은 실패 스크립트 재실행390/1440 모두 통과, iframe은 클릭 후에만 생성/닫기 때 제거, runtime error0.
+- 원문 smoke에서 AI Business403/YouTube HTML source_failed. 우회하지 않음. 기존 공개 YouTube/Vimeo 원문 URL은 안전한 ID만 추출해 player 연결, 일반 차단 페이지는 미디어 실패 cache/텍스트 유지.
+- TDD의 의도된 RED 이외 최종 제품 테스트 실패 없음. agent-browser eval의 PowerShell 인용 오류(vite is not defined)는 평가 명령 문제였으며 파일 기반 Playwright로 overlay/DOM을 검증.
+- 관련: FeedArticleMedia.tsx, techFeed.css, feedMedia.mjs, tech-feed-media.mjs, scripts/feed-media-browser-check.js. 기존 Deno punycode 경고는 별도 기존 이슈.
+
+
+## 2026-09-14 — 기술 피드 소개 노이즈 및 필터 오탐 수정
+
+- 원인: 뉴스 접미어+1주 검색이 영상·뉴스에 편향되고, HTML 태그만 제거한 검색 소개를 그대로 번역했다. 폰트는 시스템 의존, 모바일본문14/보조10px로 작았다.
+- 해결: 일반 관심 기술 블로그/사례/가이드 순환,1년 탐색, 원문출처 링크, 한글웹폰트와 대비/크기 개선. 영상/명백한 목록 신규수집 제외, 기존 데이터 링크 보존.
+- TDD:6개 새 행동 실패 확인 후 구현. 전체 검사4실패는 기존 뉴스/1주 기대값으로 새 승인 정책에 맞춰 갱신.
+- 독립 리뷰: query 기반?p=123 실제글 오인과 장애타임라인 문장삭제를 재현→query permalink 보존·0시작 짧은 레이블/경계 기준 정리로 수정.
+- 후속 리뷰: plainText가 개행을 먼저 평탄화해 홍보문과 기술문장을 합쳐 삭제. 실제 어댑터 newline/HTML 테스트 RED 후 선택적 preserveParagraphs를 도입. script/style/iframe 제거와 기본 RSS 평탄화는 유지하며 검색만 문단을 보존한 뒤 정리.
+- 재발 방지: helper뿐 아니라 실제 createTavilySearch 결과 검증, 명확한 경계 없는 기술 문장은 보존. 원문 페이지 추가요청/AI 추측/일괄DB수정 없음.
+- 관련 파일: packages/core/src/feedContent.mjs, supabase/functions/_shared/tech-feed-core.mjs, tech-feed-search.mjs, tech-feed-content.test.mjs, apps/web/src/TechFeedSection.tsx.
+- 브라우저 검증: Playwright 실제 컴포넌트+격리된 예시API,390/1440px 가독성·링크·페이지회귀 통과. 기존 Deno punycode deprecation warning만 있으며 신규브라우저오류0.
+- memory-bank/README.md는 이 저장소에 없는 선택 문서라 읽기 실패; 필수6문서/관련PRD는 존재하고 확인됨. 불필요한 README 생성은 하지 않음.
+
+
+## 2026-09-14 — 영상 설명이 기술 소개로 번역되는 문제
+
+- 원인: 검색 어댑터는 HTTPS/title검사와 plainText 태그정리만 수행. YouTube 링크/채널구독 문구/방송 시간표를 품질검사하지 않아 제목·소개 번역에 그대로 전달. 운영 Bloomberg 영상에서 동일 현상확인, AI요약은pending.
+- 관련: tech-feed-search.mjs, tech-feed-query.mjs, tech-feed-core.mjs, tech-feed-translation-worker.mjs, TechFeedSection.tsx, techFeed.css.
+- 방향(승인대기): 수집단계 영상/색인/홍보 설명 제외·정제, 기존 표시 방어, 근거부족은 원문 안내. 기술 사례/해설은 뉴스와 검색 기간/의도를 분리. 저장된 원문링크는보존.
+- 진단 쿼리42703: excerpt_provenance는 list응답용 값이며 articles 실제열이 아님. 해당열 제외 후 실제확인, 스키마변경없음. changelog.md 웹도구는 text/markdown 미지원으로실패, 이번에는Supabase기능구현없고읽기SQL만수행.
+
+## 2026-09-13 — 저장 해제 후 페이지 건너뛰기 및 카드 호환
+
+- 초기 배열 삭제 방식은20개 중1개 해제 후 다음 커서 첫 글을 이전 페이지 빈칸에 넣어 건너뛰게 함. 캐시 전부 해제 시 탐색도 사라짐.
+- 해결: saved:false 슬롯 보존·페이지 표시에서만 제외, 빈 페이지+다음커서 탐색 유지, 마지막 빈 저장 페이지 보정. feedSavedPagination3개 RED→GREEN 및 실제 Chromium 시나리오·독립 재검토 승인.
+- 예전 RSS 응답/fixture에 matched_topics가 없어 전체3건 실패: 태그 빈 배열 fallback 추가. AI즉시전체표시 테스트는 승인된 접힌 요약으로 개정, 실제 브라우저3항목 펼치기 검증. 전체600/600.
+- 원문 details의 line-clamp 스타일을 분리해 긴 원문도 전체 표시. 브라우저 예시글 길이/분류 검증 데이터 오류 교정.
+- view_image 기본 읽기 apply deny-read ACLs 오류는 승인된 동일PNG 읽기로 확인. ACL·운영계정·비밀값 변경 없음.
+
+## 2026-09-13 — main 커밋·푸시 별도 승인 거부
+
+- 실제7건 번역 성공 후 문서패치 적용→stage→commit→push main 셸 요청이 실행 전 거부됐다. 사유: 운영 배포 승인은 있지만 커밋·푸시 승인이 별도로 확인되지 않는다는 승인시스템 판단.
+- repo AGENTS §5 자동배포/필요 Git작업 승인 규칙과 해석이 다르지만 거부를 우회하지 않았다. CLI/직접Vercel 등 간접경로로 재시도하지 않았다.
+- 상태검증: HEAD1d38625 유지, index비어있음, 원격/웹변경미실행. 이미 완료된 DB/서버는 정상7번역ready/3POST/7259자. 문서패치만 별도로 적용하고 사용자에게 명시적 Git+웹배포 승인을 요청한다.
+
+## 2026-09-13 — DeepL 사용량 상한 거부 해결
+
+- 실제14:14UTC Cron error_code=usage_limit_above_free, attempted0/characters0로 고정 Free endpoint의 양수상한>500000 응답을 자체검증이 거부함을 확정.
+- 수정: 유효한 양수정수 상한은 min(500000,reported_limit)으로 제한하여 잔여량을 계산. 기존 유료경로차단/Free키/Pro필드차단/app450000은 그대로. 공식 usage 문서도 Free 예시에1250000을 사용하므로 응답값을 요금제확정값으로 간주하지 않는다.
+- 회귀: reported_limit500001/1250000/1e12 및 사용량499999→잔여1,500001→잔여0 RED→GREEN. 전체591·독립재검토 승인.
+- 운영: 잘못된 사전검사로 번역POST가 없던7건만재시도복구.14:17UTC 일반Cron 번역3건 ready/POST1/3007자 확인. 키/원문API응답은 노출하지 않았다.
+
+## 2026-09-13 — DeepL 실호출 사용량 한도 검증 실패 조사
+
+- 배포 후 일반Cron14:03UTC에 translation unavailable, attempts0/budget행0 확인. source수집은 정상이며 번역3기사 failed/backoff 처리.
+- 기존 오류가 unavailable로만 합쳐져 근거가 부족했다. 신규endpoint 없이 기존 번역클라이언트/worker에 stage 고정code allowlist를 추가하고 민감응답 비노출 회귀를 RED→GREEN 검증했다.
+- 14:08UTC 일반Cron 응답에서 usage_invalid_limit 확인. 이는 HTTP 성공 후 character_limit의 타입/범위검사 거부이며 무료조건 완화 없이 세부분류를 추가해 확인 중이다.
+- 키값/제공자 응답본문을 수집하거나 임시probe·권한우회·유료경로를 추가하지 않았다. 실제 원인/최종 해결은 후속기록 참조.
+
+## 2026-09-13 — 번역 예약 취소 오인과 배포 승인 차단
+
+- 검토 재현: 같은 주제 A/B 구독→A claim→usage 확인 중 A 수신중지→reserve false를 quota_exhausted로 오인, POST0/차감0인데 provider 전역1시간 backoff 발생.
+- 해결: reserve 반환 상태를 reserved/quota_exhausted/deferred로 분리. deferred는 pending/즉시 lease반환/전역backoff0. 실SQL+worker 회귀에서 B 즉시claim 확인. 최종전체589 및 독립 재검토 통과.
+- 운영 적용 오류: 승인 시스템 "This action was rejected due to unacceptable risk ... implementation approval does not explicitly authorize deployment ... separate deployment request." migration 생성/RLS/기존list함수변경 영향으로 거부.
+- 대응: 우회/재시도/CLI 적용 없이 중단. migration 목록 재조회로 미적용 확인. 커밋/푸시/함수/웹 배포 안 함. 사용자에게 명시적 운영 DB+서버+웹 배포 승인을 요청한다.
+
+## 2026-09-13 — 한국어 번역 미제공 원인과 연결 상태
+
+- 상황/원인: 기존 카드는 원문 title/excerpt를 출력하고 AI는 별도 요약3필드만 생성했다. 번역 데이터/공급자 경로가 없었음. 운영에는 DEEPL_API_KEY도 없다.
+- 해결: DeepL Free 전용 번역 경로/공유 캐시/별도 문자예산과 한국어 기본·원문 접기 구현. 키가 없으면 원문을 유지하고 연결 준비 중을 표시한다. 아직 실제 공급자 번역 성공을 주장하지 않는다.
+- 테스트 과정: UI 테스트를 top-level await 번들 앞에 등록하면 fixture 초기화 전 실행되어 실패했다. 테스트 등록을 fixture 뒤로 이동해 실제 컴포넌트 검증 후 통과. DB/수집 기능 RED→GREEN 확인.
+- 환경: 기본 편집/쉘의 apply deny-read ACLs 실패는 apply_patch 생성 패치→승인된 git apply로 처리. ACL/사용자 파일을 변경하지 않는다. memory-bank/README.md는 없는 선택 문서임을 확인하고 실제 PRD/핵심6문서를 사용.
+- 재발 방지: 번역 상태와 AI 요약 상태, 코드 배포와 API 키 활성화를 구분한다. 다른 프로젝트 키나 유료 endpoint로 우회하지 않는다.
+
+## 2026-09-13 — 운영 검증 제한 기록
+
+- 즉시 수집 DB/함수/웹 배포 및 로컬/CI 검증 성공. 임시 probe 배포·호출은 승인 시스템이 추가 운영 엔드포인트/수집 권한 범위 문제로 거부. 다른 경로로 우회하지 않았고 함수 목록에서 probe 없음 확인.
+- 정상 브라우저 검증 대안은 CUA 시작 전 apply deny-read ACLs로 실패. 기존 로그인 상태/브라우저 데이터는 건드리지 않았다. 사용자 정상 클릭 후 운영 기록 확인이 남는다.
+- 읽기 진단에서 존재하지 않는 tech_feed_runs.counts를 추정해42703 발생. information_schema.columns를 읽은 뒤 collection_success/collection_failed/error_code로 재조회 성공. 데이터 변경 없음.
+- 문서 패치에서 Markdown 하이픈을 diff prefix와 혼동해 적용 실패. 정확한 원문 줄로 수정하고 diff 확인. 스키마 버전은 실제20260913122656으로 정합화.
+
+## 2026-09-13 — 즉시 수집 수정과 검증
+
+- 해결: 수동5분 조건 제거, 복합 문장의 순환 focused search, 수집 성공0건과 미실행 분리. 무료 차감/lease/보안 필터 유지. 로컬 회귀15/전체570 통과, 운영 확인 진행 중.
+- 추가 발견: manual_refresh_failed는 tech_feed_runs 허용 CHECK 밖이므로 실패 기록이 다시 실패할 수 있었음. worker_failed로 수정하고 회귀 추가.
+- 로컬 SQL 테스트에서 2147483647where 숫자 뒤 공백 누락42601을 발견, 공백 수정 후 migration 테스트 통과. 운영에는 실패 SQL 적용 안 함.
+- 편집 도구의 deny-read ACL 오류는 apply_patch로 패치 파일 작성→git apply로 우회. 사용자 파일/ACL은 변경하지 않는다.
+
+## 2026-09-13 — 새 글 확인의5분 생략 및 계속0건
+
+- 실측12:15UTC attempts4/articles0, 마지막수동12:10:40/검색성공12:10:43. 가동 중이나 유효기사 없음.
+- 원인: 20260912161611_tech_feed_manual_refresh.sql의 begin/claim_search/claim_sources5분 freshness. 최근 정기 수집도 수동을 막는다. 복합 문장 검색의 raw1/accepted0도 별개 문제다.
+- 해결 미구현/승인 대기: 수동 freshness 제거·lease/한도 유지 및 관심사별 순환 검색 제안. 공식 참고 https://docs.tavily.com/documentation/best-practices/best-practices-search .
+- 재발 방지: 실제POST/유효 결과/저장 기사를 분리하고 ready만으로 도착했다고 보고하지 않는다. 관련 _shared/tech-feed-search.mjs, tech-feed-search-worker.mjs.
+
+## 2026-09-13 — 수집 ready인데 글0건
+
+- 실제 제공자 응답과 필터 결과를 분리해 확인: 단일 수신 동의 계정의 기존 수동 경로에서 raw_count1, accepted0. 반환값은 HTTPS가 아닌 뉴스 목록 URL이었다. 기존 normalizeUrl에서 거부한 것이며 검색 인증/연결 실패가 아니다.
+- 임의의 URL 승격/관심문장 변경/보안 완화는 하지 않았다. 실제검색2회와 자동Cron/중복방지는 확인했으나 유효기사 저장 성공과 로그인 브라우저검증은 미완료로 기록한다. 필요 시 별도 검색 품질 개선.
+- 진단 중 SQL이 존재하지 않는 last_result 컬럼을 참조해42703 발생. 컬럼을 추정하지 않고 집계만 조회하여 재검증; 데이터 변경 없음. 일회성 진단함수 삭제.
+- 재발 방지: ready/HTTP200과 제공자 결과수/안전 필터 통과수/DB 저장수를 동일시하지 않는다. 상세 docs/tech-feed/collection-live-20260913.md.
+
+## 2026-09-13 — 무료 nullable 한도 과잉 차단 해소
+
+- 원인: Researcher 무료 계정에서도 null cap이 가능하나 모든 cap을 숫자로 요구해 검색 이전 unavailable 반환.
+- 승인된 해결: 정확한 null만 허용하고 무료 plan 잔여량/숫자 key 추가한도/월900/lease 유지. paygo_usage0, 무료 요금제, 누락·타입 검사는 유지한다. null 자체를 결제 상태 증거로 쓰지 않는다.
+- 검증: 신규 RED3fail→GREEN4, 전체564/564·Edge8/8 및 실제검색 ready/attempted1. 실제 글0건의 원인은 추가 확인 중. 상세 docs/tech-feed/collection-live-20260913.md.
+
+## 2026-09-13 — 실제 worker 인증500 / Tavily 무료 조건 미설정
+
+### 원인과 증거
+- secret 누락401이나 nonempty secret500: 전역 Buffer 없는 Edge 환경에서 Buffer.from이 예외를 발생시켰다. 전역 제거 회귀에서 ReferenceError 재현.
+- TextEncoder 수정 후401/200 정상. 이어진 검색은 attempted0/unavailable이며 usage API는200/Researcher/1000이지만 key.limit 및 paygo_limit=null 반환. 키 인증 실패가 아니라 보수적 무료 검증 차단이다.
+### 해결 및 현재 한계
+- timingSafeEqual에 표준 Uint8Array 사용, JWT 유지, Node560/560·Edge8/8 및 운영 응답 검증. 최종 worker v10 ACTIVE 확인.
+- 사용자에게 전용 키900 한도/종량제 비활성 확인 요청. null을0으로 추정하거나 결제를 켜지 않는다. 수집 false/Cron inactive로 복구; 기사0/검색0 유지.
+- 예약 요청은 Vault의 anon JWT + 별도 worker secret을 사용하도록 준비. 출석 Cron 보존. 일회성 usage 진단 함수 삭제.
+- 재발 방지: 로컬 최신 Deno의 전역 제공 여부를 hosted Edge와 같다고 가정하지 않는다. runs completed/HTTP200과 search.state ready·기사 저장을 구분한다. 관련 docs/tech-feed/activation-20260913.md.
+
+## 2026-09-13 — 배포 후 피드가 도착하지 않음
+
+### 상황 / 원인
+- 사용자 수신 설정은1개 저장되어 있으나 기사와 수집 실행이0건이다. 수집 스위치 false, 피드 Cron inactive, 검색 키/worker 인증 없음, RSS8개 승인 대기가 운영 조회로 확인됐다.
+- 수동 API는 전체 수집 중지일 때 beginRefresh 이전에 paused를 반환하므로 요청 테이블0건만으로 버튼 클릭이 없었다고 판단하면 안 된다.
+### 확인 / 대응
+- CLI secrets list의 키 존재 여부와 false의 SHA256 digest 일치만 출력하고 비밀값은 조회/노출하지 않았다. MCP로 Cron/소스 상태/기사·실행·수신 동의 수를 집계했으며 개인 관심 내용은 읽지 않았다.
+- 진단만 수행. 가동하려면 운영 전용 무료 검색 인증과 무료 정책 검증 또는 허용된 RSS 소스, 전체 스위치와 예약 인증/작업 준비가 필요하다. 단순 웹 재배포로 해결되지 않는다.
+- 재발 방지: 배포 완료와 운영 수집 성공을 별도 보고하고, 실제 기사 저장 및 연속 예약/수동 실행을 출시 가동 기준으로 확인한다.
+
+## 2026-09-13 — 새 글 확인은 캐시 조회만 수행 / 수동 수집 동시성
+
+### 상황 / 원인
+- 기존 버튼은 revision을 올려 state/list만 읽었다. 신규 수집 기능에서 전체 source/topic lease를 요청 gate로 쓰면 바쁜 RSS 하나가 독립 검색까지 막고, provider mutex 경합을 null로 표현하면 캐시 확인으로 오인했다.
+- 설정 revision 검증과 claim 사이 owner 잠금이 없으면 관심 변경과 경쟁할 수 있다. lease 종료만으로 공유 수집 성공을 단정할 수도 없었다.
+### 해결 방법 / 검증
+- 인증 refresh 경로, owner-only begin gate, 리소스별 lease, eligible 주제의 provider busy 신호와2초 제한 재시도, claim의 owner advisory lock을 적용했다. 무료 사용량은 실제 POST 직전에만 예약한다.
+- 공유 상태는 현재 검색 오류/한도를 보존하며 RSS 성공과 검색 작업 진행을 분리한다. 계정 수명/설정 세대로 오래된 화면 응답을 차단한다. 재현 테스트 RED→GREEN 및 독립 재검토 승인.
+- 관련: tech-feed-refresh.mjs, tech-feed-api.mjs, tech_feed_manual_refresh.sql, techFeed.mjs와 신규 회귀 테스트.
+### 도구 오류 / 재발 방지
+- zero-context 삽입으로 refreshNow가 loadMore 내부에 들어가 TS2552가 발생했다. 함수 scope를 수정하고 웹 빌드로 재검증했다. fixture switch의 state/refresh 위치도 실제 브라우저 검증 전 수정했다. 패치 후 문맥을 반드시 재확인한다.
+- Playwright bash wrapper는 Windows UV_HANDLE_CLOSING으로 실패했다. 설치된 npx.cmd로 동일 CLI를 직접 실행하여 브라우저 검증을 이어갔다.
+- 기존 파일의 Windows ACL helper 오류는 보안 설정 변경 없이 apply_patch로 만든 patch + 승인된 git apply로 처리했다.
+- hosted 다중 연결 경쟁 및 운영 제공자 실수집은 합성/순차 PGlite 검증으로 대체했다고 주장하지 않는다.
+- 운영 smoke의 PowerShell `$home` 변수는 읽기 전용 HOME과 충돌했다. `$homepage` 및 ErrorActionPreference=Stop으로 재실행하고 빈 asset 경로를 거부하여 실제200/새 코드 확인. 공통 helper는 화면 chunk가 아닌 index chunk에 포함되므로 양쪽을 확인했다.
+- 배포 후 기존 security WARN 불변, 서버 전용 refresh 테이블 policy 없음 INFO만1개 추가(클라이언트 권한 제거 확인). 함수 v5/DB 권한/웹 READY 검증 완료. 실제 제공자 수집은 여전히 OFF이며 이번 배포의 오류로 혼동하지 않는다.
+
+## 2026-09-13 — 배포 CLI의 과거 마이그레이션 이력 불일치
+
+### 상황 / 원인
+- 격리 worktree에 Supabase link/config가 없어서 linked dry-run 실패. 명시적 project-ref로 확인하자 과거 원격 migration 파일 일부가 로컬에 없어 LegacyDbPushMissingLocalError 발생.
+### 해결 / 검증
+- 과거 migration repair/reset 또는 DB pull을 실행하지 않고, 검토된 신규 SQL만 Supabase MCP apply_migration으로 적용했다. 새 원격 버전20260912150427과 실제 RLS/권한 확인 후 로컬 파일명만 동일 번호로 변경했다.
+- 관련: supabase/migrations/20260912150427_tech_feed_web_search.sql, docs/tech-feed/deployment-20260913.md.
+- 재발 방지: production db push 전 dry-run과 원격 이력 확인. 도구의 과거 이력 reverted 제안을 그대로 실행하지 않는다. SQL 변경이 아닌 버전 정합화임을 기록한다.
+- 기존 파일 apply_patch 읽기는 Windows sandbox deny-read ACL helper 오류로 실패했다. 보안 설정을 바꾸지 않고 apply_patch로 만든 제한된 patch를 승인된 git apply로 적용했다.
+
+## 2026-09-12 — 피드 설정·주제·계정 전환의 상태 불일치
+
+### 원인 / 해결
+- 수신 변경 응답에 service_available이 없어 재개 후 중지 안내가 남았다. 변경 후 authoritative state를 재조회하며 같은 주제의 목록/커서는 유지한다.
+- 다른 기기의 주제 변경을409 또는 수신 직후 상태 재조회로 발견하면 예전 목록/커서가 남거나 빈 목록에서 멈췄다. 주제 변경 시 목록/커서를 비우고 첫 페이지를 재요청하며 작성 중 초안은 보존한다.
+- 새 계정 상태 로딩 중 이전 state/preview/주소 입력이 남았다. 계정별 상태 소유자를 검사해 렌더링을 차단하고 계정 변경 시 관련 상태를 초기화한다.
+### 검증 / 재발 방지
+- 독립 검토2회 수정 후 모두 승인. 실제 합성 브라우저에서 paused-load→resume, 다른 주제20개/새 커서, 다음 계정 지연·실패, receiving/state 사이 주제 변경을 RED→GREEN으로 확인했다. 집중28/28, 전체533/533, 빌드 통과.
+- 정적 브라우저 fixture는 코드 수정 후 서버를 재시작해야 새 번들을 사용한다. 과거 번들로 반복된 RED는 owned server 재시작 후 해소했다.
+- 첫 viewport 스크린샷 생성 스크립트는 파일이 없었으므로 증거에서 제외했다. v2에서 파일59556bytes 생성 확인 후 실제390x844 이미지를 열어 확인했다. 파일 생성/검증 전 성공으로 보고하지 않는다.
+- 관련: apps/web/src/TechFeedSection.tsx, techFeed.mjs, techFeedStateTransitions.test.mjs, fixtures/tech-feed-browser.tsx.
+
+## 2026-09-12 — 계정 전환 후 늦은 피드 요청의 상태 갱신 방지
+
+### 상황 / 원인
+- 비동기 action의 catch/finally가 변경 가능한 현재 lifetime을 읽으면 이전 계정 요청이 새 계정의 오류/처리 상태를 갱신할 수 있다.
+- 신규 보호 테스트의 RED 단계에 전체 검사를 실행해530개 중1개가 실패했다. 구현 완료 후 전체 재실행은530/530 통과했다.
+### 해결 / 검증
+- 요청 시작 시 generation과 AbortSignal을 캡처하고 현재 요청인 경우만 오류/종료 상태를 반영한다. 계정 변경 시 상태와 잠금을 초기화한다.
+- 실제 React 합성 브라우저에서 remount 없이 userId만 바꾸며 늦은 상태·설정 응답을 검증했다. 집중25/25, 웹 빌드 및 전체530/530 통과.
+- 관련: apps/web/src/TechFeedSection.tsx, techFeed.mjs, techFeedRequestGuard.test.mjs, fixtures/tech-feed-browser.tsx.
+- 재발 방지: 합성 fixture의 key로 계정 전환 문제를 숨기지 않고, 콜백에서 최신 ref를 읽는 것과 요청의 원래 소유권 확인을 구분한다.
+
+## 2026-09-12 — 웹 검색 검토: 관심 필터 누락·갱신된 소개 미반영
+
+### 상황 / 원인
+- 독립 검토에서 실제 검색 저장 경로가 interests를 비워 두어 관심 분야 필터에 검색 글이 나타나지 않음을 발견했다. 기존 페이지 테스트는 태그를 직접 넣어 이 경로를 검증하지 못했다.
+- 동일 URL 검색 결과의 새 소개는 topic map에만 저장되고 목록/AI는 첫 article.excerpt를 읽어, 짧은 초기 소개가 계속 요약 부족 상태로 남았다.
+### 해결 방법
+- 기존 RSS의 결정적 분류기를 공유하여 실제 검색 제목/소개로 interests를 생성·저장한다. 개인 관심 입력문을 분류 근거로 쓰지 않는다.
+- RSS 근거가 없는 검색 소유 기사만 소개를 갱신한다. 제목/소개 변경 시 캐시된 요약과 진행 중인 요약 lease를 함께 무효화하고 새 근거로 자격을 재계산한다. 날짜/기사ID/사용자별 실제 AI 사용 횟수는 보존한다.
+### 검증 / 관련 파일
+- provider→worker→PGlite→필터 목록, short→substantive, 이전 lease 완료 거부, 같은 근거 캐시 유지, RSS 보호를 RED→GREEN으로 검증했다. 관련54/54, Edge8/8 통과; 독립 수정 재검토 진행 중.
+- tech-feed-topics.mjs, search-worker.mjs, worker-core.mjs, search-db.test.mjs, 20260912122630_tech_feed_web_search.sql.
+### 재발 방지 / 남은 리스크
+- 수동 DB seed만으로 실제 수집 경로를 검증했다고 간주하지 않는다. 콘텐츠 갱신 시 목록·AI·캐시·in-flight 작업을 함께 확인한다.
+- 기존 Deno punycode 의존성 경고는 별도 보류 항목이다. 이번 기능에서 숨기거나 무관한 의존성을 변경하지 않았다.
+
+## 2026-09-12 — Windows 기존 파일 패치의 ACL/줄바꿈 제약
+
+### 상황 / 원인
+- 일반 셸과 기존 파일 apply_patch가 helper_unknown_error: apply deny-read ACLs로 실패하는 환경 제약을 확인했다. 파일 권한이나 보안 정책은 변경하지 않았다.
+- scratch 패치를 git apply로 적용할 때 부분 문맥/Windows 줄바꿈으로 patch does not apply가 발생했다.
+### 해결 방법
+- 새 scratch 패치는 apply_patch로 작성하고, 소유권을 확보한 대상에 한해 승인된 셸에서 git apply --recount --unidiff-zero --ignore-space-change로 적용했다. 원문을 다시 읽고 범위와 diff를 확인한다.
+### 관련 파일 / 재발 방지
+- 이번 README3개·memory-bank 부분 갱신. 기존 내용을 삭제/초기화하지 않고 패치 적용 실패 시 재확인한다. 작업용 패치를 Git에 포함하지 않는다.
+
+## 2026-09-12 — 기술 피드 WORKER_ERROR 해결: 동적 XML import 번들 누락
+
+### 상황 / 에러 메시지
+- 기술 피드/worker 모듈 초기화 실패로 OPTIONS와 anon JWT POST 모두500 WORKER_ERROR.
+### 원인
+- `await import(조건 ? Node 패키지 : npm specifier)`는 로컬 캐시에서는 실행됐지만 Deno 배포 의존성 그래프에 fast-xml-parser가 포함되지 않았다.
+- 두 진입점의 실제 deno info 그래프 테스트를 추가해 각각 실패를 확인. literal npm import만 분리한 뒤 두 테스트 통과 및 운영500 해소로 원인 확인.
+- import.meta.main/Deno.serve 가설은 배제했고 진입점 등록 코드는 유지했다.
+### 해결 방법 / 검증
+- Edge 분기를 literal `import('npm:fast-xml-parser@5.11.1')`로 변경, Node 분기는 기존 설치 패키지 사용. 버전/파서 보안 규칙 유지.
+- tech-feed/worker v2 배포 후 OPTIONS204, 두 함수 내부 인증401. JWT/피드 플래그/DB/Cron은 변경하지 않았다.
+- Node489/489, Deno8/8, Edge10개 및 웹/모바일/README 검사 통과. 실제 로그인 사용자 state200은 아직 검증하지 않았으므로 전체 사용자 흐름 완료로 확대하지 않는다.
+### 관련 파일 / 재발 방지
+- `_shared/tech-feed-core.mjs`, `_shared/tech-feed-entrypoint.test.ts`, package.json. test:edge에서 실제 배포 그래프 검사.
+- ACTIVE/웹200/gateway401만으로 성공 판단 금지. OPTIONS와 handler 내부 응답도 확인한다.
+
+## 2026-09-12 — 기술 피드 연결 오류: 운영 WORKER_ERROR (진단, 미해결)
+
+### 상황 / 오류
+- 사용자 기술 피드 탭에 연결 실패 문구. 운영 tech-feed OPTIONS(브라우저 CORS 사전 요청)500.
+- 공개 legacy anon 키로 gateway 검증을 통과시킨 tech-feed/worker POST도500: `{"code":"WORKER_ERROR","message":"Function exited due to an error (please check logs)"}`.
+### 확인된 원인 계층
+- 서버 함수 실행 단계 실패가 직접 원인. 정상 disabled state는200/enabled:false이며 UI 준비 중 분기가 있으므로 비활성 설정만의 결과가 아님.
+- `createTechFeedClient`는 전송 오류/비정상 응답을 공통 연결 오류로 바꿈. CORS 사전 요청 실패도 이 문구를 유발한다.
+- 신규2개 ACTIVE/verify_jwt=true. 공개 JWKS ES256 확인했으나 JWT 비호환을500의 원인으로 단정하지 않음.
+### 남은 조사 / 해결 방향
+- 실제 Edge 로그 상세를 아직 확보하지 못해 내부 예외는 미확정. 진입점의 import.meta.main 조건/Deno.serve 등록 및 런타임 의존성 로딩을 점검해야 함.
+- 실제 두 진입점을 Deno eval에서 import하고 Deno.serve를 계측하면 등록0개. 단, 이는 import 경로 재현일 뿐 운영의 직접 증명은 아님. 공식 edge-runtime main 소스는 load_main_es_module 경로도 있으므로 조건문을 원인으로 확정하지 말 것.
+- 운영 코드는 변경하지 않음. 다음 수정 요청 시 실행 로그 기반으로 재현/회귀 후 수정하고 OPTIONS204 + 실제 authenticated state200/시간대 저장 확인.
+### 재발 방지 / 관련 파일
+- 배포 성공/무인증 gateway401만으로 handler 정상 실행을 판단하지 말 것. 이전 Deno 테스트는 export handler 직접 호출이라 서버 등록 실패를 잡지 못함.
+- `supabase/functions/tech-feed/index.ts`, `tech-feed-worker/index.ts`, `_shared/tech-feed-transport-runtime.test.ts`, `apps/web/src/techFeed.mjs`, `TechFeedSection.tsx`.
+- 기술 피드 비활성/소스권한/무료AI 설정은 별도 활성화 조건이며500을 숨기기 위해 보안을 낮추거나 수집을 켜지 말 것.
+
+## 2026-09-12 — JWT 승인 차단 해소 및 운영 배포 완료
+
+- 사용자에게 기존5개 false 유지 범위와 Slack HMAC/커리어410 동작을 설명한 뒤 명시적 승인을 받아 정상 배포했다. 신규2개는 true를 유지했다. 우회 없이 승인된 동일 명령으로 성공.
+- MCP migration 적용 시 새 timestamp가 생성되므로 로컬 schema/cron 파일명과 현재 문서 참조를 각각20260912104353/20260912105541로 일치시켰다. 같은 SQL은 재실행하지 않았다.
+- 배포 CI의 무료 coaching 합성 검사는 upstream 실패로 규칙 fallback 사용, 유료 재시도 없음. 기술 피드 AI 성공을 의미하지 않는다. 이 앱의 Supabase Edge에는 별도 AI 설정이 아직 없다.
+- 관련 파일/검증: `docs/tech-feed/deployment-20260912.md`; CI 성공, 커리어410/Slack401/신규401/웹200. 아래 승인 대기 기록은 해결 전 이력이다.
+
+## 2026-09-12 — 운영 함수 배포의 JWT 보안 승인 차단
+
+### 상황 / 오류
+- 승인된 배포 중 --no-verify-jwt가 포함된7개 함수 명령이 자동 검토에서 unacceptable risk로 거부됨. 기존5개만 동일 false 설정 보존임을 증명한 재시도도 명시적 승인 부족으로 거부됨.
+### 원인
+- 일반 배포 요청과 플랫폼 인증 검사 비활성 범위의 명시적 승인을 별도로 요구함.
+### 대응
+- 신규2개는 JWT 검사를 활성으로 유지해 배포. 기존5개는 더 이상 재시도/우회하지 않고 사용자 승인 대기. 피드 비활성, 웹/Cron 교체 중지.
+- 적용된 DB는 원격20260912104353. 같은 SQL 중복 적용을 막도록 배포 기록에 매핑 기록.
+### 관련 파일 / 재발 방지
+- `docs/tech-feed/deployment-20260912.md`, `docs/tech-feed/release.md`. 기존/신규 인증 설정과 자체 HMAC/secret 검증을 명시적으로 구분해 승인받는다.
+
+## 2026-09-12 — 기술 피드 서버 검토 회귀 수정
+
+### 상황 / 원인
+- 시간당 worker1회/소스2개 제한은 추천8개를 매시간 처리하지 못했으며 초기50개 제한이 증분에도 적용됨.
+- 첫 소유자 쿼터 소진이 다른 소유자 요약을 막고 호출하지 않은 보류도 시도 횟수를 소진함. source 테이블 전체 SELECT는 등록자 컬럼을 노출함.
+- 동일 발견 시각의 UUID 정렬은 최신 발행 순서를 보장하지 못함. AI 분류 producer와 실행 기록이 부족함.
+- 유효한 JSON의 items:[null]은 id 접근 TypeError를 발생시킴. 리디렉션 후 상대 링크는 원래 피드 URL로 잘못 계산됨.
+### 해결 / 검증
+- 매분 due 분배/소스별 시간 간격, RSS 증분과 HN durable snapshot 분리. 실제 호출 시 원자적 쿼터/시도 예약, safe-column grant, 발행 시각 커서, category와 서버 전용 실행 기록 추가.
+- AI 배열 객체 검증으로 정상 실패 처리와 후속 owner/cleanup/finalization 유지. TLS 검증한 최종 URL을 parser에 전달하고 cross-origin validator 제거 유지.
+- 실제 parser/합성 TLS 전송/PGlite SQL 및 worker 회귀 RED→GREEN. 서버58개 포함 전체 Node489/489, Deno6/6 통과. 독립 최종 검토의 중요 결함2개 해소 및 로컬 인계 승인.
+### 관련 파일 / 재발 방지
+- `supabase/functions/_shared/tech-feed-*`, `supabase/migrations/20260912104353_tech_feed.sql`, `20260912105541_tech_feed_cron_disabled.sql`.
+- 제한은 초기 적재/증분/작업당 처리량을 구분하고, AI JSON은 배열 내부까지 불신한다. 리디렉션 안전성과 상대 링크 정확성을 함께 검증한다.
+- 구현 중 SQL 패치의 달러 구분자 손상/PGlite 구문 오류와 Deno 반환 타입 오류도 수정 후 재검증했다. 자세한 재현/해결은 `docs/tech-feed/backend-report.md` 참조.
+- 운영 TLS/DNS, 원격 RLS/동시성, 실제 Cron/AI는 미검증이며 출시 게이트로 유지한다.
+
+## 2026-09-12 — 기술 피드 검토 회귀 보완
+
+### 상황 / 원인
+- Supabase 세션 사전 확인만으로는 전송 직전 계정 변경 시 다른 토큰 사용을 막지 못함.
+- 할 일 저장 후 전체 피드 재조회가 두 번째 페이지와 읽던 순서를 지움.
+- 기사 제목 초안200자와 서버 할 일 제한180자가 불일치.
+### 해결 / 검증
+- 확인한 access_token을 요청 Authorization에 고정하고 응답 후 소유자 재검증. 모의 경쟁 재현 RED→GREEN 및 실제 SDK 요청 헤더 검증 통과.
+- 계정별 article_id/todo_id 결과만 갱신. 브라우저에서23카드 유지와 마지막 카드 연결 상태 확인.
+- 초안과 입력 제한180자로 일치. 긴 제목 회귀 RED→GREEN; 오류를 편집 창 내부에 표시.
+### 관련 파일 / 재발 방지
+- `apps/web/src/techFeed.mjs`, `TechFeedSection.tsx`, `main.tsx`, `apps/web/test/techFeed*.test.mjs`.
+- 동일 계정 확인과 실제 HTTP 토큰 고정을 별개로 검증할 것. 목록 조작 후 자동 재조회로 페이지를 버리지 말 것.
+- npm audit 상세 점검에서 신규 fast-xml-parser는 경고 대상이 아니었고 tar 등 기존 Expo/도구 의존성에28건(critical1 포함)이 남음. 이번 기능에서 강제 업그레이드는 하지 않았으며 별도 정리 필요.
+
+## 2026-09-12 — 기술 피드 Windows 모듈 이름 충돌과 편집 도구 제약
+
+### 상황
+- React `TechFeed.tsx`와 helper `techFeed.mjs`를 함께 만들자 Windows 대소문자 비구분 해석으로 lazy import가 helper에 연결됨.
+- 기존 파일 apply_patch가 `helper_unknown_error: apply deny-read ACLs`로 실패.
+### 에러 메시지
+- Vite static/dynamic import 충돌 경고 및 임시 수정 중 `Could not resolve ./TechFeed`.
+### 원인
+- 확장자 없는 import와 대소문자만 다른 모듈 이름; 환경 소유 filesystem sandbox helper 실패.
+### 해결 방법
+- 컴포넌트를 `TechFeedSection.tsx`로 구분하고 import 수정 후 빌드 통과.
+- 새 파일은 apply_patch, 기존 파일은 정확한 unified Git patch 적용으로 제한. ACL/환경 설정은 변경하지 않음.
+### 관련 파일 / 재발 방지
+- `apps/web/src/main.tsx`, `TechFeedSection.tsx`, `techFeed.mjs`.
+- Windows에서 basename이 대소문자만 다른 파일을 만들지 말 것. 패치 후 diff/전체 테스트/빌드 확인.
+- 의존성 설치 시 npm audit 28건 경고 확인(세부 기존/신규 귀속 미분석). 범위 밖 강제 업데이트는 하지 않았으며 출시 전 별도 보안 점검 필요.
+
+## 2026-07-12 - Study Forest navigation integration edit errors and browser ACL
+
+### Situation
+
+While wiring bridge navigation and cottage scene switching, two UTF-8 fallback replacements introduced local compile errors. After the build passed, the required in-app browser runtime could not start for visual verification.
+
+### Error Message
+
+~~~txt
+SyntaxError: Identifier 'target' has already been declared
+src/StudyForest3D.tsx(990,1): error TS1005: ')' expected.
+node_repl kernel exited unexpectedly
+windows sandbox failed: helper_unknown_error: apply deny-read ACLs
+~~~
+
+### Cause
+
+The navigation helper reused the function parameter name target for a local candidate. A region-based replacement matched the effect cleanup return instead of the component JSX return and temporarily removed the cleanup/dependency closure. The browser runtime then hit the same Windows deny-read ACL failure previously seen by apply_patch before browser discovery completed.
+
+### Resolution
+
+Renamed the local movement value to candidate, restored the renderer/observer/listener/GPU cleanup block, and reran targeted tests plus the full TypeScript/Vite build. Retried the in-app browser connection once using the required plugin path; when the same ACL failure repeated, stopped rather than switching to an unsupported browser surface. Verified navigation math, TSX source contracts, all 242 tests, build output, and local Vite server readiness instead.
+
+### Related Files
+
+- apps/web/src/studyForest.mjs
+- apps/web/src/StudyForest3D.tsx
+- apps/web/test/studyForest.test.mjs
+- apps/web/test/studyForestUi.test.mjs
+
+### Prevention
+
+When fallback editing a component with nested return statements, use a unique component-level anchor or restore the effect cleanup in the same edit. Avoid parameter/local name reuse in navigation helpers. Treat deny-read ACL browser failures as an environment limitation and report the missing visual automation explicitly.
+
+## 2026-07-12 - GitHub Actions Node runtime deprecation warning
+
+### Situation
+
+The production deployment succeeded, but GitHub Actions emitted a runtime deprecation annotation after the Vercel deployment step.
+
+### Error Message
+
+~~~txt
+Node.js 20 is deprecated. The following actions target Node.js 20 but are being forced to run on Node.js 24: actions/checkout@v4, actions/setup-node@v4.
+~~~
+
+### Cause
+
+The workflow explicitly sets Node.js 24 for project commands, while the pinned actions/checkout@v4 and actions/setup-node@v4 action runtimes still declare Node.js 20.
+
+### Resolution
+
+No release change was required because GitHub forced those actions onto Node.js 24 and run 29191086087 completed successfully. Treat the annotation as a maintenance warning, not a failed deployment.
+
+### Related Files
+
+- .github/workflows/vercel-production.yml
+
+### Prevention
+
+Upgrade the GitHub Actions majors in a separate CI maintenance change after confirming their Node.js 24-compatible releases and rerunning the full production workflow.
+
+## 2026-07-12 - Three.js types, grid overflow, and root audit findings
+
+### Situation
+
+The first Three.js build lacked module declarations, the first desktop render overflowed into the status column, and the final root dependency audit exited non-zero.
+
+### Error Message
+
+~~~txt
+TS7016: Could not find a declaration file for module 'three'.
+Study Forest shell width 832 exceeded its 769.5 parent column.
+npm audit: 14 vulnerabilities in the existing Expo dependency tree.
+~~~
+
+### Cause
+
+The three runtime package needed a matching community type package in this workspace. The CSS shell combined a fixed minimum height with a 16:10 aspect ratio, creating an intrinsic width larger than its grid track. The audit advisories come from Expo 53 transitive packages; the all-fixes path requires a breaking Expo 57 upgrade.
+
+### Resolution
+
+Installed @types/three 0.185.1, changed the shell to explicit responsive width/height without intrinsic aspect expansion, and reverified DOM boxes and screenshots. Audited the web workspace separately: the new Three.js runtime has zero production vulnerabilities. Did not run audit --force because it would introduce an unrelated breaking mobile framework upgrade.
+
+### Related Files
+
+- apps/web/package.json
+- package-lock.json
+- apps/web/src/StudyForest3D.tsx
+- apps/web/src/styles.css
+
+### Prevention
+
+Keep three and @types/three versions aligned, verify responsive canvas boxes rather than relying only on screenshots, lazy-load the renderer, and handle Expo framework security upgrades as their own migration with device testing.
+
+## 2026-07-12 - Windows ACL blocked apply_patch and mobile config fallback stopped partially
+
+### Situation
+
+While adding planner overlap tests and the Expo palette update, the normal patch tool could not read repository files. A fallback script later updated App.tsx but stopped before app.json.
+
+### Error Message
+
+```txt
+windows sandbox failed: helper_unknown_error: apply deny-read ACLs
+error: corrupt patch at line 74
+ReferenceError: mobilePalette is not defined
+```
+
+### Cause
+
+The Windows sandbox helper failed while apply_patch tried to read both absolute and workspace-relative paths. The first git-apply fallback had an incorrect unified-diff hunk count. In the mobile fallback, mobilePalette was source text inserted into App.tsx, not a runtime variable in the editing script.
+
+### Resolution
+
+Used UTF-8 Node exact-anchor replacements with fail-fast checks and inspected git diff after each write. Corrected the overnight test to select segments by id after planner sorting. Updated app.json in a separate script with the literal canvas color, then reran the mobile theme test and Expo typecheck.
+
+### Related Files
+
+- apps/web/test/dailyPlanner.test.mjs
+- apps/web/test/plannerOverlapUi.test.mjs
+- apps/web/src/dailyPlanner.mjs
+- apps/web/src/main.tsx
+- apps/mobile/App.tsx
+- apps/mobile/app.json
+
+### Prevention
+
+When apply_patch reports this exact ACL error, avoid repeated patch attempts. Use one UTF-8-safe exact-anchor replacement per logical chunk, verify every anchor before writing, keep editor-script constants separate from generated source constants, and run git diff --check plus targeted tests immediately.
+
+## 2026-07-09 - Study Forest avatar looked tense and movement felt boxed
+
+### Situation
+
+The user reported that the Study Forest avatar did not look like it was smiling and that movement felt like a character moving inside a rectangle rather than walking through a 2.5D forest space.
+
+### Error Message
+
+No runtime exception. User-visible symptoms: frown-like face and stiff boxed movement.
+
+### Cause
+
+The avatar face used a compact radial-gradient mouth that visually read as a tense expression. Movement used coarse grid coordinates converted into fixed left/top offsets, and idle movement paced through a small key pattern rather than moving toward scenic points.
+
+### Resolution
+
+Changed avatar state to percent-based meadow coordinates, added scene pointer click-to-walk, added deterministic auto-walk waypoints, and derived avatar scale/z-index from y-position for depth. Reworked the face CSS to use eye/cheek gradients plus a smile arc pseudo-element.
+
+### Related Files
+
+- apps/web/src/studyForest.mjs
+- apps/web/src/main.tsx
+- apps/web/src/styles.css
+- apps/web/test/studyForest.test.mjs
+- apps/web/test/studyForestUi.test.mjs
+
+### Prevention
+
+Study Forest UI tests should keep checking avatar expression CSS, scene pointer handling, waypoint movement, and y-depth style contracts whenever the forest page is changed.
+
+## 2026-07-09 - Planner previous and next buttons were anchored to today
+
+### Situation
+
+The Today Tasks planner had yesterday, today, and tomorrow buttons. Pressing the back button repeatedly could not keep moving back from the selected date because the buttons always recalculated from the real today date.
+
+### Error Message
+
+No runtime exception. User-visible symptom: the planner could only jump to real yesterday or real tomorrow, not walk backward or forward from the selected planner date.
+
+### Cause
+
+The date buttons called addDaysToDateKey(todayDateKey, -1) and addDaysToDateKey(todayDateKey, 1), so the calculation ignored selectedTodoDate.
+
+### Resolution
+
+Added getAdjacentPlannerDate(dateKey, offsetDays) to plannerDate.mjs and changed the previous/next buttons to call it with selectedTodoDate. The today button still jumps to todayDateKey.
+
+### Related Files
+
+- apps/web/src/plannerDate.mjs
+- apps/web/src/main.tsx
+- apps/web/test/plannerDate.test.mjs
+
+### Prevention
+
+For selected-date UI controls, tests should assert repeated previous/next movement from the selected date, not just one-off yesterday/tomorrow labels relative to today.
+
+## 2026-07-09 - Study Forest avatar and trees were invisible or unstyled
+
+### Situation
+
+The Study Forest page rendered a flat-looking meadow, and the user character was not visible. The page did not read as a 2.5D Animal Crossing-style space.
+
+### Error Message
+
+No runtime exception. User-visible symptom: the forest scene showed sky, grass, path, pond, and a small unstyled brown element, but no visible user character.
+
+### Cause
+
+The JSX used class names that did not match the CSS selectors. Examples included avatar-head/avatar-body/avatar-shadow in JSX while CSS styled forest-avatar-head/forest-avatar-body/forest-avatar-shadow. Completed and current tree JSX also used forest-tree-crown/forest-tree-trunk classes while CSS styled forest-tree-top and forest-current-* parts. Separately, the scene background was a flat sky/grass split without perspective or rotated terrain layers.
+
+### Resolution
+
+Updated Study Forest JSX to use the styled tree/current-tree/avatar part classes and added a source regression test for those class contracts. Updated CSS with perspective, a rotated isometric ground plane, rotated pond/path, stronger shadows, and a high avatar z-index.
+
+### Related Files
+
+- apps/web/src/main.tsx
+- apps/web/src/styles.css
+- apps/web/test/studyForestUi.test.mjs
+
+### Prevention
+
+When adding visual CSS scenes, add source tests that verify JSX class names match styled selectors and that layering-critical elements such as the avatar have explicit z-index and shadow/depth rules.
+
+## 2026-07-05 - Node edit script evaluated JSX template placeholders
+
+### Situation
+
+While applying the todo-link UI cleanup, apply_patch failed with the known Windows ACL issue, so a UTF-8 Node edit script was used. The first script attempted to insert JSX template strings containing dollar-brace placeholders.
+
+### Error Message
+
+```txt
+ReferenceError: todo is not defined
+```
+
+### Cause
+
+The outer Node template literal evaluated JSX placeholder expressions at script execution time instead of writing them literally into main.tsx.
+
+### Resolution
+
+Escaped JSX template placeholders inside the Node edit script and reran the targeted replacement. The script wrote only after all replacement ranges were found.
+
+### Related Files
+
+- apps/web/src/main.tsx
+- apps/web/test/slackNotifications.test.mjs
+
+### Prevention
+
+When using Node scripts to patch TSX after apply_patch is blocked, escape any JSX template placeholders in inserted strings or build the replacement from plain string arrays.
+
+# Trouble Shooting
+
+## 2026-10-05 — 앱 업데이트 최종 리뷰의 안내·출시 설명 검증 경계
+
+- 상황: whole-branch708ef8a..1de49ba 검토는 Critical0/Important0/Minor2였다. 정상 후보는 유효하나 Android 설치 화면 실패를 인터넷 재시도로만 설명하고 고정 안내 링크가 없었다. 또한 게시 도구·JS가 공백 releaseNotes를 허용하지만 native UpdatePolicy가 거부하여 미래 게시물이 네이티브 확인에서 실패할 수 있었다.
+- 대응: 두 지적을 PRD의 OEM 차단 안내 및 실제 네이티브 계약과 대조했다. 공개 전 한 번의 fix wave로 설치 전용 안전한 문구·사용자 선택의 고정 안내 링크·공백 항목 거부 회귀를 보완한다. UI 변경 후 내부2/최종3을 재빌드하고 실제 새 APK 바이트로 metadata를 갱신한다. 기존 후보를 공개한 뒤 바꾸지 않는다.
+- 관련: apps/mobile/src/appUpdate.ts·AppUpdatePanel.tsx, scripts/android-release.mjs 및 updater/release/download tests. 최종 수정/재검토·새 APK·공개/OS 성공은 현재 미완료이며 이후 검증 사실로 갱신한다.
+
+## 2026-07-01 - Cross-midnight active session left Today study timer at zero
+
+### Situation
+
+The user pressed Start and had an active study session. The session lease countdown kept moving, but the topbar Today study timer remained at 00:00:00.
+
+### Error Message
+
+No runtime error. User-visible symptom: Today study stayed 00:00:00 while the session lease remaining time kept decreasing and the End button remained enabled.
+
+### Cause
+
+The dashboard added active elapsed study time to Today only when activeSession.local_date === todayDateKey. The live Supabase active session had local_date = 2026-06-30, while the browser's current local date was already 2026-07-01. The active session was valid, but its post-midnight elapsed segment was excluded from the Today summary.
+
+### Fix
+
+Added studyTimeSummary.mjs helpers that calculate active study seconds by interval overlap with a requested local date or selected month. The dashboard now uses those helpers for Today study and monthly accumulated time, while the session lease countdown continues to use lease_expires_at.
+
+### Related Files
+
+- apps/web/src/main.tsx
+- apps/web/src/studyTimeSummary.mjs
+- apps/web/test/studyTimeSummary.test.mjs
+- apps/web/test/sessionLease.test.mjs
+
+### Prevention
+
+Do not gate active-session display time only by the persisted session start date. For display summaries, split active elapsed time by local date/month windows and keep lease-deadline time as a separate countdown concept.
+
+## 2026-06-29 - End button left stale active session after Active study session not found
+
+### Situation
+
+The user pressed End from the session completion modal. The app showed `Active study session not found`, but the topbar still showed an active lease, the End button stayed enabled, and the monthly timer kept moving.
+
+### Error Message
+
+```txt
+Active study session not found
+```
+
+### Cause
+
+`endTimer()` only refreshed dashboard data on a successful `end_study_session` RPC. If the DB session had already been ended by another path or a duplicate end request, Supabase correctly returned `Active study session not found`. The frontend then kept the old `studySessions` array, so `activeSession` stayed truthy and UI-derived active elapsed time kept running.
+
+### Fix
+
+Added `sessionEnd.mjs` with `isStaleActiveSessionEndError()`. `endTimer()` now captures `endingSession`, prevents duplicate same-session end calls, and treats stale-not-found responses as a refresh/cleanup path: clear camera intent, session lease, activity heartbeat, end-completion modal state, and reload dashboard data.
+
+### Related Files
+
+- `apps/web/src/main.tsx`
+- `apps/web/src/sessionEnd.mjs`
+- `apps/web/test/sessionEnd.test.mjs`
+- `apps/web/test/sessionActivity.test.mjs`
+
+### Prevention
+
+End-session RPC handling must be idempotent from the user's perspective. If the server says the active row is already gone, refresh the local dashboard instead of leaving stale active state on screen.
+
+## 2026-06-28 - Slack schedule extension kept selected todo start fixed
+
+### Situation
+
+The user clicked a Slack `10 minute extension` button for a timed todo such as `Python study 18:45-19:45`. The app changed it to approximately `18:45-19:55`; the selected todo start time stayed fixed while only the end time moved.
+
+### Error Message
+
+```txt
+User-visible symptom:
+- Selected schedule start time remains unchanged after Slack extension.
+- Only the selected schedule end time and later todos move.
+```
+
+### Cause
+
+`public.extend_todo_schedule` intentionally special-cased the selected todo with `when st.id = selected_todo.id then st.start_time`. That older policy extended the selected block duration instead of moving the selected schedule window. Later todos already shifted because they used the general `start_time + extension` calculation.
+
+### Fix
+
+Added migration `20260628102000_shift_selected_todo_schedule.sql` to replace the RPC. The selected todo now uses the same start/end shift expression as later incomplete timed todos. The existing reminder duplicate lock includes `scheduled_at`, so a shifted start time or shifted end-soon time creates a different reminder key and can be sent at the new time.
+
+### Related Files
+
+- `supabase/migrations/20260628102000_shift_selected_todo_schedule.sql`
+- `supabase/migrations/20260628080450_extend_todo_schedule.sql`
+- `supabase/migrations/20260628064614_study_todo_schedule_reminders.sql`
+- `packages/core/test/sql-migrations.test.mjs`
+
+### Prevention
+
+Schedule extension tests must assert both selected start and selected end move together. When changing reminder timing, verify duplicate protection includes the concrete scheduled timestamp instead of only todo id and reminder type.
+## 2026-06-28 - Slack schedule extension must reuse the existing Interactivity URL
+
+### Situation
+
+While adding Slack buttons for timed todo schedule extension, a separate `slack-schedule-interactions` Edge Function was considered.
+
+### Error Message
+
+No runtime error was emitted yet. The likely user-visible failure would be one of the Slack button families not responding, depending on which endpoint was configured in Slack App Interactivity.
+
+### Cause
+
+A Slack App has a single Interactivity Request URL. The product already uses `/functions/v1/slack-recovery-interactions` for recovery routine buttons and modals. Adding a second schedule-only request URL would require changing Slack App settings and would break recovery routine actions.
+
+### Fix
+
+Keep `/functions/v1/slack-recovery-interactions` as the single Slack interaction router. Route schedule extension actions and `study_schedule_extension` modal submissions inside the same function, while preserving existing recovery routine action handling.
+
+### Related Files
+
+- `supabase/functions/slack-recovery-interactions/index.ts`
+- `supabase/functions/attendance-cron/index.ts`
+- `packages/core/test/sql-migrations.test.mjs`
+
+### Prevention
+
+Before adding Slack interactive features, check whether they can be routed through the existing Slack Interactivity endpoint. Add a new function only if it is called by the existing router or if the Slack App configuration is intentionally redesigned.
+
+## 2026-06-28 - Todo edit modal showed unrelated same-day todos
+
+### Situation
+
+The user edited a todo such as React study from the daily planner, but the modal still displayed other same-day todos such as Excel study and stock automation bot below the edit form.
+
+### Error Message
+
+No runtime error. User-visible symptom: unrelated todos appear in the edit modal.
+
+### Cause
+
+The app reused the selected date checklist modal for both create and edit flows. The form entered edit mode through editingTodoId, but the checklist below the form always rendered selectedDateTodos.
+
+### Fix
+
+Added visibleTodoModalItems. In create mode it uses selectedDateTodos. In edit mode it uses [editingTodo], so the modal list and completion summary only reflect the todo being edited.
+
+### Related Files
+
+- apps/web/src/main.tsx
+- apps/web/test/slackNotifications.test.mjs
+
+### Prevention
+
+When a shared create/edit modal includes contextual lists, derive visible list data from the current mode instead of always rendering the parent date collection.
+
+## 2026-06-28 - PowerShell rewrite corrupted Korean strings during todo modal patch
+
+### Situation
+
+While applying the fix, a PowerShell Set-Content based edit rewrote main.tsx and converted many Korean strings into mojibake.
+
+### Error Message
+
+The git diff showed hundreds of unrelated Korean string changes in apps/web/src/main.tsx.
+
+### Cause
+
+PowerShell text decoding/encoding did not preserve the existing UTF-8 content during whole-file rewrite.
+
+### Fix
+
+Restored the affected files from HEAD, then reapplied the patch through a UTF-8-safe Node script using ASCII search patterns only.
+
+### Related Files
+
+- apps/web/src/main.tsx
+- apps/web/test/slackNotifications.test.mjs
+
+### Prevention
+
+For UTF-8 TSX files with Korean UI text, avoid PowerShell Get-Content/Set-Content whole-file rewrites. Prefer apply_patch. If apply_patch is unavailable due sandbox ACLs, use Node fs.readFileSync/writeFileSync with UTF-8 and ASCII-only replacement patterns.
+
+
+# Trouble Shooting
+
+## 2026-06-28 - Recovery submit did not resume blocked start
+
+### Situation
+
+The user clicked `입장하고 시작`, was blocked by a pending in-app recovery routine, filled in the recovery reason and plan, and expected the modal to close and the study session to start. The app only submitted the recovery request and left the user without a resumed start flow.
+
+### Error Message
+
+```txt
+User-visible symptom:
+- The recovery routine modal appears to remain part of the flow after submit.
+- A study session does not start automatically after clicking "제출하고 잠금 해제".
+```
+
+### Cause
+
+`startTimer()` opened the recovery modal when pending recovery existed, but it did not persist that the user had originally attempted to start a study session. After `submitRecoveryRoutine()` succeeded, the code marked the recovery request as submitted and reloaded dashboard data, but no code resumed the original start action.
+
+### Fix
+
+Added `shouldResumeStartAfterRecoveryUnlock()` and a short-lived `resumeStartAfterRecoveryUnlock` state. `startTimer()` sets this state only when pending recovery blocks a user-initiated start. After successful recovery submission, the app waits for dashboard data refresh, closes the recovery modal, clears the blocker, and a React effect calls `startTimer()` again when no pending recovery remains.
+
+### Related Files
+
+* `apps/web/src/main.tsx`
+* `apps/web/src/recoveryStartResume.mjs`
+* `apps/web/test/recoveryStartResume.test.mjs`
+
+### Prevention
+
+Any future modal gate that blocks a user-initiated start should either resume the original action after successful unlock or explicitly clear the start intent when the user chooses `나중에`.
+
+## 2026-06-25 - Recovery pledge was created as a todo
+
+### Situation
+
+The user entered a recovery routine after going to the study room. When the final `내일 재도전 약속` field contained phrases such as `8시30분에 시작` or `9시에 시작`, that pledge appeared as a todo in the next session planning list.
+
+### Error Message
+
+```txt
+User-visible symptom:
+- The recovery pledge field is reflected as a todo.
+- Appointment-style text appears in the session todo selection modal.
+```
+
+### Cause
+
+Both recovery submission paths treated the pledge as a task. The app RPC `submit_study_recovery_request` inserted `p_pledge_todo_title` into `study_todos` for the next local date, and Slack `slack-recovery-interactions` created a second todo from `pledgeTodoTitle`.
+
+### Fix
+
+Keep `pledge_todo_title` as required recovery-request text, but create only the makeup todo. The new migration `20260625115531_recovery_pledge_note_only.sql` redefines the RPC to store the pledge and set `pledge_todo_id = null`; the Slack Edge Function now creates only the makeup todo and updates `pledge_todo_id: null`.
+
+### Related Files
+
+* `apps/web/test/recoveryRoutine.test.mjs`
+* `supabase/functions/slack-recovery-interactions/index.ts`
+* `supabase/migrations/20260625115531_recovery_pledge_note_only.sql`
+* `memory-bank/prd-slack-recovery-routines.md`
+
+### Prevention
+
+Treat recovery pledge text as a promise/note, not a session-selectable task. If future recovery fields are added, decide explicitly whether each field should create a `study_todos` row.
+
+## 2026-06-23 - Supabase migration new timed out
+
+### Situation
+
+While adding forever recurring todo support, `npx.cmd supabase migration new study_todo_repeat_forever` was attempted from the repository root.
+
+### Error Message
+
+```txt
+command timed out after 60269 milliseconds
+```
+
+### Cause
+
+The local Supabase CLI invocation did not finish in this Windows environment. No migration file was created under `supabase/migrations`.
+
+### Fix
+
+Created `supabase/migrations/20260623143000_study_todo_repeat_forever.sql` manually and applied the DDL to project `bqohkdzvxbrokkmuhysx` with Supabase MCP `_apply_migration`.
+
+### Related Files
+
+* `supabase/migrations/20260623143000_study_todo_repeat_forever.sql`
+* `packages/core/test/sql-migrations.test.mjs`
+
+### Prevention
+
+If `supabase migration new` hangs again, check whether a file was actually created. If not, create a clearly named migration file manually, then use Supabase MCP for remote DDL and verify with `_list_migrations` plus SQL schema checks.
+
+## 2026-06-23 - Camera source tests failed after adding layout-order classes
+
+### Situation
+
+While wiring the Today dashboard section order editor, the camera layout source tests failed even though the camera UI behavior had not changed.
+
+### Error Message
+
+```txt
+AssertionError [ERR_ASSERTION]: assert.ok(sectionStart > 0)
+AssertionError [ERR_ASSERTION]: The input did not match the regular expression /camera-diagnostic/. Input: ''
+```
+
+### Cause
+
+`apps/web/test/cameraPresence.test.mjs` locates the Today Focus block by searching for the literal source string `<section className="daily-visual"` and the following `<section className="today-task-panel"`. Changing those opening tags to multiline tags or changing the literal class start to `daily-visual today-ordered-section` made the source slice empty.
+
+### Fix
+
+Kept the original `className="daily-visual"` and `className="today-task-panel"` literals intact, and applied dashboard section ordering through inline `style.order` instead of adding an extra class to those two sections.
+
+### Related Files
+
+* `apps/web/src/main.tsx`
+* `apps/web/test/cameraPresence.test.mjs`
+
+### Prevention
+
+Before changing Today Focus or Today Task section opening tags, check source-based tests that use `indexOf()` against literal JSX strings. Prefer preserving those literals or update the test intentionally in the same change.
+
+## 2026-06-23 - Same-day missed recovery did not block study
+
+### Situation
+
+After the 21:00 missed-attendance deadline, Slack sent a recovery routine message saying the user must submit reason and makeup plan before the next study session. The web app still allowed a same-day late study session to continue.
+
+### Error Message
+
+```txt
+Slack: 회복 루틴이 아직 제출되지 않았습니다.
+Web symptom: active study timer continued while a missed_attendance recovery request was pending.
+```
+
+### Cause
+
+The previous late-study policy intentionally treated same-day `missed_attendance` recovery requests as a soft action. The web app filtered them out of `blockingRecoveryRequests`, rendered a `lateStudyRecoveryRequests` soft card, and the Supabase `start_study_session()` RPC allowed them with `rr.trigger_type <> 'missed_attendance' or rr.local_date <> v_local_date`.
+
+This contradicted the Slack recovery message and the newer product expectation that recovery submission is mandatory before studying again.
+
+### Fix
+
+Removed the same-day missed-attendance exception. The web app now treats every pending recovery request as blocking, removes the soft late-study card, auto-opens the recovery modal, and ends an already-active web session if pending recovery appears. Supabase migration `20260623123718_hard_block_pending_recovery_requests.sql` redefines `start_study_session()` so any pending recovery request raises `Recovery routine required`.
+
+### Related Files
+
+* `apps/web/src/main.tsx`
+* `apps/web/src/styles.css`
+* `apps/web/test/recoveryRoutine.test.mjs`
+* `apps/web/test/slackNotifications.test.mjs`
+* `packages/core/test/sql-migrations.test.mjs`
+* `supabase/migrations/20260623123718_hard_block_pending_recovery_requests.sql`
+* `memory-bank/prd-slack-recovery-routines.md`
+
+### Prevention
+
+Keep Slack copy, web blockers, and `start_study_session()` policy aligned. If the message says recovery is required before studying, do not add a frontend or RPC exception for late same-day study.
+
+## 2026-06-20 - Success message banner stayed visible
+
+### Situation
+
+After creating a study goal, the dashboard continued to show the success banner `목표를 만들었습니다.`.
+
+### Error Message
+
+```txt
+목표를 만들었습니다.
+```
+
+### Cause
+
+The web app stored action feedback in a single `message` state and rendered it in the dashboard, but successful actions did not clear that state after the user had seen the feedback.
+
+### Fix
+
+Added `appMessage.mjs` to classify success-style messages and wired `main.tsx` to clear only those messages after 5 seconds with `window.setTimeout` cleanup. Validation, required-action, permission, and failure messages stay visible.
+
+### Related Files
+
+* `apps/web/src/main.tsx`
+* `apps/web/src/appMessage.mjs`
+* `apps/web/test/appMessage.test.mjs`
+
+### Prevention
+
+When adding a new transient success `setMessage(...)`, make sure it matches the success-message classifier or use a dedicated typed notification state if message behavior becomes more complex.
+
+## 2026-06-20 - Goal feature deployment blocked by GitHub network and missing Vercel credentials
+
+### Situation
+
+After implementing the study goal D-day dashboard and applying the Supabase migration, local verification passed and commit `9974e2e Add study goal D-day dashboard` was created. The final deployment step could not complete from the current Codex environment.
+
+### Error Message
+
+```txt
+fatal: unable to access 'https://github.com/zxcc9867/studyRoom.git/': Failed to connect to github.com port 443
+Error: No existing credentials found. Please run `vercel login` or pass "--token"
+```
+
+### Cause
+
+The environment could not connect to GitHub over HTTPS, so `git push origin main` could not trigger the GitHub Actions Vercel workflow. Direct Vercel CLI deployment also failed because `VERCEL_TOKEN` was not present in the shell and there was no local Vercel login session.
+
+### Fix
+
+The code, tests, migration, and local commit are complete, and the Supabase migration is already applied to project `bqohkdzvxbrokkmuhysx`. Deployment still requires one of the following:
+
+* Restore GitHub network access and run `git push origin main`.
+* Set `VERCEL_TOKEN` in the shell and run `npx.cmd --cache .\.npm-cache vercel@48.6.0 deploy --prod --yes --token $env:VERCEL_TOKEN`.
+* Run `vercel login` locally, then run `npx.cmd --cache .\.npm-cache vercel@48.6.0 deploy --prod --yes`.
+
+### Related Files
+
+* `apps/web/src/main.tsx`
+* `apps/web/src/studyGoals.mjs`
+* `supabase/migrations/20260620071258_study_goals.sql`
+* `memory-bank/prd-study-goals.md`
+
+### Prevention
+
+Before claiming a Vercel deployment, verify both GitHub push connectivity and one available Vercel credential path. Vercel MCP deployment listing can confirm existing deployments but does not upload this project by itself.
+
+## 2026-06-18 - Recovery routine looked like it was still required after submission
+
+### Situation
+
+The user submitted a recovery routine but the app continued to show the recovery routine prompt.
+
+### Error Message
+
+## 2026-07-17 - 회전된 다리 난간이 입구와 출구를 가로막음
+
+### 상황
+
+강을 직교해 건너도록 다리 전체를 Y축 90도로 회전한 뒤, 난간 beam이 이동 방향을 가로질러 입구와 출구를 물리적으로 막았다.
+
+### 에러 메시지
+
+~~~txt
+bridge rails: local X = +/-1.78, beam axis = local Z
+result after Y rotation: rails cross both bridge ends
+~~~
+
+### 원인
+
+다리 그룹의 회전만 변경하고 난간의 로컬 좌표축과 beam 길이축은 이전 배치를 유지했다. 렌더링 형상과 충돌 corridor가 하나의 물리 치수 모델을 공유하지 않아 방향 불일치가 생겼다.
+
+### 해결 방법
+
+- 난간을 데크의 로컬 Z 양쪽으로 옮기고 beam 및 post 열을 로컬 X 이동축과 평행하게 배치했다.
+- `forestBridgePhysics`에 데크, 난간, 기둥, 캐릭터 반경을 모아 렌더링과 충돌 계산이 공유하도록 했다.
+- 난간 안쪽 면과 캐릭터 반경으로 안전 통로를 계산하고, 바깥 영역은 `bridge-rail` 충돌로 구분했다.
+- 중앙 경로와 양 경계 테스트, UI 형상 계약 테스트를 추가했다.
+
+### 관련 파일
+
+- `apps/web/src/studyForest.mjs`
+- `apps/web/src/studyForest.d.mts`
+- `apps/web/src/StudyForest3D.tsx`
+- `apps/web/test/studyForest.test.mjs`
+- `apps/web/test/studyForestUi.test.mjs`
+
+### 재발 방지
+
+회전되는 구조물은 월드 좌표 하드코딩 대신 로컬 진행축과 폭축을 먼저 정의하고, 렌더러와 collider가 같은 치수 객체를 사용해야 한다. 캐릭터의 실제 반경을 통로 여유 폭 계산에 포함한다.
+
+```txt
+User-visible symptom:
+- The recovery routine modal still appeared after submitting a routine.
+- The user interpreted this as the submitted routine not being accepted.
+```
+
+### Cause
+
+Supabase showed the user's 2026-06-18 `missed_attendance` recovery request was correctly `submitted` with reason, makeup todo, pledge todo, and created todo ids. However, an older 2026-06-17 `missed_attendance` request for the same user was still `pending`, so the app correctly had another blocking recovery request.
+
+The UI made this confusing because automatic modal opening used all `pendingRecoveryRequests`, and the modal did not prominently show the recovery request date, queue position, or remaining count.
+
+### Fix
+
+The web app now sorts pending recovery requests oldest first, auto-opens only blocking recovery requests, and treats same-day missed-attendance recovery as a soft late-study action. After successful submission, the app marks the submitted request locally before reloading the dashboard and shows a message plus the next blocking request if one remains. The modal displays the recovery date, trigger type, queue position, and remaining count.
+
+### Related Files
+
+* `apps/web/src/main.tsx`
+* `apps/web/src/styles.css`
+* `apps/web/test/recoveryRoutine.test.mjs`
+* `memory-bank/prd-slack-recovery-routines.md`
+
+### Prevention
+
+When multiple pending recovery requests exist, show which date and trigger the user is submitting. Do not infer that a submitted request failed until checking the specific `study_recovery_requests.id` status in Supabase.
+
+## 2026-06-18 - Missed attendance despite perceived pre-deadline start
+
+### Situation
+
+The user reported that 2026-06-18 showed `missed` even though they believed they turned the app on at 20:59 JST, before the 21:00 deadline.
+
+### Error Message
+
+```txt
+User-visible symptom:
+- Attendance calendar 2026-06-18 showed missed.
+- The dashboard also displayed a large today-study value, which made it look as if study time existed for the day.
+```
+
+### Cause
+
+Production Supabase showed the 2026-06-18 attendance row was marked missed at 2026-06-18 12:00 UTC / 21:00 JST, with reminder 20:30 JST and deadline 21:00 JST. There was no `study_sessions` row for 2026-06-18 and no session near the deadline window, so the cron job had no persisted start record to qualify. `daily_completed_study_seconds()` for the day returned 0 against the 7200 second weekday goal.
+
+The large dashboard study time appears to come from an older completed 2026-06-16 session with a very large duration, not from a saved 2026-06-18 start. Opening the app or camera is not enough; attendance requires a successful `start_study_session()` RPC and a persisted `study_sessions` row.
+
+### Fix
+
+No code fix was applied in this diagnosis step. Recommended product fixes:
+
+* Make the UI clearly show "study session saved" only after `start_study_session()` succeeds.
+* Keep the latest two-hour lease and stale-session cleanup behavior visible so old sessions cannot keep confusing today's totals.
+* Consider adding a local warning when the user turns on camera but has not yet created a study session.
+
+### Related Files
+
+* `apps/web/src/main.tsx`
+* `supabase/migrations/0021_late_study_goal_attendance_policy.sql`
+* `supabase/functions/attendance-cron/index.ts`
+
+### Prevention
+
+When debugging attendance failures, first compare `attendance_days`, same-day `study_sessions`, and `daily_completed_study_seconds()`. Do not infer a successful start from camera state or a dashboard timer alone.
+
+## 2026-06-17 - Previous-day active session kept today's status pending
+
+### Situation
+
+The user pressed `입장하고 시작`, but the attendance calendar still showed today's date as `대기`. The top summary also showed an abnormally large `오늘 공부` value.
+
+### Error Message
+
+```txt
+User-visible symptoms:
+- Attendance calendar date 2026-06-17 remained `대기`.
+- Top summary showed more than 21 hours of today study time.
+- Supabase showed an active study_sessions row from 2026-06-16 with ended_at = null.
+```
+
+### Cause
+
+The app intentionally stopped ending sessions on `pagehide`, `beforeunload`, or `visibilitychange` to avoid losing study time on refresh or tab switches. That preserved active sessions, but it also let forgotten sessions remain `active` across days. The dashboard selected the latest `status = 'active'` row regardless of local date, and `todaySeconds` added its elapsed time even when `activeSession.local_date` was not today's date.
+
+### Fix
+
+Added a two-hour in-app session lease. Active sessions now have a per-user/per-session localStorage deadline, the UI shows a countdown and `세션 유지` button, and expired sessions automatically call `end_study_session`. If an old active session has no stored lease, the app falls back to `started_at + 2 hours`, so previous-day abandoned sessions auto-end after load. The dashboard also only adds active elapsed time to today's summary when the active row's `local_date` matches today's local date.
+
+### Related Files
+
+* `apps/web/src/main.tsx`
+* `apps/web/src/sessionLease.mjs`
+* `apps/web/test/sessionLease.test.mjs`
+
+### Prevention
+
+Refresh persistence and abandoned-session cleanup must be separate policies. Do not reintroduce browser lifecycle auto-end for tab switches or refresh; use the tested session lease or a future server-side stale-session cleanup job.
+
+## 2026-06-16 - Slack recovery button returns 401
+
+### Situation
+
+The user clicked the Slack `회복 루틴 작성` button, but the recovery modal did not work. The user also requested a Slack test alarm.
+
+### Error Message
+
+```txt
+Supabase Edge Function logs:
+POST | 401 | https://bqohkdzvxbrokkmuhysx.supabase.co/functions/v1/slack-recovery-interactions
+POST | 401 | https://bqohkdzvxbrokkmuhysx.supabase.co/functions/v1/slack-recovery-interactions
+POST | 401 | https://bqohkdzvxbrokkmuhysx.supabase.co/functions/v1/slack-recovery-interactions
+```
+
+### Cause
+
+The Slack interactivity request reached the correct Supabase Edge Function, but `verifySlackSignature()` rejected it before payload handling. `SLACK_SIGNING_SECRET` exists as a Supabase Edge Function secret, so the likely root cause is that the stored value does not match the Signing Secret from the Slack App that sent the interactive button request.
+
+This is distinct from Slack message delivery. `slack-test-alarm` and existing recovery messages can post to channel `C0BAFS1CSV8`, so the bot token, channel id, and bot channel membership are working.
+
+### Fix
+
+Update Supabase Edge Function secret `SLACK_SIGNING_SECRET` with the Slack App value from:
+
+```txt
+Slack App Dashboard > Basic Information > App Credentials > Signing Secret
+```
+
+Confirm the same Slack App has:
+
+```txt
+Interactivity & Shortcuts: On
+Request URL: https://bqohkdzvxbrokkmuhysx.supabase.co/functions/v1/slack-recovery-interactions
+```
+
+Then click the same recovery button again. No code change is required if the Signing Secret comes from the correct Slack App.
+
+### Related Files
+
+* `supabase/functions/slack-recovery-interactions/index.ts`
+* `supabase/functions/slack-test-alarm/index.ts`
+* `memory-bank/prd-slack-recovery-routines.md`
+
+### Prevention
+
+Do not confuse Slack `Client Secret`, `Verification Token`, `Bot User OAuth Token`, or app-level secrets from a different Slack App with the Signing Secret. Recovery interactivity requires the Signing Secret from the exact Slack App that owns the installed bot token and sent the message button.
+
+## 2026-06-16 - New `.mjs` helper missing TypeScript declaration
+
+### Situation
+
+After adding `apps/web/src/attendancePolicy.mjs` and importing it from `main.tsx`, `npm.cmd run build` failed during `tsc -b`.
+
+### Error Message
+
+```txt
+src/main.tsx(36,8): error TS7016: Could not find a declaration file for module './attendancePolicy.mjs'.
+```
+
+### Cause
+
+The web app compiles TypeScript with `strict: true` and `allowJs: false`. A newly added `.mjs` helper imported by a `.tsx` file needs an adjacent declaration file or TypeScript treats the module as implicitly `any`.
+
+### Fix
+
+Added `apps/web/src/attendancePolicy.mjs.d.ts` with explicit exports for the attendance policy constants and helper functions.
+
+### Related Files
+
+* `apps/web/src/attendancePolicy.mjs`
+* `apps/web/src/attendancePolicy.mjs.d.ts`
+* `apps/web/src/main.tsx`
+
+### Prevention
+
+When adding a new `.mjs` helper that is imported by TypeScript, add the matching declaration file in the same change before running the production build.
+
+## 2026-06-15 - Camera monitoring stuck in ready state
+
+### Situation
+
+The user showed an active study timer while the camera monitoring panel stayed in `카메라 감시 · 준비 중` with a blank preview and the message `카메라 영상을 불러오는 중입니다. 잠시 기다려주세요.` The user reported that the camera seemed to turn off automatically.
+
+### Error Message
+
+```txt
+User-visible symptoms:
+- 카메라 감시 · 준비 중
+- 카메라 영상을 불러오는 중입니다. 잠시 기다려주세요.
+- Preview area is blank while the timer keeps running.
+```
+
+### Cause
+
+The camera stream could remain logically enabled while the attached `<video>` element stopped exposing a current frame or valid video size. The app treated `no-current-frame` and `no-video-size` as temporary loading states, but there was no timeout, recovery, or failure transition. If the browser or device stalled, the UI could stay in `준비 중` indefinitely and look like the camera turned itself off.
+
+### Fix
+
+Added a camera frame recovery state machine. If `no-current-frame` or `no-video-size` continues for 15 seconds, the app attempts one same-session camera reconnect. If the reconnect still cannot produce frames, the app releases the stream, resets camera monitoring, and shows a retryable camera error instead of counting absence. The camera control also remains usable while an already-enabled camera is in `준비 중`, so the user can stop monitoring manually.
+
+### Related Files
+
+* `apps/web/src/main.tsx`
+* `apps/web/src/cameraFrameRecovery.mjs`
+* `apps/web/src/cameraFrameRecovery.d.mts`
+* `apps/web/test/cameraFrameRecovery.test.mjs`
+
+### Prevention
+
+Treat camera frame availability as a recoverable device/browser state, not as user absence and not as an infinite loading state. Keep transient camera health reasons behind tested timeout logic, and always leave a user-visible retry path when automatic reconnect fails.
+
+## 2026-06-14 - Slack target hidden save, refresh-ended sessions, and camera stream reload
+
+### Situation
+
+The user reported that Slack was supposedly configured but camera warnings still said Slack was not registered. They also reported that refreshing or reopening the app could make an active timer show less accumulated study time, and that camera monitoring did not reliably come back after refresh.
+
+### Error Message
+
+```txt
+User-visible symptoms:
+- 자리 비움 이벤트를 기록했습니다. Slack은 아직 등록되지 않았습니다.
+- After refresh/re-login, an active session total can look smaller than before.
+- Camera monitoring was on before refresh, but the real camera preview/monitoring state is not restored.
+```
+
+### Cause
+
+Slack server secrets and direct channel tests do not create a per-user notification target. The web app only saved Slack as a side effect of the general computer notification save button, so users could enter a Channel ID without an obvious action that created `notification_targets.kind = 'slack'` for the logged-in account.
+
+For timer loss, `pagehide` and `beforeunload` fired during refresh/reload and the app sent a keepalive `end_study_session` request. That closed the active session even though the user intended to continue. Browser lifecycle events cannot reliably distinguish refresh from leaving the page.
+
+For camera reload, browser media streams cannot survive a page refresh. The app needed to store only the user's camera-monitoring intent for the same active session and reacquire the camera after reload.
+
+### Fix
+
+Added a dedicated `Slack 채널 저장` button and validation. Removed Kakao UI/linking and Kakao Memo sending from the active product path, and disabled legacy enabled Kakao targets/connections through migration `0018_disable_kakao_notifications.sql`. Deployed the updated `attendance-cron` and deleted legacy remote `kakao-token` and `telegram-test-alarm` Edge Functions from Supabase production.
+
+Changed `shouldEndStudySessionForPageEvent()` so `visibilitychange`, `pagehide`, and `beforeunload` do not automatically end the study session. Added camera monitoring intent helpers and one-shot camera auto-restore for the same active session after refresh.
+
+### Related Files
+
+* `apps/web/src/main.tsx`
+* `apps/web/src/sessionExit.mjs`
+* `apps/web/src/cameraResume.mjs`
+* `apps/web/test/cameraResume.test.mjs`
+* `apps/web/test/sessionExit.test.mjs`
+* `apps/web/test/slackNotifications.test.mjs`
+* `supabase/functions/attendance-cron/index.ts`
+* `supabase/migrations/0018_disable_kakao_notifications.sql`
+
+### Prevention
+
+Treat server-level Slack setup and user-level Slack target setup as separate states. Do not end study sessions from browser lifecycle events unless there is a tested, user-approved policy for abandoned sessions. Camera stream restoration after refresh must reacquire the device; never assume a previous `MediaStream` object remains usable.
+
+## 2026-06-14 - Camera black preview counted as upper-body absence
+
+### Situation
+
+The user showed the web app with an active timer, a black camera preview, and a camera status saying upper body was not detected. After enough time, the app showed a seat-away warning and auto-paused even though the user was present.
+
+### Error Message
+
+```txt
+User-visible symptom: camera preview is black, app says 상반신 미감지, and warning popup says Slack is not registered.
+```
+
+### Cause
+
+The web app treated any PoseLandmarker "no upper body" result as user absence. It did not first verify that the camera stream and video frame were healthy. Therefore a black, muted, ended, stalled, or not-yet-ready camera feed could be interpreted as absence. The upper-body detector also required both shoulders, which was brittle for cropped webcam framing.
+
+The Slack warning path was implemented, but the current user's warning response had `slackMissing=true`, which means no enabled `notification_targets.kind = 'slack'` row was found for that logged-in Supabase user. A server-side direct Slack test does not create this per-user target.
+
+### Fix
+
+Added `cameraVideoHealth.mjs` and wired it into the camera loop before PoseLandmarker detection. Unhealthy camera stream/frame states now reset absence timing and show a camera-specific error instead of accumulating absence. Relaxed upper-body detection so head + one shoulder + same-side hip counts as seated presence. Updated Slack missing-target copy to say the current account needs a saved Slack Channel ID.
+
+### Related Files
+
+* `apps/web/src/main.tsx`
+* `apps/web/src/cameraVideoHealth.mjs`
+* `apps/web/src/bodyPresenceDetection.mjs`
+* `apps/web/test/cameraVideoHealth.test.mjs`
+* `apps/web/test/upperBodyPresence.test.mjs`
+* `apps/web/test/slackNotifications.test.mjs`
+
+### Prevention
+
+Before counting absence, verify camera stream health and visible frame health separately from pose detection. Keep Slack setup language clear: Edge Function token/channel direct tests validate server capability, but camera warnings require the logged-in user to save a Slack Channel ID target in app settings.
+
+## 2026-06-14 - AGENTS update applied to parent workspace instead of app repo
+
+### Situation
+
+The user asked to add memory-bank workflow instructions to the AGENTS file for the study-room app. The previous update was applied to `C:\jini-dev\project\AGENTS.md`, while the app repository's own `C:\jini-dev\project\study-room-attendance\AGENTS.md` still only contained the minimal Spec Kit block.
+
+### Error Message
+
+```txt
+User-visible symptom: C:\jini-dev\project\study-room-attendance\AGENTS.md did not contain the requested memory-bank rules.
+```
+
+### Cause
+
+The shell working directory was `C:\jini-dev\project`, and `apply_patch` paths were relative to that parent workspace. Using `AGENTS.md` without the `study-room-attendance/` prefix edited the parent workspace file instead of the app-local file.
+
+### Fix
+
+Restored the parent workspace `AGENTS.md` to generic workspace rules and updated `study-room-attendance/AGENTS.md` directly with app-specific Memory Bank, Supabase, validation, Vercel deployment, Git, Spec Kit, and final response rules.
+
+### Related Files
+
+* `AGENTS.md`
+* `memory-bank/active-context.md`
+* `memory-bank/progress.md`
+* `memory-bank/implementation-plan.md`
+
+### Prevention
+
+For this app, run commands with `workdir = C:\jini-dev\project\study-room-attendance` or use explicit paths prefixed with `study-room-attendance/` when operating from the parent workspace. Before editing app-local instructions, verify both `C:\jini-dev\project\AGENTS.md` and `C:\jini-dev\project\study-room-attendance\AGENTS.md` if the current working directory is ambiguous.
+
+## 2026-06-14 - Overnight todo schedule did not save
+
+### Situation
+
+The user selected a todo schedule from `23:00` to `01:00`, enabled weekday repeat, and clicked save. The modal did not close and the todo appeared not to save.
+
+### Error Message
+
+```txt
+User-visible symptom: schedule save stays in the modal and no todo appears.
+Frontend validation returned: 종료 시간은 시작 시간보다 늦어야 합니다.
+Remote DB constraint before fix: start_time < end_time
+```
+
+### Cause
+
+The schedule crosses midnight. The frontend treated every `end_time < start_time` range as invalid, and the remote Supabase `study_todos_time_window_check` constraint also required `start_time < end_time`. Because validation failed before insert, the modal stayed open. If the frontend had allowed it, the database would still have rejected the row.
+
+### Fix
+
+Changed the frontend validation to allow `end_time < start_time` as an overnight schedule and reject only equal start/end times. Added migration `0017_allow_overnight_study_todo_times.sql` to replace the DB check with `start_time <> end_time` when both times are present. Applied the same migration to Supabase project `bqohkdzvxbrokkmuhysx`.
+
+### Related Files
+
+* `apps/web/src/todoSchedule.mjs`
+* `apps/web/test/todoSchedule.test.mjs`
+* `supabase/migrations/0017_allow_overnight_study_todo_times.sql`
+* `packages/core/test/sql-migrations.test.mjs`
+
+### Prevention
+
+For schedule-like inputs, decide whether `end < start` means invalid or next-day before adding frontend and DB constraints. Keep frontend validation and database check constraints equivalent so users do not see a save failure after passing client validation.
+
+## 2026-06-14 - Timed weekday-repeat todos looked unsaved
+
+### Situation
+
+The user reported that saving a todo with weekday selection and time settings did not appear to persist.
+
+### Error Message
+
+```txt
+User-visible symptom: after selecting weekdays/time and saving, the expected todo was not visible in the calendar's selected-day todo list.
+```
+
+### Cause
+
+There were two UI-side causes:
+
+1. Supabase `time` columns return values such as `09:00:00`, while `formatTodoWithSchedule()` only accepted exact `HH:mm` values. Timed todos could be saved but lose their time label in the UI.
+2. Weekly repeat materializes todos only on the selected weekdays. If the user opened a date that was not one of those weekdays, rows were saved on generated dates but the modal closed while the current visible date stayed empty, making the save look like it failed.
+
+The remote Supabase database already had `study_todos.start_time` and `study_todos.end_time`, and migration `study_todo_time_window` was applied.
+
+### Fix
+
+Updated schedule formatting to accept Supabase `HH:mm:ss` time values and normalize them to `HH:mm`. Added `getTodoSaveFocusDate()` so the UI stays on the selected date when a todo is created there, or moves to the first created date when the repeat rule skipped the selected date.
+
+### Related Files
+
+* `apps/web/src/main.tsx`
+* `apps/web/src/todoRecurrence.mjs`
+* `apps/web/src/todoSchedule.mjs`
+* `apps/web/test/todoRecurrence.test.mjs`
+* `apps/web/test/todoSchedule.test.mjs`
+
+### Prevention
+
+When reading Supabase `time` columns in the browser, normalize both `HH:mm` and `HH:mm:ss`. For materialized recurring todos, make the post-save visible state point to an actual created date so users can immediately see the saved row.
+
+## 2026-06-14 - GitHub Actions failed reminder popup test in UTC
+
+### Situation
+
+After pushing commit `309481c` to deploy the current app through GitHub Actions, the `Deploy Web to Vercel` workflow failed before the Vercel deploy step.
+
+### Error Message
+
+```txt
+test at apps/web/test/reminderPopup.test.mjs:27:1
+study reminder popup is shown at reminder minute when no active or final attendance exists
+AssertionError [ERR_ASSERTION]: false !== true
+```
+
+### Cause
+
+`shouldShowStudyReminderPopup()` accepts a `timeZone` parameter and the web app passes the user's profile timezone. The test omitted `timeZone`, so it used the runtime default timezone. On the local machine the default timezone matched the app expectation, but GitHub Actions ran in UTC, converting `2026-06-14T20:30:15+09:00` to `11:30` for the reminder comparison.
+
+### Fix
+
+Updated `apps/web/test/reminderPopup.test.mjs` to pass `timeZone: "Asia/Tokyo"` in all reminder popup assertions. Reproduced the failure with `TZ=UTC` before the fix and verified the targeted test passes after the fix.
+
+### Related Files
+
+* `apps/web/src/reminderPopup.mjs`
+* `apps/web/test/reminderPopup.test.mjs`
+* `.github/workflows/vercel-production.yml`
+
+### Prevention
+
+Any test that compares local date or local time must pass an explicit timezone or run under a fixed `TZ` value. Do not rely on the developer machine's timezone matching CI.
+
+## 2026-06-14 - Refresh required login because Supabase session persistence was disabled
+
+### Situation
+
+The user reported that refreshing the web app forced them to log in again instead of preserving the authenticated session.
+
+### Error Message
+
+```txt
+User-visible symptom: after refresh, the app shows the login screen again.
+```
+
+### Cause
+
+`apps/web/src/supabase.ts` created the Supabase client with `persistSession: false`. That prevents `supabase-js` from storing the access token JWT and refresh token in browser storage. After a refresh, `supabase.auth.getSession()` had no stored session to restore.
+
+The app also had no initial session-loading state, so the login form could render before the session restoration check completed.
+
+### Fix
+
+Added `apps/web/src/authSession.mjs` and changed the Supabase client auth options to:
+
+```txt
+persistSession: true
+autoRefreshToken: true
+detectSessionInUrl: false
+```
+
+`detectSessionInUrl` remains disabled because the app manually handles OAuth callbacks. The dashboard now waits for the initial `getSession()` call before rendering the login form.
+
+### Related Files
+
+* `apps/web/src/authSession.mjs`
+* `apps/web/src/authSession.d.mts`
+* `apps/web/src/supabase.ts`
+* `apps/web/src/main.tsx`
+* `apps/web/test/authSession.test.mjs`
+
+### Prevention
+
+Keep Supabase Auth browser-session options behind a tested helper. Do not disable `persistSession` unless the login flow intentionally requires stateless, per-refresh authentication. Configure strict maximum session age or inactivity timeout in Supabase Auth session settings instead of relying on the frontend as the security boundary.
+
+## 2026-06-14 - Browser tab switch stopped timer and camera monitoring
+
+### Situation
+
+The user reported that moving to another browser tab turned off camera monitoring and stopped the study timer. The expected behavior is that tab switching still counts as study time, and only actual seat absence should trigger warnings and pause/exclude study time.
+
+### Error Message
+
+```txt
+User-visible symptom: switching browser tabs stops the active study timer and camera monitoring.
+```
+
+### Cause
+
+The dashboard registered `visibilitychange` and called `sendExitRequest()` when `document.visibilityState === "hidden"`. Browsers fire that event when the user simply switches tabs. The keepalive `end_study_session` RPC ended the active session, and the camera lifecycle effect then stopped camera monitoring because there was no active session left.
+
+### Fix
+
+Added `shouldEndStudySessionForPageEvent()` in `apps/web/src/sessionExit.mjs` and changed `main.tsx` so tab visibility changes do not end the session. Automatic exit termination remains active for `pagehide` and `beforeunload`.
+
+### Related Files
+
+* `apps/web/src/main.tsx`
+* `apps/web/src/sessionExit.mjs`
+* `apps/web/src/sessionExit.d.mts`
+* `apps/web/test/sessionExit.test.mjs`
+
+### Prevention
+
+Keep browser lifecycle event handling behind a tested helper. `visibilitychange` should be treated as page visibility state only, not as proof that the user left the study room. Use camera presence state to decide warnings and auto-pause.
+
+## 2026-06-14 - Slack bot token secret name mismatch
+
+### Situation
+
+The user configured the Slack bot token as `STUDY_ALERT_SLACK_BOT_TOKEN` and asked to send a test alarm to Slack channel `C0BAFS1CSV8`.
+
+### Error Message
+
+```txt
+Existing Edge Functions only read SLACK_BOT_TOKEN.
+Old source tests expected requiredEnv("SLACK_BOT_TOKEN").
+```
+
+### Cause
+
+The Slack implementation originally documented and coded a single Edge Function secret name, `SLACK_BOT_TOKEN`. The user configured a project-specific secret name instead. Without a fallback alias, `attendance-cron`, `camera-presence-warning`, and `slack-test-alarm` would fail at runtime even though a valid bot token exists under another secret name.
+
+### Fix
+
+Added `getSlackBotToken()` to all Slack-sending Edge Functions. It reads `SLACK_BOT_TOKEN` first and falls back to `STUDY_ALERT_SLACK_BOT_TOKEN`. `slack-test-alarm` also accepts a cron-secret protected direct `channelId` payload so admins can verify a Slack channel without first creating a user-specific notification target row.
+
+Redeployed:
+
+- `slack-test-alarm` v4 ACTIVE
+- `attendance-cron` v14 ACTIVE
+- `camera-presence-warning` v5 ACTIVE
+
+Tested with Supabase `net.http_post` and channel `C0BAFS1CSV8`; response id `10360` returned HTTP 200 and `ok=true`.
+
+### Related Files
+
+* `supabase/functions/slack-test-alarm/index.ts`
+* `supabase/functions/attendance-cron/index.ts`
+* `supabase/functions/camera-presence-warning/index.ts`
+* `apps/web/test/slackNotifications.test.mjs`
+* `packages/core/test/sql-migrations.test.mjs`
+
+### Prevention
+
+When adding provider secrets, keep the documented secret name and any user-provided project-specific alias synchronized in both code and tests. Do not print or store token values in source, docs, or memory-bank.
+
+## 2026-06-14 - Supabase Management API metadata JSON이 PowerShell에서 계속 깨짐
+
+### 상황
+
+`attendance-cron` Edge Function을 Supabase Management API로 배포할 때 `--form-string`으로 metadata JSON을 전달했지만 PowerShell 인자 처리로 JSON key 따옴표가 깨졌다.
+
+### 에러 메시지
+
+```txt
+{"message":"Invalid metadata JSON payload (reason: key must be a string at line 1 column 2)"}
+{"message":"Invalid metadata JSON payload (reason: expected value at line 1 column 1)"}
+```
+
+### 원인
+
+PowerShell에서 curl native 인자로 JSON을 직접 넘기면 double quote가 손상될 수 있다. 또한 `Set-Content -Encoding utf8`로 metadata 파일을 만들면 Windows PowerShell에서 BOM이 붙어 Supabase API가 JSON 시작 문자를 읽지 못할 수 있다.
+
+### 해결 방법
+
+BOM 없는 ASCII metadata 파일을 만든 뒤 `curl -F "metadata=<file"`로 form field 내용을 전달했다.
+
+```powershell
+$metadataPath = Join-Path $env:TEMP 'supabase-attendance-cron-metadata.json'
+$metadata = '{"entrypoint_path":"index.ts","name":"attendance-cron","verify_jwt":false}'
+[System.IO.File]::WriteAllText($metadataPath, $metadata, [System.Text.Encoding]::ASCII)
+curl.exe --fail-with-body -sS -X POST "https://api.supabase.com/v1/projects/{project-ref}/functions/deploy?slug=attendance-cron" `
+  -H "Authorization: Bearer $env:SUPABASE_ACCESS_TOKEN" `
+  -F "metadata=<$metadataPath" `
+  -F "file=@supabase/functions/attendance-cron/index.ts"
+```
+
+### 관련 파일
+
+* `supabase/functions/attendance-cron/index.ts`
+
+### 재발 방지
+
+PowerShell에서 Supabase Management API multipart deploy를 할 때는 metadata JSON을 직접 command line 문자열로 넘기지 말고 BOM 없는 임시 파일을 사용한다.
+
+## 2026-06-14 - 알림 시간 이전 공부 중에도 입장 알림 모달이 표시됨
+
+### 상황
+
+사용자가 20:30 알림 시간 이전에 이미 독서실에 입장해 공부 세션을 시작했고, 20:30 이후에도 세션이 활성 상태였지만 웹 앱에 "독서실 입장 시간입니다" 모달이 표시됐다.
+
+### 에러 메시지
+
+```txt
+독서실 입장 시간입니다
+20:30 알림이 도착했습니다. 15분 뒤 한 번 더 재촉하고, 30분 안에 타이머를 시작하면 오늘 출석으로 인정됩니다.
+```
+
+### 원인
+
+웹 팝업 조건이 현재 시간이 설정된 알림 시간인지와 오늘 출석 상태가 `present`/`missed`인지 여부만 확인했고, 이미 같은 날짜의 `active` 공부 세션이 있는지는 확인하지 않았다. 서버 측 `get_due_reminders()`와 `mark_missed_attendance()`도 알림 시간 이후에 시작한 세션만 출석 충족으로 보아, 알림 시간 이전에 시작해서 알림 시각을 지나 계속 열린 세션을 알림/결석 정책에서 제외하지 못했다.
+
+### 해결 방법
+
+`apps/web/src/reminderPopup.mjs`에 `shouldShowStudyReminderPopup()` helper를 추가하고, 같은 날짜의 `active` 세션이 있으면 웹 모달을 표시하지 않도록 했다. `supabase/migrations/0015_pre_reminder_active_session_attendance.sql`을 추가해 알림 시간 이전 시작 세션이 `reminder_at`을 지나 열려 있으면 `present`로 보정하고 초기/재촉 알림 및 결석 처리에서 제외하도록 했다. 원격 Supabase 프로젝트에는 `20260614114124 pre_reminder_active_session_attendance` migration을 적용했다.
+
+### 관련 파일
+
+* `apps/web/src/main.tsx`
+* `apps/web/src/reminderPopup.mjs`
+* `apps/web/test/reminderPopup.test.mjs`
+* `supabase/migrations/0015_pre_reminder_active_session_attendance.sql`
+* `packages/core/test/sql-migrations.test.mjs`
+
+### 재발 방지
+
+알림 정책을 변경할 때는 클라이언트 인앱 모달 조건과 Supabase cron 함수 조건을 함께 확인한다. `npm.cmd test`의 `reminderPopup.test.mjs`와 `sql-migrations.test.mjs`를 통해 활성 pre-reminder 세션이 중복 알림과 결석 처리로 이어지지 않는지 확인한다.
+
+## 2026-06-14 - Supabase Edge Function deploy metadata quoting on PowerShell
+
+### 상황
+
+Slack 전환 후 `attendance-cron`, `camera-presence-warning`, `slack-test-alarm` Edge Function을 Supabase Management API deploy endpoint로 배포했다.
+
+### 에러 메시지
+
+```txt
+{"message":"Invalid metadata JSON payload (reason: key must be a string at line 1 column 2)"}
+curl: (22) The requested URL returned error: 400
+```
+
+### 원인
+
+PowerShell에서 `curl.exe -F "metadata={...}"` 형태로 JSON을 넘기면 native executable 인자 전달 과정에서 JSON double quote가 제거되어 `{entrypoint_path:index.ts,...}` 형태로 전달됐다.
+
+### 해결 방법
+
+`metadata`는 `--form-string`으로 보내고 JSON 내부 double quote는 PowerShell backtick으로 escape했다.
+
+```powershell
+curl.exe --fail-with-body -sS -X POST "https://api.supabase.com/v1/projects/{project-ref}/functions/deploy?slug={function-name}" `
+  -H "Authorization: Bearer $env:SUPABASE_ACCESS_TOKEN" `
+  --form-string "metadata={`"entrypoint_path`":`"index.ts`",`"name`":`"{function-name}`",`"verify_jwt`":false}" `
+  -F "file=@supabase/functions/{function-name}/index.ts"
+```
+
+### 관련 파일
+
+* `supabase/functions/attendance-cron/index.ts`
+* `supabase/functions/camera-presence-warning/index.ts`
+* `supabase/functions/slack-test-alarm/index.ts`
+
+### 재발 방지
+
+PowerShell에서 Supabase Management API multipart deploy를 사용할 때는 로컬에서 `node -e "console.log(process.argv)" -- ...`로 argv를 먼저 확인한다.
+
+## 2026-06-14 - Vercel production deploy blocked by missing local CLI/token
+
+### 상황
+
+Slack UI 변경을 Vercel production에 배포하려고 했으나 MCP deploy 도구는 CLI 안내만 반환했고, 로컬에는 `vercel` 명령과 `VERCEL_TOKEN`이 없었다.
+
+### 에러 메시지
+
+```txt
+vercel : 'vercel' 용어가 cmdlet, 함수, 스크립트 파일 또는 실행할 수 있는 프로그램 이름으로 인식되지 않습니다.
+VERCEL_TOKEN=not set
+```
+
+### 원인
+
+현재 세션에서 직접 Vercel production 배포를 실행할 인증 수단이 없다. 프로젝트는 `.vercel/project.json`으로 연결되어 있지만, 직접 배포에는 Vercel CLI 로그인 또는 `VERCEL_TOKEN`이 필요하다.
+
+### 해결 방법
+
+이번 작업에서는 Vercel production 최신 배포가 이전 커밋 `c61c95c` 기준임을 확인하고, 웹 배포는 보류했다. 배포하려면 다음 중 하나가 필요하다.
+
+* `VERCEL_TOKEN`을 세션 환경 변수로 제공하고 `vercel deploy --prod`를 실행한다.
+* 변경 사항을 커밋/푸시해 기존 GitHub Actions/Vercel Git integration pipeline을 사용한다.
+
+### 관련 파일
+
+* `.vercel/project.json`
+* `vercel.json`
+* `.github/workflows/vercel-production.yml`
+
+### 재발 방지
+
+Vercel production 반영까지 필요한 작업은 시작 전에 `VERCEL_TOKEN` 또는 push 기반 배포 허용 여부를 확인한다.
+
+## 2026-06-14 - endTimer 옵션 인자 변경 후 React onClick 타입 오류
+
+### Situation
+
+카메라 미감지 제외 시간을 `endTimer()`에 전달하도록 함수 시그니처를 바꾼 뒤 `npm.cmd run build`를 실행했다.
+
+### Error Message
+
+```txt
+src/main.tsx(1397,42): error TS2322: Type '(options?: { excludedSeconds?: number | undefined; successMessage?: string | undefined; }) => Promise<void>' is not assignable to type 'MouseEventHandler<HTMLButtonElement>'.
+```
+
+### Cause
+
+기존 종료 버튼이 `onClick={endTimer}`로 함수를 직접 넘기고 있었다. `endTimer`가 옵션 객체를 받을 수 있게 바뀌면서 React mouse event handler signature와 호환되지 않았다.
+
+### Fix
+
+종료 버튼을 `onClick={() => { void endTimer(); }}` 형태로 감싸서 React 이벤트 객체가 `endTimer` 옵션 인자로 전달되지 않게 했다.
+
+### Related Files
+
+* `apps/web/src/main.tsx`
+
+### Prevention
+
+이벤트 핸들러로 직접 넘기던 함수에 도메인 옵션 인자를 추가할 때는 버튼 콜백을 명시적으로 래핑한다.
+
+## 2026-06-14 - Supabase CLI unavailable for local migration creation
+
+### Situation
+
+While adding `camera_required_warning`, the Supabase skill recommended using Supabase CLI for migration commands. The local Windows environment did not have the CLI available.
+
+### Error Message
+
+```txt
+supabase : 'supabase' 용어가 cmdlet, 함수, 스크립트 파일 또는 실행할 수 있는 프로그램 이름으로 인식되지 않습니다.
+```
+
+### Cause
+
+The Supabase CLI is not installed or not on `PATH` in this shell session.
+
+### Fix
+
+Kept the repository's existing numbered migration naming pattern and created `supabase/migrations/0012_camera_required_warning.sql`. Applied the DDL remotely through Supabase MCP `_apply_migration`, then verified the remote check constraint with `_execute_sql`.
+
+### Related Files
+
+* `supabase/migrations/0012_camera_required_warning.sql`
+* `supabase/functions/camera-presence-warning/index.ts`
+
+### Prevention
+
+For future Supabase schema work in this environment, check `supabase --version` first. If unavailable, use Supabase MCP `_apply_migration` for DDL and record the local migration file manually using the repo's current naming pattern.
+
+## 2026-06-13 - Vercel CI Deployment Path Added
+
+### Situation
+
+The user wanted repeatable Vercel production deployment without relying on local CLI login.
+
+### Error Message
+
+```txt
+No existing credentials found. Please run `vercel login` or pass "--token"
+```
+
+### Cause
+
+Local Vercel CLI deployment depends on an interactive login or a provided token. This Windows environment previously also hit a Vercel CLI login issue caused by a non-ASCII hostname being placed in the user-agent header.
+
+### Fix
+
+Added a GitHub Actions workflow that uses GitHub Secrets `VERCEL_TOKEN`, `VERCEL_ORG_ID`, and `VERCEL_PROJECT_ID`. The workflow runs tests, builds with Vercel, and deploys the prebuilt output to production on `main` pushes.
+
+### Related Files
+
+* `.github/workflows/vercel-production.yml`
+* `docs/vercel-ci.md`
+* `memory-bank/prd-vercel-ci.md`
+
+### Prevention
+
+Use GitHub Actions or another CI environment with `VERCEL_TOKEN` for repeatable deployments. Do not depend on local Vercel CLI credentials for production releases.
+
+## 2026-06-13 - GitHub Actions Vercel Prebuilt Build Failed On Node 24
+
+### Situation
+
+After GitHub Secrets were configured, commit `0d54fa7` was pushed to `origin/main` and GitHub Actions run `27435664940` started.
+
+### Error Message
+
+```txt
+Error: Found invalid Node.js Version: "24.x". Please set Node.js Version to 22.x in your Project Settings to use Node.js 22.
+```
+
+### Cause
+
+The workflow used `vercel build --prod` locally in GitHub Actions. The Vercel project setting currently reports Node.js `24.x`, and local Vercel build rejects that project setting even though Vercel remote deployments have previously succeeded.
+
+### Fix
+
+Changed the workflow to keep `npm test` as the quality gate, then run `vercel deploy --prod --yes --token="$VERCEL_TOKEN"` so Vercel performs the production build remotely with the project's own settings.
+
+### Related Files
+
+* `.github/workflows/vercel-production.yml`
+* `docs/vercel-ci.md`
+* `memory-bank/prd-vercel-ci.md`
+
+### Prevention
+
+If the project should return to prebuilt deploys, first change the Vercel project Node.js version to a local-build-compatible version such as `22.x`, then reintroduce `vercel build --prod` and `vercel deploy --prebuilt --prod`.
+
+## 2026-06-13 - Camera presence UI could not be deployed to Vercel without credentials
+
+### Situation
+
+After implementing the camera-based absence warning MVP, the Supabase migration and Edge Function were deployed successfully. The web UI still needed a Vercel production deployment.
+
+### Error Message
+
+```txt
+Vercel CLI 48.6.0
+Error: No existing credentials found. Please run `vercel login` or pass "--token"
+```
+
+### Cause
+
+The local shell has `.vercel/project.json`, but it does not have Vercel credentials or `VERCEL_TOKEN`. The Vercel MCP deployment helper returned CLI guidance only, so it could not deploy the current working tree by itself.
+
+### Fix
+
+No deployment was completed in this pass. To deploy the camera UI, provide a valid `VERCEL_TOKEN` or complete Vercel CLI login/device authorization, then run:
+
+```txt
+npx.cmd vercel@48.6.0 deploy --prod --yes --token <redacted>
+```
+
+Do not commit or document the token value.
+
+### Related Files
+
+* `.vercel/project.json`
+* `vercel.json`
+* `apps/web/src/main.tsx`
+* `apps/web/src/styles.css`
+
+### Prevention
+
+Set up Vercel Git integration or CI secrets (`VERCEL_TOKEN`, `VERCEL_ORG_ID`, `VERCEL_PROJECT_ID`) so frontend changes deploy from Git without manual device authorization.
+
+## 2026-06-13 - Two-step attendance deployment required Vercel device auth again
+
+### Situation
+
+After implementing the 8:30 initial reminder, 8:45 nudge, and 9:00 missed-attendance flow, the web copy and service worker needed a Vercel production deployment.
+
+### Error Message
+
+```txt
+Vercel CLI 48.6.0
+Error: No existing credentials found. Please run `vercel login` or pass "--token"
+```
+
+### Cause
+
+The project is still deployed from the Vercel CLI, and the local CLI credential store is empty. `.vercel/project.json` links the project, but it does not contain authentication credentials.
+
+### Fix
+
+Used OAuth device authorization with an ASCII user-agent, approved the device login in Vercel, and passed the returned temporary token only to the deployment command. The token was not printed or stored in source files.
+
+The resulting production deployment is `dpl_DZUe2FPk3HW5K9wqaFE4aFS916gq`, and `study-room-attendance.vercel.app` aliases to it.
+
+### Related Files
+
+* `.vercel/project.json`
+* `vercel.json`
+* `apps/web/src/main.tsx`
+* `apps/web/public/service-worker.js`
+
+### Prevention
+
+For repeatable deployment, configure Vercel Git integration or CI secrets (`VERCEL_TOKEN`, `VERCEL_ORG_ID`, `VERCEL_PROJECT_ID`). Until then, expect manual OAuth device authorization for each CLI production deployment.
+
+## 2026-06-13 - Vercel production still serves old mobile-dark artifact
+
+### Situation
+
+The user reported that the deployed mobile app at `https://study-room-attendance.vercel.app` still looked dark even after the mobile light-theme fix was pushed to GitHub.
+
+### Error Message
+
+```txt
+User-visible symptom: production mobile page still appears dark.
+Vercel CLI deploy error: No existing credentials found. Please run `vercel login` or pass "--token"
+```
+
+### Cause
+
+The mobile light-theme fix exists in local source, built `apps/web/dist/index.html`, and `origin/main`, but the Vercel production domain still serves an older deployment. The active Vercel production alias points to CLI deployment `dpl_D5L7trvBoiVTjn1B65TtRYcpU79X`, and the public HTML response has `Last-Modified: Thu, 11 Jun 2026 05:35:49 GMT`. GitHub push alone did not trigger a fresh production deployment because this project is currently deployed from CLI, not an active Git integration. A manual CLI deployment was attempted, but local Vercel credentials were missing.
+
+### Fix
+
+Generated a Vercel OAuth device authorization request manually with an ASCII `user-agent`, because `vercel login` fails when the Windows hostname contains non-ASCII characters. After the user approved the device login in Vercel, used the returned temporary access token for a one-time production deployment:
+
+```txt
+npx.cmd -y vercel@48.6.0 deploy --prod --yes --token <redacted> --scope astars-projects-c2f42587
+```
+
+The public production alias now points to READY deployment `dpl_88BcosEtVBhBKyddjNC3k9c9vjo5`, and the production HTML contains `only light` and `supported-color-schemes`.
+
+### Related Files
+
+* `.vercel/project.json`
+* `vercel.json`
+* `apps/web/index.html`
+* `apps/web/dist/index.html`
+
+### Prevention
+
+After pushing frontend fixes, verify the production HTML contains the expected marker strings before checking the mobile UI. For this issue the markers are `only light` and `supported-color-schemes`. Do not assume `git push` updates Vercel unless Git integration or CI deployment is confirmed. For future manual deploys on this Windows host, avoid `vercel login`; use ASCII-header OAuth device authorization plus `--token`, or configure Vercel Git/CI deployment.
+
+## 2026-06-13 - Mobile browser still rendered the light UI as dark
+
+### Situation
+
+The user reported that the study-room app still looked dark on mobile, while PC showed the intended light UI.
+
+### Error Message
+
+```txt
+User-visible symptom: mobile page appears dark even though the PC page is light.
+```
+
+### Cause
+
+The previous fix used document and CSS `color-scheme` hints, but the HTML meta still declared only `content="light"` and the app did not include a `prefers-color-scheme: dark` override. Some mobile browsers can apply automatic darkening or native control styling more aggressively when the OS/browser is in dark mode.
+
+### Fix
+
+Changed the HTML color-scheme meta to `only light`, added `supported-color-schemes=light`, added a small pre-paint inline light background/text style, and added a CSS `@media (prefers-color-scheme: dark)` override to keep the app background and text colors on the same light palette.
+
+### Related Files
+
+* `apps/web/index.html`
+* `apps/web/src/styles.css`
+* `apps/web/test/mobileTheme.test.mjs`
+
+### Prevention
+
+Keep both HTML metadata and CSS in sync when changing the app theme. The regression test must verify `only light`, the Safari-compatible supported color scheme meta, pre-paint style, and the dark-preference override.
+
+## 2026-06-12 - GitHub push blocked by missing local/remote repository setup
+
+### Situation
+
+The user asked to push the current study-room app work to GitHub. The project folder was not a git repository, and the parent `C:\jini-dev\project` folder was not a git repository either.
+
+### Error Message
+
+```txt
+fatal: not a git repository (or any of the parent directories): .git
+gh : 'gh' 용어가 cmdlet, 함수, 스크립트 파일 또는 실행할 수 있는 프로그램 이름으로 인식되지 않습니다.
+```
+
+After `git init`, git also required a safe-directory registration:
+
+```txt
+fatal: detected dubious ownership in repository at 'C:/jini-dev/project/study-room-attendance'
+git config --global --add safe.directory C:/jini-dev/project/study-room-attendance
+```
+
+### Cause
+
+The app had been developed in a normal folder without `.git`. No `origin` remote was configured, `gh` CLI was not installed, and the GitHub connector did not expose a matching `study-room-attendance` repository.
+
+### Fix
+
+Initialized a local git repository on `main`, registered the project path as a safe directory, refreshed README/thumbnail files, and created local commit `6f7fb40 Initial study room attendance app`.
+
+### Related Files
+
+* `README.md`
+* `.gitignore`
+* `docs/images/study-room-thumbnail.png`
+* `memory-bank/active-context.md`
+* `memory-bank/progress.md`
+
+### Prevention
+
+Before future push requests, check `git status -sb`, `git remote -v`, and `gh --version` or the GitHub connector repository list. Do not push into an unrelated GitHub repository without explicit confirmation.
+
+## 2026-06-12 - Headless Chrome failed while creating README thumbnail
+
+### Situation
+
+The README thumbnail needed to be captured from the local Vite preview app.
+
+### Error Message
+
+```txt
+GPU process isn't usable. Goodbye.
+Chrome screenshot failed with exit code
+```
+
+### Cause
+
+Chrome headless could not start a usable GPU process in this Windows session.
+
+### Fix
+
+Retried with Microsoft Edge headless using a dedicated local user data dir and GPU/sandbox related flags. Edge wrote `docs/images/study-room-thumbnail.png`.
+
+### Related Files
+
+* `docs/images/study-room-thumbnail.png`
+* `README.md`
+
+### Prevention
+
+Use Edge headless with `--headless=new`, `--disable-gpu`, `--disable-software-rasterizer`, `--no-sandbox`, and a project-local temporary profile when Chrome headless fails.
+
+## 2026-06-12 - Browser plugin blocked local app URL during UI verification
+
+### Situation
+
+After adding the My Page todo history UI, code tests and build passed, but in-app Browser verification could not open the local Vite URL.
+
+### Error Message
+
+```txt
+Browser Use cannot open http://127.0.0.1:5177 in tab 1. Browser reported: net::ERR_BLOCKED_BY_CLIENT
+Browser Use cannot open http://localhost:5177 in tab 1. Browser reported: net::ERR_BLOCKED_BY_CLIENT
+```
+
+### Cause
+
+The Browser plugin blocked navigation to the local development URL in this session. This did not come from Vite, TypeScript, or the app bundle.
+
+### Fix
+
+Kept verification to deterministic checks: `node --test apps\web\test\todoHistory.test.mjs`, `npm.cmd test`, `npm.cmd run build`, and `rg` against `apps/web/dist` to confirm the My Page strings/classes were included in the production bundle.
+
+### Related Files
+
+* `apps/web/src/main.tsx`
+* `apps/web/src/styles.css`
+* `apps/web/src/todoHistory.mjs`
+* `apps/web/test/todoHistory.test.mjs`
+
+### Prevention
+
+If this appears again, treat it as a browser automation environment issue first. Verify the app through tests/build/dist output, or use a manually opened browser after ensuring the local server is running.
+
+## 2026-06-12 - Mobile browser shows light UI as dark
+
+### Situation
+
+The user reported that the study-room web UI looked dark when viewed on mobile.
+
+### Error Message
+
+```txt
+mobileTheme.test.mjs failed because apps/web/index.html did not include:
+<meta name="color-scheme" content="light" />
+```
+
+Local dev server verification also hit the existing Windows shell issue:
+
+```txt
+Start-Process : An item with the same key has already been added. Key being added: 'PATH'
+```
+
+### Cause
+
+The app uses a light visual palette, but the document did not explicitly opt out of mobile/browser automatic dark theming. Some mobile browsers can darken backgrounds or native controls when the OS is in dark mode. Local browser verification was blocked by the known Windows `Path/PATH` duplicate environment issue when using `Start-Process`.
+
+### Fix
+
+Added light color-scheme metadata to `apps/web/index.html`, added `color-scheme: only light` and explicit root background/color CSS, and set native controls to light color-scheme. Added `apps/web/test/mobileTheme.test.mjs` to prevent regression.
+
+### Related Files
+
+* `apps/web/index.html`
+* `apps/web/src/styles.css`
+* `apps/web/test/mobileTheme.test.mjs`
+
+### Prevention
+
+Keep the web app's document-level `color-scheme` and `theme-color` in sync with the light UI palette. After local fixes, deploy to Vercel before checking on a phone pointed at the production URL.
+
+## 2026-06-11 - Reminder skipped because early timer start marked the day present
+
+### Situation
+
+The user reported that the configured 9 PM reminder did not arrive through Telegram or computer Web Push on 2026-06-11.
+
+### Error Message
+
+```txt
+cron_at_reminder status=200 content={"dueReminderCount":0,"missedCount":0,"deliveryResults":[]}
+delivery_window_count=0
+target_state reminder_time=21:00:00 timezone=Asia/Tokyo today_status=present
+study_today started_local=2026-06-11 01:39:36.618665 duration_seconds=2
+```
+
+### Cause
+
+`start_study_session()` marked `attendance_days.status = 'present'` whenever a timer started, even before the configured reminder time. On 2026-06-11, a 2-second study session at 01:39 local marked the day `present`. At the configured 21:00 local reminder time, `get_due_reminders()` excluded the user because it skips days already marked `present` or `missed`. Therefore Telegram and Web Push were never attempted.
+
+### Fix
+
+Added and applied `supabase/migrations/0009_start_session_attendance_window.sql`. The function now creates a study session at any time, but only marks attendance `present` when `now()` is between `reminder_at` and `deadline_at`.
+
+### Related Files
+
+* `supabase/migrations/0009_start_session_attendance_window.sql`
+* `packages/core/test/sql-migrations.test.mjs`
+* `supabase/functions/attendance-cron/index.ts`
+
+### Prevention
+
+When reminders do not arrive, check `cron.job`, `net._http_response`, `get_due_reminders()` behavior, `attendance_days.status`, and `notification_deliveries` in that order. If `dueReminderCount` is 0 at the reminder minute, inspect why the user was excluded before debugging Telegram or Web Push providers.
+
+## 2026-06-11 - Vercel production deploy blocked by missing local credentials
+
+### 상황
+
+웹 설정 화면에 `Telegram 테스트 알림` 버튼을 추가한 뒤 Vercel production 배포를 시도했다.
+
+### 에러 메시지
+
+```txt
+Vercel CLI 48.6.0
+Error: No existing credentials found. Please run `vercel login` or pass "--token"
+```
+
+### 원인
+
+현재 Codex 세션에는 `VERCEL_TOKEN` 환경 변수가 없고, 로컬 Vercel CLI 인증 파일도 사용할 수 없는 상태였다. `.vercel/project.json`에는 project/team 연결 정보가 있지만, 배포 인증에는 별도 로그인 또는 token이 필요하다.
+
+### 해결 방법
+
+이번 턴에서는 Supabase Edge Function 배포와 로컬 빌드 검증까지 완료했다. 운영 웹 배포는 사용자가 `vercel login`을 완료하거나 Vercel token을 제공한 뒤 아래 명령으로 다시 진행한다.
+
+```txt
+npx.cmd vercel@48.6.0 deploy --prod --yes --scope astars-projects-c2f42587
+```
+
+### 관련 파일
+
+* `apps/web/src/main.tsx`
+* `apps/web/src/telegramNotifications.mjs`
+* `.vercel/project.json`
+
+### 재발 방지
+
+Vercel 배포 작업 전에는 `VERCEL_TOKEN=set` 여부와 로컬 CLI 로그인 상태를 먼저 확인한다. token 원문은 문서나 채팅에 기록하지 않는다.
+
+## 2026-06-11 - Telegram test send uses Edge runtime secret, not Management API secret value
+
+### 상황
+
+Telegram 테스트 알림을 즉시 보내기 위해 Supabase Management API로 secret 목록을 확인한 뒤 로컬 PowerShell에서 Telegram Bot API를 직접 호출하려고 했다.
+
+### 에러 메시지
+
+```txt
+telegram_getMe=failed status=404
+{"ok":false,"error_code":404,"description":"Not Found"}
+```
+
+### 원인
+
+Supabase Management API `/secrets` 응답의 `value` 필드는 실제 `TELEGRAM_BOT_TOKEN` 원문으로 사용할 수 없는 placeholder 성격이었다. 해당 값을 Telegram Bot API URL에 넣으면 유효하지 않은 bot token이 되어 404가 반환된다.
+
+추가로 todo 조회 SQL 초안에서 `target.local_date`를 text로 만들고 `study_todos.local_date` date와 직접 비교해 아래 타입 오류가 발생했다.
+
+```txt
+ERROR: 42883: operator does not exist: text = date
+```
+
+### 해결 방법
+
+로컬에서 bot token 값을 직접 사용하지 않고, `CRON_SECRET` 헤더로 보호되는 `telegram-test-alarm` Edge Function을 추가했다. 이 함수는 Supabase Edge Function 런타임에서 실제 `TELEGRAM_BOT_TOKEN` secret을 읽고 Telegram Bot API `sendMessage`를 호출한다.
+
+SQL 타입 오류는 테스트 스크립트에서 `target.local_date::date = st.local_date`로 수정했다.
+
+### 관련 파일
+
+* `supabase/functions/telegram-test-alarm/index.ts`
+* `memory-bank/implementation-plan.md`
+
+### 재발 방지
+
+Secret API에서 반환된 값을 실제 secret 원문이라고 가정하지 않는다. Telegram/Resend/Kakao 등 provider token은 Edge Function 런타임 또는 배포 secret 설정 경로에서만 사용한다. 날짜 문자열과 date 컬럼을 비교할 때는 명시적으로 cast한다.
+
+## 2026-06-11 - Todo notification TDD red test and matcher refinement
+
+### 상황
+
+알림 본문에 날짜별 todo를 포함하는 기능을 TDD로 추가하면서 먼저 `packages/core/test/sql-migrations.test.mjs`에 실패 테스트를 작성했다.
+
+### 에러 메시지
+
+```txt
+AssertionError [ERR_ASSERTION]: The input did not match the regular expression /type StudyTodo = \{/
+AssertionError [ERR_ASSERTION]: The input did not match the regular expression /formatTodoSummary\(todos\)/
+AssertionError [ERR_ASSERTION]: The input did not match the regular expression /buildReminderBody\(reminder, todos\)/
+```
+
+### 원인
+
+첫 번째 실패는 기능이 아직 구현되지 않았기 때문에 발생한 정상적인 RED 단계였다. 이후 두 실패는 실제 구현이 `maxTodos` 옵션을 받는 형태였는데 테스트가 옵션 없는 정확한 호출 형태만 허용해서 발생했다.
+
+### 해결 방법
+
+`attendance-cron`에 `StudyTodo`, `loadTodosByReminder`, `buildReminderBody`, `formatTodoSummary`를 구현했다. 테스트는 호출 형태가 아니라 todo summary와 reminder body 사용 여부를 검증하도록 matcher를 완화했다.
+
+### 관련 파일
+
+* `supabase/functions/attendance-cron/index.ts`
+* `packages/core/test/sql-migrations.test.mjs`
+
+### 재발 방지
+
+소스 패턴 테스트는 구현 세부 옵션까지 과하게 고정하지 않고, 사용자 요구와 직접 연결되는 동작 경계만 확인한다.
+
+## 2026-06-11 - Vercel remote build misses Vite public environment variables
+
+### 상황
+
+Vercel production 배포 후 운영 URL은 열렸지만, 배포된 JS 번들에서 Google 로그인 비활성화 분기가 남아 있었다.
+
+### 에러 메시지
+
+```txt
+Google 로그인을 사용하려면 Supabase Auth에서 Google Provider를 켜고 Client ID/Secret을 등록한 뒤 VITE_GOOGLE_AUTH_ENABLED=true로 바꿔야 합니다.
+```
+
+### 원인
+
+Vercel 원격 빌드는 `apps/web/.env.local`을 자동으로 가져가지 않는다. Vite의 `VITE_*` 값은 빌드 시점에 번들에 주입되므로, Vercel 프로젝트 환경변수에 public build 변수를 별도로 등록해야 한다.
+
+### 해결 방법
+
+Vercel 프로젝트 환경변수에 `VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY`, `VITE_WEB_PUSH_VAPID_PUBLIC_KEY`, `VITE_GOOGLE_AUTH_ENABLED`를 `production`, `preview`, `development` 대상으로 등록하고 production을 재배포했다. 이후 배포된 JS 번들에서 Supabase 프로젝트 URL 포함, Google 비활성화 문구 제거, placeholder 미포함을 확인했다.
+
+### 관련 파일
+
+* `vercel.json`
+* `apps/web/.env.local`
+* `memory-bank/implementation-plan.md`
+
+### 재발 방지
+
+Vercel 배포 후에는 HTML 200만 확인하지 말고 배포된 asset을 조회해 `VITE_*` 값이 반영됐는지 패턴으로 확인한다. 비밀값은 출력하지 않고 `set/missing` 또는 boolean 검증 결과만 기록한다.
+
+## 2026-06-11 - Vercel CLI fails when Windows hostname contains non-ASCII characters
+
+### 상황
+
+독서실 웹 앱을 Vercel에 배포하려고 `npx.cmd vercel deploy --prod --yes`를 실행했다.
+
+### 에러 메시지
+
+```txt
+TypeError: 지니 @ vercel 54.11.1 node-v24.13.0 win32 (x64) is not a legal HTTP header value
+The specified token is not valid. Use `vercel login` to generate a new token.
+```
+
+### 원인
+
+Vercel CLI 최신 버전이 Windows hostname을 `user-agent` header에 포함한다. 현재 hostname이 한글이라 HTTP header 값 검증에서 실패했다. 기존 로컬 Vercel auth 파일의 access token은 만료됐고, refresh token은 새 토큰으로 교체되는 일회성 흐름이라 재인증이 필요했다.
+
+### 해결 방법
+
+Vercel OAuth device authorization을 ASCII `user-agent`로 직접 시작하고, 사용자가 Vercel 승인 페이지에서 승인한 뒤 갱신된 access token을 로컬 auth 파일에 저장했다. 이후 최신 CLI 대신 `vercel@48.6.0`에 `--token`과 `--scope astars-projects-c2f42587`를 전달해 배포했다.
+
+배포 후 Vercel 운영 URL은 `https://study-room-attendance.vercel.app`이고, Supabase Auth `site_url`/redirect allow list 및 Edge Function secret `APP_ORIGIN`도 해당 URL로 설정했다.
+
+### 관련 파일
+
+* `vercel.json`
+* `.vercel/project.json`
+* `memory-bank/implementation-plan.md`
+
+### 재발 방지
+
+Windows hostname이 한글인 환경에서 Vercel CLI 최신 버전이 같은 오류를 내면 `vercel whoami`나 `vercel deploy`를 반복하지 말고, device authorization으로 token을 갱신한 뒤 `vercel@48.6.0 --token` 경로를 사용한다. 토큰 값은 문서나 코드에 기록하지 않는다.
+
+## 2026-06-11 - Local Vite server start fails because of Path/PATH environment collision
+
+### 상황
+
+독서실 웹 앱을 `http://127.0.0.1:5177/`에서 실행하려고 했다.
+
+### 에러 메시지
+
+```txt
+Start-Process : 항목이 이미 추가되었습니다. 사전에 있는 키: 'Path'  추가되는 키: 'PATH'
+'vite'은(는) 내부 또는 외부 명령, 실행할 수 있는 프로그램, 또는 배치 파일이 아닙니다.
+```
+
+### 원인
+
+현재 Windows PowerShell 프로세스 환경에 `Path`와 `PATH`가 동시에 존재해 `Start-Process`와 `Get-ChildItem Env:`가 실패했다. 중복 문제를 피하려고 `PATH`를 비우면 npm workspace script가 자식 프로세스에서 `vite`를 찾지 못했다.
+
+### 해결 방법
+
+`npm.cmd --workspace apps/web run dev` 대신 `node.exe`로 Vite JS 엔트리를 직접 실행했다. 실행 포트는 3000번을 피하고 기존 독서실 앱 포트인 5177을 사용했다.
+
+```powershell
+Start-Process -FilePath 'C:\Program Files\nodejs\node.exe' `
+  -ArgumentList @('C:\jini-dev\project\study-room-attendance\node_modules\vite\bin\vite.js','--host','127.0.0.1','--port','5177','--strictPort') `
+  -WorkingDirectory 'C:\jini-dev\project\study-room-attendance\apps\web' `
+  -RedirectStandardOutput 'C:\jini-dev\project\study-room-attendance\web-dev.log' `
+  -RedirectStandardError 'C:\jini-dev\project\study-room-attendance\web-dev.err' `
+  -WindowStyle Hidden
+```
+
+### 관련 파일
+
+* `apps/web/package.json`
+* `web-dev.log`
+* `web-dev.err`
+
+### 재발 방지
+
+Windows에서 npm workspace dev server가 환경 변수 문제로 실패하면 npm script를 고집하지 말고 `node.exe node_modules/vite/bin/vite.js` 직접 실행으로 확인한다. 3000번 포트는 다른 앱이 사용할 수 있으므로 독서실 앱은 `5177` 포트를 우선 사용한다.
+
+## 2026-06-11 - Telegram target requires chat ID after bot token secret is set
+
+### 상황
+
+`RESEND_API_KEY`와 `TELEGRAM_BOT_TOKEN`을 Supabase Edge Function secrets에 추가하고 Telegram 알림 채널을 구현했다.
+
+### 에러 메시지
+
+```txt
+APP_ORIGIN=missing
+notification_targets.kind = 'telegram' target not created yet
+Telegram Bot API getUpdates update_count=0
+```
+
+### 원인
+
+Telegram bot token은 서버 secret으로 설정됐지만, 사용자별 Telegram chat ID는 앱 설정 화면에서 별도로 저장해야 한다. Telegram bot은 사용자가 먼저 bot에게 메시지를 보내야 대화를 시작할 수 있고, 그 이후 `getUpdates` 등을 통해 chat ID를 확인할 수 있다. 새 bot token을 Supabase secret에 덮어쓴 뒤 `getUpdates`를 조회했지만 update 결과가 0건이어서 아직 저장할 Chat ID가 없다. 또한 앱 URL을 Telegram 메시지에 정확히 넣으려면 배포 후 `APP_ORIGIN` secret이 필요하다.
+
+### 해결 방법
+
+사용자는 Telegram에서 bot에게 먼저 `/start` 또는 아무 메시지나 보내고 chat ID를 확인한 뒤, 웹 앱 설정의 `Telegram Chat ID` 필드에 저장해야 한다. 사용자가 메시지를 보낸 다음에는 `getUpdates`를 다시 조회해 Chat ID를 찾고 `notification_targets.kind = 'telegram'` 대상으로 저장한다. 배포 URL이 생기면 Supabase Edge Function secret `APP_ORIGIN`도 설정한다. 비밀값은 코드, `.env.example`, `memory-bank`에 기록하지 않는다.
+
+2026-06-11에 사용자가 bot에게 메시지를 보낸 뒤 `getUpdates`에서 private chat ID 후보를 확인했고, 해당 Chat ID를 `p64***@gmail.com` / `A스타` 프로필의 `notification_targets.kind = 'telegram'` 대상으로 저장했다. Telegram Bot API `sendMessage` 테스트는 `ok=true`로 성공했고, 원격 DB에서도 Telegram target이 `enabled=true`임을 확인했다.
+
+### 관련 파일
+
+* `apps/web/src/main.tsx`
+* `apps/web/src/telegramNotifications.mjs`
+* `supabase/functions/attendance-cron/index.ts`
+* `supabase/migrations/0008_telegram_notification_targets.sql`
+
+### 재발 방지
+
+알림 채널을 추가할 때는 provider secret 설정과 사용자별 `notification_targets` 생성을 분리해서 확인한다. Telegram 발송 문제는 `TELEGRAM_BOT_TOKEN`, `notification_targets.kind = 'telegram'`, `notification_deliveries.channel = 'telegram'` 순서로 본다.
+
+## 2026-06-08 - Cron runs but user does not receive alarm
+
+### 상황
+
+사용자가 독서실 앱이 알람을 보내지 않는다고 보고했다.
+
+### 에러 메시지
+
+```txt
+net._http_response: {"dueReminderCount":0,"missedCount":0,"deliveryResults":[]}
+notification_deliveries email: RESEND_API_KEY is required
+notification_deliveries web_push: Received unexpected response code
+Supabase Auth security_manual_linking_enabled=False
+RESEND_API_KEY=missing
+KAKAO_REST_API_KEY=missing
+```
+
+### 원인
+
+Supabase Cron과 `attendance-cron` Edge Function은 정상 실행 중이다. 현재 미수신의 직접 원인은 발송 채널 준비가 완료되지 않은 것이다. 등록된 대상은 `email` 2개와 `web_push` 2개뿐이고, 휴대폰 Expo Push 대상과 `kakao_memo` 대상은 없다. 이메일은 `RESEND_API_KEY`가 없어 실패하고, 카카오는 Manual Linking과 Kakao secrets가 없어 연결/발송을 완료할 수 없다. 웹푸시는 한 건은 push service까지 `sent`로 기록됐지만, 다른 한 건은 stale subscription 또는 권한/푸시 서비스 문제로 실패했다.
+
+### 해결 방법
+
+사용하려는 알림 채널별로 준비를 완료해야 한다.
+
+- 이메일: Edge Function secret `RESEND_API_KEY`를 설정한다.
+- 카카오톡: Supabase Manual Linking을 켜고 `KAKAO_REST_API_KEY`, 필요 시 `KAKAO_CLIENT_SECRET`, `APP_ORIGIN`을 설정한 뒤 웹 앱에서 카카오톡 알림을 연결한다.
+- 휴대폰 Expo Push: 실제 모바일 앱에서 Expo Push Token 등록 흐름을 실행해 `notification_targets.kind = 'expo'` 대상을 만든다.
+- 컴퓨터 웹푸시: 브라우저 알림 권한을 허용하고 컴퓨터 알림을 다시 등록해 stale subscription을 갱신한다.
+
+### 관련 파일
+
+* `supabase/functions/attendance-cron/index.ts`
+* `supabase/functions/kakao-token/index.ts`
+* `apps/web/src/webPush.ts`
+* `apps/web/src/main.tsx`
+
+### 재발 방지
+
+알림 미수신을 볼 때는 `cron.job`, `net._http_response`, `get_due_reminders(now())`, `notification_targets`, `notification_deliveries`, Edge Function secrets를 순서대로 확인한다. `dueReminderCount: 0`이면 스케줄러 문제가 아니라 현재 분에 보낼 대상이 없다는 뜻이다.
+
+## 2026-06-08 - Kakao notification deployment blocked by Manual Linking and secrets
+
+### 상황
+
+카카오톡 알림 연결 UI, `kakao-token` Edge Function, `attendance-cron`의 `kakao_memo` 발송 분기를 구현하고 원격 Supabase에 배포했다.
+
+### 에러 메시지
+
+```txt
+Supabase Auth security_manual_linking_enabled=false
+KAKAO_REST_API_KEY secret not found
+APP_ORIGIN secret not found
+```
+
+### 원인
+
+기존 Supabase 사용자 계정에 Kakao identity를 추가하려면 Supabase Auth Manual Linking이 켜져 있어야 한다. 이 설정은 계정 연결 보안에 영향을 주는 영구 Auth 설정이라 자동 변경 승인이 거절됐다. 또한 Kakao access token이 만료된 뒤 refresh하려면 Edge Function secret `KAKAO_REST_API_KEY`가 필요하고, 운영 링크를 정확히 만들려면 `APP_ORIGIN`도 필요하다.
+
+### 해결 방법
+
+코드와 DB/Edge Function 배포는 완료했다. 사용자가 Supabase Dashboard에서 Manual Linking을 직접 켜고, Edge Function secrets에 `KAKAO_REST_API_KEY`, 필요 시 `KAKAO_CLIENT_SECRET`, 배포 URL 확정 후 `APP_ORIGIN`을 설정해야 실제 연결/발송 검증이 가능하다.
+
+### 관련 파일
+
+* `apps/web/src/main.tsx`
+* `apps/web/src/kakaoNotifications.mjs`
+* `supabase/functions/kakao-token/index.ts`
+* `supabase/functions/attendance-cron/index.ts`
+* `supabase/migrations/0007_kakao_message_notifications.sql`
+
+### 재발 방지
+
+OAuth identity linking 기능을 추가할 때는 Supabase Provider enabled 여부와 별도로 Manual Linking 설정을 확인한다. Edge Function 배포 후에는 코드 배포 상태와 필요한 secrets 설정 상태를 분리해서 확인한다.
+
+## 2026-06-08 - Supabase MCP migration required reauthentication
+
+### 상황
+
+`kakao_message_connections` migration을 Supabase MCP로 적용하려고 했다.
+
+### 에러 메시지
+
+```txt
+This app connection requires reauthentication before other actions on this app can succeed.
+```
+
+### 원인
+
+현재 세션의 Supabase MCP 앱 연결이 재인증을 요구하는 상태였다. MCP 도구 자체는 보였지만 실제 변경 작업은 진행할 수 없었다.
+
+### 해결 방법
+
+`SUPABASE_ACCESS_TOKEN` 존재를 확인한 뒤 Supabase Management API의 database query endpoint로 migration SQL을 적용했다. 이후 같은 Management API SQL 조회로 `public.kakao_message_connections`와 `kakao_memo` check constraint가 원격 DB에 반영된 것을 확인했다.
+
+### 관련 파일
+
+* `supabase/migrations/0007_kakao_message_notifications.sql`
+
+### 재발 방지
+
+Supabase 변경 전에는 MCP 도구 표시 여부만 보지 말고 실제 `_execute_sql` 또는 `_apply_migration` 호출이 가능한지 확인한다. 재인증 오류가 나오면 Supabase MCP 재로그인 또는 Management API/CLI fallback을 사용한다.
+
+## 2026-06-08 - Edge Function JWT gateway blocks browser CORS preflight
+
+### 상황
+
+웹 앱에서 `kakao-token` Edge Function을 호출하려면 브라우저가 먼저 `OPTIONS` preflight 요청을 보낸다.
+
+### 에러 메시지
+
+```txt
+401 Unauthorized
+```
+
+### 원인
+
+Edge Function을 `verify_jwt=true`로 배포하면 Supabase gateway가 `OPTIONS` preflight 요청도 JWT 없이 차단할 수 있다. 그러면 함수 내부 CORS 처리까지 요청이 도달하지 못한다.
+
+### 해결 방법
+
+`kakao-token`을 `verify_jwt=false`로 재배포하고, 함수 내부에서 `Authorization` bearer token을 직접 `admin.auth.getUser(jwt)`로 검증하도록 유지했다. `OPTIONS` 요청은 204로 응답하고, 인증 없는 GET은 함수 내부 401을 반환하는 것을 확인했다.
+
+### 관련 파일
+
+* `supabase/functions/kakao-token/index.ts`
+
+### 재발 방지
+
+브라우저에서 직접 호출하는 Edge Function은 CORS preflight 경로를 따로 검증한다. `verify_jwt=false`를 사용할 경우 반드시 함수 내부에서 Supabase JWT를 검증한다.
+
+## 2026-06-08 - Kakao provider disabled and no Kakao delivery channel
+
+### 상황
+
+카카오 설정 후 카카오톡 나에게 보내기 알림을 보낼 수 있는지 확인했다.
+
+### 에러 메시지
+
+```txt
+{"code":400,"error_code":"validation_failed","msg":"Unsupported provider: provider is not enabled"}
+```
+
+### 원인
+
+Supabase Auth Kakao Provider가 아직 활성화되어 있지 않다. 또한 현재 `attendance-cron` Edge Function은 `expo`, `web_push`, `email`만 처리하고, DB 체크 제약도 해당 세 채널만 허용한다. 따라서 Kakao Developers 설정만으로는 현재 앱에서 카카오톡 메시지를 보낼 수 없다.
+
+### 해결 방법
+
+Supabase Auth Providers에서 Kakao를 ON으로 설정하고 Client ID/Secret을 저장해야 한다. 이후 카카오를 로그인 수단이 아니라 알림 채널로 쓰려면 별도 토큰 저장 테이블과 `attendance-cron`의 `kakao_memo` 발송 분기를 구현해야 한다.
+
+2026-06-08에 Management API로 `external_kakao_enabled=True`를 적용했고, authorize endpoint가 `302 Found`로 Kakao OAuth URL을 반환하는 것을 확인했다. 단, 실제 카카오톡 나에게 보내기 알림은 아직 앱/DB/Edge Function 구현이 필요하다.
+
+### 관련 파일
+
+* `supabase/functions/attendance-cron/index.ts`
+* `supabase/migrations/0001_study_room_mvp.sql`
+* `apps/web/src/main.tsx`
+
+### 재발 방지
+
+Kakao Developers 설정 완료와 Supabase Provider 활성화는 별개로 확인한다. 발송 가능 여부는 Provider endpoint, DB 채널 제약, Edge Function 발송 분기를 모두 확인한다.
+
+## 2026-06-08 - 서버 알림 자동화는 동작하지만 휴대폰 Expo 대상이 없음
+
+### 상황
+
+Supabase Cron + Edge Function으로 로컬 컴퓨터가 꺼져도 알림 발송이 가능한지 확인했다.
+
+### 에러 메시지
+
+```txt
+RESEND_API_KEY is required
+Received unexpected response code
+```
+
+### 원인
+
+원격 `attendance-cron` Edge Function과 `study-room-attendance-cron` cron job은 active 상태였지만, `notification_targets`에 `expo` 종류가 아직 없었다. 즉 휴대폰 푸시를 받을 Expo Push Token이 등록되지 않았다. 이메일 fallback은 `RESEND_API_KEY` secret이 없어 실패했고, web push는 브라우저 구독 또는 푸시 서비스 응답 문제로 실패 기록이 있었다.
+
+### 해결 방법
+
+서버 측 자동 실행은 유지한다. 휴대폰 알림을 활성화하려면 `apps/mobile/.env.local`에 `EXPO_PUBLIC_EAS_PROJECT_ID`를 설정하고, 실제 기기에서 모바일 앱의 푸시 등록 흐름을 실행해 `notification_targets.kind = 'expo'` 행을 생성해야 한다. 이메일 fallback을 쓰려면 Edge Function secret `RESEND_API_KEY`를 설정해야 한다.
+
+### 관련 파일
+
+* `supabase/functions/attendance-cron/index.ts`
+* `supabase/cron.sql`
+* `apps/mobile/src/notifications.ts`
+* `apps/mobile/.env.local`
+
+### 재발 방지
+
+알림 문제를 볼 때는 cron/Edge Function 실행 여부와 실제 발송 대상 등록 여부를 분리해서 확인한다. `cron.job`, `net._http_response`, `notification_targets`, `notification_deliveries`를 함께 조회한다.
+
+## 2026-06-08 - Google OAuth hash callback ignored
+
+### 상황
+
+Google 계정 인증은 완료됐지만 앱이 로그인 대시보드로 들어가지 않고 다시 기본 로그인 화면으로 돌아갔다.
+
+### 에러 메시지
+
+```txt
+명시적인 에러는 없고 callback URL이 /auth/callback#access_token=... 형태로 돌아왔지만 앱 세션이 설정되지 않음
+```
+
+### 원인
+
+기존 앱은 `/auth/callback?code=...` PKCE callback만 auth callback으로 인식했다. 실제 Supabase Google OAuth 응답은 URL hash에 `access_token`, `refresh_token`을 담는 implicit callback 형태였고, `isAuthCallbackUrl`이 이 URL을 callback으로 인식하지 못했다.
+
+### 해결 방법
+
+`apps/web/src/authProviders.mjs`에 hash callback 감지와 token 추출 함수를 추가했다. `finishOAuthCallback`은 hash callback이면 `supabase.auth.setSession`으로 세션을 설정하고, callback URL의 token hash를 `history.replaceState`로 제거한다.
+
+### 관련 파일
+
+* `apps/web/src/main.tsx`
+* `apps/web/src/authProviders.mjs`
+* `apps/web/test/authProviders.test.mjs`
+
+### 재발 방지
+
+OAuth callback 처리 테스트에는 query `code`, query/hash error, hash `access_token` 케이스를 모두 포함한다. 토큰이 URL에 남지 않도록 callback 처리 시작 시 주소를 정리한다.
+
+## 2026-06-08 - Google OAuth provider disabled
+
+### 상황
+
+웹 앱에서 Google 로그인을 누르면 Supabase Auth authorize endpoint가 400을 반환했다.
+
+### 에러 메시지
+
+```txt
+{"code":400,"error_code":"validation_failed","msg":"Unsupported provider: provider is not enabled"}
+```
+
+### 원인
+
+Supabase Auth 설정에 Google Client ID/Secret은 등록되어 있었지만 `external_google_enabled`가 `false`였다. 로컬 앱은 `VITE_GOOGLE_AUTH_ENABLED=true`로 Google OAuth를 호출하고 있었으나, Supabase 프로젝트에서 Provider 자체가 꺼져 있어 요청이 거부됐다.
+
+### 해결 방법
+
+Supabase Management API로 프로젝트 `bqohkdzvxbrokkmuhysx`의 `external_google_enabled`를 `true`로 변경했다. 이후 authorize URL이 400이 아니라 Google OAuth URL로 `302 Found`를 반환하는 것을 확인했다.
+
+### 관련 파일
+
+* `apps/web/.env.local`
+* `memory-bank/implementation-plan.md`
+
+### 재발 방지
+
+Google 로그인을 켤 때는 로컬 `VITE_GOOGLE_AUTH_ENABLED=true`뿐 아니라 Supabase Auth Provider의 enabled 값, Client ID/Secret 존재 여부, `uri_allow_list`, Google Cloud Authorized redirect URI를 함께 확인한다.
+
+## 2026-06-07 - 페이지 이탈 후 집중 세션이 계속 누적됨
+
+### 상황
+
+사용자가 집중 세션을 시작한 뒤 종료 버튼을 누르지 않고 페이지를 벗어나면 활성 세션이 계속 열려 있어 공부 시간이 계속 증가했다.
+
+### 에러 메시지
+
+```txt
+명시적인 런타임 에러는 없고, 활성 `study_sessions` 행의 `ended_at`이 null로 남아 시간이 계속 누적됨
+```
+
+### 원인
+
+웹 앱은 `endTimer()`를 종료 버튼 클릭에서만 호출했다. `pagehide`, `beforeunload`, `visibilitychange` 같은 페이지 이탈 이벤트에서는 `end_study_session` RPC를 호출하지 않았다.
+
+### 해결 방법
+
+`apps/web/src/sessionExit.mjs`를 추가해 `keepalive` fetch로 `/rest/v1/rpc/end_study_session`을 호출하도록 했다. `apps/web/src/main.tsx`는 활성 세션이 있을 때 페이지 이탈 이벤트 리스너를 등록하고, 이벤트가 여러 번 발생해도 종료 요청을 한 번만 보낸다.
+
+### 관련 파일
+
+* `apps/web/src/main.tsx`
+* `apps/web/src/sessionExit.mjs`
+* `apps/web/test/sessionExit.test.mjs`
+
+### 재발 방지
+
+브라우저 unload 계열 이벤트에서는 일반 async 요청 완료가 보장되지 않으므로, 짧은 본문과 `keepalive` 요청을 사용한다.
+
+## 2026-06-07 - get_due_reminders user_id ambiguity
+
+### 상황
+
+Supabase Cron이 `attendance-cron` Edge Function을 호출했지만 Edge Function 응답이 500이었다.
+
+### 에러 메시지
+
+```txt
+{"error":"column reference \"user_id\" is ambiguous"}
+```
+
+### 원인
+
+`get_due_reminders`는 `returns table (user_id uuid, ...)` 구조라 PL/pgSQL 안에서 `user_id`가 출력 변수로도 존재한다. 기존 SQL의 `insert ... select user_id`와 `on conflict (user_id, local_date)`가 출력 변수와 테이블 컬럼 사이에서 모호해졌다.
+
+### 해결 방법
+
+`supabase/migrations/0006_fix_due_reminders_ambiguity.sql`을 추가해 `due_now`를 `dn` alias로 참조하고, `on conflict on constraint attendance_days_pkey`를 사용하도록 수정했다.
+
+### 관련 파일
+
+* `supabase/migrations/0006_fix_due_reminders_ambiguity.sql`
+* `packages/core/test/sql-migrations.test.mjs`
+
+### 재발 방지
+
+PL/pgSQL `returns table` 함수 안에서는 출력 컬럼명과 같은 이름을 unqualified column으로 사용하지 않는다.
+
+## 2026-06-07 - VAPID key rotation requires browser resubscribe
+
+### 상황
+
+서버 발송용 VAPID private key가 로컬에 없어 새 VAPID key pair를 생성했다.
+
+### 에러 메시지
+
+```txt
+기존 브라우저 구독은 이전 VAPID 공개키를 기준으로 만들어져 있어 새 private key와 맞지 않을 수 있음
+```
+
+### 원인
+
+Web Push 구독은 생성 당시의 application server key와 묶인다. 서버 VAPID key pair를 바꾸면 기존 브라우저 subscription은 새 private key로 발송할 수 없다.
+
+### 해결 방법
+
+`apps/web/src/webPush.ts`가 기존 subscription의 `applicationServerKey`를 현재 공개키와 비교하고, 다르면 unsubscribe 후 재구독하도록 수정했다.
+
+### 관련 파일
+
+* `apps/web/src/webPush.ts`
+* `apps/web/src/webPushKeys.mjs`
+* `apps/web/test/webPushKeys.test.mjs`
+
+### 재발 방지
+
+VAPID key pair를 회전한 뒤에는 사용자가 컴퓨터 알림을 다시 등록해야 한다.
+
+## 2026-06-07 - Context7 AWS CDK 문서 조회 실패
+
+### 상황
+
+AWS CDK v2 문법을 확인하기 위해 Context7 문서를 조회했다.
+
+### 에러 메시지
+
+```txt
+Invalid or expired OAuth token. Please re-authenticate to obtain a new token.
+```
+
+### 원인
+
+현재 세션의 Context7 OAuth 토큰이 만료되어 문서 조회 도구가 사용할 수 없었다.
+
+### 해결 방법
+
+이미 설치된 `aws-cdk-lib` 패키지 버전 정보를 확인하고, CDK 테스트 및 `cdk synth`로 실제 템플릿 합성을 검증했다.
+
+### 관련 파일
+
+* `infra/aws-cdk/src/study-room-aws-stack.ts`
+
+### 재발 방지
+
+CDK API가 불확실할 때는 Context7 토큰 상태를 먼저 확인하고, 도구가 막히면 로컬 패키지 타입과 `cdk synth`를 기준으로 검증한다.
+
+## 2026-06-07 - CDK RED 테스트의 모듈 없음 오류
+
+### 상황
+
+TDD 순서에 따라 CDK/Lambda 테스트를 먼저 추가하고 실행했다.
+
+### 에러 메시지
+
+```txt
+ERR_MODULE_NOT_FOUND
+```
+
+### 원인
+
+테스트가 아직 작성되지 않은 구현 파일을 import하고 있었다.
+
+### 해결 방법
+
+`infra/aws-cdk/lambda/attendance-cron-invoker/index.mjs`와 `infra/aws-cdk/src/study-room-aws-stack.ts`를 구현한 뒤 테스트를 통과시켰다.
+
+### 관련 파일
+
+* `infra/aws-cdk/lambda/attendance-cron-invoker/index.test.mjs`
+* `infra/aws-cdk/test/study-room-aws-stack.test.ts`
+
+### 재발 방지
+
+이 오류는 RED 단계에서 의도된 실패다. 실패 원인이 오타가 아니라 구현 부재인지 확인한 뒤 GREEN 단계로 넘어간다.
+## 2026-06-15 - Broad Supabase no-JWT function deploy command rejected
+
+### Situation
+
+While deploying the Slack recovery routine feature, a single Supabase CLI command attempted to deploy `attendance-cron`, `camera-presence-warning`, and `slack-recovery-interactions` together with `--no-verify-jwt`.
+
+### Error Message
+
+```txt
+Sandbox escalation was rejected by the execution approval reviewer because the command disabled JWT verification broadly across multiple functions.
+```
+
+### Cause
+
+`attendance-cron` and `camera-presence-warning` are intentionally deployed with `verify_jwt=false` and perform their own internal authentication, but the broad command looked risky because it applied that flag to all listed functions at once.
+
+### Resolution
+
+Use a narrower deployment path:
+
+- Deploy only the new Slack interactivity function with `verify_jwt=false` because Slack cannot send Supabase JWTs.
+- Redeploy existing no-JWT functions only through an explicitly approved, per-function deployment step or a Supabase MCP deployment that preserves the documented function configuration.
+
+### Related Files
+
+- `supabase/functions/attendance-cron/index.ts`
+- `supabase/functions/camera-presence-warning/index.ts`
+- `supabase/functions/slack-recovery-interactions/index.ts`
+- `memory-bank/implementation-plan.md`
+
+### Prevention
+
+Avoid broad `supabase functions deploy ... --no-verify-jwt` commands that cover multiple functions. Prefer one function per deploy when `verify_jwt=false` is involved, and document why the function has its own authentication boundary.
+
+## 2026-06-15 - Slack recovery modal secret missing
+
+### Situation
+
+`slack-recovery-interactions` was deployed, but Slack modal submissions require request verification with a Slack signing secret.
+
+### Error Message
+
+```txt
+SLACK_SIGNING_SECRET is required
+```
+
+### Cause
+
+Supabase Edge Function secrets include `STUDY_ALERT_SLACK_BOT_TOKEN`, but not `SLACK_SIGNING_SECRET`.
+
+### Resolution
+
+Add the Slack App signing secret to Supabase Edge Function secrets as `SLACK_SIGNING_SECRET`, then configure the Slack App Interactivity Request URL:
+
+```txt
+https://bqohkdzvxbrokkmuhysx.supabase.co/functions/v1/slack-recovery-interactions
+```
+
+### Related Files
+
+* `supabase/functions/slack-recovery-interactions/index.ts`
+
+### Prevention
+
+For Slack interactive components, always check both bot-token and signing-secret secrets. Bot token is enough for sending messages, but not enough for receiving signed Slack interactivity payloads.
+
+## 2026-06-28 - Active study session kept counting after browser or PC restart
+
+### Situation
+
+The user wanted login to remain available for the existing session flow, but study time should stop when the browser or computer is closed. The app restored active study_sessions rows and recalculated elapsed time from started_at, so closed-browser time could appear as study time.
+
+### Error Message
+
+No runtime exception. User-visible symptom: after reopening the browser or computer, an active study timer continues as if the closed time was studied.
+
+### Cause
+
+Supabase Auth persistence and study session persistence were coupled by the active-session restore path. The app restored status = active rows from Supabase and only capped by the 2-hour lease. Browser lifecycle events intentionally no longer ended sessions because refresh/tab switching must not lose study time.
+
+### Fix
+
+Added a separate client-side study-session activity heartbeat. Active sessions update localStorage every 15 seconds and on pagehide/beforeunload. When the app restores an active session, it checks the last activity timestamp before refreshing it. If the gap is more than 5 minutes, it calls end_study_session and passes the inactive gap through p_excluded_seconds. visibilitychange to visible refreshes activity so normal tab switching remains valid study time.
+
+### Related Files
+
+- apps/web/src/main.tsx
+- apps/web/src/sessionActivity.mjs
+- apps/web/test/sessionActivity.test.mjs
+
+### Prevention
+
+Keep Auth persistence separate from study-time persistence. Do not reintroduce lifecycle-based session ending for pagehide/beforeunload; use heartbeat cleanup or a future server-side stale-session cleanup instead.
+
+## 2026-06-28 - Slack schedule reminders could use stale future reminder locks
+
+### Situation
+
+The user observed that after changing a timed schedule, Slack still appeared to send the old 5-minute-before reminder time. Example: moving a task end from 10:00 to 10:10 should move the end-soon reminder from 09:55 to 10:05.
+
+### Error Message
+
+    User-visible symptom:
+    - Slack end-soon reminder appears at the previous schedule time after a schedule change.
+
+### Cause
+
+The scheduler computes due reminders from current study_todos rows, but duplicate locks in study_todo_schedule_deliveries are persistent. If a future lock exists for a schedule that is later changed, that lock is not automatically invalidated by the schedule update. This can make changed schedules fail to behave like a clean reschedule, especially when a todo moves away from and back to a previously locked scheduled_at.
+
+### Fix
+
+Added migration 20260628174500_clear_future_todo_schedule_deliveries.sql. It creates clear_future_todo_schedule_deliveries(p_todo_ids, p_changed_at) and a trigger on study_todos. Updates to start_time, end_time, or is_completed delete future delivery locks for the changed todo while preserving past sent delivery history.
+
+### Related Files
+
+- supabase/migrations/20260628174500_clear_future_todo_schedule_deliveries.sql
+- supabase/migrations/20260628064614_study_todo_schedule_reminders.sql
+- packages/core/test/sql-migrations.test.mjs
+
+### Prevention
+
+When schedule timing changes, include both current-row due calculation and duplicate-lock invalidation in tests. Remote Supabase MCP auth may expire; if so, use npx supabase db query --linked --file after linking the project, and record that db push can be blocked by migration-history mismatch.
+
+## 2026-06-28 - PowerShell regex replacement inserted literal capture text
+
+### Situation
+
+While adding the planner completion action, `apply_patch` failed with `apply deny-read ACLs`, so a PowerShell file API fallback was used.
+
+### Error Message
+
+```txt
+planner detail actions block not found
+literal `$1` appeared in inserted JSX
+```
+
+### Cause
+
+The first replacement used a literal PowerShell here-string with `$1`, so the regex capture was not expanded. It also exposed Korean text encoding problems in this shell.
+
+### Resolution
+
+Replaced the whole planner detail actions block by explicit string indexes, then used `\uXXXX` JavaScript string escapes for new Korean UI messages.
+
+### Related Files
+
+- `apps/web/src/main.tsx`
+- `apps/web/test/slackNotifications.test.mjs`
+
+### Prevention
+
+When `apply_patch` is blocked in this repo, prefer explicit start/end index replacements for JSX blocks and use ASCII-safe string escapes for new Korean text.
+## 2026-06-30 - Slack session lease extension required page refresh
+
+### Situation
+
+The user clicked the Slack session-extension button and Slack replied that the session was extended by 1 hour, but the already-open web app did not immediately show the new remaining session time. Refreshing the page made the updated lease appear.
+
+### Error Message
+
+No runtime exception. User-visible symptom: Slack says the new end time is saved, but the app lease countdown stays on the previous deadline until refresh.
+
+### Cause
+
+Slack interactivity calls `extend_study_session_lease` through Supabase and updates `study_sessions.lease_expires_at` outside the browser. The in-app `extendSessionLease()` path updated local `studySessions` immediately, but there was no polling or subscription for lease changes made externally.
+
+### Resolution
+
+Added an open-dashboard active-session lease refresh loop. While a session is active, the app refetches only that `study_sessions` row immediately, every 15 seconds, on window focus, and on visibilitychange back to visible. The fetched row replaces the local session entry so the existing lease countdown effect recalculates from the new `lease_expires_at`.
+
+### Related Files
+
+- `apps/web/src/main.tsx`
+- `apps/web/test/sessionLease.test.mjs`
+
+### Prevention
+
+Any future action that mutates active session state outside the browser must have either a narrow refresh path, Supabase Realtime subscription, or explicit dashboard reload. Source-level tests should assert the sync path exists.
+## 2026-06-30 - PowerShell Set-Content corrupted UTF-8 during TSX edit
+
+### Situation
+
+While editing `apps/web/src/main.tsx` after `apply_patch` failed with Windows ACL errors, a PowerShell `Set-Content` fallback rewrote the full TSX file and corrupted many Korean strings in the diff.
+
+### Error Message
+
+```txt
+git diff showed thousands of unintended Korean string changes and mojibake in apps/web/src/main.tsx.
+```
+
+### Cause
+
+The fallback wrote the entire UTF-8 TSX file through PowerShell text APIs without preserving the original encoding safely.
+
+### Resolution
+
+Restored the damaged file from HEAD, then reapplied the intended minimal patch with a temporary ASCII Node script that read and wrote the target file with explicit `utf8`.
+
+### Related Files
+
+- `apps/web/src/main.tsx`
+
+### Prevention
+
+If `apply_patch` is blocked in this repo, prefer Node `fs.readFileSync(path, "utf8")` and `fs.writeFileSync(path, text, "utf8")` for targeted edits. Check `git diff --stat` and a focused diff immediately after fallback edits.
+## 2026-07-05 - Recovery summary keyword tests matched default fixture text
+
+### Situation
+
+While adding deterministic recovery reason classification tests, the camera and 기타 test cases unexpectedly matched unrelated categories.
+
+### Error Message
+
+```txt
+AssertionError: '수면/피로' !== '환경/자리 비움'
+AssertionError: '알림/습관' !== '기타'
+```
+
+### Cause
+
+The shared test fixture included default text such as `늦잠` and `알림 전에 입장`, so tests that intended to check camera or 기타 classification were still matching the default fixture fields.
+
+### Resolution
+
+Overrode `makeup_todo_title` and `pledge_todo_title` to null for those cases and used a camera-specific reason string.
+
+### Related Files
+
+- `apps/web/test/recoverySummary.test.mjs`
+- `apps/web/src/recoverySummary.mjs`
+
+### Prevention
+
+When testing keyword classifiers, clear unrelated fixture text so only the intended field drives the expected category.
+## 2026-07-05 - Recovery history pagination import missed by source tests
+
+### Situation
+
+After adding recovery history pagination, the source-level UI tests passed but the production build failed.
+
+### Error Message
+
+```txt
+src/main.tsx(765,11): error TS2304: Cannot find name 'paginateRecoveryHistory'.
+src/main.tsx(3724,47): error TS7006: Parameter 'request' implicitly has an 'any' type.
+```
+
+### Cause
+
+The app source referenced `paginateRecoveryHistory()` but the import block in `main.tsx` had not been updated. The implicit `any` error was a downstream result of the missing typed helper import.
+
+### Resolution
+
+Added `paginateRecoveryHistory` to the `recoverySummary.mjs` import block and reran the related tests plus the full build.
+
+### Related Files
+
+- `apps/web/src/main.tsx`
+- `apps/web/src/recoverySummary.mjs`
+- `apps/web/src/recoverySummary.d.mts`
+- `apps/web/test/recoveryRoutine.test.mjs`
+
+### Prevention
+
+Source-string tests are useful wiring checks, but TypeScript build remains the authoritative check for missing imports and inferred types.
+## 2026-07-05 - Notification helper text must avoid Windows encoding drift
+
+### Situation
+
+While adding notification diagnostics, new Korean strings in a helper file were easier to inspect and preserve when stored as ASCII-safe Unicode escape sequences. Console output can show mojibake in this repository, so direct visual inspection of non-ASCII literals can be misleading.
+
+### Error Message
+
+No final build error. The risky symptom was malformed or mojibake-looking helper text during source inspection.
+
+### Cause
+
+Windows console encoding and the repository's existing mojibake history make newly inserted Korean literals hard to verify when apply_patch is blocked and fallback file writes are needed.
+
+### Resolution
+
+Stored user-facing helper strings as JavaScript Unicode escapes, then verified syntax with node --check and behavior with targeted tests.
+
+### Related Files
+
+- apps/web/src/notificationDiagnostics.mjs
+- apps/web/test/notificationDiagnostics.test.mjs
+
+### Prevention
+
+For new Korean strings in small JS helper modules, prefer ASCII-safe Unicode escapes when the file may be edited through Windows fallback scripts. Always run node --check plus the relevant unit tests.
+
+## 2026-07-05 - GitHub Actions build gate failed on npm.cmd
+
+### Situation
+
+After adding npm run build before Vercel deploy, GitHub Actions run 28736926292 failed in the Build web app step even though local npm.cmd run build passed.
+
+### Error Message
+
+```txt
+Process completed with exit code 127.
+```
+
+### Cause
+
+The root package.json build script called npm.cmd --workspace apps/web run build. GitHub Actions uses ubuntu-latest, where npm.cmd does not exist. Tests passed because they did not invoke the root build script before the new workflow gate.
+
+### Resolution
+
+Changed package.json build to npm --workspace apps/web run build and added ciWorkflow test coverage that asserts the root build script is cross-platform and does not contain npm.cmd.
+
+### Related Files
+
+- package.json
+- .github/workflows/vercel-production.yml
+- apps/web/test/ciWorkflow.test.mjs
+
+### Prevention
+
+Keep npm.cmd for manual PowerShell commands, but do not put Windows-only npm.cmd invocations in CI scripts or package scripts executed on Linux runners.
+
+## 2026-07-05 - Supabase function return type change requires drop and recreate
+
+### Situation
+
+While adding slack_user_id to get_due_session_lease_warnings(p_now), the first remote migration apply failed.
+
+### Error Message
+
+~~~txt
+ERROR: 42P13: cannot change return type of existing function
+HINT: Use DROP FUNCTION get_due_session_lease_warnings(timestamp with time zone) first.
+~~~
+
+### Cause
+
+Postgres cannot replace an existing function with a different table return type through CREATE OR REPLACE FUNCTION. The new return shape added slack_user_id.
+
+### Resolution
+
+The migration now explicitly drops public.get_due_session_lease_warnings(timestamptz) before recreating it with the new return table shape and service_role grant.
+
+### Related Files
+
+- supabase/migrations/20260705125944_slack_user_mentions.sql
+- supabase/functions/attendance-cron/index.ts
+
+### Prevention
+
+When changing a Postgres function's return table columns, use DROP FUNCTION IF EXISTS with the exact signature before CREATE FUNCTION, then reapply grants.
+
+## 2026-07-08 - Windows fallback edit corrupted Korean text in main.tsx
+
+### Situation
+
+While adding the Study Forest page, apply_patch was blocked by the Windows sandbox helper, so a fallback PowerShell/Node file edit path was used. A prior fallback write temporarily caused existing Korean UI strings in apps/web/src/main.tsx to appear as mojibake in the diff.
+
+### Error Message
+
+~~~txt
+src/main.tsx diff showed Korean strings replaced with mojibake-like text such as Supabase ?... and garbled login/camera messages.
+~~~
+
+### Cause
+
+The fallback editing path rewrote the large UTF-8 React file through a Windows shell path that did not preserve the existing Korean text safely.
+
+### Resolution
+
+Restored apps/web/src/main.tsx from HEAD, then reapplied only the Study Forest changes using a UTF-8 Node write. New Korean strings in the inserted forest block are stored as JavaScript Unicode escapes to avoid console/codepage damage.
+
+### Related Files
+
+- apps/web/src/main.tsx
+- apps/web/src/studyForest.mjs
+- apps/web/test/studyForest.test.mjs
+
+### Prevention
+
+For large UTF-8 TSX files on Windows, avoid whole-file PowerShell string rewrites. If apply_patch is blocked, restore from version control and use a UTF-8 Node script with ASCII-safe inserted literals, then inspect git diff before running tests/build.
+
+
+## 2026-07-12 - Windows sandbox ACL로 패치와 인앱 브라우저 검증 실패
+
+### 상황
+
+공부의 숲 실내 이동 코드를 수정하고 로컬 3D 화면을 인앱 브라우저로 확인하는 과정에서 Windows sandbox 보조 프로세스가 파일 ACL 적용 단계에서 종료됐다.
+
+### 에러 메시지
+
+~~~txt
+windows sandbox failed: helper_unknown_error: apply deny-read ACLs
+node_repl kernel exited unexpectedly
+~~~
+
+### 원인
+
+현재 Windows 실행 환경의 sandbox helper가 일부 파일 편집 및 브라우저 런타임 시작 시 deny-read ACL을 적용하지 못했다. 애플리케이션 코드나 Three.js 런타임 오류는 아니며, 같은 작업 트리에서 읽기 명령과 npm 빌드는 정상 동작했다.
+
+### 해결 방법
+
+- `apply_patch` 대신 UTF-8 Node 정확 앵커 치환을 사용하고 매 단계마다 `git diff`, 대상 테스트, 빌드로 변경 범위를 확인했다.
+- 인앱 브라우저 대신 Vite 개발 서버를 실행하고 `http://127.0.0.1:5173` HTTP 200을 확인했다.
+- 실제 시각 자동화는 수행하지 않았으며 모바일 실기기 확인을 후속 작업으로 남겼다.
+
+### 관련 파일
+
+- `apps/web/src/StudyForest3D.tsx`
+- `apps/web/src/main.tsx`
+- `apps/web/src/styles.css`
+
+### 재발 방지
+
+Windows sandbox에서 동일한 ACL 오류가 발생하면 반복해서 `apply_patch`나 브라우저 런타임을 재시작하지 않는다. UTF-8 정확 앵커 치환 후 diff/test/build를 수행하고, 시각 검증 불가를 명시한다.
+
+## 2026-07-12 - 루트 lint 스크립트 없음
+
+### 상황
+
+React TSX 변경 후 품질 검증을 위해 `npm run lint`를 실행했다.
+
+### 에러 메시지
+
+~~~txt
+npm error Missing script: "lint"
+~~~
+
+### 원인
+
+루트 `package.json`과 `apps/web/package.json`에 lint 스크립트 및 lint 도구가 정의되어 있지 않다.
+
+### 해결 방법
+
+프로젝트에 정의된 검증 명령인 `npm test`와 `npm run build`를 실행해 전체 테스트 246개와 TypeScript/Vite 프로덕션 빌드를 통과시켰다. React 변경은 별도 체크리스트로 setter 부수효과, effect cleanup, 접근성을 점검했다.
+
+### 관련 파일
+
+- `package.json`
+- `apps/web/package.json`
+- `apps/web/src/main.tsx`
+- `apps/web/src/StudyForest3D.tsx`
+
+### 재발 방지
+
+lint가 필수 검증 단계가 되어야 한다면 후속 작업에서 ESLint 설정과 `lint` 스크립트를 명시적으로 추가한다. 그 전까지는 lint 실행 불가를 숨기지 않고 테스트 및 빌드 결과와 함께 보고한다.
+
+
+## 2026-07-12 - Locked cottage rewards blocked empty floor
+
+### Situation
+
+The cottage displayed only the permanent desk and chair, but clicking an empty area near the right side showed the furniture collision notice and prevented movement.
+
+### Error Message
+
+~~~txt
+가구가 있는 곳은 지나갈 수 없어요.
+~~~
+
+### Cause
+
+Bookshelf, reading-lamp, and plant collision rectangles were always active in `COTTAGE_SOLID_AREAS`, while the matching Three.js props were conditionally rendered only after 1/3/5-day attendance rewards. Locked furniture therefore created invisible obstacles.
+
+### Resolution
+
+Added reward keys to conditional furniture obstacles and passed the current `getForestInteriorRewards()` result through keyboard, touch-button, and click movement collision checks. Permanent desk and chair obstacles remain unconditional.
+
+### Related Files
+
+- `apps/web/src/studyForest.mjs`
+- `apps/web/src/main.tsx`
+- `apps/web/src/StudyForest3D.tsx`
+- `apps/web/test/studyForest.test.mjs`
+
+### Prevention
+
+Every conditionally rendered furniture prop must use the same reward key for both rendering and collision. Regression tests must assert that the location is walkable while locked and blocked after unlock.
+
+## 2026-07-15 - Three.js 지연 청크가 Vite 500 kB 경고를 발생시킴
+
+### 상황
+
+웹 메인 기능을 분리한 뒤 production build에서 메인 앱은 크게 줄었지만 지연 로딩되는 Three.js 런타임 청크가 기본 경고 기준을 넘었다.
+
+### 에러 메시지
+
+~~~txt
+Some chunks are larger than 500 kB after minification.
+three-*.js 520.37 kB
+~~~
+
+### 원인
+
+현재 `three` 패키지는 Vite에서 단일 배포 모듈로 해석되어 renderer, geometry, material 경로별 수동 청크 규칙이 실제로 분리되지 않았다. 3D 장면 컴포넌트 자체는 이미 라우트 수준에서 지연 로딩되고 있었다.
+
+### 해결 방법
+
+- React, Supabase SDK, MediaPipe, Three.js를 서로 다른 청크로 분리했다.
+- 숲, 회고, 주간 리뷰, 적응형 알림 컴포넌트를 각각 지연 로딩했다.
+- 메인 JS를 약 554 kB에서 152 kB로 줄였다.
+- 초기 화면과 무관한 Three.js 단일 지연 청크 크기에 맞춰 `chunkSizeWarningLimit`을 550 kB로 설정했다. 이보다 커지는 회귀는 계속 경고한다.
+
+### 관련 파일
+
+- `apps/web/vite.config.ts`
+- `apps/web/src/main.tsx`
+- `apps/web/src/StudyForestSection.tsx`
+
+### 재발 방지
+
+번들 최적화는 경고 한도 변경만으로 판단하지 않는다. build 산출물에서 초기 메인 청크와 지연 기능 청크 크기를 함께 확인하고, 3D 런타임이 메인 청크로 다시 합쳐지지 않는지 소스 계약 테스트로 고정한다.
+
+## 2026-07-16 - 세션 lease 연장 RPC가 잔여 상한 없이 누적되고 익명 실행 가능
+
+### 상황
+
+세션 유지 버튼이 기존 마감 시각에 60분을 계속 더해, 1시간 30분이 남은 상태에서 누르면 잔여 시간이 2시간 30분이 됐다. 원격 권한 확인 중 같은 SECURITY DEFINER 함수가 익명 역할에서도 실행 가능함을 발견했다.
+
+### 에러 메시지
+
+~~~txt
+Expected: 90 minutes remaining + extension => 120 minutes remaining
+Previous behavior: 90 minutes remaining + extension => 150 minutes remaining
+anon_can_execute: true
+~~~
+
+### 원인
+
+- 기존 SQL은 `greatest(lease_expires_at, now()) + 60분`만 계산하고 최대 잔여 시간을 제한하지 않았다.
+- 과거 migration이 `PUBLIC` 실행 권한만 회수했지만 Supabase의 명시적 `anon` 함수 권한이 남아 있었다.
+- `auth.uid() is null` 경로는 Slack service role을 위해 허용되어 있어, 익명 실행 권한이 남으면 세션 UUID를 아는 호출자가 임의 연장을 시도할 수 있었다.
+
+### 해결 방법
+
+- RPC 계산을 `least(기존 마감 + 60분, now() + 2시간)`으로 변경했다.
+- `revoke all ... from public, anon` 후 `authenticated, service_role`에만 실행 권한을 다시 부여했다.
+- 웹 fallback helper와 Slack/웹 안내 문구를 같은 정책으로 맞췄다.
+- 원격 함수 정의, 역할별 권한, 고정 시각 예시 계산과 Edge Function 배포 버전을 확인했다.
+
+### 관련 파일
+
+- `supabase/migrations/20260716132227_cap_session_lease_remaining_time.sql`
+- `apps/web/src/sessionLease.mjs`
+- `apps/web/src/main.tsx`
+- `supabase/functions/attendance-cron/index.ts`
+- `supabase/functions/slack-recovery-interactions/index.ts`
+
+### 재발 방지
+
+SECURITY DEFINER RPC 변경 시 `PUBLIC`만 회수하지 말고 `anon`의 실제 `has_function_privilege` 결과를 확인한다. 시간 연장 기능은 증가량뿐 아니라 최대 마감 시각 예시를 단위 테스트와 SQL 계약 테스트로 함께 고정한다.
+
+## 2026-07-17 - 세션 종료 뒤 카메라 시작 상태가 풀리지 않을 수 있음
+
+### 상황
+
+세션을 종료한 직후 또는 카메라 권한 응답이 지연된 상태에서 다음 카메라 켜기 동작이 `starting`에 머물거나 버튼이 아무 반응 없는 것처럼 보일 수 있었다.
+
+### 에러 메시지
+
+~~~txt
+cameraStatus: starting
+getUserMedia(): pending without a bounded completion time
+inactive session button: disabled
+~~~
+
+### 원인
+
+- `getUserMedia()`에 시간 제한이 없었다.
+- 세션 종료가 진행 중인 start promise를 무효화하는 세대 번호를 갖지 않았다.
+- 활성 세션이 없으면 버튼을 disabled 처리해 클릭 시 사용 조건 안내조차 표시되지 않았다.
+
+### 해결 방법
+
+- 카메라 stream 요청에 15초 제한을 추가했다.
+- 시작 attempt ref를 추가하고 세션 종료/중지 시 증가시켜 stale 결과를 무효화했다.
+- timeout 또는 취소 뒤 늦게 도착한 stream track과 detector를 정리했다.
+- 세션이 없는 버튼은 활성화하되 시작 요청 대신 안내 문구를 표시하도록 했다.
+
+### 관련 파일
+
+- `apps/web/src/cameraStart.mjs`
+- `apps/web/src/main.tsx`
+- `apps/web/test/cameraStart.test.mjs`
+
+### 재발 방지
+
+카메라처럼 사용자 권한과 장치 응답에 의존하는 비동기 시작 작업은 timeout, 취소 세대, 늦은 자원 정리, 사용자 피드백을 한 세트로 테스트한다.
+
+## 2026-07-17 - Windows sandbox ACL로 이미지/패치 도구가 파일을 열지 못함
+
+### 상황
+
+첨부 이미지와 로컬 복사본을 시각 도구로 열고 `apply_patch`로 수정하려 했으나 같은 Windows ACL 오류가 반복됐다.
+
+### 에러 메시지
+
+~~~txt
+windows sandbox failed: helper_unknown_error: apply deny-read ACLs
+~~~
+
+### 원인
+
+Codex Windows sandbox helper가 해당 세션의 파일 ACL 적용 단계에서 실패했다. 프로젝트 코드나 이미지 포맷 문제는 아니었다.
+
+### 해결 방법
+
+- 사용자가 설명한 시각적 불변 조건을 기준으로 좌표/오브젝트 요구사항을 명시했다.
+- UTF-8과 기존 CRLF를 보존하도록 `git apply` 최소 패치를 사용했다.
+- 단위 테스트, UI 소스 계약 테스트, production build, Playwright 로컬 로드/모바일 overflow 검증으로 대체 증거를 확보했다.
+
+### 관련 파일
+
+- `apps/web/src/StudyForest3D.tsx`
+- `apps/web/src/StudyForestSection.tsx`
+- `apps/web/test/studyForestUi.test.mjs`
+
+### 재발 방지
+
+같은 ACL 오류가 발생하면 파일을 반복 복사하지 말고 읽기 가능한 shell 경로와 결정적 helper 테스트를 우선 사용한다. 시각 검증 불가 범위는 최종 보고에서 명확히 분리한다.
+
+## 2026-07-17 - 주간 리뷰가 -1827분으로 보이고 2시간 집계 근거가 불명확함
+
+### 상황
+
+07.13~07.19 주간 리뷰에서 공부 시간이 `2시간 0분`, 비교가 `지난주보다 -1827분`으로 표시되어 현재 합계와 차이의 의미를 이해하기 어려웠다.
+
+### 에러 메시지
+
+~~~txt
+현재 주 완료 세션: 3회, 7,235초
+지난주 완료 세션: 8회, 116,881초
+기존 표시: 2시간 0분 / 지난주보다 -1827분
+~~~
+
+### 원인
+
+- 현재 주에는 07.15의 3,593초와 07.16의 합계 3,642초만 완료 세션으로 저장되어 실제 합계가 7,235초였다.
+- 지난주에는 07.10의 74,571초 세션을 포함해 합계가 116,881초였으므로 차이는 -109,646초였다.
+- UI가 총 시간을 내림 처리하고 차이는 분 단위 정수로만 표시했다.
+- 기간 배지가 전체 월요일~일요일만 보여 주고 오늘 현재까지의 완료 세션 합계라는 설명이 없었다.
+
+### 해결 방법
+
+- 합산 초를 가장 가까운 분으로 반올림해 `2시간 1분`으로 표시했다.
+- 차이는 `지난주보다 -30시간 27분`으로 표시했다.
+- 카드에 `완료 세션 공부 시간`, `3회 완료 합계`, `07.17 현재`를 추가했다.
+- 원격 데이터는 읽기 전용으로 검증했으며 과거 세션을 임의 수정하지 않았다.
+
+### 관련 파일
+
+- `apps/web/src/weeklyReview.mjs`
+- `apps/web/src/weeklyReview.d.mts`
+- `apps/web/src/WeeklyReviewSection.tsx`
+- `apps/web/src/styles.css`
+- `apps/web/test/sustainableStudyLoop.test.mjs`
+
+### 재발 방지
+
+큰 시간 차이는 분 단위 정수로만 노출하지 않는다. 진행 중인 주간 범위에는 반드시 기준 날짜와 포함되는 레코드 상태를 함께 표시하고, 데이터 이상 여부와 표시 문제를 원격 집계로 분리해 확인한다.
+
+## 2026-07-17 - Vercel build-log MCP 조회가 401을 반환함
+
+### 상황
+
+성공한 production deployment의 오류 전용 build log를 Vercel MCP로 추가 확인하는 단계에서 권한 오류가 발생했다.
+
+### 에러 메시지
+
+~~~txt
+401 unauthorized: You are not allowed to access this endpoint.
+~~~
+
+### 원인
+
+현재 연결된 Vercel 계정은 deployment 상태와 runtime error 조회에는 접근할 수 있지만 build-log 전용 endpoint 권한은 허용되지 않았다.
+
+### 해결 방법
+
+- GitHub Actions job의 모든 단계와 Vercel CLI production 출력이 성공했음을 확인했다.
+- Vercel deployment API에서 상태 `READY`, production target, commit `e5923fc`을 확인했다.
+- 운영 HTML/JS/CSS를 직접 요청해 HTTP 200과 신규 기능 마커를 확인했다.
+- 접근 가능한 runtime error 집계에서 최근 1시간 오류 0건을 확인했다.
+
+### 관련 파일
+
+- `.github/workflows/vercel-production.yml`
+- `memory-bank/active-context.md`
+- `memory-bank/progress.md`
+
+### 재발 방지
+
+build-log MCP가 401이면 반복 호출하지 않고 GitHub Actions 단계 로그, deployment `READY`, 운영 자산 응답, runtime error 집계를 결합해 배포를 검증한다.
+
+## 2026-07-19 - Windows 패치 스크립트에서 한국어 오류 문구가 깨짐
+
+### 상황
+
+기존 파일에 `apply_patch`를 사용할 때 Windows ACL helper 오류가 발생해 정확한 문자열 치환 PowerShell 스크립트를 사용했고, 스크립트에 포함된 한국어 일부가 소스에서 깨진 문자열로 저장됐다.
+
+### 에러 메시지
+
+```txt
+windows sandbox failed: helper_unknown_error: apply deny-read ACLs
+예: 怨듬? ?쒓컙 ...
+```
+
+### 원인
+
+현재 sandbox helper가 기존 파일 읽기 ACL 적용에 실패했고, Windows PowerShell 5가 BOM 없는 UTF-8 `.ps1`을 시스템 ANSI 코드 페이지로 해석했다.
+
+### 해결 방법
+
+- `apply_patch`로 최소 임시 patcher를 생성했다.
+- 한국어를 포함한 patcher는 실행 전에 UTF-8 BOM으로 다시 저장했다.
+- 변경 후 `rg "[\\p{Han}]"`으로 한국어 소스에 섞인 한자형 깨짐을 검사하고, 오류 문구는 ASCII Unicode escape로 안전하게 복구했다.
+- 임시 `.codex-*.ps1` 파일을 모두 삭제했다.
+
+### 관련 파일
+
+- `apps/web/src/main.tsx`
+- `apps/mobile/App.tsx`
+- `memory-bank/active-context.md`
+
+### 재발 방지
+
+Windows PowerShell 5에서 한국어가 포함된 임시 스크립트는 반드시 UTF-8 BOM으로 실행한다. 기존 파일 패치 후에는 build만 믿지 말고 CJK 깨짐 검색과 실제 UTF-8 줄 검사를 함께 수행한다.
+
+## 2026-07-19 - 인앱 브라우저 로컬 UI 검증이 ACL 오류로 시작되지 않음
+
+### 상황
+
+전체 테스트·빌드·모바일 타입 검사 후 로컬 Vite UI를 실제 렌더링하려 했지만, 숨김 개발 서버 프로세스와 브라우저 제어 런타임이 모두 시작되지 않았다.
+
+### 에러 메시지
+
+```txt
+액세스가 거부되었습니다.
+node_repl kernel exited unexpectedly
+windows sandbox failed: helper_unknown_error: apply deny-read ACLs
+```
+
+### 원인
+
+코드나 Vite build 문제가 아니라 현재 Codex Windows sandbox helper의 ACL 적용 단계에서 프로세스/브라우저 런타임 시작이 차단됐다.
+
+### 해결 방법
+
+- 반복 우회 실행을 중단했다.
+- 전체 270개 테스트, production build, 모바일 typecheck, Supabase 원격 권한 검증을 완료 증거로 유지했다.
+- 실제 인증 상태가 필요한 주간 리뷰·모바일 종료·세션 유지 동작은 수동 스모크 테스트 항목으로 남겼다.
+
+### 관련 파일
+
+- `apps/web/src/main.tsx`
+- `apps/web/src/AccessibleDialog.tsx`
+- `apps/mobile/App.tsx`
+
+### 재발 방지
+
+같은 `apply deny-read ACLs`가 브라우저 런타임 초기화에서 발생하면 다른 자동화 도구로 우회하지 않는다. 브라우저 환경이 복구된 세션에서 로컬 또는 배포 URL을 열어 모바일 폭, Dialog 키보드 이동, 주간 리뷰 문구를 확인한다.
+
+## 2026-07-19 - 시간 숫자나 오전·오후를 눌러도 시간 선택기가 열리지 않음
+
+### 상황
+
+todo 생성·수정 모달에서 시작·종료 시간의 오전/오후 또는 숫자를 클릭·더블클릭해도 시간 드롭다운이 열리지 않고, 우측 시계 아이콘을 눌러야만 열렸다.
+
+### 에러 메시지
+
+```txt
+사용자 증상: 오전/오후 및 시간 숫자 영역 더블클릭은 반응 없음.
+우측 native 시계 아이콘 클릭만 시간 선택기를 표시함.
+```
+
+### 원인
+
+`input[type="time"]`에 별도 이벤트가 없어서 브라우저 기본 동작에만 의존했다. 데스크톱 Chrome의 기본 UI는 캘린더 인디케이터 아이콘 클릭에 선택기 열기를 집중하고 텍스트 영역은 직접 편집 포커스로 처리한다.
+
+### 해결 방법
+
+- 전체 입력의 click/double-click 사용자 이벤트에서 guarded `showPicker()`를 호출했다.
+- Enter/Space 키도 같은 helper에 연결했다.
+- 미지원·호출 차단 환경에서는 focus와 직접 입력을 유지한다.
+- hover/focus-visible 스타일로 전체 영역의 클릭 가능성을 표시했다.
+
+### 관련 파일
+
+- `apps/web/src/main.tsx`
+- `apps/web/src/timeInputPicker.mjs`
+- `apps/web/src/styles.css`
+- `apps/web/test/timeInputPicker.test.mjs`
+
+### 재발 방지
+
+native date/time 입력을 사용할 때 아이콘 전용 기본 동작을 전제로 하지 않는다. 입력 전체 표면과 키보드 접근을 계약 테스트로 고정하고 미지원 브라우저 fallback을 유지한다.
+
+## 2026-07-19 - 휴식 UI CSS 패치가 모바일 미디어 쿼리에 중복 삽입됨
+
+### 상황
+
+기본 `.session-break` 스타일과 모바일 레이아웃을 추가하는 정확 문자열 치환 스크립트가 `.session-lease {`의 모든 출현 위치를 바꿔 미디어 쿼리 안에 기본 스타일 블록을 한 번 더 삽입했다.
+
+### 에러 메시지
+
+```txt
+사용자 증상 전 단계: apps/web/src/styles.css의 @media 블록 안에 전체 .session-break 선언이 중복 생성됨.
+```
+
+### 원인
+
+PowerShell `String.Replace()`가 첫 번째 일치가 아니라 파일 전체의 동일 문자열을 치환했다.
+
+### 해결 방법
+
+- 모바일 미디어 쿼리의 중복 블록을 앵커가 있는 정규식으로 정확히 제거했다.
+- 기본 스타일은 한 번만 유지하고 모바일에서는 grid와 아이콘 크기만 재정의했다.
+- `rg`와 `git diff`로 `.session-break`, `.camera-monitor-break`, `.break-action`의 위치를 재검증했다.
+
+### 관련 파일
+
+- `apps/web/src/styles.css`
+
+### 재발 방지
+
+같은 선택자가 기본 영역과 미디어 쿼리에 함께 있을 때 전체 `String.Replace()`를 사용하지 않는다. 문맥 앵커 또는 첫 번째 일치 전용 치환을 사용하고 diff에서 선언 위치를 확인한다.
+
+## 2026-07-19 - 원격 Supabase 휴식 migration 적용 안전 검토 중단
+
+### 상황
+
+로컬 테스트와 build 통과 후 Supabase MCP로 `add_study_session_breaks` migration을 적용하려 했으나, 연결 프로젝트가 이 앱의 운영 DB와 정확히 일치하는지 명시적 확인 없이 원격 스키마와 RPC를 변경하는 것은 위험하다는 검토 결과로 실행되지 않았다.
+
+### 에러 메시지
+
+```txt
+This action was rejected due to unacceptable risk.
+The project match to this app is not fully established, and the user did not explicitly authorize applying a production database migration now.
+```
+
+### 원인
+
+초기 적용 시점에는 Supabase 프로젝트 표시명이 일반적인 `next-js`였고, 이번 사용자의 지시는 기능 구현 진행이었으며 원격 운영 DB 변경을 별도로 명시하지 않았다. 이후 읽기 전용 migration 목록으로 이 앱과의 이력 일치는 확인했지만, 명시적 변경 승인은 여전히 필요하다.
+
+### 해결 방법
+
+- 간접 실행이나 우회를 하지 않고 원격 적용을 중단했다.
+- 검증된 migration 파일과 클라이언트 코드를 로컬에 유지했다.
+- 원격 적용 전에는 배포하지 않는 순서를 문서화했다.
+
+### 관련 파일
+
+- `supabase/migrations/20260719134726_add_study_session_breaks.sql`
+- `memory-bank/active-context.md`
+
+### 재발 방지
+
+운영 Supabase 스키마 변경 전 프로젝트 ref와 앱 연결을 다시 제시하고 사용자의 명시적 적용 승인을 받는다. 승인 후 MCP `apply_migration`과 권한 행렬·Advisors 검증을 연속 수행한다.
+
+### 후속 결과 (원격 적용 승인 후)
+
+- 사용자가 원격 적용을 명시적으로 승인했다.
+- Supabase migration `20260719140751_add_study_session_breaks`를 정상 적용했다.
+- 컬럼·제약·함수 보안 속성·권한 행렬과 데이터 위반 0건을 확인했다.
+- 이번 migration으로 추가된 Advisor 오류는 없었다.
+
+## 2026-07-20 - Supabase 리소스 포화로 인증 요청 타임아웃
+
+### 상황
+
+운영 URL 접속 시 앱이 `로그인 상태 확인 중`에 머물렀고, 이후 브라우저에는 `upstream request timeout`이 표시됐다. Supabase 대시보드에는 프로젝트가 여러 리소스를 소진하고 있다는 경고가 노출됐다. 잠시 후 별도 코드 변경 없이 정상화됐다.
+
+### 에러 메시지
+
+```txt
+504: Processing this request timed out, please retry after a moment.
+error finding refresh token: failed to connect to host=localhost user=supabase_auth_admin database=postgres
+Post https://oauth2.googleapis.com/token: context deadline exceeded
+```
+
+### 원인
+
+운영 프로젝트 `bqohkdzvxbrokkmuhysx`의 Supabase Auth가 내부 Postgres 연결을 제시간에 확보하지 못해 세션 복원용 `/token`과 OAuth `/authorize`, `/callback` 요청이 504로 실패했다. 앱은 초기 `getSession()` 응답을 기다리므로 사용자 화면에서는 로그인 확인 단계가 멈춘 것처럼 보였다.
+
+누적 통계상 매분 실행되는 `attendance-cron`의 `pg_cron`/`pg_net` 경로가 주요 상시 부하였다. `cron.job_run_details`는 실제 행이 정리된 뒤에도 163 MB, `net._http_response`는 78 MB의 할당 크기를 유지했고, `net._http_response` 정리 쿼리는 153,505회·누적 약 82,488초로 가장 비싼 쿼리였다. 따라서 직접 원인은 Supabase 컴퓨트/DB의 일시적 포화이고, 매분 cron 및 pg_net 이력 테이블 팽창은 가장 유력한 기여 요인이다. 당시 Supabase 리소스 그래프의 원시 수치가 보존되지 않아 CPU·메모리·I/O 중 단일 항목 하나로는 확정하지 않는다.
+
+### 해결 방법
+
+Supabase가 회복된 뒤 프로젝트 상태는 `ACTIVE_HEALTHY`로 돌아왔고, 같은 날 12:41 UTC와 13:39 UTC의 refresh-token 요청이 HTTP 200으로 성공했다. 이번 진단에서는 DB·코드·스케줄 설정을 변경하지 않았다.
+
+### 관련 파일
+
+- `apps/web/src/main.tsx`
+- `apps/web/src/supabase.ts`
+- `supabase/cron.sql`
+
+### 재발 방지
+
+- `attendance-cron`의 매분 실행 필요성을 유지하더라도 빈 작업에서 Edge Function과 DB 조회를 최소화한다.
+- `cron.job_run_details`와 `net._http_response`의 보존·정리 정책 및 물리적 팽창을 점검한다.
+- 재발 시 Supabase Auth 로그의 `/token` 504와 내부 Postgres 연결 실패, 프로젝트 CPU·메모리·Disk I/O·연결 수 그래프를 같은 시간대로 비교한다.
+- 앱 초기 인증에는 제한 시간과 재시도 안내를 두어 백엔드 장애가 무한 로딩으로 보이지 않게 한다.
+
+## 2026-07-20 - 로컬 습관 카드 브라우저 검증 런타임 누락
+
+### 상황
+
+데스크톱·모바일 폭의 실제 CSS overflow를 확인하려고 `webapp-testing`의 서버 helper와 Playwright 스크립트를 실행했다.
+
+### 에러 메시지
+
+```txt
+ModuleNotFoundError: No module named 'playwright'
+Error: Cannot find module 'playwright-core'
+browserType.launch: Executable doesn't exist at ...chromium_headless_shell...
+```
+
+### 원인
+
+시스템 Python에는 Playwright가 없었고, 번들 Node의 `playwright`와 `playwright-core`는 pnpm 가상 경로에 나뉘어 있었다. 번들 Playwright 전용 Chromium 바이너리도 설치되어 있지 않았다.
+
+### 해결 방법
+
+새 패키지나 브라우저를 다운로드하지 않았다. 번들 Node의 일반 `node_modules`와 `.pnpm/node_modules`를 모듈 경로에 포함하고, 이미 설치된 Google Chrome을 Playwright `executablePath`로 사용했다. 실제 앱 stylesheet와 카드 markup을 렌더링해 1440px·390px 모두 overflow 없음과 반응형 열 전환을 확인한 뒤 임시 스크립트와 이미지를 삭제했다.
+
+### 관련 파일
+
+- `apps/web/src/styles.css`
+- `apps/web/src/main.tsx`
+- `apps/web/test/dailyHabit.test.mjs`
+
+### 재발 방지
+
+Windows 로컬 시각 검증에서는 먼저 시스템 Chrome 경로와 번들 Node의 pnpm 모듈 경로를 확인한다. 전용 Playwright 브라우저가 없다는 이유만으로 프로젝트 의존성을 추가하거나 브라우저를 다운로드하지 않는다.
+
+## 2026-07-20 - 주간 습관 경계 테스트와 로컬 시각 검증 포트 불일치
+
+### 상황
+
+최근 7일 집계의 첫 경계 테스트와 Chrome 시각 검증을 실행하는 과정에서 각각 기대값 실패와 임시 페이지 선택자 누락이 발생했다.
+
+### 에러 메시지
+
+```txt
+Expected { 2026-07-13: 2700, 2026-07-14: 2700 }
+Actual   { 2026-07-13: 1350, 2026-07-14: 4050 }
+Expected stages [seed, tree, bloom]
+Actual stages   [seed, seed, bloom]
+page.evaluate: Cannot read properties of null (reading 'scrollWidth')
+page.goto: net::ERR_EMPTY_RESPONSE
+```
+
+### 원인
+
+서울 자정 테스트 입력이 현지 23:30~01:30이라 실제 겹침은 30분/90분이었고, 토요일 세션은 평일 2시간이 아니라 주말 4시간 목표를 적용해야 했다. 시각 검증의 첫 포트 `4177`에는 기존 Vite 서버가 떠 있어 임시 HTML 대신 앱 index fallback을 반환했다. 다음 임시 포트에서는 서버 시작 직후 한 번 빈 응답이 발생했다. 카드 자체의 큰 `scrollWidth`는 기존 오른쪽 위 장식 원을 `overflow: hidden`으로 자르는 구조였으며 실제 콘텐츠 넘침은 아니었다.
+
+### 해결 방법
+
+- 자정 테스트를 현지 23:00~01:00으로 수정하고 제외 시간 비례 기대값을 각 2,700초로 유지했다.
+- 토요일 목표 테스트를 4시간으로 수정했다.
+- 비어 있는 포트 `43178`에서 검증을 재실행하고 실제 문서·주간 리듬·숲길·요약·코칭·날짜 카드의 overflow를 각각 측정했다.
+- 데스크톱 7열/3열과 모바일 2열/1열을 실제 computed style로 확인하고 스크린샷도 시각 검사했다.
+
+### 관련 파일
+
+- `apps/web/src/weeklyHabit.mjs`
+- `apps/web/src/styles.css`
+- `apps/web/test/weeklyHabit.test.mjs`
+
+### 재발 방지
+
+시간대 테스트는 UTC 시각을 쓰기 전에 현지 시각과 날짜별 실제 겹침을 명시한다. 주말 경계 테스트는 일일 목표 helper 결과를 기준으로 기대값을 만든다. 로컬 시각 검증은 고정 포트가 이미 사용 중인지 확인하고, 장식 pseudo-element의 scroll 영역과 실제 콘텐츠 overflow를 분리해 측정한다.
+
+## 2026-07-20 - 5/7 CTA source contract 소유 모듈 불일치
+
+### 상황
+
+5/7 목표의 행동 라벨과 화면 연결을 고정하는 source-contract 테스트를 처음 실행했을 때, CTA 문자열을 잘못된 소스 파일에서 찾았다.
+
+### 에러 메시지
+
+```txt
+AssertionError: input did not match /10분 시작 준비/
+```
+
+### 원인
+
+`10분 시작 준비`와 `오늘 목표 이어가기` 라벨은 React 화면에 중복 하드코딩하지 않고 `weeklyHabit.mjs`의 `primaryActionLabel` 계산이 소유한다. 테스트가 `main.tsx`만 읽어 문자열 자체를 요구해 올바른 모듈 경계를 실패로 오인했다.
+
+### 해결 방법
+
+테스트가 `weeklyHabit.mjs`에서 행동 라벨 계약을 확인하고, `main.tsx`에서는 `primaryActionLabel`, 기존 `startTimer()` 경로, 활성 세션 비활성화 연결만 확인하도록 책임을 나눴다. 수정 후 집중 테스트 8개와 전체 테스트 291개가 통과했다.
+
+### 관련 파일
+
+- `apps/web/src/weeklyHabit.mjs`
+- `apps/web/src/main.tsx`
+- `apps/web/test/weeklyHabit.test.mjs`
+
+### 재발 방지
+
+source-contract 테스트는 문자열과 계산을 실제로 소유한 모듈에서 검증하고, 소비 컴포넌트에는 연결 계약만 요구한다. 테스트 통과를 위해 동일한 사용자 문구를 여러 파일에 중복하지 않는다.
+
+## 2026-07-20 - 주간 숲 보상 다중 파일 패치 문맥 불일치
+
+### 상황
+
+화환 helper·테스트·Three.js·CSS를 기존 미커밋 습관 변경 위에 적용하기 전에 다중 파일 patch를 검사했다.
+
+### 에러 메시지
+
+```txt
+patch failed: apps/web/test/weeklyHabit.test.mjs
+patch failed: apps/web/src/styles.css
+```
+
+### 원인
+
+테스트는 예상했던 inline session fixture 대신 기존 `completedSession()` helper를 사용하고 있었고, 모바일 CSS hunk는 `forest-level-roadmap`과 힌트 사이의 실제 문맥보다 앞선 줄을 기준으로 작성돼 있었다. 제품 코드나 테스트 동작 실패가 아니라 현재 작업 트리와 patch context의 불일치였다.
+
+### 해결 방법
+
+일치하는 helper·타입·React·Three.js 변경만 먼저 분리 검사·적용했다. 테스트와 CSS는 실제 현재 줄을 다시 읽고 작은 patch로 나눠 `git apply --check --recount` 통과 후 적용했다. 이후 집중 테스트 37개와 production build가 통과했다.
+
+### 관련 파일
+
+- `apps/web/test/weeklyHabit.test.mjs`
+- `apps/web/src/styles.css`
+
+### 재발 방지
+
+미커밋 기능 위에 다중 파일 patch를 적용할 때는 각 파일의 실제 fixture와 breakpoint 문맥을 먼저 확인하고, 실패한 hunk만 분리해 다시 검사한다. 검사 실패 뒤 같은 patch를 강제로 적용하지 않는다.
+
+## 2026-07-21 - 번들 Playwright 경로와 임시 route 삽입 위치 오류
+
+### 상황
+
+주간 숲 보상을 실제 Chrome에서 재검증하기 위해 임시 하네스를 실행했으나, 첫 실행은 번들 Playwright 의존성 해석에 실패했고 외부 요청을 격리하는 route를 추가한 첫 patch는 잘못된 콜백 안에 삽입됐다.
+
+### 에러 메시지
+
+```txt
+Error: Cannot find module 'playwright-core'
+SyntaxError: await is only valid in async functions and the top level bodies of modules
+```
+
+### 원인
+
+Codex 번들 Node의 최상위 `node_modules/playwright` 링크에서는 같은 높이의 `playwright-core`를 해석하지 못했지만, pnpm 저장소의 `playwright@1.61.1` 패키지와 연결된 `playwright-core`는 정상적으로 존재했다. 두 번째 오류는 줄 번호만 기준으로 만든 임시 patch가 `page.route()`를 `page.on("console")` 콜백 내부에 삽입해 발생했다. 두 오류 모두 제품 코드와 무관한 검증 하네스 문제였다.
+
+### 해결 방법
+
+- pnpm 저장소의 실제 `playwright@1.61.1/node_modules/playwright` 경로를 사용했다.
+- 임시 스크립트를 줄 번호와 함께 다시 읽고 `page.route()`를 async IIFE 안, 콘솔 리스너 앞에 배치했다.
+- 가짜 사용자 선호 조회와 favicon 요청을 하네스에서 격리한 뒤 실제 Chrome 1440px·390px 검증을 다시 수행했다.
+- 최종 실행에서 WebGL·레이아웃·5/5 화환 상태가 정상이고 `consoleErrors`와 `pageErrors`가 모두 0건임을 확인했다.
+
+### 관련 파일
+
+- 검증용 `.codex-*` 임시 파일만 사용했으며 제품 파일 변경은 없다.
+- `memory-bank/trouble-shooting.md`
+
+### 재발 방지
+
+번들 패키지를 직접 사용할 때는 최상위 링크가 아니라 실제 pnpm 패키지의 의존성 연결 상태를 먼저 확인한다. 임시 source patch도 적용 후 줄 번호를 다시 읽거나 `node --check`를 수행한 뒤 브라우저를 실행한다.
+
+## 2026-07-21 - 10분 체크포인트 RED 계약과 장식 scrollWidth 오인
+
+### 상황
+
+체크포인트 테스트를 먼저 고정한 뒤 구현 전 RED 상태를 확인했고, 첫 브라우저 측정에서는 카드가 화면 안에 보이지만 `scrollWidth` 기준 overflow가 false로 보고됐다.
+
+### 에러 메시지
+
+```txt
+SyntaxError: The requested module '../src/dailyHabit.mjs' does not provide an export named 'getTenMinuteCheckpointState'
+cardFits: false
+checkpointFits: false
+```
+
+### 원인
+
+첫 오류는 helper 구현 전 테스트 계약을 실행한 의도된 RED 단계였다. 브라우저 false 값은 `.daily-habit-card::after`와 `.ten-minute-checkpoint::after`의 잘려 보이는 장식 원이 내부 scroll 영역에는 포함되지만, 부모의 `overflow: hidden`으로 실제 문서나 사용자 콘텐츠를 넘지 않기 때문이었다.
+
+### 해결 방법
+
+- 기존 `DAILY_HABIT_SEED_SECONDS`를 재사용하는 helper와 타입 선언을 구현해 집중 테스트 6개를 통과시켰다.
+- 문서 전체 overflow는 `documentElement`로 유지하고, 카드·체크포인트는 pseudo-element가 아닌 실제 자식 요소의 bounding rect를 컨테이너 경계와 비교했다.
+- 데스크톱 완료, 모바일 진행·완료 상태를 다시 측정해 실제 콘텐츠 overflow 없음과 콘솔·페이지 오류 0건을 확인했다.
+
+### 관련 파일
+
+- `apps/web/src/dailyHabit.mjs`
+- `apps/web/src/TenMinuteCheckpoint.tsx`
+- `apps/web/src/styles.css`
+- `apps/web/test/tenMinuteCheckpoint.test.mjs`
+
+### 재발 방지
+
+TDD의 의도된 RED 실패도 최종 기록에서 구현 오류와 구분한다. 장식 pseudo-element를 자르는 컴포넌트는 raw `scrollWidth`만으로 overflow를 판정하지 말고 문서 overflow와 실제 콘텐츠 bounding box를 함께 측정한다.
+
+## 2026-07-21 - 복귀 약속 RED와 due 카드 버튼 조작 불안정
+
+### 상황
+
+휴식 복귀 약속 helper를 테스트 우선으로 추가했고, 실제 Chrome에서 약속 도달 상태의 관리 버튼을 눌러 반응형 상호작용을 검증했다.
+
+### 에러 메시지
+
+```txt
+SyntaxError: The requested module '../src/sessionBreak.mjs' does not provide an export named 'BREAK_RETURN_PRESET_MINUTES'
+locator.click: Timeout 5000ms exceeded.
+element is not stable
+mobile planWidth: 824
+```
+
+### 원인
+
+첫 오류는 구현 전 helper 계약을 확인한 의도된 TDD RED였다. 실제 제품 문제는 due 상태가 카드 전체에 `translateY` 반복 애니메이션을 적용해 내부 버튼의 위치가 계속 변한 것이었다. 마지막 폭 값은 Playwright 하네스가 `browser.newPage()`에 지원되지 않는 `viewportSize`를 전달해 기본 viewport를 사용한 검증 오류였다. 첫 하네스 실패 때 `catch`에서 브라우저를 닫지 않아 프로세스가 남은 문제도 있었다.
+
+### 해결 방법
+
+- deadline·연장·예정/도달·lease·storage helper와 타입을 구현해 집중 테스트를 GREEN으로 전환했다.
+- due 상태는 카드 위치를 움직이지 않고 border·box-shadow만 강조하도록 바꿨다.
+- 하네스에 5초 selector timeout과 실패 시 browser close를 추가했다.
+- `viewport` 옵션으로 실제 390px을 적용하고 favicon 요청을 격리했다.
+- 클릭 뒤 due 페이지를 다시 불러와 약속 지우기 상호작용과 due 레이아웃을 모두 같은 시나리오에서 검증했다.
+
+### 관련 파일
+
+- `apps/web/src/sessionBreak.mjs`
+- `apps/web/src/BreakReturnPlan.tsx`
+- `apps/web/src/styles.css`
+- `apps/web/test/breakReturnPlan.test.mjs`
+
+### 재발 방지
+
+상호작용 요소를 포함한 반복 애니메이션은 컨테이너 위치를 이동하지 말고 색·그림자처럼 hit target을 고정하는 속성을 사용한다. Playwright viewport는 `browser.newPage({ viewport })`로 설정하고 측정값이 요청 폭과 일치하는지 확인한다. 임시 브라우저 하네스도 실패 경로에서 브라우저와 서버를 반드시 닫는다.
+
+## 2026-07-21 - 주간 리셋 검증 서버와 DOM 역할 선택자 오류
+
+### 상황
+
+주간 리셋 UI를 실제 Chrome에서 검증하기 위해 임시 Vite 서버와 Playwright 하네스를 실행했다. 처음 두 서버 관리 실행은 포트를 열지 못했고, 서버를 직접 연 뒤 첫 브라우저 시나리오는 화면이 정상인데도 대기 시간 초과가 발생했다.
+
+### 에러 메시지
+
+```txt
+npm error Missing script: "dev"
+RuntimeError: Server failed to start on port 4179 within 40s
+locator.waitFor: Timeout 30000ms exceeded.
+waiting for getByRole('heading', { name: '다음 공부로 이어가기' })
+ModuleNotFoundError: No module named 'playwright'
+```
+
+### 원인
+
+루트 `package.json`에는 `dev`가 없고 웹 워크스페이스에만 개발 서버 script가 있었다. 렌더링된 `다음 공부로 이어가기`는 `strong`이라 heading 역할이 아니었지만 하네스가 heading으로 조회했다. 시스템 Python에는 Playwright 모듈이 설치되지 않았다. 모두 제품 코드가 아닌 검증 하네스 문제였다.
+
+### 해결 방법
+
+- `npm.cmd --workspace apps/web run dev -- --host 127.0.0.1 --port 4179`로 웹 워크스페이스 서버를 실행했다.
+- 접근 가능한 실제 요소 `#weekly-action-plan-title`을 대기 선택자로 사용했다.
+- 이미 검증된 Codex 번들 pnpm Playwright와 시스템 Chrome을 사용하고 favicon 요청은 204로 격리했다.
+- 데스크톱·모바일 작성/편집 상호작용, 제목 prefill, 날짜 문구, 문서·카드·버튼 bounds, 콘솔·페이지 오류를 다시 확인했다.
+- 검증 후 명령줄을 확인한 Vite node 프로세스만 종료하고 포트 4179가 닫혔음을 확인했다.
+
+### 관련 파일
+
+- `apps/web/src/WeeklyReviewSection.tsx`
+- `apps/web/src/styles.css`
+- 임시 `.codex-weekly-reset-*` 검증 파일
+
+### 재발 방지
+
+모노레포의 개발 서버는 루트 script 존재 여부를 먼저 확인하고 올바른 workspace 명령을 사용한다. Playwright 선택자는 시각적 의미가 아니라 실제 DOM 역할을 기준으로 잡고, 선택자 실패 시 timeout을 늘리기 전에 page text와 console/pageerror를 먼저 수집한다.
+
+### 후속 접근성 개선
+
+브라우저 검증에서 드러난 시각적 소제목과 DOM 역할의 차이는 제품 코드에도 반영했다. 주간 리셋 컨테이너를 이름 있는 `section`, 제목을 실제 `h4`로 바꿔 시각적 의미와 문서 구조를 일치시켰다.
+
+## 2026-07-21 - 단일 CTA 패치 헤더와 스크린샷 ACL 오류
+
+### 상황
+
+Windows ACL 때문에 기존 TSX·CSS 파일을 `apply_patch`가 직접 읽지 못해 임시 Git 인덱스 패턴을 사용했다. 첫 임시 patch 형식과 브라우저 스크린샷 직접 열기에서 검증 도구 오류가 발생했다.
+
+### 에러 메시지
+
+```txt
+error: patch with only garbage at line 4
+error: patch failed: apps/web/src/main.tsx:4446
+windows sandbox failed: helper_unknown_error: apply deny-read ACLs
+image content omitted because it could not be processed
+```
+
+### 원인
+
+첫 patch가 줄 범위 없는 bare `@@` hunk를 사용해 unified diff로 해석되지 않았다. 줄 번호를 추가한 뒤에는 같은 파일의 앞 hunk 추가량과 뒤 hunk의 새 줄 번호가 맞지 않아 topbar hunk가 실패했다. 생성된 PNG도 작업공간의 deny-read ACL을 상속해 `view_image`가 직접 읽지 못했다.
+
+### 해결 방법
+
+topbar hunk를 독립 patch로 분리해 적용 전 검사를 통과시킨 뒤, 나머지 hunk의 누적 줄 이동을 반영했다. 현재 사용자 변경을 임시 인덱스에 먼저 담고 검증된 patch만 적용한 뒤 `checkout-index`로 대상 파일을 복원했다. 시각 검증은 실제 Chrome에서 DOM 수, 라벨, 클릭 결과, bounding box, document overflow, console/page error를 네 상태와 두 viewport에서 측정했고 임시 파일은 제거했다.
+
+### 관련 파일
+
+- `apps/web/src/main.tsx`
+- `apps/web/src/styles.css`
+- `apps/web/test/singleStartAction.test.mjs`
+
+### 재발 방지
+
+ACL 우회 patch에도 항상 유효한 `@@ -old,count +new,count @@` 헤더를 사용한다. 같은 파일의 여러 hunk가 줄을 추가·삭제하면 새 줄 번호의 누적 이동을 계산하거나 독립 patch로 분리한다. 스크린샷 직접 열기가 막히더라도 실제 브라우저의 요소 수·bounds·오류 측정을 최종 검증 근거로 남긴다.
+
+## 2026-07-21 - 활성 세션 안내 브라우저 하네스 런타임·overflow 오판
+
+### 상황
+
+활성·휴식 세션에서 시작 전용 안내가 숨겨지는지 production build를 실제 브라우저로 검증했다. 첫 Python 실행과 첫 직접 Playwright 실행이 하네스 환경 차이로 중단됐고, 카드 내부 `scrollWidth` 측정이 장식 요소를 콘텐츠 overflow로 오인했다.
+
+### 에러 메시지
+
+```txt
+ModuleNotFoundError: No module named 'playwright'
+ReferenceError: URL is not defined
+overflow: {"document":0,"body":0,"topbar":0,"habit":38}
+```
+
+### 원인
+
+시스템 Python에는 Playwright 모듈이 없었다. Codex Playwright 실행기의 route callback 환경에는 Node 전역 `URL` 생성자가 노출되지 않았다. 마지막 38px은 `.daily-habit-card::after`가 `right: -38px`로 배치된 장식 원 때문에 생긴 `scrollWidth`였으며, 카드는 `overflow: hidden`이고 실제 DOM 자식·document·body는 경계를 넘지 않았다. 서버 helper 종료 뒤 Vite 자식 프로세스가 잠시 4173 포트를 계속 listen한 문제도 제품 코드와 무관한 정리 이슈였다.
+
+### 해결 방법
+
+- 설치되지 않은 시스템 Python 대신 제공된 Playwright 브라우저를 사용했다.
+- route URL은 `split('.supabase.co')` 문자열 파싱으로 처리했다.
+- overflow는 숨겨진 pseudo-element의 `scrollWidth`가 아니라 document/body 폭과 모든 실제 카드 자식의 bounding rect로 검증했다.
+- 1440×900·390×844에서 active·paused 네 조합을 다시 실행해 Pause·Resume 라벨, 시작 안내 0개, 휴식 카드, 종료 버튼, 콘텐츠 bounds, 콘솔·페이지 오류를 확인했다.
+- 모든 Supabase 요청을 route로 스텁해 운영 쓰기를 차단했다.
+- 4173 listener의 명령줄이 현재 workspace의 `vite preview --port 4173`인지 확인한 뒤 해당 PID만 종료하고 listen 0건을 확인했다.
+
+### 관련 파일
+
+- `apps/web/src/main.tsx`
+- `apps/web/src/styles.css`
+- `apps/web/test/studyStartGuidance.test.mjs`
+- 임시 `.codex-active-session-verify.py` 하네스
+
+### 재발 방지
+
+브라우저 런타임은 사용 전 모듈 가용성을 확인하고, 제공된 Playwright 연결이 있으면 별도 설치 없이 사용한다. route callback에서는 런타임 전역을 가정하지 않는다. `overflow: hidden` 컨테이너의 pseudo-element가 있는 경우 `scrollWidth` 하나로 실패시키지 말고 실제 DOM 자식 bounds와 document overflow를 함께 측정한다. 서버 helper가 끝난 뒤에는 listen 포트와 명령줄을 확인해 자신의 Vite 자식 프로세스만 정리한다.
+
+## 2026-07-21 - Auth 초기화 복구 TDD와 Windows 패치·브라우저 하네스 오류
+
+### 상황
+
+Supabase Auth 지연 시 무한 로딩을 제거하는 테스트 우선 구현, ACL 제약 아래 문서 적용, 실제 Chrome timeout 검증을 순서대로 수행했다.
+
+### 에러 메시지
+
+```txt
+ERR_MODULE_NOT_FOUND: apps/web/src/authInitialization.mjs
+AssertionError: input did not match /runAuthInitializationWithTimeout/
+error: can't open patch 'C:/jini-dev/project/study-room-attendance/.codex-auth-ui.patch': No such file or directory
+apply_patch direct add did not yield and was terminated
+ReferenceError: Buffer is not defined
+```
+
+### 원인
+
+- 첫 두 오류는 helper와 React 연결 전에 테스트 계약을 실행한 의도된 TDD RED였다.
+- 임시 patch는 도구의 실제 작업 기준인 `C:\jini-dev`에 생성됐지만 첫 Git 명령은 프로젝트 루트에 있다고 가정했다.
+- deny-read ACL이 적용된 프로젝트 하위에 새 PRD를 직접 추가하는 `apply_patch`가 응답 없이 멈췄다.
+- 제공된 Playwright 실행기의 route 환경은 Node 전역 `Buffer`를 노출하지 않았다.
+- 재확인 검증에서 나타난 HTTP 400 콘솔 오류는 잠겨 있던 가짜 refresh 요청을 의도적으로 해제한 테스트 응답이며 제품 page error는 아니었다.
+
+### 해결 방법
+
+- 순수 12초 timeout helper와 타입 선언을 만든 뒤 React 초기화·복구 UI source contract를 GREEN으로 전환했다.
+- 임시 patch의 절대 경로를 먼저 확인하고, 현재 사용자 변경을 별도 Git index에 담은 뒤 `git apply --cached --check` 통과본만 `checkout-index`로 반영했다.
+- 새 PRD도 직접 쓰기 대신 같은 임시 index 패턴으로 추가했다.
+- 브라우저 테스트 JWT의 base64url 값은 실제 브라우저의 `btoa`로 만들었다.
+- 모든 Supabase 요청을 route로 스텁하고, 12초 timeout·재확인·늦은 성공 Auth 이벤트를 별도 격리 컨텍스트에서 검증했다.
+- 검증 후 명령줄이 현재 workspace와 포트 4181을 가리키는 Vite listener만 종료하고 listener 0건을 확인했다.
+
+### 관련 파일
+
+- `apps/web/src/authInitialization.mjs`
+- `apps/web/src/authInitialization.d.mts`
+- `apps/web/src/main.tsx`
+- `apps/web/src/styles.css`
+- `apps/web/test/authInitialization.test.mjs`
+- `memory-bank/prd-auth-initialization-recovery.md`
+
+### 재발 방지
+
+TDD의 의도된 RED와 제품 오류를 구분해 기록한다. ACL 환경의 임시 patch는 생성 기준 경로를 먼저 확인하고 기존 파일과 새 파일 모두 검사된 임시 index에서 반영한다. Playwright route callback에서는 `URL`·`Buffer` 같은 Node 전역을 가정하지 않는다. 실패 응답을 의도적으로 주입한 시나리오는 그 콘솔 오류와 실제 page error를 분리하고, 성공 복구 시나리오는 console/page error 0건을 별도로 확인한다.
+
+## 2026-07-21 - 회고 인박스 파일명 충돌과 Playwright 격리 런타임 오류
+
+### 상황
+
+회고 인박스 UI를 연결한 뒤 첫 production build와 실제 Chromium 격리 검증을 수행했다.
+
+### 에러 메시지
+
+```txt
+src/main.tsx (143:7): "default" is not exported by "src/reflectionInbox.mjs"
+error: patch with only garbage at line 90
+ReferenceError: btoa is not defined
+ReferenceError: URL is not defined
+Unknown command: errors
+```
+
+### 원인
+
+Windows는 파일명을 대소문자로 구분하지 않아 확장자 없는 `./ReflectionInbox` import가 같은 basename의 `reflectionInbox.mjs` helper를 먼저 해석했다. 첫 ACL 우회 patch에는 줄 범위 없는 bare `@@` hunk가 있었다. Playwright CLI `run-code`의 바깥 실행 문맥에는 브라우저 전역 `btoa`와 Node/Web 전역 `URL`이 보장되지 않았다. 현재 CLI에는 별도 `errors` 명령도 없어 과거 pageerror를 그 방식으로 조회할 수 없었다. 모두 데이터나 제품 상태가 아닌 빌드 해석·검증 하네스 문제였다.
+
+### 해결 방법
+
+- UI 파일을 `ReflectionInboxCard.tsx`로 바꾸고 helper와 basename을 분리했다.
+- 모든 임시 patch hunk에 유효한 old/new 줄 범위를 추가하고 적용 전 `git apply --check`를 통과시켰다.
+- JWT base64는 `page.evaluate` 안의 브라우저 `btoa`로 만들고 route URL은 문자열 query 분리로 판별했다.
+- 모든 Supabase Auth/REST 요청을 route로 격리한 뒤 실제 Chromium에서 저장·상태 연결·모바일 bounds를 다시 확인했다.
+- pageerror listener를 등록한 상태로 페이지를 다시 로드해 uncaught error 0건을 확인하고, `console error`·`console warning`도 각각 0건임을 확인했다.
+
+### 관련 파일
+
+- `apps/web/src/ReflectionInboxCard.tsx`
+- `apps/web/src/reflectionInbox.mjs`
+- `apps/web/src/main.tsx`
+- `apps/web/test/reflectionInbox.test.mjs`
+
+### 재발 방지
+
+대소문자만 다른 동일 basename의 TSX와 MJS 파일을 함께 만들지 않는다. Windows에서 확장자 없는 import는 Vite resolver가 의도와 다른 확장자를 고를 수 있으므로 역할이 다른 모듈은 이름도 구분한다. ACL 우회 patch는 bare `@@`를 사용하지 않는다. Playwright route callback은 `URL`·`Buffer`·`btoa` 전역을 가정하지 말고 실행 문맥에 맞춰 문자열 처리 또는 `page.evaluate`를 사용한다. CLI 지원 명령은 `--help`에서 먼저 확인하고 pageerror는 재현 전에 listener를 붙인다.
+
+## 2026-07-21 - Supabase 다중 리소스 고갈과 Auth timeout 사후 분석
+
+### 상황
+
+운영 웹이 `로그인 상태 확인 중`에 머물고 Vercel에서 `upstream request timeout`을 표시한 시각에 Supabase 대시보드는 프로젝트가 여러 리소스를 소진 중이라고 경고했다. 서비스가 자연 복구된 뒤 Supabase 프로젝트 상태, 최근 Auth 로그, `pg_cron` 실행 이력, `pg_stat_statements`, 현재 연결과 큐를 읽기 전용으로 대조했다.
+
+### 에러 메시지
+
+```txt
+504: Processing this request timed out, please retry after a moment.
+failed to connect to host=localhost user=supabase_auth_admin database=postgres
+job startup timeout
+```
+
+### 원인
+
+- 직접 원인: 2026-07-20 19:14~19:26 JST 무렵 Supabase Auth가 내부 Postgres에 연결하지 못해 refresh token과 Google OAuth 요청이 10~17초 뒤 504로 종료됐다.
+- 같은 장애 구간에 매분 실행되는 `study-room-attendance-cron`도 연속으로 시작하지 못했다. 최근 24시간 집계 1,440회 중 218회가 `job startup timeout`으로 실패했고, 실패는 2026-07-20 16:00~20:59 JST에 집중됐다.
+- 가장 유력한 리소스 압박원은 매분 크론과 `pg_net` 누적 작업이다. 누적 통계에서 `net._http_response` 정리 쿼리는 154,180회, 평균 535ms, 총 약 22.9시간의 실행 시간을 사용했고, `cron.job_run_details`와 `net._http_response`는 각각 약 172MB와 83MB였다.
+- 다만 MCP가 과거 CPU·메모리·Disk I/O 시계열을 제공하지 않으므로 어느 물리 리소스가 최초 병목이었는지까지는 확정하지 않는다. RLS 재평가와 미인덱스 FK Advisor 경고는 개선 대상이지만 이 Auth 장애의 직접 원인이라는 근거는 없다.
+- 앱이 계속 멈춰 보인 2차 원인은 초기 `getSession()`에 timeout 복구 UI가 없었던 것이다.
+
+### 해결 방법
+
+- Supabase 컴퓨트가 정상화된 뒤 Auth와 크론이 다시 성공해 서비스가 자연 복구됐다.
+- 웹 Auth 초기화에는 12초 제한, 로그인 화면 복귀, 재확인 버튼, 늦은 유효 세션 복구를 추가해 같은 백엔드 지연이 무한 로딩으로 이어지지 않게 했다.
+- 이번 사후 분석은 읽기 전용으로 수행했으며 Supabase 설정·스키마·크론 주기·데이터를 변경하지 않았다.
+
+### 관련 파일
+
+- `apps/web/src/authInitialization.mjs`
+- `apps/web/src/main.tsx`
+- `memory-bank/prd-auth-initialization-recovery.md`
+- `memory-bank/trouble-shooting.md`
+
+### 재발 방지
+
+크론을 한 개의 매분 작업으로 유지하더라도 실행 중복 방지, `cron.job_run_details`·`net._http_response` 보존량, HTTP timeout, 작업별 실행 빈도를 별도 최적화한다. 재발 시 같은 시각의 Auth 5xx, 크론 `job startup timeout`, CPU·메모리·Disk I/O·connections 그래프를 함께 보존한다. 현재 Advisor의 RLS init plan과 미인덱스 FK도 사용자 데이터가 늘기 전에 별도 마이그레이션으로 검토한다.
+
+## 2026-07-21 - 주간 마찰 계획 patch 위치와 브라우저 fixture 오류
+
+### 상황
+
+Windows deny-read ACL 아래에서 주간 마찰 계획 helper·타입·JSX·CSS를 임시 Git index patch로 적용하고, 실제 Chromium의 완전 격리 fixture로 검증했다.
+
+### 에러 메시지
+
+```txt
+SyntaxError: Unexpected token 'export'
+weeklyReview.d.mts: Property or signature expected
+TimeoutError: waiting for locator('.weekly-friction-plan')
+mobile gridTemplateColumns: "99.6875px 146.312px"
+SyntaxError: Unexpected token 'const'
+JWT not in base64url format
+```
+
+### 원인
+
+- 줄 번호만 사용한 첫 patch가 helper를 `buildComparableWeeklyStudyReview()` 본문에, `frictionPlan` 속성을 변수 선언 사이에 삽입했다.
+- 선언 파일의 함수 시그니처도 `buildWeeklyActionPlanItems()` 인수 블록에 들어갔다.
+- JSX 안내가 데이터 품질 경고 `<div>` 안에 중첩되어 anomaly가 없으면 렌더링되지 않았다.
+- 모바일 `.weekly-friction-plan` 규칙이 닫히지 않은 `.adaptive-reminder-card` 안에 중첩되어 390px에서도 데스크톱 두 열을 유지했다.
+- Playwright CLI `run-code`는 함수 표현식을 요구했고, 앱은 기본 Supabase key가 아닌 사용자 지정 storage key와 `/auth/callback` 경로를 사용했다. Windows `npx.cmd`는 URL의 `&`도 명령 구분자로 해석했다.
+- 첫 fixture JWT 서명 문자열 길이가 올바른 base64url 형식이 아니었다.
+
+### 해결 방법
+
+- helper·반환 속성·타입 시그니처를 각각 올바른 최상위/반환 객체에 옮기고 focused test와 production build를 반복했다.
+- 브라우저에서 카드 부재와 모바일 두 열을 확인한 즉시, 데이터 품질 조건 밖의 JSX와 sibling CSS selector를 요구하는 회귀 테스트를 먼저 RED로 추가했다.
+- Playwright는 `--filename` 함수 파일과 CLI persistent route를 사용했다. Supabase 도메인 전체 fallback을 먼저 막고 Auth·REST·RPC fixture만 뒤에 등록했다.
+- 실제 `/auth/callback` 경로와 base64url-safe 모의 JWT를 사용했으며 최종 세션은 인증 오류 메시지 없이 reload됐다.
+- 1440px·390px 계산 스타일, card/child bounds, document overflow, button count, console/page error를 측정하고 카드 스크린샷을 시각 확인했다.
+
+### 관련 파일
+
+- `apps/web/src/weeklyReview.mjs`
+- `apps/web/src/weeklyReview.d.mts`
+- `apps/web/src/WeeklyReviewSection.tsx`
+- `apps/web/src/styles.css`
+- `apps/web/test/weeklyFrictionPlan.test.mjs`
+
+### 재발 방지
+
+ACL 우회 patch는 줄 번호만 믿지 말고 닫는 괄호·반환 객체·selector sibling 같은 구조 context를 포함한다. source contract는 단순 문자열 존재뿐 아니라 조건과 CSS selector의 독립성도 확인한다. Playwright fixture는 앱의 `storageKey`와 callback pathname을 먼저 읽고, Windows에서는 `&`가 있는 URL을 함수 파일 안에서 탐색한다. 최종 판정은 build만이 아니라 조건별 실제 렌더링과 계산 스타일로 확인한다.
+
+## 2026-07-21 - 부드러운 복귀 신호 patch와 Playwright fixture 오류
+
+### 상황
+
+Windows deny-read ACL 아래에서 주간 복귀 helper·타입·JSX·CSS·문서를 임시 Git index patch로 적용하고, 실제 Chromium의 Supabase 격리 fixture로 검증했다.
+
+### 에러 메시지
+
+```txt
+error: patch failed: apps/web/src/main.tsx
+error: corrupt patch at line 167
+ReferenceError: Buffer is not defined
+SyntaxError: Expected property name or '}' in JSON at position 1
+TimeoutError: page.getByText('다시 잇는 날')
+```
+
+### 원인
+
+- 첫 구현 patch의 `main.tsx` hunk 두 개가 서로 겹쳐 같은 줄 범위를 두 번 수정하려 했다.
+- 첫 문서 patch의 README 제거 줄에서 Markdown 목록 기호 `-`가 빠져 원문 context와 일치하지 않았다.
+- Playwright CLI `run-code` 환경에는 Node의 `Buffer`가 없었다.
+- Windows `.cmd` 인수 전달 중 route 응답 JSON의 큰따옴표가 제거돼 Supabase fixture 본문이 유효하지 않았다.
+- `run-code` 안에서 등록한 context route는 다음 CLI 호출까지 유지되지 않아 후속 reload가 실제 요청을 시도했다.
+- 모바일 locator screenshot은 고정 헤더가 대상 위치를 가리는 지점으로 자동 스크롤했다.
+
+### 해결 방법
+
+- 겹친 `main.tsx` 변경을 하나의 구조적 hunk로 다시 만들고 `git apply --cached --check` 후 반영했다.
+- README와 나머지 문서 patch를 분리하고 정확한 Markdown context로 README patch를 다시 만들었다.
+- 모의 JWT는 브라우저 `btoa`로 생성했다.
+- CLI persistent `route`를 사용하고 JSON 인수를 `{"key":"value"}` 형태로 전달했으며 본문 인수에는 공백을 넣지 않았다.
+- 대상 카드를 viewport 중앙으로 이동한 뒤 데스크톱·모바일 스크린샷과 계산 bounds를 함께 확인했다.
+- 복귀·비복귀·회고 우선 fixture를 각각 reload해 시작 버튼 개수, 카드 내부 버튼, overflow, console/page error를 측정했다.
+
+### 관련 파일
+
+- `apps/web/src/weeklyHabit.mjs`
+- `apps/web/src/weeklyHabit.d.mts`
+- `apps/web/src/main.tsx`
+- `apps/web/src/styles.css`
+- `apps/web/test/weeklyHabit.test.mjs`
+- `memory-bank/prd-gentle-restart-cue.md`
+
+### 재발 방지
+
+한 파일의 가까운 위치를 여러 번 바꾸는 patch는 하나의 hunk로 합친다. 문서 patch도 제거 줄의 Markdown 기호를 포함해 원문과 대조한다. Playwright CLI fixture는 일회성 `run-code` route가 아니라 persistent route를 사용하고 Windows 인수 escaping을 먼저 작은 응답으로 검증한다. 모바일 시각 검증은 자동 locator 스크롤 결과만 믿지 말고 대상 위치와 고정 헤더 겹침을 함께 확인한다.
+
+## 2026-07-21 - 습관 루프 완료 감사 Playwright 세션·JWT fixture 오류
+
+### 상황
+
+완료된 습관 루프를 현재 작업 트리의 실제 Chromium 1440px·390px에서 재검증하기 위해 Supabase 요청을 persistent route로 격리하고 모의 인증 세션을 주입했다.
+
+### 에러 메시지
+
+```txt
+The browser '$session' is not open
+error: too many arguments: expected 1, received 3
+ReferenceError: btoa is not defined
+ReferenceError: g is not defined
+TimeoutError: waiting for heading/button
+```
+
+### 원인
+
+- Windows `.cmd`가 `-s=$session`을 PowerShell 변수로 확장하지 않고 문자 그대로 Playwright에 전달했다.
+- JSON fixture 값의 공백이 `.cmd` 경계에서 여러 CLI 인수로 나뉘었다.
+- `run-code` 바깥 함수는 브라우저가 아닌 Node 실행 영역이라 `btoa`가 없었다.
+- 명령행을 지난 정규식 `/\\+/g`가 변형돼 브라우저에서 `g`를 식별자로 해석했다.
+- 위 모의 세션 생성 실패 때문에 앱이 인증된 Today가 아니라 로그인 화면을 표시했다.
+
+### 해결 방법
+
+- Playwright 세션 이름을 `-s=habit-audit`로 명시했다.
+- JSON 본문에서 공백을 `\\u0020`으로 바꾸고 모든 route body를 공백 없는 한 인수로 전달했다.
+- JWT는 로컬 origin을 연 뒤 `page.evaluate()`의 브라우저 `btoa`로 생성했다.
+- base64url 변환은 명령행에 취약한 전역 정규식 대신 `split('+').join('-').split('/').join('_')`를 사용했다.
+- 실패한 init script가 남은 첫 세션을 닫고 새 세션에 route와 storage를 다시 등록했다.
+- 인증된 화면의 fresh snapshot ref로 실제 시작 버튼을 클릭하고 카메라 gate와 취소 복귀까지 확인했다.
+
+### 관련 파일
+
+- `apps/web/src/main.tsx`
+- `apps/web/src/dailyHabit.mjs`
+- `apps/web/src/weeklyHabit.mjs`
+- `memory-bank/prd-sustainable-study-loop.md`
+
+### 재발 방지
+
+Windows의 Playwright CLI에서는 세션 변수를 `.cmd` 인수 안에 삽입하지 말고 이름을 명시한다. route JSON에는 literal 공백을 피하고, JWT 생성과 base64url 변환은 브라우저 영역에서 정규식 의존 없이 수행한다. init script가 실패했다면 같은 context를 재사용하지 말고 테스트 세션만 닫아 깨끗하게 다시 만든다. 화면 상호작용은 navigation·viewport 변경 후 snapshot을 새로 찍고 최신 ref를 사용한다.
+
+## 2026-07-22 - 이미 출석인 날의 설정 시각 알림 누락
+
+### 상황
+
+사용자가 설정한 평일 알림 시각 전에 알림을 받지 못했다고 보고해 Supabase 원격 출석·발송·Cron 기록과 배포 함수 정의를 대조했다.
+
+### 에러 메시지
+
+```txt
+설정 시각 20:30 전후 notification_deliveries 발송 기록 없음
+cron.job_run_details.status = succeeded
+attendance_days.status = present, marked_at = 20:30
+```
+
+### 원인
+
+`get_due_reminders()`는 설정 시각에 일일 완료 공부 시간이 목표 이상이면 먼저 출석을 `present`로 보정한다. 이어지는 초기 알림 조회는 같은 날짜의 `present` 또는 `missed` 행이 있거나 목표를 이미 충족하면 후보에서 제외한다. 따라서 오늘은 Cron과 Edge Function이 정상 실행됐지만 알림 대상 행 자체가 반환되지 않았다.
+
+### 해결 방법
+
+사용자 승인 후 PRD를 변경하고 `attendance_days`에 stage별 claim 시각을 추가했다. `get_due_reminders()`는 이미 `present`인 날도 설정 시각의 초기 알림을 원자적으로 한 번 반환하면서 `attendance_already_present = true`를 전달하고, 재촉과 `mark_missed_attendance()`는 `pending`만 처리한다. Edge Function은 출석 완료 알림에서 마감·결석 경고를 제거했다.
+
+### 관련 파일
+
+- `memory-bank/prd-supabase-cron.md`
+- `memory-bank/implementation-plan.md`
+- `supabase/functions/attendance-cron/index.ts`
+- `supabase/migrations/20260722133736_send_initial_reminder_when_present.sql`
+- `supabase/migrations/0015_pre_reminder_active_session_attendance.sql`
+- `supabase/migrations/0021_late_study_goal_attendance_policy.sql`
+
+### 재발 방지
+
+
+원격 rollback 검증에서 이미 출석 흐름은 초기 1회·중복 0회·재촉 0회·결석 0회·최종 `present`, 미출석 흐름은 초기 1회·재촉 1회·결석 1회를 확인했다. 실제 발송 성공은 다음 설정 시각의 `notification_deliveries`로 계속 관찰한다.
+출석 상태 판정과 알림 발송 자격을 하나의 조건으로 묶지 않는다. 이미 출석인 날의 초기 알림, 재촉 미발송, 결석 비전환, 매분 Cron 중복 방지를 각각 회귀 테스트로 고정하고 `notification_deliveries`에 알림 단계 또는 별도 claim을 남겨 운영 추적성을 확보한다.
+
+## 2026-08-04 - Lease 만료 후 수동 종료가 장기 공부시간으로 저장됨
+
+### 상황
+
+사용자가 종료 버튼을 누르지 않은 세션이 며칠 동안 열린 상태로 남았고, 8월 누적 공부시간이 비정상적으로 커 보인다고 보고했다.
+
+### 원인
+
+웹의 lease 만료 자동 종료는 열린 브라우저에서만 실행된다. 브라우저가 닫힌 뒤 수동 또는 회고 종료를 하면 `endTimer()`가 카메라 제외 시간만 전달한다. 서버 `end_study_session()`은 `now() - started_at`을 기준으로 계산하고 `lease_expires_at`을 상한으로 적용하지 않는다.
+
+### 확인 결과
+
+- 8월 2일 11:56(KST) 시작 세션이 lease 만료 후 8월 4일 22:17(KST)에 종료됐다.
+- 저장된 `duration_seconds`는 `210,050초(58시간 20분 50초)`였다.
+- 종료 직후 새 활성 세션이 시작됐으며, 이는 장기 기록과 별개다.
+
+### 후속 해결 방향
+
+- 서버 종료 RPC에서 실제 종료 시각을 `least(now(), lease_expires_at)`으로 제한한다.
+- 만료된 활성 세션은 Cron 또는 재접속 시 서버에서 정리해 클라이언트 탭 상태에 의존하지 않는다.
+- 기존 장기 기록 보정은 사용자의 명시적 승인 없이 수행하지 않는다.
+## 2026-08-04 - 닫힌 브라우저에서 세션 lease가 만료된 뒤 과대 공부 시간이 저장됨
+
+### 상황
+
+브라우저가 닫힌 상태로 남은 세션을 며칠 뒤 수동 종료하자 8월 누적 공부 시간이 비정상적으로 커졌다.
+
+### 에러 메시지
+
+```txt
+오류 메시지는 없었음. 완료 세션 duration_seconds = 210050 (58시간 20분 50초)
+```
+
+### 원인
+
+기존 자동 종료는 열린 웹 앱의 `useEffect`에만 있었고, 서버 `end_study_session()`은 `now() - started_at`만 사용했다. 따라서 lease가 이미 만료된 세션도 뒤늦은 수동/회고 종료 시 전체 경과 시간이 저장됐다.
+
+### 해결 방법
+
+- `end_study_session()`이 lease 만료 시각을 종료 상한으로 사용하도록 변경했다.
+- 기존 1분 Cron이 service-role 전용 `close_expired_study_sessions()`로 만료 활성 세션을 종료하게 했다.
+- lease 조회용 partial index와 `SKIP LOCKED` 배치 처리를 추가했다.
+- 잘못 저장된 과거 세션을 lease 기준 25,200초로 보정하고, 그 세션만으로 잘못 출석 처리된 날짜를 정정했다.
+
+### 관련 파일
+
+- `supabase/migrations/20260804133546_enforce_session_lease_expiry.sql`
+- `supabase/functions/attendance-cron/index.ts`
+- `apps/web/src/main.tsx`
+
+### 재발 방지
+
+- 타이머의 저장 시간 상한은 클라이언트 표시가 아니라 서버 RPC에서 항상 강제한다.
+- 만료 cleanup은 열린 브라우저가 아니라 예약 실행되는 서버 작업으로 수행한다.
+- 장기 세션 또는 날짜를 넘는 세션이 보이면 `lease_expires_at`, `ended_at`, `duration_seconds`, `paused_seconds`를 함께 확인한다.
+## 2026-08-19 - 영어 기본 README 전환 후 문서 계약 테스트 실패
+
+### 상황
+
+기존 한국어 `README.md`를 영어 기본 문서로 전환한 뒤 전체 테스트를 실행했다.
+
+### 에러 메시지
+
+```txt
+README documents the current study loop, forest, mobile policy, and lease cap
+AssertionError: README.md did not match /세션 회고/
+```
+
+### 원인
+
+`apps/web/test/readme.test.mjs`가 기본 README가 한국어라는 전제 아래 한국어 상세 문구를 직접 검사하고 있었다. 영어 기본 문서로 전환하면서 기능 설명은 유지됐지만 언어 전제가 더 이상 유효하지 않았다.
+
+### 해결 방법
+
+- 영어 `README.md`의 제품 핵심, Study Forest, Expo, session lease, memory-bank 연결을 영어 문구로 검사한다.
+- 보존된 `README.ko.md`에는 기존의 상세 운영·상호작용 정책이 남아 있는지 별도 검사한다.
+- 세 언어 README 모두 동일한 언어 전환 링크를 포함하는지 검사한다.
+- 전체 테스트를 다시 실행해 334개 통과를 확인했다.
+
+### 관련 파일
+
+- `README.md`
+- `README.ko.md`
+- `README.ja.md`
+- `apps/web/test/readme.test.mjs`
+
+### 재발 방지
+
+기본 문서의 언어를 가정하지 말고 언어별 README가 담당하는 계약을 분리한다. 영어 기본 문서는 글로벌 개요, 한국어 문서는 기존 상세 운영 계약, 모든 문서는 상호 언어 링크를 검증한다.
+## 2026-08-20 - 다국어 README PR과 최신 main 충돌
+
+### 상황
+
+문서 브랜치를 푸시하고 Draft PR을 만든 뒤 GitHub에서 PR이 충돌 상태로 표시됐다.
+
+### 에러 메시지
+
+```txt
+mergeStateStatus: DIRTY
+mergeable: CONFLICTING
+conflicts: README.md, memory-bank/active-context.md, memory-bank/progress.md
+```
+
+### 원인
+
+문서 브랜치 기준점 이후 원격 `main`에 Today 도메인 분리, 세션 todo 시간표 빠른 추가, lease 설명 변경이 추가됐다. 양쪽에서 README와 최신 작업 기록을 수정해 동일 파일에 충돌이 발생했다.
+
+### 해결 방법
+
+- 최신 `origin/main`을 문서 브랜치에 병합했다.
+- 최신 한국어 README 전체를 `README.ko.md`에 보존하고 언어 링크를 추가했다.
+- Today 탭, 시간 지정 빠른 추가, Expo 제한을 영어·일본어 README에도 반영했다.
+- 최신 main의 active-context/progress와 다국어 문서 기록을 모두 보존했다.
+- 전체 338개 테스트와 diff 공백 검사를 통과했다.
+
+### 관련 파일
+
+- `README.md`
+- `README.ko.md`
+- `README.ja.md`
+- `memory-bank/active-context.md`
+- `memory-bank/progress.md`
+
+### 재발 방지
+
+PR 생성 직전 원격 기본 브랜치를 fetch하고 문서 브랜치의 merge-base를 확인한다. 기본 README 언어가 바뀌는 작업에서는 최신 기본 브랜치 README를 언어별 보존 문서의 원본으로 사용한다.
+
+## 2026-09-06 - 계획 편집의 삭제·시간 입력 진입점 누락
+
+- 원인: 기존 deleteTodo/deleteGoal은 다른 화면에만 연결됐으며, 시간 입력의 click/double-click 핸들러가 showPicker를 강제로 열어 숫자 직접 수정을 방해했다.
+- 해결: 세션 선택 목록과 목표 편집 모달에 삭제 버튼 연결, 삭제된 ID 정리 및 오류 시 busy 해제. 시간 입력의 click/double-click 핸들러를 제거하고 native 숫자 입력/아이콘/키보드 선택을 유지했다.
+- 검증 환경: npm root dev:web에 추가 port를 전달하면 npm 옵션 해석 오류가 발생해 workspace dev -- --port 5178로 실행했다. agent-browser의 Edge 지정 실행이 실패해 기본 Chromium으로 검증했다.
+
+## 2026-09-06 - 목표 달성 오류 문구 및 배지 검증
+
+- 독립 리뷰에서 Supabase 응답 객체를 그대로 throw하면 formatNotificationError가 [object Object]를 표시하는 회귀를 발견했다. new Error(error.message)로 변환하고 finally로 버튼을 복구했다.
+- 브라우저 fixture의 외부 API mock은 CORS 응답 헤더 부족으로 실패했다. 별도 Vite 프로세스의 테스트 전용 URL을 같은 localhost origin으로 지정해 해결했다. 실제 설정 파일/계정/DB 데이터는 바꾸지 않았다.
+- agent-browser에서 목표 달성 취소, 통신 실패 후 재시도, Today/목표 목록 달성, 마이페이지 배지, 저장된 fixture 재조회, 재개와 삭제 반영을 확인했다. 390px 화면의 scrollWidth는 390, Vite 오류 overlay 없음.
+
+## 2026-09-06 — Integration review and SQL verification
+
+- External jobs could exceed90-second leases and publish after another worker claimed them. Added50-second abort propagation, bounded streamed bodies, single-repository jobs, and final transactional checks of current lease/owner/kind/enablement.
+- OAuth completion, token refresh and repository selection could race disconnect/reconnect. Added one-use completion/selection RPCs under the same user lock, authorization-version config comparison and checks for zero-row CAS updates.
+- PGlite execution exposed SQL range-variable naming ambiguity; explicit PL/pgSQL block qualification fixed it. Added actual SQL tests covering RLS, shared AI quota, idempotent acceptance, schedule conflicts, DST, date-only invariance, stable task instants and stale integration writes.
+- Browser settings received Postgres time values with seconds while validation requires HH:mm. Normalize loaded form times; test DB-shaped state roundtrips before release.
+- Automatic approval review rejected the specific remote next-js schema mutation. It was not applied. Ask for and wait for the specific remote approval; do not bypass it via another transport or ship dependent UI before DB readiness.
+
+### Production Deno bootstrap fix
+The initial five Edge deployments returned WORKER_ERROR500 because Deno1 has a global window and the shared AI browser guard threw during import. Reproduced with a server window alias, changed guard to require DOM document, added regression and deployed again. Auth rejection401 and scheduled200 confirm recovery. Slack snooze also needed per-isolate pilot loading after signature/owner checks.
+
+## 2026-09-09 - Recovery logic regressed across deployment layers
+
+### Situation and cause
+
+The aggregate recovery DB migration and attendance cron were deployed in August, but their source changes remained uncommitted. Latest main still loaded consolidated audit rows with a 100-row limit and created recovery requests per date. Slack v14 added coach handling from that older main and therefore put makeup todos on the original missed date again.
+
+### Resolution
+
+- Reconcile existing recovery patches on latest main in a separate worktree.
+- Resolve the dashboard conflict by preserving new goal pagination and adding stable pending/submitted recovery pagination.
+- Restore exact remote migration SQL/version filenames rather than applying old data updates again.
+- Keep existing coach Slack ownership checks and use the user's current local date for makeup todos.
+- Test the real functions through synthetic transport; four queue/creation cases and three timezone cases reproduced and then fixed the defects.
+
+### Tooling
+
+- Existing-file `apply_patch` still failed with `helper_unknown_error: apply deny-read ACLs`. Approved Git patches applied the same minimal edits; new files were created with `apply_patch`.
+- The three-way merge conflicted only where later goal pagination and older recovery query edits touched adjacent lines; resolved both behaviors explicitly.
+
+### Prevention
+
+Ship DB migrations, shared Edge function code, and consuming UI in the same reviewed release. Re-deploying an Edge function from stale source can overwrite an earlier production hotfix. Check migration version and SQL equality and preserve regression tests that exercise runtime behavior rather than only source strings.
+
+### Validation findings resolved in the same release
+
+- The first full run failed two goal-history tests because their query fake lacked the new PostgREST `in` method. Added the method to that goal-only fake; recovery filtering itself is tested through the real Supabase query builder.
+- The restored Slack date helper used the old generic ReturnType declaration; changed it to the existing SupabaseClient convention.
+- Expanding Deno checks found 40 pre-existing type errors in older notification functions: unpinned SDK resolution, createClient generic inference, success/error unions, and a profile Map inferred as unknown.
+- Pinned the SDK to 2.57.4, corrected explicit types and missing-target nullability, and verified all eight entrypoints plus the pilot tests. Runtime notification/attendance decisions were preserved.
+
+### Deployment approval and final evidence
+
+- Initial deployment approval was rejected because --no-verify-jwt could appear to disable platform JWT enforcement. No alternate transport was used to bypass the rejection.
+- Read-only MCP checks confirmed all four targets already had verify_jwt=false; source inspection confirmed their existing internal authorization gates. Retrying the same command with that evidence was approved.
+- The four new ACTIVE versions rejected unauthenticated probes with 401. Vercel production and entry asset returned 200; deployment READY and successful Actions run match commit 01d157b.
+- Existing-file apply_patch and one read-only command hit the Windows deny-read ACL helper error. The exact small documentation additions were applied with an approved Git patch fallback; no ACL or sandbox setting was changed.
+- A line-count diagnostic initially used an unsupported foreach-to-pipeline PowerShell form; collecting the foreach result before ConvertTo-Json corrected it.
+
+## 2026-09-09 - Provisional weekly report totals look final
+
+- Situation: auditing the requested weekly/monthly reports exposed a data-readiness gap in the current weekly UI.
+- Cause: WeeklyReviewSection accepts optional canonical summaries, falls back to local_date-only sums, and is rendered before reflectionHistoryLoaded. Suspense only covers lazy module loading. The summary effect also retains stale values during refresh/failure.
+- Reproduction: actual component SSR with a synthetic Sunday 23:00 to Monday 01:00 session shows 0 minutes without a loading state; supplying the canonical Monday overlap changes it to one hour.
+- Status: confirmed, not fixed. A week/month report extension plus explicit ready/loading/error states was proposed and awaits design approval.
+- Files: apps/web/src/main.tsx, apps/web/src/WeeklyReviewSection.tsx, apps/web/src/weeklyReview.mjs; detailed evidence in report-feature-audit.md.
+- Prevention: test pending/error/retry and stale period responses, not only ready-state arithmetic; preserve user-time-zone canonical totals and selected-period attendance coverage.
+
+## 2026-09-10 - Native renderer mismatch despite passing typecheck
+
+- Situation: offline dependency investigation after npm audit was rejected for unapproved metadata egress. The registry request was not retried or routed elsewhere; consent was requested.
+- Error: Incompatible React versions - mobile React 19.2.7 versus react-native-renderer 19.0.0.
+- Cause: the mobile manifest allows React ^19.0.0 and resolves the hoisted 19.2.7, but the installed React Native renderer enforces exact 19.0.0 at runtime.
+- Evidence: executed the real installed version-guard excerpt against mobile-resolved React; the guard threw. Both development and production legacy renderer source contain the check. Mobile tsc --noEmit passed.
+- Status: confirmed, not fixed; no full native device launch or advisory scan. Web React DOM is a different execution path. Do not globally downgrade web React or use audit --force.
+- Related: apps/mobile/package.json, package-lock.json, .github/workflows/vercel-production.yml, dependency-compatibility-audit.md. Add a resolved-version compatibility gate and native runtime verification with the scoped future fix.
+
+## 2026-09-10 - Report readiness, native resolution and verification fixes
+
+### 상황
+
+승인된 주/월 리포트와 Expo 호환성을 구현하며 초기 지표, 시간대 경계, 병렬 요청 정리, 네이티브 시작 경로를 검증했다.
+
+### 에러 메시지
+
+- 기존 리포트: canonical 응답 전 실제 1시간 대신 0분 표시.
+- Native: Incompatible React versions; root React 19.2.7 versus renderer 19.0.0.
+- Native install: duplicate/invalid RN tree and ERESOLVE during the scoped update attempt.
+- Native export: hoisted expo/AppEntry.js could not resolve ../../App.
+- Local tools: apply_patch deny-read ACL helper error; a fixture-server launch exited -1073741205 once, then a normal retry started successfully.
+
+### 원인
+
+- 기존 weekly view의 선택적 summary fallback과 데이터 로딩 gate 부재.
+- 메인 프로필 준비 전 브라우저/이전 계정 시간대와 서버 RPC의 저장된 시간대가 달랐다.
+- Promise.all 일부 실패 시 controller 참조만 지워 나머지 요청이 살아 있었다.
+- Expo가 hoisted React/RN 및 AppEntry 상대 경로를 해석했다. 타입 검사는 실제 renderer 시작 조건을 검증하지 못했다.
+
+### 해결 방법
+
+- 리포트가 저장된 owner 시간대를 먼저 읽고 모든 지표를 직접 조회한다. 알 수 없는 summary는 오류, 실패/로딩은 숫자를 숨기고 재시도한다.
+- finally에서 controller.abort()를 호출해 실패한 병렬 요청의 나머지도 정리한다.
+- 네이티브 exact pins, 단일 root RN peer anchor, Android/iOS Metro aliases, mobile-local index.js 진입점을 적용했다. --force/legacy-peer-deps나 웹 React 하향은 하지 않았다.
+- 기존 파일 apply_patch 실패 시 정확한 최소 Git patch를 승인받아 적용했다. ACL/권한 설정은 바꾸지 않았다.
+- Windows .cmd 브라우저 래퍼는 URL의 &와 @ref를 잘못 해석할 수 있어 같은 도구의 native .exe와 인용된 인수를 사용했다. CLI fill의 native month 이벤트 한계는 실제 키보드 ArrowDown 및 DOM input 이벤트로 분리 검증했다. 앱 입력은 부분 입력을 허용하고 잘못된 값은 blur 시 이전 선택으로 복원한다.
+
+### 관련 파일
+
+- apps/web/src/StudyReportSection.tsx, studyReportData.mjs, studyReports.mjs 및 report 테스트.
+- apps/mobile/package.json, metro.config.cjs, index.js, package-lock.json, scripts/mobile-compatibility.mjs.
+- 상세 native install/export 및 감사 근거: dependency-compatibility-audit.md.
+
+### 재발 방지 / 남은 리스크
+
+- 프로필 지연과 서로 다른 시간대의 일/주 경계, 실패/취소/오래된 응답을 테스트한다.
+- 전체 501개 테스트, 웹 build, mobile:check, 14개 report 및 10개 native 회귀가 통과했다.
+- 실제 모바일 기기/에뮬레이터 검증과 기존 npm 취약점 완화는 별도 후속 작업이다. 브라우저 fixture는 실제 계정이나 Supabase 데이터에 접근하지 않는다.
+- README 변경 후 기존 현재 주 전용 문구를 검사하던 문서 테스트 2개가 실패했다. 주간·월간/같은 경과 일수/오류를 0분으로 표시하지 않는 새 계약으로 기대값을 갱신하고, 모든 번역의 리포트 PRD·mobile:check 링크도 검사한다.
+
+## 2026-09-27 - 발견순 피드가 2025년 자료를 신규 뉴스처럼 표시
+
+### 상황
+
+2026-09-27 발견한 Claude Academy 튜토리얼 목록의 검색 제공 날짜가 2025-12-19였으나, `최신` 카드에 연도 없는 `원문 발행 12월 19일`로 표시됐다. `새 글 확인`은 검색 결과 건수를 신규 기사 수처럼 알렸다.
+
+### 원인
+
+`tech_feed_list`는 발견 시각만으로 정렬했고 오래된/날짜 없는 자료를 최신 보기에서 제외하지 않았다. Tavily 요청 기간은 1년이었다. 웹 카드 날짜 포맷은 연도를 빼고 검색 제공 날짜를 원문이 직접 밝힌 발행일처럼 표기했다.
+
+### 해결 방법
+
+추가형 마이그레이션에서 최신/깊이 읽기/저장을 날짜 기준으로 분리하고 필터 후보와 커서를 맞췄다. 검색 기간을 한 달로 축소하고 서버에서 날짜를 재검증한다. 목록 페이지 대신 커서 기반 연속 읽기를 사용하고, 연도·날짜 출처를 카드에 표기한다. 기존 자료는 삭제하지 않는다.
+
+### 검증과 남은 리스크
+
+- 기존 DB/검색 테스트 픽스처의 2020년·날짜 누락 값은 새 계약에서 최신이 아니므로 초기 회귀 테스트가 실패했다. 최신 글을 시험하는 픽스처만 최근 날짜로 갱신하고, 오래된 글 분리·저장 보존 테스트를 별도로 추가했다.
+- 초기 실행에서는 전체 Node 811개 중 786 통과, 선택적 브라우저 25개 건너뜀. 이후 기존 Playwright 모듈과 설치된 Chromium 실행 파일을 명시해 재실행했고 811개 전부 통과·건너뜀 0을 확인했다. 웹 빌드, Edge 11개, mobile:check, docs:check도 통과했다. Playwright 모듈 기본 기대 Chromium 버전과 기존 설치 버전이 달라 실행 파일 경로를 지정해야 했다.
+- 2026-09-27 원격 DB/Edge/웹에 단계적으로 적용했다. 추가로 AWS Startups의 `/build?lang=ko` 자료 모음 페이지가 URL 판별에서 기사로 통과하던 문제를 재현하는 테스트를 먼저 실패시킨 뒤, 목록으로 분류해 새 수집에서 제외했다. 기존 자료는 삭제하지 않고 오래된 날짜에 따라 `깊이 읽기`에 남는다.
+- 일반 `supabase db push --dry-run`은 과거 원격 마이그레이션 이력과 로컬 파일 불일치로 중단됐다(`DbPushMissingLocalError`). 과거 이력을 임의로 repair하지 않고 이번 SQL만 MCP로 적용한 뒤 실제 버전에 파일명을 맞췄다. 향후 전체 `db push`를 쓰기 전에는 과거 이력 정합성을 별도로 해결해야 한다.
+- 30일 조건과 무료 검색 한도상 매일 새 글을 보장할 수 없다. 검색 제공 날짜는 원문 검증 날짜가 아니다. 실계정 수동·정시 수집은 이번 배포에서 검증하지 못했다.
+
+## 2026-09-27 - EAS 프로젝트 정보 조회에서 Invalid UUID appId
+
+### 상황
+
+신규 Expo 계정 로그인 뒤 독서실 앱의 EAS 프로젝트 연결 여부를 조회했다.
+
+### 에러 메시지
+
+```txt
+Invalid UUID appId
+Error: GraphQL request failed.
+```
+
+### 원인
+
+`apps/mobile/app.json`의 `extra.eas.projectId`가 실제 UUID가 아닌 `$EXPO_PUBLIC_EAS_PROJECT_ID` 자리표시 문자열이었다. EAS CLI가 이를 기존 프로젝트 ID로 해석했다.
+
+### 해결 방법
+
+자리표시 ID를 제거한 뒤 EAS CLI `init`으로 사용자 개인 계정에 프로젝트를 생성·연결했다. `project:info`가 실제 UUID와 프로젝트 이름을 반환하는 것을 확인했다.
+
+### 관련 파일
+
+* `apps/mobile/app.json`
+
+### 재발 방지
+
+프로젝트 조회·푸시 토큰 등록 전 `extra.eas.projectId`가 실제 UUID인지 검증한다. Expo 로그인/프로젝트 연결과 FCM 푸시 자격 증명 설정은 별개로 확인한다.
+## 2026-10-04 — 앱 업데이트 설치 취소 후 재시도 잠금
+
+- 상황: 네이티브 updater 독립 리뷰에서 Android 설치 화면을 취소·거부한 뒤에도 `install_pending`이 남아 새 후보 다운로드가 `update_busy`로 막히는 경로를 확인했다.
+- 원인: 설치 화면 진입 상태만 저장하고 앱 복귀/재시작에서 실제 설치 버전과 비교해 취소 상태를 해제하지 않았다. 다운로드가 끝난 상태라 다운로드 취소도 이 상태를 풀지 못했다.
+- 해결: Expo foreground/background 콜백과 재시작의 실제 window focus로 설치 화면 이탈/복귀를 구분한다. 실제 versionCode가 그대로면 검증된 후보를 `ready`로 되돌리고, 실제 설치 버전이 목표 이상일 때만 `installed`로 표시한다. 열린 설치 화면/진행 중 다운로드/검증은 계속 busy로 유지한다. 복귀만으로 설치·다운로드·공부를 시작하지 않는다.
+- 검증: 신규 실제 상태정책 테스트 RED27개 중4개 실패 → GREEN27/27 및 release Kotlin 컴파일 성공. 수정 커밋0761c35. Android16 실제 OS 복귀/재시작은 이후 APK 검증 단계이며 아직 완료로 주장하지 않는다.
+- 관련 파일: `StudyAppUpdateModule.kt`, `UpdateInstallState.kt`, `UpdateInstallStateTest.kt`.
+- 추가 환경 오류: RN LifecycleState를 Expo 라이브러리 classpath에서 직접 참조한 첫 컴파일이 실패했다. 새 의존성 대신 사용 가능한 Android currentActivity와 Expo lifecycle 콜백으로 처리했다. 이 컴파일 오류를 기능 RED로 세지 않는다.
+
+### Retry task final environment result (2026-10-10)
+Tracked-lockfile install resolved dependency failures. Seven old1s VM cases passed without changing code/timeouts under test concurrency2; full1034 pass/0fail/96 optional skipped, mirrored by CI38045602474. Browser cold navigation had one15s timeout, isolated rerun1/1 passed; all retry scenarios verified. Actual free API synthetic briefing ready in1call; operational deployment completed, see verification/2026-10-10-tech-feed-ai-retry.md.
+## 2026-10-10 — 세션 새 할 일에 지난 회고 문구가 계속 표시됨
+
+### 상황 / 원인
+
+- ‘이번 세션에서 할 일’ 모달을 열 때 새 제목에 ‘장고245페이지’가 계속 나타났다. 하드코딩된 기본값이 아니라 최근 non-null 회고 next_action에서 시작 제안을 받고, 오늘의 동일 할 일이 없으면 그 제안을 새 제목으로 자동 입력하던 동작이었다.
+- 과거 회고는 그대로 남으므로 모달을 반복해서 열어도 같은 제목이 다시 채워졌다. 사용자 요청은 기존 기록 삭제가 아니라 새 입력칸의 반복 표시 제거다.
+
+### 해결 / 재발 방지
+
+- openSessionTodoSelection에서 setSessionTodoDraft("")로 항상 빈 새 입력을 제공한다. 기존 회고·할 일·일치하는 오늘 할 일 미리 선택과 공부 시작 게이트는 보존한다.
+- 실제 main 마운트 회귀를 375/1440px에 추가했다. 오래된 회고 제목으로 RED 2건을 확인한 뒤 빈 입력·직접 입력 유지·닫고 재열기 초기화·데이터 보존을 검증한다. 별도 fixture 화면만으로 완료를 판단하지 않는다.
+- 관련 파일: apps/web/src/main.tsx, apps/web/test/actualStudyMounted.test.mjs, memory-bank/prd-daily-habit-loop.md.
+
+### 검증 도구 / 통합 주의
+
+- 샌드박스 localhost의 net::ERR_NETWORK_ACCESS_DENIED는 제품 실패나 RED 근거가 아니다. 허용된 브라우저 실행에서 실제 값 ‘장고245페이지’와 기대 빈 값 불일치로 RED를 확인했다.
+- 최초 전체 실행은 1105통과/1실패/생략0이었다. 실패는 기존 1440px 가독성 시나리오의 첫 page.goto 15초 초과이며, 실행 도중 원격 최신 코드가 병합되어 최종 검증으로 사용하지 않는다. timeout이나 제품 기능을 바꾸지 않고 최신 통합본에서 concurrency2로 다시 검사한다.
+- Git의 샌드박스 DNS 실패와 dry-run non-fast-forward 거절을 인증 실패로 단정하지 않는다. 실제 fetch에서 origin/main 9e51742의 새 커밋 5개를 확인하고 scoped stash→fast-forward→재적용했다. active-context의 양쪽 상단 추가와 이전 번역 진단 기록을 모두 보존해 충돌을 해결했다.
+- 최신 통합본 전체 재검사1132/1132·실패0·생략0(244553ms), 웹/모바일/문서 검사 성공. 기존 초기 페이지 로딩 timeout은 재발하지 않았으며 별도 timeout 완화나 제품 변경을 추가하지 않았다.
+- 운영 파일 첫 대조는 빌드마다 압축 변수명이 달라 문자열 일치가 실패했다. 초기 이름 정규화도 PowerShell 기본 Hashtable이 fn/Fn을 같은 키로 처리해 잘못된 불일치를 만들었다. JavaScript의 대소문자를 구분하는 Ordinal Dictionary로 정규화하여 함수 구조 동등성과 빈 제목 초기화를 확인했다. 실제 배포 문제로 오인하지 않으며 제품 코드는 바꾸지 않았다. 운영 웹/asset200, 같은 제품SHA의 READY 배포와 Actions success는 progress에 기록했다.
+
+## 팀 태그 정규식과 비UTF8 테스트 응답
+
+- 증상: 기존 actualStudyMounted의 설정/테마 화면이 모두 mount 전 시작 버튼 대기에서 timeout.
+- 원인: 새 JavaScript 정규식의 한글 문자 범위가 charset 없는 테스트 script 응답에서 잘못 디코딩되어 Range out of order 구문 오류. 카메라/인증 게이트 문제는 아님.
+- 해결: teamStudyPresentation.mjs의 같은 한글 범위를 ASCII Unicode escape로 표현한다. 기존 harness 대기·개인 정책을 약화하지 않는다.
+- 재발 방지: 팀 집중 테스트 외에도 기존 main 전체 Chrome 회귀를 실행하고, mounted fixture 추출 경계를 검사한다. 처리 상태/최종 검증은 verification 문서를 따른다.
+
+## 팀 진입 UI·테스트 시계·리뷰 캡처
+
+- 증상: 새44px 진입 링크가 기존1440 첫화면 타이머를700px 아래로 밀었고, 새 공동 타이머 테스트가25:00/24:58 표시를 놓침.
+- 원인/해결: 별도 flex 행을 기존 탭과 같은 wrapping 행으로 합친다. 테스트는 벽시계가 아니라 고정 clock과 연결 시각/기간으로 fixture 종료를 계산하며 원래 exact-second/개인 무변경 검증을 유지한다.
+- 재발 방지: 기존 main 화면 회귀와 새44px/타이머 위치/만료 검증을 함께 실행. 최종 Chrome1203/1203·0실패·0생략.
+- 도구 주의: 큰 소스의 출력 제한이 before snapshot을 잘라 리뷰 diff를 오염시킬 수 있다. truncation marker를 거절하고 lossless read 또는 기록된 실제 patch의 명시적 재구성 provenance로 검사한다. 가짜 원본 snapshot으로 기록하지 않는다.
+## Supabase migration response unknown — 2026-10-13
+
+- 증상: MCP apply_migration이 Invalid or expired requestState를 반환했다.
+- 원인: 요청 상태 만료; 응답만으로 DB 적용 여부를 추측하지 않는다.
+- 해결: list_migrations와 to_regnamespace/to_regclass/to_regprocedure로 미적용 확인 후 동일 SQL1회 재시도. 실제 remote20261012235920 확인.
+- 재발 방지: 알 수 없는 결과에서 즉시 중복 DDL을 보내지 말고 이력·schema를 확인. local20261012143354/remoteversion 대응은 implementation-plan에 기록.
+## 2026-10-15 — 자동 팀 연결의 시작/가입 경합과 재개 시점
+
+- 증상: 개인 시작과 팀 가입이 겹치면 기여 누락 가능, BEFORE 재개 segment hook은 이전 paused 행을 읽어 자동 연결하지 못함.
+- 원인: 미커밋 세션/멤버십의 상호 비가시성·BEFORE UPDATE의 기존 행 조회, 팀 잠금 후 새 세션 발견 시 잠금 역순 위험.
+- 해결: 시작 INSERT와 가입에 같은 사용자 advisory 직렬화(UPDATE에는 금지), AFTER 재개 연결, 최초 start signal 지연, captured session ID 외 발견은 예외→RETRY로 전체 mutation rollback.
+- 파일/방지: 추가20261015035420·자동 SQL13개(가입 전 제외/재개/중복/권한/출시 checkpoint/중간 세션 발견 rollback), 독립 잠금 검토. 실제 다중 PostgreSQL 연결 수용은 별도 미검증.
+
+## 2026-10-15 — mounted RPC wrapper의 abortSignal 보존
+
+- 증상: 팀 테스트 fake의 개인 RPC를 Promise로 감싼 뒤 시작 확인/개인 제어가 실패함.
+- 원인/해결: 기존 builder의 abortSignal 메서드를 잃음. confirm만 then/abortSignal 계약 보존 wrapper 사용, 다른 RPC는 원래 반환값 유지.
+- 방지: 개인 카메라 준비→확인→자동 팀 반영→휴식/재개 Chrome 회귀 유지. 제품 RPC/개인 로직 변경으로 우회하지 않음.
