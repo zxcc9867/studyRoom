@@ -25,5 +25,8 @@
 
 ## 출시
 
-- 기능 브랜치 `feat/team-study-room`, 기존 `vercel-production.yml` workflow_dispatch 경로 사용 예정.
-- Actions 성공·정확한 커밋SHA·Vercel production READY·고정 주소HTTP200 확인 후 이 절에 증거를 갱신한다.
+- 기능 브랜치 `feat/team-study-room`, 제품 커밋 `593fb483b5e51fa924fcd72408705193f5882e1c` 범위 지정 커밋·푸시 완료. 선행 운영 개선/수용 기록 등 다른 미커밋 파일은 포함하지 않았다.
+- 기존 `vercel-production.yml` workflow_dispatch [Actions39035949437](https://github.com/zxcc9867/studyRoom/actions/runs/39035949437) success(3분2초). 테스트/Edge/모바일 호환성/빌드/기존 무료 AI synthetic 검사 통과.
+- Vercel `dpl_Ak1Lt5yHAbRdQGJX1iXFwNvuJbHK`: production `READY`, 프로젝트 `prj_u2Q9FKwNeVjwwtVOjuXNMZRpkR3g`/`study-room-attendance`, GitHub `zxcc9867/studyRoom`, 위 정확한SHA와 기능ref 확인.
+- 고정 운영 주소 [독서실](https://study-room-attendance.vercel.app) HTTP200. `/assets/index-Cv249cbL.js` HTTP200 및 신규 재검증 제한 코드 marker 확인. 이 파일 확인은 운영 실계정 lifecycle 검증을 대신하지 않는다.
+- 기존 공부 중인 사용자 화면은 강제 새로고침하지 않았다. 공부를 마친 뒤 웹 새로고침/앱 웹 화면 재연결로 최신 화면을 불러오면 된다. 새 APK 설치는 필요하지 않다.
