@@ -3705,7 +3705,7 @@ function DashboardApp() {
       if (!intent && input) {
         intent = await flow.prepare(input);
         if (!isCurrent()) return false;
-        if (input.action === "switch" || intent.preview.changes.some(change => change.todo_id !== intent!.preview.current_todo_id)) {
+        if (intent.preview.changes.length > 0) {
           setActualNotice("");
           setPendingActualIntent(intent);
           return false;

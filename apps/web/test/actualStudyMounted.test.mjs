@@ -519,11 +519,11 @@ function result(name,args){state.calls.push({name,args});
  if(name==='checkpoint_actual_study_exclusion'){state.excluded=Math.max(state.excluded,args.p_excluded_seconds);return {data:track(),error:null};}
  if(name==='pause_actual_study_session' && state.holdPause)return new Promise(resolve=>{state.releasePause=()=>{state.sessions[0]={...state.sessions[0],paused_at:now};resolve({data:state.sessions[0],error:null});};});
  if(name==='pause_actual_study_session'){state.sessions[0]={...state.sessions[0],paused_at:now};state.excluded=args.p_excluded_seconds;return {data:state.sessions[0],error:null};}
- if(name==='preview_actual_study_action')return {data:{version:1,action:args.p_action,session_id:args.p_session_id,todo_ids:args.p_todo_ids,current_todo_id:args.p_current_todo_id,excluded_seconds:args.p_excluded_seconds,proposed_at:now,expires_at:'2026-09-21T14:31:00Z',time_zone:'Asia/Tokyo',remaining_seconds:5400,revision:'revision',cascade_complete:!state.blocking,blocking_error:state.blocking,changes:state.collision?state.todos.map(t=>({todo_id:t.id,title:t.title,before:{start_at:'2026-09-21T14:00:00Z',end_at:'2026-09-21T16:00:00Z',local_date:'2026-09-21',end_date:'2026-09-22',start_time:'23:00:00',end_time:'01:00:00'},after:{start_at:'2026-09-21T14:30:00Z',end_at:'2026-09-21T16:30:00Z',local_date:'2026-09-21',end_date:'2026-09-22',start_time:'23:30:00',end_time:'01:30:00'}})):[]},error:null};
+ if(name==='preview_actual_study_action')return {data:{version:1,action:args.p_action,session_id:args.p_session_id,todo_ids:args.p_todo_ids,current_todo_id:args.p_current_todo_id,excluded_seconds:args.p_excluded_seconds,proposed_at:now,expires_at:'2026-09-21T14:31:00Z',time_zone:'Asia/Tokyo',remaining_seconds:5400,revision:'revision',cascade_complete:!state.blocking,blocking_error:state.blocking,changes:state.collision?state.todos.filter(t=>!state.onlyCurrentChange||t.id===args.p_current_todo_id).map(t=>({todo_id:t.id,title:t.title,before:{start_at:'2026-09-21T14:00:00Z',end_at:'2026-09-21T16:00:00Z',local_date:'2026-09-21',end_date:'2026-09-22',start_time:'23:00:00',end_time:'01:00:00'},after:{start_at:'2026-09-21T14:30:00Z',end_at:'2026-09-21T16:30:00Z',local_date:'2026-09-21',end_date:'2026-09-22',start_time:'23:30:00',end_time:'01:30:00'}})):[]},error:null};
  if(name==='confirm_actual_study_action'){
   if(state.holdConfirm)return new Promise(resolve=>{const saved={request_id:args.p_request_id,session:{...row},preview:args.p_preview,tracking:track()};state.releaseConfirm=()=>resolve({data:saved,error:null});});
   if(state.failConfirm){state.failConfirm=false;throw new TypeError('Network lost');}
-  if(state.stale){state.stale=false;return {data:null,error:{message:'ACTUAL_STUDY_STALE_PREVIEW',code:'P0001'}};}
+  if(state.stale){state.stale=false;if(state.collideOnStale)state.collision=true;return {data:null,error:{message:'ACTUAL_STUDY_STALE_PREVIEW',code:'P0001'}};}
   state.links=[...new Set([...state.links,...args.p_preview.todo_ids])];state.todos.filter(t=>state.links.includes(t.id)).forEach(t=>{if(['empty-links','completed-links','active-empty'].includes(mode)){t.first_started_at=null;t.first_tracked_at=now;t.unknown_allocation=true;t.evaluation_eligible=false;}});state.current=args.p_preview.current_todo_id;state.sessions=[{...row,paused_at:null}];return {data:{request_id:args.p_request_id,session:state.sessions[0],preview:args.p_preview,tracking:track()},error:null};
  }
  if(name==='get_actual_study_report')return state.reportFail?{error:{message:'report failed'},data:null}:{error:null,data:{scheduled_count:2,started_count:1,on_time_count:0,on_time_ratio:0,adjustment_count:3,unstarted_count:1,plans:[{todo_id:'a',title:'집중 독서',original_start_at:'2026-09-21T12:00:00Z',first_started_at:'2026-09-21T14:00:00Z',delay_minutes:120,adjustment_count:3,is_unstarted:false}]}};
@@ -709,6 +709,75 @@ browserTest('mounted main: single-focus no-collision start commits through the e
  assert.equal(await page.getByRole('dialog',{name:'공부와 일정 변경 확인'}).count(),0);
  const actions=await page.evaluate(()=>fixture.calls.filter(c=>c.name.includes('actual_study_action')));
  assert.equal(actions[0].name,'preview_actual_study_action');assert.equal(actions[0].args.p_current_todo_id,'a');assert.equal(actions[1].name,'confirm_actual_study_action');
+},'start'));
+
+for(const width of [375,1440])browserTest('zero-change review: stale start revalidates and starts without a schedule dialog at '+width+'px',()=>withApp(width,async page=>{
+ await page.evaluate(()=>{fixture.collision=false;fixture.stale=true;});
+ await page.locator('.topbar-actions button').first().click();await page.getByRole('button',{name:'카메라 켜고 시작',exact:true}).click();
+ await page.getByRole('dialog',{name:'이번 세션에서 할 일 선택'}).getByRole('button',{name:'선택한 할 일로 시작'}).click();
+ await page.locator('.actual-current').getByRole('heading',{name:'집중 독서',exact:true}).waitFor({timeout:2500});
+ assert.equal(await page.getByRole('dialog',{name:'공부와 일정 변경 확인'}).count(),0);
+ const actions=await page.evaluate(()=>fixture.calls.filter(c=>c.name.includes('actual_study_action')));
+ assert.deepEqual(actions.map(c=>c.name),['preview_actual_study_action','confirm_actual_study_action','preview_actual_study_action','confirm_actual_study_action']);
+ assert.notEqual(actions[1].args.p_request_id,actions[3].args.p_request_id);
+ assert.equal(await page.evaluate(()=>fixture.sessions.length),1);
+},'start'));
+
+browserTest('zero-change review: switching focus without schedule changes does not open a confirmation',()=>withApp(390,async page=>{
+ await page.evaluate(()=>fixture.collision=false);
+ await page.getByText('다음 할 일 (1)',{exact:true}).click();await page.getByRole('button',{name:'다음 날 알고리즘로 전환'}).click();
+ await page.locator('.actual-current').getByRole('heading',{name:'다음 날 알고리즘',exact:true}).waitFor({timeout:2500});
+ assert.equal(await page.getByRole('dialog',{name:'공부와 일정 변경 확인'}).count(),0);
+}));
+
+browserTest('zero-change review: stale resume revalidates without a schedule dialog or another session',()=>withApp(390,async page=>{
+ await page.getByRole('button',{name:'잠시 쉬기',exact:true}).click();
+ await page.getByRole('button',{name:'공부 계속하기',exact:true}).waitFor();
+ await page.evaluate(()=>{fixture.collision=false;fixture.stale=true;});
+ await page.getByRole('button',{name:'공부 계속하기',exact:true}).click();
+ await page.getByRole('button',{name:'카메라 켜고 공부 계속하기',exact:true}).click();
+ await page.getByRole('button',{name:'잠시 쉬기',exact:true}).waitFor({timeout:2500});
+ assert.equal(await page.getByRole('dialog',{name:'공부와 일정 변경 확인'}).count(),0);
+ const actions=await page.evaluate(()=>fixture.calls.filter(c=>c.name.includes('actual_study_action')));
+ assert.deepEqual(actions.map(c=>c.name),['preview_actual_study_action','confirm_actual_study_action','preview_actual_study_action','confirm_actual_study_action']);
+ assert.ok(actions.every(c=>(c.args.p_action??c.args.p_preview.action)==='resume'));
+ assert.equal(await page.evaluate(()=>fixture.sessions.length),1);
+ assert.equal(await page.evaluate(()=>fixture.sessions[0].paused_at),null);
+}));
+
+browserTest('zero-change review: a changed current schedule requires confirmation even without a second todo change',()=>withApp(390,async page=>{
+ await page.evaluate(()=>fixture.onlyCurrentChange=true);
+ await page.locator('.topbar-actions button').first().click();await page.getByRole('button',{name:'카메라 켜고 시작',exact:true}).click();
+ await page.getByRole('dialog',{name:'이번 세션에서 할 일 선택'}).getByRole('button',{name:'선택한 할 일로 시작'}).click();
+ const confirmation=page.getByRole('dialog',{name:'공부와 일정 변경 확인'});await confirmation.waitFor({timeout:2500});
+ assert.equal(await confirmation.locator('.actual-changes > li').count(),1);
+ assert.equal(await page.evaluate(()=>fixture.calls.filter(c=>c.name==='confirm_actual_study_action').length),0);
+ await confirmation.getByRole('button',{name:'취소 · 그대로 두기'}).click();
+ assert.equal(await page.evaluate(()=>fixture.sessions.length),0);
+},'start'));
+
+browserTest('zero-change review: new real changes found during revalidation wait for explicit consent',()=>withApp(1440,async page=>{
+ await page.evaluate(()=>{fixture.collision=false;fixture.stale=true;fixture.collideOnStale=true;});
+ await page.locator('.topbar-actions button').first().click();await page.getByRole('button',{name:'카메라 켜고 시작',exact:true}).click();
+ await page.getByRole('dialog',{name:'이번 세션에서 할 일 선택'}).getByRole('button',{name:'선택한 할 일로 시작'}).click();
+ const confirmation=page.getByRole('dialog',{name:'공부와 일정 변경 확인'});await confirmation.waitFor();
+ assert.equal(await confirmation.locator('.actual-changes > li').count(),2);
+ assert.equal(await page.evaluate(()=>fixture.sessions.length),0);
+ await confirmation.getByRole('button',{name:'변경 확인 후 시작'}).click();
+ await page.locator('.actual-current').getByRole('heading',{name:'집중 독서',exact:true}).waitFor();
+},'start'));
+
+browserTest('zero-change review: uncertain result uses a result-recovery dialog and the same request',()=>withApp(390,async page=>{
+ await page.evaluate(()=>{fixture.collision=false;fixture.failConfirm=true;});
+ await page.locator('.topbar-actions button').first().click();await page.getByRole('button',{name:'카메라 켜고 시작',exact:true}).click();
+ await page.getByRole('dialog',{name:'이번 세션에서 할 일 선택'}).getByRole('button',{name:'선택한 할 일로 시작'}).click();
+ const recovery=page.getByRole('dialog',{name:'공부 처리 결과 확인'});await recovery.waitFor({timeout:2500});
+ assert.equal(await page.getByRole('dialog',{name:'공부와 일정 변경 확인'}).count(),0);
+ assert.doesNotMatch(await recovery.textContent(),/0개 일정/);
+ await recovery.getByRole('button',{name:'같은 요청 다시 확인'}).click();
+ await page.locator('.actual-current').getByRole('heading',{name:'집중 독서',exact:true}).waitFor();
+ const confirmations=await page.evaluate(()=>fixture.calls.filter(c=>c.name==='confirm_actual_study_action'));
+ assert.deepEqual(confirmations[0].args,confirmations[1].args);
 },'start'));
 
 browserTest('mounted main: legacy unknown resume asks focus without inventing first start',()=>withApp(390,async page=>{

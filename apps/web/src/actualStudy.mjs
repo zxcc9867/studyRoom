@@ -44,7 +44,7 @@ export function actualStudyErrorMessage(error) {
 }
 
 // The intent owns its UUID and immutable preview through uncertain transport retries.
-// A refreshed proposal always returns to the UI for an explicit new confirmation.
+// A refreshed proposal needs consent only when it contains actual schedule changes.
 export function createActualStudyFlow({ rpc, now = Date.now, uuid = () => crypto.randomUUID() }) {
   async function prepare(input) {
     const preview = await rpc('preview_actual_study_action', {
@@ -55,16 +55,33 @@ export function createActualStudyFlow({ rpc, now = Date.now, uuid = () => crypto
     return { input: { ...input }, preview, requestId: uuid(), uncertain: false };
   }
   async function confirm(intent, cameraTotal) {
-    const refresh = async () => ({ kind: 'review', intent: await prepare({ ...intent.input, excludedSeconds: cameraTotal }) });
-    if (!intent.uncertain && (now() >= Date.parse(intent.preview.expires_at) || seconds(cameraTotal) !== intent.preview.excluded_seconds)) return refresh();
-    try {
-      const result = await rpc('confirm_actual_study_action', { p_preview: intent.preview, p_request_id: intent.requestId });
-      return { kind: 'committed', result };
-    } catch (error) {
-      if (String(error?.message).includes('ACTUAL_STUDY_STALE_PREVIEW')) { intent.uncertain = false; return refresh(); }
-      // PostgREST SQL errors are definitive; network failures and bounded timeouts are not.
-      intent.uncertain = !error?.code;
-      throw error;
+    const refresh = async () => {
+      const next = await prepare({ ...intent.input, excludedSeconds: cameraTotal });
+      if (next.preview.changes.length > 0) return { kind: 'review', intent: next };
+      // The caller must retain the newest request if its transport result is uncertain.
+      Object.assign(intent, next);
+      return null;
+    };
+    for (let attempt = 0; attempt < 3; attempt++) {
+      if (!intent.uncertain && (now() >= Date.parse(intent.preview.expires_at) || seconds(cameraTotal) !== intent.preview.excluded_seconds)) {
+        const review = await refresh();
+        if (review) return review;
+      }
+      try {
+        const result = await rpc('confirm_actual_study_action', { p_preview: intent.preview, p_request_id: intent.requestId });
+        return { kind: 'committed', result };
+      } catch (error) {
+        if (String(error?.message).includes('ACTUAL_STUDY_STALE_PREVIEW')) {
+          intent.uncertain = false;
+          if (attempt === 2) throw Object.assign(new Error('공부 상태가 계속 바뀌고 있어요. 잠시 후 다시 확인해 주세요.'), { code: 'ACTUAL_STUDY_REVALIDATION_LIMIT' });
+          const review = await refresh();
+          if (review) return review;
+          continue;
+        }
+        // PostgREST SQL errors are definitive; network failures and bounded timeouts are not.
+        intent.uncertain = !error?.code;
+        throw error;
+      }
     }
   }
   return { prepare, confirm };

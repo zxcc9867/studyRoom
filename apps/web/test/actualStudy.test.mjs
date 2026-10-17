@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import { formatActualDuration, formatActualInterval, resolveCurrentTodo, getActualProgress, reconcileCameraCounter, createActualStudyFlow, actualStudyErrorMessage, loadPlanningAdherence, firstStartDelayMinutes } from '../src/actualStudy.mjs';
 
 const preview = (overrides = {}) => ({ version:1, action:'start', session_id:null, todo_ids:['a'], current_todo_id:'a', excluded_seconds:0, proposed_at:'2026-09-21T09:00:00Z', expires_at:'2026-09-21T09:01:00Z', time_zone:'Asia/Tokyo', remaining_seconds:7200, revision:'one', changes:[], cascade_complete:true, blocking_error:null, ...overrides });
+const scheduleChange = {todo_id:'a',title:'Focus',before:{start_at:'2026-09-21T08:00:00Z',end_at:'2026-09-21T09:00:00Z',local_date:'2026-09-21',end_date:'2026-09-21',start_time:'17:00',end_time:'18:00'},after:{start_at:'2026-09-21T09:00:00Z',end_at:'2026-09-21T10:00:00Z',local_date:'2026-09-21',end_date:'2026-09-21',start_time:'18:00',end_time:'19:00'}};
 
 test('first-start delay never uses resume or unknown forward-tracking timestamps', () => {
   const todo={original_start_at:'2026-09-21T07:00:00Z',first_started_at:'2026-09-21T09:00:00Z',open_started_at:'2026-09-21T11:00:00Z',evaluation_eligible:true,unknown_allocation:false};
@@ -63,13 +64,83 @@ test('confirmation transport retry reuses exact preview and request id even afte
 });
 test('stale preview and newly accrued camera exclusion return fresh intent for renewed review', async () => {
   let ids=0;const calls=[];
-  const flow=createActualStudyFlow({now:()=>Date.parse('2026-09-21T09:00:05Z'),uuid:()=>String(++ids),rpc:async(name,args)=>{calls.push([name,args]);if(name==='confirm_actual_study_action')throw {message:'ACTUAL_STUDY_STALE_PREVIEW',code:'P0001'};return preview({excluded_seconds:args.p_excluded_seconds});}});
+  const flow=createActualStudyFlow({now:()=>Date.parse('2026-09-21T09:00:05Z'),uuid:()=>String(++ids),rpc:async(name,args)=>{calls.push([name,args]);if(name==='confirm_actual_study_action')throw {message:'ACTUAL_STUDY_STALE_PREVIEW',code:'P0001'};return preview({excluded_seconds:args.p_excluded_seconds,changes:[scheduleChange]});}});
   const original=await flow.prepare({action:'switch',sessionId:'s',todoIds:['a'],currentTodoId:'a',excludedSeconds:10});
   const refreshed=await flow.confirm(original,20);
   assert.equal(refreshed.kind,'review');assert.equal(calls.length,2);assert.equal(refreshed.intent.preview.excluded_seconds,20);
   assert.notEqual(refreshed.intent.requestId,original.requestId);
   const stale=await flow.confirm(refreshed.intent,20);
   assert.equal(stale.kind,'review');assert.equal(calls.length,4);
+});
+
+test('expired zero-change preview is refreshed and committed without a review result', async () => {
+  const calls=[];let prepared=0,ids=0;
+  const flow=createActualStudyFlow({now:()=>Date.parse('2026-09-21T09:01:05Z'),uuid:()=>String(++ids),rpc:async(name,args)=>{
+    calls.push([name,args]);
+    if(name==='preview_actual_study_action')return ++prepared===1?preview():preview({revision:'fresh',proposed_at:'2026-09-21T09:01:00Z',expires_at:'2026-09-21T09:02:00Z'});
+    return {session:{id:'started'},tracking:{todos:[]}};
+  }});
+  const intent=await flow.prepare({action:'start',todoIds:['a'],currentTodoId:'a',excludedSeconds:0});
+  assert.equal((await flow.confirm(intent,0)).kind,'committed');
+  assert.deepEqual(calls.map(([name])=>name),['preview_actual_study_action','preview_actual_study_action','confirm_actual_study_action']);
+  assert.equal(calls[2][1].p_preview.revision,'fresh');
+  assert.equal(calls[2][1].p_request_id,'2');
+});
+
+test('server stale zero-change preview is revalidated and committed with the fresh request', async () => {
+  const calls=[];let prepared=0,confirmed=0,ids=0;
+  const flow=createActualStudyFlow({now:()=>Date.parse('2026-09-21T09:00:05Z'),uuid:()=>String(++ids),rpc:async(name,args)=>{
+    calls.push([name,args]);
+    if(name==='preview_actual_study_action')return preview({revision:String(++prepared)});
+    if(++confirmed===1)throw {message:'ACTUAL_STUDY_STALE_PREVIEW',code:'P0001'};
+    return {session:{id:'started'},tracking:{todos:[]}};
+  }});
+  const intent=await flow.prepare({action:'start',todoIds:['a'],currentTodoId:'a',excludedSeconds:0});
+  assert.equal((await flow.confirm(intent,0)).kind,'committed');
+  assert.equal(confirmed,2);
+  assert.equal(calls.at(-1)[1].p_preview.revision,'2');
+  assert.equal(calls.at(-1)[1].p_request_id,'2');
+});
+
+test('refresh that introduces a real schedule change stops before committing the new proposal', async () => {
+  let prepared=0,confirmed=0;
+  const flow=createActualStudyFlow({now:()=>Date.parse('2026-09-21T09:00:05Z'),rpc:async name=>{
+    if(name==='preview_actual_study_action')return preview({changes:++prepared===1?[]:[scheduleChange]});
+    confirmed++;throw {message:'ACTUAL_STUDY_STALE_PREVIEW',code:'P0001'};
+  }});
+  const intent=await flow.prepare({action:'start',todoIds:['a'],currentTodoId:'a',excludedSeconds:0});
+  const result=await flow.confirm(intent,0);
+  assert.equal(result.kind,'review');
+  assert.equal(result.intent.preview.changes.length,1);
+  assert.equal(confirmed,1);
+});
+
+test('repeated stale zero-change confirmations stop instead of retrying without a bound', async () => {
+  let confirmed=0,prepared=0;
+  const flow=createActualStudyFlow({now:()=>Date.parse('2026-09-21T09:00:05Z'),rpc:async name=>{
+    if(name==='preview_actual_study_action'){prepared++;return preview();}
+    confirmed++;throw {message:'ACTUAL_STUDY_STALE_PREVIEW',code:'P0001'};
+  }});
+  const intent=await flow.prepare({action:'start',todoIds:['a'],currentTodoId:'a',excludedSeconds:0});
+  await assert.rejects(flow.confirm(intent,0),error=>error.code==='ACTUAL_STUDY_REVALIDATION_LIMIT');
+  assert.equal(confirmed,3);assert.equal(prepared,3);assert.equal(intent.uncertain,false);
+});
+
+test('transport failure after zero-change refresh retains the exact latest request for retry', async () => {
+  const calls=[];let prepared=0,confirmed=0,ids=0,now=Date.parse('2026-09-21T09:00:05Z');
+  const flow=createActualStudyFlow({now:()=>now,uuid:()=>String(++ids),rpc:async(name,args)=>{
+    calls.push([name,args]);
+    if(name==='preview_actual_study_action')return preview({revision:String(++prepared)});
+    if(++confirmed===1)throw {message:'ACTUAL_STUDY_STALE_PREVIEW',code:'P0001'};
+    if(confirmed===2)throw new TypeError('network lost');
+    return {session:{id:'started'},tracking:{todos:[]}};
+  }});
+  const intent=await flow.prepare({action:'start',todoIds:['a'],currentTodoId:'a',excludedSeconds:0});
+  await assert.rejects(flow.confirm(intent,0),/network lost/);
+  assert.equal(intent.uncertain,true);assert.equal(intent.requestId,'2');
+  const failed=calls.at(-1);now+=120000;
+  assert.equal((await flow.confirm(intent,20)).kind,'committed');
+  assert.deepEqual(calls.at(-1),failed);assert.equal(prepared,2);
 });
 test('definitive permission errors remain cancellable rather than an uncertain transport retry', async () => {
  const flow=createActualStudyFlow({now:()=>Date.parse('2026-09-21T09:00:05Z'),uuid:()=> 'permission',rpc:async name=>{if(name==='preview_actual_study_action')return preview();throw {code:'PGRST301',message:'permission denied'};}});
