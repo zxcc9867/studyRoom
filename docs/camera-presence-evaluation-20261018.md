@@ -24,10 +24,13 @@
 - 집중: `node --test apps/web/test/upperBodyPresence.test.mjs apps/web/test/cameraPresence.test.mjs apps/web/test/cameraVideoHealth.test.mjs` 24/24. 선행 RED는 새 양성 사례2개 실패를 확인했다.
 - `ai.ps1 verify --project C:/jini-dev/worktrees/study-room-team`: Dune0위반, npm test/test:edge/mobile:check/build/docs:check 모두exit0.
 - 독립 shared-reviewer: 변경/PRD 범위 차단 결함없음, 기존 판정 기준 유지 확인. 검토자는 운영/UI를 재조회한 것이 아니다.
-- 실제 Chrome 전체 회귀:1329/1329, 실패0·생략0·262000.9033ms. npm test와 같은 파일 목록을 실제 Chrome/Playwright 런타임으로 concurrency2에서 실행했다. 실제 앱/PC 수용은 새 배포 적용 후 별도 확인한다.
+- 실제 Chrome 전체 회귀:1329/1329, 실패0·생략0·262000.9033ms. npm test와 같은 파일 목록을 실제 Chrome/Playwright 런타임으로 concurrency2에서 실행했다.
+- 운영 PC/실제 Android16 에뮬레이터(설치0.2.4/code7): 공부 종료·카메라 꺼짐·미입력 상태를 먼저 확인한 뒤 기존 화면을 새로 불러왔다. 양쪽 새 `/assets/index-DS1TTXcK.js` 적용, 기존 로그인·오늘 공부3시간15분·현재 할 일 유지, 공부 준비 버튼 활성화를 확인했다. 앱13:47:27UTC 추가 대화창0·카메라꺼짐, 기존 AppOps 카메라 사용 duration1분18.729초는 변하지 않았다.
+- 평소 자세에서 새 판정으로6분 이상 공부하는 실제 수용은 사용자 PC 공부 시작 대기다. 검증자가 카메라를 켜거나 새 공부를 시작하지 않았다. 초기 학습 로딩 화면은 정상 완료됐으며 로딩 중 빈 목록을 기록 손실로 해석하지 않았다.
 
 ## 기록 보존·출시
 
-- 서버13:08:37UTC baseline→13:36:01UTC 재조회에서 기존 완료149건 content MD5 `a06e8b4c86055a8a87de321b0b27a7ad`, 회복76건 MD5 `68025a9dcbbbb2539a8c6337e0a0798f` 동일. 비교 중 정상 종료된 새 세션은 기존 완료149건 비교에서 제외했다.
+- 서버13:08:37UTC baseline→13:36:01UTC 및 배포 후13:47:41UTC 재조회에서 기존 완료149건 content MD5 `a06e8b4c86055a8a87de321b0b27a7ad`, 회복76건 MD5 `68025a9dcbbbb2539a8c6337e0a0798f` 동일. 비교 중 정상 종료된 새 세션은 기존 완료149건 비교에서 제외했다. 배포 후 활성 세션0.
 - 검증자는 DB DML·사용자 공부 시작/휴식/종료·카메라 재시작을 수행하지 않았다.
-- 출시 대기: 검증 완료 후 feature 브랜치의 제품/PRD/이 문서만 커밋·push하고 기존 GitHub Actions feature-ref production 경로를 사용한다. 선행 운영 변경과 혼합 memory-bank diff는 보존하며 포함하지 않는다.
+- 출시 완료: 제품 `9bd42c5a58389e76d297e205e76375851d9b0ed1`을 `feat/team-study-room`에 커밋·push했다. [Actions39132491464](https://github.com/zxcc9867/studyRoom/actions/runs/39132491464) success, Vercel `dpl_DJvEVgirhW7kLDhaGUJB79cToR6n` production READY·정확한 project/ref/SHA 확인. [운영 주소](https://study-room-attendance.vercel.app) HTTP200, 새 entry JavaScript HTTP200·JavaScript content-type·281355bytes 확인.
+- native/APK는0.2.4/code7 그대로다. 이번 수정은 hosted 공통 웹 새로 불러오기로 적용되며 APK 재설치가 필요하지 않다. 선행 운영 변경과 혼합 memory-bank diff는 제품 커밋에 포함하지 않았다.
