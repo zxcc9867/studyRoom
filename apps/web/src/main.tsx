@@ -1385,8 +1385,8 @@ function DashboardApp() {
         setSharedStudySnapshot(snapshot);
         setSharedStudyError("");
         if (actualIntentRef.current || sessionStartRequestRef.current) return;
-        if (snapshot.tracking && snapshot.active_session) {
-          hydrateActualTracking(snapshot.tracking as ActualTracking);
+        if (snapshot.tracking) {
+          if (snapshot.active_session) hydrateActualTracking(snapshot.tracking as ActualTracking);
           setStudyTodos(current => sortTodos([...snapshot.tracking!.todos, ...current.filter(todo => !snapshot.tracking!.todos.some((linked: ActualTracking['todos'][number]) => linked.id === todo.id))]));
         }
         setStudySessions(current => [

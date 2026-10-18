@@ -540,7 +540,7 @@ function result(name,args){state.calls.push({name,args});
    if(accepted){state.camera.last_seen_at=stamp;state.camera.expires_at=new Date(Date.now()+45000).toISOString();}
   }
   const camera=active&&state.camera?{...state.camera,is_owner:state.camera.owner_client_id===args.p_client_id,status:active.paused_at?'paused':state.camera.status}:null;
-  return {data:{accepted,server_now:stamp,active_session:active,session:active??state.sessions[0]??null,tracking:active?{...track(),server_now:stamp}:null,camera},error:null};
+  return {data:{accepted,server_now:stamp,active_session:active,session:active??state.sessions[0]??null,tracking:state.sessions[0]?{...track(),server_now:stamp}:null,camera},error:null};
  }
  if(name==='get_study_focus_snapshot'&&state.holdFocus)return new Promise(resolve=>{state.releaseFocus=()=>resolve({data:null,error:{message:'test focus failure'}});});
  if(name==='get_study_focus_snapshot')return {data:state.focusError?{device_connected:true,opted_in:true,permission_granted:true,last_error:'휴대폰 연결 테스트 오류'}:null,error:null};
@@ -619,6 +619,16 @@ browserTest('device sync: remote pause, current task and end update without loca
  await page.getByRole('heading',{name:'다음 날 알고리즘',exact:true}).first().waitFor();
  await page.evaluate(()=>{fixture.sessions[0]={...fixture.sessions[0],status:'completed',ended_at:new Date().toISOString(),duration_seconds:1800};window.dispatchEvent(new Event('focus'));});
  await page.getByText('어떤 공부를 시작할까요?',{exact:true}).waitFor();
+ assert.equal(await page.evaluate(()=>window.fixtureCameraRequests),0);
+},'remote'));
+
+browserTest('device sync: a remote completion updates the finished todo without reopening the session',()=>withApp(375,async page=>{
+ await page.evaluate(()=>{fixture.todos[0]={...fixture.todos[0],is_completed:true};fixture.sessions[0]={...fixture.sessions[0],status:'completed',ended_at:new Date().toISOString(),duration_seconds:1800};window.dispatchEvent(new Event('focus'));});
+ await page.getByText('어떤 공부를 시작할까요?',{exact:true}).waitFor();
+ await page.locator('.focus-plan-card').getByText('1/1 완료',{exact:true}).waitFor();
+ assert.equal(await page.locator('.focus-plan-card li.completed strong').textContent(),'집중 독서');
+ await page.clock.runFor(16000);
+ assert.equal(await page.getByRole('button',{name:'잠시 쉬기',exact:true}).count(),0);
  assert.equal(await page.evaluate(()=>window.fixtureCameraRequests),0);
 },'remote'));
 
