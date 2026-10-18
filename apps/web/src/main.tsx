@@ -1,6 +1,5 @@
 import {
   StrictMode,
-  Suspense,
   lazy,
   useEffect,
   useMemo,
@@ -15,6 +14,8 @@ import GoalAchievementBadges from "./GoalAchievementBadges";
 import { getStudyDateKey } from "../../../packages/core/src/index.mjs";
 import StudyRestartCoach from "./StudyRestartCoach";
 import AppNotice from "./AppNotice";
+import RecoverableSection from "./RecoverableSection";
+import SessionReflectionModal from "./SessionReflectionModal";
 import { createTechFeedClient, feedTodoDraft } from "./techFeed.mjs";
 import type { FeedArticle } from "./techFeedTypes";
 import TimeZonePicker from "./TimeZonePicker";
@@ -301,7 +302,6 @@ const emailOtpLength = EMAIL_OTP_LENGTH;
 const googleAuthEnabled = import.meta.env.VITE_GOOGLE_AUTH_ENABLED === "true";
 const cameraRequiredWarningCooldownMs = 10 * 60 * 1000;
 const StudyForestSection = lazy(() => import("./StudyForestSection"));
-const SessionReflectionModal = lazy(() => import("./SessionReflectionModal"));
 const StudyReportSection = lazy(() => import("./StudyReportSection"));
 const TechFeed = lazy(() => import("./TechFeedSection"));
 const TeamStudy = lazy(() => import("./TeamStudySection"));
@@ -5144,6 +5144,14 @@ function DashboardApp() {
     );
   }
 
+  const sectionRecovery = {
+    reloadBlocked: !dashboardReady || dashboardLoading || Boolean(activeSession) || busy || todoBusy || goalBusy || recoverySubmitBusy || planCopyBusy || sessionTodoAddBusy || reflectionInboxBusy || Boolean(actualIntent),
+    onReturn: () => {
+      setTodayDomain("focus");
+      window.location.hash = "today";
+    },
+  };
+
   return (
     <main className="dashboard-shell dashboard-redesign">
       <DashboardNavigation activeSection={activeSection} />
@@ -5162,9 +5170,9 @@ function DashboardApp() {
           </section>
         )}
         {activeSection === "feed" && (
-          <Suspense fallback={<p role="status">기술 피드를 불러오고 있어요…</p>}>
+          <RecoverableSection {...sectionRecovery} title="기술 피드" fallback={<p role="status">기술 피드를 불러오고 있어요…</p>}>
             <TechFeed key={session.user.id} supabase={supabase} userId={session.user.id} timeZone={timeZone} onPlan={openFeedPlan} linkedTodo={feedLinkedTodo} />
-          </Suspense>
+          </RecoverableSection>
         )}
         {(activeSection === "today" || activeSection === "together") && <div className="study-navigation">
           {activeSection === "today" && <TodayDomainTabs activeDomain={todayDomain} onChange={setTodayDomain} />}
@@ -5174,11 +5182,11 @@ function DashboardApp() {
           </nav>
         </div>}
         {activeSection === "together" && (
-          <Suspense fallback={<p role="status">함께 공부방을 불러오고 있어요…</p>}>
+          <RecoverableSection {...sectionRecovery} title="팀 공부" fallback={<p role="status">함께 공부방을 불러오고 있어요…</p>}>
             <TeamStudy key={session.user.id} supabase={supabase} userId={session.user.id} registered={!session.user.is_anonymous} inviteToken={teamInviteToken} onClearInvite={() => setTeamInviteToken(null)}
               personal={{ ready: dashboardReady, busy: busy || Boolean(actualIntent) || Boolean(activeSession && actualTracking?.session_id !== activeSession.id), sessionId: activeSession?.id ?? null, paused: activeSessionPaused, canConnect: canConnectPersonalSession(activeSession, actualTracking, nowMs), seconds: currentSessionSeconds, startLabel: studyStartAction.label }}
               onStart={requestAdaptiveStudyStart} onResume={requestResumeTimer} onPause={() => void pauseTimer()} onEnd={() => void openEndSessionCompletionModal()} />
-          </Suspense>
+          </RecoverableSection>
         )}
         {activeSection === "today" && (
           <>
@@ -5810,7 +5818,7 @@ function DashboardApp() {
         )}
 
         {endSessionCompletionModalOpen && (
-          <Suspense fallback={<div className="modal-backdrop"><div className="todo-modal" role="status">회고 화면을 불러오는 중...</div></div>}>
+          <RecoverableSection {...sectionRecovery} title="공부 회고" modal onReturn={closeEndSessionCompletionModal} fallback={<div className="modal-backdrop"><div className="todo-modal" role="status">회고 화면을 불러오는 중...</div></div>}>
             <SessionReflectionModal
               candidates={endSessionCompletionCandidates}
               selectedTodoIds={selectedEndSessionCompletionTodoIds}
@@ -5821,11 +5829,11 @@ function DashboardApp() {
               onClose={closeEndSessionCompletionModal}
               onSubmit={() => void confirmEndSessionWithCompletions()}
             />
-          </Suspense>
+          </RecoverableSection>
         )}
 
         {reflectionInboxSession && (
-          <Suspense fallback={<div className="modal-backdrop"><div className="todo-modal" role="status">회고 화면을 불러오는 중...</div></div>}>
+          <RecoverableSection {...sectionRecovery} title="공부 회고" modal onReturn={closeReflectionInbox} fallback={<div className="modal-backdrop"><div className="todo-modal" role="status">회고 화면을 불러오는 중...</div></div>}>
             <SessionReflectionModal
               mode="follow-up"
               sessionLabel={formatTodoDate(reflectionInboxSession.local_date)}
@@ -5838,7 +5846,7 @@ function DashboardApp() {
               onClose={closeReflectionInbox}
               onSubmit={() => void saveReflectionInboxEntry()}
             />
-          </Suspense>
+          </RecoverableSection>
         )}
 
 
@@ -6595,7 +6603,7 @@ function DashboardApp() {
 
 
         {activeSection === "forest" && (
-          <Suspense fallback={<div className="study-forest-3d-shell" role="status">3D 공부의 숲을 불러오는 중...</div>}>
+          <RecoverableSection {...sectionRecovery} title="공부 숲" fallback={<div className="study-forest-3d-shell" role="status">3D 공부의 숲을 불러오는 중...</div>}>
             <StudyForestSection
               userId={session.user.id}
               todayDateKey={todayDateKey}
@@ -6604,7 +6612,7 @@ function DashboardApp() {
               timeZone={timeZone}
               weeklyHabitTarget={weeklyHabitRhythm.target}
             />
-          </Suspense>
+          </RecoverableSection>
         )}
 
 
@@ -6654,7 +6662,7 @@ function DashboardApp() {
             />
           )}
 
-          <Suspense fallback={<div className="weekly-review-card" role="status">학습 리포트를 불러오는 중...</div>}>
+          <RecoverableSection {...sectionRecovery} title="학습 리포트" fallback={<div className="weekly-review-card" role="status">학습 리포트를 불러오는 중...</div>}>
             <StudyReportSection
               key={session.user.id}
               client={supabase}
@@ -6668,7 +6676,7 @@ function DashboardApp() {
               onPlanAction={openWeeklyReviewActionPlan}
               onOpenPlannedTodo={openWeeklyReviewPlannedTodo}
             />
-          </Suspense>
+          </RecoverableSection>
 
           {renderRecoverySummaryPanel()}
 
@@ -6702,9 +6710,9 @@ function DashboardApp() {
               clearTeamInvite(getTeamInviteStorage()); setTeamInviteToken(null);
               if (!postEmbeddedMessage(window, { type: "STUDY_WEB_SIGN_OUT" })) void supabase.auth.signOut();
             }}><LogOut size={18} aria-hidden="true" />로그아웃</button></div>
-            <Suspense fallback={<p role="status">공개 태그 설정을 불러오고 있어요…</p>}>
+            <RecoverableSection {...sectionRecovery} title="공개 태그 설정" fallback={<p role="status">공개 태그 설정을 불러오고 있어요…</p>}>
               <PublicTagSettings key={session.user.id} supabase={supabase} userId={session.user.id} registered={!session.user.is_anonymous} />
-            </Suspense>
+            </RecoverableSection>
           </section>
           <section className="settings-group" aria-labelledby="settings-study-title">
             <h2 id="settings-study-title">공부·화면</h2>
@@ -6824,7 +6832,7 @@ function DashboardApp() {
             )}
           </div>
 
-          <Suspense fallback={<div className="adaptive-reminder-card" role="status">적응형 알림을 계산하는 중...</div>}>
+          <RecoverableSection {...sectionRecovery} title="적응형 알림" fallback={<div className="adaptive-reminder-card" role="status">적응형 알림을 계산하는 중...</div>}>
             <AdaptiveReminderCard
               sessions={studySessions}
               todayDateKey={todayDateKey}
@@ -6834,7 +6842,7 @@ function DashboardApp() {
               busy={busy}
               onApply={(enabled, recommendedTime) => void saveAdaptiveReminderSettings(enabled, recommendedTime)}
             />
-          </Suspense>
+          </RecoverableSection>
 
           <div className="notification-channel-card">
             <div className="channel-card-header">

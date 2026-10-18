@@ -122,7 +122,7 @@ test("web and mobile source wire the sustainable session policy and lazy feature
   const vite = readFileSync(new URL("../vite.config.ts", import.meta.url), "utf8");
 
   assert.match(main, /lazy\(\(\) => import\("\.\/StudyForestSection"\)\)/);
-  assert.match(main, /lazy\(\(\) => import\("\.\/SessionReflectionModal"\)\)/);
+  // Mandatory reflection/end availability is exercised by the mounted section recovery test.
   assert.match(main, /lazy\(\(\) => import\("\.\/StudyReportSection"\)\)/);
   assert.match(main, /lazy\(\(\) => import\("\.\/AdaptiveReminderCard"\)\)/);
   // New start payload/atomic confirmation are executed in actualStudy and mounted main tests.

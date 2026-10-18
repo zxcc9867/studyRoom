@@ -559,7 +559,7 @@ function result(name,args){state.calls.push({name,args});
  if(name==='get_study_period_summary')return {data:{completed_seconds:3600,completed_session_count:1,anomaly_session_count:0,cross_date_session_count:0},error:null};
  return {data:[],error:null};
 }
-function query(table){let single=false,insert=null;const q=new Proxy({}, {get(_,key){if(key==='then')return (resolve,reject)=>Promise.resolve().then(()=>{if(insert && table==='study_todos'){const added={...todo('new',''),...insert[0],id:'new'};state.todos.push(added);return {data:added,error:null};}let data=table==='profiles'?state.profile:table==='study_goals'?[{id:'goal',title:'자격증 목표',target_date:'2026-12-31',target_study_seconds:0,status:'active',created_at:now,updated_at:now}]:table==='study_sessions'?state.sessions:table==='study_todos'?state.todos:table==='study_session_reflections'?state.reflections:table==='study_recovery_requests'?state.recoveries:table==='study_session_todos'?state.todos.filter(t=>state.links.includes(t.id)).map(t=>({id:t.id,session_id:'session',todo_id:t.id,user_id:'owner',linked_at:now,completed_during_session:false})):[];return {data:single?(Array.isArray(data)?data[0]??null:data):data,error:null};}).then(resolve,reject);return (...args)=>{if(key==='maybeSingle'||key==='single')single=true;if(key==='insert')insert=args[0];if(key==='upsert'){state.calls.push({name:table+'.upsert',args:args[0]});if(table==='profiles')state.profile={...state.profile,...args[0]};}return q;};}});return q;}
+function query(table){let single=false,insert=null,update=null;const q=new Proxy({}, {get(_,key){if(key==='then')return (resolve,reject)=>Promise.resolve().then(()=>{if(update&&table==='study_goals'&&state.holdGoalWrite)return new Promise(resolve=>{state.releaseGoalWrite=()=>resolve({data:{id:'goal',user_id:'owner',title:'자격증 목표',target_date:'2026-12-31',target_study_seconds:0,status:'active',created_at:now,updated_at:now,...update},error:null});});if(insert && table==='study_todos'){const added={...todo('new',''),...insert[0],id:'new'};state.todos.push(added);return {data:added,error:null};}let data=table==='profiles'?state.profile:table==='study_goals'?[{id:'goal',title:'자격증 목표',target_date:'2026-12-31',target_study_seconds:0,status:'active',created_at:now,updated_at:now}]:table==='study_sessions'?state.sessions:table==='study_todos'?state.todos:table==='study_session_reflections'?state.reflections:table==='study_recovery_requests'?state.recoveries:table==='study_session_todos'?state.todos.filter(t=>state.links.includes(t.id)).map(t=>({id:t.id,session_id:'session',todo_id:t.id,user_id:'owner',linked_at:now,completed_during_session:false})):[];return {data:single?(Array.isArray(data)?data[0]??null:data):data,error:null};}).then(resolve,reject);return (...args)=>{if(key==='maybeSingle'||key==='single')single=true;if(key==='insert')insert=args[0];if(key==='update')update=args[0];if(key==='upsert'){state.calls.push({name:table+'.upsert',args:args[0]});if(table==='profiles')state.profile={...state.profile,...args[0]};}return q;};}});return q;}
 export const isSupabaseConfigured=true,supabaseUrl='https://fixture.invalid',supabaseAnonKey='test';
 const feedArticles=Array.from({length:4},(_,index)=>({id:'article-'+index,title:['실무에서 살펴보는 백엔드 아키텍처','클라우드 운영과 관측 가능성','AI 개발 도구를 안전하게 활용하는 방법','새로운 웹 기술을 작은 프로젝트로 익히기'][index],excerpt:'공개 기술 블로그의 소개를 바탕으로 구현 과정과 실제 적용 시 고려할 점을 살펴봅니다. 원문에서 구체적인 예제와 설계의 근거를 확인할 수 있어요.',url:'https://example.test/article/'+index,published_at:now,discovered_at:now,summary:null,summary_status:'pending',category:'practice',interests:['backend'],topics:['백엔드'],sources:[{id:'source',name:'기술 블로그'}],saved:false,todo_id:null,origin:'rss',matched_topics:[],excerpt_provenance:'source_excerpt'}));
 const feedResponse=action=>action==='state'?{enabled:true,service_available:true,sources:[],interests:[],last_success_at:now,preferences:{prompt:'AI와 백엔드 기술',receiving:true,revision:1},search_status:{state:'ready',last_success_at:now}}:action==='list'?{items:feedArticles,next_cursor:null,total:4}:action==='facets'?{total:4,topics:[],sources:[],languages:[{value:'ko',label:'한국어 원문',count:4}]}:action==='briefing'?{local_date:'2026-09-21',time_zone:'Asia/Tokyo',total:4,source_count:1,categories:[],topics:[{value:'backend',label:'백엔드',count:4}],eligible_count:4,analyzed_count:0,generated_at:null,status:'idle',stale:false,insights:[],highlights:[]}:{};
@@ -577,8 +577,8 @@ export const supabase={
 };
 `;
 
-async function withApp(width, run, mode='active', nativeOrigin=false) {
-  const built=await build({entryPoints:[fileURLToPath(new URL('../src/main.tsx',import.meta.url))],bundle:true,write:false,outdir:'fixture',platform:'browser',format:'iife',jsx:'automatic',logLevel:'silent',define:{'import.meta.env':'{}'},plugins:[{name:'local-boundaries',setup(b){b.onResolve({filter:/^\.\/supabase$/},()=>({path:'backend',namespace:'fixture'}));b.onLoad({filter:/.*/,namespace:'fixture'},()=>({contents:backend,loader:'js'}));b.onLoad({filter:/bodyPresenceDetection\.mjs$/},()=>({contents:'export async function createUpperBodyPresenceDetector(){return {detect:()=>true,close(){}}}',loader:'js'}));b.onLoad({filter:/[\\/]src[\\/]main\.tsx$/},async({path})=>({contents:(await readFile(path,'utf8')).replace('createRoot(document.getElementById("root")!).render','(window.fixtureRoot = createRoot(document.getElementById("root")!)).render'),loader:'tsx'}));}}]});
+async function withApp(width, run, mode='active', nativeOrigin=false, failedChunk=null) {
+  const built=await build({entryPoints:[fileURLToPath(new URL('../src/main.tsx',import.meta.url))],bundle:true,write:false,outdir:'fixture',platform:'browser',format:'iife',jsx:'automatic',logLevel:'silent',define:{'import.meta.env':'{}'},plugins:[{name:'local-boundaries',setup(b){b.onResolve({filter:/^\.\/supabase$/},()=>({path:'backend',namespace:'fixture'}));b.onLoad({filter:/.*/,namespace:'fixture'},()=>({contents:backend,loader:'js'}));b.onLoad({filter:/bodyPresenceDetection\.mjs$/},()=>({contents:'export async function createUpperBodyPresenceDetector(){return {detect:()=>true,close(){}}}',loader:'js'}));b.onResolve({filter:/^\.\//},args=>failedChunk&&args.kind==='dynamic-import'&&args.path==='./'+failedChunk?{path:failedChunk,namespace:'failed-chunk'}:undefined);b.onLoad({filter:/.*/,namespace:'failed-chunk'},()=>({contents:'throw new TypeError("Failed to fetch dynamically imported module: stale-test-chunk.js"); export default function FailedChunk(){return null;}',loader:'tsx'}));b.onLoad({filter:/[\\/]src[\\/]main\.tsx$/},async({path})=>({contents:(await readFile(path,'utf8')).replace('createRoot(document.getElementById("root")!).render','(window.fixtureRoot = createRoot(document.getElementById("root")!)).render'),loader:'tsx'}));}}]});
   const js=built.outputFiles.find(f=>f.path.endsWith('.js')).text, css=built.outputFiles.find(f=>f.path.endsWith('.css'))?.text||'';
   const server=createServer((req,res)=>{res.setHeader('Content-Type',req.url==='/app.js'?'text/javascript':req.url==='/app.css'?'text/css':'text/html');res.end(req.url==='/app.js'?js:req.url==='/app.css'?css:'<!doctype html><html lang="ko"><head><meta name="viewport" content="width=device-width,initial-scale=1"><link rel="stylesheet" href="/app.css"></head><body><div id="root"></div><script src="/app.js"></script></body></html>');});
   await new Promise(resolve=>server.listen(0,'127.0.0.1',resolve));let browser;
@@ -590,6 +590,87 @@ async function withApp(width, run, mode='active', nativeOrigin=false) {
   if(nativeOrigin)await page.route('https://study-room-attendance.vercel.app/**',async route=>{const url=new URL(route.request().url());await route.fulfill({response:await page.request.get(base+url.pathname+url.search)});});
   await page.goto((nativeOrigin?'https://study-room-attendance.vercel.app/':base)+'?mode='+mode,{timeout:15000,waitUntil:'domcontentloaded'});await page.locator(mode==='login'?'.login-panel':'.topbar-actions button:not([disabled])').first().waitFor();if(mode==='active'||mode==='active-empty'){await page.getByRole('dialog',{name:'카메라 인증 필요'}).waitFor();await page.keyboard.press('Escape');await page.getByRole('dialog').waitFor({state:'detached'});}await run(page);assert.deepEqual(errors,[]);}finally{await browser?.close();await new Promise(resolve=>server.close(resolve));}
 }
+
+for(const width of [375,1440]) browserTest(`section recovery: settings chunk failure preserves the live study and camera at ${width}px`,()=>withApp(width,async page=>{
+ const tools=page.locator('.focus-tools');await tools.locator('summary').first().click();
+ await tools.getByRole('button',{name:'카메라 감시 켜기',exact:true}).click();
+ await tools.getByRole('button',{name:'카메라 감시 끄기',exact:true}).waitFor();
+ await page.evaluate(()=>{window.savedTrack=document.querySelector('video').srcObject.getVideoTracks()[0];window.savedRequests=window.fixtureCameraRequests;fixture.calls=[];location.hash='settings';});
+ await page.locator('.settings-notifications > summary').click();
+ const recovery=page.locator('.section-load-recovery');await recovery.waitFor();
+ assert.equal(await recovery.getByRole('button',{name:'새 화면 불러오기',exact:true}).isDisabled(),true);
+ assert.equal(await page.getByRole('navigation',{name:'대시보드 섹션'}).first().count(),1);
+ assert.equal(await page.evaluate(()=>window.savedTrack.readyState),'live');
+ assert.equal(await page.evaluate(()=>fixture.sessions[0].status),'active');
+ assert.equal(await page.evaluate(()=>fixture.calls.some(c=>/^(pause|end|complete)_(actual_)?study_session$/.test(c.name))),false);
+ assert.equal(await page.getByText('stale-test-chunk.js',{exact:false}).count(),0);
+ assert.ok((await readableText(recovery.locator('h2'))).contrast>=4.5);
+ for(const button of await recovery.getByRole('button').all()){const box=await button.boundingBox();assert.ok(box.height>=44);}
+ await mkdir('output/playwright',{recursive:true});
+ await recovery.screenshot({path:`output/playwright/section-recovery-active-${width}.png`});
+ await recovery.evaluate(element=>{for(const node of element.querySelectorAll('h2,p,button'))node.style.fontSize=(parseFloat(getComputedStyle(node).fontSize)*1.75)+'px';});
+ assert.equal(await recovery.evaluate(element=>element.scrollWidth<=element.clientWidth+1),true);
+ await recovery.getByRole('button',{name:'오늘로 돌아가기',exact:true}).focus();
+ await page.keyboard.press('Enter');
+ await page.getByRole('button',{name:'잠시 쉬기',exact:true}).waitFor();
+ assert.equal(await page.evaluate(()=>document.querySelector('video').srcObject.getVideoTracks()[0]===window.savedTrack),true);
+ assert.equal(await page.evaluate(()=>window.fixtureCameraRequests),await page.evaluate(()=>window.savedRequests));
+},'active',false,'AdaptiveReminderCard'));
+
+browserTest('section recovery: essential reflection stays available even if a deferred reflection request would fail',()=>withApp(375,async page=>{
+ await page.locator('.topbar-actions').getByRole('button',{name:'종료',exact:true}).click();
+ const dialog=page.getByRole('dialog',{name:'오늘의 집중을 짧게 돌아봐요'});await dialog.waitFor();
+ await page.keyboard.press('Escape');await dialog.waitFor({state:'detached'});
+ await page.getByRole('button',{name:'잠시 쉬기',exact:true}).waitFor();
+ assert.equal(await page.evaluate(()=>fixture.sessions[0].status),'active');
+ assert.equal(await page.evaluate(()=>fixture.sessions[0].paused_at),null);
+ assert.equal(await page.evaluate(()=>fixture.calls.some(c=>/^(pause|end|complete)_(actual_)?study_session$/.test(c.name))),false);
+ await page.locator('.topbar-actions').getByRole('button',{name:'종료',exact:true}).click();
+ await dialog.waitFor();
+ assert.equal(await dialog.getByRole('button',{name:'회고 저장하고 종료',exact:true}).isEnabled(),true);
+},'active',false,'SessionReflectionModal'));
+
+for(const [chunk,route] of [['TechFeedSection','feed'],['TeamStudySection','together'],['StudyForestSection','forest'],['StudyReportSection','me'],['PublicTagSettings','settings']]) browserTest(`section recovery: ${chunk} failure keeps navigation and idle recovery available`,()=>withApp(375,async page=>{
+ let navigations=0;page.on('framenavigated',frame=>{if(frame===page.mainFrame())navigations++;});
+ await page.evaluate(route=>{location.hash=route;},route);
+ const recovery=page.locator('.section-load-recovery');await recovery.waitFor();
+ assert.equal(await recovery.getByRole('button',{name:'새 화면 불러오기',exact:true}).isEnabled(),true);
+ assert.equal(await page.locator('.dashboard-navigation').isVisible(),true);
+ const afterHash=navigations;await page.clock.runFor(2000);assert.equal(navigations,afterHash);
+ await recovery.getByRole('button',{name:'오늘로 돌아가기',exact:true}).click();
+ await page.getByText('어떤 공부를 시작할까요?',{exact:true}).waitFor();
+ assert.equal(await page.evaluate(()=>window.fixtureCameraRequests),0);
+},'start',false,chunk));
+
+browserTest('section recovery: fresh study state blocks reload and idle reload needs an explicit click',()=>withApp(375,async page=>{
+ await page.evaluate(()=>{location.hash='settings';});
+ await page.locator('.settings-notifications > summary').click();
+ const recovery=page.locator('.section-load-recovery');await recovery.waitFor();
+ const reload=recovery.getByRole('button',{name:'새 화면 불러오기',exact:true});assert.equal(await reload.isEnabled(),true);
+ await page.getByLabel('Slack Channel ID',{exact:true}).fill('[테스트] 미저장 입력');
+ await page.evaluate(()=>{fixture.sessions=[{id:'remote-later',user_id:'owner',local_date:'2026-09-21',started_at:new Date().toISOString(),ended_at:null,status:'active',duration_seconds:0,paused_at:new Date().toISOString(),paused_seconds:0,lease_expires_at:new Date(Date.now()+3600000).toISOString()}];window.dispatchEvent(new Event('focus'));});
+ await page.waitForFunction(()=>document.querySelector('.section-load-recovery button.secondary')?.disabled===true);
+ assert.equal(await page.getByLabel('Slack Channel ID',{exact:true}).inputValue(),'[테스트] 미저장 입력');
+ await page.evaluate(()=>{fixture.sessions[0]={...fixture.sessions[0],status:'completed',ended_at:new Date().toISOString()};window.dispatchEvent(new Event('focus'));});
+ await page.waitForFunction(()=>document.querySelector('.section-load-recovery button.secondary')?.disabled===false);
+ await mkdir('output/playwright',{recursive:true});await recovery.screenshot({path:'output/playwright/section-recovery-idle-375.png'});
+ await Promise.all([page.waitForEvent('domcontentloaded'),reload.click()]);
+ await page.locator('.app-settings-heading h1').waitFor();
+ assert.equal(await page.evaluate(()=>window.fixtureCameraRequests),0);
+},'start',false,'AdaptiveReminderCard'));
+
+browserTest('section recovery: an unresolved goal write blocks full reload across navigation',()=>withApp(375,async page=>{
+ await page.evaluate(()=>{fixture.holdGoalWrite=true;location.hash='goals';});
+ page.on('dialog',dialog=>dialog.accept());
+ await page.getByRole('button',{name:'목표 달성',exact:true}).first().click();
+ await page.waitForFunction(()=>!!fixture.releaseGoalWrite);
+ await page.evaluate(()=>{location.hash='settings';});
+ await page.locator('.settings-notifications > summary').click();
+ const reload=page.locator('.section-load-recovery').getByRole('button',{name:'새 화면 불러오기',exact:true});await reload.waitFor();
+ assert.equal(await reload.isDisabled(),true);
+ await page.evaluate(()=>fixture.releaseGoalWrite());
+ await page.waitForFunction(()=>document.querySelector('.section-load-recovery button.secondary')?.disabled===false);
+},'start',false,'AdaptiveReminderCard'));
 
 async function deviceInstallProof(page) {
  return page.evaluate(()=>{

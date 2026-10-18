@@ -10,7 +10,7 @@ const componentSource = existsSync(componentUrl) ? readFileSync(componentUrl, "u
 
 test("study forest page lazy loads its feature section and keeps accessible movement controls", () => {
   assert.match(mainSource, /lazy\(\(\) => import\("\.\/StudyForestSection"\)\)/);
-  assert.match(mainSource, /<Suspense/);
+  // Failure isolation is exercised against mounted main in section recovery tests.
   assert.match(mainSource, /<StudyForestSection/);
   assert.match(sectionSource, /<StudyForest3D/);
   assert.match(sectionSource, /completedTreeCount=\{completedTreeCount\}/);

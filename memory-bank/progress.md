@@ -2,6 +2,7 @@
 
 | 기능 | 상태 | 현재 근거 / 다음 단계 |
 |---|---|---|
+| 공부 상태 보존 화면 복구 | 검증 완료·출시 대기 | 영역 오류 격리·오늘 복귀·공부/휴식/기존 Dashboard 저장 중 reload 차단·필수 종료/회고 eager. RED3+필수종료1+저장guard1→집중10/10·Chrome1343/1343·verify/Dune/독립검토 PASS. docs/safe-section-recovery-20261019.md |
 | 동일 계정 다중 기기 공부·카메라 상태 | 운영 배포 완료·동일계정 실기기 수용 보류 | 영상 제외·단일 담당/generation·관찰 카메라/경고/자동종료 차단. Chrome1326/1326·verify·독립검토PASS. remote20261018100359/Edge24·학습13테이블 동일.2cc16ae/Actions39124089277·READY/exactSHA/HTTP200. Android 현재로그인화면·사용자 재로그인 추후 선택, 실제 동기화·5분 Slack은 미검증. docs/cross-device-study/acceptance.md |
 | 개인 공부·실제 시간 배분·휴식·회복·04시 공부일 | 기존 운영 기능 유지 | 이번 팀 기능이 정책/기록을 변경하지 않음. 이전 검증은 보관본 각 최신 항목 참고 |
 | 웹·Android 공통 UI·설정·계정 동기화 | 기존 운영 연결 | hosted WebView 공통 화면. 실휴대폰 OEM/DND E2E는 별도 미확인 항목 유지 |

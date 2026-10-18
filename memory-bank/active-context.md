@@ -1,5 +1,13 @@
 # Active Context
 
+<!-- safe-section-recovery:start -->
+- 갱신: 2026-10-19 · 도구codex · 브랜치 fix/study-room-update-recovery · base ce7704a8b85b209d12df9969e2c71e5567dd4b9b. 이전 feat/team-study-room 보존·선행 미커밋 ops/수용 변경 보존.
+- 목표: 위임받은 후속 개선으로 실제 stale chunk 전체 빈화면을 우선. 영역 단위 오류 격리·오늘 복귀·명시 유휴 reload, 공부/휴식/학습조회/기존 Dashboard 저장 중 reload 차단. 필수 종료/회고는 eager import, 정상 회고·학습 정책/DB/native 불변.
+- 구현: RecoverableSection·CSS, main.tsx의8곳 보호(선택 lazy6종/필수 회고2경로). PRD prd-safe-section-recovery.md. 최초 RED3·종료필수 RED1·저장중 guard RED1 후 집중10/10, 독립 재검토 결함없음. 옛 lazy 회고 고정 문자열 검사는 실제 종료창 수용 검사로 대체했다.
+- 검증/다음: 집중10/10·최종Chrome1343/1343 실패/생략0·verify Dune0/5명령exit0·독립재검토 차단결함없음. 범위 commit/push→기존 Actions production→실제 PC/Android16 메뉴/학습표시 보존·Android chunk HTML 실패/복구 수용. output의 테스트 화면만 시각화, 개인 영상/정보 캡처 금지.
+- 롤백: 전용 rollback/study-room-before-recovery-20261019와 기존 feat/team-study-room의 ce7704a 보존(제품 소스는 운영72b5434 동일). 이전 ref로 기존 production workflow 재실행, DB/학습 기록 rollback 없음. 현재 변경은 네이티브/APK 변경 아님.
+<!-- safe-section-recovery:end -->
+
 <!-- cross-device-state-sync:start -->
 - 갱신: 2026-10-18 20:43 · 도구: codex · 현재 작업: 영상 제외 동일 계정 상태 동기화.
 - 브랜치: feat/team-study-room · 제품2cc16ae2e91c9aba71f778b94f1b6ba8c7540d99 커밋·push·운영 배포 완료. 선행 ops·수용 미커밋 파일은 제외해 보존한다.
