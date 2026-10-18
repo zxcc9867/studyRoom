@@ -1,11 +1,12 @@
 # Active Context
 
 <!-- cross-device-state-sync:start -->
-- 갱신: 2026-10-18 20:36 · 도구: codex · 현재 작업: 영상 제외 동일 계정 상태 동기화.
-- 브랜치: feat/team-study-room · 기준95b70fc · 현재 변경/운영 DB·Edge 적용, 웹 커밋/배포 준비 중. 선행 ops·수용 미커밋 파일은 제외해 보존한다.
+- 갱신: 2026-10-18 20:43 · 도구: codex · 현재 작업: 영상 제외 동일 계정 상태 동기화.
+- 브랜치: feat/team-study-room · 제품2cc16ae2e91c9aba71f778b94f1b6ba8c7540d99 커밋·push·운영 배포 완료. 선행 ops·수용 미커밋 파일은 제외해 보존한다.
 - 완료: shared snapshot/단일 카메라 담당·generation·관찰 실행 차단·명시 전환, 서버 원자적 warning·legacy suppression·공통 제외값 정규화. 원격20261018100359/Edge v24 ACTIVE·무인증401·학습13테이블 count/content digest 동일.
 - 검증: 실제Chrome 전체1326/1326·실패/생략0, verify Dune0/5명령exit0, 서버87/87·helper16/16·독립 서버/웹 재검토PASS. docs/cross-device-study/acceptance.md.
-- 다음 단계: 범위 stage/commit/push→기존 feature-ref production workflow→READY/exactSHA/HTTP200→Android 기존 계정 새 hosted웹 재조회.
+- 출시: Actions39124089277 success·Vercel dpl_3SeFFy37p24zH8SqCAzGdqgYtBaS production READY/project/ref/exactSHA·HTTP200·새index-B0R1KYaX.js200/동기화 코드 확인. DB/Edge/기록 보존은 acceptance.md.
+- 다음 단계: 사용자가 PC와 같은 계정으로 Android 로그인 후 실제 담당/관찰 상태·5분 무경고·휴식/재개·전환 수용. 배포후 앱은 native 로그인 화면/WebView 없음 확인, 인증 후 새 hosted웹 수용으로 확대하지 않는다. 재로그인 원인은 미확정.
 - 주의: 사용자가 PC와 같은 계정의 에뮬레이터 로그인은 나중에 진행 선택. 실제 동일계정 동기화/5분 Slack 무발송/기기 전환은 미완. 기존PC공부 제어/새로고침·회복 대리제출·영상전송 없음. native/APK0.2.4/code7 불변.
 <!-- cross-device-state-sync:end -->
 

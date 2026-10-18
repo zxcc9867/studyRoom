@@ -2,7 +2,7 @@
 
 | 기능 | 상태 | 현재 근거 / 다음 단계 |
 |---|---|---|
-| 동일 계정 다중 기기 공부·카메라 상태 | 구현·DB/Edge 반영, 웹 배포 준비 | 영상 제외·단일 담당/generation·관찰 카메라/경고/자동종료 차단. 실제Chrome1326/1326·verify·독립검토PASS. remote20261018100359/Edge24·학습13테이블 동일. 실제 동일계정 Android 로그인은 사용자 요청으로 추후, 미검증 경계 유지. docs/cross-device-study/acceptance.md |
+| 동일 계정 다중 기기 공부·카메라 상태 | 운영 배포 완료·동일계정 실기기 수용 보류 | 영상 제외·단일 담당/generation·관찰 카메라/경고/자동종료 차단. Chrome1326/1326·verify·독립검토PASS. remote20261018100359/Edge24·학습13테이블 동일.2cc16ae/Actions39124089277·READY/exactSHA/HTTP200. Android 현재로그인화면·사용자 재로그인 추후 선택, 실제 동기화·5분 Slack은 미검증. docs/cross-device-study/acceptance.md |
 | 개인 공부·실제 시간 배분·휴식·회복·04시 공부일 | 기존 운영 기능 유지 | 이번 팀 기능이 정책/기록을 변경하지 않음. 이전 검증은 보관본 각 최신 항목 참고 |
 | 웹·Android 공통 UI·설정·계정 동기화 | 기존 운영 연결 | hosted WebView 공통 화면. 실휴대폰 OEM/DND E2E는 별도 미확인 항목 유지 |
 | APK 내부 업데이트·고정 공개 링크 | 기존 운영 연결 |0.2.4/code7·기기 단위 설치 제한·변경 요약. 이번 native 변경 없음 |
@@ -21,7 +21,7 @@
 
 - 새 worktree 기본 npm.cmd test:1044통과/99선택 브라우저 생략/0실패(1143개). 실제 Chrome 포함 같은 전체 목록 concurrency2 재실행1143/1143·실패0·생략0(183559ms). 아직 새 팀 기능 완료 근거가 아니다.
 - 의존성 설치 sandbox npm 실패는 escalation clean install로 성공. lockfile/패키지 버전 변경 없음.
-- 최종 ai.ps1 verify 통과: Dune0위반, npm test/test:edge/mobile:check/build/docs:check exit0. 전체 실제 Chrome1220/1220·실패0·생략0·199276ms. 팀30/30·신규 SQL/controller/helper45/45·기존 카메라/lease 검사 유지. 독립 재검토PASS. 운영 추가 DB 권한/함수/제약 감사·웹 출시 완료.
+- 선행 팀 기능 검증(2026-10-15): ai.ps1 verify Dune0위반, npm test/test:edge/mobile:check/build/docs:check exit0. 당시 전체 실제 Chrome1220/1220·실패0·생략0·199276ms. 팀30/30·신규 SQL/controller/helper45/45·기존 카메라/lease 검사 유지. 독립 재검토PASS. 운영 추가 DB 권한/함수/제약 감사·웹 출시 완료.
 - 운영 공개 Chrome375/1440 HTTP200·초대 로그인 필요·명시적 취소·새 집중/목표/종료 UI chunk HTTP200 확인. 새 deployment 출시 직후 error/fatal 그룹 조회 행 없음은 장시간 수용과 구분. 실계정 저장/팀 변경은 하지 않음. 실제2계정 Realtime/Android16/동시PostgreSQL 검증은 미확인. native/APK 변경 없음. 이전 추가 Jev 전송은 정책 차단으로 결과 없음.
 
 ## 보관
