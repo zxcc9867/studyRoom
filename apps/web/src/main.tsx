@@ -3810,7 +3810,10 @@ function DashboardApp() {
         pausedSession,
         ...current.filter((item) => item.id !== pausedSession.id),
       ]);
-      stopCameraMonitoring({ recordEvent: true, preserveExcludedSeconds: true });
+      if (cameraSessionIdRef.current === pausedSession.id && getCameraStreamHealth(cameraStreamRef.current).ok) {
+        rememberCameraMonitoringIntent(pausedSession.id);
+      }
+      stopCameraMonitoring({ recordEvent: true, preserveExcludedSeconds: true, preserveIntent: true });
       cameraAutoRestoreAttemptedRef.current = false;
       setCameraSetupPrompt(null);
       persistStudySessionActivity(pausedSession.id);
@@ -4074,7 +4077,8 @@ function DashboardApp() {
   function stopCameraMonitoring({
     recordEvent = false,
     preserveExcludedSeconds = false,
-  }: { recordEvent?: boolean; preserveExcludedSeconds?: boolean } = {}) {
+    preserveIntent = false,
+  }: { recordEvent?: boolean; preserveExcludedSeconds?: boolean; preserveIntent?: boolean } = {}) {
     const stoppedSessionId = cameraSessionIdRef.current;
     if (preserveExcludedSeconds) {
       preserveCurrentCameraExcludedSeconds();
@@ -4092,7 +4096,7 @@ function DashboardApp() {
     setCameraMessage("");
     setCameraDiagnosticReason(null);
     resetPresenceState();
-    if (recordEvent) {
+    if (recordEvent && !preserveIntent) {
       forgetCameraMonitoringIntent();
     }
 

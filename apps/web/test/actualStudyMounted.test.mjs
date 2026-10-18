@@ -699,6 +699,34 @@ browserTest('device sync: an observer resumes the shared study without transferr
  assert.equal(await page.evaluate(()=>fixture.calls.some(call=>call.name==='study_camera_action'&&call.args.p_action==='claim')),false);
 },'remote'));
 
+for (const longStudy of [false,true]) browserTest(`device sync: a local camera owner restores after its own pause is resumed remotely${longStudy?' after a long study':''}`,()=>withApp(1440,async page=>{
+ const tools=page.locator('.focus-tools');await tools.locator('summary').first().click();
+ await tools.getByRole('button',{name:'카메라 감시 켜기',exact:true}).click();
+ await tools.getByRole('button',{name:'카메라 감시 끄기',exact:true}).waitFor();
+ if(longStudy)await page.evaluate(()=>{const key='study-room-camera-monitoring-intent:owner',intent=JSON.parse(localStorage.getItem(key));localStorage.setItem(key,JSON.stringify({...intent,savedAtMs:Date.now()-16*60000}));});
+ await page.evaluate(()=>{window.beforeLocalPause=document.querySelector('video').srcObject.getVideoTracks()[0];fixture.calls=[];});
+ await page.getByRole('button',{name:'잠시 쉬기',exact:true}).click();
+ await page.getByRole('button',{name:'공부 계속하기',exact:true}).waitFor();
+ await page.waitForFunction(()=>window.beforeLocalPause.readyState==='ended');
+ await page.evaluate(()=>{fixture.sessions[0]={...fixture.sessions[0],paused_at:null};window.dispatchEvent(new Event('focus'));});
+ await tools.getByRole('button',{name:'카메라 감시 끄기',exact:true}).waitFor();
+ assert.equal(await page.evaluate(()=>document.querySelector('video').srcObject.getVideoTracks()[0].readyState),'live');
+ assert.equal(await page.getByRole('dialog',{name:'카메라 인증 필요'}).count(),0);
+ assert.equal(await page.evaluate(()=>fixture.calls.filter(call=>call.name==='camera-presence-warning').length),0);
+}));
+
+browserTest('device sync: explicit camera off is not restored by a remote pause and resume',()=>withApp(1440,async page=>{
+ const tools=page.locator('.focus-tools');await tools.locator('summary').first().click();
+ await tools.getByRole('button',{name:'카메라 감시 켜기',exact:true}).click();
+ await tools.getByRole('button',{name:'카메라 감시 끄기',exact:true}).click();
+ await page.evaluate(()=>{window.requestsAfterOff=window.fixtureCameraRequests;fixture.sessions[0]={...fixture.sessions[0],paused_at:new Date().toISOString()};window.dispatchEvent(new Event('focus'));});
+ await page.getByRole('button',{name:'공부 계속하기',exact:true}).waitFor();
+ await page.evaluate(()=>{fixture.sessions[0]={...fixture.sessions[0],paused_at:null};window.dispatchEvent(new Event('focus'));});
+ await page.clock.runFor(16000);
+ assert.equal(await page.evaluate(()=>window.fixtureCameraRequests===window.requestsAfterOff),true);
+ assert.equal(await page.evaluate(()=>document.querySelector('video')?.srcObject?.getVideoTracks().some(track=>track.readyState==='live')??false),false);
+}));
+
 browserTest('device sync: a recovered owner restores camera after another device pauses and resumes',()=>withApp(375,async page=>{
  const tools=page.locator('.focus-tools');await tools.locator('summary').first().click();
  await tools.getByRole('button',{name:'카메라 감시 켜기',exact:true}).click();await tools.getByRole('button',{name:'카메라 감시 끄기',exact:true}).waitFor();
