@@ -71,11 +71,11 @@ export function hasSeatedUpperBodyPose(result) {
 function hasVisibleHeadAndShoulders(landmarks) {
   const leftShoulder = visibleLandmark(landmarks?.[landmarkIndexes.leftShoulder]);
   const rightShoulder = visibleLandmark(landmarks?.[landmarkIndexes.rightShoulder]);
-  const visibleHead = headLandmarkIndexes
+  const visibleHeads = headLandmarkIndexes
     .map((index) => visibleLandmark(landmarks?.[index]))
-    .find((landmark) => landmark);
+    .filter((landmark) => landmark);
 
-  if (!visibleHead) {
+  if (visibleHeads.length === 0) {
     return false;
   }
 
@@ -83,13 +83,16 @@ function hasVisibleHeadAndShoulders(landmarks) {
     const shoulderSpan = Math.abs(leftShoulder.x - rightShoulder.x);
     if (shoulderSpan >= minimumShoulderSpan) {
       const shoulderY = (leftShoulder.y + rightShoulder.y) / 2;
-      return visibleHead.y < shoulderY + 0.12;
+      if (visibleHeads.some((head) => head.y < shoulderY + 0.12)) {
+        return true;
+      }
     }
   }
 
   const leftHip = visibleLandmark(landmarks?.[landmarkIndexes.leftHip]);
   const rightHip = visibleLandmark(landmarks?.[landmarkIndexes.rightHip]);
-  return hasVisibleSideTorso(visibleHead, leftShoulder, leftHip) || hasVisibleSideTorso(visibleHead, rightShoulder, rightHip);
+  return visibleHeads.some((head) =>
+    hasVisibleSideTorso(head, leftShoulder, leftHip) || hasVisibleSideTorso(head, rightShoulder, rightHip));
 }
 
 function hasVisibleSideTorso(head, shoulder, hip) {
