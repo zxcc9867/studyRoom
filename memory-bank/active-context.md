@@ -1,10 +1,11 @@
 # Active Context
 
 <!-- safe-section-recovery:start -->
-- 갱신: 2026-10-19 · 도구codex · 브랜치 fix/study-room-update-recovery · base ce7704a8b85b209d12df9969e2c71e5567dd4b9b. 이전 feat/team-study-room 보존·선행 미커밋 ops/수용 변경 보존.
+- 갱신: 2026-10-19 02:17 · 도구codex · 브랜치 fix/study-room-update-recovery · 제품225fd82310b95de5827afd4abb90ac094f3668c5 commit/push/운영 배포 완료. 이전 feat/team-study-room 보존·선행 미커밋 ops/수용 변경 보존.
 - 목표: 위임받은 후속 개선으로 실제 stale chunk 전체 빈화면을 우선. 영역 단위 오류 격리·오늘 복귀·명시 유휴 reload, 공부/휴식/학습조회/기존 Dashboard 저장 중 reload 차단. 필수 종료/회고는 eager import, 정상 회고·학습 정책/DB/native 불변.
 - 구현: RecoverableSection·CSS, main.tsx의8곳 보호(선택 lazy6종/필수 회고2경로). PRD prd-safe-section-recovery.md. 최초 RED3·종료필수 RED1·저장중 guard RED1 후 집중10/10, 독립 재검토 결함없음. 옛 lazy 회고 고정 문자열 검사는 실제 종료창 수용 검사로 대체했다.
-- 검증/다음: 집중10/10·최종Chrome1343/1343 실패/생략0·verify Dune0/5명령exit0·독립재검토 차단결함없음. 범위 commit/push→기존 Actions production→실제 PC/Android16 메뉴/학습표시 보존·Android chunk HTML 실패/복구 수용. output의 테스트 화면만 시각화, 개인 영상/정보 캡처 금지.
+- 검증/출시: 집중10/10·최종Chrome1343/1343 실패/생략0·verify Dune0/5명령exit0·독립재검토 차단결함없음. Actions39148327299 success·Vercel dpl_6V7zDuYn3EKLkwkoPgSW7WjrZ1Yg production READY/exactSHA/project/ref/HTTP200·새 index-DYSG7zV-.js200/JavaScript 확인.
+- 실제/다음: Android16 HTML200 실패1건→해당 영역 안내/메뉴유지→유휴 명시reload 정상복구·학습3시간19분/3/5완료 동일, COLD 재실행 로그인/학습 복원·추가카메라사용없음. PC 새entry/설정/오늘 동일표시. docs/safe-section-recovery-20261019.md. 평소자세6분/실휴대폰DND·장시간배경/담당전환·오래된이어서할일 안내는 후속. 이번 수용 새학습기록 생성 없음.
 - 롤백: 전용 rollback/study-room-before-recovery-20261019와 기존 feat/team-study-room의 ce7704a 보존(제품 소스는 운영72b5434 동일). 이전 ref로 기존 production workflow 재실행, DB/학습 기록 rollback 없음. 현재 변경은 네이티브/APK 변경 아님.
 <!-- safe-section-recovery:end -->
 

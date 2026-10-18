@@ -33,4 +33,11 @@ rollback/study-room-before-recovery-20261019 → ce7704a (제품 소스72b5434�
 
 ## 출시·실제 기기
 
-로컬 검증 완료·운영 배포 전이다. 기존 로그인·학습 기록을 유지하는 PC/Android16 확인, production 정확 SHA·READY·HTTP/JavaScript MIME 확인 후 갱신한다. 네이티브/APK 변경 없음.
+- 제품225fd82310b95de5827afd4abb90ac094f3668c5, branch fix/study-room-update-recovery. Actions [39148327299](https://github.com/zxcc9867/studyRoom/actions/runs/39148327299) completed/success·headSha 일치.
+- Vercel dpl_6V7zDuYn3EKLkwkoPgSW7WjrZ1Yg, project prj_u2Q9FKwNeVjwwtVOjuXNMZRpkR3g, production READY·정확 SHA/ref·운영 alias 확인.
+- https://study-room-attendance.vercel.app HTTP200, 새 /assets/index-DYSG7zV-.js HTTP200/application/javascript·286437bytes·복구 문구 포함.
+- Android16 실제 설치0.2.4/code7의 기존 로그인 WebView에서17:14:17UTC 검증: AdaptiveReminderCard 자산1건만 테스트 HTML200 응답→복구 안내/메뉴 유지→가로채기 제거→유휴 명시 reload→정상 적응형 카드/오늘 복귀. raw 오류 미출력, 시작/저장/회복 대리제출/DB DML 없음. before/after 타이머0·오늘3시간19분·3/5완료 동일. 로그 section-android-acceptance.log. 실제 화면 가로채기는 종료 시 해제했고 캐시 설정을 복원했다.
+- PC도 새 entry로 reload 후 설정/적응형알림 정상 로드·오류안내0→오늘 복귀, 로그인/3시간19분/3/5완료·video stream 없음 유지. 테스트 전 양쪽 유휴·초안 없음 확인.
+- Android17:15:45UTC COLD 재실행(Status ok, 데이터 삭제/재설치 없음). 즉시 초기빈본문은 성공 근거에서 제외했으며17:16:42 확인에서 기존 로그인·정상 오늘/3시간19분/3/5완료·카메라 꺼짐 복원 확인. AppOps CAMERA 최종 duration1m18.729s로 사전값과 동일·추가 요청 없음. 신규 OAuth/실휴대폰 DND·물리 착석6분 정확도까지 검증했다고 확대하지 않는다.
+- 새 native/APK·DB/API/권한·카메라 판정·학습 정책 변경 없음. 기존 실제 [테스트] 세션/할 일/회고는 보존하며 이번 화면 복구 수용에서는 새 학습 기록을 만들지 않았다. 롤백 전용 branch도 원격에 동일 ce7704a로 push했다.
+- 이전 수용과 남은 항목: docs/cross-device-study/labeled-acceptance-20261019.md. 오래된 이어서 할 일 안내, 실제 평소자세6분·실휴대폰 DND·장시간 배경/담당전환은 별도 후속 범위다.
