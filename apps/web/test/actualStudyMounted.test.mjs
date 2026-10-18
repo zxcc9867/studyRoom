@@ -369,6 +369,7 @@ browserTest('camera return: ended track is replaced on foreground without restar
  const tools=page.locator('.focus-tools');await tools.locator('summary').first().click();
  await tools.getByRole('button',{name:'카메라 감시 켜기',exact:true}).click();
  await page.waitForFunction(()=>document.querySelector('video')?.srcObject?.getVideoTracks()[0]?.readyState==='live');
+ await tools.getByRole('button',{name:'카메라 감시 끄기',exact:true}).waitFor();
  await page.evaluate(()=>{
   window.oldCameraTrack=document.querySelector('video').srcObject.getVideoTracks()[0];
   window.oldCameraTrack.stop();
@@ -385,6 +386,7 @@ browserTest('camera return: revoked permission never prompts or repeatedly acqui
  const tools=page.locator('.focus-tools');await tools.locator('summary').first().click();
  await tools.getByRole('button',{name:'카메라 감시 켜기',exact:true}).click();
  await page.waitForFunction(()=>document.querySelector('video')?.srcObject);
+ await tools.getByRole('button',{name:'카메라 감시 끄기',exact:true}).waitFor();
  await page.evaluate(()=>{
   window.autoCameraRequests=0;const original=navigator.mediaDevices.getUserMedia.bind(navigator.mediaDevices);
   navigator.mediaDevices.getUserMedia=(options)=>{window.autoCameraRequests++;return original(options);};
@@ -402,6 +404,7 @@ for(const change of ['pause','ended','owner','manual-off','lease'])browserTest('
  const tools=page.locator('.focus-tools');await tools.locator('summary').first().click();
  await tools.getByRole('button',{name:'카메라 감시 켜기',exact:true}).click();
  await page.waitForFunction(()=>document.querySelector('video')?.srcObject);
+ await tools.getByRole('button',{name:'카메라 감시 끄기',exact:true}).waitFor();
  await page.clock.pauseAt(await page.evaluate(()=>new Date(Date.now()+5000)));
  await page.evaluate(()=>{
   window.autoCameraRequests=0;const original=navigator.mediaDevices.getUserMedia.bind(navigator.mediaDevices);
@@ -422,6 +425,7 @@ browserTest('camera return: unhealthy replacement does not reset the single auto
  const tools=page.locator('.focus-tools');await tools.locator('summary').first().click();
  await tools.getByRole('button',{name:'카메라 감시 켜기',exact:true}).click();
  await page.waitForFunction(()=>document.querySelector('video')?.srcObject);
+ await tools.getByRole('button',{name:'카메라 감시 끄기',exact:true}).waitFor();
  await page.evaluate(()=>{
   window.autoCameraRequests=0;const original=navigator.mediaDevices.getUserMedia.bind(navigator.mediaDevices);
   navigator.mediaDevices.getUserMedia=async options=>{window.autoCameraRequests++;const stream=await original(options);stream.getTracks().forEach(t=>t.stop());return stream;};
@@ -437,6 +441,7 @@ for(const action of ['manual-off','pause','owner','background','unmount'])browse
  const tools=page.locator('.focus-tools');await tools.locator('summary').first().click();
  await tools.getByRole('button',{name:'카메라 감시 켜기',exact:true}).click();
  await page.waitForFunction(()=>document.querySelector('video')?.srcObject);
+ await tools.getByRole('button',{name:'카메라 감시 끄기',exact:true}).waitFor();
  await page.evaluate(()=>{
   const original=navigator.mediaDevices.getUserMedia.bind(navigator.mediaDevices);
   navigator.mediaDevices.getUserMedia=()=>new Promise(resolve=>{window.releaseCamera=async()=>{window.lateCameraStream=await original({video:true,audio:false});resolve(window.lateCameraStream);};});
@@ -457,6 +462,7 @@ for(const action of ['manual-off','pause','owner','background','unmount'])browse
 browserTest('camera return: old cancelled recovery cannot stop a newer manual camera',()=>withApp(390,async page=>{
  const tools=page.locator('.focus-tools');await tools.locator('summary').first().click();
  await tools.getByRole('button',{name:'카메라 감시 켜기',exact:true}).click();await page.waitForFunction(()=>document.querySelector('video')?.srcObject);
+ await tools.getByRole('button',{name:'카메라 감시 끄기',exact:true}).waitFor();
  await page.evaluate(()=>{
   const original=navigator.mediaDevices.getUserMedia.bind(navigator.mediaDevices);window.pendingMedia=[];
   navigator.mediaDevices.getUserMedia=()=>new Promise(resolve=>window.pendingMedia.push(async()=>{const stream=await original({video:true,audio:false});resolve(stream);return stream;}));
@@ -467,6 +473,7 @@ browserTest('camera return: old cancelled recovery cannot stop a newer manual ca
  await tools.getByRole('button',{name:'카메라 감시 켜기',exact:true}).click();await page.waitForFunction(()=>window.pendingMedia.length===2);
  await page.evaluate(async()=>{window.newManualStream=await window.pendingMedia[1]();});
  await page.waitForFunction(()=>document.querySelector('video')?.srcObject===window.newManualStream);
+ await tools.getByRole('button',{name:'카메라 감시 끄기',exact:true}).waitFor();
  await page.evaluate(async()=>{window.oldCancelledStream=await window.pendingMedia[0]();});
  await page.waitForFunction(()=>window.oldCancelledStream.getTracks().every(t=>t.readyState==='ended'));
  assert.equal(await page.evaluate(()=>window.newManualStream.getVideoTracks()[0].readyState),'live');
@@ -476,6 +483,7 @@ browserTest('camera return: old cancelled recovery cannot stop a newer manual ca
 for(const change of ['pause','ended'])browserTest('camera return: server '+change+' during media acquisition discards the late stream',()=>withApp(390,async page=>{
  const tools=page.locator('.focus-tools');await tools.locator('summary').first().click();
  await tools.getByRole('button',{name:'카메라 감시 켜기',exact:true}).click();await page.waitForFunction(()=>document.querySelector('video')?.srcObject);
+ await tools.getByRole('button',{name:'카메라 감시 끄기',exact:true}).waitFor();
  await page.evaluate(()=>{
   const original=navigator.mediaDevices.getUserMedia.bind(navigator.mediaDevices);
   navigator.mediaDevices.getUserMedia=()=>new Promise(resolve=>{window.releaseCamera=async()=>{window.lateCameraStream=await original({video:true,audio:false});resolve(window.lateCameraStream);};});
@@ -490,6 +498,7 @@ for(const change of ['pause','ended'])browserTest('camera return: server '+chang
 browserTest('camera return: observed remote pause closes an already live camera',()=>withApp(390,async page=>{
  const tools=page.locator('.focus-tools');await tools.locator('summary').first().click();
  await tools.getByRole('button',{name:'카메라 감시 켜기',exact:true}).click();await page.waitForFunction(()=>document.querySelector('video')?.srcObject);
+ await tools.getByRole('button',{name:'카메라 감시 끄기',exact:true}).waitFor();
  await page.evaluate(()=>{window.remotePausedTrack=document.querySelector('video').srcObject.getVideoTracks()[0];fixture.sessions[0]={...fixture.sessions[0],paused_at:new Date().toISOString()};window.dispatchEvent(new Event('focus'));});
  await page.waitForFunction(()=>window.remotePausedTrack.readyState==='ended');
  assert.equal(await page.getByRole('button',{name:'공부 계속하기',exact:true}).isVisible(),true);
@@ -502,6 +511,7 @@ const row={id:'session',user_id:'owner',local_date:'2026-09-21',started_at:'2026
 const state=window.fixture={calls:[],todos:[todo('a','집중 독서'),todo('b','다음 날 알고리즘','2026-09-22')],sessions:[row],collision:true,stale:false,failConfirm:false,blocking:null,reportFail:false,excluded:60,current:'a'};
 state.links=['a','b'];
 const mode=new URLSearchParams(location.search).get('mode');
+state.camera=null;
 if(['empty-links','completed-links','active-empty'].includes(mode)){state.links=mode==='completed-links'?['a']:[];state.current=null;state.sessions[0].paused_at=mode==='active-empty'?null:now;state.todos[0].is_completed=mode==='completed-links';state.todos[1].local_date='2026-09-21';state.todos.forEach(t=>{t.first_started_at=null;t.unknown_allocation=true;t.evaluation_eligible=false;});}
 if(mode==='start'||mode==='recovery'||mode==='start-reflection'){state.sessions=[];state.todos.forEach(t=>t.local_date='2026-09-21');}
 state.reflections=mode==='start-reflection'?[{id:'past-reflection',session_id:'past-session',next_action:'장고245페이지',created_at:'2026-08-01T01:00:00Z'}]:[];
@@ -513,6 +523,25 @@ const authSession=mode==='login'?null:{access_token:'test-only',user:{id:'owner'
 state.profile={user_id:'owner',time_zone:'Asia/Tokyo',reminder_time:'09:00',email_reminders_enabled:false};
 const track=()=>({session_id:'session',current_todo_id:state.current,tracking_started_at:row.started_at,excluded_seconds:state.excluded,unknown_allocation:false,server_now:now,todos:state.todos.filter(t=>state.links.includes(t.id)).map(t=>({...t,open_started_at:state.sessions[0]?.paused_at||t.id!==state.current?null:row.started_at}))});
 function result(name,args){state.calls.push({name,args});
+ if(name==='study_camera_action'&&args.p_action==='claim'&&state.holdCameraClaim){state.holdCameraClaim=false;return new Promise(resolve=>{state.releaseCameraClaim=()=>resolve(result(name,args));});}
+ if(name==='study_device_snapshot'||name==='study_camera_action'){
+  const active=state.sessions.find(s=>s.status==='active'&&!s.ended_at)??null;
+  const stamp=new Date().toISOString();
+  // Existing camera-return fixtures begin as a known owner. A new session's
+  // read-only snapshot never creates ownership; only its explicit claim can.
+  if(active&&!state.camera&&(!['start','start-reflection','precheck','legacy'].includes(mode)||name==='study_camera_action'&&args.p_action==='claim'))state.camera={session_id:active.id,owner_client_id:mode==='remote'?'other-document':args.p_client_id,generation:1,device_type:'browser',status:mode==='remote'?'watching':'off',last_seen_at:stamp,expires_at:new Date(Date.now()+45000).toISOString(),absence_seconds:0,excluded_seconds:state.excluded};
+  let accepted=true;
+  if(name==='study_camera_action'&&active){
+   if(args.p_action==='claim'){
+    if(state.camera.owner_client_id!==args.p_client_id&&!args.p_takeover&&Date.parse(state.camera.expires_at)>Date.now())accepted=false;
+    else state.camera={...state.camera,owner_client_id:args.p_client_id,generation:state.camera.generation+(state.camera.owner_client_id!==args.p_client_id?1:0),status:'watching'};
+   }else if(state.camera.owner_client_id!==args.p_client_id||state.camera.generation!==args.p_generation)accepted=false;
+   else {state.camera.status=args.p_status;state.excluded=Math.max(state.excluded,args.p_excluded_seconds??0);state.camera.excluded_seconds=state.excluded;}
+   if(accepted){state.camera.last_seen_at=stamp;state.camera.expires_at=new Date(Date.now()+45000).toISOString();}
+  }
+  const camera=active&&state.camera?{...state.camera,is_owner:state.camera.owner_client_id===args.p_client_id,status:active.paused_at?'paused':state.camera.status}:null;
+  return {data:{accepted,server_now:stamp,active_session:active,session:active??state.sessions[0]??null,tracking:active?{...track(),server_now:stamp}:null,camera},error:null};
+ }
  if(name==='get_study_focus_snapshot'&&state.holdFocus)return new Promise(resolve=>{state.releaseFocus=()=>resolve({data:null,error:{message:'test focus failure'}});});
  if(name==='get_study_focus_snapshot')return {data:state.focusError?{device_connected:true,opted_in:true,permission_granted:true,last_error:'휴대폰 연결 테스트 오류'}:null,error:null};
  if(name==='get_actual_study_state')return {data:track(),error:null};
@@ -554,9 +583,12 @@ async function withApp(width, run, mode='active', nativeOrigin=false) {
   const server=createServer((req,res)=>{res.setHeader('Content-Type',req.url==='/app.js'?'text/javascript':req.url==='/app.css'?'text/css':'text/html');res.end(req.url==='/app.js'?js:req.url==='/app.css'?css:'<!doctype html><html lang="ko"><head><meta name="viewport" content="width=device-width,initial-scale=1"><link rel="stylesheet" href="/app.css"></head><body><div id="root"></div><script src="/app.js"></script></body></html>');});
   await new Promise(resolve=>server.listen(0,'127.0.0.1',resolve));let browser;
   try {browser=await chromium.launch({headless:true,executablePath:process.env.FEED_BROWSER_EXECUTABLE||undefined,args:['--use-fake-ui-for-media-stream','--use-fake-device-for-media-stream']});const page=await browser.newPage({viewport:{width,height:960}});page.setDefaultTimeout(5000);const errors=[];page.on('pageerror',e=>errors.push(e.message));await page.clock.install({time:new Date('2026-09-21T14:30:00Z')});
+  await page.addInitScript(()=>{window.fixtureCameraRequests=0;const get=navigator.mediaDevices?.getUserMedia?.bind(navigator.mediaDevices);if(get)navigator.mediaDevices.getUserMedia=options=>{window.fixtureCameraRequests++;return get(options);};});
+  await page.route(/^https:\/\/cdn\.jsdelivr\.net\/gh\/orioncactus\/pretendard@/,route=>route.fulfill({contentType:'text/css',body:''}));
+  await page.route('https://fixture.invalid/functions/v1/camera-presence-warning',async route=>{const args=route.request().postDataJSON();await page.evaluate(args=>fixture.calls.push({name:'camera-presence-warning',args}),args);await route.fulfill({json:{ok:true,slackSent:false,slackMissing:true,suppressed:false}});});
   const base='http://127.0.0.1:'+server.address().port;
   if(nativeOrigin)await page.route('https://study-room-attendance.vercel.app/**',async route=>{const url=new URL(route.request().url());await route.fulfill({response:await page.request.get(base+url.pathname+url.search)});});
-  await page.goto((nativeOrigin?'https://study-room-attendance.vercel.app/':base)+'?mode='+mode,{timeout:15000});await page.locator(mode==='login'?'.login-panel':'.topbar-actions button:not([disabled])').first().waitFor();if(mode==='active'||mode==='active-empty'){await page.getByRole('dialog',{name:'카메라 인증 필요'}).waitFor();await page.keyboard.press('Escape');await page.getByRole('dialog').waitFor({state:'detached'});}await run(page);assert.deepEqual(errors,[]);}finally{await browser?.close();await new Promise(resolve=>server.close(resolve));}
+  await page.goto((nativeOrigin?'https://study-room-attendance.vercel.app/':base)+'?mode='+mode,{timeout:15000,waitUntil:'domcontentloaded'});await page.locator(mode==='login'?'.login-panel':'.topbar-actions button:not([disabled])').first().waitFor();if(mode==='active'||mode==='active-empty'){await page.getByRole('dialog',{name:'카메라 인증 필요'}).waitFor();await page.keyboard.press('Escape');await page.getByRole('dialog').waitFor({state:'detached'});}await run(page);assert.deepEqual(errors,[]);}finally{await browser?.close();await new Promise(resolve=>server.close(resolve));}
 }
 
 async function deviceInstallProof(page) {
@@ -567,6 +599,120 @@ async function deviceInstallProof(page) {
   return deviceInstallReplies[0]?.state;
  });
 }
+browserTest('device sync: a mobile observer mirrors PC monitoring without local camera gate or Slack warning',()=>withApp(375,async page=>{
+ await page.clock.runFor(1000);
+ assert.equal(await page.getByRole('dialog',{name:'카메라 인증 필요'}).count(),0);
+ await page.locator('.focus-tools summary').first().getByText('다른 기기에서 감시 중',{exact:true}).waitFor();
+ assert.equal(await page.evaluate(()=>window.fixtureCameraRequests),0);
+ assert.equal(await page.evaluate(()=>fixture.calls.filter(c=>c.name==='camera-presence-warning'||c.name==='checkpoint_actual_study_exclusion').length),0);
+ assert.equal(await deviceInstallProof(page),'allowed');
+ await page.clock.runFor(6*60*1000);
+ assert.equal(await page.evaluate(()=>fixture.calls.some(c=>c.name==='complete_study_session'||c.name==='end_study_session')),false);
+ assert.equal(await page.getByRole('dialog',{name:'카메라 인증 필요'}).count(),0);
+},'remote',true));
+
+browserTest('device sync: remote pause, current task and end update without local camera execution',()=>withApp(375,async page=>{
+ await page.clock.runFor(1000);
+ await page.evaluate(()=>{fixture.sessions[0]={...fixture.sessions[0],paused_at:new Date().toISOString()};window.dispatchEvent(new Event('focus'));});
+ await page.getByRole('button',{name:'공부 계속하기',exact:true}).waitFor();
+ await page.evaluate(()=>{fixture.sessions[0]={...fixture.sessions[0],paused_at:null};fixture.current='b';window.dispatchEvent(new Event('focus'));});
+ await page.getByRole('heading',{name:'다음 날 알고리즘',exact:true}).first().waitFor();
+ await page.evaluate(()=>{fixture.sessions[0]={...fixture.sessions[0],status:'completed',ended_at:new Date().toISOString(),duration_seconds:1800};window.dispatchEvent(new Event('focus'));});
+ await page.getByText('어떤 공부를 시작할까요?',{exact:true}).waitFor();
+ assert.equal(await page.evaluate(()=>window.fixtureCameraRequests),0);
+},'remote'));
+
+browserTest('device sync: closing an observer never ends the source study',()=>withApp(375,async page=>{
+ await page.clock.runFor(1000);
+ await page.evaluate(()=>{window.fixtureExitCalls=[];window.fetch=async(url,options)=>{window.fixtureExitCalls.push(String(url));return new Response('{}',{status:200});};window.dispatchEvent(new Event('pagehide'));window.dispatchEvent(new Event('beforeunload'));});
+ assert.deepEqual(await page.evaluate(()=>window.fixtureExitCalls),[]);
+ assert.equal(await page.evaluate(()=>fixture.sessions[0].status),'active');
+},'remote'));
+
+browserTest('device sync: an idle observer sees a later remote start and lease extension through foreground polling',()=>withApp(375,async page=>{
+ await page.evaluate(()=>{fixture.sessions=[{id:'remote-later',user_id:'owner',local_date:'2026-09-21',started_at:new Date(Date.now()-600000).toISOString(),ended_at:null,status:'active',duration_seconds:0,paused_at:null,paused_seconds:0,lease_expires_at:new Date(Date.now()+3600000).toISOString()}];fixture.camera={session_id:'remote-later',owner_client_id:'pc',generation:1,device_type:'browser',status:'watching',last_seen_at:new Date().toISOString(),expires_at:new Date(Date.now()+45000).toISOString(),absence_seconds:0,excluded_seconds:0};});
+ await page.clock.runFor(16000);
+ await page.getByRole('button',{name:'잠시 쉬기',exact:true}).waitFor();
+ await page.locator('.focus-tools summary').getByText('다른 기기에서 감시 중',{exact:true}).waitFor();
+ await page.locator('.focus-tools summary').first().click();
+ const before=await page.locator('.session-lease strong').textContent();
+ await page.evaluate(()=>{fixture.sessions[0].lease_expires_at=new Date(Date.now()+7200000).toISOString();});
+ await page.clock.runFor(16000);
+ assert.notEqual(await page.locator('.session-lease strong').textContent(),before);
+ assert.equal(await page.getByRole('dialog',{name:'카메라 인증 필요'}).count(),0);
+ assert.equal(await page.evaluate(()=>window.fixtureCameraRequests),0);
+},'start'));
+
+browserTest('device sync: only an explicit continue button takes over camera responsibility',()=>withApp(375,async page=>{
+ await page.clock.runFor(1000);
+ assert.equal(await page.evaluate(()=>window.fixtureCameraRequests),0);
+ const tools=page.locator('.focus-tools');await tools.locator('summary').first().click();
+ await tools.getByRole('button',{name:'이 기기에서 이어서 공부',exact:true}).click();
+ await tools.getByRole('button',{name:'카메라 감시 끄기',exact:true}).waitFor();
+ assert.equal(await page.evaluate(()=>fixture.calls.some(call=>call.name==='study_camera_action'&&call.args.p_action==='claim'&&call.args.p_takeover===true)),true);
+ assert.equal(await page.evaluate(()=>fixture.camera.generation),2);
+ const track=await page.evaluateHandle(()=>document.querySelector('video').srcObject.getVideoTracks()[0]);
+ await page.evaluate(()=>{fixture.camera={...fixture.camera,owner_client_id:'new-pc',generation:3};window.dispatchEvent(new Event('focus'));});
+ await page.waitForFunction(track=>track.readyState==='ended',track);
+ await tools.getByRole('button',{name:'이 기기에서 이어서 공부',exact:true}).waitFor();
+},'remote'));
+
+browserTest('device sync: resuming an uncoordinated session claims the prepared live camera',()=>withApp(375,async page=>{
+ await page.evaluate(()=>{fixture.collision=false;fixture.sessions[0]={...fixture.sessions[0],paused_at:new Date().toISOString()};window.dispatchEvent(new Event('focus'));});
+ await page.getByRole('button',{name:'공부 계속하기',exact:true}).click();
+ await page.getByRole('button',{name:'카메라 켜고 공부 계속하기',exact:true}).click();
+ await page.getByRole('button',{name:'잠시 쉬기',exact:true}).waitFor();
+ assert.equal(await page.evaluate(()=>fixture.calls.some(call=>call.name==='study_camera_action'&&call.args.p_action==='claim')),true);
+ assert.equal(await page.evaluate(()=>fixture.camera?.status),'watching');
+},'legacy'));
+
+browserTest('device sync: a late recovery claim cannot close a newer manual camera',()=>withApp(375,async page=>{
+ const tools=page.locator('.focus-tools');await tools.locator('summary').first().click();
+ await tools.getByRole('button',{name:'카메라 감시 켜기',exact:true}).click();
+ await tools.getByRole('button',{name:'카메라 감시 끄기',exact:true}).waitFor();
+ await page.evaluate(()=>{fixture.holdCameraClaim=true;document.querySelector('video').srcObject.getTracks().forEach(track=>track.stop());document.dispatchEvent(new Event('visibilitychange'));});
+ await page.waitForFunction(()=>!!fixture.releaseCameraClaim);
+ await tools.getByRole('button',{name:'카메라 감시 끄기',exact:true}).click();
+ await tools.getByRole('button',{name:'카메라 감시 켜기',exact:true}).click();
+ await tools.getByRole('button',{name:'카메라 감시 끄기',exact:true}).waitFor();
+ await page.evaluate(()=>{window.newClaimTrack=document.querySelector('video').srcObject.getVideoTracks()[0];fixture.releaseCameraClaim();});
+ await page.clock.runFor(1000);
+ assert.equal(await page.evaluate(()=>window.newClaimTrack.readyState),'live');
+ assert.equal(await page.evaluate(()=>document.querySelector('video').srcObject?.getVideoTracks()[0]===window.newClaimTrack),true);
+}));
+
+browserTest('device sync: stale remote ownership never restores this device from an old saved intent',()=>withApp(375,async page=>{
+ await page.evaluate(()=>{localStorage.setItem('study-room-camera-monitoring-intent:owner',JSON.stringify({userId:'owner',sessionId:'session',savedAtMs:Date.now()}));fixture.camera.expires_at=new Date(Date.now()-1000).toISOString();window.dispatchEvent(new Event('focus'));});
+ await page.clock.runFor(16000);
+ assert.equal(await page.evaluate(()=>window.fixtureCameraRequests),0);
+ assert.equal(await page.evaluate(()=>fixture.calls.some(call=>call.name==='study_camera_action'&&call.args.p_action==='claim')),false);
+ assert.equal(await page.getByRole('dialog',{name:'카메라 인증 필요'}).count(),0);
+},'remote'));
+
+browserTest('device sync: an observer resumes the shared study without transferring the PC camera',()=>withApp(375,async page=>{
+ await page.evaluate(()=>{fixture.collision=false;fixture.sessions[0]={...fixture.sessions[0],paused_at:new Date().toISOString()};window.dispatchEvent(new Event('focus'));});
+ await page.getByRole('button',{name:'공부 계속하기',exact:true}).click();
+ await page.getByRole('button',{name:'잠시 쉬기',exact:true}).waitFor();
+ assert.equal(await page.getByRole('dialog',{name:'카메라 인증 필요'}).count(),0);
+ assert.equal(await page.evaluate(()=>window.fixtureCameraRequests),0);
+ assert.equal(await page.evaluate(()=>fixture.camera.owner_client_id),'other-document');
+ assert.equal(await page.evaluate(()=>fixture.calls.some(call=>call.name==='study_camera_action'&&call.args.p_action==='claim')),false);
+},'remote'));
+
+browserTest('device sync: a recovered owner restores camera after another device pauses and resumes',()=>withApp(375,async page=>{
+ const tools=page.locator('.focus-tools');await tools.locator('summary').first().click();
+ await tools.getByRole('button',{name:'카메라 감시 켜기',exact:true}).click();await tools.getByRole('button',{name:'카메라 감시 끄기',exact:true}).waitFor();
+ await page.evaluate(()=>{window.beforeRecovery=document.querySelector('video').srcObject.getVideoTracks()[0];window.beforeRecovery.stop();document.dispatchEvent(new Event('visibilitychange'));});
+ await page.waitForFunction(()=>document.querySelector('video')?.srcObject?.getVideoTracks()[0]?.readyState==='live'&&document.querySelector('video').srcObject.getVideoTracks()[0]!==window.beforeRecovery);
+ await tools.getByRole('button',{name:'카메라 감시 끄기',exact:true}).waitFor();
+ await page.evaluate(()=>{window.beforeRemotePause=document.querySelector('video').srcObject.getVideoTracks()[0];fixture.sessions[0]={...fixture.sessions[0],paused_at:new Date().toISOString()};window.dispatchEvent(new Event('focus'));});
+ await page.getByRole('button',{name:'공부 계속하기',exact:true}).waitFor();
+ await page.waitForFunction(()=>window.beforeRemotePause.readyState==='ended');
+ await page.evaluate(()=>{fixture.sessions[0]={...fixture.sessions[0],paused_at:null};window.dispatchEvent(new Event('focus'));});
+ await tools.getByRole('button',{name:'카메라 감시 끄기',exact:true}).waitFor();
+ assert.equal(await page.evaluate(()=>document.querySelector('video').srcObject.getVideoTracks()[0].readyState),'live');
+}));
+
 browserTest('device install: PC-only active timer is allowed without pausing or ending the server session',()=>withApp(375,async page=>{
  assert.equal(await deviceInstallProof(page),'allowed');
  assert.equal(await page.evaluate(()=>fixture.sessions[0].paused_at),null);

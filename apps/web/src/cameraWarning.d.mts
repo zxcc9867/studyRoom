@@ -2,6 +2,7 @@ import type { Session } from "@supabase/supabase-js";
 
 export type CameraWarningResult = {
   ok: boolean;
+  suppressed: boolean;
   slackSent: boolean;
   slackMissing: boolean;
   eventId: string;
@@ -15,6 +16,8 @@ export function sendCameraPresenceWarning(
     absenceSeconds: number;
     detectedAt: string;
     eventType?: "absence_warning" | "camera_required_warning";
+    clientId?: string;
+    generation?: number;
   },
 ): Promise<CameraWarningResult>;
 

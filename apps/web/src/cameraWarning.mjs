@@ -1,6 +1,6 @@
 import { supabase, supabaseAnonKey, supabaseUrl } from "./supabase";
 
-export async function sendCameraPresenceWarning(session, { sessionId, absenceSeconds, detectedAt, eventType }) {
+export async function sendCameraPresenceWarning(session, { sessionId, absenceSeconds, detectedAt, eventType, clientId, generation }) {
   if (!session?.access_token) {
     throw new Error("Supabase session is required");
   }
@@ -17,6 +17,8 @@ export async function sendCameraPresenceWarning(session, { sessionId, absenceSec
       absenceSeconds,
       detectedAt,
       eventType: eventType ?? "absence_warning",
+      clientId,
+      generation,
     }),
   });
   const payload = await response.json().catch(() => null);
@@ -27,6 +29,7 @@ export async function sendCameraPresenceWarning(session, { sessionId, absenceSec
 
   return {
     ok: Boolean(payload?.ok),
+    suppressed: Boolean(payload?.suppressed),
     slackSent: Boolean(payload?.slackSent),
     slackMissing: Boolean(payload?.slackMissing),
     eventId: typeof payload?.eventId === "string" ? payload.eventId : "",

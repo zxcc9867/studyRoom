@@ -1,5 +1,14 @@
 # Active Context
 
+<!-- cross-device-state-sync:start -->
+- 갱신: 2026-10-18 20:36 · 도구: codex · 현재 작업: 영상 제외 동일 계정 상태 동기화.
+- 브랜치: feat/team-study-room · 기준95b70fc · 현재 변경/운영 DB·Edge 적용, 웹 커밋/배포 준비 중. 선행 ops·수용 미커밋 파일은 제외해 보존한다.
+- 완료: shared snapshot/단일 카메라 담당·generation·관찰 실행 차단·명시 전환, 서버 원자적 warning·legacy suppression·공통 제외값 정규화. 원격20261018100359/Edge v24 ACTIVE·무인증401·학습13테이블 count/content digest 동일.
+- 검증: 실제Chrome 전체1326/1326·실패/생략0, verify Dune0/5명령exit0, 서버87/87·helper16/16·독립 서버/웹 재검토PASS. docs/cross-device-study/acceptance.md.
+- 다음 단계: 범위 stage/commit/push→기존 feature-ref production workflow→READY/exactSHA/HTTP200→Android 기존 계정 새 hosted웹 재조회.
+- 주의: 사용자가 PC와 같은 계정의 에뮬레이터 로그인은 나중에 진행 선택. 실제 동일계정 동기화/5분 Slack 무발송/기기 전환은 미완. 기존PC공부 제어/새로고침·회복 대리제출·영상전송 없음. native/APK0.2.4/code7 불변.
+<!-- cross-device-state-sync:end -->
+
 - 갱신: 2026-10-15 · 도구: codex
 - 브랜치: feat/team-study-room · 제품616f38c05ccd9f0d620d4ef50963393f9e1d6f91 push/배포 완료. 출시 근거는 문서 후속 커밋에 기록. 기존 .serena/output 보존.
 - 목표 / 완료 기준: 회원 개인 공부 자동 팀 집계·목표 저장 즉시 공유·팀장 표시·탈퇴 모달. 기존 개인 라이프사이클 보존·SQL/실제Chrome/전체게이트·독립 검토·DB/웹 배포 확인.

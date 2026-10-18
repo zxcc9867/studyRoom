@@ -9,9 +9,10 @@ const ts = require('typescript');
 const owner = 'user-1';
 const day = '2026-10-01';
 const sessionId = 'a75a57df-abbe-487e-b43d-3cd4947ad4af';
+const clientId = '00000000-0000-4000-8000-000000000301';
 
 // Run the actual Edge handler and shared recovery code; replace only DB/auth/Slack I/O.
-function setup({ events = [], slack = false } = {}) {
+function setup({ events = [], slack = false, allowed = true } = {}) {
   const tables = {
     study_sessions: [{ id: sessionId, user_id: owner, local_date: day, status: 'active' }],
     study_presence_events: structuredClone(events),
@@ -50,6 +51,17 @@ function setup({ events = [], slack = false } = {}) {
   const admin = {
     auth: { getUser: async token => ({ data: { user: token === 'valid-test-token' ? { id: owner } : null }, error: null }) },
     from: table => new Query(table),
+    rpc: async (name, args) => {
+      assert.equal(name, 'claim_study_camera_warning');
+      assert.equal(args.p_user_id, owner);
+      assert.equal(args.p_session_id, sessionId);
+      assert.equal(args.p_client_id, clientId);
+      assert.equal(args.p_generation, 7);
+      if (!allowed) return { data: { allowed: false, event_id: null, absence_warning_count: 0 }, error: null };
+      const event = { id: `event-${tables.study_presence_events.length+1}`, ...warning(owner,day,args.p_event_type) };
+      tables.study_presence_events.push(event);
+      return { data: { allowed: true, event_id: event.id, absence_warning_count: args.p_event_type==='absence_warning' ? tables.study_presence_events.filter(row => row.user_id===owner && row.event_type==='absence_warning' && row.metadata.localDate===day).length : 0 }, error: null };
+    },
   };
   let handler;
   const runtime = {
@@ -84,10 +96,10 @@ function setup({ events = [], slack = false } = {}) {
   });
   return {
     tables, messages,
-    async warn(eventType = 'absence_warning', token = 'valid-test-token') {
+    async warn(eventType = 'absence_warning', token = 'valid-test-token', identity = { clientId, generation: 7 }, absenceSeconds = eventType === 'absence_warning' ? 300 : 0) {
       const response = await handler(new Request('https://test.invalid/camera-presence-warning', {
         method: 'POST', headers: { authorization: `Bearer ${token}`, 'content-type': 'application/json' },
-        body: JSON.stringify({ sessionId, eventType, absenceSeconds: eventType === 'absence_warning' ? 300 : 0 }),
+        body: JSON.stringify({ sessionId, eventType, absenceSeconds, ...identity }),
       }));
       return { status: response.status, body: await response.json() };
     },
@@ -153,4 +165,27 @@ test('unauthenticated requests do not record warnings or create recovery', async
   assert.equal(status, 401);
   assert.equal(app.tables.study_presence_events.length, 0);
   assert.equal(app.tables.study_recovery_requests.length, 0);
+});
+
+for (const identity of [{}, { clientId }, { clientId, generation: -1 }, { clientId: 'invalid', generation: 7 }]) test('legacy or malformed owner identity suppresses every warning side effect '+JSON.stringify(identity), async () => {
+  const app = setup({ slack: true, events: [warning(),warning()] });
+  const result = await app.warn('absence_warning','valid-test-token',identity);
+  assert.equal(result.status,200);assert.equal(result.body.suppressed,true);
+  assert.equal(app.tables.study_presence_events.length,2);
+  assert.equal(app.tables.study_recovery_requests.length,0);
+  assert.equal(app.tables.notification_deliveries.length,0);assert.equal(app.messages.length,0);
+});
+
+test('atomic DB denial suppresses stale, observer or invalid-state warning without recovery or Slack delivery', async () => {
+  const app = setup({ slack:true, allowed:false, events:[warning(),warning()] });
+  const result = await app.warn();assert.equal(result.body.suppressed,true);
+  assert.equal(app.tables.study_presence_events.length,2);
+  assert.equal(app.tables.study_recovery_requests.length,0);
+  assert.equal(app.tables.notification_deliveries.length,0);assert.equal(app.messages.length,0);
+});
+
+test('absence duration comes from the guarded server RPC, never a client threshold', async () => {
+  const app=setup();
+  const result=await app.warn('absence_warning','valid-test-token',{clientId,generation:7},0);
+  assert.equal(result.status,200);assert.equal(result.body.absenceWarningCount,1);
 });

@@ -288,8 +288,9 @@ test("camera presence warning Edge Function validates session ownership before s
   assert.match(source, /\.from\("study_sessions"\)/);
   assert.match(source, /\.eq\("id", sessionId\)/);
   assert.match(source, /studySession\.user_id !== user\.id/);
-  assert.match(source, /\.from\("study_presence_events"\)/);
-  assert.match(source, /event_type: eventType/);
+  assert.match(source, /admin\.rpc\("claim_study_camera_warning"/);
+  assert.match(source, /p_client_id: clientId/);
+  assert.match(source, /p_generation: generation/);
   assert.match(source, /"absence_warning"/);
   assert.match(source, /camera_required_warning/);
   assert.match(source, /eventType/);
@@ -445,7 +446,7 @@ test("attendance cron creates missed recovery requests and one follow-up", () =>
 test("camera warning creates recovery request on repeated absence warnings only", () => {
   const source = readFileSync("supabase/functions/camera-presence-warning/index.ts", "utf8");
 
-  assert.match(source, /countAbsenceWarningsForDate/);
+  assert.match(source, /claim\.absence_warning_count/);
   assert.match(source, /absenceWarningCount >= 3/);
   assert.match(source, /triggerType:\s*"camera_absence_repeat"/);
   assert.match(source, /sendRecoveryRequestSlackMessage/);

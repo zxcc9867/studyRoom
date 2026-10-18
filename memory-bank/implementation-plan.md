@@ -1,3 +1,9 @@
+## 2026-10-18 — 동일 계정 공부·카메라 동기화
+
+- 공식 클라이언트는 studyDeviceSync.mjs의 bounded RPC/계정·revision·응답 시각·generation fence다. Dashboard는 기존 actual tracking을 hydrate하며 관찰 기기의 감지/경고/제외/로컬 자동 종료를 실행하지 않는다. Realtime3테이블 사용자 필터와15초 foreground fallback, 담당10초 heartbeat/45초 유효 상태를 사용한다.
+- migration20261018100359는 새 camera 테이블/RLS와3개RPC를 추가한다. 기존 checkpoint/end/preview 원본을 잠긴 private 경계로 이동하고 공개 시그니처는 유지한다. 조정된 세션의 preview/confirm/pause/end/complete는 같은 서버 제외값을 사용한다. 이전 학습 행을 삭제/재작성하지 않는다.
+- DB→guarded camera-presence-warning Edge→웹 순서로 출시한다. 기존 APK0.2.4는 hosted 웹을 다시 불러오면 반영되므로 native/version/signature 변경은 없다. 현재 사용자 PC 공부를 강제 새로고침/종료하지 않는다. 검증·보존·배포 ID는 docs/cross-device-study/acceptance.md.
+
 ## 2026-10-13 — 함께 공부방 경계
 
 - 등록 계정 전용·팀6명/1팀·링크+정확한 공개 태그 초대. 기존 인증·출석·회복·개인 카메라·DND 정책을 변경하지 않는다. 세부 계약은 prd-social-study-room.md와 docs/team-study/server-contract.md를 따른다.

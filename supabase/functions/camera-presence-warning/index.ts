@@ -51,19 +51,28 @@ Deno.serve(async (request) => {
   if ("response" in parsed) {
     return parsed.response;
   }
-  const { sessionId, absenceSeconds, detectedAt, eventType } = parsed;
+  const { sessionId, clientId, generation, eventType } = parsed;
+
+  // Older tabs have no ownership token. They must not emit warnings or recovery.
+  if (!clientId || generation === null) return suppressed();
 
   const studySession = await loadStudySession(admin, sessionId);
   if (!studySession || studySession.user_id !== user.id) {
     return json({ error: "Study session was not found" }, 403);
   }
 
+  const { data: claim, error: claimError } = await admin.rpc("claim_study_camera_warning", {
+    p_user_id: user.id,
+    p_session_id: sessionId,
+    p_client_id: clientId,
+    p_generation: generation,
+    p_event_type: eventType,
+  });
+  if (claimError) throw claimError;
+  if (claim?.allowed !== true || !claim.event_id) return suppressed();
+  const eventId = String(claim.event_id);
+  const absenceWarningCount = Number(claim.absence_warning_count) || 0;
   const target = await loadSlackTarget(admin, user.id);
-  const eventId = await recordPresenceEvent(admin, studySession, eventType, absenceSeconds, detectedAt, Boolean(target));
-  const absenceWarningCount =
-    eventType === "absence_warning"
-      ? await countAbsenceWarningsForDate(admin, studySession.user_id, studySession.local_date)
-      : 0;
   const recoveryResult =
     eventType === "absence_warning" && absenceWarningCount >= 3
       ? await sendRepeatedAbsenceRecoveryRequest(admin, studySession, target)
@@ -117,12 +126,12 @@ async function getAuthenticatedUser(admin: SupabaseClient, request: Request): Pr
   return { user };
 }
 
-function parseWarningPayload(payload: unknown): { response: Response } | { sessionId: string; absenceSeconds: number; detectedAt: string; eventType: PresenceWarningEventType } {
+function parseWarningPayload(payload: unknown): { response: Response } | { sessionId: string; clientId: string | null; generation: number | null; eventType: PresenceWarningEventType } {
   const data = payload && typeof payload === "object" ? (payload as Record<string, unknown>) : null;
   const sessionId = typeof data?.sessionId === "string" ? data.sessionId : "";
-  const absenceSeconds = Number(data?.absenceSeconds);
-  const detectedAtInput = typeof data?.detectedAt === "string" ? data.detectedAt : "";
-  const detectedAtMs = Date.parse(detectedAtInput);
+  const clientInput = typeof data?.clientId === "string" ? data.clientId : "";
+  const clientId = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(clientInput) ? clientInput : null;
+  const generation = typeof data?.generation === "number" && Number.isSafeInteger(data.generation) && data.generation > 0 ? data.generation : null;
   const eventType = parseEventType(data?.eventType);
 
   if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(sessionId)) {
@@ -133,15 +142,10 @@ function parseWarningPayload(payload: unknown): { response: Response } | { sessi
     return { response: json({ error: "eventType is not supported" }, 400) };
   }
 
-  const minimumAbsenceSeconds = eventType === "absence_warning" ? 300 : 0;
-  if (!Number.isFinite(absenceSeconds) || absenceSeconds < minimumAbsenceSeconds) {
-    return { response: json({ error: `absenceSeconds must be at least ${minimumAbsenceSeconds}` }, 400) };
-  }
-
   return {
     sessionId,
-    absenceSeconds: Math.floor(absenceSeconds),
-    detectedAt: Number.isFinite(detectedAtMs) ? new Date(detectedAtMs).toISOString() : new Date().toISOString(),
+    clientId,
+    generation,
     eventType,
   };
 }
@@ -190,55 +194,8 @@ async function loadSlackTarget(admin: SupabaseClient, userId: string) {
   return ((data ?? []) as SlackTarget[]).find((target) => target.destination?.trim()) ?? null;
 }
 
-async function recordPresenceEvent(
-  admin: SupabaseClient,
-  studySession: StudySessionRow,
-  eventType: PresenceWarningEventType,
-  absenceSeconds: number,
-  detectedAt: string,
-  slackAttempted: boolean,
-) {
-  const { data, error } = await admin
-    .from("study_presence_events")
-    .insert({
-      user_id: studySession.user_id,
-      session_id: studySession.id,
-      event_type: eventType,
-      absence_seconds: absenceSeconds,
-      detected_at: detectedAt,
-      metadata: {
-        source: "web-camera",
-        localDate: studySession.local_date,
-        slackAttempted,
-      },
-    })
-    .select("id")
-    .single();
-
-  if (error) {
-    throw error;
-  }
-
-  return String(data.id);
-}
-
-async function countAbsenceWarningsForDate(
-  admin: SupabaseClient,
-  userId: string,
-  localDate: string,
-) {
-  const { count, error } = await admin
-    .from("study_presence_events")
-    .select("id", { count: "exact", head: true })
-    .eq("user_id", userId)
-    .eq("event_type", "absence_warning")
-    .contains("metadata", { localDate });
-
-  if (error) {
-    throw error;
-  }
-
-  return count ?? 0;
+function suppressed() {
+  return json({ ok: true, suppressed: true, slackSent: false, eventId: null, absenceWarningCount: 0, recoveryResult: null });
 }
 
 async function sendRepeatedAbsenceRecoveryRequest(
