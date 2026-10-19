@@ -1,11 +1,12 @@
 # Active Context
 
 <!-- mobile-lifecycle-acceptance:start -->
-- 갱신: 2026-10-19 23:44 · 도구codex · 브랜치fix/mobile-camera-lifecycle · 기준1d7a7c0·현재 제품 수정/검증 완료, 배포 전. 선행 미커밋ops/수용 변경과rollback ref 보존.
+- 갱신: 2026-10-19 23:51 · 도구codex · 브랜치fix/mobile-camera-lifecycle · 제품3312ad089d5eb97b3b41eba6fc7c5f2ab22ccbde commit/push/운영배포 완료. 선행 미커밋ops/수용 변경과rollback ref 보존.
 - 목표/현재: 남은 직접검증 우선·학습기록 보존. PC/앱 같은계정·active0·10/19 회복pending1. 사용자가 ‘다른 검사부터 진행’ 선택, 회복 대리제출/우회·새공부 생성 없음.
 - 완료: Android16/설치0.2.4/code7 로그인복원·HOME복귀·COLD재실행·피드20글/숲canvas/목표/설정 실제콘텐츠·네이티브권한패널→Android설정→복귀 정상. 카메라AppOps1분18.729초 불변, 추가인증0. WebView만18초offline 실제snapshot실패1→복구8.4초후정상poll1·리로드/재로그인없음.
 - 수정: dashboardData의non-null다음행동필터 때문에 오래된장고제안부활 재현. 최신빈회고도선택·새빈회고저장즉시반영, 과거회고삭제/DB/native변경없음. 단위RED1→2/2·mountedRED3→3/3·Chrome1348/1348 실패/생략0·verify Dune0/5명령exit0·독립검토Critical/Important0. docs/cross-device-study/mobile-lifecycle-20261019.md.
-- 다음: 범위지정commit/push→기존feature-ref workflow→production READY/exactSHA/HTTP200→실제PC/앱최신화면·기존행digest확인. 앱신규카메라담당/명시전환은 본인회복제출후, 평소자세6분/실휴대폰DND/장시간활성배경은 별도미검증.
+- 출시/보존: Actions39271816694 success·Vercel dpl_D82nR19hn1SY6iymQBcTJSDHtcgq production READY/exactSHA/project/ref·HTTP200/index-C57JTt4A.js JavaScript200. 실제Android14:49:47/PC14:50 새entry·장고안내없음·회복잠금/로그인/3/3유지·추가카메라없음.14:50:15 기존완료153/할일274/회고13/회복77 count+digest동일. 이번새학습행0·APK재설치불필요.
+- 다음: 앱신규카메라담당/명시전환은 본인회복제출후. 평소자세6분/실휴대폰DND/장시간활성배경은 별도미검증. 에뮬레이터알림/DND접근미허용·임의변경없음. 보존된선행ops/수용diff는이번commit에포함하지않음.
 <!-- mobile-lifecycle-acceptance:end -->
 
 <!-- safe-section-recovery:start -->

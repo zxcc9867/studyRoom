@@ -44,6 +44,6 @@
 **Files:** docs/cross-device-study/mobile-lifecycle-20261019.md; memory-bank/active-context.md; memory-bank/progress.md; memory-bank/trouble-shooting.md.
 
 - [x] Independent shared-reviewer review of the bounded diff and verification evidence; no Critical/Important issue.
-- [ ] Commit only owned source/tests/docs; preserve mixed pre-existing memory diffs with scoped staging.
-- [ ] Push feature branch and dispatch vercel-production.yml. Require Actions success, exact-SHA Vercel production READY and HTTP200/JavaScript asset.
-- [ ] Recheck actual PC/Android stale advice, recovery gate, login/history and pre-existing row digests; document any remaining physical or recovery-blocked checks.
+- [x] Commit only owned source/tests/docs as3312ad0; preserve mixed pre-existing memory diffs with scoped staging.
+- [x] Push feature branch and dispatch vercel-production.yml; Actions39271816694 success, exact-SHA Vercel production READY, site/JavaScriptHTTP200.
+- [x] Recheck actual PC/Android stale advice, recovery gate, login/history and pre-existing row digests; no new learning rows and all4baseline digests equal. Physical and recovery-blocked acceptance remains explicitly separate.
