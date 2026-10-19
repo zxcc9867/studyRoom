@@ -2,6 +2,7 @@
 
 | 기능 | 상태 | 현재 근거 / 다음 단계 |
 |---|---|---|
+| Android 유휴 lifecycle·오래된 회고 안내 | 검증 완료·웹 수정 배포 전 | 설치0.2.4/code7 같은계정·실제탭콘텐츠·HOME/COLD/Android설정복귀·18초offline→정상poll복구 PASS, 카메라사용불변/추가인증0. 최신빈회고선택·즉시반영 RED4→집중5/5·Chrome1348/1348·verify/독립검토Critical/Important0. 새공부/담당전환은10/19회복잠금 유지해보류·실휴대폰DND/물리착석별도. docs/cross-device-study/mobile-lifecycle-20261019.md |
 | 공부 상태 보존 화면 복구 | 운영 배포·실제 수용 완료(범위 한정) | 영역 격리·유휴 명시reload·필수회고 eager, 집중10/10·Chrome1343/1343·verify/독립검토PASS.225fd82/Actions39148327299·production READY/200. Android16 실제HTML200 실패→복구·COLD로그인/학습보존, PC설정/오늘 정상. APK0.2.4 그대로·DB변경없음·전용rollback branch보존. docs/safe-section-recovery-20261019.md |
 | 동일 계정 다중 기기 공부·카메라 상태 | 운영 배포 완료·동일계정 실기기 수용 보류 | 영상 제외·단일 담당/generation·관찰 카메라/경고/자동종료 차단. Chrome1326/1326·verify·독립검토PASS. remote20261018100359/Edge24·학습13테이블 동일.2cc16ae/Actions39124089277·READY/exactSHA/HTTP200. Android 현재로그인화면·사용자 재로그인 추후 선택, 실제 동기화·5분 Slack은 미검증. docs/cross-device-study/acceptance.md |
 | 개인 공부·실제 시간 배분·휴식·회복·04시 공부일 | 기존 운영 기능 유지 | 이번 팀 기능이 정책/기록을 변경하지 않음. 이전 검증은 보관본 각 최신 항목 참고 |

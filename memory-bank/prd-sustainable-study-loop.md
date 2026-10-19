@@ -137,7 +137,7 @@ The sustainable loop now adds a low-friction entry layer without weakening atten
 - [x] Recognize ten counted study minutes as a separate daily habit success.
 - [x] Keep the existing weekday two-hour and weekend four-hour targets as the next milestone.
 - [x] Use one completed same-day todo as the final daily bloom milestone.
-- [x] Surface the latest non-null reflection `next_action` on Today.
+- [x] Surface the latest reflection's `next_action` on Today. A newer blank action clears the old suggestion rather than reviving an older non-null value (2026-10-19 follow-up to the requested stale `장고245페이지` removal). Historical reflection rows remain unchanged.
 - [x] Match the next action to an incomplete same-day todo or prefill quick add after explicit user action.
 - [x] Preserve recovery, camera, and session-todo gates before starting study.
 - [x] Keep all habit state client-derived; do not add schema or alter `present`/`missed` semantics.

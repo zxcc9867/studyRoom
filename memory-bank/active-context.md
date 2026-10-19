@@ -1,5 +1,13 @@
 # Active Context
 
+<!-- mobile-lifecycle-acceptance:start -->
+- 갱신: 2026-10-19 23:44 · 도구codex · 브랜치fix/mobile-camera-lifecycle · 기준1d7a7c0·현재 제품 수정/검증 완료, 배포 전. 선행 미커밋ops/수용 변경과rollback ref 보존.
+- 목표/현재: 남은 직접검증 우선·학습기록 보존. PC/앱 같은계정·active0·10/19 회복pending1. 사용자가 ‘다른 검사부터 진행’ 선택, 회복 대리제출/우회·새공부 생성 없음.
+- 완료: Android16/설치0.2.4/code7 로그인복원·HOME복귀·COLD재실행·피드20글/숲canvas/목표/설정 실제콘텐츠·네이티브권한패널→Android설정→복귀 정상. 카메라AppOps1분18.729초 불변, 추가인증0. WebView만18초offline 실제snapshot실패1→복구8.4초후정상poll1·리로드/재로그인없음.
+- 수정: dashboardData의non-null다음행동필터 때문에 오래된장고제안부활 재현. 최신빈회고도선택·새빈회고저장즉시반영, 과거회고삭제/DB/native변경없음. 단위RED1→2/2·mountedRED3→3/3·Chrome1348/1348 실패/생략0·verify Dune0/5명령exit0·독립검토Critical/Important0. docs/cross-device-study/mobile-lifecycle-20261019.md.
+- 다음: 범위지정commit/push→기존feature-ref workflow→production READY/exactSHA/HTTP200→실제PC/앱최신화면·기존행digest확인. 앱신규카메라담당/명시전환은 본인회복제출후, 평소자세6분/실휴대폰DND/장시간활성배경은 별도미검증.
+<!-- mobile-lifecycle-acceptance:end -->
+
 <!-- safe-section-recovery:start -->
 - 갱신: 2026-10-19 02:17 · 도구codex · 브랜치 fix/study-room-update-recovery · 제품225fd82310b95de5827afd4abb90ac094f3668c5 commit/push/운영 배포 완료. 이전 feat/team-study-room 보존·선행 미커밋 ops/수용 변경 보존.
 - 목표: 위임받은 후속 개선으로 실제 stale chunk 전체 빈화면을 우선. 영역 단위 오류 격리·오늘 복귀·명시 유휴 reload, 공부/휴식/학습조회/기존 Dashboard 저장 중 reload 차단. 필수 종료/회고는 eager import, 정상 회고·학습 정책/DB/native 불변.

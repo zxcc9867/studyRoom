@@ -2970,9 +2970,10 @@ function DashboardApp() {
         savedReflection,
         ...current.filter((item) => item.session_id !== savedReflection.session_id),
       ]);
-      if (normalizeHabitText(savedReflection.next_action)) {
-        setLatestStudySessionReflection(savedReflection);
-      }
+      setLatestStudySessionReflection((current) => !current
+        || savedReflection.id === current.id
+        || Date.parse(savedReflection.created_at) >= Date.parse(current.created_at)
+        ? savedReflection : current);
       setReflectionInboxSessionId(null);
       setSessionReflectionDraft({
         focusScore: 3,

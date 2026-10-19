@@ -48,7 +48,7 @@ export async function loadDashboardData(client: SupabaseClient, userId: string, 
       fetchAllPages((from, to) => client.from("study_session_todos").select("*").abortSignal(signal).eq("user_id", userId).order("linked_at", { ascending: false }).range(from, to)),
       fetchAllPages((from, to) => client.from("study_goals").select("*").abortSignal(signal).eq("user_id", userId).order("status", { ascending: true }).order("target_date", { ascending: true }).order("id", { ascending: true }).range(from, to)),
       fetchAllPages((from, to) => client.from("study_recovery_requests").select("id,local_date,covered_start_date,covered_end_date,covered_missed_days,trigger_type,status,reason,makeup_todo_title,pledge_todo_title,created_at").abortSignal(signal).eq("user_id", userId).in("status", ["pending", "submitted"]).order("created_at", { ascending: false }).order("id", { ascending: true }).range(from, to)),
-      client.from("study_session_reflections").select("id,session_id,focus_score,energy_score,interruption_reason,note,next_action,created_at").abortSignal(signal).eq("user_id", userId).not("next_action", "is", null).order("created_at", { ascending: false }).limit(1).maybeSingle(),
+      client.from("study_session_reflections").select("id,session_id,focus_score,energy_score,interruption_reason,note,next_action,created_at").abortSignal(signal).eq("user_id", userId).order("created_at", { ascending: false }).limit(1).maybeSingle(),
     ]);
 
     assertQuerySucceeded("프로필", profileResult.error);

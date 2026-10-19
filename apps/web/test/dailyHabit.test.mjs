@@ -65,7 +65,6 @@ test("today screen wires the habit card, one-row reflection query, and responsiv
   assert.match(main, /sessionTodoSuggestionRef/);
   assert.match(main, /function closeRecoveryRoutineModal\(\)[\s\S]*?sessionTodoSuggestionRef\.current = null;/);
   assert.match(data, /study_session_reflections/);
-  assert.match(data, /\.not\("next_action", "is", null\)/);
   assert.match(data, /\.limit\(1\)/);
   assert.match(styles, /\.daily-habit-card/);
   assert.match(styles, /\.daily-habit-next-action/);

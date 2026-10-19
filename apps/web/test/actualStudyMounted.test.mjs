@@ -513,8 +513,10 @@ state.links=['a','b'];
 const mode=new URLSearchParams(location.search).get('mode');
 state.camera=null;
 if(['empty-links','completed-links','active-empty'].includes(mode)){state.links=mode==='completed-links'?['a']:[];state.current=null;state.sessions[0].paused_at=mode==='active-empty'?null:now;state.todos[0].is_completed=mode==='completed-links';state.todos[1].local_date='2026-09-21';state.todos.forEach(t=>{t.first_started_at=null;t.unknown_allocation=true;t.evaluation_eligible=false;});}
-if(mode==='start'||mode==='recovery'||mode==='start-reflection'){state.sessions=[];state.todos.forEach(t=>t.local_date='2026-09-21');}
-state.reflections=mode==='start-reflection'?[{id:'past-reflection',session_id:'past-session',next_action:'장고245페이지',created_at:'2026-08-01T01:00:00Z'}]:[];
+if(mode==='start'||mode==='recovery'||mode?.startsWith('start-reflection')){state.sessions=[];state.todos.forEach(t=>t.local_date='2026-09-21');}
+state.reflections=mode?.startsWith('start-reflection')?[{id:'past-reflection',session_id:'past-session',next_action:'장고245페이지',created_at:'2026-08-01T01:00:00Z'}]:[];
+if(mode==='start-reflection-blank')state.reflections.unshift({id:'latest-reflection',session_id:'latest-session',next_action:null,created_at:now});
+if(mode==='start-reflection-inbox')state.sessions=[{...row,status:'completed',ended_at:now,duration_seconds:1800}];
 state.recoveries=mode==='recovery'?[{id:'recovery',local_date:'2026-09-20',covered_start_date:'2026-09-20',covered_end_date:'2026-09-20',covered_missed_days:1,trigger_type:'missed_attendance',status:'pending',reason:null,makeup_todo_title:null,pledge_todo_title:null,created_at:now}]:[];
 if(mode==='lease')state.sessions[0].lease_expires_at='2026-09-21T14:34:00Z';
 if(mode==='unknown'){state.current=null;state.sessions[0].paused_at=now;state.todos.forEach(t=>{t.first_started_at=null;t.unknown_allocation=true;t.evaluation_eligible=false;});}
@@ -559,7 +561,7 @@ function result(name,args){state.calls.push({name,args});
  if(name==='get_study_period_summary')return {data:{completed_seconds:3600,completed_session_count:1,anomaly_session_count:0,cross_date_session_count:0},error:null};
  return {data:[],error:null};
 }
-function query(table){let single=false,insert=null,update=null;const q=new Proxy({}, {get(_,key){if(key==='then')return (resolve,reject)=>Promise.resolve().then(()=>{if(update&&table==='study_goals'&&state.holdGoalWrite)return new Promise(resolve=>{state.releaseGoalWrite=()=>resolve({data:{id:'goal',user_id:'owner',title:'자격증 목표',target_date:'2026-12-31',target_study_seconds:0,status:'active',created_at:now,updated_at:now,...update},error:null});});if(insert && table==='study_todos'){const added={...todo('new',''),...insert[0],id:'new'};state.todos.push(added);return {data:added,error:null};}let data=table==='profiles'?state.profile:table==='study_goals'?[{id:'goal',title:'자격증 목표',target_date:'2026-12-31',target_study_seconds:0,status:'active',created_at:now,updated_at:now}]:table==='study_sessions'?state.sessions:table==='study_todos'?state.todos:table==='study_session_reflections'?state.reflections:table==='study_recovery_requests'?state.recoveries:table==='study_session_todos'?state.todos.filter(t=>state.links.includes(t.id)).map(t=>({id:t.id,session_id:'session',todo_id:t.id,user_id:'owner',linked_at:now,completed_during_session:false})):[];return {data:single?(Array.isArray(data)?data[0]??null:data):data,error:null};}).then(resolve,reject);return (...args)=>{if(key==='maybeSingle'||key==='single')single=true;if(key==='insert')insert=args[0];if(key==='update')update=args[0];if(key==='upsert'){state.calls.push({name:table+'.upsert',args:args[0]});if(table==='profiles')state.profile={...state.profile,...args[0]};}return q;};}});return q;}
+function query(table){let single=false,insert=null,update=null,reflectionOps=[];const q=new Proxy({}, {get(_,key){if(key==='then')return (resolve,reject)=>Promise.resolve().then(()=>{if(update&&table==='study_goals'&&state.holdGoalWrite)return new Promise(resolve=>{state.releaseGoalWrite=()=>resolve({data:{id:'goal',user_id:'owner',title:'자격증 목표',target_date:'2026-12-31',target_study_seconds:0,status:'active',created_at:now,updated_at:now,...update},error:null});});if(insert && table==='study_todos'){const added={...todo('new',''),...insert[0],id:'new'};state.todos.push(added);return {data:added,error:null};}let data=table==='profiles'?state.profile:table==='study_goals'?[{id:'goal',title:'자격증 목표',target_date:'2026-12-31',target_study_seconds:0,status:'active',created_at:now,updated_at:now}]:table==='study_sessions'?state.sessions:table==='study_todos'?state.todos:table==='study_session_reflections'?state.reflections:table==='study_recovery_requests'?state.recoveries:table==='study_session_todos'?state.todos.filter(t=>state.links.includes(t.id)).map(t=>({id:t.id,session_id:'session',todo_id:t.id,user_id:'owner',linked_at:now,completed_during_session:false})):[];if(table==='study_session_reflections'){data=[...data];for(const [op,args] of reflectionOps){if(op==='not')data=data.filter(r=>r[args[0]]!==args[2]);if(op==='order')data.sort((a,b)=>String(b[args[0]]).localeCompare(String(a[args[0]])));if(op==='limit')data=data.slice(0,args[0]);}}return {data:single?(Array.isArray(data)?data[0]??null:data):data,error:null};}).then(resolve,reject);return (...args)=>{if(key==='maybeSingle'||key==='single')single=true;if(table==='study_session_reflections'&&['not','order','limit'].includes(key))reflectionOps.push([key,args]);if(key==='insert')insert=args[0];if(key==='update')update=args[0];if(key==='upsert'){state.calls.push({name:table+'.upsert',args:args[0]});if(table==='profiles')state.profile={...state.profile,...args[0]};if(table==='study_session_reflections')state.reflections.unshift({id:'saved-reflection',created_at:now,...args[0]});}return q;};}});return q;}
 export const isSupabaseConfigured=true,supabaseUrl='https://fixture.invalid',supabaseAnonKey='test';
 const feedArticles=Array.from({length:4},(_,index)=>({id:'article-'+index,title:['실무에서 살펴보는 백엔드 아키텍처','클라우드 운영과 관측 가능성','AI 개발 도구를 안전하게 활용하는 방법','새로운 웹 기술을 작은 프로젝트로 익히기'][index],excerpt:'공개 기술 블로그의 소개를 바탕으로 구현 과정과 실제 적용 시 고려할 점을 살펴봅니다. 원문에서 구체적인 예제와 설계의 근거를 확인할 수 있어요.',url:'https://example.test/article/'+index,published_at:now,discovered_at:now,summary:null,summary_status:'pending',category:'practice',interests:['backend'],topics:['백엔드'],sources:[{id:'source',name:'기술 블로그'}],saved:false,todo_id:null,origin:'rss',matched_topics:[],excerpt_provenance:'source_excerpt'}));
 const feedResponse=action=>action==='state'?{enabled:true,service_available:true,sources:[],interests:[],last_success_at:now,preferences:{prompt:'AI와 백엔드 기술',receiving:true,revision:1},search_status:{state:'ready',last_success_at:now}}:action==='list'?{items:feedArticles,next_cursor:null,total:4}:action==='facets'?{total:4,topics:[],sources:[],languages:[{value:'ko',label:'한국어 원문',count:4}]}:action==='briefing'?{local_date:'2026-09-21',time_zone:'Asia/Tokyo',total:4,source_count:1,categories:[],topics:[{value:'backend',label:'백엔드',count:4}],eligible_count:4,analyzed_count:0,generated_at:null,status:'idle',stale:false,insights:[],highlights:[]}:{};
@@ -590,6 +592,29 @@ async function withApp(width, run, mode='active', nativeOrigin=false, failedChun
   if(nativeOrigin)await page.route('https://study-room-attendance.vercel.app/**',async route=>{const url=new URL(route.request().url());await route.fulfill({response:await page.request.get(base+url.pathname+url.search)});});
   await page.goto((nativeOrigin?'https://study-room-attendance.vercel.app/':base)+'?mode='+mode,{timeout:15000,waitUntil:'domcontentloaded'});await page.locator(mode==='login'?'.login-panel':'.topbar-actions button:not([disabled])').first().waitFor();if(mode==='active'||mode==='active-empty'){await page.getByRole('dialog',{name:'카메라 인증 필요'}).waitFor();await page.keyboard.press('Escape');await page.getByRole('dialog').waitFor({state:'detached'});}await run(page);assert.deepEqual(errors,[]);}finally{await browser?.close();await new Promise(resolve=>server.close(resolve));}
 }
+
+for(const width of [375,1440]) browserTest(`continuation advice: latest blank reflection hides old advice at ${width}px`,()=>withApp(width,async page=>{
+ assert.doesNotMatch(await page.locator('.focus-ready').innerText(),/장고245페이지|이어서 할 일/);
+ assert.equal(await page.getByRole('button',{name:'이어서 준비하기',exact:true}).count(),0);
+ assert.equal(await page.evaluate(()=>fixture.reflections.length),2);
+ assert.equal(await page.evaluate(()=>fixture.reflections[1].next_action),'장고245페이지');
+ assert.equal(await page.evaluate(()=>fixture.calls.some(c=>/study_session_reflections.upsert|confirm_actual/.test(c.name))),false);
+},'start-reflection-blank'));
+
+browserTest('continuation advice: saving a new blank follow-up clears old advice immediately',()=>withApp(1440,async page=>{
+ await page.getByRole('button',{name:'이어서 준비하기',exact:true}).waitFor();
+ await page.locator('a[href="#me"]:visible').first().click();
+ await page.locator('.reflection-inbox').getByRole('button',{name:/세션 회고 남기기/}).click();
+ const dialog=page.getByRole('dialog',{name:'놓친 세션을 짧게 돌아봐요'});await dialog.waitFor();
+ await dialog.getByLabel('한 줄 메모',{exact:true}).fill('[테스트] 다음 행동 없이 저장');
+ await dialog.getByRole('button',{name:'회고 저장하기',exact:true}).click();
+ await dialog.waitFor({state:'detached'});
+ await page.locator('.desktop-navigation a[href="#today"]').click();
+ assert.doesNotMatch(await page.locator('.focus-ready').innerText(),/장고245페이지|이어서 할 일/);
+ assert.equal(await page.evaluate(()=>fixture.reflections.length),2);
+ assert.equal(await page.evaluate(()=>fixture.reflections[0].next_action),null);
+ assert.equal(await page.evaluate(()=>fixture.reflections[1].next_action),'장고245페이지');
+},'start-reflection-inbox'));
 
 for(const width of [375,1440]) browserTest(`section recovery: settings chunk failure preserves the live study and camera at ${width}px`,()=>withApp(width,async page=>{
  const tools=page.locator('.focus-tools');await tools.locator('summary').first().click();
