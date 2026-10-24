@@ -2,6 +2,7 @@
 
 | 기능 | 상태 | 현재 근거 / 다음 단계 |
 |---|---|---|
+| 세션 할 일 시간 재편집 | 검증 완료 / 배포 준비 | 클릭한 발생분 시간2필드만 수정·기존 제목/반복/선택/학습 기록 보존. mounted8/8·Chrome전체1357/1357·375/1440·Android16실제WebView격리fixture·verify/독립재검토 통과. 운영저장수용·production배포 진행. docs/session-todo-time-edit/verification-20261024.md |
 | Android 유휴 lifecycle·오래된 회고 안내 | 운영 배포·실제 수용 완료(범위 한정) | 설치0.2.4/code7 같은계정·탭콘텐츠·HOME/COLD/Android설정복귀·18초offline복귀 PASS·카메라사용불변. 최신빈회고선택 RED4→집중5/5·Chrome1348/1348·verify/독립검토차단결함0.3312ad0/Actions39271816694 success·production READY/200·실제PC/Android옛안내없음·기존4종digest동일. 새공부/담당전환은회복잠금유지해보류·실폰DND/착석별도. docs/cross-device-study/mobile-lifecycle-20261019.md |
 | 공부 상태 보존 화면 복구 | 운영 배포·실제 수용 완료(범위 한정) | 영역 격리·유휴 명시reload·필수회고 eager, 집중10/10·Chrome1343/1343·verify/독립검토PASS.225fd82/Actions39148327299·production READY/200. Android16 실제HTML200 실패→복구·COLD로그인/학습보존, PC설정/오늘 정상. APK0.2.4 그대로·DB변경없음·전용rollback branch보존. docs/safe-section-recovery-20261019.md |
 | 동일 계정 다중 기기 공부·카메라 상태 | 운영 배포 완료·동일계정 실기기 수용 보류 | 영상 제외·단일 담당/generation·관찰 카메라/경고/자동종료 차단. Chrome1326/1326·verify·독립검토PASS. remote20261018100359/Edge24·학습13테이블 동일.2cc16ae/Actions39124089277·READY/exactSHA/HTTP200. Android 현재로그인화면·사용자 재로그인 추후 선택, 실제 동기화·5분 Slack은 미검증. docs/cross-device-study/acceptance.md |

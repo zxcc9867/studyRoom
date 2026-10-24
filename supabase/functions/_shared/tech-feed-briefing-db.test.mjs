@@ -100,8 +100,9 @@ test('daily interval uses owner timezone and discovered_at, excludes boundaries 
 }));
 test('latest and saved pages order by first discovery, not old publication, with a stable cursor',()=>tx(async()=>{
  const {ids}=await seed(21);
- await db.query("update tech_feed_articles set discovered_at='2026-09-23T15:00:00Z',published_at='2020-01-01T00:00:00Z' where id=$1",[ids[0]]);
- await db.query("update tech_feed_articles set discovered_at='2026-09-12T15:00:00Z',published_at='2026-09-24T00:00:00Z' where id=$1",[ids[1]]);
+ await db.query("update tech_feed_articles set discovered_at=now()-interval '2 days'");
+ await db.query("update tech_feed_articles set discovered_at=now()-interval '1 day',published_at='2020-01-01T00:00:00Z' where id=$1",[ids[0]]);
+ await db.query("update tech_feed_articles set discovered_at=now()-interval '3 days',published_at=now()-interval '1 day' where id=$1",[ids[1]]);
  await db.query('insert into tech_feed_bookmarks(user_id,article_id) select $1,unnest($2::uuid[])',[owner,ids]);
  const latest=await rpc('tech_feed_list',owner,'latest');
  assert.equal(latest.items.length,20);

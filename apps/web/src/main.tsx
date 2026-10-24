@@ -631,6 +631,9 @@ function DashboardApp() {
   const [sessionTodoStartTime, setSessionTodoStartTime] = useState("09:00");
   const [sessionTodoEndTime, setSessionTodoEndTime] = useState("10:00");
   const [sessionTodoAddBusy, setSessionTodoAddBusy] = useState(false);
+  const [sessionTodoTimeEdit, setSessionTodoTimeEdit] = useState<{ todoId: string; startTime: string; endTime: string; error: string } | null>(null);
+  const sessionTodoTimeSaveRef = useRef<object | null>(null);
+  const sessionTodoTimeReturnFocusRef = useRef<HTMLButtonElement | null>(null);
   const [endSessionCompletionModalOpen, setEndSessionCompletionModalOpen] = useState(false);
   const [selectedEndSessionCompletionTodoIds, setSelectedEndSessionCompletionTodoIds] = useState<string[]>([]);
   const [sessionReflectionDraft, setSessionReflectionDraft] = useState<SessionReflectionDraft>({
@@ -779,6 +782,13 @@ function DashboardApp() {
   }, [message]);
 
   useEffect(() => {
+    if (sessionTodoModalOpen && !sessionTodoTimeEdit && !todoBusy && !busy && !sessionTodoAddBusy) {
+      sessionTodoTimeReturnFocusRef.current?.focus();
+      sessionTodoTimeReturnFocusRef.current = null;
+    }
+  }, [sessionTodoModalOpen, sessionTodoTimeEdit, todoBusy, busy, sessionTodoAddBusy]);
+
+  useEffect(() => {
     setFeedPlanArticle(null);
     setFeedLinkedTodo(null);
     actualStateRevisionRef.current += 1;
@@ -789,6 +799,10 @@ function DashboardApp() {
     setActualIntent(null);
     setActualTracking(null);
     setSessionTodoModalOpen(false);
+    setSessionTodoTimeEdit(null);
+    sessionTodoTimeSaveRef.current = null;
+    sessionTodoTimeReturnFocusRef.current = null;
+    setTodoBusy(false);
     setTodoModalOpen(false);
     setDashboardLoadedUserId(null);
     setDashboardError("");
@@ -2402,12 +2416,13 @@ function DashboardApp() {
     setSessionTodoDraft("");
     setSessionTodoStartTime(suggestedSchedule.startTime);
     setSessionTodoEndTime(suggestedSchedule.endTime);
+    setSessionTodoTimeEdit(null);
     sessionTodoSuggestionRef.current = null;
     setSessionTodoModalOpen(true);
   }
 
   function closeSessionTodoSelection() {
-    if (busy) return;
+    if (busy || sessionTodoAddBusy || todoBusy || sessionTodoTimeSaveRef.current) return;
     if (sessionTodoStartRequest?.cameraReadyOverride && !activeSession) {
       stopCameraMonitoring({ recordEvent: false });
       cameraSessionStartingRef.current = false;
@@ -2416,11 +2431,13 @@ function DashboardApp() {
     setSessionTodoStartRequest(null);
     setSelectedSessionTodoIds([]);
     setSessionTodoDraft("");
+    setSessionTodoTimeEdit(null);
     setSessionTodoStartTime("09:00");
     setSessionTodoEndTime("10:00");
   }
 
   async function confirmSessionTodoSelection() {
+    if (busy || todoBusy || sessionTodoAddBusy || sessionTodoTimeEdit || sessionTodoTimeSaveRef.current) return;
     if (selectedSessionTodoIds.length === 0) {
       setMessage("이번 세션에서 할 일을 1개 이상 선택하세요.");
       return;
@@ -2440,6 +2457,51 @@ function DashboardApp() {
       await runActualAction({ action: "switch", sessionId: activeSession.id, todoIds: selectedSessionTodoIds, currentTodoId: currentId, excludedSeconds: getActiveCameraExcludedSeconds() });
     } else {
       await startTimer(request?.cameraReadyOverride ?? false, selectedSessionTodoIds, undefined, currentId);
+    }
+  }
+
+  function editSessionTodoTime(todo: StudyTodo, button: HTMLButtonElement) {
+    if (busy || todoBusy || sessionTodoAddBusy || sessionTodoTimeSaveRef.current) return;
+    sessionTodoTimeReturnFocusRef.current = button;
+    setSessionTodoTimeEdit({ todoId: todo.id, startTime: todo.start_time?.slice(0, 5) ?? "09:00", endTime: todo.end_time?.slice(0, 5) ?? "10:00", error: "" });
+  }
+
+  function cancelSessionTodoTimeEdit() {
+    if (sessionTodoTimeSaveRef.current) return;
+    setSessionTodoTimeEdit(null);
+  }
+
+  async function saveSessionTodoTime() {
+    const userId = session?.user.id;
+    const draft = sessionTodoTimeEdit;
+    if (!userId || !draft || busy || todoBusy || sessionTodoAddBusy || sessionTodoTimeSaveRef.current) return;
+    const schedule = normalizeTodoSchedule({ enabled: true, startTime: draft.startTime, endTime: draft.endTime });
+    if (!schedule.ok) {
+      setSessionTodoTimeEdit({ ...draft, error: schedule.message });
+      return;
+    }
+    const request = {};
+    sessionTodoTimeSaveRef.current = request;
+    setTodoBusy(true);
+    setSessionTodoTimeEdit({ ...draft, error: "" });
+    try {
+      const { data, error } = await supabase.from("study_todos")
+        .update({ start_time: schedule.startTime, end_time: schedule.endTime })
+        .eq("id", draft.todoId).eq("user_id", userId).select("*").single();
+      if (currentUserIdRef.current !== userId || sessionTodoTimeSaveRef.current !== request) return;
+      if (error || !data) throw new Error("todo time update failed");
+      setStudyTodos((current) => sortTodos(current.map((todo) => todo.id === draft.todoId ? { ...todo, ...data } : todo)));
+      setSessionTodoTimeEdit(null);
+      setMessage("할 일 시간을 저장했어요.");
+    } catch {
+      if (currentUserIdRef.current === userId && sessionTodoTimeSaveRef.current === request) {
+        setSessionTodoTimeEdit({ ...draft, error: "시간을 저장하지 못했어요. 연결 상태를 확인하고 다시 저장해 주세요." });
+      }
+    } finally {
+      if (sessionTodoTimeSaveRef.current === request) {
+        sessionTodoTimeSaveRef.current = null;
+        setTodoBusy(false);
+      }
     }
   }
 
@@ -5963,15 +6025,50 @@ function DashboardApp() {
                         <span>{formatTodoWithSchedule(todo)}</span>
                       </label>
                       <button
+                        className="todo-time-edit"
+                        type="button"
+                        aria-label={`${todo.title} 시간 편집`}
+                        aria-expanded={sessionTodoTimeEdit?.todoId === todo.id}
+                        disabled={busy || sessionTodoAddBusy || todoBusy || Boolean(sessionTodoTimeEdit && sessionTodoTimeEdit.todoId !== todo.id)}
+                        onClick={(event) => editSessionTodoTime(todo, event.currentTarget)}
+                      >
+                        <Pencil size={18} />
+                        시간 편집
+                      </button>
+                      <button
                         className="todo-delete"
                         type="button"
                         aria-label={`${todo.title} 삭제`}
-                        disabled={busy || sessionTodoAddBusy || todoBusy}
+                        disabled={busy || sessionTodoAddBusy || todoBusy || Boolean(sessionTodoTimeEdit)}
                         onClick={() => void deleteTodo(todo)}
                       >
                         <Trash2 size={18} />
                         삭제
                       </button>
+                      {sessionTodoTimeEdit?.todoId === todo.id && (
+                        <form className="session-todo-time-editor" aria-busy={todoBusy} onSubmit={(event) => { event.preventDefault(); void saveSessionTodoTime(); }}>
+                          <fieldset className="session-todo-time-details" disabled={busy || sessionTodoAddBusy || todoBusy}>
+                            <legend>{todo.title} 시간 편집</legend>
+                            <label>
+                              시작
+                              <input type="time" required autoFocus value={sessionTodoTimeEdit.startTime}
+                                onChange={(event) => setSessionTodoTimeEdit({ ...sessionTodoTimeEdit, startTime: event.target.value, error: "" })}
+                                onKeyDown={(event) => { if (isTimeInputPickerKey(event.key)) { event.preventDefault(); openTimeInputPicker(event.currentTarget); } }} />
+                            </label>
+                            <label>
+                              종료
+                              <input type="time" required value={sessionTodoTimeEdit.endTime}
+                                onChange={(event) => setSessionTodoTimeEdit({ ...sessionTodoTimeEdit, endTime: event.target.value, error: "" })}
+                                onKeyDown={(event) => { if (isTimeInputPickerKey(event.key)) { event.preventDefault(); openTimeInputPicker(event.currentTarget); } }} />
+                            </label>
+                            {sessionTodoTimeEdit.error && <p role="alert">{sessionTodoTimeEdit.error}</p>}
+                            <div className="session-todo-time-actions">
+                              <button type="submit">{todoBusy ? "저장 중" : "시간 저장"}</button>
+                              <button type="button" onClick={cancelSessionTodoTimeEdit}>취소</button>
+                            </div>
+                          </fieldset>
+                        </form>
+                      )}
                     </li>
                   );
                 })}
@@ -5982,7 +6079,7 @@ function DashboardApp() {
                   className="primary"
                   type="button"
                   disabled={!resolveCurrentTodo(selectedSessionTodoIds, currentSessionTodoId) || shouldDisableSessionTodoStart({
-                    busy: busy || todoBusy,
+                    busy: busy || todoBusy || Boolean(sessionTodoTimeEdit),
                     addBusy: sessionTodoAddBusy,
                     selectedTodoIds: selectedSessionTodoIds,
                   })}

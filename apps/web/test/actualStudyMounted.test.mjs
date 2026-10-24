@@ -20,6 +20,100 @@ async function readableText(locator) {
  });
 }
 
+async function openTodoTimeEditor(page) {
+ await page.locator('.topbar-actions button').first().click();
+ await page.getByRole('button',{name:'카메라 켜고 시작',exact:true}).click();
+ const dialog=page.getByRole('dialog',{name:'이번 세션에서 할 일'});
+ await dialog.waitFor();
+ await dialog.getByRole('checkbox',{name:/집중 독서/}).check();
+ await dialog.getByRole('button',{name:'집중 독서 시간 편집',exact:true}).click();
+ return {dialog,editor:dialog.getByRole('group',{name:'집중 독서 시간 편집',exact:true})};
+}
+
+for(const width of [375,1440]) browserTest(`session todo time edit: saves only the clicked occurrence and preserves study history at ${width}px`,()=>withApp(width,async page=>{
+ const before=await page.evaluate(()=>structuredClone({todos:fixture.todos,sessions:fixture.sessions,reflections:fixture.reflections}));
+ const {dialog,editor}=await openTodoTimeEditor(page);
+ assert.equal(await dialog.getByRole('button',{name:'집중 독서 삭제',exact:true}).isDisabled(),true);
+ assert.equal(await editor.getByLabel('시작', {exact:true}).inputValue(),'23:00');
+ assert.equal(await editor.getByLabel('종료', {exact:true}).inputValue(),'01:00');
+ await editor.getByLabel('시작',{exact:true}).fill('22:30');
+ await editor.getByLabel('종료',{exact:true}).fill('00:45');
+ await editor.getByRole('button',{name:'시간 저장',exact:true}).click();
+ await editor.waitFor({state:'detached'});
+ assert.equal(await dialog.getByRole('button',{name:'집중 독서 시간 편집',exact:true}).evaluate(el=>el===document.activeElement),true);
+ await dialog.getByText('22:30-00:45 집중 독서',{exact:true}).waitFor();
+ assert.equal(await dialog.getByRole('checkbox',{name:/집중 독서/}).isChecked(),true);
+ const after=await page.evaluate(()=>({todos:fixture.todos,sessions:fixture.sessions,reflections:fixture.reflections,writes:fixture.calls.filter(c=>c.name==='study_todos.update')}));
+ assert.deepEqual(after.todos,[{...before.todos[0],start_time:'22:30',end_time:'00:45'},before.todos[1]]);
+ assert.deepEqual(after.sessions,before.sessions);assert.deepEqual(after.reflections,before.reflections);
+ assert.deepEqual(after.writes,[{name:'study_todos.update',args:{start_time:'22:30',end_time:'00:45'},filters:[['id','a'],['user_id','owner']]}]);
+ await dialog.getByRole('button',{name:'집중 독서 시간 편집',exact:true}).click();
+ assert.equal(await editor.getByLabel('시작',{exact:true}).inputValue(),'22:30');
+ await touchControls(editor.locator('input,button'));
+ await readableGroup(editor.locator('label,legend,button'));
+ assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),true);
+ await mkdir('output/playwright',{recursive:true});
+ await page.screenshot({path:`output/playwright/session-todo-time-edit-${width}.png`,fullPage:true});
+},'start'));
+
+browserTest('session todo time edit: cancel discards edits and equal times stay editable without a request',()=>withApp(375,async page=>{
+ const before=await page.evaluate(()=>structuredClone(fixture.todos));
+ const {dialog,editor}=await openTodoTimeEditor(page);
+ const draft=dialog.getByRole('textbox',{name:'새 할 일',exact:true});
+ await editor.getByLabel('시작',{exact:true}).fill('10:00');
+ await editor.getByLabel('종료',{exact:true}).fill('10:00');
+ await editor.getByRole('button',{name:'시간 저장',exact:true}).click();
+ await editor.getByRole('alert').waitFor();
+ assert.match(await editor.getByRole('alert').textContent(),/같을 수 없습니다/);
+ await editor.getByRole('button',{name:'취소',exact:true}).click();
+ await editor.waitFor({state:'detached'});
+ assert.equal(await dialog.getByRole('button',{name:'집중 독서 시간 편집',exact:true}).evaluate(el=>el===document.activeElement),true);
+ await draft.fill('[테스트] 작성 중인 새 할 일');
+ await dialog.getByRole('button',{name:'집중 독서 시간 편집',exact:true}).click();
+ assert.equal(await editor.getByLabel('시작',{exact:true}).inputValue(),'23:00');
+ assert.equal(await draft.inputValue(),'[테스트] 작성 중인 새 할 일');
+ assert.deepEqual(await page.evaluate(()=>fixture.todos),before);
+ assert.equal(await page.evaluate(()=>fixture.calls.filter(c=>c.name==='study_todos.update').length),0);
+},'start'));
+
+browserTest('session todo time edit: pending save blocks duplicate saves, start and dialog dismissal',()=>withApp(375,async page=>{
+ await page.evaluate(()=>fixture.holdTodoTimeWrite=true);
+ const {dialog,editor}=await openTodoTimeEditor(page);
+ await editor.getByLabel('시작',{exact:true}).fill('22:30');
+ await editor.getByRole('button',{name:'시간 저장',exact:true}).click();
+ await page.waitForFunction(()=>!!fixture.releaseTodoTimeWrite);
+ assert.equal(await dialog.getByRole('button',{name:'선택한 할 일로 시작'}).isDisabled(),true);
+ assert.equal(await editor.getByRole('button',{name:'저장 중',exact:true}).isDisabled(),true);
+ await page.keyboard.press('Escape');assert.equal(await dialog.isVisible(),true);
+ assert.equal(await page.evaluate(()=>fixture.calls.filter(c=>c.name==='study_todos.update').length),1);
+ await page.evaluate(()=>fixture.releaseTodoTimeWrite());await editor.waitFor({state:'detached'});
+ assert.equal(await dialog.getByRole('button',{name:'선택한 할 일로 시작'}).isEnabled(),true);
+},'start'));
+
+for(const failure of ['error','throw','empty']) browserTest(`session todo time edit: ${failure} leaves saved values intact and supports retry`,()=>withApp(375,async page=>{
+ await page.evaluate(failure=>fixture.todoTimeFailure=failure,failure);
+ const before=await page.evaluate(()=>structuredClone(fixture.todos));
+ const {editor}=await openTodoTimeEditor(page);
+ await editor.getByLabel('시작',{exact:true}).fill('22:30');
+ await editor.getByRole('button',{name:'시간 저장',exact:true}).click();
+ await editor.getByRole('alert').waitFor();assert.deepEqual(await page.evaluate(()=>fixture.todos),before);
+ assert.equal(await editor.getByLabel('시작',{exact:true}).inputValue(),'22:30');
+ await page.evaluate(()=>fixture.todoTimeFailure=null);
+ await editor.getByRole('button',{name:'시간 저장',exact:true}).click();await editor.waitFor({state:'detached'});
+},'start'));
+
+browserTest('session todo time edit: stale save cannot update a different account',()=>withApp(375,async page=>{
+ await page.evaluate(()=>fixture.holdTodoTimeWrite=true);
+ const {editor}=await openTodoTimeEditor(page);
+ await editor.getByRole('button',{name:'시간 저장',exact:true}).click();
+ await page.waitForFunction(()=>!!fixture.releaseTodoTimeWrite);
+ await page.evaluate(()=>fixture.changeOwner());
+ await editor.waitFor({state:'detached'});
+ await page.evaluate(()=>fixture.releaseTodoTimeWrite());
+ await page.getByRole('heading',{name:/어떤 공부를 시작/}).waitFor();
+ assert.doesNotMatch(await page.locator('body').textContent(),/시간을 저장했/);
+},'start'));
+
 async function designSnapshot(page,name,width) {
  await mkdir('output/playwright',{recursive:true});
  if(name.startsWith('settings'))await page.evaluate(()=>window.scrollTo({top:0,left:0,behavior:'instant'}));
@@ -561,7 +655,21 @@ function result(name,args){state.calls.push({name,args});
  if(name==='get_study_period_summary')return {data:{completed_seconds:3600,completed_session_count:1,anomaly_session_count:0,cross_date_session_count:0},error:null};
  return {data:[],error:null};
 }
-function query(table){let single=false,insert=null,update=null,reflectionOps=[];const q=new Proxy({}, {get(_,key){if(key==='then')return (resolve,reject)=>Promise.resolve().then(()=>{if(update&&table==='study_goals'&&state.holdGoalWrite)return new Promise(resolve=>{state.releaseGoalWrite=()=>resolve({data:{id:'goal',user_id:'owner',title:'자격증 목표',target_date:'2026-12-31',target_study_seconds:0,status:'active',created_at:now,updated_at:now,...update},error:null});});if(insert && table==='study_todos'){const added={...todo('new',''),...insert[0],id:'new'};state.todos.push(added);return {data:added,error:null};}let data=table==='profiles'?state.profile:table==='study_goals'?[{id:'goal',title:'자격증 목표',target_date:'2026-12-31',target_study_seconds:0,status:'active',created_at:now,updated_at:now}]:table==='study_sessions'?state.sessions:table==='study_todos'?state.todos:table==='study_session_reflections'?state.reflections:table==='study_recovery_requests'?state.recoveries:table==='study_session_todos'?state.todos.filter(t=>state.links.includes(t.id)).map(t=>({id:t.id,session_id:'session',todo_id:t.id,user_id:'owner',linked_at:now,completed_during_session:false})):[];if(table==='study_session_reflections'){data=[...data];for(const [op,args] of reflectionOps){if(op==='not')data=data.filter(r=>r[args[0]]!==args[2]);if(op==='order')data.sort((a,b)=>String(b[args[0]]).localeCompare(String(a[args[0]])));if(op==='limit')data=data.slice(0,args[0]);}}return {data:single?(Array.isArray(data)?data[0]??null:data):data,error:null};}).then(resolve,reject);return (...args)=>{if(key==='maybeSingle'||key==='single')single=true;if(table==='study_session_reflections'&&['not','order','limit'].includes(key))reflectionOps.push([key,args]);if(key==='insert')insert=args[0];if(key==='update')update=args[0];if(key==='upsert'){state.calls.push({name:table+'.upsert',args:args[0]});if(table==='profiles')state.profile={...state.profile,...args[0]};if(table==='study_session_reflections')state.reflections.unshift({id:'saved-reflection',created_at:now,...args[0]});}return q;};}});return q;}
+function query(table){let single=false,insert=null,update=null,reflectionOps=[],filters=[];const q=new Proxy({}, {get(_,key){if(key==='then')return (resolve,reject)=>Promise.resolve().then(()=>{
+ if(update&&table==='study_todos'){
+  state.calls.push({name:'study_todos.update',args:update,filters});
+  const finish=()=>{
+   if(state.todoTimeFailure==='throw')throw new TypeError('test network failure');
+   if(state.todoTimeFailure==='error')return {data:null,error:{message:'test save failure'}};
+   if(state.todoTimeFailure==='empty')return {data:null,error:null};
+   const index=state.todos.findIndex(t=>filters.every(([key,value])=>t[key]===value));
+   if(index<0)return {data:null,error:{message:'test row not found'}};
+   state.todos[index]={...state.todos[index],...update};return {data:state.todos[index],error:null};
+  };
+  if(state.holdTodoTimeWrite)return new Promise((resolve,reject)=>{state.releaseTodoTimeWrite=()=>{try{resolve(finish());}catch(error){reject(error);}};});
+  return finish();
+ }
+ if(update&&table==='study_goals'&&state.holdGoalWrite)return new Promise(resolve=>{state.releaseGoalWrite=()=>resolve({data:{id:'goal',user_id:'owner',title:'자격증 목표',target_date:'2026-12-31',target_study_seconds:0,status:'active',created_at:now,updated_at:now,...update},error:null});});if(insert && table==='study_todos'){const added={...todo('new',''),...insert[0],id:'new'};state.todos.push(added);return {data:added,error:null};}let data=table==='profiles'?state.profile:table==='study_goals'?[{id:'goal',title:'자격증 목표',target_date:'2026-12-31',target_study_seconds:0,status:'active',created_at:now,updated_at:now}]:table==='study_sessions'?state.sessions:table==='study_todos'?state.todos:table==='study_session_reflections'?state.reflections:table==='study_recovery_requests'?state.recoveries:table==='study_session_todos'?state.todos.filter(t=>state.links.includes(t.id)).map(t=>({id:t.id,session_id:'session',todo_id:t.id,user_id:'owner',linked_at:now,completed_during_session:false})):[];if(table==='study_session_reflections'){data=[...data];for(const [op,args] of reflectionOps){if(op==='not')data=data.filter(r=>r[args[0]]!==args[2]);if(op==='order')data.sort((a,b)=>String(b[args[0]]).localeCompare(String(a[args[0]])));if(op==='limit')data=data.slice(0,args[0]);}}return {data:single?(Array.isArray(data)?data[0]??null:data):data,error:null};}).then(resolve,reject);return (...args)=>{if(key==='maybeSingle'||key==='single')single=true;if(key==='eq')filters.push(args);if(table==='study_session_reflections'&&['not','order','limit'].includes(key))reflectionOps.push([key,args]);if(key==='insert')insert=args[0];if(key==='update')update=args[0];if(key==='upsert'){state.calls.push({name:table+'.upsert',args:args[0]});if(table==='profiles')state.profile={...state.profile,...args[0]};if(table==='study_session_reflections')state.reflections.unshift({id:'saved-reflection',created_at:now,...args[0]});}return q;};}});return q;}
 export const isSupabaseConfigured=true,supabaseUrl='https://fixture.invalid',supabaseAnonKey='test';
 const feedArticles=Array.from({length:4},(_,index)=>({id:'article-'+index,title:['실무에서 살펴보는 백엔드 아키텍처','클라우드 운영과 관측 가능성','AI 개발 도구를 안전하게 활용하는 방법','새로운 웹 기술을 작은 프로젝트로 익히기'][index],excerpt:'공개 기술 블로그의 소개를 바탕으로 구현 과정과 실제 적용 시 고려할 점을 살펴봅니다. 원문에서 구체적인 예제와 설계의 근거를 확인할 수 있어요.',url:'https://example.test/article/'+index,published_at:now,discovered_at:now,summary:null,summary_status:'pending',category:'practice',interests:['backend'],topics:['백엔드'],sources:[{id:'source',name:'기술 블로그'}],saved:false,todo_id:null,origin:'rss',matched_topics:[],excerpt_provenance:'source_excerpt'}));
 const feedResponse=action=>action==='state'?{enabled:true,service_available:true,sources:[],interests:[],last_success_at:now,preferences:{prompt:'AI와 백엔드 기술',receiving:true,revision:1},search_status:{state:'ready',last_success_at:now}}:action==='list'?{items:feedArticles,next_cursor:null,total:4}:action==='facets'?{total:4,topics:[],sources:[],languages:[{value:'ko',label:'한국어 원문',count:4}]}:action==='briefing'?{local_date:'2026-09-21',time_zone:'Asia/Tokyo',total:4,source_count:1,categories:[],topics:[{value:'backend',label:'백엔드',count:4}],eligible_count:4,analyzed_count:0,generated_at:null,status:'idle',stale:false,insights:[],highlights:[]}:{};
