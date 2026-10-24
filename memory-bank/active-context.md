@@ -1,5 +1,14 @@
 # Active Context
 
+## 현재 우선 요청: 세션 할 일 시간 편집
+- 갱신: 2026-10-24 20:35JST · 도구codex · fix/mobile-camera-lifecycle·배포코드7133dc4·선행미커밋보존. 사용자 시간편집/기록보존/웹·앱검증/배포 승인.
+- 완료: main.tsx/CSS에 시간편집·기존값·저장/취소. 해당 발생분 시간2필드만 소유자 DataAPI/RLS 갱신. 반복/제목/선택/기존공부 보존·실패재시도·계정전환차단·저장중시작/닫기/중복잠금·포커스복귀. PRD/트러블슈팅/검증문서 갱신.
+- 검증: RED버튼누락/삭제경합/저장포커스/hover대비→집중8/8, Chrome전체1357/1357, 최종verify/Dune 통과·독립재검토 차단결함0. 기존피드날짜고정테스트만 상대날짜로 수정23/23. 운영SQL/정책/APK변경없음.
+- Android16: 실제설치0.2.4/code7 격리fixture와 운영저장/취소/재로드 모두수용. [테스트]단일할일만생성/정리·세션미시작. 기존5종(할일285/계획285/세션171/구간351/회고17)count/digest동일·카메라off복귀. 물리착석판정 수용은 별도.
+- 배포: fccaff6/7133dc4 기능branchpush, 최종Actions40090165734 success·dpl_41HSC42E3A4zReiEoiuJdWmx1w6T READY/exactSHA·production HTTP200/자산확인. 첫Actions취소에도비동기READY였으며최종배포로교체됨.
+- 다음: 이번요청완료·웹새로고침/앱재실행으로진입. 별도 Windows 설계는 사용자선택대기. 선행운영변경·archive·다른세션기록을임의stage하지않는다. 근거 docs/session-todo-time-edit/verification-20261024.md.
+
+
 <!-- mobile-lifecycle-acceptance:start -->
 - 갱신: 2026-10-19 23:51 · 도구codex · 브랜치fix/mobile-camera-lifecycle · 제품3312ad089d5eb97b3b41eba6fc7c5f2ab22ccbde commit/push/운영배포 완료. 선행 미커밋ops/수용 변경과rollback ref 보존.
 - 목표/현재: 남은 직접검증 우선·학습기록 보존. PC/앱 같은계정·active0·10/19 회복pending1. 사용자가 ‘다른 검사부터 진행’ 선택, 회복 대리제출/우회·새공부 생성 없음.

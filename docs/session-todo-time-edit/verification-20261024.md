@@ -31,4 +31,7 @@
 
 - 최종 브라우저 활성 전체 스위트: 1357/1357 통과, 실패0/건너뜀0(concurrency2). `node --test --test-concurrency=2 packages/core/test/*.test.mjs apps/web/test/*.test.mjs server/ai/*.test.mjs scripts/*.test.mjs supabase/functions/_shared/*.test.mjs`, FEED_BROWSER_MODULE/FEED_BROWSER_EXECUTABLE을 실제 Chrome으로 지정했다.
 - 기능 커밋 fccaff6. 첫 workflow40089854641은 hover보완본으로 교체하기 위해 취소했지만 비동기 Vercel 배포 dpl_npZD2zyrkZFBiGKuLD1UBfYNoVB7은 READY까지 진행됐다. 최종 hover보완 커밋의 새 workflow/READY를 최종 출시 근거로 사용한다.
-- 운영 앱의 명시적 테스트 할 일 저장·재조회 및 기존 기록 사후 대조: 대기.
+- 최종 제품 커밋7133dc48028c630cf81718180d628d0984a778c2 / [Actions40090165734](https://github.com/zxcc9867/studyRoom/actions/runs/40090165734) success. Vercel dpl_41HSC42E3A4zReiEoiuJdWmx1w6T production READY/exact SHA, 운영 URL HTTP200. 실제 배포 JS에 시간 편집/저장 실패 안내, CSS에 hover 대비 보완 포함 확인. 해당 배포 최근10분 error/fatal 로그 그룹 없음(장기 무장애 보장은 아님).
+- 실제 Android16 설치0.2.4/code7 운영 앱: `[테스트] 시간 편집 검증 20261024` 한 건만 생성,23:15~23:45→22:15~22:50 저장→19:00 초안 취소→앱 화면 완전 재로드→저장값 유지 확인. 기존 인증/RLS/Data API를 사용했고 REST오류0·실제 공부 시작 확정은 누르지 않았다. 검증 후 같은 테스트 항목만 정상 삭제 UI로 정리했다.
+- 첫 운영 확인은 기존 열려 있던 구버전 문서에서 수행돼 편집 버튼을 찾지 못했다. 새 document 로드를 강제한 검증 주소로 다시 불러온 뒤 정상 확인했다. 테스트 항목은 첫 시도에 생성한 동일1건만 재사용했으며 사용자 기존 할 일은 편집하지 않았다.
+- 11:34UTC 최종 SQL: 테스트 항목0, 기존 할 일285·계획285·세션171·공부구간351·회고17 전부 baseline count/content digest와 동일. 추가 학습 세션/회고를 만들거나 기존 학습 기록을 수정하지 않았다. 앱 카메라는 준비창을 닫아 꺼졌고 신규 APK 설치/데이터 초기화 없음.
