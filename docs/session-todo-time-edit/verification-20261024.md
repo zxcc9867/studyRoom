@@ -11,6 +11,7 @@
 - RED: 실제 Chrome375px에서 `집중 독서 시간 편집` 버튼을 찾을 수 없어 실패했다.
 - GREEN: 새 mounted 테스트8/8. 375/1440px 기존값/자정 넘김 저장, 클릭한 반복 발생분만 갱신, 선택/세션/회고 보존, 취소/새 할 일 초안 분리, 동일 시간 거절, 대기 잠금, 오류/예외/빈 응답 후 재시도, 계정 전환의 늦은 응답 차단.
 - 독립 검토 P2 두 건(편집 중 삭제 뒤 막힘, 저장 시 비활성 버튼 포커스)도 각각 RED 단언으로 재현 후 수정했다. 삭제 잠금 및 DOM commit 후 포커스 복귀, 추가/공통 busy까지 기다리는 조건을 검증했다. 재검토 차단 결함 없음.
+- 마지막 hover 검사에서 일반 button:hover 규칙이 새 저장 버튼의 녹색 배경을 덮어 대비가 낮아지는 RED를 확인했다. 활성 저장 버튼의 배경만 유지하는 selector를 추가했고 hover대비>=4.5를 포함한8/8·전체verify·독립재검토를 다시 통과했다.
 - 기존 전체 mounted main127/127 통과. 최종 브라우저 활성 전체 스위트는 아래 출시 상태에 기록한다.
 - 전체 `ai.ps1 verify` 통과: Dune 위반0, npm test, test:edge, mobile:check, build, docs:check.
 - 처음에는 sandbox DNS로 Deno 검사에 실패해 네트워크 허용 환경에서 재실행했다. 다음 전체 검사에서 기존 피드 정렬 테스트의 고정2026-09-24 날짜가 최신30일 범위를 벗어나19!=20이 재현됐다. 테스트의 발견일/발행일만 SQL now() 기준1/2/3일로 교체했고 해당 파일23/23 통과. 운영 피드 로직/정책은 변경하지 않았다.
@@ -29,5 +30,5 @@
 ## 출시 상태
 
 - 최종 브라우저 활성 전체 스위트: 1357/1357 통과, 실패0/건너뜀0(concurrency2). `node --test --test-concurrency=2 packages/core/test/*.test.mjs apps/web/test/*.test.mjs server/ai/*.test.mjs scripts/*.test.mjs supabase/functions/_shared/*.test.mjs`, FEED_BROWSER_MODULE/FEED_BROWSER_EXECUTABLE을 실제 Chrome으로 지정했다.
-- 기능 커밋/Actions/Vercel production: 대기.
+- 기능 커밋 fccaff6. 첫 workflow40089854641은 hover보완본으로 교체하기 위해 취소했지만 비동기 Vercel 배포 dpl_npZD2zyrkZFBiGKuLD1UBfYNoVB7은 READY까지 진행됐다. 최종 hover보완 커밋의 새 workflow/READY를 최종 출시 근거로 사용한다.
 - 운영 앱의 명시적 테스트 할 일 저장·재조회 및 기존 기록 사후 대조: 대기.

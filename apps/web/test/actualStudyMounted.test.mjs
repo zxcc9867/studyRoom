@@ -60,6 +60,9 @@ browserTest('session todo time edit: cancel discards edits and equal times stay 
  const before=await page.evaluate(()=>structuredClone(fixture.todos));
  const {dialog,editor}=await openTodoTimeEditor(page);
  const draft=dialog.getByRole('textbox',{name:'새 할 일',exact:true});
+ await editor.getByRole('button',{name:'시간 저장',exact:true}).hover();
+ await page.waitForTimeout(250);
+ assert.ok((await readableText(editor.getByRole('button',{name:'시간 저장',exact:true}))).contrast>=4.5,'save remains readable while hovered');
  await editor.getByLabel('시작',{exact:true}).fill('10:00');
  await editor.getByLabel('종료',{exact:true}).fill('10:00');
  await editor.getByRole('button',{name:'시간 저장',exact:true}).click();

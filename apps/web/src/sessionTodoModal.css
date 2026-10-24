@@ -294,6 +294,10 @@
   color: var(--color-on-primary);
 }
 
+.session-todo-modal .session-todo-time-actions button[type="submit"]:hover:not(:disabled) {
+  background: var(--color-primary);
+}
+
 .session-todo-modal .session-todo-choice-list li > label {
   flex: 1;
   min-width: 0;
