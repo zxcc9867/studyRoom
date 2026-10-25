@@ -7,6 +7,8 @@
 - `apps/web/.env.local`과 셸의 필수 VITE 설정도 없었다. 기존 Supabase 프로젝트의 URL·활성 publishable key를 MCP로 조회하여 gitignored 로컬 파일에만 복원했다. 공개 Auth settings HTTP200·Google/email 사용 가능을 검증했다. 서버 비밀키·로그인 세션·DB/Auth 설정은 변경하지 않았다.
 - 기존 Vite를 명시한 앱 checkout/port에서 Node로 실행하고 `Start-Process -WindowStyle Hidden`과 파일 로그를 사용했다. 공용 환경 watcher·시작프로그램·자동 동기화는 실행하지 않았다. 런타임 정보/로그는 git에서 제외한 `output/dev-server/current.json`에 있다.
 - 복원 후 앱 HTTP200, 실제 Vite 진입점, `/src/TechFeedSection.tsx` HTTP200·JavaScript를 확인하고 로그인 화면의 탭을1회 새로고침했다. 현재 화면은 정상 로그인 대기이며 사용자에게 로컬 로그인을 요청했다. **로그인 후 실제 피드 데이터/요약 표시 성공은 아직 확인하지 않았다.** 코드·패키지·운영 웹 변경 없이 로컬 실행을 복구한 작업이다.
+- 후속 실제 확인: 사용자가 로그인 완료를 알린 뒤 기존 탭이 **운영 origin**으로 이동한 것을 확인했다. 자동 회복 안내는 닫기만 하고 `기술 피드` 메뉴로 이동했다. `https://study-room-attendance.vercel.app/#feed`에서 전체133건·오늘12건과 기사 목록·언어 필터·저장/할 일 추가 버튼을 실제로 확인했고 콘솔 error/warn은0건이었다. **운영 피드 표시 수용이며 로컬 로그인 유지나 새 AI 생성 성공의 증거는 아니다.** Google 로그인 후 운영으로 이동한 원인 설정은 변경/확정하지 않았다.
+- 화면 증거는 개인 계정의 실제 화면이므로 Git 제외 `output/tech-feed-live-20261025.jpg`에만 저장했다. 인증 URL/토큰·개인 일정은 기록하지 않았다. 새 요약 생성·기사 저장·할 일 추가·회복 제출 버튼을 누르지 않았고 현재 탭을 피드 화면에 남겼다.
 
 ## 시간 저장 응답 누락으로 편집창이 계속 잠김 — 2026-10-25
 
