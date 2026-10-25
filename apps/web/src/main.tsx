@@ -631,8 +631,10 @@ function DashboardApp() {
   const [sessionTodoStartTime, setSessionTodoStartTime] = useState("09:00");
   const [sessionTodoEndTime, setSessionTodoEndTime] = useState("10:00");
   const [sessionTodoAddBusy, setSessionTodoAddBusy] = useState(false);
-  const [sessionTodoTimeEdit, setSessionTodoTimeEdit] = useState<{ todoId: string; startTime: string; endTime: string; error: string } | null>(null);
-  const sessionTodoTimeSaveRef = useRef<object | null>(null);
+  const [sessionTodoTimeEdit, setSessionTodoTimeEdit] = useState<{ todoId: string; startTime: string; endTime: string; error: string; recovery?: "unknown" | "retry" } | null>(null);
+  const sessionTodoTimeSaveRef = useRef<AbortController | null>(null);
+  const sessionTodoTimeRecoveryRef = useRef(new Map<string, { startTime: string; endTime: string; recovery: "unknown" | "retry" }>());
+  const [sessionTodoTimeChecking, setSessionTodoTimeChecking] = useState(false);
   const sessionTodoTimeReturnFocusRef = useRef<HTMLButtonElement | null>(null);
   const [endSessionCompletionModalOpen, setEndSessionCompletionModalOpen] = useState(false);
   const [selectedEndSessionCompletionTodoIds, setSelectedEndSessionCompletionTodoIds] = useState<string[]>([]);
@@ -788,6 +790,11 @@ function DashboardApp() {
     }
   }, [sessionTodoModalOpen, sessionTodoTimeEdit, todoBusy, busy, sessionTodoAddBusy]);
 
+  useEffect(() => () => {
+    sessionTodoTimeSaveRef.current?.abort();
+    sessionTodoTimeSaveRef.current = null;
+  }, []);
+
   useEffect(() => {
     setFeedPlanArticle(null);
     setFeedLinkedTodo(null);
@@ -800,7 +807,10 @@ function DashboardApp() {
     setActualTracking(null);
     setSessionTodoModalOpen(false);
     setSessionTodoTimeEdit(null);
+    sessionTodoTimeSaveRef.current?.abort();
     sessionTodoTimeSaveRef.current = null;
+    sessionTodoTimeRecoveryRef.current.clear();
+    setSessionTodoTimeChecking(false);
     sessionTodoTimeReturnFocusRef.current = null;
     setTodoBusy(false);
     setTodoModalOpen(false);
@@ -2422,7 +2432,8 @@ function DashboardApp() {
   }
 
   function closeSessionTodoSelection() {
-    if (busy || sessionTodoAddBusy || todoBusy || sessionTodoTimeSaveRef.current) return;
+    if (busy || sessionTodoAddBusy || ((todoBusy || sessionTodoTimeSaveRef.current) && !sessionTodoTimeChecking)) return;
+    cancelSessionTodoTimeCheck();
     if (sessionTodoStartRequest?.cameraReadyOverride && !activeSession) {
       stopCameraMonitoring({ recordEvent: false });
       cameraSessionStartingRef.current = false;
@@ -2463,12 +2474,23 @@ function DashboardApp() {
   function editSessionTodoTime(todo: StudyTodo, button: HTMLButtonElement) {
     if (busy || todoBusy || sessionTodoAddBusy || sessionTodoTimeSaveRef.current) return;
     sessionTodoTimeReturnFocusRef.current = button;
-    setSessionTodoTimeEdit({ todoId: todo.id, startTime: todo.start_time?.slice(0, 5) ?? "09:00", endTime: todo.end_time?.slice(0, 5) ?? "10:00", error: "" });
+    const pending = sessionTodoTimeRecoveryRef.current.get(todo.id);
+    setSessionTodoTimeEdit({ todoId: todo.id, startTime: todo.start_time?.slice(0, 5) ?? "09:00", endTime: todo.end_time?.slice(0, 5) ?? "10:00", error: "", ...pending });
   }
 
   function cancelSessionTodoTimeEdit() {
-    if (sessionTodoTimeSaveRef.current) return;
+    if (sessionTodoTimeSaveRef.current && !sessionTodoTimeChecking) return;
+    cancelSessionTodoTimeCheck();
+    if (sessionTodoTimeEdit?.recovery !== "unknown" && sessionTodoTimeEdit) sessionTodoTimeRecoveryRef.current.delete(sessionTodoTimeEdit.todoId);
     setSessionTodoTimeEdit(null);
+  }
+
+  function cancelSessionTodoTimeCheck() {
+    if (!sessionTodoTimeChecking) return;
+    sessionTodoTimeSaveRef.current?.abort();
+    sessionTodoTimeSaveRef.current = null;
+    setSessionTodoTimeChecking(false);
+    setTodoBusy(false);
   }
 
   async function saveSessionTodoTime() {
@@ -2480,26 +2502,52 @@ function DashboardApp() {
       setSessionTodoTimeEdit({ ...draft, error: schedule.message });
       return;
     }
-    const request = {};
-    sessionTodoTimeSaveRef.current = request;
-    setTodoBusy(true);
-    setSessionTodoTimeEdit({ ...draft, error: "" });
-    try {
-      const { data, error } = await supabase.from("study_todos")
-        .update({ start_time: schedule.startTime, end_time: schedule.endTime })
-        .eq("id", draft.todoId).eq("user_id", userId).select("*").single();
-      if (currentUserIdRef.current !== userId || sessionTodoTimeSaveRef.current !== request) return;
-      if (error || !data) throw new Error("todo time update failed");
+    if (!schedule.startTime || !schedule.endTime) return;
+    const request = new AbortController();
+    const isCurrent = () => currentUserIdRef.current === userId && sessionTodoTimeSaveRef.current === request && !request.signal.aborted;
+    const applySaved = (data: StudyTodo) => {
+      sessionTodoTimeRecoveryRef.current.delete(draft.todoId);
       setStudyTodos((current) => sortTodos(current.map((todo) => todo.id === draft.todoId ? { ...todo, ...data } : todo)));
       setSessionTodoTimeEdit(null);
       setMessage("할 일 시간을 저장했어요.");
-    } catch {
-      if (currentUserIdRef.current === userId && sessionTodoTimeSaveRef.current === request) {
-        setSessionTodoTimeEdit({ ...draft, error: "시간을 저장하지 못했어요. 연결 상태를 확인하고 다시 저장해 주세요." });
+    };
+    sessionTodoTimeSaveRef.current = request;
+    setTodoBusy(true);
+    setSessionTodoTimeChecking(false);
+    setSessionTodoTimeEdit({ ...draft, error: "" });
+    try {
+      if (draft.recovery !== "unknown") {
+        sessionTodoTimeRecoveryRef.current.set(draft.todoId, { startTime: schedule.startTime, endTime: schedule.endTime, recovery: "unknown" });
+        try {
+          const { data, error } = await runBoundedRequest((signal) => supabase.from("study_todos")
+            .update({ start_time: schedule.startTime, end_time: schedule.endTime })
+            .eq("id", draft.todoId).eq("user_id", userId).select("*").abortSignal(signal).single(), { signal: request.signal });
+          if (!isCurrent()) return;
+          if (!error && data) { applySaved(data); return; }
+        } catch {
+          if (!isCurrent()) return;
+        }
       }
+      // A missing write response does not prove failure. Read before offering another write.
+      setSessionTodoTimeChecking(true);
+      setSessionTodoTimeEdit({ ...draft, recovery: "unknown", error: "" });
+      const { data, error } = await runBoundedRequest((signal) => supabase.from("study_todos").select("*")
+        .eq("id", draft.todoId).eq("user_id", userId).abortSignal(signal).single(), { signal: request.signal });
+      if (!isCurrent()) return;
+      if (error || !data) throw new Error("todo time verification failed");
+      if (data.start_time?.slice(0, 5) === schedule.startTime && data.end_time?.slice(0, 5) === schedule.endTime) {
+        applySaved(data);
+      } else {
+        sessionTodoTimeRecoveryRef.current.set(draft.todoId, { startTime: schedule.startTime, endTime: schedule.endTime, recovery: "retry" });
+        setStudyTodos((current) => sortTodos(current.map((todo) => todo.id === draft.todoId ? { ...todo, ...data } : todo)));
+        setSessionTodoTimeEdit({ ...draft, recovery: "retry", error: "서버에 저장된 시간이 입력한 시간과 달라요. 입력은 유지했어요. 시간을 확인하고 다시 저장해 주세요." });
+      }
+    } catch {
+      if (isCurrent()) setSessionTodoTimeEdit({ ...draft, recovery: "unknown", error: "저장 결과를 확인하지 못했어요. 입력은 유지했어요. 다시 확인을 눌러 저장 여부를 확인해 주세요." });
     } finally {
       if (sessionTodoTimeSaveRef.current === request) {
         sessionTodoTimeSaveRef.current = null;
+        setSessionTodoTimeChecking(false);
         setTodoBusy(false);
       }
     }
@@ -6047,23 +6095,24 @@ function DashboardApp() {
                       </button>
                       {sessionTodoTimeEdit?.todoId === todo.id && (
                         <form className="session-todo-time-editor" aria-busy={todoBusy} onSubmit={(event) => { event.preventDefault(); void saveSessionTodoTime(); }}>
-                          <fieldset className="session-todo-time-details" disabled={busy || sessionTodoAddBusy || todoBusy}>
+                          <fieldset className="session-todo-time-details" disabled={busy || sessionTodoAddBusy || (todoBusy && !sessionTodoTimeChecking)}>
                             <legend>{todo.title} 시간 편집</legend>
                             <label>
                               시작
-                              <input type="time" required autoFocus value={sessionTodoTimeEdit.startTime}
+                              <input type="time" required autoFocus disabled={sessionTodoTimeEdit.recovery === "unknown"} value={sessionTodoTimeEdit.startTime}
                                 onChange={(event) => setSessionTodoTimeEdit({ ...sessionTodoTimeEdit, startTime: event.target.value, error: "" })}
                                 onKeyDown={(event) => { if (isTimeInputPickerKey(event.key)) { event.preventDefault(); openTimeInputPicker(event.currentTarget); } }} />
                             </label>
                             <label>
                               종료
-                              <input type="time" required value={sessionTodoTimeEdit.endTime}
+                              <input type="time" required disabled={sessionTodoTimeEdit.recovery === "unknown"} value={sessionTodoTimeEdit.endTime}
                                 onChange={(event) => setSessionTodoTimeEdit({ ...sessionTodoTimeEdit, endTime: event.target.value, error: "" })}
                                 onKeyDown={(event) => { if (isTimeInputPickerKey(event.key)) { event.preventDefault(); openTimeInputPicker(event.currentTarget); } }} />
                             </label>
                             {sessionTodoTimeEdit.error && <p role="alert">{sessionTodoTimeEdit.error}</p>}
+                            {sessionTodoTimeChecking && <p role="status">저장 결과를 확인하고 있어요…</p>}
                             <div className="session-todo-time-actions">
-                              <button type="submit">{todoBusy ? "저장 중" : "시간 저장"}</button>
+                              <button type="submit" disabled={sessionTodoTimeChecking}>{sessionTodoTimeChecking ? "확인 중" : todoBusy ? "저장 중" : sessionTodoTimeEdit.recovery === "unknown" ? "다시 확인" : sessionTodoTimeEdit.recovery === "retry" ? "다시 저장" : "시간 저장"}</button>
                               <button type="button" onClick={cancelSessionTodoTimeEdit}>취소</button>
                             </div>
                           </fieldset>

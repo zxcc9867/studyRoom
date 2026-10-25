@@ -102,7 +102,7 @@ for(const failure of ['error','throw','empty']) browserTest(`session todo time e
  await editor.getByRole('alert').waitFor();assert.deepEqual(await page.evaluate(()=>fixture.todos),before);
  assert.equal(await editor.getByLabel('시작',{exact:true}).inputValue(),'22:30');
  await page.evaluate(()=>fixture.todoTimeFailure=null);
- await editor.getByRole('button',{name:'시간 저장',exact:true}).click();await editor.waitFor({state:'detached'});
+ await editor.getByRole('button',{name:/^(시간 저장|다시 저장)$/}).click();await editor.waitFor({state:'detached'});
 },'start'));
 
 browserTest('session todo time edit: stale save cannot update a different account',()=>withApp(375,async page=>{
@@ -115,6 +115,109 @@ browserTest('session todo time edit: stale save cannot update a different accoun
  await page.evaluate(()=>fixture.releaseTodoTimeWrite());
  await page.getByRole('heading',{name:/어떤 공부를 시작/}).waitFor();
  assert.doesNotMatch(await page.locator('body').textContent(),/시간을 저장했/);
+},'start'));
+
+browserTest('session todo time recovery: unresponsive save releases the editor and verifies instead of sending another write',()=>withApp(375,async page=>{
+ await page.evaluate(()=>{fixture.holdTodoTimeWrite=true;fixture.todoTimeReadFailure=true;});
+ const {dialog,editor}=await openTodoTimeEditor(page);
+ await editor.getByLabel('시작',{exact:true}).fill('22:30');
+ await editor.getByRole('button',{name:'시간 저장',exact:true}).click();
+ await page.waitForFunction(()=>!!fixture.releaseTodoTimeWrite);
+ await page.clock.runFor(15001);
+ await editor.getByRole('alert').waitFor();
+ assert.equal(await editor.getByLabel('시작',{exact:true}).inputValue(),'22:30');
+ assert.equal(await editor.getByRole('button',{name:'취소',exact:true}).isEnabled(),true);
+ await mkdir('output/playwright',{recursive:true});
+ await page.screenshot({path:'output/playwright/session-todo-time-unconfirmed-375.png',fullPage:true});
+ await editor.getByRole('button',{name:'다시 확인',exact:true}).click();
+ await editor.getByRole('alert').waitFor();
+ assert.equal(await page.evaluate(()=>fixture.calls.filter(c=>c.name==='study_todos.update').length),1);
+ await editor.getByRole('button',{name:'취소',exact:true}).click();await editor.waitFor({state:'detached'});
+ await dialog.getByRole('button',{name:'집중 독서 시간 편집',exact:true}).click();
+ assert.equal(await editor.getByLabel('시작',{exact:true}).inputValue(),'22:30');
+ await editor.getByRole('button',{name:'다시 확인',exact:true}).click();await editor.getByRole('alert').waitFor();
+ assert.equal(await page.evaluate(()=>fixture.calls.filter(c=>c.name==='study_todos.update').length),1);
+ await editor.getByRole('button',{name:'취소',exact:true}).click();
+ await page.keyboard.press('Escape');await dialog.waitFor({state:'detached'});
+ await page.evaluate(()=>{fixture.todoTimeReadFailure=false;fixture.releaseTodoTimeWrite();});
+ assert.doesNotMatch(await page.locator('body').textContent(),/할 일 시간을 저장했어요/);
+},'start'));
+
+browserTest('session todo time recovery: timed out response reconciles an already committed write with normalized server time',()=>withApp(375,async page=>{
+ await page.evaluate(()=>{fixture.holdTodoTimeWrite=true;fixture.commitTodoTimeBeforeResponse=true;});
+ const {dialog,editor}=await openTodoTimeEditor(page);
+ const history=await page.evaluate(()=>{const {start_time,end_time,...details}=fixture.todos[0];return structuredClone({details,other:fixture.todos[1],sessions:fixture.sessions,reflections:fixture.reflections});});
+ await editor.getByLabel('시작',{exact:true}).fill('22:30');
+ await editor.getByRole('button',{name:'시간 저장',exact:true}).click();
+ await page.waitForFunction(()=>!!fixture.releaseTodoTimeWrite);
+ await page.clock.runFor(15001);await editor.waitFor({state:'detached'});
+ await dialog.getByText('22:30-01:00 집중 독서',{exact:true}).waitFor();
+ assert.equal(await dialog.getByRole('checkbox',{name:/집중 독서/}).isChecked(),true);
+ assert.equal(await page.evaluate(()=>fixture.calls.filter(c=>c.name==='study_todos.update').length),1);
+ assert.deepEqual(await page.evaluate(()=>{const {start_time,end_time,...details}=fixture.todos[0];return {details,other:fixture.todos[1],sessions:fixture.sessions,reflections:fixture.reflections};}),history);
+ const reads=await page.evaluate(()=>fixture.calls.filter(c=>c.name==='study_todos.time-read'));
+ assert.ok(reads.length>0);assert.deepEqual(reads[0].filters,[['id','a'],['user_id','owner']]);
+ await page.evaluate(()=>fixture.releaseTodoTimeWrite());
+ assert.equal(await dialog.getByRole('button',{name:'선택한 할 일로 시작'}).isEnabled(),true);
+},'start'));
+
+browserTest('session todo time recovery: unresponsive verification also times out and can be cancelled',()=>withApp(375,async page=>{
+ await page.evaluate(()=>{fixture.holdTodoTimeWrite=true;fixture.holdTodoTimeRead=true;});
+ const {dialog,editor}=await openTodoTimeEditor(page);
+ await editor.getByLabel('시작',{exact:true}).fill('22:30');
+ await editor.getByRole('button',{name:'시간 저장',exact:true}).click();
+ await page.waitForFunction(()=>!!fixture.releaseTodoTimeWrite);
+ await page.clock.runFor(15001);await page.waitForFunction(()=>!!fixture.releaseTodoTimeRead);
+ await page.clock.runFor(15001);await editor.getByRole('alert').waitFor();
+ await editor.getByRole('button',{name:'취소',exact:true}).click();await editor.waitFor({state:'detached'});
+ await page.keyboard.press('Escape');await dialog.waitFor({state:'detached'});
+ await page.evaluate(()=>{fixture.releaseTodoTimeRead();fixture.releaseTodoTimeWrite();});
+ assert.doesNotMatch(await page.locator('body').textContent(),/할 일 시간을 저장했어요/);
+},'start'));
+
+browserTest('session todo time recovery: cancelling a pending result check releases the dialog before its deadline',()=>withApp(375,async page=>{
+ await page.evaluate(()=>{fixture.holdTodoTimeWrite=true;fixture.holdTodoTimeRead=true;});
+ const {dialog,editor}=await openTodoTimeEditor(page);
+ await editor.getByLabel('시작',{exact:true}).fill('22:30');
+ await editor.getByRole('button',{name:'시간 저장',exact:true}).click();
+ await page.waitForFunction(()=>!!fixture.releaseTodoTimeWrite);
+ await page.clock.runFor(15001);await page.waitForFunction(()=>!!fixture.releaseTodoTimeRead);
+ assert.equal(await editor.getByRole('button',{name:'취소',exact:true}).isEnabled(),true);
+ await editor.getByRole('button',{name:'취소',exact:true}).click();await editor.waitFor({state:'detached'});
+ await page.evaluate(()=>{fixture.releaseTodoTimeRead();fixture.releaseTodoTimeRead=null;});
+ await dialog.getByRole('button',{name:'집중 독서 시간 편집',exact:true}).click();
+ await editor.getByRole('button',{name:'다시 확인',exact:true}).click();
+ await page.waitForFunction(()=>!!fixture.releaseTodoTimeRead);
+ await dialog.getByRole('button',{name:'세션 할 일 선택 닫기',exact:true}).click();await dialog.waitFor({state:'detached'});
+ await page.evaluate(()=>{fixture.releaseTodoTimeRead();fixture.releaseTodoTimeWrite();});
+ assert.doesNotMatch(await page.locator('body').textContent(),/할 일 시간을 저장했어요/);
+},'start'));
+
+browserTest('session todo time recovery: verified unchanged values allow one explicit retry and preserve the draft',()=>withApp(375,async page=>{
+ await page.evaluate(()=>fixture.holdTodoTimeWrite=true);
+ const {editor}=await openTodoTimeEditor(page);
+ await editor.getByLabel('시작',{exact:true}).fill('22:30');
+ await editor.getByRole('button',{name:'시간 저장',exact:true}).click();
+ await page.waitForFunction(()=>!!fixture.releaseTodoTimeWrite);
+ await page.clock.runFor(15001);await editor.getByRole('alert').waitFor();
+ assert.equal(await editor.getByLabel('시작',{exact:true}).inputValue(),'22:30');
+ assert.equal(await page.evaluate(()=>fixture.calls.filter(c=>c.name==='study_todos.update').length),1);
+ await page.evaluate(()=>{fixture.holdTodoTimeWrite=false;fixture.releaseTodoTimeWrite();});
+ await editor.getByRole('button',{name:'다시 저장',exact:true}).click();await editor.waitFor({state:'detached'});
+ assert.equal(await page.evaluate(()=>fixture.calls.filter(c=>c.name==='study_todos.update').length),2);
+},'start'));
+
+browserTest('session todo time recovery: late result check cannot alter a new account',()=>withApp(375,async page=>{
+ await page.evaluate(()=>{fixture.holdTodoTimeWrite=true;fixture.holdTodoTimeRead=true;});
+ const {editor}=await openTodoTimeEditor(page);
+ await editor.getByLabel('시작',{exact:true}).fill('22:30');
+ await editor.getByRole('button',{name:'시간 저장',exact:true}).click();
+ await page.waitForFunction(()=>!!fixture.releaseTodoTimeWrite);
+ await page.clock.runFor(15001);await page.waitForFunction(()=>!!fixture.releaseTodoTimeRead);
+ await page.evaluate(()=>fixture.changeOwner());await editor.waitFor({state:'detached'});
+ await page.evaluate(()=>{fixture.releaseTodoTimeRead();fixture.releaseTodoTimeWrite();});
+ await page.getByRole('heading',{name:/어떤 공부를 시작/}).waitFor();
+ assert.doesNotMatch(await page.locator('body').textContent(),/할 일 시간을 저장했어요|저장 결과를 확인하지 못했어요/);
 },'start'));
 
 async function designSnapshot(page,name,width) {
@@ -659,6 +762,12 @@ function result(name,args){state.calls.push({name,args});
  return {data:[],error:null};
 }
 function query(table){let single=false,insert=null,update=null,reflectionOps=[],filters=[];const q=new Proxy({}, {get(_,key){if(key==='then')return (resolve,reject)=>Promise.resolve().then(()=>{
+ if(!update&&table==='study_todos'&&single&&filters.some(([key])=>key==='id')){
+  state.calls.push({name:'study_todos.time-read',filters});
+  const finish=()=>state.todoTimeReadFailure?{data:null,error:{message:'test verification failure'}}:{data:state.todos.find(t=>filters.every(([key,value])=>t[key]===value))??null,error:null};
+  if(state.holdTodoTimeRead)return new Promise(resolve=>{state.releaseTodoTimeRead=()=>resolve(finish());});
+  return finish();
+ }
  if(update&&table==='study_todos'){
   state.calls.push({name:'study_todos.update',args:update,filters});
   const finish=()=>{
@@ -669,7 +778,11 @@ function query(table){let single=false,insert=null,update=null,reflectionOps=[],
    if(index<0)return {data:null,error:{message:'test row not found'}};
    state.todos[index]={...state.todos[index],...update};return {data:state.todos[index],error:null};
   };
-  if(state.holdTodoTimeWrite)return new Promise((resolve,reject)=>{state.releaseTodoTimeWrite=()=>{try{resolve(finish());}catch(error){reject(error);}};});
+  if(state.holdTodoTimeWrite){
+   const committed=state.commitTodoTimeBeforeResponse?finish():null;
+   if(committed?.data){committed.data.start_time+=':00';committed.data.end_time+=':00';}
+   return new Promise((resolve,reject)=>{state.releaseTodoTimeWrite=()=>{try{resolve(committed??finish());}catch(error){reject(error);}};});
+  }
   return finish();
  }
  if(update&&table==='study_goals'&&state.holdGoalWrite)return new Promise(resolve=>{state.releaseGoalWrite=()=>resolve({data:{id:'goal',user_id:'owner',title:'자격증 목표',target_date:'2026-12-31',target_study_seconds:0,status:'active',created_at:now,updated_at:now,...update},error:null});});if(insert && table==='study_todos'){const added={...todo('new',''),...insert[0],id:'new'};state.todos.push(added);return {data:added,error:null};}let data=table==='profiles'?state.profile:table==='study_goals'?[{id:'goal',title:'자격증 목표',target_date:'2026-12-31',target_study_seconds:0,status:'active',created_at:now,updated_at:now}]:table==='study_sessions'?state.sessions:table==='study_todos'?state.todos:table==='study_session_reflections'?state.reflections:table==='study_recovery_requests'?state.recoveries:table==='study_session_todos'?state.todos.filter(t=>state.links.includes(t.id)).map(t=>({id:t.id,session_id:'session',todo_id:t.id,user_id:'owner',linked_at:now,completed_during_session:false})):[];if(table==='study_session_reflections'){data=[...data];for(const [op,args] of reflectionOps){if(op==='not')data=data.filter(r=>r[args[0]]!==args[2]);if(op==='order')data.sort((a,b)=>String(b[args[0]]).localeCompare(String(a[args[0]])));if(op==='limit')data=data.slice(0,args[0]);}}return {data:single?(Array.isArray(data)?data[0]??null:data):data,error:null};}).then(resolve,reject);return (...args)=>{if(key==='maybeSingle'||key==='single')single=true;if(key==='eq')filters.push(args);if(table==='study_session_reflections'&&['not','order','limit'].includes(key))reflectionOps.push([key,args]);if(key==='insert')insert=args[0];if(key==='update')update=args[0];if(key==='upsert'){state.calls.push({name:table+'.upsert',args:args[0]});if(table==='profiles')state.profile={...state.profile,...args[0]};if(table==='study_session_reflections')state.reflections.unshift({id:'saved-reflection',created_at:now,...args[0]});}return q;};}});return q;}
