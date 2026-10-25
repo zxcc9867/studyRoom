@@ -1,5 +1,13 @@
 # Troubleshooting
 
+## 로컬 기술 피드가 표시되지 않음 — 2026-10-25
+
+- 실제 연결 탭은 `http://localhost:5173/`의 로그인 화면이었다. `main.tsx`는 세션이 없으면 로그인 화면을 반환하고, 로그인 후 `#feed`에서만 `TechFeedSection`을 마운트한다. 운영 사이트와 로컬 origin의 로그인 상태는 별개다. 인증 저장소·토큰을 열람하거나 복사하지 않았다.
+- 콘솔의 Vite WebSocket 실패를 확인한 뒤 로컬 서버를 별도로 조사했다. 샌드박스 소켓 거부는 서버 장애 증거와 구분했다. 허용된 직접 IPv4 HTTP 진단에서는 `ECONNREFUSED`, netstat에는5173 listener가 없었다. 현재 브라우저에 남은 이전 화면과 서버 응답을 혼동하지 않는다. 서버가 종료된 경위까지 확정한 것은 아니다.
+- `apps/web/.env.local`과 셸의 필수 VITE 설정도 없었다. 기존 Supabase 프로젝트의 URL·활성 publishable key를 MCP로 조회하여 gitignored 로컬 파일에만 복원했다. 공개 Auth settings HTTP200·Google/email 사용 가능을 검증했다. 서버 비밀키·로그인 세션·DB/Auth 설정은 변경하지 않았다.
+- 기존 Vite를 명시한 앱 checkout/port에서 Node로 실행하고 `Start-Process -WindowStyle Hidden`과 파일 로그를 사용했다. 공용 환경 watcher·시작프로그램·자동 동기화는 실행하지 않았다. 런타임 정보/로그는 git에서 제외한 `output/dev-server/current.json`에 있다.
+- 복원 후 앱 HTTP200, 실제 Vite 진입점, `/src/TechFeedSection.tsx` HTTP200·JavaScript를 확인하고 로그인 화면의 탭을1회 새로고침했다. 현재 화면은 정상 로그인 대기이며 사용자에게 로컬 로그인을 요청했다. **로그인 후 실제 피드 데이터/요약 표시 성공은 아직 확인하지 않았다.** 코드·패키지·운영 웹 변경 없이 로컬 실행을 복구한 작업이다.
+
 ## 시간 저장 응답 누락으로 편집창이 계속 잠김 — 2026-10-25
 
 - 원인: `saveSessionTodoTime`의 직접 UPDATE에 시간 제한/AbortSignal이 없어 응답이 오지 않으면 `finally`에 도달하지 못했다. 저장 ref와 todoBusy가 계속 유지되어 취소·닫기·시작이 잠겼다. 전역 Supabase 요청 제한도 설정되어 있지 않았다.
