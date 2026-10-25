@@ -1,9 +1,9 @@
 # Progress
 
-## 2026-10-25 공부 시작 출석 분리 — 서버 반영·웹 배포 준비
+## 2026-10-25 공부 시작 출석 분리 — 운영 배포 완료
 
 - 사용자 승인된 정책 변경: 공부일 내 시작 → 출석, 하루 목표는 별도 진척. 알림 후 30분·목표 달성 대체 출석을 제거하며, 무시작 결석은 다음 04:00에 판정한다. [PRD](prd-attendance-start.md).
-- 별도 worktree 구현·독립 검토 완료. Chrome전체1370/1370·실패/생략0, Edge23/23·모바일/docs/build·DUNE0위반/5게이트 통과. 본인 계정 현재 출석 present/회복pending0, 제출된 회복 이력 보존. 선행RPC remote070303·Cron47/Slack29·정책 remote072758 적용, 원격 권한/RLS·12범위 count/digest 동일 확인. 웹 배포 결과는 [검증 기록](../docs/verification/2026-10-25-attendance-start.md)에 추가한다.
+- 별도 worktree 구현·독립 검토 완료. Chrome전체1370/1370·실패/생략0, Edge23/23·모바일/docs/build·DUNE0위반/5게이트 통과. 본인 계정 현재 출석 present/회복pending0, 제출된 회복 이력 보존. 선행RPC remote070303·Cron47/Slack29·정책 remote072758 적용, 원격 권한/RLS·12범위 count/digest 동일 확인. 기능c5eac1e main push·Actions40173077774 success·Vercel dpl_D8rDG15x7gFk2cBz8Riez72o43Jy production READY/exactSHA·HTML/JS200·본인 화면 출석완료/목표50% 동시표시 확인. [검증 기록](../docs/verification/2026-10-25-attendance-start.md).
 
 ## 2026-10-25 통합·복구
 
