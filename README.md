@@ -2,13 +2,49 @@
 
 [English](README.md) | [한국어](README.ko.md) | [日本語](README.ja.md)
 
+## Study alone or with your team
+
+Today opens in **My study**. Choose `팀 공부` to create or join an invitation-only room for up to **six registered accounts**, with one team per account. Open `설정 → 계정` to set a public `name#identifier` tag; friends can invite that exact tag, or the team leader can issue a revocable seven-day link. Reviewing an invitation does not join automatically: sign in and explicitly accept it. There is no public team search, guest entry, chat, or camera/audio sharing.
+
+Starting or resuming your normal personal session automatically contributes eligible study intervals to your team, from the joining checkpoint onward. No manual connection is needed. Existing camera, recovery, todo and lease checks still apply. Team goals are shared when saved; the current todo title remains private unless you enable sharing. The desks show studying, resting and ready states without exposing personal history. `오늘 공부 종료` ends your session and opens reflection while keeping team membership, goal and forest. `팀 탈퇴` opens confirmation; leaders choose a successor or explicitly dissolve the team.
+
+`함께 집중` supports unlimited time or a directly entered **1–1,440 minutes**, with 25/50-minute shortcuts. A duration ending shows a notice and does not stop personal study; unlimited focus still uses the normal personal lease. In `팀 숲`, each 120 minutes of confirmed eligible contribution grows a tree. Active sessions remain pending until settled; breaks, camera-excluded time, pre-join time and time beyond the lease do not count. The cumulative forest has no weekly/monthly reset or individual ranking. [Team rules](memory-bank/prd-social-study-room.md).
+
+![Actual team study screen with two synthetic members, shared goals, leader badge and focus-duration controls](docs/images/team-study-current-1440.png)
+
+The team room keeps personal controls separate from team membership. At 375px, the same implemented screen stacks those controls above the member desks.
+
+![The implemented team room at a 375px browser width with synthetic test data](docs/images/team-study-current-375.png)
+
+![The implemented shared forest showing confirmed minutes, trees and unsettled sessions from synthetic data](docs/images/team-forest-current-1440.png)
+
+### Edit an existing todo's time before starting
+
+In the session plan, choose `시간 편집` next to a todo. Enter the start/end digits directly or use the clock picker, then select `시간 저장`; `취소` discards the draft. Cross-midnight ranges are supported, but equal start/end times are rejected. Only that dated occurrence's time changes: its title, repeat group, selection and saved study history remain intact. Use `삭제` for an unwanted todo; time saving and deletion cannot run on the same row together. [Time-edit behavior and acceptance](docs/session-todo-time-edit/verification-20261024.md).
+
+Saving and checking the result each have a 15-second limit. If a response is lost, the app reads the owned todo: a matching saved value succeeds without another write; a confirmed different value preserves your draft and offers `다시 저장`. If the result is still unknown, `다시 확인` only reads the saved state. You can cancel/close while checking, and reopening keeps the uncertain draft within the current page/account. Cancel does not undo a change already saved on the server. [Timeout recovery and verification](docs/session-todo-time-edit/timeout-recovery-20261025.md).
+
+| Desktop time editor | Mobile browser time editor |
+| --- | --- |
+| ![Implemented session todo time editor at 1440px with a cross-midnight range](docs/images/session-todo-time-edit-current-1440.png) | ![Implemented session todo time editor at 375px with editable start and end times](docs/images/session-todo-time-edit-current-375.png) |
+
+![Actual 375px time editor retaining the draft after a simulated unresponsive save and offering a read-only result recheck](docs/images/session-todo-time-recovery-current-375.png)
+
+These screenshots were captured on **2026-10-25** from the actual `main.tsx`/`TeamStudySection` React implementation using the existing mounted-test backend and **local synthetic data**. Names and forest totals are test values, not live accounts or two-user acceptance evidence. No production session, notification, or external AI call was created. [Reproduction and verification](docs/readme-update-20261025.md).
+
+### One study session across PC and Android
+
+The installed Android app uses the authenticated hosted web interface with native permission/settings support. Sign in to the same account to share study, pause/resume, completed todos and the server lease. Only one device owns the camera at a time; observing devices do not start a second camera or independently send warnings/end study. Video stays local and is not synchronized. Explicit ownership transfer is a separate action, not a side effect of changing tabs.
+
+Optional screen sections recover independently if their code fails to load. Return to Today, or use the explicit reload action when idle; active study, breaks and pending saves block reload. The essential end-of-session reflection stays available. Android HOME/COLD relaunch and a short idle disconnect have recorded acceptance. Basic PC↔Android start, pause, resume, end and completion synchronization also passed; **explicit camera transfer, starting with Android as the new owner, prolonged active background/offline use, physical-phone OEM/DND, normal-posture detection and two registered-account team acceptance remain separate checks**. These README captures do not establish them. [Same-account acceptance](docs/cross-device-study/labeled-acceptance-20261019.md) · [Android lifecycle](docs/cross-device-study/mobile-lifecycle-20261019.md) · [Screen recovery](docs/safe-section-recovery-20261019.md).
+
 ## StudyRoom 2.0 — your interests, a technology feed
 
 ### AI summary recovery
 
 The briefing distinguishes OpenRouter provider errors (including HTTP 502), rate limits, timeouts, invalid responses and configuration problems. Fast 502/503/504 errors receive at most one automatic retry within the 30-second request deadline. If generation still fails, use `요약 다시 시도` after the server-enforced wait (normally 60 seconds; rate limits 120 seconds). Configuration errors offer a status refresh. Reading the feed never starts AI generation; statistics and original links remain available.
 
-OpenRouter remains free-only: `OPENROUTER_MODEL` defaults to `openrouter/free` or an explicit `:free` model, with zero-price provider limits and no paid fallback. Feed limits remain 2,048 output tokens and 20 seconds per attempt. The existing shared budget is 15 reservations/user/day (workers at most 12); wasted failed reservations are refunded, with a non-refundable ceiling of 40 attempts. Each retry reserves again; cache reads use no AI. [Recovery and verification](docs/tech-feed/ai-retry.md).
+OpenRouter remains free-only: set `OPENROUTER_MODEL` to `openrouter/free` or an explicit `:free` model, with zero-price provider limits and no paid fallback. An empty model setting disables the client. Feed limits remain 2,048 output tokens and 20 seconds per attempt. The existing shared budget is 15 reservations/user/day (workers at most 12); wasted failed reservations are refunded, with a non-refundable ceiling of 40 attempts. Each retry reserves again; cache reads use no AI. [Recovery and verification](docs/tech-feed/ai-retry.md).
 
 Verified example (2026-10-10): a synthetic live API check returned a valid briefing in one call, with configured and actual model `google/gemma-4-26b-a4b-it:free`. This records that CI check, not a fixed production model or quality guarantee; the selected free model/router remains environment-controlled.
 
@@ -101,7 +137,7 @@ The system combines a Vite/React web app, an Expo mobile client, Supabase Auth/P
 1. Restore an existing Supabase session, or sign in with email OTP and optional Google OAuth.
 2. Plan dated todos, timed schedules, recurring work, goals, and D-days.
 3. Receive a scheduled reminder through Web Push, Slack, or email fallback.
-4. Use the Today workspace through Focus, Plan, and Records tabs. Start a session only after selecting at least one unfinished todo for today. On the web, a quick-added todo can include a title and start/end time, appears immediately in the circular schedule, and is selected for the session; Expo quick add currently captures the title only. The web session plan opens with an empty new-task title and preselects today's unfinished todo when its title matches the latest reflection's next action.
+4. Use the Today workspace through Focus, Plan, and Records tabs. Start a session only after selecting at least one unfinished todo for today. The web and Android hosted interface can quick-add a title and start/end time directly to the schedule and session selection; the native Expo fallback's quick add captures the title only. The plan opens with an empty new-task title and preselects a matching todo only when the latest reflection has a next action; a newer blank reflection does not revive older advice.
 5. Begin with a one-hour session lease and extend it in one-hour increments, with at most two hours remaining from the current time.
 6. Pause and resume without counting break time as study time; optionally set a 10, 20, or 40-minute return promise.
 7. Use browser-only upper-body presence detection on the web. No photo, video, face feature, or raw pose landmark is stored.
@@ -132,7 +168,7 @@ The system combines a Vite/React web app, an Expo mobile client, Supabase Auth/P
 - Circular daily planner with overlap detection.
 - Atomic server-side start, pause, resume, extend, and end flows.
 - Break time exclusion and optional return promises.
-- Web and Expo clients share the same session and todo rules; mobile camera monitoring remains out of scope until a separate PRD is approved.
+- The web and authenticated Android hosted interface share session/todo rules and the single-camera-owner policy; native permissions and actual device behavior require their own checks.
 
 ### Sustainable learning loop
 
@@ -296,6 +332,18 @@ npm.cmd run infra:synth
 
 The README is an overview. Feature-level requirements and operational history are maintained under [`memory-bank/`](memory-bank/), including the sustainable study loop, authentication recovery, session lease expiry, break return plan, weekly habit rhythm, Study Forest, notifications, and deployment.
 
-## AI integration foundation
+## Active AI service and configuration
 
-Server-only OpenRouter client and optional GitHub-to-Vercel environment sync are prepared for future AI features. No generation endpoint or automatic model calls are enabled. See [setup and server usage](docs/openrouter-setup.md).
+The technology-feed worker and authenticated briefing API already use the server-only OpenRouter client. Reading cached feed data does not invoke the model; eligible collection jobs can generate article summaries, and the briefing generates insights on explicit request. Restart coaching is separate from the archived career-roadmap/calendar/repository system above.
+
+| Setting | Current behavior |
+| --- | --- |
+| Credentials | `OPENROUTER_API_KEY` is a deployment Secret, never a `VITE_`/`EXPO_PUBLIC_` value. GitHub Secrets must be propagated to the actual Vercel/Edge runtime; setting GitHub alone does not configure a running service. |
+| Router/model | `OPENROUTER_MODEL`: use `openrouter/free` or an explicit `provider/model:free`. An empty setting disables the client; legacy non-free model settings are normalized to the free router, never paid inference. |
+| Model identity | The configured router and the successful response's actual model ID are distinct. Dynamic free routing does not promise a fixed model or the highest quality. No new live-model check was run for this README update. |
+| Price policy | Zero-price provider limits and no paid fallback. |
+| Shared-client defaults | Optional `OPENROUTER_MAX_TOKENS=1024`, `OPENROUTER_TIMEOUT_MS=20000`; absent overrides keep these defaults. `OPENROUTER_SITE_URL` and `OPENROUTER_APP_NAME` are optional attribution settings. Legacy routing/cost-tier variables cannot enable paid models. |
+| Feed-specific limits | Feed calls explicitly use 2,048 output tokens and 20 seconds per attempt. The daily feed/coaching reservation/attempt limits and retry deadline are described above; the archived pilot's six-call budget does not describe this live feed. |
+| Failure | No fabricated AI summary: retain the source introduction/link and show status/retry when appropriate. Restart coaching can return labelled rule-based advice. Translation uses DeepL independently. |
+
+See [OpenRouter server setup](docs/openrouter-setup.md), [feed error recovery](docs/tech-feed/ai-retry.md) and [translation setup](docs/tech-feed/korean-translation.md). The earlier career descriptions, model-budget table and screenshots are historical archive material, not an enabled automatic career coach.
