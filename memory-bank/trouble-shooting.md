@@ -1,5 +1,12 @@
 # Troubleshooting
 
+## 시간 저장 응답 누락으로 편집창이 계속 잠김 — 2026-10-25
+
+- 원인: `saveSessionTodoTime`의 직접 UPDATE에 시간 제한/AbortSignal이 없어 응답이 오지 않으면 `finally`에 도달하지 못했다. 저장 ref와 todoBusy가 계속 유지되어 취소·닫기·시작이 잠겼다. 전역 Supabase 요청 제한도 설정되어 있지 않았다.
+- 해결: 기존 `runBoundedRequest`로 쓰기·소유자 scoped 확인 조회에 각각 15초를 적용한다. SDK builder의 `.abortSignal(signal)`은 `.single()` 앞에 둔다. 시간 초 표현은 분으로 정규화해 비교한다.
+- 응답 누락을 실패 확정으로 해석해 자동 UPDATE를 재시도하지 않는다. 서버 일치→성공, 다른 값→초안 유지/명시적 다시 저장, 읽기 실패→초안 유지/읽기 전용 다시 확인. 확인 중 취소·닫기는 controller와 요청 identity를 해제하며 같은 문서에서 재진입해도 불명확 초안을 보존한다. 취소가 이미 반영된 서버값을 되돌리지는 않는다.
+- 무응답 쓰기 RED와 확인 중 취소 잠금 RED를 각각 재현했다. 가상 시계·실제 Chrome 집중14/14, 강화 닫기1/1·빌드·읽기 전용 독립 검토 통과. 전체 검사/배포는 [통합 기록](../docs/verification/2026-10-25-main-integration.md), 세부 계약은 [복구 검증](../docs/session-todo-time-edit/timeout-recovery-20261025.md).
+
 ## 세션 할 일 시간 재편집 진입점 누락
 
 - 원인: 선택 목록에는 체크/삭제만 있고 기존 일반 편집은 반복 그룹까지 변경할 수 있어 시간 전용 동작에 재사용하면 안 된다.

@@ -1,11 +1,17 @@
 # Progress
 
+## 2026-10-25 통합·복구
+
+- `main`에 기존 운영 branch의 24개 커밋(`ea6c56e`까지)과 시간 저장 복구 `f9439ab`, README/QA `e8a7885`를 통합했다. 전체 검증·원격 CI·Vercel 상태는 [통합 출시 기록](../docs/verification/2026-10-25-main-integration.md)을 기준으로 확인한다.
+- 무응답 UPDATE/SELECT는 각각15초 제한, 응답 불명확 시 읽기 전용 확인, 명시적 재저장과 초안 보존을 구현했다. 집중 Chrome14/14·전체1347/1347(실패/생략0)·Edge23/23・mobile/docs/build・DUNE0위반/5게이트·독립 코드/문서 검토 통과. README3언어·실제 fixture 화면7장·모델/라우터·현재 제한 정보를 갱신했고 이미지 참조45/로컬 링크172 누락0을 확인했다.
+- 실기기 검증은 사용자 선택으로 후속 진행한다. 기존 실제 기본 동기화 PASS와 이번 로컬 fixture 검증을 구분한다. 운영 DB·APK·무료 AI 설정은 변경하지 않는다.
+
 | 기능 | 상태 | 현재 근거 / 다음 단계 |
 |---|---|---|
 | 세션 할 일 시간 재편집 | 운영 배포·수용 완료 | 해당 발생분 시간2필드만 수정·제목/반복/선택/기존학습 보존. Chrome1357/1357·hover포함집중8/8·verify/독립재검토 통과. 7133dc4/Actions40090165734 success·Vercel READY/exactSHA/HTTP200. Android16/0.2.4 실제운영저장·취소·재로드수용, 테스트항목정리·기존5종count/digest동일. docs/session-todo-time-edit/verification-20261024.md |
 | Android 유휴 lifecycle·오래된 회고 안내 | 운영 배포·실제 수용 완료(범위 한정) | 설치0.2.4/code7 같은계정·탭콘텐츠·HOME/COLD/Android설정복귀·18초offline복귀 PASS·카메라사용불변. 최신빈회고선택 RED4→집중5/5·Chrome1348/1348·verify/독립검토차단결함0.3312ad0/Actions39271816694 success·production READY/200·실제PC/Android옛안내없음·기존4종digest동일. 새공부/담당전환은회복잠금유지해보류·실폰DND/착석별도. docs/cross-device-study/mobile-lifecycle-20261019.md |
 | 공부 상태 보존 화면 복구 | 운영 배포·실제 수용 완료(범위 한정) | 영역 격리·유휴 명시reload·필수회고 eager, 집중10/10·Chrome1343/1343·verify/독립검토PASS.225fd82/Actions39148327299·production READY/200. Android16 실제HTML200 실패→복구·COLD로그인/학습보존, PC설정/오늘 정상. APK0.2.4 그대로·DB변경없음·전용rollback branch보존. docs/safe-section-recovery-20261019.md |
-| 동일 계정 다중 기기 공부·카메라 상태 | 운영 배포 완료·동일계정 실기기 수용 보류 | 영상 제외·단일 담당/generation·관찰 카메라/경고/자동종료 차단. Chrome1326/1326·verify·독립검토PASS. remote20261018100359/Edge24·학습13테이블 동일.2cc16ae/Actions39124089277·READY/exactSHA/HTTP200. Android 현재로그인화면·사용자 재로그인 추후 선택, 실제 동기화·5분 Slack은 미검증. docs/cross-device-study/acceptance.md |
+| 동일 계정 다중 기기 공부·카메라 상태 | 운영 배포·기본 실제 동기화 수용 완료, 확장 수용 후속 | 10/19 같은 계정 PC 시작→Android 관찰·양방향 휴식/재개·원격 종료/완료·COLD 로그인 PASS. 단일 담당/영상 비전송 유지. 담당 이전·Android 신규 담당·장시간 활성 배경·물리 자세/DND는 미실행. 이전 로그인 보류를 현재 전체 미검증으로 해석하지 않는다. docs/cross-device-study/labeled-acceptance-20261019.md 및 docs/verification/device-team-readiness-20261025.md |
 | 개인 공부·실제 시간 배분·휴식·회복·04시 공부일 | 기존 운영 기능 유지 | 이번 팀 기능이 정책/기록을 변경하지 않음. 이전 검증은 보관본 각 최신 항목 참고 |
 | 웹·Android 공통 UI·설정·계정 동기화 | 기존 운영 연결 | hosted WebView 공통 화면. 실휴대폰 OEM/DND E2E는 별도 미확인 항목 유지 |
 | APK 내부 업데이트·고정 공개 링크 | 기존 운영 연결 |0.2.4/code7·기기 단위 설치 제한·변경 요약. 이번 native 변경 없음 |

@@ -1,5 +1,15 @@
 # Active Context
 
+## 현재 작업: 최신 main 통합·시간 저장 무응답 복구
+
+- 갱신: 2026-10-25 · 도구 Codex · checkout `C:/jini-dev/studyRoom` · 브랜치 `main`.
+- 사용자 승인: 최신 작업 확인 후 제안한 main 통합, 시간 저장 복구, 수용 상태 정리, 실제 화면 README 갱신과 웹 배포 진행. 실기기 검증은 사용자가 **나중에 진행**하기로 선택했다.
+- 통합: `f363eca` 이후 `origin/fix/mobile-camera-lifecycle`의 24개 커밋을 `ea6c56e`까지 fast-forward했다. 팀 공부·단일 카메라 담당·영역 복구·최신 회고·시간 편집을 보존한다. 이번 복구 구현 `f9439ab`, README·QA 문서 `e8a7885`를 통합했다.
+- 수정: 시간 UPDATE와 소유자 확인 SELECT를 각각 기존 15초 제한으로 실행한다. 응답 불명확 시 조회하며, 저장 일치면 추가 쓰기 없이 성공·다른 값이면 명시적 다시 저장·미확인이면 읽기 전용 다시 확인을 제공한다. 초안·불명확 상태를 현재 문서/계정에서 보존하고 확인 중 취소·닫기와 늦은 응답 차단을 검증했다.
+- 분담/검증: 별도 worktree에서 프론트엔드 구현, UX/README·실제 fixture 화면7장, QA 수용표를 작성했다. 코드·문서 독립 검토에서 차단 결함 없음. 집중 Chrome14/14, 통합 전체 **1347/1347·실패/생략0**, Edge23/23·mobile/docs/build·DUNE0위반/5게이트 통과. 이미지 참조45·로컬 링크172 누락0. 원격 배포 결과는 [출시 검증 기록](../docs/verification/2026-10-25-main-integration.md)에 남긴다.
+- 범위: DB/Edge/native/APK·무료 AI 정책 변경 없음. 실제 계정·팀·학습·외부 알림·실모델 로컬 호출 없음. 기존 DUNE 미커밋 변경은 별도 백업 후 복원하며 이번 커밋에서 제외한다. 공용 환경 watcher를 실행하지 않는다.
+- 수용: 10/19 기본 PC↔Android·유휴 HOME/COLD/18초 단절 PASS를 유지한다. 담당 이전·Android 신규 담당·장시간 활성 배경·실휴대폰 OEM/DND·두 정식 계정·실제 PostgreSQL 경합은 후속이다. [QA 현황](../docs/verification/device-team-readiness-20261025.md).
+
 ## 현재 우선 요청: 세션 할 일 시간 편집
 - 갱신: 2026-10-24 20:35JST · 도구codex · fix/mobile-camera-lifecycle·배포코드7133dc4·선행미커밋보존. 사용자 시간편집/기록보존/웹·앱검증/배포 승인.
 - 완료: main.tsx/CSS에 시간편집·기존값·저장/취소. 해당 발생분 시간2필드만 소유자 DataAPI/RLS 갱신. 반복/제목/선택/기존공부 보존·실패재시도·계정전환차단·저장중시작/닫기/중복잠금·포커스복귀. PRD/트러블슈팅/검증문서 갱신.

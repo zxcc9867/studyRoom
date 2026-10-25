@@ -51,4 +51,4 @@ node --check scripts/capture-readme-current.mjs
 - 실제 두 정식 계정 팀 수용·명시 카메라 담당 이전·Android 신규 담당 시작·활성 공부의 장시간 배경/오프라인·물리 휴대폰 OEM/DND·평소 자세 감지는 이 로컬 촬영에서 수행하지 않았다. 팀원의 다른 상태와 숲 합계는 fixture 값이며 서버 실시간 전파나 기여 정산의 증거가 아니다.
 - AI는 `server/ai/openrouter.mjs`, `supabase/functions/_shared/coach-openrouter.mjs`, `supabase/functions/_shared/tech-feed-store.ts`와 기존 피드 복구 문서를 대조했다. 공통 client 기본1024토큰/20000ms, 피드 명시2048토큰/20000ms를 구분하고 무료 라우터와 실제 응답 모델 ID를 구분한다. 이전 6회 커리어 파일럿 예산은 보관 기록으로 표시한다. 이번 작업에서 새 실모델 호출이나 무료 공급자 가용성 확인은 하지 않았다.
 - 최종 이미지 checker 결과: `README image references verified: 45 across 3 languages.` 문서 링크·PNG 파일 유효성의 검증이며 앱 전체 회귀나 배포 성공을 대신하지 않는다.
-- 기존 README 계약3개와 새 스크립트 syntax2개·`git diff --check`가 통과했다. 최종 로컬링크161개는 누락0(단, README 세 곳이 참조하는 `timeout-recovery-20261025.md`는 담당자의 review checkout에서 존재를 확인했으며 통합이 필요하다). 이 문서를 복사·수정해 다른 담당자의 소유권을 침범하지 않았다. 메인은 통합된 checkout에서 경로를 다시 확인해야 한다.
+- 기존 README 계약3개와 새 스크립트 syntax2개·`git diff --check`가 통과했다. 담당 checkout의 로컬링크161개는 누락0이었다. 메인은 통합 후 README3언어·촬영 기록·QA·출시 기록의 로컬링크 **172개, 누락0**을 다시 확인했다. 시간 복구 문서의 세 README 참조도 통합된 실제 파일로 연결된다.
