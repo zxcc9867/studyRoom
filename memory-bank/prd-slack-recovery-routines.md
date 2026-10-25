@@ -20,6 +20,8 @@
 
 # PRD: Slack Recovery Routines
 
+2026-10-25 개정: 출석 회복은 [공부 시작 출석 분리](prd-attendance-start.md)에 따라 공부일 종료 후 시작 기록이 없는 결석에만 생성한다. 목표 미달은 회복 사유가 아니다. 전환 시 현재 공부일의 잘못된 요청은 `resolved`와 해제 메타데이터로 남기며 사용자 제출·보충 할 일을 만들지 않는다. 과거 누적 결석과 카메라 회복은 유지한다.
+
 ## 1. Problem
 
 The app currently records missed attendance and camera absence warnings, but failure does not force the user to acknowledge what happened or create a recovery plan. A forced-attendance study app needs a lightweight consequence loop.

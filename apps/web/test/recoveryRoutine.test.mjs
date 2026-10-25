@@ -62,10 +62,9 @@ test("recovery pledge is stored on the request but not created as a todo", () =>
   assert.doesNotMatch(migrationSource, /v_pledge_todo_id/);
   assert.doesNotMatch(migrationSource, /insert into public\.study_todos[\s\S]*values \([^;]*v_pledge_title/);
 
-  const slackTodoCreations = slackSource.match(/await createTodo\(/g) ?? [];
-  assert.equal(slackTodoCreations.length, 1);
-  assert.match(slackSource, /pledge_todo_title:\s*pledgeTodoTitle/);
-  assert.match(slackSource, /pledge_todo_id:\s*null/);
+  assert.match(slackSource, /rpc\("submit_slack_study_recovery_request"/);
+  assert.match(slackSource, /p_pledge_todo_title:\s*pledgeTodoTitle/);
+  assert.doesNotMatch(slackSource, /await createTodo\(/);
   assert.doesNotMatch(slackSource, /const pledgeTodo = await createTodo/);
 });
 

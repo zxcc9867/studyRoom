@@ -98,7 +98,7 @@ html:has(.dashboard-redesign), body:has(.dashboard-redesign), body:has(.dashboar
 .today-focus-progress::-webkit-progress-bar { background: #e4e9dc; }
 .today-focus-progress::-webkit-progress-value { background: #739661; border-radius: 100px; }
 .today-focus-progress::-moz-progress-bar { background: #739661; }
-.focus-attendance-rule { margin: 0; color: var(--study-muted); font-size: var(--study-text-xs); }
+.focus-attendance-rule, .focus-goal-status { margin: 0; color: var(--study-muted); font-size: var(--study-text-xs); }
 .focus-side { display: flex; flex-direction: column; gap: 18px; min-width: 0; }
 .focus-plan-card { padding: 20px 24px 12px; border: 1px solid var(--study-border); border-radius: var(--study-radius); background: var(--study-surface); }
 .focus-side-heading { display: flex; align-items: center; justify-content: space-between; gap: 8px; }

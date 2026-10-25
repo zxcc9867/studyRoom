@@ -115,7 +115,7 @@ test("today screen wires the live checkpoint, acknowledgement, and existing fini
   assert.match(component, /오늘의 시작은 이미 성공했어요/);
   assert.match(component, /onClick=\{onContinue\}/);
   assert.match(component, /onClick=\{onFinish\}/);
-  assert.match(component, /10분 습관 성공과 출석 2·4시간 목표는 서로 다른 기록/);
+  assert.match(component, /공부 시작 출석, 10분 습관 성공과 2·4시간 공부 목표는 각각 따로 기록/);
   assert.match(styles, /\.ten-minute-checkpoint/);
   assert.match(styles, /\.ten-minute-checkpoint\.complete/);
   assert.match(styles, /\.ten-minute-checkpoint-actions/);

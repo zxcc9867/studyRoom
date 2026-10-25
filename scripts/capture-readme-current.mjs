@@ -26,6 +26,24 @@ try {
       const url = new URL(route.request().url());
       return url.hostname === '127.0.0.1' ? route.continue() : route.abort();
     });
+    if (process.env.README_CAPTURE_ATTENDANCE_ONLY === 'true') {
+      await page.clock.setFixedTime(new Date('2026-10-25T06:00:00Z'));
+      await page.goto(`http://127.0.0.1:${server.address().port}/?mode=attendance-goal#today`);
+      await page.locator('.topbar-actions button:not([disabled])').first().waitFor();
+      assert.equal(await page.locator('.dashboard-attendance').textContent(), '출석 완료');
+      assert.match(await page.locator('.study-summary').first().textContent(), /오늘 공부2시간 0분오늘 공부 목표4시간/);
+      assert.equal(await page.getByRole('progressbar', { name: '오늘 공부 목표 진행도' }).getAttribute('value'), '50');
+      assert.match(await page.locator('.focus-goal-status').textContent(), /공부 목표 진행 중/);
+      assert.equal(await page.getByRole('dialog', { name: '회복 루틴 작성' }).count(), 0);
+      assert.equal(await page.evaluate(() => fixture.calls.some(call => /start|end|confirm_actual/.test(call.name))), false);
+      assert.equal(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), true);
+      const image = `attendance-study-goal-current-${width}.png`;
+      await page.screenshot({ path: fileURLToPath(new URL(image, imageDir)), fullPage: true });
+      assert.deepEqual(errors, []);
+      observations.push({ width, images: [image], horizontalOverflow: false, attendance: 'present', studiedSeconds: 7200, studyGoalSeconds: 14400, goalPercent: 50, recoveryRequests: 0, noSessionStarted: true, pageErrors: errors });
+      await context.close();
+      continue;
+    }
     await page.goto(`http://127.0.0.1:${server.address().port}/?mode=start#together`);
     const panel = page.locator('#together');
     await panel.getByLabel('팀 이름', { exact: true }).fill('[테스트] 함께 자라는 공부방');
@@ -95,7 +113,7 @@ try {
     await context.close();
   }
   await mkdir(new URL('output/readme-current/', root), { recursive: true });
-  await writeFile(new URL('output/readme-current/capture.json', root), JSON.stringify({ scope: 'real React app; local synthetic mounted boundary; no live account or remote data', observations }, null, 2));
+  await writeFile(new URL(process.env.README_CAPTURE_ATTENDANCE_ONLY === 'true' ? 'output/readme-current/attendance-capture.json' : 'output/readme-current/capture.json', root), JSON.stringify({ scope: 'real React app; local synthetic mounted boundary; no live account or remote data', observations }, null, 2));
   console.log(JSON.stringify(observations));
 } finally {
   await browser?.close();

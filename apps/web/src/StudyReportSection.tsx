@@ -109,7 +109,7 @@ export function StudyReportContent({ periods, todayDateKey, state, onRetry, ...a
       </div>
       {empty && <p className="study-report-empty" role="status">이 기간에는 아직 기록이 없어요. 다른 주나 달을 선택해 지난 공부를 돌아보세요.</p>}
       <WeeklyReviewSection todayDateKey={todayDateKey} sessions={state.data.sessions} todos={state.data.plannedTodos} attendanceDays={state.data.attendanceDays} reflections={state.data.reflections} review={review} reportTitle={title} comparisonLabel={periods.comparisonLabel} {...actions} />
-      <p className="study-report-footnote">공부일은 계정 시간대의 새벽 4시에 바뀌어요. 완료한 세션의 인정 공부시간과 출석은 시작한 공부일에 합산하며, 자정을 넘어도 나누지 않아요. 할 일 계획의 달력 날짜는 유지돼요. 진행 중이거나 쉬는 중인 세션은 종료 후 반영돼요.</p>
+      <p className="study-report-footnote">공부일은 계정 시간대의 새벽 4시에 바뀌어요. 공부 시작 시 출석을 인정하고, 인정 공부시간은 완료한 세션 기준으로 집계해요. 세션은 시작한 공부일에 합산하며 자정을 넘어도 나누지 않아요. 할 일 계획의 달력 날짜는 유지돼요. 진행 중이거나 쉬는 중인 세션의 공부시간은 종료 후 반영돼요.</p>
     </div>
   );
 }

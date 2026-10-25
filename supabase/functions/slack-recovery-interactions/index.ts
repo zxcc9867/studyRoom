@@ -21,13 +21,9 @@ type RecoveryRequest = {
   user_id: string;
   local_date: string;
   trigger_type: string;
-  status: "pending" | "submitted" | "consolidated";
+  status: "pending" | "submitted" | "consolidated" | "resolved";
 };
 
-type StudyTodoRow = {
-  id: string;
-  local_date: string;
-};
 
 const jsonHeaders = { "content-type": "application/json" };
 const supportedScheduleExtensionActionIds = new Set(["extend_schedule_5", "extend_schedule_10", "extend_schedule_custom"]);
@@ -355,26 +351,14 @@ async function handleRecoverySubmission(admin: SupabaseClient, payload: SlackPay
     return slackErrors(errors);
   }
 
-  const makeupTodo = await createTodo(admin, {
-    userId: recoveryRequest.user_id,
-    localDate: await getUserLocalDate(admin, recoveryRequest.user_id),
-    title: makeupTodoTitle,
-    position: 0,
+  const { error } = await admin.rpc("submit_slack_study_recovery_request", {
+    p_request_id: recoveryRequest.id,
+    p_user_id: recoveryRequest.user_id,
+    p_slack_submitter_id: payload.user?.id ?? null,
+    p_reason: reason,
+    p_makeup_todo_title: makeupTodoTitle,
+    p_pledge_todo_title: pledgeTodoTitle,
   });
-
-  const { error } = await admin
-    .from("study_recovery_requests")
-    .update({
-      status: "submitted",
-      reason,
-      makeup_todo_title: makeupTodoTitle,
-      pledge_todo_title: pledgeTodoTitle,
-      makeup_todo_id: makeupTodo.id,
-      pledge_todo_id: null,
-      slack_submitter_id: payload.user?.id ?? null,
-      submitted_at: new Date().toISOString(),
-    })
-    .eq("id", recoveryRequest.id);
 
   if (error) {
     return slackErrors({ reason: error.message });
@@ -401,47 +385,6 @@ async function loadRecoveryRequest(admin: SupabaseClient, requestId: string) {
   return (data as RecoveryRequest | null) ?? null;
 }
 
-async function getUserLocalDate(admin: SupabaseClient, userId: string) {
-  const { data, error } = await admin
-    .from("profiles")
-    .select("time_zone")
-    .eq("user_id", userId)
-    .maybeSingle();
-  if (error) throw error;
-
-  const timeZone = typeof data?.time_zone === "string" && data.time_zone ? data.time_zone : "Asia/Seoul";
-  const parts = new Intl.DateTimeFormat("en-US", {
-    timeZone,
-    year: "numeric",
-    month: "2-digit",
-    day: "2-digit",
-  }).formatToParts(new Date());
-  const values = Object.fromEntries(parts.map((part) => [part.type, part.value]));
-  return `${values.year}-${values.month}-${values.day}`;
-}
-
-async function createTodo(
-  admin: SupabaseClient,
-  input: { userId: string; localDate: string; title: string; position: number },
-) {
-  const { data, error } = await admin
-    .from("study_todos")
-    .insert({
-      user_id: input.userId,
-      local_date: input.localDate,
-      title: input.title,
-      position: input.position,
-    })
-    .select("id,local_date")
-    .single();
-
-  if (error) {
-    throw error;
-  }
-
-  return data as StudyTodoRow;
-}
-
 async function openRecoveryModal(triggerId: string, recoveryRequest: RecoveryRequest) {
   const response = await fetch("https://slack.com/api/views.open", {
     method: "POST",
@@ -465,7 +408,7 @@ async function openRecoveryModal(triggerId: string, recoveryRequest: RecoveryReq
               type: "mrkdwn",
               text:
                 recoveryRequest.trigger_type === "missed_attendance"
-                  ? "*오늘 출석 실패* 사유와 보충 계획을 작성해주세요."
+                  ? `*${recoveryRequest.local_date} 출석 실패* 사유와 보충 계획을 작성해주세요.`
                   : "*자리 비움 반복 감지* 사유와 보충 계획을 작성해주세요.",
             },
           },

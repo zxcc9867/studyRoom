@@ -26,53 +26,41 @@ runInNewContext(`${outputText}\nexports.submit = handleRecoverySubmission;`, {
   },
 });
 
-for (const [timeZone, expectedDate] of [
-  ["Asia/Tokyo", "2026-08-29"],
-  ["America/Los_Angeles", "2026-08-28"],
-  [null, "2026-08-29"],
-]) {
-  test(`Slack makeup task uses today's local date (${timeZone ?? "default"}) instead of the old missed date`, async () => {
+
+for (const finalStatus of ['submitted', 'resolved']) {
+  test('Slack delegates submission atomically; final state ' + finalStatus + ' cannot create an orphan task', async () => {
     const writes = [];
-    const requestId = "22222222-2222-4222-8222-222222222222";
-    const userId = "11111111-1111-4111-8111-111111111111";
-    const client = createClient("https://recovery-fixture.supabase.co", "fixture-key", {
+    const requestId = '22222222-2222-4222-8222-222222222222';
+    const userId = '11111111-1111-4111-8111-111111111111';
+    const client = createClient('https://recovery-fixture.supabase.co', 'fixture-key', {
       auth: { persistSession: false, autoRefreshToken: false },
       global: { fetch: async (input, init = {}) => {
-        const url = new URL(input);
-        const table = url.pathname.split("/").at(-1);
-        if (table === "study_recovery_requests" && init.method === "GET") {
-          assert.equal(url.searchParams.get("id"), `eq.${requestId}`);
-          return Response.json([{ id: requestId, user_id: userId, local_date: "2026-06-17", trigger_type: "missed_attendance", status: "pending" }]);
+        const table = new URL(input).pathname.split('/').at(-1);
+        if (table === 'study_recovery_requests' && init.method === 'GET') {
+          return Response.json([{ id: requestId, user_id: userId, local_date: '2026-10-25', trigger_type: 'missed_attendance', status: 'pending' }]);
         }
-        if (table === "profiles" && init.method === "GET") {
-          assert.equal(url.searchParams.get("user_id"), `eq.${userId}`);
-          return Response.json([{ time_zone: timeZone }]);
-        }
-        const body = JSON.parse(init.body);
-        writes.push({ table, method: init.method, body });
-        if (table === "study_todos" && init.method === "POST") return Response.json({ id: "makeup-todo", local_date: body.local_date });
-        if (table === "study_recovery_requests" && init.method === "PATCH") return Response.json([]);
-        throw new Error(`Unexpected request: ${init.method} ${table}`);
+        if (table === 'profiles' && init.method === 'GET') return Response.json([{ time_zone: 'Asia/Tokyo' }]);
+        writes.push({ table, method: init.method, body: JSON.parse(init.body) });
+        if (table === 'submit_slack_study_recovery_request' && init.method === 'POST') return Response.json({ id: requestId, status: finalStatus });
+        if (table === 'study_todos' && init.method === 'POST') return Response.json({ id: 'legacy-task' });
+        if (table === 'study_recovery_requests' && init.method === 'PATCH') return Response.json([]);
+        throw new Error('Submission must not issue separate task/recovery writes: ' + table);
       } },
     });
-    const field = (value) => ({ value });
+    const field = value => ({ value });
     const response = await exports.submit(client, {
-      type: "view_submission", user: { id: "slack-owner" },
+      type: 'view_submission', user: { id: 'slack-owner' },
       view: { private_metadata: requestId, state: { values: {
-        reason: { reason: field("일정이 겹침") },
-        makeup_todo_title: { makeup_todo_title: field("오늘 10분 복습") },
-        pledge_todo_title: { pledge_todo_title: field("내일 다시 시작") },
+        reason: { reason: field('일정이 겹침') },
+        makeup_todo_title: { makeup_todo_title: field('오늘 10분 복습') },
+        pledge_todo_title: { pledge_todo_title: field('내일 다시 시작') },
       } } },
     });
-    assert.deepEqual(await response.json(), { response_action: "clear" });
-    const todos = writes.filter((write) => write.table === "study_todos");
-    assert.equal(todos.length, 1);
-    assert.equal(todos[0].body.local_date, expectedDate);
-    assert.equal(todos[0].body.user_id, userId);
-    assert.equal(todos[0].body.title, "오늘 10분 복습");
-    const completed = writes.find((write) => write.table === "study_recovery_requests");
-    assert.equal(completed.body.status, "submitted");
-    assert.equal(completed.body.makeup_todo_id, "makeup-todo");
-    assert.equal(completed.body.pledge_todo_id, null);
+    assert.deepEqual(await response.json(), { response_action: 'clear' });
+    assert.equal(writes.length, 1);
+    assert.deepEqual(writes[0], { table: 'submit_slack_study_recovery_request', method: 'POST', body: {
+      p_request_id: requestId, p_user_id: userId, p_slack_submitter_id: 'slack-owner',
+      p_reason: '일정이 겹침', p_makeup_todo_title: '오늘 10분 복습', p_pledge_todo_title: '내일 다시 시작',
+    } });
   });
 }

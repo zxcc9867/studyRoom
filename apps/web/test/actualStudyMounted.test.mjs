@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createServer } from 'node:http';
-import { mkdir, readFile } from 'node:fs/promises';
+import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { build } from 'esbuild';
 let chromium;
@@ -712,6 +712,13 @@ const state=window.fixture={calls:[],todos:[todo('a','집중 독서'),todo('b','
 state.links=['a','b'];
 const mode=new URLSearchParams(location.search).get('mode');
 state.camera=null;
+state.attendance=[];
+if(mode==='attendance-goal'){
+ state.sessions=[{...row,local_date:'2026-10-25',started_at:'2026-10-25T00:00:00Z',ended_at:'2026-10-25T02:00:00Z',duration_seconds:7200,status:'completed'}];
+ state.attendance=[{local_date:'2026-10-25',status:'present',reminder_at:'2026-10-25T05:00:00Z',deadline_at:'2026-10-25T19:00:00Z',qualifying_session_id:'session'}];
+ state.todos.forEach(t=>t.local_date='2026-10-25');
+}
+
 if(['empty-links','completed-links','active-empty'].includes(mode)){state.links=mode==='completed-links'?['a']:[];state.current=null;state.sessions[0].paused_at=mode==='active-empty'?null:now;state.todos[0].is_completed=mode==='completed-links';state.todos[1].local_date='2026-09-21';state.todos.forEach(t=>{t.first_started_at=null;t.unknown_allocation=true;t.evaluation_eligible=false;});}
 if(mode==='start'||mode==='recovery'||mode?.startsWith('start-reflection')){state.sessions=[];state.todos.forEach(t=>t.local_date='2026-09-21');}
 state.reflections=mode?.startsWith('start-reflection')?[{id:'past-reflection',session_id:'past-session',next_action:'장고245페이지',created_at:'2026-08-01T01:00:00Z'}]:[];
@@ -758,7 +765,7 @@ function result(name,args){state.calls.push({name,args});
   state.links=[...new Set([...state.links,...args.p_preview.todo_ids])];state.todos.filter(t=>state.links.includes(t.id)).forEach(t=>{if(['empty-links','completed-links','active-empty'].includes(mode)){t.first_started_at=null;t.first_tracked_at=now;t.unknown_allocation=true;t.evaluation_eligible=false;}});state.current=args.p_preview.current_todo_id;state.sessions=[{...row,paused_at:null}];return {data:{request_id:args.p_request_id,session:state.sessions[0],preview:args.p_preview,tracking:track()},error:null};
  }
  if(name==='get_actual_study_report')return state.reportFail?{error:{message:'report failed'},data:null}:{error:null,data:{scheduled_count:2,started_count:1,on_time_count:0,on_time_ratio:0,adjustment_count:3,unstarted_count:1,plans:[{todo_id:'a',title:'집중 독서',original_start_at:'2026-09-21T12:00:00Z',first_started_at:'2026-09-21T14:00:00Z',delay_minutes:120,adjustment_count:3,is_unstarted:false}]}};
- if(name==='get_study_period_summary')return {data:{completed_seconds:3600,completed_session_count:1,anomaly_session_count:0,cross_date_session_count:0},error:null};
+ if(name==='get_study_period_summary')return {data:{completed_seconds:mode==='attendance-goal'?7200:3600,completed_session_count:1,anomaly_session_count:0,cross_date_session_count:0},error:null};
  return {data:[],error:null};
 }
 function query(table){let single=false,insert=null,update=null,reflectionOps=[],filters=[];const q=new Proxy({}, {get(_,key){if(key==='then')return (resolve,reject)=>Promise.resolve().then(()=>{
@@ -785,7 +792,7 @@ function query(table){let single=false,insert=null,update=null,reflectionOps=[],
   }
   return finish();
  }
- if(update&&table==='study_goals'&&state.holdGoalWrite)return new Promise(resolve=>{state.releaseGoalWrite=()=>resolve({data:{id:'goal',user_id:'owner',title:'자격증 목표',target_date:'2026-12-31',target_study_seconds:0,status:'active',created_at:now,updated_at:now,...update},error:null});});if(insert && table==='study_todos'){const added={...todo('new',''),...insert[0],id:'new'};state.todos.push(added);return {data:added,error:null};}let data=table==='profiles'?state.profile:table==='study_goals'?[{id:'goal',title:'자격증 목표',target_date:'2026-12-31',target_study_seconds:0,status:'active',created_at:now,updated_at:now}]:table==='study_sessions'?state.sessions:table==='study_todos'?state.todos:table==='study_session_reflections'?state.reflections:table==='study_recovery_requests'?state.recoveries:table==='study_session_todos'?state.todos.filter(t=>state.links.includes(t.id)).map(t=>({id:t.id,session_id:'session',todo_id:t.id,user_id:'owner',linked_at:now,completed_during_session:false})):[];if(table==='study_session_reflections'){data=[...data];for(const [op,args] of reflectionOps){if(op==='not')data=data.filter(r=>r[args[0]]!==args[2]);if(op==='order')data.sort((a,b)=>String(b[args[0]]).localeCompare(String(a[args[0]])));if(op==='limit')data=data.slice(0,args[0]);}}return {data:single?(Array.isArray(data)?data[0]??null:data):data,error:null};}).then(resolve,reject);return (...args)=>{if(key==='maybeSingle'||key==='single')single=true;if(key==='eq')filters.push(args);if(table==='study_session_reflections'&&['not','order','limit'].includes(key))reflectionOps.push([key,args]);if(key==='insert')insert=args[0];if(key==='update')update=args[0];if(key==='upsert'){state.calls.push({name:table+'.upsert',args:args[0]});if(table==='profiles')state.profile={...state.profile,...args[0]};if(table==='study_session_reflections')state.reflections.unshift({id:'saved-reflection',created_at:now,...args[0]});}return q;};}});return q;}
+ if(update&&table==='study_goals'&&state.holdGoalWrite)return new Promise(resolve=>{state.releaseGoalWrite=()=>resolve({data:{id:'goal',user_id:'owner',title:'자격증 목표',target_date:'2026-12-31',target_study_seconds:0,status:'active',created_at:now,updated_at:now,...update},error:null});});if(insert && table==='study_todos'){const added={...todo('new',''),...insert[0],id:'new'};state.todos.push(added);return {data:added,error:null};}let data=table==='profiles'?state.profile:table==='attendance_days'?state.attendance:table==='study_goals'?[{id:'goal',title:'자격증 목표',target_date:'2026-12-31',target_study_seconds:0,status:'active',created_at:now,updated_at:now}]:table==='study_sessions'?state.sessions:table==='study_todos'?state.todos:table==='study_session_reflections'?state.reflections:table==='study_recovery_requests'?state.recoveries:table==='study_session_todos'?state.todos.filter(t=>state.links.includes(t.id)).map(t=>({id:t.id,session_id:'session',todo_id:t.id,user_id:'owner',linked_at:now,completed_during_session:false})):[];if(table==='study_session_reflections'){data=[...data];for(const [op,args] of reflectionOps){if(op==='not')data=data.filter(r=>r[args[0]]!==args[2]);if(op==='order')data.sort((a,b)=>String(b[args[0]]).localeCompare(String(a[args[0]])));if(op==='limit')data=data.slice(0,args[0]);}}return {data:single?(Array.isArray(data)?data[0]??null:data):data,error:null};}).then(resolve,reject);return (...args)=>{if(key==='maybeSingle'||key==='single')single=true;if(key==='eq')filters.push(args);if(table==='study_session_reflections'&&['not','order','limit'].includes(key))reflectionOps.push([key,args]);if(key==='insert')insert=args[0];if(key==='update')update=args[0];if(key==='upsert'){state.calls.push({name:table+'.upsert',args:args[0]});if(table==='profiles')state.profile={...state.profile,...args[0]};if(table==='study_session_reflections')state.reflections.unshift({id:'saved-reflection',created_at:now,...args[0]});}return q;};}});return q;}
 export const isSupabaseConfigured=true,supabaseUrl='https://fixture.invalid',supabaseAnonKey='test';
 const feedArticles=Array.from({length:4},(_,index)=>({id:'article-'+index,title:['실무에서 살펴보는 백엔드 아키텍처','클라우드 운영과 관측 가능성','AI 개발 도구를 안전하게 활용하는 방법','새로운 웹 기술을 작은 프로젝트로 익히기'][index],excerpt:'공개 기술 블로그의 소개를 바탕으로 구현 과정과 실제 적용 시 고려할 점을 살펴봅니다. 원문에서 구체적인 예제와 설계의 근거를 확인할 수 있어요.',url:'https://example.test/article/'+index,published_at:now,discovered_at:now,summary:null,summary_status:'pending',category:'practice',interests:['backend'],topics:['백엔드'],sources:[{id:'source',name:'기술 블로그'}],saved:false,todo_id:null,origin:'rss',matched_topics:[],excerpt_provenance:'source_excerpt'}));
 const feedResponse=action=>action==='state'?{enabled:true,service_available:true,sources:[],interests:[],last_success_at:now,preferences:{prompt:'AI와 백엔드 기술',receiving:true,revision:1},search_status:{state:'ready',last_success_at:now}}:action==='list'?{items:feedArticles,next_cursor:null,total:4}:action==='facets'?{total:4,topics:[],sources:[],languages:[{value:'ko',label:'한국어 원문',count:4}]}:action==='briefing'?{local_date:'2026-09-21',time_zone:'Asia/Tokyo',total:4,source_count:1,categories:[],topics:[{value:'backend',label:'백엔드',count:4}],eligible_count:4,analyzed_count:0,generated_at:null,status:'idle',stale:false,insights:[],highlights:[]}:{};
@@ -807,15 +814,31 @@ async function withApp(width, run, mode='active', nativeOrigin=false, failedChun
   const built=await build({entryPoints:[fileURLToPath(new URL('../src/main.tsx',import.meta.url))],bundle:true,write:false,outdir:'fixture',platform:'browser',format:'iife',jsx:'automatic',logLevel:'silent',define:{'import.meta.env':'{}'},plugins:[{name:'local-boundaries',setup(b){b.onResolve({filter:/^\.\/supabase$/},()=>({path:'backend',namespace:'fixture'}));b.onLoad({filter:/.*/,namespace:'fixture'},()=>({contents:backend,loader:'js'}));b.onLoad({filter:/bodyPresenceDetection\.mjs$/},()=>({contents:'export async function createUpperBodyPresenceDetector(){return {detect:()=>true,close(){}}}',loader:'js'}));b.onResolve({filter:/^\.\//},args=>failedChunk&&args.kind==='dynamic-import'&&args.path==='./'+failedChunk?{path:failedChunk,namespace:'failed-chunk'}:undefined);b.onLoad({filter:/.*/,namespace:'failed-chunk'},()=>({contents:'throw new TypeError("Failed to fetch dynamically imported module: stale-test-chunk.js"); export default function FailedChunk(){return null;}',loader:'tsx'}));b.onLoad({filter:/[\\/]src[\\/]main\.tsx$/},async({path})=>({contents:(await readFile(path,'utf8')).replace('createRoot(document.getElementById("root")!).render','(window.fixtureRoot = createRoot(document.getElementById("root")!)).render'),loader:'tsx'}));}}]});
   const js=built.outputFiles.find(f=>f.path.endsWith('.js')).text, css=built.outputFiles.find(f=>f.path.endsWith('.css'))?.text||'';
   const server=createServer((req,res)=>{res.setHeader('Content-Type',req.url==='/app.js'?'text/javascript':req.url==='/app.css'?'text/css':'text/html');res.end(req.url==='/app.js'?js:req.url==='/app.css'?css:'<!doctype html><html lang="ko"><head><meta name="viewport" content="width=device-width,initial-scale=1"><link rel="stylesheet" href="/app.css"></head><body><div id="root"></div><script src="/app.js"></script></body></html>');});
-  await new Promise(resolve=>server.listen(0,'127.0.0.1',resolve));let browser;
-  try {browser=await chromium.launch({headless:true,executablePath:process.env.FEED_BROWSER_EXECUTABLE||undefined,args:['--use-fake-ui-for-media-stream','--use-fake-device-for-media-stream']});const page=await browser.newPage({viewport:{width,height:960}});page.setDefaultTimeout(5000);const errors=[];page.on('pageerror',e=>errors.push(e.message));await page.clock.install({time:new Date('2026-09-21T14:30:00Z')});
+  await new Promise(resolve=>server.listen(0,'127.0.0.1',resolve));let browser,page;
+  try {browser=await chromium.launch({headless:true,executablePath:process.env.FEED_BROWSER_EXECUTABLE||undefined,args:['--use-fake-ui-for-media-stream','--use-fake-device-for-media-stream']});page=await browser.newPage({viewport:{width,height:960}});page.setDefaultTimeout(5000);const errors=[];page.on('pageerror',e=>errors.push(e.message));await page.clock.install({time:new Date(mode==='attendance-goal'?'2026-10-25T06:00:00Z':'2026-09-21T14:30:00Z')});
   await page.addInitScript(()=>{window.fixtureCameraRequests=0;const get=navigator.mediaDevices?.getUserMedia?.bind(navigator.mediaDevices);if(get)navigator.mediaDevices.getUserMedia=options=>{window.fixtureCameraRequests++;return get(options);};});
   await page.route(/^https:\/\/cdn\.jsdelivr\.net\/gh\/orioncactus\/pretendard@/,route=>route.fulfill({contentType:'text/css',body:''}));
   await page.route('https://fixture.invalid/functions/v1/camera-presence-warning',async route=>{const args=route.request().postDataJSON();await page.evaluate(args=>fixture.calls.push({name:'camera-presence-warning',args}),args);await route.fulfill({json:{ok:true,slackSent:false,slackMissing:true,suppressed:false}});});
   const base='http://127.0.0.1:'+server.address().port;
   if(nativeOrigin)await page.route('https://study-room-attendance.vercel.app/**',async route=>{const url=new URL(route.request().url());await route.fulfill({response:await page.request.get(base+url.pathname+url.search)});});
-  await page.goto((nativeOrigin?'https://study-room-attendance.vercel.app/':base)+'?mode='+mode,{timeout:15000,waitUntil:'domcontentloaded'});await page.locator(mode==='login'?'.login-panel':'.topbar-actions button:not([disabled])').first().waitFor();if(mode==='active'||mode==='active-empty'){await page.getByRole('dialog',{name:'카메라 인증 필요'}).waitFor();await page.keyboard.press('Escape');await page.getByRole('dialog').waitFor({state:'detached'});}await run(page);assert.deepEqual(errors,[]);}finally{await browser?.close();await new Promise(resolve=>server.close(resolve));}
+  await page.goto((nativeOrigin?'https://study-room-attendance.vercel.app/':base)+'?mode='+mode,{timeout:15000,waitUntil:'domcontentloaded'});await page.locator(mode==='login'?'.login-panel':'.topbar-actions button:not([disabled])').first().waitFor();if(mode==='active'||mode==='active-empty'){await page.getByRole('dialog',{name:'카메라 인증 필요'}).waitFor();await page.keyboard.press('Escape');await page.getByRole('dialog').waitFor({state:'detached'});}await run(page);assert.deepEqual(errors,[]);}catch(error){
+   console.error('Mounted fixture failure:',{width,mode,failedChunk},error?.stack??error);
+   if(page)try{await mkdir('output/playwright',{recursive:true});const prefix=`output/playwright/failure-${mode}-${failedChunk??'main'}-${width}-${Date.now()}`;await writeFile(prefix+'.txt',await page.locator('body').innerText({timeout:1000}));await page.screenshot({path:prefix+'.png',fullPage:true,timeout:5000});}catch(diagnosticError){console.error('Fixture diagnostic capture failed:',diagnosticError?.message??diagnosticError);}
+   throw error;
+ }finally{await browser?.close();await new Promise(resolve=>server.close(resolve));}
 }
+
+for(const width of [375,1440]) browserTest(`attendance and study goal remain separate below the weekend goal at ${width}px`,()=>withApp(width,async page=>{
+ assert.equal(await page.locator('.dashboard-attendance').textContent(),'출석 완료');
+ assert.match(await page.locator('.study-summary').first().textContent(),/오늘 공부2시간 0분/);
+ assert.match(await page.locator('.study-summary').first().textContent(),/오늘 공부 목표4시간/);
+ assert.equal(await page.getByRole('progressbar',{name:'오늘 공부 목표 진행도'}).getAttribute('value'),'50');
+ assert.equal(await page.getByRole('status').filter({hasText:'공부 목표 진행 중'}).count(),1);
+ assert.match(await page.locator('.focus-attendance-rule').textContent(),/공부 시작 시 출석/);
+ assert.equal(await page.getByRole('dialog',{name:'회복 루틴 작성'}).count(),0);
+ assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),true);
+ assert.equal(await page.evaluate(()=>fixture.calls.some(c=>/start|end|confirm_actual/.test(c.name))),false);
+},'attendance-goal'));
 
 for(const width of [375,1440]) browserTest(`continuation advice: latest blank reflection hides old advice at ${width}px`,()=>withApp(width,async page=>{
  assert.doesNotMatch(await page.locator('.focus-ready').innerText(),/장고245페이지|이어서 할 일/);
@@ -1481,7 +1504,7 @@ for(const width of [375,1440]) {
  browserTest(`design completeness: camera header and messages remain legible at ${width}px`,()=>withApp(width,async page=>{
   const tools=page.locator('.focus-tools');await tools.locator('summary').first().click();
   await readableGroup(tools.locator('.camera-monitor-head,.camera-message,.camera-warning-note,.session-lease span,.session-lease small'));
-  await readableGroup(page.locator('.dashboard-page-heading p,.dashboard-attendance,.focus-attendance-rule,.session-clock > span,.focus-plan-card small,.focus-record-link,.focus-tools > summary > span'));
+  await readableGroup(page.locator('.dashboard-page-heading p,.dashboard-attendance,.focus-attendance-rule,.focus-goal-status,.session-clock > span,.focus-plan-card small,.focus-record-link,.focus-tools > summary > span'));
  }));
 
  browserTest(`design completeness: edit time and repeat choices have AA contrast and touch targets at ${width}px`,()=>withApp(width,async page=>{

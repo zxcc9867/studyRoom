@@ -1,3 +1,10 @@
+## 2026-10-25 — 공부 시작 출석·하루 목표 분리
+
+- 요구·전환 범위는 [PRD](prd-attendance-start.md)를 따른다. 공부일 내 시작 사실로 출석을 기록하며, 완료 목표 시간을 출석 자격으로 사용하지 않는다. 결석은 현지 다음 04:00 이후 판정한다.
+- 새 migration에서 시작·정시 알림·결석·호환 승격 함수와 시스템 회복 해제 상태를 함께 관리한다. 현재 공부일의 오판정만 정정하며 과거/카메라 회복과 학습 기록을 보존한다.
+- Cron 회복 생성과 Slack 제출은 서버 원자적 상태 확인으로 해제된 요청의 재개방·중복 보충 할 일을 막는다. 기존 인증·RLS·RPC 공개 계약을 유지한다.
+- 적용 순서: 실제 SQL/Chrome 집중 회귀·독립 검토 → 기존 스키마 호환 회복 RPC 선행 migration → 새 Cron/Slack Edge·소스/인증 확인 → 이전 worker 종료 경계와 전체 통합 검증 → 정책·현재 공부일 정정 migration → 웹 production·실제 계정 읽기 검증. [실행 기록](../docs/verification/2026-10-25-attendance-start.md)에서 실제 단계별 결과를 확인한다.
+
 ## 2026-10-18 — 동일 계정 공부·카메라 동기화
 
 - 공식 클라이언트는 studyDeviceSync.mjs의 bounded RPC/계정·revision·응답 시각·generation fence다. Dashboard는 기존 actual tracking을 hydrate하며 관찰 기기의 감지/경고/제외/로컬 자동 종료를 실행하지 않는다. Realtime3테이블 사용자 필터와15초 foreground fallback, 담당10초 heartbeat/45초 유효 상태를 사용한다.

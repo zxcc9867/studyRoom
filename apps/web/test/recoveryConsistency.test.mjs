@@ -20,6 +20,15 @@ function recoveryDatabase(initialRows) {
   const fetch = async (input, init = {}) => {
     const url = new URL(input);
     const table = url.pathname.split("/").at(-1);
+    if (table === "ensure_missed_attendance_recovery") {
+      const input = JSON.parse(init.body);
+      const existing = rows.find(row => row.user_id === input.p_user_id && row.trigger_type === "missed_attendance" && row.status === "pending");
+      if (existing && input.p_local_date > existing.covered_end_date) {
+        existing.covered_end_date = input.p_local_date;
+        existing.covered_missed_days += 1;
+      }
+      return Response.json({ request: existing ?? null, created: false });
+    }
     if (table !== "study_recovery_requests") return Response.json([]);
     const query = url.searchParams;
     const matches = (row) => [...query].every(([key, value]) => {

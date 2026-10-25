@@ -5177,8 +5177,8 @@ function DashboardApp() {
           <h1>독서실에 로그인</h1>
           {teamInviteToken && <div className="auth-recovery-notice"><strong>함께 공부방 초대가 도착했어요.</strong><p>로그인하거나 가입한 뒤 팀명과 공유 범위를 확인하고 직접 참여할 수 있어요.</p><button type="button" className="secondary" onClick={() => { clearTeamInvite(getTeamInviteStorage()); setTeamInviteToken(null); }}>초대 취소</button></div>}
           <p className="login-copy">
-            이메일로 받은 8자리 코드를 입력하면 로그인됩니다. 알림 후 30분 안에 타이머를 시작하거나,
-            오늘 목표 시간을 채우면 출석으로 인정됩니다.
+            이메일로 받은 8자리 코드를 입력하면 로그인됩니다. 선택한 시간대의 새벽 4시부터 다음 날 새벽 4시까지
+            공부를 시작하면 출석입니다. 평일 2시간·주말 4시간 공부 목표는 별도로 집계합니다.
           </p>
           {authInitializationError && (
             <div className="auth-recovery-notice" role="alert">
@@ -5348,11 +5348,12 @@ function DashboardApp() {
                 <strong>{dashboardReady ? `${Math.floor(todaySeconds / 3600)}시간 ${Math.floor(todaySeconds % 3600 / 60)}분` : "확인 필요"}</strong>
               </div>
               <div>
-                <span>오늘 목표</span>
+                <span>오늘 공부 목표</span>
                 <strong>{todayGoalLabel}</strong>
               </div>
             </div>
             <progress className="today-focus-progress" aria-label="오늘 공부 목표 진행도" value={todayProgress} max={100} />
+            <p className="focus-goal-status" role="status">{dashboardReady ? `공부 목표 ${todaySeconds >= todayGoalSeconds ? "달성" : "진행 중"} · 출석과 별도로 집계해요.` : "공부 목표 확인 중"}</p>
             <p className="focus-attendance-rule">{todayAttendanceRuleLabel}</p>
             {activeSession && <TenMinuteCheckpoint state={tenMinuteCheckpoint} paused={activeSessionPaused} busy={busy} onContinue={acknowledgeTenMinuteCheckpoint} onFinish={() => void openEndSessionCompletionModal()} />}
             </section>
@@ -6263,8 +6264,8 @@ function DashboardApp() {
                 </button>
               </div>
               <p className="reminder-copy">
-                {reminderPopup.reminderTime} 알림이 도착했습니다. 15분 뒤 한 번 더 재촉하고, 30분 안에 타이머를
-                시작하거나 오늘 {todayGoalLabel} 목표를 채우면 출석으로 인정됩니다.
+                {reminderPopup.reminderTime} 알림이 도착했습니다. 아직 시작하지 않았다면 15분 뒤 한 번 더 알려드려요.
+                현재 공부일이 끝나는 새벽 4시 전까지 공부를 시작하면 출석입니다. 오늘 {todayGoalLabel} 공부 목표는 별도로 집계합니다.
               </p>
               {renderReminderTodoList(reminderTodos)}
               <div className="reminder-actions">
@@ -6403,7 +6404,7 @@ function DashboardApp() {
                   ? "출석으로 인정받으려면 카메라 감시를 켠 뒤 타이머를 시작해야 합니다."
                   : cameraSetupPrompt.mode === "break-resume"
                     ? "카메라 감시를 다시 준비한 뒤 휴식 시간을 끝내고 같은 공부 세션을 이어갑니다."
-                    : "현재 공부 세션의 카메라 감시가 꺼져 있습니다. 다시 켜야 출석 유지 상태를 확인할 수 있습니다."}
+                    : "현재 공부 세션의 카메라 감시가 꺼져 있습니다. 다시 켜야 공부시간 기록 상태를 확인할 수 있습니다."}
               </p>
               <div className="reminder-actions">
                 <button

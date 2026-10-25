@@ -77,13 +77,15 @@ test("slack reminder messages use readable emoji sections", () => {
   const source = readFileSync("supabase/functions/attendance-cron/index.ts", "utf8");
 
   assert.match(source, /buildSlackReminderMessage\(reminder, todos, appUrl\)/);
-  assert.match(source, /getDailyAttendanceGoalLabel\(reminder\.local_date\)/);
+  assert.match(source, /getDailyStudyGoalLabel\(reminder\.local_date\)/);
   assert.match(source, /📚 독서실 입장 알림/);
-  assert.match(source, /⏰ 출석 마감/);
+  assert.match(source, /⏰ 오늘 출석 기준/);
   assert.match(source, /✅ 오늘 할 일/);
   assert.match(source, /🎯 지금 할 일/);
   assert.match(source, /🔗 앱 열기/);
-  assert.match(source, /목표를 채우면 출석으로 전환/);
+  assert.match(source, /언제든 공부를 시작하면 즉시 출석/);
+  assert.match(source, /학습 목표는 출석과 별개/);
+  assert.doesNotMatch(source, /목표를 채우면 출석으로 전환|30분 안에 타이머/);
 });
 
 test("slack test alarm and camera warning messages use readable emoji sections", () => {
@@ -436,8 +438,8 @@ test("dashboard planner preferences migration stores task view and section order
 test("attendance cron creates missed recovery requests and one follow-up", () => {
   const source = readFileSync("supabase/functions/attendance-cron/index.ts", "utf8");
 
-  assert.match(source, /createRecoveryRequest/);
-  assert.match(source, /triggerType:\s*"missed_attendance"/);
+  assert.match(source, /ensureMissedAttendanceRecovery\(admin, missedRow\.user_id, missedRow\.local_date\)/);
+  assert.match(source, /if \(!request\)/);
   assert.match(source, /sendRecoveryRequestSlackMessage/);
   assert.match(source, /sendPendingRecoveryFollowups/);
   assert.match(source, /followup_sent_at/);
@@ -587,7 +589,8 @@ test("slack recovery interactions verify signatures, open modal, and create the 
   assert.match(source, /makeup_todo_title/);
   assert.match(source, /pledge_todo_title/);
   assert.match(source, /\.from\("study_recovery_requests"\)/);
-  assert.match(source, /\.from\("study_todos"\)/);
+  assert.match(source, /rpc\("submit_slack_study_recovery_request"/);
+  assert.doesNotMatch(source, /\.from\("study_todos"\)/);
   assert.match(source, /slack_submitter_id/);
 });
 

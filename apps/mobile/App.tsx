@@ -988,8 +988,8 @@ export default function App() {
           <Text style={styles.statusLabel}>오늘 상태</Text>
           <Text style={styles.statusValue}>{attendanceLabel(attendance?.status)}</Text>
           <Text style={styles.copy}>
-            평일은 {profile?.reminder_time?.slice(0, 5) ?? reminderTime} 알림, 주말은 14:00 알림입니다. 알림 후
-            30분 안에 시작하거나 평일 2시간, 주말 4시간을 채우면 출석입니다.
+            평일은 {profile?.reminder_time?.slice(0, 5) ?? reminderTime} 알림, 주말은 14:00 알림입니다. 선택한 시간대의
+            새벽 4시부터 다음 날 새벽 4시까지 공부를 시작하면 출석입니다. 평일 2시간·주말 4시간 공부 목표는 별도로 집계합니다.
           </Text>
         </View>
 

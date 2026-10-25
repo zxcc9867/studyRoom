@@ -22,6 +22,6 @@ test('late-night attendance credits the starting study day, not the next date', 
   const result = core.evaluateAttendance({ now: '2026-10-05T16:30:00Z', timeZone: 'Asia/Tokyo', reminderTime: '20:30', sessions });
   assert.equal(result.dateKey, '2026-10-05');
   assert.equal(result.status, 'present');
-  assert.equal(result.attendanceReason, 'daily_study_goal');
+  assert.equal(result.attendanceReason, 'study_session_started');
   assert.equal(core.evaluateAttendance({ now: '2026-10-05T19:00:00Z', timeZone: 'Asia/Tokyo', reminderTime: '20:30', sessions }).status, 'pending');
 });

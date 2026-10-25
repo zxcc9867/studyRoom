@@ -2,6 +2,16 @@
 
 [English](README.md) | [한국어](README.ko.md) | [日本語](README.ja.md)
 
+## Attendance and daily study goals are separate
+
+Starting a valid study session once earns **attendance** for that study day, even if the session ends before the reminder. A study day runs from **04:00 to the next 04:00 in your selected time zone**; a session stays assigned to its starting study day. The weekday **2-hour** and weekend **4-hour** goals measure study progress separately. Falling short of the goal does not mark you absent or require a recovery routine.
+
+The initial reminder still arrives at the configured weekday time (default 20:30) or at 14:00 on weekends. A 15-minute follow-up is sent only if you have not started. Absence is recorded only after the study day ends without a start. Camera absence and recovery requests for earlier missed days remain separate checks.
+
+![Actual Today screen showing attendance complete with two of four weekend study hours recorded, using synthetic data](docs/images/attendance-study-goal-current-1440.png)
+
+The actual React screen above uses local synthetic records: **attendance complete**, **2 hours studied**, **4-hour study goal**, and **50% goal progress**. The [375 px view](docs/images/attendance-study-goal-current-375.png) shows the same separation on a narrow screen. These are local UI checks, not a physical-device acceptance claim. The hosted Android interface shares the web update; updated native Expo fallback copy requires a new APK.
+
 ## Study alone or with your team
 
 Today opens in **My study**. Choose `팀 공부` to create or join an invitation-only room for up to **six registered accounts**, with one team per account. Open `설정 → 계정` to set a public `name#identifier` tag; friends can invite that exact tag, or the team leader can issue a revocable seven-day link. Reviewing an invitation does not join automatically: sign in and explicitly accept it. There is no public team search, guest entry, chat, or camera/audio sharing.
@@ -211,7 +221,7 @@ A study streak is not a static badge here. The avatar walks across the island, c
 
 ### Attendance, presence, and recovery
 
-- Weekday and weekend attendance goals with late-study recovery.
+- Attendance on the first valid study start of a 04:00-based study day, separate from weekday 2-hour and weekend 4-hour study goals.
 - Browser-only presence classification with a five-minute warning and a ten-minute study-time pause.
 - Recovery requests for missed attendance or repeated absence.
 - Accumulated missed days share one recovery routine across devices; the covered dates and day count remain visible, and makeup tasks are scheduled for the user's current local date.

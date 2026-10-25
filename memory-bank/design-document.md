@@ -41,7 +41,7 @@ Personal MVP users who want a lightweight study room dashboard with attendance p
 
 - Email OTP and optional OAuth login through Supabase Auth
 - Daily reminder time
-- Attendance recognition when a study timer starts within the allowed window
+- Attendance recognition on any valid session start within its 04:00 local study day; weekday two-hour/weekend four-hour goals remain separate ([policy](prd-attendance-start.md))
 - Study sessions and daily/monthly time visualization (04:00 local study-day boundary; each session remains attributed to its starting study day, independently of calendar plans)
 - 휴식이 무기한 이탈로 바뀌지 않도록 10·20·40분 복귀 약속과 비징벌적 복귀 신호 제공
 - 활성 세션의 첫 10분 진행도와 비징벌적 이어가기·마무리 선택을 제공하는 습관 체크포인트

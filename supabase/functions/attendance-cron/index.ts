@@ -2,7 +2,7 @@ import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient, type SupabaseClient } from "jsr:@supabase/supabase-js@2.57.4";
 import webpush from "npm:web-push@3.6.7";
 import {
-  createRecoveryRequest,
+  ensureMissedAttendanceRecovery,
   loadSlackTarget as loadRecoverySlackTarget,
   sendPendingRecoveryFollowups,
   sendRecoveryRequestSlackMessage,
@@ -13,6 +13,7 @@ import { sendStudyFocusSignals } from "../_shared/study_focus.ts";
 type DueReminder = {
   user_id: string;
   email: string | null;
+  time_zone: string;
   local_date: string;
   reminder_at: string;
   deadline_at: string;
@@ -371,11 +372,11 @@ async function sendMissedRecoveryRequests(
 
   for (const missedRow of missedRows) {
     try {
-      const { request, created } = await createRecoveryRequest(admin, {
-        userId: missedRow.user_id,
-        localDate: missedRow.local_date,
-        triggerType: "missed_attendance",
-      });
+      const { request, created } = await ensureMissedAttendanceRecovery(admin, missedRow.user_id, missedRow.local_date);
+      if (!request) {
+        results.push({ ok: true, skipped: true, localDate: missedRow.local_date });
+        continue;
+      }
 
       if (!created && request.slack_message_ts) {
         results.push({
@@ -623,30 +624,30 @@ function buildReminderTitle(reminder: DueReminder) {
   if (reminder.attendance_already_present) {
     return "Study room attendance already complete";
   }
-  return reminder.reminder_stage === "nudge" ? "Study room final nudge" : "Study room check-in time";
+  return reminder.reminder_stage === "nudge" ? "Study room start reminder" : "Study room check-in time";
 }
 
 function buildReminderBody(reminder: DueReminder, todos: StudyTodo[], options: { maxTodos?: number } = {}) {
-  const goalLabel = getDailyAttendanceGoalLabel(reminder.local_date);
+  const goalLabel = getDailyStudyGoalLabel(reminder.local_date);
   const lines =
     reminder.attendance_already_present
       ? [
           "Study-room reminder time.",
           "Today's attendance is already complete.",
           "This configured-time reminder is still being sent as requested.",
-          "You will not be marked missed if you do not start another session after this reminder.",
+          "Your study start already earned attendance. The daily study-time goal is separate.",
         ]
       : reminder.reminder_stage === "nudge"
       ? [
-          "Final study-room nudge.",
+          "Study-room start reminder.",
           "15 minutes have passed since the first alarm.",
-          `Start the timer before ${formatDeadline(reminder.deadline_at)} or today will be marked missed.`,
-          `If you miss it, completing today's ${goalLabel} study goal will recover attendance.`,
+          `Start at any time before the study day ends: ${formatDeadline(reminder.deadline_at, reminder.time_zone)}.`,
+          `A valid start earns attendance immediately. Today's ${goalLabel} study-time goal is separate.`,
         ]
       : [
           "Study-room check-in time.",
-          `Start the timer before ${formatDeadline(reminder.deadline_at)}.`,
-          `Completing today's ${goalLabel} study goal also counts as present.`,
+          `Start at any time before the study day ends: ${formatDeadline(reminder.deadline_at, reminder.time_zone)}.`,
+          `A valid start earns attendance immediately. Today's ${goalLabel} study-time goal is separate.`,
         ];
   const todoSummary = formatTodoSummary(todos, options);
   if (todoSummary) {
@@ -676,11 +677,11 @@ function buildSlackReminderMessage(reminder: DueReminder, todos: StudyTodo[], ap
   }
 
   const isNudge = reminder.reminder_stage === "nudge";
-  const title = isNudge ? "🚨 독서실 마지막 재촉 알림" : "📚 독서실 입장 알림";
-  const goalLabel = getDailyAttendanceGoalLabel(reminder.local_date);
+  const title = isNudge ? "📚 독서실 공부 시작 재안내" : "📚 독서실 입장 알림";
+  const goalLabel = getDailyStudyGoalLabel(reminder.local_date);
   const deadlineNote = isNudge
-    ? `• 15분 재촉 알림입니다. 마감 전에 시작하면 즉시 출석이고, 놓쳤다면 오늘 ${goalLabel} 목표를 채우면 출석으로 전환됩니다.`
-    : `• 30분 안에 타이머를 시작하거나 오늘 ${goalLabel} 목표를 채우면 출석으로 인정됩니다.`;
+    ? "• 첫 알림 후 15분이 지났어요. 공부일이 끝나기 전에 언제든 시작하면 즉시 출석입니다."
+    : "• 공부일이 끝나기 전에 언제든 공부를 시작하면 즉시 출석입니다.";
   const action = isNudge
     ? "• 아직 타이머 시작 기록이 없습니다. 지금 앱을 열고 [입장하고 시작]을 눌러주세요."
     : "• 앱을 열고 [입장하고 시작]을 눌러 오늘 공부를 시작하세요.";
@@ -688,9 +689,10 @@ function buildSlackReminderMessage(reminder: DueReminder, todos: StudyTodo[], ap
   return [
     `*${title}*`,
     "",
-    "⏰ 출석 마감",
-    `• ${formatDeadline(reminder.deadline_at)}`,
+    "⏰ 오늘 출석 기준",
+    `• 공부일 마감: ${formatDeadline(reminder.deadline_at, reminder.time_zone)}`,
     deadlineNote,
+    `• 오늘 ${goalLabel} 학습 목표는 출석과 별개예요. 목표 미달로 출석이 취소되지 않아요.`,
     "",
     formatSlackTodoSection(todos, 5),
     "",
@@ -835,7 +837,7 @@ function formatDateTime(value: string) {
   });
 }
 
-function getDailyAttendanceGoalLabel(localDate: string) {
+function getDailyStudyGoalLabel(localDate: string) {
   const date = new Date(`${localDate}T00:00:00.000Z`);
   const day = date.getUTCDay();
   return day === 0 || day === 6 ? "4시간" : "2시간";
@@ -906,11 +908,11 @@ function escapeHtml(value: string) {
   return value.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
 }
 
-function formatDeadline(value: string) {
+function formatDeadline(value: string, timeZone = "Asia/Seoul") {
   return new Intl.DateTimeFormat("ko-KR", {
     dateStyle: "short",
     timeStyle: "short",
-    timeZone: "Asia/Seoul",
+    timeZone,
   }).format(new Date(value));
 }
 

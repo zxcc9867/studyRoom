@@ -17,86 +17,92 @@ import {
   normalizeEmailOtp,
 } from "../src/index.mjs";
 
-test("marks the reminder as pending before the configured daily time", () => {
-  const result = evaluateAttendance({
-    now: new Date("2026-06-03T11:44:00.000Z"),
-    reminderTime: "21:00",
-    timeZone: "Asia/Tokyo",
-    sessions: [],
-  });
-
-  assert.equal(result.status, "pending");
-  assert.equal(result.dateKey, "2026-06-03");
-  assert.equal(result.deadlineIso, "2026-06-03T12:30:00.000Z");
+test("keeps attendance pending until the study day ends, independently of reminder time", () => {
+  for (const now of ["2026-06-03T11:44:00Z", "2026-06-03T12:20:00Z", "2026-06-03T12:30:00Z", "2026-06-03T18:59:59Z"]) {
+    const result = evaluateAttendance({ now, reminderTime: "21:00", timeZone: "Asia/Tokyo", sessions: [] });
+    assert.equal(result.status, "pending");
+    assert.equal(result.dateKey, "2026-06-03");
+    assert.equal(result.deadlineIso, "2026-06-03T19:00:00.000Z");
+  }
 });
 
-test("opens attendance for 30 minutes after the reminder time", () => {
+test("a completed morning start earns attendance without meeting the weekend four-hour goal", () => {
   const result = evaluateAttendance({
-    now: new Date("2026-06-03T12:20:00.000Z"),
-    reminderTime: "21:00",
-    timeZone: "Asia/Tokyo",
-    sessions: [],
+    now: "2026-10-25T06:01:00Z", reminderTime: "20:30", timeZone: "Asia/Tokyo",
+    sessions: [{ local_date: "2026-10-25", status: "completed", started_at: "2026-10-25T00:47:49Z", ended_at: "2026-10-25T01:47:50Z", duration_seconds: 3601 }],
   });
-
-  assert.equal(result.status, "checkin_open");
-  assert.equal(result.minutesRemaining, 10);
-});
-
-test("marks the day present when a timer starts within the attendance window", () => {
-  const result = evaluateAttendance({
-    now: new Date("2026-06-03T12:20:00.000Z"),
-    reminderTime: "21:00",
-    timeZone: "Asia/Tokyo",
-    sessions: [{ startedAt: "2026-06-03T12:04:00.000Z" }],
-  });
-
   assert.equal(result.status, "present");
-  assert.equal(result.qualifyingSessionStartedAt, "2026-06-03T12:04:00.000Z");
+  assert.equal(result.attendanceReason, "study_session_started");
+  assert.equal(result.qualifyingSessionStartedAt, "2026-10-25T00:47:49.000Z");
+  assert.equal(getDailyAttendanceGoalSeconds(result.dateKey), 14400);
 });
 
-test("marks the day missed when no timer starts before the 30 minute deadline", () => {
-  const result = evaluateAttendance({
-    now: new Date("2026-06-03T12:30:00.000Z"),
-    reminderTime: "21:00",
-    timeZone: "Asia/Tokyo",
-    sessions: [{ startedAt: "2026-06-03T12:30:00.000Z" }],
-  });
+test("an active one-second start earns attendance before or after the reminder", () => {
+  for (const startedAt of ["2026-06-03T01:00:00Z", "2026-06-03T13:00:00Z", "2026-06-03T18:59:59Z"]) {
+    const result = evaluateAttendance({ now: startedAt, reminderTime: "21:00", timeZone: "Asia/Tokyo", sessions: [{ startedAt, status: "active" }] });
+    assert.equal(result.status, "present");
+    assert.equal(result.attendanceReason, "study_session_started");
+  }
+});
 
+test("invalid, future, cancelled, and another study day's sessions cannot earn attendance", () => {
+  const result = evaluateAttendance({
+    now: "2026-06-03T12:30:00Z", reminderTime: "21:00", timeZone: "Asia/Tokyo",
+    sessions: [
+      { startedAt: "invalid", status: "active" },
+      { startedAt: "2026-06-03T12:30:01Z", status: "active" },
+      { startedAt: "2026-06-03T10:00:00Z", status: "cancelled" },
+      { startedAt: "2026-06-02T12:04:00Z", durationSeconds: 14400 },
+    ],
+  });
+  assert.equal(result.status, "pending");
+});
+
+test("a missed day is final only at the next local 04:00 with no study start", () => {
+  const base = { studyDateKey: "2026-06-03", reminderTime: "21:00", timeZone: "Asia/Tokyo", sessions: [] };
+  assert.equal(evaluateAttendance({ ...base, now: "2026-06-03T18:59:59Z" }).status, "pending");
+  const result = evaluateAttendance({ ...base, now: "2026-06-03T19:00:00Z" });
   assert.equal(result.status, "missed");
+  assert.equal(result.dateKey, "2026-06-03");
+  assert.equal(result.minutesRemaining, 0);
 });
 
-test("uses weekend reminder time and weekend study goal", () => {
-  const result = evaluateAttendance({
-    now: new Date("2026-06-14T05:00:00.000Z"),
-    reminderTime: "20:30",
-    timeZone: "Asia/Tokyo",
-    sessions: [],
-  });
+test("a start after 04:00 belongs only to the new study day", () => {
+  const sessions = [{ startedAt: "2026-06-03T19:00:00Z", status: "active" }];
+  const base = { now: "2026-06-03T19:00:01Z", reminderTime: "21:00", timeZone: "Asia/Tokyo", sessions };
+  assert.equal(evaluateAttendance({ ...base, studyDateKey: "2026-06-03" }).status, "missed");
+  assert.equal(evaluateAttendance(base).status, "present");
+});
 
+test("stored session study dates remain authoritative across timezone changes", () => {
+  const result = evaluateAttendance({
+    now: "2026-06-03T18:30:00Z", reminderTime: "21:00", timeZone: "Asia/Tokyo",
+    sessions: [{ local_date: "2026-06-02", started_at: "2026-06-03T01:00:00Z", status: "completed", duration_seconds: 14400 }],
+  });
+  assert.equal(result.status, "pending");
+});
+
+test("uses weekend reminders while keeping two/four hour study goals separate", () => {
+  const result = evaluateAttendance({ now: "2026-06-14T05:00:00Z", reminderTime: "20:30", timeZone: "Asia/Tokyo", sessions: [] });
   assert.equal(DEFAULT_WEEKDAY_REMINDER_TIME, "20:30");
   assert.equal(DEFAULT_WEEKEND_REMINDER_TIME, "14:00");
   assert.equal(getEffectiveReminderTime("2026-06-14", "20:30"), "14:00");
-  assert.equal(getDailyAttendanceGoalSeconds("2026-06-14"), 4 * 60 * 60);
-  assert.equal(result.status, "checkin_open");
-  assert.equal(result.deadlineIso, "2026-06-14T05:30:00.000Z");
+  assert.equal(getDailyAttendanceGoalSeconds("2026-06-14"), 14400);
+  assert.equal(getDailyAttendanceGoalSeconds("2026-06-15"), 7200);
+  assert.equal(result.status, "pending");
+  assert.equal(result.reminderIso, "2026-06-14T05:00:00.000Z");
+  assert.equal(result.deadlineIso, "2026-06-14T19:00:00.000Z");
 });
 
-test("marks late study totals present after the attendance deadline", () => {
-  const result = evaluateAttendance({
-    now: new Date("2026-06-15T13:30:00.000Z"),
-    reminderTime: "20:30",
-    timeZone: "Asia/Tokyo",
-    sessions: [
-      {
-        startedAt: "2026-06-15T12:00:00.000Z",
-        endedAt: "2026-06-15T14:00:00.000Z",
-        durationSeconds: 2 * 60 * 60,
-      },
-    ],
-  });
-
-  assert.equal(result.status, "present");
-  assert.equal(result.attendanceReason, "daily_study_goal");
+test("study-day attendance deadlines follow local 04:00 across DST", () => {
+  for (const [studyDateKey, now, deadlineIso] of [
+    ["2026-03-07", "2026-03-08T07:30:00Z", "2026-03-08T08:00:00.000Z"],
+    ["2026-10-31", "2026-11-01T08:30:00Z", "2026-11-01T09:00:00.000Z"],
+  ]) {
+    const result = evaluateAttendance({ now, studyDateKey, reminderTime: "20:30", timeZone: "America/New_York", sessions: [] });
+    assert.equal(result.status, "pending");
+    assert.equal(result.deadlineIso, deadlineIso);
+  }
 });
 
 test("calculates focus seconds from completed sessions and ignores invalid ranges", () => {

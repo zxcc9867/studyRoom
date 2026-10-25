@@ -134,6 +134,8 @@ Personal learners who need a repeatable plan-focus-reflect-adjust loop rather th
 
 The sustainable loop now adds a low-friction entry layer without weakening attendance rules.
 
+2026-10-25: [공부 시작 출석 분리](prd-attendance-start.md)가 출석 규칙을 개정한다. 10분 습관·하루 공부 목표·공부 시작 출석은 각각 별도 지표이며, 아래 습관 기능의 기존 구현/검증 이력과 구분한다.
+
 - [x] Recognize ten counted study minutes as a separate daily habit success.
 - [x] Keep the existing weekday two-hour and weekend four-hour targets as the next milestone.
 - [x] Use one completed same-day todo as the final daily bloom milestone.

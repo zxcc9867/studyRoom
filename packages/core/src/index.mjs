@@ -1,3 +1,4 @@
+// Legacy export for older consumers; attendance now closes at the next local 04:00.
 export const ATTENDANCE_WINDOW_MINUTES = 30;
 export const NUDGE_AFTER_MINUTES = 15;
 export const EMAIL_OTP_LENGTH = 8;
@@ -25,20 +26,20 @@ export function getSessionStudyDateKey(session, timeZone) {
   return session.local_date ?? session.localDate ?? getStudyDateKey(asDate(session.started_at ?? session.startedAt), timeZone);
 }
 
-export function evaluateAttendance({ now, reminderTime, timeZone, sessions }) {
+export function evaluateAttendance({ now, reminderTime, timeZone, sessions, studyDateKey }) {
   const current = asDate(now);
-  const dateKey = getStudyDateKey(current, timeZone);
+  const dateKey = studyDateKey ?? getStudyDateKey(current, timeZone);
+  const nextDateKey = new Date(Date.parse(`${dateKey}T00:00:00Z`) + 86400000).toISOString().slice(0, 10);
   const effectiveReminderTime = getEffectiveReminderTime(dateKey, reminderTime);
-  const reminderDate = Number(effectiveReminderTime.slice(0, 2)) < 4
-    ? new Date(Date.parse(`${dateKey}T00:00:00Z`) + 86400000).toISOString().slice(0, 10) : dateKey;
+  const reminderDate = Number(effectiveReminderTime.slice(0, 2)) < 4 ? nextDateKey : dateKey;
   const reminderAt = zonedTimeToUtc(reminderDate, effectiveReminderTime, timeZone);
-  const deadlineAt = new Date(reminderAt.getTime() + ATTENDANCE_WINDOW_MINUTES * minuteMs);
+  const deadlineAt = zonedTimeToUtc(nextDateKey, "04:00", timeZone);
   const qualifyingSession = sessions
-    .map((session) => ({ ...session, startedAtDate: asDate(session.startedAt) }))
-    .find((session) => session.startedAtDate >= reminderAt && session.startedAtDate < deadlineAt);
-  const dailyStudySeconds = sessions
-    .filter((session) => getSessionStudyDateKey(session, timeZone) === dateKey)
-    .reduce((total, session) => total + getSessionDurationSeconds(session), 0);
+    .map((session) => ({ ...session, startedAtDate: asDate(session.started_at ?? session.startedAt) }))
+    .find((session) => Number.isFinite(session.startedAtDate.getTime())
+      && session.startedAtDate <= current
+      && (session.status == null || session.status === "active" || session.status === "completed")
+      && getSessionStudyDateKey(session, timeZone) === dateKey);
 
   if (qualifyingSession) {
     return {
@@ -47,31 +48,12 @@ export function evaluateAttendance({ now, reminderTime, timeZone, sessions }) {
       reminderIso: reminderAt.toISOString(),
       deadlineIso: deadlineAt.toISOString(),
       qualifyingSessionStartedAt: qualifyingSession.startedAtDate.toISOString(),
-      attendanceReason: "attendance_window",
+      attendanceReason: "study_session_started",
       minutesRemaining: 0,
     };
   }
 
-  if (dailyStudySeconds >= getDailyAttendanceGoalSeconds(dateKey)) {
-    return {
-      status: "present",
-      dateKey,
-      reminderIso: reminderAt.toISOString(),
-      deadlineIso: deadlineAt.toISOString(),
-      attendanceReason: "daily_study_goal",
-      minutesRemaining: 0,
-    };
-  }
-
-  if (current < reminderAt) {
-    return buildResult("pending", dateKey, reminderAt, deadlineAt, current);
-  }
-
-  if (current < deadlineAt) {
-    return buildResult("checkin_open", dateKey, reminderAt, deadlineAt, current);
-  }
-
-  return buildResult("missed", dateKey, reminderAt, deadlineAt, current);
+  return buildResult(current < deadlineAt ? "pending" : "missed", dateKey, reminderAt, deadlineAt, current);
 }
 
 export function calculateFocusSeconds(sessions) {

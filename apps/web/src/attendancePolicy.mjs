@@ -17,9 +17,9 @@ export function getEffectiveReminderTime(dateKey, weekdayReminderTime = DEFAULT_
 
 export function getAttendanceRuleLabel(dateKey, weekdayReminderTime = DEFAULT_WEEKDAY_REMINDER_TIME) {
   const dayType = isWeekendDateKey(dateKey) ? "주말" : "평일";
-  return `${dayType} ${getEffectiveReminderTime(dateKey, weekdayReminderTime)} 알림 · ${formatAttendanceGoalHours(
+  return `공부 시작 시 출석 · ${dayType} ${getEffectiveReminderTime(dateKey, weekdayReminderTime)} 알림 · ${formatAttendanceGoalHours(
     getDailyAttendanceGoalSeconds(dateKey),
-  )} 목표`;
+  )} 공부 목표`;
 }
 
 export function formatAttendanceGoalHours(goalSeconds) {

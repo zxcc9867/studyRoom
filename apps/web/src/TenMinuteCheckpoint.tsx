@@ -76,7 +76,7 @@ export default function TenMinuteCheckpoint({
         <strong>10분</strong>
       </div>
       <p>여기서 마쳐도 오늘은 0일이 아니에요. 여유가 있으면 지금 흐름만 조금 더 이어가세요.</p>
-      <small>10분 습관 성공과 출석 2·4시간 목표는 서로 다른 기록으로 유지됩니다.</small>
+      <small>공부 시작 출석, 10분 습관 성공과 2·4시간 공부 목표는 각각 따로 기록됩니다.</small>
       <div className="ten-minute-checkpoint-actions">
         <button className="secondary" type="button" onClick={onContinue}>
           <Play size={17} /> 조금 더 이어가기

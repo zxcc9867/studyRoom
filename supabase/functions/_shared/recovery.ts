@@ -8,7 +8,9 @@ export type RecoveryRequestRow = {
   covered_start_date: string;
   covered_end_date: string;
   covered_missed_days: number;
-  status: "pending" | "submitted";
+  status: "pending" | "submitted" | "consolidated" | "resolved";
+  resolved_at?: string | null;
+  resolution_reason?: string | null;
   slack_channel_id: string | null;
   slack_message_ts: string | null;
   followup_sent_at: string | null;
@@ -23,6 +25,7 @@ export type SlackTargetRow = {
 
 type AdminClient = {
   from: (table: string) => any;
+  rpc: (name: string, args: Record<string, unknown>) => any;
 };
 
 const recoverySelect =
@@ -37,7 +40,9 @@ export async function createRecoveryRequest(
   },
 ) {
   if (input.triggerType === "missed_attendance") {
-    return await createOrExtendAttendanceRecoveryRequest(admin, input);
+    const result = await ensureMissedAttendanceRecovery(admin, input.userId, input.localDate);
+    if (!result.request) throw new Error("Attendance recovery is no longer required");
+    return { request: result.request, created: result.created };
   }
   const existing = await loadPendingRecoveryRequest(admin, input);
 
@@ -70,64 +75,22 @@ export async function createRecoveryRequest(
   return { request: data as RecoveryRequestRow, created: true };
 }
 
-async function createOrExtendAttendanceRecoveryRequest(
-  admin: AdminClient,
-  input: { userId: string; localDate: string; triggerType: RecoveryTriggerType },
-) {
-  const existing = await loadPendingAttendanceRecoveryRequest(admin, input.userId);
-  if (existing) {
-    return { request: await extendAttendanceRecoveryCoverage(admin, existing, input.localDate), created: false };
-  }
-
-  const { data, error } = await admin
-    .from("study_recovery_requests")
-    .insert({
-      user_id: input.userId,
-      local_date: input.localDate,
-      covered_start_date: input.localDate,
-      covered_end_date: input.localDate,
-      covered_missed_days: 1,
-      trigger_type: input.triggerType,
-      status: "pending",
-    })
-    .select(recoverySelect)
-    .single();
-
-  if (!error) {
-    return { request: data as RecoveryRequestRow, created: true };
-  }
-
-  const retry = await loadPendingAttendanceRecoveryRequest(admin, input.userId);
-  if (retry) {
-    return { request: await extendAttendanceRecoveryCoverage(admin, retry, input.localDate), created: false };
-  }
-  throw error;
-}
-
-async function extendAttendanceRecoveryCoverage(
-  admin: AdminClient,
-  request: RecoveryRequestRow,
+// Cron's earlier missed result is only a candidate. Recheck it under a database lock
+// so an intervening attendance correction cannot create a stale blocking request.
+export async function ensureMissedAttendanceRecovery(
+  admin: { rpc: (name: string, args: Record<string, unknown>) => any },
+  userId: string,
   localDate: string,
-) {
-  const startDate = request.covered_start_date < localDate ? request.covered_start_date : localDate;
-  const endDate = request.covered_end_date > localDate ? request.covered_end_date : localDate;
-  const addsNewDate = localDate < request.covered_start_date || localDate > request.covered_end_date;
-  if (!addsNewDate) return request;
-
-  const { data, error } = await admin
-    .from("study_recovery_requests")
-    .update({
-      covered_start_date: startDate,
-      covered_end_date: endDate,
-      covered_missed_days: Math.max(1, request.covered_missed_days) + 1,
-    })
-    .eq("id", request.id)
-    .eq("status", "pending")
-    .select(recoverySelect)
-    .single();
-
-  if (error) throw error;
-  return data as RecoveryRequestRow;
+): Promise<{ request: RecoveryRequestRow | null; created: boolean }> {
+  const { data, error } = await admin.rpc("ensure_missed_attendance_recovery", {
+    p_user_id: userId,
+    p_local_date: localDate,
+  });
+  if (error) throw new Error(error.message);
+  if (!data || typeof data !== "object" || !("request" in data)) {
+    throw new Error("Attendance recovery check returned an invalid result");
+  }
+  return data as { request: RecoveryRequestRow | null; created: boolean };
 }
 
 export async function loadSlackTarget(admin: AdminClient, userId: string) {
@@ -280,21 +243,6 @@ async function loadPendingRecoveryRequest(
   return (data as RecoveryRequestRow | null) ?? null;
 }
 
-async function loadPendingAttendanceRecoveryRequest(admin: AdminClient, userId: string) {
-  const { data, error } = await admin
-    .from("study_recovery_requests")
-    .select(recoverySelect)
-    .eq("user_id", userId)
-    .eq("trigger_type", "missed_attendance")
-    .eq("status", "pending")
-    .order("created_at", { ascending: true })
-    .limit(1)
-    .maybeSingle();
-
-  if (error) throw error;
-  return (data as RecoveryRequestRow | null) ?? null;
-}
-
 async function recordRecoveryDelivery(
   admin: AdminClient,
   target: SlackTargetRow,
@@ -320,7 +268,7 @@ function buildRecoveryBlocks(
   const title = options.followup
     ? "⏳ 회복 루틴이 아직 제출되지 않았습니다."
     : request.trigger_type === "missed_attendance"
-      ? "🚨 오늘 출석 실패"
+      ? `🚨 ${request.covered_end_date} 출석 실패`
       : "📷 자리 비움 반복 감지";
   const detail = options.followup
     ? "사유와 보충 계획을 제출해야 다음 공부 세션을 시작할 수 있습니다."
@@ -374,7 +322,7 @@ function buildRecoveryFallbackText(
   const title = options.followup
     ? "⏳ 회복 루틴이 아직 제출되지 않았습니다."
     : request.trigger_type === "missed_attendance"
-      ? "🚨 오늘 출석 실패"
+      ? `🚨 ${request.covered_end_date} 출석 실패`
       : "📷 자리 비움 반복 감지";
   return [
     `*${title}*`,
