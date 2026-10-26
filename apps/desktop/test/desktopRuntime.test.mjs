@@ -91,6 +91,14 @@ test('IPC accepts only owning current trusted main frame and never leaks depende
   assert.equal((await f.request('info')).error, 'UNTRUSTED_DOCUMENT');
 });
 
+test('IPC passes only fixed safe login failure classifications to the current document', async () => {
+  for (const code of ['AUTH_EMAIL_RATE_LIMIT', 'AUTH_RATE_LIMIT', 'AUTH_NETWORK_ERROR']) {
+    const f = fixture({ auth: { sendCode: async () => { throw Error(code); } } });
+    assert.deepEqual(await f.request('sendCode', { email: 'fixture@example.test' }), { id: 'r-1', ok: false, error: code });
+    f.runtime.dispose();
+  }
+});
+
 test('navigation while awaiting a ticket discards response and invalidates lifecycle proof', async () => {
   const pending = defer();
   const f = fixture({ auth: { webTicket: () => pending.promise } });

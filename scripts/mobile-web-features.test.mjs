@@ -96,14 +96,16 @@ test('native first login renders the shared readable theme with scroll and acces
   const panel = find(tree, (node) => node.type === 'View' && node.props.style?.maxWidth === 560);
   assert.equal(panel.props.style.borderWidth, 1);
   assert.equal(panel.props.style.borderRadius, 16);
-  assert.equal(panel.props.style.backgroundColor, '#fffdf5');
+  const webTheme = readFileSync('apps/web/src/dashboardRedesign.css', 'utf8');
+  const webColor = name => webTheme.match(new RegExp(`--study-${name}:\\s*(#[\\da-f]+)`, 'i'))[1];
+  assert.equal(panel.props.style.backgroundColor, webColor('surface'));
   const title = find(tree, (node) => node.type === 'Text' && textOf(node) === '독서실에 로그인');
   assert.equal(title.props.style.fontSize, 30);
   assert.equal(title.props.style.lineHeight, 41);
-  const description = find(tree, (node) => node.type === 'Text' && /웹에서 쓰던 같은 Google/.test(textOf(node)));
+  const description = find(tree, (node) => node.type === 'Text' && /Google 계정 또는 이메일/.test(textOf(node)));
   assert.equal(description.props.style.fontSize, 15);
   assert.equal(description.props.style.lineHeight, 25);
-  assert.equal(description.props.style.color, '#4e5b50');
+  assert.equal(description.props.style.color, webColor('muted'));
   for (const label of ['이메일', '8자리 인증 코드']) {
     const input = find(tree, (node) => node.type === 'TextInput' && node.props.accessibilityLabel === label);
     assert.ok(input, label);

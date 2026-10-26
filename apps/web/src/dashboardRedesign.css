@@ -2,12 +2,12 @@
 :root {
   --study-primary: #2f6b52;
   --study-primary-hover: #24523f;
-  --study-bg: #f3f4ed;
-  --study-surface: #fffdf5;
-  --study-soft: #edf3ea;
-  --study-ink: #28372e;
-  --study-muted: #4e5b50;
-  --study-border: #d7ddd2;
+  --study-bg: #f4f6f3;
+  --study-surface: #ffffff;
+  --study-soft: #edf3ef;
+  --study-ink: #20332b;
+  --study-muted: #526259;
+  --study-border: #dce4de;
   --study-warning: #805b20;
   --study-warning-bg: #fff1d3;
   --study-danger: #9a3f33;
@@ -31,7 +31,7 @@
   font-size: 15px;
   line-height: 1.6;
 }
-html:has(.dashboard-redesign), body:has(.dashboard-redesign), body:has(.dashboard-redesign) #root { background: #f3f4ed !important; }
+html:has(.dashboard-redesign), body:has(.dashboard-redesign), body:has(.dashboard-redesign) #root { background: var(--study-bg) !important; }
 .dashboard-redesign [hidden] { display: none !important; }
 .dashboard-redesign :is(button, a, summary):focus-visible { outline: 3px solid var(--study-primary); outline-offset: 4px; }
 .dashboard-redesign button { font-weight: 700; }

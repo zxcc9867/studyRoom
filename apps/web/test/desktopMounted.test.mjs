@@ -75,7 +75,7 @@ async function withDesktop(mode, run, options = {}) {
       f.emit = event => listeners.forEach(cb => cb(event));
       window.studyRoomDesktop = { protocolVersion: 1, onEvent: cb => { listeners.add(cb); return () => listeners.delete(cb); }, request: async m => {
         f.calls.push(m);
-        if (f.fail === m.action) return { id: m.id, ok: false, error: 'AUTH_FAILED' };
+        if (f.fail === m.action) return { id: m.id, ok: false, error: f.failureCode ?? 'AUTH_FAILED' };
         let value = {};
         if (m.action === 'authStatus') { if (f.holdStatus) await new Promise(r => f.releaseStatus = r); value = { userId: f.nativeUser }; }
         if (m.action === 'webTicket') value = { type: 'STUDY_WEB_AUTH_TICKET', requestId: m.id, userId: f.nativeUser, tokenHash: 'fixture-ticket' };
@@ -113,6 +113,28 @@ mounted('desktop common Google and email OTP keep eight-digit input and route na
   await page.locator('.topbar-actions button').first().waitFor();
   assert.deepEqual(await page.evaluate(() => desktopFixture.calls.filter(c => ['sendCode', 'verifyCode', 'signInProvider'].includes(c.action)).map(c => [c.action,c.payload])), [['signInProvider',{provider:'google'}],['sendCode',{email:'fixture@example.test'}],['verifyCode',{email:'fixture@example.test',code:'12345678'}]]);
 }));
+mounted('desktop Google login explains browser handoff and an expired wait without pretending sign-in succeeded', () => withDesktop('login', async page => {
+  await page.getByRole('button', { name:'Google로 로그인', exact:true }).click();
+  await page.getByRole('status').filter({hasText:'브라우저에서 Google 로그인을 완료해 주세요.'}).waitFor();
+  assert.equal(await page.locator('.dashboard-shell').count(),0);
+  await page.clock.fastForward(301000);
+  await page.getByRole('status').filter({hasText:'Google 로그인 대기 시간이 지났습니다.'}).waitFor();
+  assert.equal(await page.getByRole('button',{name:'Google로 로그인',exact:true}).isEnabled(),true);
+  assert.equal(await page.evaluate(()=>desktopFixture.calls.filter(c=>c.action==='signInProvider').length),1,'expiry must not open browsers or retry authentication automatically');
+}));
+
+mounted('desktop email quota shows actionable waiting without exposing native codes or starting study', () => withDesktop('login', async page => {
+  await page.getByLabel('이메일', { exact: true }).fill('fixture@example.test');
+  await page.getByRole('button', { name: '코드 받기', exact: true }).click();
+  await page.getByText(/로그인 이메일 발송 한도에 도달/).waitFor();
+  assert.equal(await page.getByLabel('인증 코드', { exact: true }).count(), 0);
+  assert.equal(await page.getByRole('button', { name: /대기/ }).isDisabled(), true);
+  assert.equal(await page.getByRole('button', { name: 'Google로 로그인', exact: true }).isEnabled(), true);
+  assert.doesNotMatch(await page.locator('body').innerText(), /AUTH_EMAIL_RATE_LIMIT|fixture-private-error/);
+  assert.equal(await page.evaluate(() => desktopFixture.calls.filter(c => c.action === 'sendCode').length), 1);
+  assert.equal(await page.evaluate(() => fixture.calls.some(c => c.name === 'start_study_session')), false);
+}, { fail:'sendCode', failureCode:'AUTH_EMAIL_RATE_LIMIT' }));
+
 mounted('desktop quit waits for existing reflection save promise and only then publishes idle', () => withDesktop('active', async page => {
   await page.locator('.topbar-actions button').first().waitFor();
   const camera=page.getByRole('dialog',{name:'카메라 인증 필요'});if(await camera.count()){await page.keyboard.press('Escape');await camera.waitFor({state:'detached'});}

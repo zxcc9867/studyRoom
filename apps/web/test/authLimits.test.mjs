@@ -24,3 +24,12 @@ test("returns conservative retry cooldowns for auth rate limits", () => {
   assert.equal(formatRetryWait(59_000), "59초");
   assert.equal(formatRetryWait(3_600_000), "1시간");
 });
+
+test("native safe error codes retain the correct resend cooldown", () => {
+  assert.equal(isRateLimitError("AUTH_EMAIL_RATE_LIMIT"), true);
+  assert.equal(isRateLimitError("AUTH_RATE_LIMIT"), true);
+  assert.equal(isEmailSendRateLimitError("AUTH_EMAIL_RATE_LIMIT"), true);
+  assert.equal(getAuthRetryCooldownMs("AUTH_EMAIL_RATE_LIMIT"), 3_600_000);
+  assert.equal(getAuthRetryCooldownMs("AUTH_RATE_LIMIT"), 60_000);
+  assert.equal(isRateLimitError("AUTH_NETWORK_ERROR"), false);
+});

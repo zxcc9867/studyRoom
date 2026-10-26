@@ -1,7 +1,7 @@
 # PRD: Windows 독서실 앱
 
-- 상태: 2026-10-25 사용자 서면 설계 승인·구현 진행. [구현 계획](../docs/superpowers/plans/2026-10-25-windows-desktop.md)을 따른다.
-- 최종 검토 상태: 10/26 사용자 승인으로 R1 actual SDK 회귀와 정리 소유권을 보완, 집중7/7·인증44/44·native116/116/check11·독립 scoped 검토 ADDRESSED/새 중요결함0. 기존tree 웹1404/1404, 현재Electron/NSIS 재확인 중. 최신main9f381ab의후속출석/저장복구를보존한별도통합tree 자동3way는clean이며최종gate/배포대기다. 실계정·실제 웹캠 수용은 별도이며 완료로 표시하지 않는다.
+- 상태: 2026-10-25 승인 설계의 Windows0.1.0 구현·로컬 설치와052fede 웹 연결 배포 완료. 실제 Google/이메일 인증 수용은 미완이다. [구현 계획](../docs/superpowers/plans/2026-10-25-windows-desktop.md)을 따른다.
+- 후속: 사용자 승인 HIG UI·로그인 실패 안내의0.1.1 후보를 준비했다. R1 raw cleanup 경합은 기존052fede에서 해결/회귀/독립검토 완료로 유지하고 새 Google 계정 선택 화면 정지와 혼동하지 않는다. 새 검증·배포·덮어설치는 [HIG 검증 기록](../docs/verification/2026-10-26-hig-ui-auth.md)으로 구분한다. 실제 웹캠/Google 수용을 합성 검사로 대체하지 않는다.
 - 상세 설계: [Windows desktop design](../docs/superpowers/specs/2026-10-24-windows-desktop-design.md)
 
 ## 1. Problem

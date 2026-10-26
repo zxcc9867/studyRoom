@@ -6,7 +6,15 @@ const policy = createDesktopPolicy();
 const boundedText = (value, max = 128) => typeof value === 'string' && value.length > 0
   && value.length <= max && !/[\x00-\x20\x7f]/.test(value);
 const authError = code => new Error(code);
-const knownErrors = new Set(['BAD_REQUEST', 'AUTH_FAILED', 'AUTH_CHANGED', 'AUTH_TIMEOUT', 'AUTH_BUSY', 'INVALID_CALLBACK']);
+const knownErrors = new Set(['BAD_REQUEST', 'AUTH_FAILED', 'AUTH_CHANGED', 'AUTH_TIMEOUT', 'AUTH_BUSY', 'INVALID_CALLBACK',
+  'AUTH_EMAIL_RATE_LIMIT', 'AUTH_RATE_LIMIT', 'AUTH_NETWORK_ERROR']);
+// Only fixed public classifications cross IPC, never provider messages or account details.
+function emailRequestError(error) {
+  if (error?.code === 'over_email_send_rate_limit') return authError('AUTH_EMAIL_RATE_LIMIT');
+  if (error?.status === 429) return authError('AUTH_RATE_LIMIT');
+  if (error?.name === 'AuthRetryableFetchError' && error?.status === 0) return authError('AUTH_NETWORK_ERROR');
+  return authError('AUTH_FAILED');
+}
 
 export function createDesktopAuth({ supabase, storage, openExternal, now = Date.now, onChange = () => {}, timeoutMs = 10000 }) {
   let generation = 0;
@@ -319,7 +327,7 @@ export function createDesktopAuth({ supabase, storage, openExternal, now = Date.
         work = trackVerifierOperation(() => supabase.auth.signInWithOtp({ email }));
         const result = await bounded(() => work.result);
         assertCurrent(epoch);
-        if (result?.error) throw authError('AUTH_FAILED');
+        if (result?.error) throw emailRequestError(result.error);
         return { sent: true };
       } catch (error) {
         work?.abandon();

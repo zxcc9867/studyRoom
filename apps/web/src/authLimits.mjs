@@ -5,6 +5,7 @@ export const MAX_AUTH_RETRY_COOLDOWN_MS = EMAIL_SEND_RATE_LIMIT_COOLDOWN_MS;
 export function isEmailSendRateLimitError(message) {
   const normalized = String(message ?? "").toLowerCase();
   return (
+    normalized === "auth_email_rate_limit" ||
     normalized.includes("email rate limit") ||
     normalized.includes("email send rate limit") ||
     normalized.includes("over_email_send_rate_limit")
@@ -12,7 +13,8 @@ export function isEmailSendRateLimitError(message) {
 }
 
 export function isRateLimitError(message) {
-  return String(message ?? "").toLowerCase().includes("rate limit");
+  const normalized = String(message ?? "").toLowerCase();
+  return normalized.includes("rate limit") || normalized === "auth_rate_limit" || isEmailSendRateLimitError(message);
 }
 
 export function getAuthRetryCooldownMs(message) {

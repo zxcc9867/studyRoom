@@ -11,6 +11,7 @@
 
 | 기능 | 담당 폴더 | 공개 진입점 | 의존할 수 있는 계층 | 관련 PRD |
 |---|---|---|---|---|
+| HIG 기반 공통 표시 | apps/web/src/DashboardNavigation.tsx, dashboardRedesign.css, appTheme.css; apps/mobile/App.tsx의 기존 mobilePalette | 기존 DashboardApp/인증 화면의 표시·내비게이션 | 기존 UI 토큰/공식 콜백만. 세션/카메라/학습 상태 소유권 불변 | prd-hig-ui.md |
 | 공부 보존 화면 복구 | apps/web/src/RecoverableSection.tsx, RecoverableSection.css | Dashboard의 기존 화면 경계·필수 회고 eager import | UI 오류 상태만 소유, Dashboard의 학습/카메라 lifecycle은 유지 | prd-safe-section-recovery.md |
 | 피드 화면 | apps/web/src/TechFeedSection.tsx, FeedDailyBriefing.tsx | techFeed.mjs 인증 클라이언트 | 공개 core helpers, 웹 client | prd-tech-feed.md |
 | 피드 본문 표시 | packages/core/src/feedMarkdown.mjs, apps/web/src/feedPresentation.mjs, FeedArticleText.tsx | feedMarkdownPreview / parseFeedMarkdown | 공개 core 표시 helpers | prd-tech-feed.md |
@@ -60,6 +61,8 @@
 검사 통과만을 목적으로 예외를 추가하지 않는다. 프로젝트 경계를 바꿀 때 PRD와 implementation-plan을 함께 검토한다.
 
 ## Windows 데스크톱 경계
+
+- 이메일 요청 실패는 native auth→기존 IPC→공통 로그인 안내의 고정 허용 코드만 전달한다. `AUTH_EMAIL_RATE_LIMIT`/`AUTH_RATE_LIMIT`/`AUTH_NETWORK_ERROR`는 인증 우회나 성공이 아니며 기존 쿨다운을 선택한다. Google 대기 시각은 웹 표시 상태이고 실제 사용자/PKCE/티켓 상태는 기존 소유자만 검증한다. 프로필은 `%APPDATA%/@study-room/desktop`이며 변경하지 않는다.
 
 - 진입점: `apps/desktop/main.cjs` → `src/desktopRuntime.mjs`, `preload.cjs`의 protocolVersion1 `studyRoomDesktop.request/onEvent`. production은 정확히 `https://study-room-attendance.vercel.app`만 로드한다. loopback/격리 userData 옵션은 unpackaged 개발 실행에만 허용한다.
 - main/runtime는 단일 창·트레이·출처/현재 mainFrame/문서 세대 검증·명시적 카메라 동의·OS 설정·단일 인스턴스를 소유한다. X는 같은 창/문서를 숨길 뿐 카메라·학습 종료를 호출하지 않는다. `backgroundThrottling:false`를 유지한다.

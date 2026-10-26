@@ -80,7 +80,7 @@ async function bootstrap() {
     runtime = createDesktopRuntime({ electron, auth, storage,
       shellSettings,
       preloadPath: path.join(__dirname, 'preload.cjs'), iconPath: path.join(resources, 'study-room-icon.png'),
-      errorPath: path.join(__dirname, 'error.html'), build: '0.1.0',
+      errorPath: path.join(__dirname, 'error.html'), build: require('./package.json').version,
       ...(developmentOrigin ? { origin: developmentOrigin, allowDevelopmentOrigin: true } : {}),
     });
     for (const url of [...earlyCallbacks.consume(), ...argv.filter(value => value.startsWith('studyroom-desktop:'))]) void runtime.handleCallback(url);

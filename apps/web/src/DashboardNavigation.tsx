@@ -1,4 +1,4 @@
-import { Home, Leaf, Rss, Settings, Target, TreePine } from "lucide-react";
+import { Home, Leaf, Rss, Settings, Target, TreePine, UserRound } from "lucide-react";
 
 const destinations = [
   { id: "today", label: "오늘", icon: Home },
@@ -14,8 +14,8 @@ export default function DashboardNavigation({ activeSection }: { activeSection: 
     <header className="dashboard-navigation">
       <a className="dashboard-brand" href="#today" aria-label="독서실 오늘"><Leaf size={23} aria-hidden="true" />독서실</a>
       <nav className="desktop-navigation" aria-label="대시보드 섹션">
-        {destinations.map(({ id, label }) => <a key={id} href={`#${id}`} aria-current={current === id ? "page" : undefined}>{label}</a>)}
-        <a href="#me" aria-current={activeSection === "me" ? "page" : undefined}>내 페이지</a>
+        {destinations.map(({ id, label, icon: Icon }) => <a key={id} href={`#${id}`} aria-current={current === id ? "page" : undefined}><Icon size={21} aria-hidden="true" /><span>{label}</span></a>)}
+        <a href="#me" className="dashboard-profile-link" aria-current={activeSection === "me" ? "page" : undefined}><UserRound size={21} aria-hidden="true" /><span>내 페이지</span></a>
       </nav>
     </header>
     <nav className="mobile-navigation" aria-label="대시보드 섹션">

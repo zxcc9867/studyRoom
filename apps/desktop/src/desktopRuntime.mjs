@@ -6,7 +6,8 @@ export const PRODUCTION_ORIGIN = 'https://study-room-attendance.vercel.app';
 export const REQUEST_CHANNEL = 'study-room-desktop:request';
 export const EVENT_CHANNEL = 'study-room-desktop:event';
 const PUBLIC_ERRORS = new Set(['BAD_REQUEST', 'AUTH_FAILED', 'AUTH_CHANGED', 'AUTH_TIMEOUT', 'AUTH_BUSY',
-  'INVALID_CALLBACK', 'STORAGE_UNAVAILABLE', 'UNTRUSTED_DOCUMENT', 'DUPLICATE_REQUEST']);
+  'INVALID_CALLBACK', 'STORAGE_UNAVAILABLE', 'UNTRUSTED_DOCUMENT', 'DUPLICATE_REQUEST',
+  'AUTH_EMAIL_RATE_LIMIT', 'AUTH_RATE_LIMIT', 'AUTH_NETWORK_ERROR']);
 const fail = code => { throw new Error(code); };
 
 /** Owns one native window, never the web/server study lifecycle. Electron is an OS adapter. */

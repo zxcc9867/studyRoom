@@ -44,18 +44,18 @@ const emailOtpLength = 8;
 WebBrowser.maybeCompleteAuthSession();
 
 const mobilePalette = {
-  canvas: "#f3f4ed",
-  surface: "#fffdf5",
-  surfaceWarm: "#edf3ea",
+  canvas: "#f4f6f3",
+  surface: "#ffffff",
+  surfaceWarm: "#edf3ef",
   primary: "#2f6b52",
-  primarySoft: "#edf3ea",
-  border: "#d7ddd2",
+  primarySoft: "#edf3ef",
+  border: "#dce4de",
   gold: "#fff1d3",
   goldDark: "#805b20",
   coral: "#9a3f33",
-  text: "#28372e",
-  muted: "#4e5b50",
-  softBorder: "#d7ddd2",
+  text: "#20332b",
+  muted: "#526259",
+  softBorder: "#dce4de",
 } as const;
 
 function readLocalFocusStatus(): LocalFocusStatus | null {
@@ -881,10 +881,10 @@ export default function App() {
         {settingsEntry}{settingsPanel}
         <ScrollView contentContainerStyle={styles.loginContent} keyboardShouldPersistTaps="handled">
         <View style={styles.loginPanel}>
-          <Text style={styles.kicker}>STUDY ROOM</Text>
+          <Text style={styles.kicker}>독서실</Text>
           <Text style={styles.title}>독서실에 로그인</Text>
           <Text style={styles.copy}>
-            웹에서 쓰던 같은 Google 계정 또는 이메일로 로그인하세요. 공부 기록과 기술 피드가 함께 연결됩니다.
+            Google 계정 또는 이메일로 받은 8자리 코드로 계속하세요.
           </Text>
           <Pressable accessibilityRole="button" style={[styles.secondaryButton, (busy || googleBusy) && styles.disabledButton]} onPress={() => void loginWithGoogle()} disabled={busy || googleBusy} accessibilityState={{ disabled: busy || googleBusy, busy: googleBusy }}>
             <Text style={[styles.secondaryButtonText, (busy || googleBusy) && styles.disabledButtonText]}>{googleBusy ? "Google 로그인 연결 중…" : "Google로 계속하기"}</Text>

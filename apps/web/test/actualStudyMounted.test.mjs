@@ -422,7 +422,7 @@ for(const width of [375,1440]) {
    await page.waitForTimeout(50);await page.clock.runFor(500);
    const panel=page.locator(selector);await panel.waitFor();
    await designSnapshot(page,route,width);
-   metrics.push(await panel.evaluate(el=>({route:location.hash,border:getComputedStyle(el).borderTopWidth,background:getComputedStyle(el).backgroundColor,radius:getComputedStyle(el).borderTopLeftRadius,overflow:document.documentElement.scrollWidth>innerWidth})));
+   metrics.push(await panel.evaluate(el=>{const probe=document.createElement('span');probe.style.backgroundColor='var(--study-surface)';el.append(probe);const sharedSurface=getComputedStyle(probe).backgroundColor;probe.remove();return {route:location.hash,border:getComputedStyle(el).borderTopWidth,background:getComputedStyle(el).backgroundColor,sharedSurface,radius:getComputedStyle(el).borderTopLeftRadius,overflow:document.documentElement.scrollWidth>innerWidth};}));
    if(route==='forest'){
     assert.equal(await page.getByRole('button',{name:'위로 이동',exact:true}).count(),0);
     await panel.focus();await page.keyboard.press('ArrowRight');
@@ -447,7 +447,7 @@ for(const width of [375,1440]) {
   }
   for(const metric of metrics){
    assert.equal(metric.border,'1px',metric.route);
-   assert.equal(metric.background,'rgb(255, 253, 245)',metric.route);
+   assert.equal(metric.background,metric.sharedSurface,metric.route);
    assert.equal(metric.radius,'16px',metric.route);
    assert.equal(metric.overflow,false,metric.route);
   }
@@ -828,6 +828,38 @@ async function withApp(width, run, mode='active', nativeOrigin=false, failedChun
    throw error;
  }finally{await browser?.close();await new Promise(resolve=>server.close(resolve));}
 }
+
+for(const width of [375,1440]) browserTest(`HIG layout keeps study first, separates daily totals and preserves reachable navigation at ${width}px`,()=>withApp(width,async page=>{
+ const focus=page.getByRole('region',{name:'집중 공부',exact:true});
+ const goal=page.getByRole('region',{name:'오늘 공부 목표',exact:true});
+ await goal.waitFor();
+ assert.equal(await focus.getByRole('timer').count(),1);
+ assert.equal(await focus.locator('.study-summary').count(),0,'daily total must not crowd the session timer');
+ assert.equal(await goal.getByRole('progressbar',{name:'오늘 공부 목표 진행도'}).getAttribute('value'),'50');
+ assert.equal(await page.locator('.focus-forest-preview').count(),0,'forest content belongs to its destination, not a duplicate home card');
+ const nav=page.getByRole('navigation',{name:'대시보드 섹션'}).filter({visible:true});
+ for(const label of ['오늘','목표','기술 피드','공부 숲','설정']) {
+  const link=nav.getByRole('link',{name:label,exact:true});
+  const box=await link.boundingBox();
+  assert.ok(box.width>=44&&box.height>=44,`${label} remains touch/keyboard reachable`);
+  if(width===1440)assert.ok(box.height<=72&&box.y+box.height<=960,`${label} must not grow to the full rail height or push other destinations off screen`);
+ }
+ if(width===1440) {
+  const box=await page.locator('.dashboard-navigation').boundingBox();
+  assert.ok(box.width<=240&&box.height>=900,'desktop navigation uses the approved persistent side rail');
+ }
+ assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),true);
+ const text=await readableText(goal.locator('.study-summary strong').first());
+ assert.ok(text.contrast>=4.5,'daily total text stays readable');
+ await mkdir('output/hig-ui',{recursive:true});
+ await page.screenshot({path:`output/hig-ui/today-${width}.png`,fullPage:true});
+ assert.equal(await page.evaluate(()=>fixture.calls.some(c=>/start|complete_study|confirm_actual/.test(c.name))),false,'design does not create or change learning records');
+},'attendance-goal'));
+
+browserTest('HIG login canvas remains consistent when the device uses dark mode',()=>withApp(375,async page=>{
+ await page.emulateMedia({colorScheme:'dark'});
+ assert.equal(await page.evaluate(()=>{const probe=document.createElement('div');probe.style.background='var(--study-bg)';document.body.append(probe);const shared=getComputedStyle(probe).backgroundColor;probe.remove();return getComputedStyle(document.body).backgroundColor===shared;}),true,'system dark mode must not restore the legacy mint canvas');
+},'login'));
 
 for(const width of [375,1440]) browserTest(`attendance and study goal remain separate below the weekend goal at ${width}px`,()=>withApp(width,async page=>{
  assert.equal(await page.locator('.dashboard-attendance').textContent(),'출석 완료');
@@ -1489,7 +1521,8 @@ for(const width of [375,1440]) {
   await touchControls(card.locator('button'));
   assert.equal(await card.evaluate(el=>getComputedStyle(el).backgroundImage),'none');
   assert.equal(await card.locator('.break-return-plan').evaluate(el=>getComputedStyle(el).borderTopWidth),'1px');
-  assert.equal(await page.locator('.dashboard-attendance').textContent(),'휴식 중');
+  assert.equal(await page.locator('.dashboard-attendance').textContent(),'출석 완료');
+  assert.equal(await page.locator('.focus-session-status').textContent(),'휴식 중');
   assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),true);
  }));
 
@@ -1554,7 +1587,7 @@ for(const width of [375,1440]) {
 
  browserTest(`design completeness: login shares paper and accessible type at ${width}px`,()=>withApp(width,async page=>{
   const panel=page.locator('.login-panel');await panel.waitFor();await designSnapshot(page,'login-complete',width);
-  assert.equal(await panel.evaluate(el=>getComputedStyle(el).backgroundColor),'rgb(255, 253, 245)');
+  assert.equal(await panel.evaluate(el=>{const probe=document.createElement('span');probe.style.backgroundColor='var(--study-surface)';el.append(probe);const shared=getComputedStyle(probe).backgroundColor;probe.remove();return getComputedStyle(el).backgroundColor===shared;}),true,'login uses the same content surface as the signed-in app');
   assert.equal(await panel.evaluate(el=>getComputedStyle(el).borderTopWidth),'1px');
   assert.ok(await panel.locator('h1').evaluate(el=>parseFloat(getComputedStyle(el).fontSize)<=32));
   await readableGroup(panel.locator('p,label,button,.login-divider span'));

@@ -162,3 +162,19 @@
 - child-local pending만 사용한 팀/피드 저장은 Dashboard probe에서 idle로 보였다. 문서/window pending owner를 첫 await 전에 획득해 탭/계정 부모 unmount 뒤에도 finally까지 보존하며 로그아웃 probe에도 합친다.
 - Tray 생성 실패는 창만 남겨 설명/종료가 없었다. 복구 경고·재시도·기존 requestQuit fallback을 추가했고 X는 계속 안전하게 창을 유지한다. fresh tray에 로컬 카메라 상태를 표시한다.
 - 실제 mounted 같은-turn/겹침/실패/unmount와 Electron 실패 Tray·같은 문서·안전 종료/취소를 검증했다. bounds/첫 안내는 별도 shell 설정이며 기존 학습/Android 정책과 무관하다.
+
+## Windows 이메일 코드 요청이 일반 오류로만 표시됨
+
+- 증상: '코드 받기' 실패가 AUTH_FAILED→일반 안내로만 보였다. 최근 운영 auth 집계에 이메일 한도429가 있지만 특정 사용자 요청의 원인으로 단정하지 않는다.
+- 원인/수정: desktopAuth가 SDK 오류를 모두 숨겨 분류도 잃었다. 고정 이메일 한도/요청 제한/통신 실패 코드만 허용하고 runtime/Web의 기존 재요청 대기와 연결했다. raw 공급자 오류/개인정보는 여전히 숨긴다.
+- 검증: native sendCode/IPC/web 대기 안내 RED→GREEN, unknown 오류 은닉·기존 auth119/119 유지. Google 계정 선택 화면 정지는 별도 미해결이며 Chrome 지원/인증 저장을 초기화하지 않는다.
+
+## HIG 전환 시 메뉴 높이·초기 배경·색상 계약 불일치
+
+- 원인: 가로 메뉴 링크의 height100%가 세로 레일에서 전체 높이로 늘었고, 옛 첫 paint/다크 fallback·native 팔레트가 새 의미 토큰과 달랐다.
+- 수정/예방: 링크 height:auto·조작/뷰포트 검사, index/base/dark와 mobilePalette를 공통 토큰에 일치. 기존 cream 값 단정 검사는 렌더된 의미 토큰/네이티브 공통 팔레트 계약으로 바꿨다. 실제375/1440/다크 검사를 함께 수행한다.
+
+## Electron 검사 일부가 실행 파일 override를 무시함
+
+- 증상/원인: 실제 integration14개는 통과했지만 final-fixes2개는 Process failed to launch. 이 파일만 존재하지 않는 로컬 node_modules 바이너리를 고정하여 공식 STUDY_ROOM_ELECTRON_EXECUTABLE을 무시했다.
+- 수정: 다른 integration/runner와 같은 환경 변수 우선 경로를 사용한다. 테스트 설정만 고쳤으며 제품 Electron/권한/SDK/사용자 프로필은 변경하지 않는다. 재실행 결과는 HIG 검증 문서에 기록한다.

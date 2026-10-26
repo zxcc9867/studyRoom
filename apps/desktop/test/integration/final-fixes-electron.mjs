@@ -25,7 +25,7 @@ async function launch(t,{userData=path.join(output,randomUUID()),failTray=false}
   t.after(cleanup);
   const env={...process.env,STUDY_ROOM_FINAL_DATA:userData,STUDY_ROOM_FINAL_ORIGIN:`http://127.0.0.1:${server.address().port}`,STUDY_ROOM_FINAL_TRAY_FAIL:failTray?'1':'0'};
   delete env.ELECTRON_RUN_AS_NODE;
-  try{app=await _electron.launch({executablePath:path.join(root,'node_modules/electron/dist/electron.exe'),args:[fileURLToPath(new URL('./fixtures/final-fix-main.cjs',import.meta.url))],env,timeout:30000});}
+  try{app=await _electron.launch({executablePath:process.env.STUDY_ROOM_ELECTRON_EXECUTABLE||path.join(root,'node_modules/electron/dist/electron.exe'),args:[fileURLToPath(new URL('./fixtures/final-fix-main.cjs',import.meta.url))],env,timeout:30000});}
   catch(error){await cleanup();throw error;}
   app.on('close',()=>{closed=true;});
   const page=await app.firstWindow();await page.waitForFunction(()=>typeof token==='string');

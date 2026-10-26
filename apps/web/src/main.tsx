@@ -535,6 +535,7 @@ function DashboardApp() {
   const [email, setEmail] = useState("");
   const [otp, setOtp] = useState("");
   const [codeSent, setCodeSent] = useState(false);
+  const [desktopProviderStartedAt, setDesktopProviderStartedAt] = useState<number | null>(null);
   const [resendAvailableAt, setResendAvailableAt] = useState(0);
   const [nowMs, setNowMs] = useState(Date.now());
   const [profile, setProfile] = useState<Profile | null>(null);
@@ -1878,6 +1879,7 @@ function DashboardApp() {
       return;
     }
 
+    setDesktopProviderStartedAt(null);
     setBusy(true);
     const { error } = isDesktopStudyApp(window)
       ? await desktopRequest(window, "sendCode", { email: nextEmail }).then(() => ({ error: null }), error => ({ error }))
@@ -1961,6 +1963,7 @@ function DashboardApp() {
       return;
     }
 
+    setDesktopProviderStartedAt(null);
     setBusy(true);
     const { error } = isDesktopStudyApp(window)
       ? await desktopRequest(window, "signInProvider", { provider: GOOGLE_PROVIDER }).then(() => ({ error: null }), error => ({ error }))
@@ -1974,6 +1977,9 @@ function DashboardApp() {
 
     if (error) {
       setMessage(formatAuthError(error.message));
+    } else if (isDesktopStudyApp(window)) {
+      setMessage("");
+      setDesktopProviderStartedAt(Date.now());
     }
   }
 
@@ -5271,12 +5277,11 @@ function DashboardApp() {
       <main className="login-shell">
         <section className="login-panel" onPaste={handleLoginPaste}>
           <button type="button" className="plain login-settings-entry" onClick={() => setLoginSettingsOpen(true)}>앱 설정 안내</button>
-          <p className="eyebrow">forced attendance</p>
+          <p className="eyebrow">독서실</p>
           <h1>독서실에 로그인</h1>
           {teamInviteToken && <div className="auth-recovery-notice"><strong>함께 공부방 초대가 도착했어요.</strong><p>로그인하거나 가입한 뒤 팀명과 공유 범위를 확인하고 직접 참여할 수 있어요.</p><button type="button" className="secondary" onClick={() => { clearTeamInvite(getTeamInviteStorage()); setTeamInviteToken(null); }}>초대 취소</button></div>}
           <p className="login-copy">
-            이메일로 받은 8자리 코드를 입력하면 로그인됩니다. 선택한 시간대의 새벽 4시부터 다음 날 새벽 4시까지
-            공부를 시작하면 출석입니다. 평일 2시간·주말 4시간 공부 목표는 별도로 집계합니다.
+            Google 계정 또는 이메일로 받은 8자리 코드로 계속하세요.
           </p>
           {authInitializationError && (
             <div className="auth-recovery-notice" role="alert">
@@ -5305,12 +5310,19 @@ function DashboardApp() {
               <Chrome size={18} />
               {googleAuthEnabled ? "Google로 로그인" : "Google 로그인 설정 필요"}
             </button>
+            {desktopProviderStartedAt !== null && <p className="login-provider-status" role="status" aria-live="polite">{nowMs - desktopProviderStartedAt < 300000
+              ? "브라우저에서 Google 로그인을 완료해 주세요. 완료되면 이 앱에 연결됩니다."
+              : "Google 로그인 대기 시간이 지났습니다. Google로 로그인을 다시 눌러 주세요."}</p>}
             <div className="login-divider">
               <span>또는 이메일 코드</span>
             </div>
             <label>
               이메일
               <input
+                type="email"
+                inputMode="email"
+                autoCapitalize="none"
+                spellCheck={false}
                 value={email}
                 onChange={(event) => setEmail(event.target.value)}
                 placeholder="email@example.com"
@@ -5399,7 +5411,7 @@ function DashboardApp() {
         )}
         {activeSection === "today" && (
           <>
-            <div className="dashboard-page-heading"><div><p>{todayDateKey} 공부일 · 새벽 4시 기준{activeSession && todayDateKey !== getStudyDateKey(new Date(nowMs), timeZone) ? " · 시작한 공부일로 계속 기록 중" : ""}</p><h1>오늘의 공부</h1></div><span className="dashboard-attendance">{dashboardReady ? activeSession ? activeSession.paused_at ? "휴식 중" : "공부 중" : attendanceDays.find(day => day.local_date === todayDateKey)?.status === "present" ? "출석 완료" : "시작 준비" : "기록 확인 중"}</span></div>
+            <div className="dashboard-page-heading"><div><p>{todayDateKey} 공부일 · 새벽 4시 기준{activeSession && todayDateKey !== getStudyDateKey(new Date(nowMs), timeZone) ? " · 시작한 공부일로 계속 기록 중" : ""}</p><h1>오늘의 공부</h1></div><span className="dashboard-attendance">{dashboardReady ? activeSession || attendanceDays.find(day => day.local_date === todayDateKey)?.status === "present" ? "출석 완료" : "시작 준비" : "기록 확인 중"}</span></div>
             {sectionOrderEditing && renderTodaySectionOrderEditor()}
           </>
         )}
@@ -5408,6 +5420,7 @@ function DashboardApp() {
           <div className="focus-overview today-ordered-section" style={{ order: getTodaySectionSortOrder("topbar") }}>
           <section className="topbar focus-card daily-visual" aria-label="집중 공부">
             <div className="topbar-head">
+              {activeSession && <p className="focus-session-status" role="status">{activeSessionPaused ? "휴식 중" : presenceState.timerPaused || sharedCameraView.status === "auto_paused" ? "자리 비움" : "공부 중"}</p>}
               {activeSession ? renderSessionTodoList() : <div className="focus-ready"><p className="eyebrow">오늘, 한 걸음부터</p><h2>{blockingRecoveryRequests.length > 0 ? "회복하고 다시 시작해요" : "어떤 공부를 시작할까요?"}</h2><p>{latestNextAction ? `이어서 할 일 · ${latestNextAction}` : "할 일을 고르고 지금부터 집중해 보세요."}</p></div>}
             </div>
             <div className="session-clock"><span>{activeSessionPaused ? "휴식 중 · 공부시간은 멈춰 있어요" : activeSession && (presenceState.timerPaused || sharedCameraView.status === "auto_paused") ? "자리 비움 · 공부시간은 멈춰 있어요" : "이번 세션 공부시간"}</span><strong role="timer" aria-label="이번 세션 공부시간">{dashboardReady ? formatTimerClock(currentSessionSeconds) : "확인 필요"}</strong></div>
@@ -5440,6 +5453,11 @@ function DashboardApp() {
                   종료
                 </button>}
               </div>
+            {activeSession && <TenMinuteCheckpoint state={tenMinuteCheckpoint} paused={activeSessionPaused} busy={busy} onContinue={acknowledgeTenMinuteCheckpoint} onFinish={() => void openEndSessionCompletionModal()} />}
+            </section>
+            <aside className="focus-side" aria-label="오늘의 간략 계획">
+            <section className="focus-goal-card" aria-label="오늘 공부 목표">
+            <div className="focus-side-heading"><h2>오늘 공부</h2><button type="button" className="focus-record-link" onClick={() => setTodayDomain("record")}>기록 보기</button></div>
             <div className="study-summary" aria-label="공부 시간 요약">
               <div>
                 <span>오늘 공부</span>
@@ -5452,13 +5470,9 @@ function DashboardApp() {
             </div>
             <progress className="today-focus-progress" aria-label="오늘 공부 목표 진행도" value={todayProgress} max={100} />
             <p className="focus-goal-status" role="status">{dashboardReady ? `공부 목표 ${todaySeconds >= todayGoalSeconds ? "달성" : "진행 중"} · 출석과 별도로 집계해요.` : "공부 목표 확인 중"}</p>
-            <p className="focus-attendance-rule">{todayAttendanceRuleLabel}</p>
-            {activeSession && <TenMinuteCheckpoint state={tenMinuteCheckpoint} paused={activeSessionPaused} busy={busy} onContinue={acknowledgeTenMinuteCheckpoint} onFinish={() => void openEndSessionCompletionModal()} />}
+            <details className="focus-goal-details"><summary>출석·공부일 기준</summary><p className="focus-attendance-rule">{todayAttendanceRuleLabel}</p></details>
             </section>
-            <aside className="focus-side" aria-label="오늘의 간략 계획">
               <section className="focus-plan-card"><div className="focus-side-heading"><h2>오늘의 할 일</h2><button type="button" onClick={() => setTodayDomain("plan")}>전체 보기</button></div><p>{completedTodayTodoCount}/{todayTodos.length} 완료</p><ul>{todayTodos.slice(0, 4).map(todo => <li key={todo.id} className={todo.is_completed ? "completed" : ""}><CheckCircle2 size={18} aria-hidden="true" /><div><strong>{todo.title}</strong><small>{formatTodoScheduleLabel(todo) || "시간 미지정"}</small></div></li>)}</ul>{todayTodos.length === 0 && <p>아직 할 일이 없어요. 계획에서 추가하거나 시작할 때 바로 입력하세요.</p>}</section>
-              <section className="focus-forest-preview"><TreePine size={65} aria-hidden="true" /><p className="eyebrow">공부의 숲</p><h2>{dailyHabitState.title}</h2><p>{dailyHabitState.description}</p><a href="#forest">내 숲 둘러보기 →</a></section>
-              <button type="button" className="focus-record-link" onClick={() => setTodayDomain("record")}>월 누적·습관 기록 보기 →</button>
             </aside>
           </div>
         )}
@@ -7379,12 +7393,15 @@ function formatError(error: unknown) {
 
 function formatAuthError(message: string) {
   if (isEmailSendRateLimitError(message)) {
-    return "Supabase 기본 이메일 발송 한도에 걸렸습니다. 현재 기본 메일러는 프로젝트 전체 시간당 2통까지만 보낼 수 있어 약 1시간 후 다시 시도해야 합니다. 계속 테스트하려면 Custom SMTP 또는 Google 로그인을 활성화해야 합니다.";
+    return "로그인 이메일 발송 한도에 도달했습니다. 약 1시간 후 다시 요청하거나 Google로 로그인해 주세요. 기존 계정과 학습 기록은 유지됩니다.";
   }
 
   if (isRateLimitError(message)) {
-    return `${formatRetryWait(OTP_RETRY_COOLDOWN_MS)} 후 다시 시도하세요. 계속 막히면 Supabase Auth rate limit 설정을 확인해야 합니다.`;
+    return `로그인 요청이 잠시 제한됐습니다. ${formatRetryWait(OTP_RETRY_COOLDOWN_MS)} 후 다시 시도해 주세요.`;
   }
+  if (message === "AUTH_NETWORK_ERROR") return "로그인 서버에 연결하지 못했습니다. 인터넷 연결을 확인하고 다시 시도해 주세요.";
+  if (message === "AUTH_TIMEOUT" || message === "DESKTOP_TIMEOUT") return "로그인 응답이 지연됐습니다. 잠시 후 다시 시도해 주세요.";
+  if (message === "AUTH_BUSY") return "이전 로그인 요청을 확인하고 있습니다. 잠시 후 다시 시도해 주세요.";
   return message;
 }
 

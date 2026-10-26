@@ -1,7 +1,7 @@
 :root {
   color-scheme: only light;
-  color: #2f2a1f;
-  background: #d9f0e3;
+  color: #20332b;
+  background: #f4f6f3;
   font-family:
     "Malgun Gothic", "Apple SD Gothic Neo", ui-rounded, "Segoe UI", sans-serif;
   font-synthesis: none;
@@ -16,19 +16,15 @@ html,
 body,
 #root {
   min-height: 100%;
-  background-color: #d9f0e3;
-  color: #2f2a1f;
+  background-color: #f4f6f3;
+  color: #20332b;
 }
 
 body {
   margin: 0;
   min-width: 320px;
   min-height: 100vh;
-  background:
-    radial-gradient(circle at 14px 14px, rgba(79, 145, 111, 0.18) 0 5px, transparent 6px),
-    linear-gradient(135deg, rgba(247, 207, 100, 0.18) 0 12px, transparent 12px 24px),
-    #d9f0e3;
-  background-size: 56px 56px, 72px 72px, auto;
+  background: #f4f6f3;
 }
 
 html {
@@ -48,22 +44,19 @@ textarea {
 @media (prefers-color-scheme: dark) {
   :root {
     color-scheme: only light;
-    color: #2f2a1f;
-    background: #d9f0e3;
+    color: #20332b;
+    background: #f4f6f3;
   }
 
   html,
   body,
   #root {
-    background-color: #d9f0e3 !important;
-    color: #2f2a1f !important;
+    background-color: #f4f6f3 !important;
+    color: #20332b !important;
   }
 
   body {
-    background:
-      radial-gradient(circle at 14px 14px, rgba(79, 145, 111, 0.18) 0 5px, transparent 6px),
-      linear-gradient(135deg, rgba(247, 207, 100, 0.18) 0 12px, transparent 12px 24px),
-      #d9f0e3 !important;
+    background: #f4f6f3 !important;
   }
 
   button,

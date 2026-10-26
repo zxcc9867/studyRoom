@@ -56,6 +56,25 @@ test('email login uses 8-digit OTP and hides raw provider errors', async () => {
   client.dispose();
 });
 
+test('email send limit crosses native auth as a fixed safe code instead of an opaque failure', async () => {
+  const deps = fixture();
+  deps.supabase.auth.signInWithOtp = async () => ({ error: { code: 'over_email_send_rate_limit', status: 429, message: 'private mail-provider detail' } });
+  const client = auth(deps);
+  await assert.rejects(client.sendCode('user@example.test'), { message: 'AUTH_EMAIL_RATE_LIMIT' });
+  assert.equal(deps.calls.some(call => call[0] === 'verify'), false);
+  client.dispose();
+});
+
+test('short request limits and transport failures remain distinguishable without provider details', async () => {
+  const deps = fixture();
+  const client = auth(deps);
+  deps.supabase.auth.signInWithOtp = async () => ({ error: { code: 'over_request_rate_limit', status: 429, message: 'private request detail' } });
+  await assert.rejects(client.sendCode('user@example.test'), { message: 'AUTH_RATE_LIMIT' });
+  deps.supabase.auth.signInWithOtp = async () => ({ error: { name: 'AuthRetryableFetchError', status: 0, message: 'private transport detail' } });
+  await assert.rejects(client.sendCode('user@example.test'), { message: 'AUTH_NETWORK_ERROR' });
+  client.dispose();
+});
+
 test('ticket uses current verified identity and authenticated existing function', async () => {
   const deps = fixture();
   const client = auth(deps);

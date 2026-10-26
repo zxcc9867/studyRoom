@@ -1802,9 +1802,9 @@ docs/images/study-room-thumbnail.png
 - RN 서비스/hook/공통 패널은 기존 팔레트와 로그인/WebView를 유지한다. 설치 직전 현재 소유자의 기존 study_sessions를 읽기만 하고, 공부 중/조회 실패/계정 전환이면 설치를 미룬다. DB/RLS/RPC·기기 집중 규칙은 변경하지 않는다.
 - 제품 version0.2.0/code3을 명시하고 EAS appVersionSource는 local이다. 검증 전용 bootstrap2는 생성 Gradle 출력만 사용하며 공개 최신 버전으로 게시하지 않는다. 최초 updater APK 한 번은 수동 설치, 이후 앱에서 다운로드·사용자 승인 설치한다. OTA/무인 설치/Play 배포는 범위 밖이다.
 
-## Windows 데스크톱 공통 화면 (2026-10-25 구현 중)
+## Windows 데스크톱 공통 화면
 
-- `apps/desktop`은 Electron45.0.0·electron-builder26.18.0·Supabase JS2.107.0 고정 workspace다. `app.studyroom.desktop`/StudyRoom 실행 파일·Windows0.1.0, per-user NSIS x64를 사용한다. production 내부 화면은 기존 Vercel HTTPS origin 하나이며 새 서버·학습 DB·Android 버전 변경은 없다.
+- `apps/desktop`은 Electron45.0.0·electron-builder26.18.0·Supabase JS2.107.0 고정 workspace다. `app.studyroom.desktop`/StudyRoom 실행 파일·Windows0.1.1 후보, per-user NSIS x64를 사용한다. production 내부 화면은 기존 Vercel HTTPS origin 하나이며 새 서버·학습 DB·Android 버전 변경은 없다. build 표시는 package.json 버전을 재사용한다. 실제 프로필은 `%APPDATA%/@study-room/desktop`이며 추측한 다른 폴더로 이관/초기화하지 않는다.
 - main/runtime은 창·트레이·OS 권한·암호화 네이티브 인증만 소유한다. X는 동일 문서 hide이며 `backgroundThrottling:false`, 명시 완전 종료는 현재 문서5초 probe→기존 웹 completion/회고 경로다. 10초 상태 캐시만으로 종료하지 않고, observer 종료로 원격 세션을 끝내지 않는다. unknown은 재확인/취소/저장 미확인 프로세스 종료 경고로 처리한다.
 - preload protocolVersion1은 `request({id,action,payload})/onEvent`만 노출한다. 정확한 origin·현재 mainFrame·문서/auth 세대·중복 ID를 검사하고 awaited 작업 후 재검사한다. 일반 탐색은 증거를 무효화하지만 hash/pushState 같은 문서는 유지한다. 세부 action/event는 승인 계획의 Shared bridge contract를 따른다. 종료 이벤트는 probe의 user/session/localEngagement를 전달해 휴식 중인 로컬 공부와 관찰을 구분한다.
 - Windows publisher의 activity는 cameraActive/operationPending만 false로 복사한 tracker check로 실행 참여를 입증하고 실제 두 flag는 그대로 보낸다. 관찰 기기의 임시 저장/카메라 준비가 원격 세션을 로컬 참여로 오인하지 않게 하며, 실제 pending은 종료를 계속 막는다. Android tracker/업데이트 정책은 수정하지 않는다.
@@ -1823,3 +1823,9 @@ docs/images/study-room-thumbnail.png
 - 검증: `npm.cmd run desktop:check`, `desktop:test`, `desktop:integration`, `desktop:build`; Dune verify는 기존5명령+desktop check/test다. 순수 테스트는 Electron binary 없이 실행하며 실제 integration은 명시 binary가 없으면 실패한다. 웹 전용 CI만 `ELECTRON_SKIP_BINARY_DOWNLOAD=1`, 로컬 Windows build는 설정하지 않는다.
 - 자동 시작·절전 변경·오프라인·네이티브 push·자체 자동 업데이트·공개 Windows Release·유료 인증서 구매는 제외한다. 현재 인증서가 없어 미서명/SmartScreen 한계를 별도 보고하고 보안 차단을 우회하지 않는다. adapter·설치 파일 빌드와 실제 로그인/웹캠/6분 숨김/다중 기기 수용은 서로 대체하지 않는다.
 - R1 후속(10/26): raw SDK authentication과 local logout의 실제 settlement를 operation-local 최종 cleanup owner/현재 raw cleanup Set으로 추적한다. timeout은 UI 결과 기한일 뿐 quarantine을 해제하지 않으며, 새SDKmutation은 모든 rawcleanup 후 허용한다. 저장실패/stale보상은 같은 postsettle cleanup에 합치되 선행logout 후 늦은인증 최종보상은 생략하지 않는다. actualSDK6+rawreject1 회귀·native116/116·독립검토통과, DB/정책/SDKpins불변.
+- 이메일 요청 오류는 허용한 `AUTH_EMAIL_RATE_LIMIT`/`AUTH_RATE_LIMIT`/`AUTH_NETWORK_ERROR`만 추가로 IPC 전달한다. raw 공급자 문구·계정 정보는 전달/로그하지 않는다. 이메일1시간/일반 요청1분의 기존 보수적 대기를 재사용하며 저장 오류/unknown은 이전 fail-closed 경계를 유지한다. Google 브라우저 대기/5분 만료는 웹의 표시 상태일 뿐 인증 자동 재시도·세션 생성·성공 판정이 아니다.
+
+## HIG 공통 표시 계약
+
+- 기존 dashboardRedesign.css의 의미 토큰을 단일 웹 기준으로 갱신하고 appTheme.css/기존 컴포넌트를 사용한다. Android는 기존 mobilePalette 값을 같은 의미 색으로 맞추며 SDK53/기존 네이티브 컴포넌트와 동작은 유지한다. 별도 스타일링 프레임워크/학습 상태 저장소는 추가하지 않는다.
+- 넓은 창은 기존 전역 목적지를 사이드 메뉴로 재배치하고 작은 창은 기존 하단 5메뉴·안전 여백을 유지한다. 오늘의 세션 제어와 하루 목표를 분리하며 출석과 휴식 상태를 다른 표시로 둔다. 카메라 감지/회복/할 일 편집은 기존 공식 소유자가 처리한다. [PRD](prd-hig-ui.md).
