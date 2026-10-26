@@ -15,7 +15,7 @@ import {FeedViewFilters} from './FeedViewFilters';
 import {feedOriginalLanguage,FEED_LANGUAGE_LABELS} from '../../../packages/core/src/feedLanguage.mjs';
 import './techFeed.css';
 
-type Props = {supabase:SupabaseClient;userId:string;timeZone:string;onPlan:(article:FeedArticle)=>void;linkedTodo?:{userId:string;articleId:string;todoId:string}|null};
+type Props = {supabase:SupabaseClient;userId:string;timeZone:string;onPlan:(article:FeedArticle)=>void;linkedTodo?:{userId:string;articleId:string;todoId:string}|null;onPendingWrite?:()=>()=>void};
 export function FeedArticleCard({article,onSave,onPlan,busy,timeZone,translationService}:{article:FeedArticle;onSave:()=>void;onPlan:()=>void;busy:boolean;timeZone:string;translationService?:FeedState['translation_service']}) {
   const [expanded,setExpanded] = useState(false);
   const contentId = useId();
@@ -74,7 +74,7 @@ export function FeedPagination({page,numbers,hasNext,busy,onPage}:{page:number;n
   </nav>;
 }
 
-export default function TechFeed({supabase,userId,timeZone,onPlan,linkedTodo=null}:Props) {
+export default function TechFeed({supabase,userId,timeZone,onPlan,linkedTodo=null,onPendingWrite}:Props) {
   const api = useMemo(()=>createTechFeedClient(supabase,userId),[supabase,userId]);
   const [loadedState,setState] = useState<FeedState|null>(null);
   const [stateOwner,setStateOwner] = useState('');
@@ -170,12 +170,14 @@ export default function TechFeed({supabase,userId,timeZone,onPlan,linkedTodo=nul
 
   async function action(key:string, work:()=>Promise<void>) {
     if(actionLock.current) return;
+    const release=onPendingWrite?.();
     const request=settingsGeneration.current;
     const controller=lifetime.current;
     actionLock.current=true;setBusy(key);setError('');setNotice('');
     try {await work();}
     catch(e){if(isCurrentFeedRequest(request,settingsGeneration.current,controller?.signal))setError(e instanceof Error?e.message:'요청을 처리하지 못했어요.');}
     finally {
+      release?.();
       if(isCurrentFeedRequest(request,settingsGeneration.current,controller?.signal)){actionLock.current=false;setBusy('');}
     }
   }

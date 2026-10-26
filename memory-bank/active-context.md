@@ -1,5 +1,15 @@
 # Active Context
 
+## 현재 우선 요청: Windows 데스크톱 앱 재개
+- 갱신: 2026-10-26 · 도구codex · feat/windows-desktop-app/base9f381ab · 현재tree C:/jini-dev/worktrees/study-room-desktop-current. 사용자 R1 집중 수정·재검증 승인. 원본 study-room-team의 선행dirty/코드 보존.
+- 사용자 요청: 기존 웹·모바일과 동일한 디자인과 학습 기록을 공유하는 Windows 설치형 앱 작업을 이어간다. 기존 Vercel hosted 화면/Supabase 재사용·오프라인 제외 방향은 원 요청 범위 안에서 유지한다.
+- 확인: resume/실제diff/프로젝트지침/관련architecture·implementation을 대조, linkedworktree에서 desktop코드/설치파일 구현 중. git fetch 성공·원격앞섬/뒤짐0.
+- 구현 단계: R1 actualSDK RED→집중7/7·인증44/44·native116/116/check11·독립 scoped 검토 ADDRESSED·새 중요결함0. 승인native Electron16/16/6분(영상+7194·성공ACK+360/오류0), 새main통합49경로자동clean/기존출석·저장복구보존. 현재tree Chrome1417/1417·verify7/Dune0·좁은통합검토PASS·NSIS/asar검사통과. installer a7cbaffe.../123053755bytes/529항목/금지0·NotSigned. 기존C:/jini-dev/apps/study-room-desktop에무삭제덮어설치exit0/asar일치/자동실행0/userData없음. 웹연결배포·첫실행/본인인증은후속.
+- 확정: 사용자 A 방식 승인. X=트레이숨김·동일문서/공부/카메라유지, 트레이에서 복원·별도 정상종료. 목업은 예시이며 내부는 기존 웹UI 재사용·새 원형타이머 채택 아님.
+- 설계 문서: docs/superpowers/specs/2026-10-24-windows-desktop-design.md와 prd-windows-desktop.md 작성. Electron/main 인증·시스템브라우저PKCE·기존일회용티켓·최상위출처/video-only·단일인스턴스·기기단위종료·6분숨김수용·기록보존을 명시. Windows0.1.0 로컬설치파일 범위, 공개Release/자동업데이트 별도.
+- 다음: current-main-integration-brief.md의 자동3way 통합/실제충돌시보고→새main기반전체gate/좁은통합검토→최종NSIS무결성/덮어설치→feature commit/push/Vercel READY→설치앱첫실행/본인로그인. 새tree기준npmtest1370/1187pass/183브라우저생략/0fail. 실인증/OS권한은사용자직접·기록/정책보존, DB변경없음. SDD추가Task5/진행agent를확인하고원본완료작업을다시하지않는다.
+- 검증: 최종wave Chrome1404/1404·실패/생략0(322727ms, output/desktop-final-wave-chrome.log), verify7/Dune0/build 통과. 최신Electron16/16·실패/생략0·401812ms(증거1792868147900-0e67eaca-ff05-40b8-8211-772d496b0733),6분숨김frames+7203/성공ACK+360/오류0·동일문서/프로세스. 공격자fixture만sandboxfalse·운영true 유지. 이는 합성카메라/로컬IPC이며 실계정·착석·서버동기화 수용 아님. 설치0.1.0/b5a5는 이전판·첫실행0/데이터없음, 최신candidate도R1미해결로최종본아님. Auth7주소+callback1·13설정/학습7테이블 count·digest 보존확인. 커밋/푸시/배포없음, 선행운영dirty제외.
+
 ## 현재 작업: 공부 시작 출석과 하루 목표 분리
 
 - 갱신: 2026-10-25 · Codex · `main` 기준 `d5e075f`. 사용자 요청은 그날 공부를 시작했으면 목표 미달이어도 출석으로 인정하는 것이다. [계약](prd-attendance-start.md).

@@ -14,6 +14,22 @@
   "python_import_boundaries": [],
   "javascript_import_boundaries": [
     {
+      "id": "desktop-web-server-boundary",
+      "sources": ["apps/desktop/main.cjs", "apps/desktop/preload.cjs", "apps/desktop/src/*.mjs"],
+      "forbidden_modules": [],
+      "forbidden_paths": ["apps/web/src", "apps/mobile/App.tsx", "server", "supabase/functions"],
+      "runtime_only": true,
+      "use_instead": "Desktop owns native shell and encrypted auth only. Use the versioned preload bridge and existing hosted web/server study lifecycle, never import or mutate product study internals."
+    },
+    {
+      "id": "desktop-policy-pure-boundary",
+      "sources": ["apps/desktop/src/desktopPolicy.mjs", "apps/desktop/src/desktopLifecycle.mjs"],
+      "forbidden_modules": ["electron", "node:fs", "fs", "node:child_process", "child_process", "@supabase/supabase-js"],
+      "forbidden_paths": [],
+      "runtime_only": true,
+      "use_instead": "Policy and lifecycle are pure units; inject storage/clock and let the runtime own native operations."
+    },
+    {
       "id": "feed-ui-server-boundary",
       "sources": ["apps/web/src/TechFeedSection.tsx", "apps/web/src/FeedDailyBriefing.tsx"],
       "forbidden_modules": [],
@@ -31,6 +47,8 @@
     }
   ],
   "verify": [
+    "npm.cmd run desktop:check",
+    "npm.cmd run desktop:test",
     "npm.cmd test",
     "npm.cmd run test:edge",
     "npm.cmd run mobile:check",

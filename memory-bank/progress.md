@@ -13,6 +13,7 @@
 
 | 기능 | 상태 | 현재 근거 / 다음 단계 |
 |---|---|---|
+| Windows 데스크톱 공통 화면·학습 기록 | 로컬 설치 완료·웹 연결 출시 중 | R1 actualSDK RED→집중7/7·인증44/44·native116/116/check11·독립 검토 중요결함0. 승인 native Electron16/16·6분 영상+7194/성공ACK+360/오류0. 최신 main9f381ab 출석·저장 복구 보존·자동 통합49경로 clean·Chrome1417/1417·verify7/Dune0·통합 검토 PASS. NSIS 검사/무삭제 덮어설치 exit0·asar일치·첫 실행0. 커밋/운영 배포/실계정은 후속. 원본 dirty/학습 보존·DB 변경없음. 합성 검사는 착석 수용 아님 |
 | 세션 할 일 시간 재편집 | 운영 배포·수용 완료 | 해당 발생분 시간2필드만 수정·제목/반복/선택/기존학습 보존. Chrome1357/1357·hover포함집중8/8·verify/독립재검토 통과. 7133dc4/Actions40090165734 success·Vercel READY/exactSHA/HTTP200. Android16/0.2.4 실제운영저장·취소·재로드수용, 테스트항목정리·기존5종count/digest동일. docs/session-todo-time-edit/verification-20261024.md |
 | Android 유휴 lifecycle·오래된 회고 안내 | 운영 배포·실제 수용 완료(범위 한정) | 설치0.2.4/code7 같은계정·탭콘텐츠·HOME/COLD/Android설정복귀·18초offline복귀 PASS·카메라사용불변. 최신빈회고선택 RED4→집중5/5·Chrome1348/1348·verify/독립검토차단결함0.3312ad0/Actions39271816694 success·production READY/200·실제PC/Android옛안내없음·기존4종digest동일. 새공부/담당전환은회복잠금유지해보류·실폰DND/착석별도. docs/cross-device-study/mobile-lifecycle-20261019.md |
 | 공부 상태 보존 화면 복구 | 운영 배포·실제 수용 완료(범위 한정) | 영역 격리·유휴 명시reload·필수회고 eager, 집중10/10·Chrome1343/1343·verify/독립검토PASS.225fd82/Actions39148327299·production READY/200. Android16 실제HTML200 실패→복구·COLD로그인/학습보존, PC설정/오늘 정상. APK0.2.4 그대로·DB변경없음·전용rollback branch보존. docs/safe-section-recovery-20261019.md |

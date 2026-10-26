@@ -25,6 +25,7 @@ type Props = {
     onResume: () => void;
     onPause: () => void;
     onEnd: () => void;
+    onPendingWrite?: () => (() => void);
 };
 const clock = (seconds: number) => `${Math.floor(seconds / 60).toString().padStart(2, '0')}:${(seconds % 60).toString().padStart(2, '0')}`;
 function Desk({ state }: {
@@ -72,7 +73,7 @@ export default function TeamStudySection(props: Props) {
     const serverNow = tick + (Date.parse(snapshot?.server_now ?? '') - state.syncedAt || 0);
     const roundComplete = isRoundComplete(snapshot?.round ?? null, serverNow);
     const clearInvite = () => { clearTeamInvite(getTeamInviteStorage()); onClearInvite(); setPreview(null); };
-    async function run(action: string, payload: Record<string, unknown> = {}, success?: (result: TeamActionResult) => void) { setError(''); setNotice(''); setPending(true); try {
+    async function run(action: string, payload: Record<string, unknown> = {}, success?: (result: TeamActionResult) => void) { const release=props.onPendingWrite?.(); setError(''); setNotice(''); setPending(true); try {
         if (!controller.current)
             return;
         const result = await controller.current.action(action, payload);
@@ -82,6 +83,7 @@ export default function TeamStudySection(props: Props) {
         setError(e instanceof Error ? e.message : '요청을 처리하지 못했어요. 다시 확인해 주세요.');
     }
     finally {
+        release?.();
         setPending(false);
     } }
     function primary() {

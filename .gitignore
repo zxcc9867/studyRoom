@@ -17,3 +17,6 @@ infra/aws-cdk/dist/
 supabase/.temp/
 
 .vercel
+apps/desktop/resources/
+apps/desktop/dist/
+output/windows-electron-acceptance/

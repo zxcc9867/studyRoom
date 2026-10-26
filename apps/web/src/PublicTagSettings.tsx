@@ -4,10 +4,11 @@ import { createTeamStudyController, type TeamState } from './teamStudyClient.mjs
 import { normalizePublicTag } from './teamStudyPresentation.mjs';
 import './PublicTagSettings.css';
 
-export default function PublicTagSettings({ supabase, userId, registered }: {
+export default function PublicTagSettings({ supabase, userId, registered, onPendingChange }: {
   supabase: SupabaseClient;
   userId: string;
   registered: boolean;
+  onPendingChange?: (pending: boolean) => void;
 }) {
   const controller = useRef<ReturnType<typeof createTeamStudyController> | null>(null);
   const [state, setState] = useState<TeamState>({ snapshot: null, loading: true, error: '', transport: 'checking', syncedAt: 0 });
@@ -40,6 +41,7 @@ export default function PublicTagSettings({ supabase, userId, registered }: {
     const current = controller.current;
     if (!current) return;
     setPending(true);
+    onPendingChange?.(true);
     try {
       await current.action('set_tag', { tag });
       if (controller.current !== current) return;
@@ -48,6 +50,7 @@ export default function PublicTagSettings({ supabase, userId, registered }: {
     } catch (failure) {
       if (controller.current === current) setError(failure instanceof Error ? failure.message : '태그를 저장하지 못했어요. 다시 시도해 주세요.');
     } finally {
+      onPendingChange?.(false);
       if (controller.current === current) setPending(false);
     }
   }

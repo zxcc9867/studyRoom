@@ -56,6 +56,8 @@ import {
 } from "lucide-react";
 import type { Session } from "@supabase/supabase-js";
 import EmbeddedAuthGate from "./EmbeddedAuthGate";
+import DesktopAuthGate, { useDesktopAuth } from "./DesktopAuthGate";
+import { beginDesktopWrite, hasDesktopWrites, bindDesktopStudy, desktopRequest, getDesktopStudyActivity, isDesktopStudyApp, type DesktopQuitEvent } from "./desktopBridge.mjs";
 import { isEmbeddedStudyApp, postEmbeddedMessage } from "./embeddedAuth.mjs";
 import { bindDeviceStudyCheck, createDeviceStudyTracker, type DeviceStudyState } from "./deviceStudyActivity.mjs";
 import { createStudyDeviceSync, getSharedCameraView, type SharedStudySnapshot, type StudyDeviceSync } from "./studyDeviceSync.mjs";
@@ -524,6 +526,7 @@ VITE_WEB_PUSH_VAPID_PUBLIC_KEY=your-vapid-public-key`}</pre>
 }
 
 function DashboardApp() {
+  const desktopAuth = useDesktopAuth();
   const [teamInviteToken, setTeamInviteToken] = useState(() => captureTeamInvite({ hash: window.location.hash, storage: getTeamInviteStorage(), replaceHash: hash => window.history.replaceState(null, "", window.location.pathname + window.location.search + hash) }));
   const teamInviteReturnRef = useRef(Boolean(teamInviteToken && isAuthCallbackUrl(window.location.href)));
   const [session, setSession] = useState<Session | null>(null);
@@ -722,6 +725,10 @@ function DashboardApp() {
     setAuthInitializationError("");
 
     try {
+      if (desktopAuth) {
+        setSession(desktopAuth.session);
+        return;
+      }
       if (isAuthCallbackUrl(window.location.href)) {
         await runAuthInitializationWithTimeout(() => finishOAuthCallback());
         return;
@@ -751,6 +758,7 @@ function DashboardApp() {
 
   useEffect(() => {
     void initializeSession();
+    if (desktopAuth) return () => { authInitializationAttemptRef.current += 1; };
     const { data } = supabase.auth.onAuthStateChange((_event, nextSession) => {
       setSession(nextSession);
       if (nextSession) {
@@ -763,6 +771,10 @@ function DashboardApp() {
       data.subscription.unsubscribe();
     };
   }, []);
+
+  useEffect(() => {
+    if (desktopAuth) setSession(desktopAuth.session);
+  }, [desktopAuth?.session]);
 
   useEffect(() => {
     const timerId = window.setInterval(() => setNowMs(Date.now()), 1000);
@@ -916,6 +928,65 @@ function DashboardApp() {
       || Boolean(sessionStartRequestRef.current || actualIntentRef.current),
   });
   useEffect(() => bindDeviceStudyCheck(window, () => readDeviceStudyRef.current(), deviceStudyTrackerRef.current!), []);
+  const desktopSettingsWritesRef = useRef(0);
+  const [, setDesktopSettingsWriteRevision] = useState(0);
+  function desktopSettingsPending(pending: boolean) {
+    if (!desktopAuth) return;
+    desktopSettingsWritesRef.current = Math.max(0, desktopSettingsWritesRef.current + (pending ? 1 : -1));
+    setDesktopSettingsWriteRevision(value => value + 1);
+  }
+  async function withDesktopSettingsWrite(work: () => Promise<void>) {
+    desktopSettingsPending(true);
+    try { await work(); }
+    finally { desktopSettingsPending(false); }
+  }
+  function beginDesktopSectionWrite() {
+    const releaseDocument=beginDesktopWrite(window);
+    desktopSettingsPending(true);
+    let released=false;
+    return () => { if (!released) { released=true; releaseDocument(); desktopSettingsPending(false); } };
+  }
+  const readDesktopStudyRef = useRef<() => DeviceStudyState>(() => readDeviceStudyRef.current());
+  readDesktopStudyRef.current = () => ({
+    ...readDeviceStudyRef.current(),
+    operationPending: hasDesktopWrites(window) || desktopSettingsWritesRef.current > 0 || busy || todoBusy || goalBusy || recoverySubmitBusy || planCopyBusy || sessionTodoAddBusy || reflectionInboxBusy
+      || Boolean(sessionTodoTimeSaveRef.current) || cameraStatus === "starting" || cameraRecoveryInFlightRef.current
+      || (cameraSessionStartingRef.current && !(!activeSession && cameraEnabled && cameraStatus === "watching"))
+      || Boolean(sessionStartRequestRef.current || actualIntentRef.current || endSessionInFlightRef.current),
+  });
+  const desktopQuitRef = useRef<DesktopQuitEvent | null>(null);
+  const desktopQuitOpenedRef = useRef(false);
+  const desktopQuitHandlerRef = useRef<(event: DesktopQuitEvent) => void>(() => {});
+  desktopQuitHandlerRef.current = event => {
+    const state = readDesktopStudyRef.current();
+    if (state.userId !== event.userId || (state.session?.id ?? null) !== event.sessionId) return;
+    if (desktopQuitRef.current?.requestId !== event.requestId) desktopQuitOpenedRef.current = false;
+    desktopQuitRef.current = event;
+    if (!state.ready || state.operationPending) return;
+    if (desktopQuitOpenedRef.current) return;
+    // Native persists local participation across pause/reload. An observed timer
+    // alone never authorizes completion, including while unrelated writes settle.
+    if (event.localEngagement && activeSession) {
+      desktopQuitOpenedRef.current = true;
+      openEndSessionCompletionModal();
+    } else if (state.cameraActive) {
+      desktopQuitOpenedRef.current = true;
+      closeSessionTodoSelection();
+      stopCameraMonitoring({ recordEvent: false });
+      cameraSessionStartingRef.current = false;
+      setCameraSetupPrompt(null);
+    }
+  };
+  useEffect(() => {
+    if (!desktopAuth?.session?.user.id) return;
+    return bindDesktopStudy(window, () => readDesktopStudyRef.current(), deviceStudyTrackerRef.current!, event => desktopQuitHandlerRef.current(event));
+  }, [desktopAuth?.session?.user.id]);
+  useEffect(() => {
+    if (!desktopAuth?.session?.user.id) return;
+    const state = readDesktopStudyRef.current();
+    if (desktopQuitRef.current) desktopQuitHandlerRef.current(desktopQuitRef.current);
+    void desktopRequest(window, "studyState", { ...state, activity: getDesktopStudyActivity(state, deviceStudyTrackerRef.current!) }).catch(() => {});
+  });
   useEffect(() => {
     const deviceState = readDeviceStudyRef.current();
     if (session?.user.id && deviceState.ready && !deviceState.cameraActive && !deviceState.operationPending) {
@@ -1682,9 +1753,9 @@ function DashboardApp() {
     ) {
       cameraAutoRestoreAttemptedRef.current = true;
       setCameraMessage("새로고침 전 카메라 감시를 다시 연결하고 있습니다.");
-      void startCameraMonitoring().then((restored) => {
+      void startCameraMonitoring(isDesktopStudyApp(window) ? { automatic: true } : undefined).then((restored) => {
         if (!restored) {
-          cameraAutoRestoreAttemptedRef.current = false;
+          if (!isDesktopStudyApp(window)) cameraAutoRestoreAttemptedRef.current = false;
           setCameraSetupPrompt({ mode: "resume" });
         }
       });
@@ -1808,7 +1879,9 @@ function DashboardApp() {
     }
 
     setBusy(true);
-    const { error } = await supabase.auth.signInWithOtp({
+    const { error } = isDesktopStudyApp(window)
+      ? await desktopRequest(window, "sendCode", { email: nextEmail }).then(() => ({ error: null }), error => ({ error }))
+      : await supabase.auth.signInWithOtp({
       email: nextEmail,
       options: { shouldCreateUser: true },
     });
@@ -1889,7 +1962,9 @@ function DashboardApp() {
     }
 
     setBusy(true);
-    const { error } = await supabase.auth.signInWithOAuth({
+    const { error } = isDesktopStudyApp(window)
+      ? await desktopRequest(window, "signInProvider", { provider: GOOGLE_PROVIDER }).then(() => ({ error: null }), error => ({ error }))
+      : await supabase.auth.signInWithOAuth({
       provider: GOOGLE_PROVIDER,
       options: {
         redirectTo: getAuthRedirectTo(window.location.origin),
@@ -1947,7 +2022,9 @@ function DashboardApp() {
     }
 
     setBusy(true);
-    const { error } = await supabase.auth.verifyOtp({
+    const { error } = isDesktopStudyApp(window)
+      ? await desktopRequest(window, "verifyCode", { email: nextEmail, code: token }).then(() => ({ error: null }), error => ({ error }))
+      : await supabase.auth.verifyOtp({
       email: nextEmail,
       token,
       type: "email",
@@ -3002,6 +3079,11 @@ function DashboardApp() {
   }
 
   function closeEndSessionCompletionModal() {
+    if (desktopQuitRef.current) {
+      void desktopRequest(window, "cancelQuit", { requestId: desktopQuitRef.current.requestId }).catch(() => {});
+      desktopQuitRef.current = null;
+      desktopQuitOpenedRef.current = false;
+    }
     setEndSessionCompletionModalOpen(false);
     setSelectedEndSessionCompletionTodoIds([]);
   }
@@ -4253,7 +4335,8 @@ function DashboardApp() {
       if (cameraStartAttemptRef.current !== startAttempt || currentUserIdRef.current !== owner) return false;
       if (!automatic) return true;
       const context = cameraRecoveryContextRef.current;
-      return document.visibilityState === "visible" && context.enabled && context.userId === owner
+      const desktopReloadRestore = isDesktopStudyApp(window) && !restart && cameraAutoRestoreAttemptedRef.current;
+      return document.visibilityState === "visible" && (context.enabled || desktopReloadRestore) && context.userId === owner
         && context.sessionId === sessionId && !context.paused && context.deadlineMs !== null
         && Date.now() < context.deadlineMs && !sessionStartRequestRef.current && !actualIntentRef.current
         && endSessionInFlightRef.current !== sessionId;
@@ -4295,12 +4378,18 @@ function DashboardApp() {
 
     try {
       if (automatic && !await validateAutomaticSession()) return false;
-      const permission = await requestNativeCameraPermission(window, automatic ? 5000 : 120000, { interactive: !automatic });
+      const permission = isDesktopStudyApp(window)
+        ? automatic ? "unavailable" : await desktopRequest<{ allowed: boolean }>(window, "cameraConsent").then(result => result.allowed ? "granted" : "cancelled")
+        : await requestNativeCameraPermission(window, automatic ? 5000 : 120000, { interactive: !automatic });
       if (!isCurrentAttempt()) return false;
       if (automatic && !isEmbeddedStudyApp(window)) {
         const browserPermission = await navigator.permissions?.query({ name: "camera" as PermissionName }).catch(() => null);
         if (!isCurrentAttempt()) return false;
         if (browserPermission?.state !== "granted") {
+          if (isDesktopStudyApp(window)) {
+            setCameraStatus("error");
+            setNativeCameraPermissionDenied(browserPermission?.state === "denied");
+          }
           setCameraMessage("카메라 권한을 확인할 수 없어요. 카메라 감시를 직접 다시 켜주세요.");
           return false;
         }
@@ -4411,7 +4500,7 @@ function DashboardApp() {
       );
 
       const denied = error instanceof DOMException && ["NotAllowedError", "PermissionDeniedError"].includes(error.name);
-      setNativeCameraPermissionDenied(denied && isEmbeddedStudyApp(window));
+      setNativeCameraPermissionDenied(denied && (isEmbeddedStudyApp(window) || isDesktopStudyApp(window)));
       if (denied && activeSession) {
         await recordCameraPresenceEvent(session.user.id, activeSession.id, "camera_permission_denied", {
           metadata: { source: "web-camera" },
@@ -4452,6 +4541,15 @@ function DashboardApp() {
     const cameraReady = await startCameraMonitoring({ allowWithoutSession: promptMode === "start" });
     if (!cameraReady) {
       cameraSessionStartingRef.current = false;
+      if (isDesktopStudyApp(window)) {
+        const state = readDesktopStudyRef.current();
+        if (state.ready && state.userId && state.session === null && !state.cameraActive
+          && !sessionStartRequestRef.current && !actualIntentRef.current && !endSessionInFlightRef.current) {
+          // Release only this run's cancellable camera preparation. Tracker keeps
+          // unresolved commit ('pending') and unreadable storage fail-closed.
+          deviceStudyTrackerRef.current?.observe(state.userId, null);
+        }
+      }
       return;
     }
 
@@ -5282,7 +5380,7 @@ function DashboardApp() {
         )}
         {activeSection === "feed" && (
           <RecoverableSection {...sectionRecovery} title="기술 피드" fallback={<p role="status">기술 피드를 불러오고 있어요…</p>}>
-            <TechFeed key={session.user.id} supabase={supabase} userId={session.user.id} timeZone={timeZone} onPlan={openFeedPlan} linkedTodo={feedLinkedTodo} />
+            <TechFeed key={session.user.id} supabase={supabase} userId={session.user.id} timeZone={timeZone} onPlan={openFeedPlan} linkedTodo={feedLinkedTodo} onPendingWrite={desktopAuth ? beginDesktopSectionWrite : undefined} />
           </RecoverableSection>
         )}
         {(activeSection === "today" || activeSection === "together") && <div className="study-navigation">
@@ -5294,7 +5392,7 @@ function DashboardApp() {
         </div>}
         {activeSection === "together" && (
           <RecoverableSection {...sectionRecovery} title="팀 공부" fallback={<p role="status">함께 공부방을 불러오고 있어요…</p>}>
-            <TeamStudy key={session.user.id} supabase={supabase} userId={session.user.id} registered={!session.user.is_anonymous} inviteToken={teamInviteToken} onClearInvite={() => setTeamInviteToken(null)}
+            <TeamStudy key={session.user.id} supabase={supabase} userId={session.user.id} registered={!session.user.is_anonymous} inviteToken={teamInviteToken} onClearInvite={() => setTeamInviteToken(null)} onPendingWrite={desktopAuth ? beginDesktopSectionWrite : undefined}
               personal={{ ready: dashboardReady, busy: busy || Boolean(actualIntent) || Boolean(activeSession && actualTracking?.session_id !== activeSession.id), sessionId: activeSession?.id ?? null, paused: activeSessionPaused, canConnect: canConnectPersonalSession(activeSession, actualTracking, nowMs), seconds: currentSessionSeconds, startLabel: studyStartAction.label }}
               onStart={requestAdaptiveStudyStart} onResume={requestResumeTimer} onPause={() => void pauseTimer()} onEnd={() => void openEndSessionCompletionModal()} />
           </RecoverableSection>
@@ -6423,7 +6521,7 @@ function DashboardApp() {
                       : "카메라 켜기"}
                 </button>
                 {nativeCameraPermissionDenied && (
-                  <button className="secondary" type="button" onClick={() => openNativeAppSettings(window)}>앱 설정 열기</button>
+                  <button className="secondary" type="button" onClick={() => isDesktopStudyApp(window) ? void desktopRequest(window, "openCameraSettings").catch(() => {}) : openNativeAppSettings(window)}>앱 설정 열기</button>
                 )}
                 <button className="secondary" type="button" onClick={closeCameraSetupPrompt}>
                   <X size={18} />
@@ -6558,7 +6656,7 @@ function DashboardApp() {
                     ))}
                   </ul>
                   {nativeCameraPermissionDenied && (
-                    <button className="secondary" type="button" onClick={() => openNativeAppSettings(window)}>앱 설정 열기</button>
+                    <button className="secondary" type="button" onClick={() => isDesktopStudyApp(window) ? void desktopRequest(window, "openCameraSettings").catch(() => {}) : openNativeAppSettings(window)}>앱 설정 열기</button>
                   )}
                 </div>
               )}
@@ -6856,26 +6954,32 @@ function DashboardApp() {
             <dl className="settings-values"><div><dt>이메일</dt><dd>{session.user.email ?? profile?.email ?? "등록 없음"}</dd></div><div><dt>로그인 방식</dt><dd>{formatAuthProvider(session.user.app_metadata?.provider)}</dd></div></dl>
             <div className="settings-actions"><a href="#me">내 페이지</a><button type="button" className="plain" onClick={() => {
               clearTeamInvite(getTeamInviteStorage()); setTeamInviteToken(null);
-              if (!postEmbeddedMessage(window, { type: "STUDY_WEB_SIGN_OUT" })) void supabase.auth.signOut();
+              if (desktopAuth) void desktopAuth.signOut();
+              else if (!postEmbeddedMessage(window, { type: "STUDY_WEB_SIGN_OUT" })) void supabase.auth.signOut();
             }}><LogOut size={18} aria-hidden="true" />로그아웃</button></div>
             <RecoverableSection {...sectionRecovery} title="공개 태그 설정" fallback={<p role="status">공개 태그 설정을 불러오고 있어요…</p>}>
-              <PublicTagSettings key={session.user.id} supabase={supabase} userId={session.user.id} registered={!session.user.is_anonymous} />
+              <PublicTagSettings key={session.user.id} supabase={supabase} userId={session.user.id} registered={!session.user.is_anonymous} onPendingChange={desktopAuth ? desktopSettingsPending : undefined} />
             </RecoverableSection>
           </section>
           <section className="settings-group" aria-labelledby="settings-study-title">
             <h2 id="settings-study-title">공부·화면</h2>
             <TimeZonePicker key={session.user.id} value={timeZone} onSave={async zone => {
-              const userId = session.user.id;
-              const { data: before } = await supabase.auth.getSession();
-              if (before.session?.user.id !== userId) throw new Error('로그인 상태가 변경되었어요. 다시 시도해 주세요.');
-              await createTechFeedClient(supabase, userId)('timezone', { time_zone: zone });
-              const { data: after } = await supabase.auth.getSession();
-              if (after.session?.user.id !== userId) return;
-              setProfile(current => current?.user_id === userId ? { ...current, time_zone: zone } : current);
-              const localToday = getLocalDateKey(new Date(), zone);
-              setCalendarMonth(localToday.slice(0, 7));
-              setSelectedTodoDate(localToday);
-              await loadDashboard(userId);
+              desktopSettingsPending(true);
+              try {
+                const userId = session.user.id;
+                const { data: before } = await supabase.auth.getSession();
+                if (before.session?.user.id !== userId) throw new Error('로그인 상태가 변경되었어요. 다시 시도해 주세요.');
+                await createTechFeedClient(supabase, userId)('timezone', { time_zone: zone });
+                const { data: after } = await supabase.auth.getSession();
+                if (after.session?.user.id !== userId) return;
+                setProfile(current => current?.user_id === userId ? { ...current, time_zone: zone } : current);
+                const localToday = getLocalDateKey(new Date(), zone);
+                setCalendarMonth(localToday.slice(0, 7));
+                setSelectedTodoDate(localToday);
+                await loadDashboard(userId);
+              } finally {
+                desktopSettingsPending(false);
+              }
             }} />
             <div className="settings-layout-row"><div><h3>오늘 화면 구성</h3><p>오늘 화면의 섹션 순서를 바꿀 수 있습니다.</p></div><button type="button" className="secondary" onClick={() => {
               window.location.hash = "today";
@@ -6939,7 +7043,7 @@ function DashboardApp() {
                     <X size={17} />
                     취소
                   </button>
-                  <button className="primary compact-action" onClick={saveAlarmSettings} disabled={busy}>
+                  <button className="primary compact-action" onClick={() => void withDesktopSettingsWrite(saveAlarmSettings)} disabled={busy}>
                     <Bell size={17} />
                     {busy ? "알람 저장 중" : "알람 저장"}
                   </button>
@@ -6988,7 +7092,7 @@ function DashboardApp() {
               currentReminderTime={profile?.reminder_time ?? reminderTime}
               enabled={adaptiveRemindersEnabled}
               busy={busy}
-              onApply={(enabled, recommendedTime) => void saveAdaptiveReminderSettings(enabled, recommendedTime)}
+              onApply={(enabled, recommendedTime) => void withDesktopSettingsWrite(() => saveAdaptiveReminderSettings(enabled, recommendedTime))}
             />
           </RecoverableSection>
 
@@ -7020,17 +7124,17 @@ function DashboardApp() {
               <span className="field-help">{"\uC138\uC158 \uC885\uB8CC 5\uBD84 \uC804 \uC54C\uB9BC\uC5D0 <@UserID> \uBA58\uC158\uC744 \uBD99\uC5EC Slack \uD478\uC2DC \uAC00\uB2A5\uC131\uC744 \uB192\uC785\uB2C8\uB2E4."}</span>
             </label>
             <div className="channel-actions">
-              <button className="secondary wide-action" onClick={saveSlackChannelSettings} disabled={busy}>
+              <button className="secondary wide-action" onClick={() => void withDesktopSettingsWrite(saveSlackChannelSettings)} disabled={busy}>
                 <Send size={18} />
                 Slack 채널 저장
               </button>
-              <button className="primary wide-action" onClick={saveNotificationSettings} disabled={busy}>
+              <button className="primary wide-action" onClick={() => void withDesktopSettingsWrite(saveNotificationSettings)} disabled={busy}>
                 <Bell size={18} />
                 {busy ? "알림 설정 중" : "저장하고 컴퓨터 알림 켜기"}
               </button>
               <button
                 className="secondary wide-action"
-                onClick={sendSlackTestNotification}
+                onClick={() => void withDesktopSettingsWrite(sendSlackTestNotification)}
                 disabled={busy || !slackStatus?.connected}
               >
                 <Send size={18} />
@@ -7335,7 +7439,9 @@ function slackNotificationStatusClass(status: SlackNotificationStatus | null) {
 }
 
 createRoot(document.getElementById("root")!).render(
-  isEmbeddedStudyApp(window)
+  isDesktopStudyApp(window)
+    ? <DesktopAuthGate><App /></DesktopAuthGate>
+    : isEmbeddedStudyApp(window)
     ? <EmbeddedAuthGate><App /></EmbeddedAuthGate>
     : <StrictMode><App /></StrictMode>,
 );

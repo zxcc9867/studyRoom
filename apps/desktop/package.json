@@ -1,0 +1,54 @@
+{
+  "name": "@study-room/desktop",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Windows 독서실 앱",
+  "author": "Study Room",
+  "main": "main.cjs",
+  "scripts": {
+    "check": "node scripts/check.mjs",
+    "test": "node --test test/*.test.mjs",
+    "start": "node scripts/run.mjs start",
+    "build": "node scripts/run.mjs build",
+    "test:integration": "node scripts/run.mjs integration"
+  },
+  "dependencies": {
+    "@supabase/supabase-js": "2.107.0"
+  },
+  "devDependencies": {
+    "electron": "45.0.0",
+    "electron-builder": "26.18.0"
+  },
+  "build": {
+    "appId": "app.studyroom.desktop",
+    "productName": "독서실",
+    "executableName": "StudyRoom",
+    "asar": true,
+    "directories": { "output": "dist", "buildResources": "resources" },
+    "files": [
+      "main.cjs", "preload.cjs", "error.html", "src/*.mjs", "scripts/prepare.mjs",
+      "resources/public-config.json", "resources/study-room-icon.png", "package.json",
+      "!**/*.test.*", "!**/.env*", "!**/*.log", "!test/**", "!dist/**"
+    ],
+    "protocols": [{ "name": "Study Room login", "schemes": ["studyroom-desktop"] }],
+    "win": {
+      "target": [{ "target": "nsis", "arch": ["x64"] }],
+      "icon": "resources/study-room-icon.png",
+      "artifactName": "StudyRoom-Setup-${version}-${arch}.${ext}",
+      "requestedExecutionLevel": "asInvoker",
+      "signAndEditExecutable": true
+    },
+    "nsis": {
+      "oneClick": false,
+      "perMachine": false,
+      "allowElevation": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName": "독서실",
+      "deleteAppDataOnUninstall": false,
+      "runAfterFinish": false
+    },
+    "publish": null
+  }
+}

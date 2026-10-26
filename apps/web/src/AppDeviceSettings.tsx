@@ -1,10 +1,13 @@
 import { useEffect, useState, type ReactNode } from "react";
 import { getNativeSettingsInfo, openNativeSettings, type NativeSettingsResult, type NativeSettingsTarget } from "./nativeAppSettings.mjs";
+import { isDesktopStudyApp } from "./desktopBridge.mjs";
+import DesktopDeviceSettings from "./DesktopDeviceSettings";
 
 const permissionLabels = { granted: "허용", denied: "미허용", unsupported: "지원 안 함", unknown: "확인 필요" };
 const updaterLabels = { idle: "아직 확인하지 않음", checking: "확인 중", latest: "최신 버전", available: "업데이트 가능", downloading: "다운로드 중", verifying: "파일 확인 중", ready: "설치 준비 완료", cancelled: "다운로드 취소됨", failed: "업데이트 확인 실패", permission_required: "설치 권한 확인 필요", install_pending: "설치 결과 확인 중", installed: "설치 완료" };
 
 export function AppInstallGuidance() {
+  if (isDesktopStudyApp(window)) return <p>X로 창을 닫으면 트레이에서 계속 실행됩니다. Windows 앱 설정에서 설치 버전과 카메라 설정을 확인할 수 있습니다.</p>;
   return <div className="app-install-guidance">
     <p>웹 화면은 서비스 업데이트를 다시 불러오면 반영됩니다. Android 앱의 기기 기능은 새 APK를 설치해야 반영됩니다.</p>
     <a href="/download/android" target="_blank" rel="noreferrer">Android 설치 안내</a>
@@ -13,6 +16,10 @@ export function AppInstallGuidance() {
 }
 
 export default function AppDeviceSettings({ phoneStatus }: { phoneStatus: ReactNode }) {
+  return isDesktopStudyApp(window) ? <DesktopDeviceSettings phoneStatus={phoneStatus} /> : <AndroidWebDeviceSettings phoneStatus={phoneStatus} />;
+}
+
+function AndroidWebDeviceSettings({ phoneStatus }: { phoneStatus: ReactNode }) {
   const [info, setInfo] = useState<NativeSettingsResult | { status: "checking" }>({ status: "checking" });
   const [revision, setRevision] = useState(0);
   const [openError, setOpenError] = useState<NativeSettingsTarget | null>(null);

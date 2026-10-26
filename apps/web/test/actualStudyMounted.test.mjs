@@ -454,6 +454,7 @@ for(const width of [375,1440]) {
  }));
 
  browserTest(`app theme: disabled session selection is distinct and readable at ${width}px`,()=>withApp(width,async page=>{
+  await page.emulateMedia({reducedMotion:'reduce'});
   await page.locator('.topbar-actions button').first().click();
   await page.getByRole('button',{name:'카메라 켜고 시작',exact:true}).click();
   const dialog=page.getByRole('dialog',{name:'이번 세션에서 할 일'});

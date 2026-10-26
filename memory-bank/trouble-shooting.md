@@ -108,3 +108,57 @@
 
 - 카메라·집중 모드·업데이트·회복·피드·인증 등 과거 근거는 보관본에서 해당 기능명으로 검색한다.
 - 수정 전 현재 공식 PRD/architecture-map과 실제 코드·배포를 먼저 대조한다.
+
+## Windows 인증 취소·지연 응답 복구
+
+- 실패한 SDK local logout 뒤 새 OTP 실패나 OAuth timeout이 이전 자격/PKCE verifier를 되살릴 수 있었다. 실패 SDK가 아직 실행 중인데 busy를 풀거나 signed-out barrier를 지우는 경합이었다.
+- `desktopAuth.mjs`는 취소된 동작을 SDK settle까지 격리하고 encrypted logout tombstone을 유지한다. 새 검증 로그인만 해제하며 늦은 ticket/accountABA는 무효화한다. Task1 회귀42/42·독립 재검토.
+- 초기 getUser의 identity announcement는 runtime auth 세대를 한 번 바꿀 수 있다. 단일 flight+최대2회 post-event 검증으로 첫 authStatus/OTP를 유지하되 stale user proof는 금지한다. heartbeat마다 getUser polling하지 않는다.
+
+## Windows 종료 상태 캐시·재확인
+
+- 최근 idle 캐시 직후 새 저장이 시작되면 캐시만으로 프로세스를 끝낼 위험이 있었다. 매번 현재 문서·native user·requestID 일치5초 probe를 받고 최신 pending은 안전 상태를 낮출 수만 있게 했다.
+- 정상 renderer의 probe timeout 뒤 Retry가 failed 분기에서만 동작해 무반응이었다. dialog guard 해제 후 새 probe를 예약하고 문서 재로드 없이 재검사한다. 이전 ID는 종료 증거가 아니다.
+- `desktopRuntime.test.mjs` RED→GREEN·runtime28/28/desktop75/75·독립 재검토 통과. 실제 Windows/웹 완료 흐름 수용은 별도로 기록한다.
+
+## Windows renderer 인증 저장·부팅 오류
+
+- 네이티브 암호화와 별개로 티켓 교환한 웹 SDK가 refresh credential을 localStorage에 저장할 수 있었다. SDK 생성 전에 desktop만 메모리 전용 옵션을 선택하고 정확한 legacy auth key 하나를 정리한다. 일반 웹/Android·다른 학습/설정 키는 보존한다.
+- 정리 실패를 모듈 초기화에서 throw하면 React 오류 UI도 mount되지 않았다. 빈 메모리 client만 구성하고 gate의 정리 latch로 native/SDK 인증을 막으며 오류/명시 재시도·unknown/pending probe를 제공한다. 성공한 재시도만 해제한다.
+- 실제 main+설치 SDK 번들 RED→GREEN·최종 집중41/41·독립 재검토 I1/N1 해결. 실제 계정/Windows 암호화 수용과는 구분한다.
+
+## Windows 종료와 설정 저장·카메라 준비
+
+- 시간대 등 저장이 기존 busy flag 밖에서 실행되어 종료 probe가 idle을 반환할 수 있었다. desktop 전용 동기 pending counter를 시간대/태그/알림 저장의 첫 await 전과 finally에 연결해 겹침/실패도 보존한다. 기존 서버 경로/Android snapshot은 불변이다.
+- 카메라 동의 취소 뒤 기존 tracker의 preparing latch가 남는 경우, 완료된 취소·세션/카메라/실제 commit 없음일 때만 기존 observe로 정리한다. unresolved write/storage는 unknown으로 남기며 camera-only 종료는 기존 stop→신선한 idle 증거를 요구한다.
+- mounted 실제 Chrome의 같은 turn 저장/겹침/실패/카메라 취소 회귀와 독립 검토 통과. 실제 Windows 숨김/카메라 수용은 별도다.
+
+## Windows 실제 카메라 권한 출처 직렬화
+
+- 실제 Electron45 request는 securityOrigin을 끝 `/`가 있는 URL로 전달했다. raw origin 문자열 비교가 명시 동의 후에도 같은 출처의 video-only 요청을 거부했다.
+- runtime에서 root-only URL 형태를 검증한 뒤 URL.origin으로 비교한다. optional securityOrigin 부재는 API대로 유지하되 제공된 null/빈 값/외부·잘못된 origin은 거부한다. 필수 현재 문서/소유 창/최상위/requestingUrl/영상/명시 동의 조건은 보존한다.
+- 실제 입력형 RED3→GREEN3/3, desktop86/86, 독립 검토와 실제 Electron 권한·6분 모의 영상 포함4/4 통과. Task1 정책·제품 CSS는 수정하지 않았다.
+
+## 가상 JS clock과 CSS 전환 색상 검사
+
+- page.clock.runFor(200) 후에도 compositor 색상 전환 시간이0/16ms여서 enabled 버튼을 disabled 회색으로 읽는 기존 검사 실패를 재현했다. 전환 endpoint는 정상 녹색이었다.
+- 해당 최종 색상/대비 검사에만 reduced-motion 조건을 주고 기존 구분·AA assertion을 유지했다. 제품 CSS/다른 테스트 clock·학습 로직은 변경하지 않았다. 집중2/2·최종 Chrome1396/1396 통과.
+
+## Windows 암호화 불가 후 이전 계정 복원
+
+- SDK 초기화는 읽을 수 없는 session을 null로 보지만 이전 ciphertext를 삭제하지 않는다. fallback 메모리 계정 B가 성공한 뒤 secure 재실행하면 옛 A가 복원되는 실제 SDK 합성 회귀를 재현했다.
+- auth 초기화와 새 insecure 전환 후 명시 인증 전에 SDK local sign-out으로 SDK credential만 정리한다. null identity를 먼저 알리고 실패 시 진행을 막으며 정상 secure session/native pending·logout barrier는 보존한다.
+- 실제 SDK+합성 HTTP/AES 회귀8/8·desktop94/94. 실제 Windows DPAPI 실패를 강제하거나 기존 계정/학습을 초기화하지 않는다. 해당 native 세션 local logout과 global/다른 기기 logout을 구분한다.
+
+## Windows 자동 로그인 갱신의 중복 rejection
+
+- pinned SDK는 refresh 저장의 일반 Error를 내부 deferred에서도 reject해 primary catch와 별도 미처리 rejection을 만들었다. 실제 자동 tick 합성 검사로 재현했다.
+- SDK 전용 storage만 공개 AuthRetryableFetchError로 실패를 전달하고 native storageFailed가 identity 무효화·refresh 정지·단일 local cleanup을 소유한다. 성공을 위장하거나 전역 rejection handler/SDK 내부 patch를 넣지 않는다. 명시적 메모리 로그인 성공 후 refresh를 재개한다.
+- 공개 SDK 자동 refresh 검사와 실제 Electron 동일 PID/문서·복구 안내가 통과했다. test fixture는 미처리 rejection이면 exit91이므로 무시하는 검사가 아니다. 실제 서비스/Windows 암호화를 고장내지 않았다.
+- R1 원인/해결: verifyCode 저장 실패의 storageFailed 정리와 stale 보상 정리가 중복되고 timeout 뒤 늦은 logout이 새 로그인을 해제했다. active auth별 raw settle 후 단일 cleanup promise를 소유하고, rawlogout Set이 실제 종료 전 새SDKmutation을 차단한다. 실패는 failclosed, 먼저 끝난 logout 뒤 늦은 인증의 최종보상 정리는 보존한다. 10/26 actualSDK RED2!==1→집중7/7·전체116/116·독립검토ADDRESSED, r1-approved-review.md. timeout은SDK종료가아니다.
+
+## Windows 팀·피드 저장 중 종료와 Tray 복구
+
+- child-local pending만 사용한 팀/피드 저장은 Dashboard probe에서 idle로 보였다. 문서/window pending owner를 첫 await 전에 획득해 탭/계정 부모 unmount 뒤에도 finally까지 보존하며 로그아웃 probe에도 합친다.
+- Tray 생성 실패는 창만 남겨 설명/종료가 없었다. 복구 경고·재시도·기존 requestQuit fallback을 추가했고 X는 계속 안전하게 창을 유지한다. fresh tray에 로컬 카메라 상태를 표시한다.
+- 실제 mounted 같은-turn/겹침/실패/unmount와 Electron 실패 Tray·같은 문서·안전 종료/취소를 검증했다. bounds/첫 안내는 별도 shell 설정이며 기존 학습/Android 정책과 무관하다.

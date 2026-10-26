@@ -58,3 +58,22 @@
 | 2026-10-10 | 무료 번역 상한 | 검증된 무료 Developer 100만 자 lifetime 지원 승인 | 서버의 명시적 developer 선택만 | provider/worker 회귀·실제 usage/번역 저장 확인 |
 
 검사 통과만을 목적으로 예외를 추가하지 않는다. 프로젝트 경계를 바꿀 때 PRD와 implementation-plan을 함께 검토한다.
+
+## Windows 데스크톱 경계
+
+- 진입점: `apps/desktop/main.cjs` → `src/desktopRuntime.mjs`, `preload.cjs`의 protocolVersion1 `studyRoomDesktop.request/onEvent`. production은 정확히 `https://study-room-attendance.vercel.app`만 로드한다. loopback/격리 userData 옵션은 unpackaged 개발 실행에만 허용한다.
+- main/runtime는 단일 창·트레이·출처/현재 mainFrame/문서 세대 검증·명시적 카메라 동의·OS 설정·단일 인스턴스를 소유한다. X는 같은 창/문서를 숨길 뿐 카메라·학습 종료를 호출하지 않는다. `backgroundThrottling:false`를 유지한다.
+- native 인증은 `desktopAuth.mjs`의 검증된 사용자/PKCE/기존 `mobile-web-auth` 일회용 티켓이 공식 경로다. SDK 세션·verifier·pending·logout barrier는 동일 `desktopStorage.mjs`와 Windows safeStorage 암호문 어댑터를 사용한다. renderer에는 원시 토큰/파일/Node API를 노출하지 않는다.
+- insecure 저장소의 SDK 소유 credential 정리는 `desktopAuth.mjs`가 초기화/명시적 새 인증 전에 local scope로 소유한다. 이전 암호문 계정 복원을 막고 null identity 이벤트로 runtime proof를 무효화한다. native pending/logout barrier와 정상 secure session, 기존 학습 상태는 이 정리의 대상이 아니다.
+- SDK에만 `desktopStorage.mjs/createSdkStorage`를 연결해 실제 저장 실패를 공개 AuthRetryableFetchError로 전달한다. 직접 native barrier storage는 원래 실패 의미를 유지한다. native auth의 storageFailed가 즉시 identity를 무효화하고 refresh 정지/단일 local cleanup을 소유하며, 명시적 성공 로그인 뒤 refresh를 재개한다. runtime은 같은 창에 복구 안내를 제공한다.
+- active 인증의 저장 실패/세대 무효화는 raw SDK 인증이 resolve/reject한 뒤 operation별 단일 최종 cleanup에 합친다. bounded caller timeout과 raw settlement를 분리하며, 모든 raw local logout이 끝나기 전 OTP/provider/verify/exchange successor를 차단한다. 선행 logout 이후 늦게 만들어진 세션은 별도 최종보상을 유지한다. 실패한 isolation은 native barrier와 null identity를 보존한다.
+- 공통 웹 연결은 `desktopBridge.mjs`·`DesktopAuthGate.tsx`가 소유한다. native+웹 동일 사용자 검증 전 protected App을 막고, `authSession.mjs`의 desktop bootstrap은 SDK 생성 전 메모리 전용 저장과 정확한 legacy auth key 정리를 선택한다. 정리 실패는 빈 메모리 client만 만들고 오류/명시 재시도·unknown 종료 증거를 유지한다. 일반 웹/Android 저장은 변경하지 않는다.
+- `studyState`는 native 검증 사용자와 일치해야 하며 수신 시각은 main이 기록한다. 3초 웹 heartbeat가 Auth 네트워크 polling을 만들지 않도록 검증 identity는 auth 이벤트/문서 교체에 동기 무효화하고 명시적 authStatus에서 재검증한다. lifecycle의 종료 증거는10초까지만 유효하다.
+- 트레이 명시 종료는10초 표시 캐시만으로 결정하지 않는다. `state-requested/requestId` 이벤트 뒤5초 이내 같은 envelope ID·현재 문서/사용자의 `studyState` 응답을 요구한다. timeout/탐색/인증변화는 기존 경고 경로로 처리하고 다른 주기 heartbeat나 늦은 응답으로 종료하지 않는다.
+- 영속 학습/카메라 담당/회복/회고/서버 종료는 기존 Dashboard/서버가 소유한다. `desktopLifecycle.mjs`는 검증된 local engagement metadata만 보존하며 pause/재실행에도 유지한다. native 종료는 기존 웹 completion 요청 또는 경고된 프로세스 종료일 뿐 학습 RPC를 직접 호출하지 않는다.
+- `main.tsx`의 desktop snapshot은 참여 증거와 실제 camera/pending을 분리하며 시간대·공개 태그·기존 알림 저장을 동기 counter로 포함한다. 종료 이벤트의 probe-captured user/session/localEngagement를 확인한 뒤 기존 completion/카메라 stop 경로만 사용한다. `DesktopDeviceSettings.tsx`는 Windows 정보/OS 카메라 설정만 제공하고 Android APK 버튼을 표시하지 않는다.
+- 팀/피드의 mutation은 첫 await 전에 pending owner를 얻고 finally에서 해제한다. desktopBridge의 문서/window WeakMap은 탭·Dashboard·인증 부모 unmount를 넘어 미완료 소유권을 유지하고 일반/로그아웃 probe 양쪽에 합친다. observer 참여 판정과 Android tracker는 변경하지 않는다.
+- `desktopShellSettings.mjs`는 창 bounds와 첫 숨김 안내 확인만 검증한다. main의 별도 userData/shell-settings.json atomic 저장에는 credential/학습 데이터를 넣지 않는다. runtime은 현재 모니터 work area로 복원/재배치하고, Tray 실패 시 같은 창의 복구·재시도·기존 requestQuit 경로를 제공한다.
+- 카메라 권한 check/request는 소유 webContents·정확한 requesting origin·mainFrame·video-only·현재 문서의 명시적 동의가 모두 참일 때만 허용한다. 동의 UI는 `cameraConsent` action만 열고 자동 복구/설정 진입/권한 handler는 열지 않는다. 기존 팀 초대 복사만 보존하기 위해 `clipboard-sanitized-write`는 신뢰 최상위 문서·visible/focused 창에 한정 허용한다. clipboard-read·마이크·화면 공유·기타 권한은 거부하며 native push를 추가하지 않는다.
+- 설정 준비: `desktop:start`/`desktop:build -- --env-file=<절대경로>` 또는 공개 `VITE_SUPABASE_URL/VITE_SUPABASE_ANON_KEY` 환경 변수. ignored `apps/desktop/resources/public-config.json`에는 HTTPS URL/anon 또는 publishable key만 기록하며 기존 mobile PNG를 그대로 복사한다. `.env`·테스트·로그·repo 전체는 설치 패키지에 넣지 않는다.
+- 검증: `npm.cmd run desktop:check`, `npm.cmd run desktop:test`, `ai.ps1 dune check --project <root>`; 실제 Electron binary 요구 검사는 별도 `npm.cmd run desktop:integration`. 설치 빌드 `npm.cmd run desktop:build -- --env-file=<path>`는 고정 Electron45.0.0/builder26.18.0·NSIS x64·per-user·appId `app.studyroom.desktop`·StudyRoom executable을 사용한다. 설치/실계정/실카메라 수용은 controller 검증 문서에서 별도 확인한다.
