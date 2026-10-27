@@ -1,5 +1,46 @@
 # Troubleshooting
 
+## 로컬 상태 화면 CSS와 Windows 줄바꿈 — 2026-10-28
+
+- 로그인 완료·실패 HTML과 연결 실패 화면이 기본 글꼴/큰 제목으로 분리돼 있었다. desktopStatus.css로 공통 색·한글 폰트·폭·간격을 제공하고 callback은 고정 CSS SHA256만 허용한다.
+- core.autocrlf의 CRLF 원문을 해시하면 HTML 파싱의 LF 정규화와 달라 Chrome이 스타일을 거부한다. CSS를 읽을 때 LF로 정규화한 뒤 같은 문자열을 해시·삽입한다.
+- CRLF 임시 checkout 회귀 RED→GREEN, 실제 Chrome375/1440·200%·키보드 검증. 외부 자산 요청/unsafe-inline/eval·인증값 반사는 금지한다. 연결 오류는 공부 종료/저장 완료가 아님을 유지한다.
+- 웹 로그인은 reduced-motion 범위에서 빠져160ms transition이 남았다. 로그인/대시보드와 pseudo-element를 같은 접근성 규칙으로 처리하고 실제 CSS 테스트를 유지한다.
+
+## 로그인 완료 브라우저 탭 자동 닫기 — 2026-10-27
+
+- 0.1.4는 CSP default-src none의 정적 HTML만 반환해 인증 완료 뒤에도 탭이 남았다. 사용자 승인으로 성공 응답에만 고정 window.close 스크립트/SHA256 CSP를 추가한다.
+- 스크립트가 만든 창 또는 허용된 이력의 탭만 닫을 수 있다. 실제 Chrome에서 닫히는 popup과 다중 이력 탭의 정책 거부를 분리 검증한다. 거부 시 안내를 유지하며 browser policy/다른 탭/보안 설정은 건드리지 않는다.
+- 실패·취소 응답에는 script/CSP허용을 넣지 않고 기존 검증/학습 경계를 유지한다. docs/verification/2026-10-27-auth-tab-close.md.
+
+## Windows loopback 콜백과 새 로그인 의도 경합 — 2026-10-27
+
+- Chrome custom handler 미발견과 정상 Windows 조회 불일치는 환경 세부 원인 미확정이다. 사용자 승인으로 RFC8252 loopback을 추가하며 보안 프로그램/브라우저 보호를 끄거나 alias를 만들지 않는다.
+- 늦은 이전 콜백이 verifiedUser 대기 뒤 새 intent를 발견하면 무조건 clearPending하던 경합을 실제 HTTP RED로 재현했다. pending/receiver 소유권이 같은 경우에만 정리하고 stale 콜백은 자신만 거부하도록 수정했다.
+- 수신기 생성 예외 때 receiver가 null일 수 있어 optional cleanup으로 새 인증 재시도를 보존한다. 신규 회귀와 독립 재검토 통과. 실제 Chrome/설치 수용은 별도다.
+- loopback은 127.0.0.1·임시 port·난수 path·5분·1회다. 기존8주소/다른13설정을 보존한 좁은패턴1개만 추가했으며 DB/기록 변경 없음. docs/verification/2026-10-27-desktop-loopback.md.
+
+## OAuth302와 앱 복귀 성공을 구분 — 2026-10-27
+
+- 허용URL 등록/서버 코드 발급·302만으로 실제 Location 또는 앱 수신을 확인한 것으로 쓰지 않는다. 사용자 제공 실제 callback 응답의 비밀 query를 제외한 Location과 native 고정 stage를 대조한다.
+- 이번09:28UTC 응답은 정확한 Windows callback인데 native 수신0이었다. URL 누락/오등록·Site URL fallback은 이 시도와 맞지 않지만 CSP sandbox 존재만으로 Chrome 차단 이유를 확정하지 않는다. Console의 등록handler/사용자조작/정책 오류를 구분한다.
+- Windows UI 도구가URL 판별 불가로 중단되면 우회하지 않는다. 사용자에게 해당 header/오류의 비민감 부분만 요청한다. HAR/전체URL/Cookie를 받거나 코드/토큰을 재사용하지 않는다. 이미 제공된 원문은 문서/Git/외부 조사에 복사하지 않는다.
+- 네트워크 제한의 health READ_FAILED·무인증401는 실제 OAuth 실패의 원인이 아니다. 이번 공개health 비교는 callback CSP 차이를 증명하지 않아 근거에서 제외했다. 기존 학습·인증 설정은 변경하지 않았다.
+
+## Chrome handler없음과 Windows 등록 조회 불일치 — 2026-10-27 조사중
+
+- 실제Console의 scheme does not have a registered handler는 동일Chrome155소스에서 앱이름조회빈값분기다. Supabase의정확한Location과구분하고 Self-XSS/WebGPU/aria경고나CSP헤더만으로원인을추정하지않는다.
+- HKCR URL Protocol/AssocQueryString(FRIENDLYAPPNAME,IS_PROTOCOL)/root·command fallback까지대조한다. host·32/64뷰·실제Chrome사용자/세션을구분하며HKCU명령한개만으로완료하지않는다. 이번조회는정상이었고Chrome실제판정과불일치했다.
+- Microsoft의연결변경알림1회는등록값을바꾸지않았지만 실제재시도는실패했다. 캐시원인/해결확정으로쓰지않는다. 다음은미저장작업·공부/카메라없을때사용자가Chrome완전재시작만비교한다.
+- 프로필/세션삭제·전체browser강제종료·HKLM/기본앱/보안정책수정은하지않는다. 현재원인세부/실제로그인은미해결이다.
+
+## Electron 하위 프레임 보안 테스트가 공격 준비에서 멈춤 — 2026-10-27
+
+- 증상: stronger-attacker fixture의 /frame 제목은 표시되지만 attackRequest가 undefined라 실제 senderFrame 차단 검사 전에5초 timeout. 빌드 없는 단독 실행에서도 재현했다.
+- 원인/근거: 새 iframe의 contentDocument/contentWindow를 탐색 전 poll하면 preload를 막을 수 있는 Electron 이슈[#34727](https://github.com/electron/electron/issues/34727)와 일치한다. 새 Google 옵션은 이 fixture에서 호출하지 않는다.
+- 조치: integration/windows-electron.mjs에서 정확한 /frame의 framenavigated를 기다린 뒤 해당 frame 안에서 준비를 확인한다. runtime/preload·생산 sandbox·실제 owning subframe IPC와 UNTRUSTED_DOCUMENT 단언은 유지한다.
+- 검증: 기존 단독 RED→동일 Electron45 단독 GREEN/실제 하위 프레임 IPC 관측. 최종 전체16/16·실패/생략0/6분 숨김 유지와 독립 재검토C/I/M0 통과. 이 테스트 통과를 실제 Google 로그인 성공으로 해석하지 않는다.
+
 ## 2026-10-25 공부를 시작했는데 출석 실패가 된 경우 — 시작 기준으로 개정
 
 - 원인: 기존 판정은 알림 시각에 공부 중이거나 알림 후 30분 안에 시작했을 때 출석이며, 그 외에는 완료 시간이 평일 2시간·주말 4시간에 도달해야 출석으로 승격했다. 일요일 오전에 약 2시간 공부 후 종료한 실제 기록은 이 정책 때문에 오후에 결석·회복으로 처리됐다.
@@ -163,6 +204,16 @@
 - Tray 생성 실패는 창만 남겨 설명/종료가 없었다. 복구 경고·재시도·기존 requestQuit fallback을 추가했고 X는 계속 안전하게 창을 유지한다. fresh tray에 로컬 카메라 상태를 표시한다.
 - 실제 mounted 같은-turn/겹침/실패/unmount와 Electron 실패 Tray·같은 문서·안전 종료/취소를 검증했다. bounds/첫 안내는 별도 shell 설정이며 기존 학습/Android 정책과 무관하다.
 
+## Chrome handler 조회 정상 대조와 재시작 관측
+
+- 증상: 실제 Chrome은 handler없음이지만 Windows RegOpenKeyEx/RegQueryValueEx·AssocQueryString은 두 앱 모두 성공한다. 원인은 아직 미확정이다.
+- 권한 대조: 두 key root/open-command owner/DACL/상속/무결성 라벨 동일. Chrome/진단 모두 medium/x64·가상화/AppContainer0으로 권한 차이의 근거가 없었다. 설정을 낮추지 않는다.
+- 초기 재시작 보고 때 root PID26400이 유지됐지만 이후 직접 restart로 PID43188/10:19:30UTC 교체를 확인했다. 새 로그인10:21:06에도 callback0/로딩 지속이라 재시작 해결 가설은 효과 없었다. 재시작/재설치를 반복하거나 캐시 원인을 단정하지 않는다. Chrome 실제 registry 조회의 제한된 공식 도구 추적은 별도 승인 후 수행한다.
+- Opus의 통합검사 등록 덮어쓰기 주장은 fixture가 main을 import만 하고 require.main guard로 bootstrap을 실행하지 않아 반증됐다. 일반 dev start와 테스트를 혼동해 불필요한 패치를 만들지 않는다.
+- 관리자 도구의 Sky 입력이 반영되지 않을 때 helper 권한/직접UIAutomation/보안 변경으로 우회하지 않는다. 승인된 Process Monitor는 NoConnect/PagingFile·실제 capture disabled를 확인하고 사용자 직접 필터를 설정한 뒤에만 수집한다.
+- 제한 Procmon에서는 실제 Chrome RegOpenKey12개가 모두 NAME NOT FOU...였다. 정확 요청 경로는 Event탭으로 확인하고 화면상 철자 추정이나 잘린 Result만으로 alias/권한 변경을 만들지 않는다. 같은시각 flow referrer/s256/발급 집계는 최종302 Location의 직접 관측과 구분한다.
+- 근거/후속: docs/verification/2026-10-27-opus-handler-review.md 및2026-10-27-procmon-handler.md. 실제 Chrome→설치앱 로그인 수용과 학습 기록 보존을 유지한다.
+
 ## Windows 이메일 코드 요청이 일반 오류로만 표시됨
 
 - 증상: '코드 받기' 실패가 AUTH_FAILED→일반 안내로만 보였다. 최근 운영 auth 집계에 이메일 한도429가 있지만 특정 사용자 요청의 원인으로 단정하지 않는다.
@@ -178,3 +229,14 @@
 
 - 증상/원인: 실제 integration14개는 통과했지만 final-fixes2개는 Process failed to launch. 이 파일만 존재하지 않는 로컬 node_modules 바이너리를 고정하여 공식 STUDY_ROOM_ELECTRON_EXECUTABLE을 무시했다.
 - 수정: 다른 integration/runner와 같은 환경 변수 우선 경로를 사용한다. 테스트 설정만 고쳤으며 제품 Electron/권한/SDK/사용자 프로필은 변경하지 않는다. 재실행 결과는 HIG 검증 문서에 기록한다.
+
+## Google 계정 선택의 로딩과 Windows 복귀를 구분
+
+- 실제0.1.1에서도 Google busy/progress가 유지되고 앱은 로그인 대기 만료였다. URI handler 등록/공개 도메인 응답은 정상이어도 실제 콜백 전달 성공을 뜻하지 않는다.
+- 같은 시각 Google login302가 있어도 callback referer 분류가 web이면 같은 native 요청 완료라고 단정하지 않는다. 계정/토큰/전체 OAuth URL 대신 고정 경로·시간·상태만 대조한다.
+- Google 탭 새로고침으로 busy가 풀렸지만 인증 성공이 아니다. 원인 미확정 상태에서 쿠키/확장/보안 설정을 초기화하거나 재설치 반복으로 해결을 주장하지 않는다. HTTPS 명시적 복귀 비교는 계약 변경 승인 후 수행한다.
+- 근거/다음: docs/verification/2026-10-27-google-return.md. 기존 기록/네이티브 PKCE/암호화 저장 보존.
+- 추가 근거: auth.flow_state의 민감 값 없이 집계한 native flow2건은 정확 복귀 주소/s256/코드 발급 완료였다. callback302 뒤 token 요청 없음·실제 pending 유지로 인증 이후/교환 이전까지 좁혔다. Chrome 전달과 앱 수신 거부를 혼동하지 않는다. ProcessStartTrace 권한 거부는 성공 증거가 아니다.
+- 사용자가 정상 Study Notes를 비교한 첨부를 잘못된 요청 혼동으로 해석한 것은 오류였다. 프로젝트 주소 차이는 정상 비교이며 이 해석은 철회한다. 최신 앱 provider 단계/서버 발급/OS 대조를 같은 시각에 묶어 확인하고 전체 URL/state/코드/계정은 기록하지 않는다.
+- 사용자 요청의 Claude Code Opus5.5 읽기 전용 검토는 정상 네트워크에서 성공했다. sandbox ENOTFOUND를 모델 미지원으로 단정하거나 권한 우회로 해결하지 않는다. 설치 앱 새 요청 시각/provider 단계/브라우저 callback host를 묶어 수용한다.
+- 새0.1.2 실제 Google 발급 후 callback0, OS ShellExecute 수신 통과/Chrome 직접 링크 수신0으로 구간을 분리했다. prompt 차이·하이픈·저장된 브라우저 차단을 증거 없이 원인으로 쓰지 않는다. 승인한 Default/공통 protocol_handler 두 항목 없음도 Chrome live 거부 부재의 증명이 아니다.

@@ -1,22 +1,30 @@
 # Active Context
-- 갱신: 2026-10-27 · 도구: codex
-- 브랜치: feat/hig-ui-auth · 기준 커밋: 052fede · 미커밋 변경: 있음
-- 작업 루트: C:/jini-dev/worktrees/study-room-desktop-current. 이전 study-room-team의 사용자/운영 dirty는 별도 보존한다.
-- 현재 목표: 승인한 HIG 목업을 기존 공통 UI에 적용하고 Windows 로그인 실패를 조사·보완한다. 학습 기록·인증 저장·DB 정책을 초기화하지 않는다.
-- 완료(UI): 넓은 창 사이드 메뉴·기존 모바일 5메뉴, 세션/오늘 목표 분리·출석/휴식 구분, 중복 숲 미리보기 제거, 흰 면/세이지 공통 토큰·로그인/첫 paint/다크 환경 강제 light 일치. Android 네이티브 팔레트/짧은 로그인 문구도 같은 계약으로 수정했다.
-- 완료(인증 안내): native sendCode의 이메일 한도/요청 제한/통신 실패를 고정 IPC 코드로만 분류. 웹의 한도 대기·Google 대안·브라우저 인증 대기/5분 만료 안내. PKCE/일회용 티켓·암호화·세션 격리 경계 불변.
-- 원인 근거: 사용자 Windows '코드 받기' 실패·일반 오류 화면 확인. 최근 운영 auth 집계에 429 over_email_send_rate_limit 1건(개별 요청 대응은 미확정), 공개 auth/settings의 Node 경로200·Google/email 활성 확인. 메일 한도 우회·SMTP/요금제 변경 없음.
-- 미해결(중요): 사용자가 새 Google 요청에서도 accounts.google.com의 계정 선택 화면에서 멈춤을 재확인했다. 앱 복귀/티켓 이전 완료를 실제로 확인하지 못했으며 원인/해결을 단정하지 않는다. Chrome은 지원 대상. Edge 비교는 환경 분리용 제안일 뿐 요구 조건이 아니다. 인증은 사용자 직접 진행한다.
-- Windows0.1.1: NSIS 빌드·승인된 같은 경로 무삭제 덮어설치exit0, 설치asar/후보 일치·실제 프로필 존재 유지. bytes123053969·SHA256 0e62c3efc530c74b8ae625743151d2ea70f5f8d49b1645cd12840b0f9aecbacb, asar529항목/금지0·main/preload/auth/runtime 소스 일치·NotSigned. 공개 게시/실계정 로그인 성공은 아직 미수용이다.
-- 기록 보존: 이번 실제 운영 접근은 읽기 전용 logs/공개 설정 조회뿐. 실제 공부·회복 대리 제출/종료·DB 쓰기·계정 재설정 없음. 테스트는 격리된 합성 계정/영상/서버 fixture다.
-- 검증: RED→인증/레이아웃/다크 canvas 집중 GREEN. native119/119·Chrome1423/1423·Electron16/16/숨김6분(영상+7203/성공ACK+360/오류0)·verify7/Dune0 통과. 독립 검토 새 Critical/Important/Minor0, 375/801/1440×480 키보드 탐색 수용. 실패 코호트와 테스트 경로 보완을 docs/verification/2026-10-26-hig-ui-auth.md에 구분했다.
-- 검증 이력 주의: 중간 전체1421 중3건 실패는 옛 cream literal·모바일 팔레트 불일치. 팔레트와 계약 테스트 수정. 다음 전체는 native 초기 로그인 고정값/옛 문구1건 실패, 실제 native 렌더 계약 수정 후4/4 통과. 최종 코호트 완료 전 전체 성공으로 쓰지 않는다.
-- 다음: accepted-chrome.log·final-electron.log 종료 확인 → 패키지/문서/diff 재검토 → 관련 파일만 commit/push → 기존 vercel-production workflow를 이 feature ref에서 dispatch → exactSHA READY/HTTP·정적 자산 확인. 기본 브랜치 직접 push/merge 없음.
-- 배포 상태: 이번 UI/0.1.1 변경은 아직 미배포. 직전052fede Windows 연결 코드는 Git push/Vercel READY로 배포했으나 실제 Google/이메일 로그인 수용이 미완이었다.
-- 실제 Windows 프로필: %APPDATA%/@study-room/desktop. 이전 문서의 추측 경로 '독서실' 부재를 userData 부재로 쓴 기록은 잘못이다. 경로/파일/인증 데이터를 이관하거나 지우지 않는다.
-- Android: 현재 설치/공개 APK0.2.4/code7 유지. hosted UI는 웹 배포를 재사용하나 이번 native 로그인 팔레트는 새 APK 빌드·게시 전 설치 앱에 반영되지 않는다.
-- 실제 수용 경계: Windows 설치앱 본인 인증/실제 웹캠·Android 새 APK·실휴대폰 DND는 합성 회귀와 구분한다. 인위적 글자만200% 확대 때 375px nowrap 타이머 넘침은 기존 제한(현재 개선됨)이며 실제 브라우저/OS 확대 통과로 포장하지 않는다.
-- 롤백: 이전 feat/windows-desktop-app·052fede와 Windows0.1.0 후보 보존. DB/학습 기록 롤백 없음.
-- 이전 제품 상태: 개인/팀 자동 집계·카메라 단일 담당·04시 공부일·출석 시작 인정·시간 편집/저장 복구·화면 복구는 유지한다. 구체 출시/실기기 수용은 각 PRD와 progress·관련 검증 문서 참고.
-- 문서: prd-hig-ui.md, prd-windows-desktop.md, prd-app-settings.md, architecture-map.md.
-- 이전 상세 인계는 [보관본](archive/active-context-pre-hig-20261026.md)에 원문 보존했다. 그 안의 R1/설치/배포 대기 문장은 이 최신 요약으로 대체한다.
+- 갱신: 2026-10-28 00:10 JST · 도구: codex
+- 루트/브랜치: C:/jini-dev/worktrees/study-room-desktop-current · feat/hig-ui-auth · HEAD208a12c · native/문서 미커밋 변경 있음. 원본 study-room-team 사용자/운영 dirty는 보존한다.
+- 현재 요청: UI 스킬/HIG로 완료·오류·연결 실패 통일 후 앱 전체 점검·표적 개선·검증/적용. 기존 학습 기록 보존. 사용자0.1.6 유휴 덮어설치 승인.
+- 완료(현재 UI): desktopStatus.css 공통 카드/색/한글/반응형/초점·fixed CSS SHA256 CSP·CRLF 정규화. 연결 실패 재연결/저장 미보장 안내 보존. 웹 로그인 reduced-motion 누락 수정. DB/서버/학습·카메라 정책 변경 없음.
+- 현재 검증: Chrome전체1424/1424·native155/155·통합27/27/6분숨김·verify7/Dune0·독립 최종차단0. CRLF RED→GREEN 및 독립 Chrome4/4·최종status10/10·Electronloopback1/1. docs/verification/2026-10-27-hig-completeness.md.
+- 현재 설치:0.1.6 무삭제 설치exit0·설치ASAR후보일치·encrypted-auth1파일 전후동일·프로필 보존·FileVersion0.1.6/ProductVersion0.1.6.0·앱 재실행 완료. 새 실제 본인 재인증은 자동로그아웃 없이 다음 사용자 로그인 때 확인한다.
+- 다음 단계: 웹 appTheme.css/test와 관련 UI문서만 feature브랜치 commit/push 후 기존 production workflow dispatch·READY/exactSHA/공개200 확인. native 로그인 baseline dirty는 임의 stage하지 않는다. 검증된 설치본은 로컬 적용이며 공개 WindowsRelease/APK 신규 게시 아님.
+- 현재 한계: Chrome 정책에 따른 자동닫기 거부는 우회하지 않는다. 실제 Android/iOS·물리 자세·전체OS글자확대/스크린리더 수용은 미실행. 이전 강제글꼴2배/375px 타이머 넘침은 로컬 상태 화면200% 통과와 별개다.
+
+## 이전 인증 작업의 근거(아래 버전·출시는 과거 상태)
+- 완료(원래 로그인):0.1.4 loopback 설치 후 사용자가 앱 로그인 성공 보고. 실제 native13:19:18.761UTC started→18.863 opened→23.897 callback수신/검증→23.900 intent소비→23.901 exchange시작→24.445 completed 확인. AX 화면 확인은 물리Esc 중단, 실제 재실행 유지 검사는 미실행이다.
+- 구현(이번): desktopLoopback.mjs의 onCallback resolve 후 성공 응답에만 고정 window.close 스크립트와 정확한 SHA256 CSP 허용. unsafe-inline/eval·외부script·코드/계정 반사·다른 탭/브라우저 설정 조작 없음. 실패/취소 HTML은 script 없이 유지한다.
+- 경계 보존: PKCE/identity/generation/암호화 저장/webTicket/콜백1회·5분/소켓 수명·native 같은창 복원/학습·카메라 정책은 불변. 이번 서버/DB/Vercel/Android 코드·운영 설정 변경 없음.
+- TDD: HTTP CSP+Chrome 성공닫기/정책거부 RED3(총12중9pass)→GREEN12. 실제 격리 Chrome4개: closable popup닫기/원래탭유지·다중history 정책거부/안내·실패/취소 유지. 실제 본인 Google탭은 자동닫기100% 보장하지 않는다.
+- 검증현재: native154/154·실패/생략/취소0·syntax13파일·ai.ps1 verify7명령/Dune0·docs/diff 통과. shared-reviewer C/I/M0·독립 loopback8/8. 전체 integration21/21·406036ms·실패/생략/취소0. 실제 Chrome4+Electron17·6분숨김영상+7203/성공ACK+360/오류0·same process/document·safeStorage 합성재실행 통과.
+- 후보0.1.5: package/lock 일치·로컬/remote tag 충돌 없음. NSIS build0·123056673bytes/SHA256 A8AC410A164F9D18EC80FD2FA419AD683075ABFF6329D1835F9F6E07FDF53CFD·NotSigned. ASAR531/금지0/native11 source일치·공개config3필드.
+- 설치완료: 같은 경로0.1.5 무삭제 덮어설치exit0·installed ASAR후보일치·profile보존·암호화1파일 전후digest AC5C4D7F26EC7D26B8AAFC600C9A6FF8D0C28882981EA1489933F1A9E4360FFE 동일. 실행파일0.1.5/app.ready13:57:15.650UTC 확인. 학습/계정/설정 초기화·자동로그아웃 없음.
+- 수용경계/다음: 다음 사용자 직접 Google로그인부터 적용. 실제 본인 인증탭의 닫힘/재실행 로그인 유지 화면은 이번에 미확인이다. Chrome이 닫기를 거부할 수 있으므로 안내 fallback이 남는 것은 허용 계약이다. 검증을 위해 자동로그아웃/실제 공부 시작·종료하지 않는다.
+- 현재 설치: C:/jini-dev/apps/study-room-desktop/StudyRoom.exe0.1.5. 실제 profile은 %APPDATA%/@study-room/desktop. 이동/삭제/초기화 금지.
+- Git/출시: native-only는 프로젝트 규칙상 별도 요청 없이 commit/push하지 않는다. Windows 공개 Release/고정링크·서명 인증서는 이번 요청 밖이다. Vercel 재배포/새APK는 필요 없다.
+- 이전0.1.4 gate: native153/Chrome1423/Electron17·6분숨김/verify7/Dune0·독립차단0. NSIS/무삭제 설치/암호문2파일·서버학습/회복7테이블 digest동일. 세부 docs/verification/2026-10-27-desktop-loopback.md.
+- 이전 실패 경계: 실제 Supabase302는 정확 custom URI인데 Chrome155가 handler없음. Procmon canonical HKCU/KEY_READ/NAME NOT FOUND와 일반host성공 불일치. 오타/계정·권한 차이/단순 캐시 가설은 근거없음. AhnLab모듈 존재는 인과증명 아님. 보안 프로그램/Chrome 보호/등록값을 낮추거나 alias추가하지 않았다.
+- 이전 Claude: claude-opus-5-5 실제5회 조사/비교·최신exit0/modelUsage확인. docs/verification/2026-10-27-opus-registry-observed.md. 이번 독립 검토는 shared-reviewer이며 Opus 새실행으로 표기하지 않는다.
+- 운영 Auth: 승인된 CLI2.120.0 최소config로 loopback패턴1개 append 완료. 기존8→9주소/다른13설정 전후동일hash3DE5B777C0107921891943B70865C13D02370FD997F6B0D9E3E2A9D89499AEFA, postdiff update0. 이번 재변경 없음.
+- 도구 경계: Google계정/비밀번호/코드·보안/UAC는 사용자 직접. chrome://conflicts/URL판별불가 차단은 우회하지 않는다. Procmon은 사용자 중지/원시trace미저장·마지막PID62036. 이전 Esc 후 같은턴Computer Use는 중단했다.
+- 기존 출시: HIG208a12c·Actions40347306976success·Vercel dpl_7xgEEA2RtEiWDrwEqnbQAipsYfZC READY/exactSHA/HTTP200. Android0.2.4/code7 유지.
+- 기존 제품 보존: 개인/팀 자동집계·단일카메라담당·04시공부일·출석시작인정·할일시간편집/저장복구·회복정책 유지. 합성영상/로컬IPC는 실제착석/다중기기 수용이 아니다.
+- 문서: prd-windows-desktop.md·architecture-map.md·trouble-shooting.md·progress.md·docs/superpowers/specs/2026-10-27-desktop-loopback-design.md·docs/verification/2026-10-27-auth-tab-close.md.
+- 이전 상세 인계/진단은 docs/verification/2026-10-27-google-return.md·procmon-handler.md·2026-10-26-hig-ui-auth.md 및 memory-bank/archive/active-context-pre-hig-20261026.md에 보존한다.

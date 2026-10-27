@@ -12,6 +12,7 @@
 | 기능 | 담당 폴더 | 공개 진입점 | 의존할 수 있는 계층 | 관련 PRD |
 |---|---|---|---|---|
 | HIG 기반 공통 표시 | apps/web/src/DashboardNavigation.tsx, dashboardRedesign.css, appTheme.css; apps/mobile/App.tsx의 기존 mobilePalette | 기존 DashboardApp/인증 화면의 표시·내비게이션 | 기존 UI 토큰/공식 콜백만. 세션/카메라/학습 상태 소유권 불변 | prd-hig-ui.md |
+| Windows 로컬 상태 화면 | apps/desktop/src/desktopStatus.css, desktopLoopback.mjs, error.html | loopback 고정 HTML 응답 / 기존 로드 실패 화면 | CSS만 공유. 인증·세션·공부 lifecycle 소유권 불변, callback은 로컬 CSS의 SHA256 CSP만 허용 | prd-hig-ui.md |
 | 공부 보존 화면 복구 | apps/web/src/RecoverableSection.tsx, RecoverableSection.css | Dashboard의 기존 화면 경계·필수 회고 eager import | UI 오류 상태만 소유, Dashboard의 학습/카메라 lifecycle은 유지 | prd-safe-section-recovery.md |
 | 피드 화면 | apps/web/src/TechFeedSection.tsx, FeedDailyBriefing.tsx | techFeed.mjs 인증 클라이언트 | 공개 core helpers, 웹 client | prd-tech-feed.md |
 | 피드 본문 표시 | packages/core/src/feedMarkdown.mjs, apps/web/src/feedPresentation.mjs, FeedArticleText.tsx | feedMarkdownPreview / parseFeedMarkdown | 공개 core 표시 helpers | prd-tech-feed.md |
@@ -62,7 +63,12 @@
 
 ## Windows 데스크톱 경계
 
+- loopback 성공 응답은 인증 callback이 resolve한 뒤 현재 인증 탭의 `window.close()`만 시도한다. 고정 스크립트의 SHA256 CSP만 허용하고 unsafe-inline/eval·외부 script·다른 탭 조작은 없다. 실패/취소 응답에는 script를 넣지 않고, Chrome의 닫기 거부는 완료 안내 fallback으로 남긴다. 기존 PKCE/수신기 수명·native 창 복원·학습 상태 소유권은 불변이다.
+
+- Google OAuth 수신은 승인된 `desktopLoopback.mjs`의 127.0.0.1 임시 HTTP transport를 main에서 auth에 주입한다. 32바이트 nonce/정확 Host·원문 path·GET·단일 code·5분·일회성만 허용하며 auth가 자원 수명을 소유한다. SDK PKCE·identity·generation·암호화·기존 웹 티켓은 desktopAuth가 계속 소유한다. loopback intent는 restart/legacy URI로 소비하지 않는다. 일반 웹 origin의 loopback 개발 허용과 이 native OAuth 수신기는 별개다. [승인 설계](../docs/superpowers/specs/2026-10-27-desktop-loopback-design.md).
+
 - 이메일 요청 실패는 native auth→기존 IPC→공통 로그인 안내의 고정 허용 코드만 전달한다. `AUTH_EMAIL_RATE_LIMIT`/`AUTH_RATE_LIMIT`/`AUTH_NETWORK_ERROR`는 인증 우회나 성공이 아니며 기존 쿨다운을 선택한다. Google 대기 시각은 웹 표시 상태이고 실제 사용자/PKCE/티켓 상태는 기존 소유자만 검증한다. 프로필은 `%APPDATA%/@study-room/desktop`이며 변경하지 않는다.
+- desktopAuthDiagnostics.mjs는 main의 비동기 best-effort writer를 통해 최근32개 고정 OAuth 단계/시각만 로컬 기록한다. 한 쓰기+최신 snapshot만 유지하고 호출자가 디스크를 기다리지 않는다. runtime의 OS 수신/검증과 auth의 pending 소비/교환 경계를 관찰할 뿐 영속 인증 상태·브리지·서버 API를 소유하지 않는다. 비밀·URL·원문은 허용하지 않는다.
 
 - 진입점: `apps/desktop/main.cjs` → `src/desktopRuntime.mjs`, `preload.cjs`의 protocolVersion1 `studyRoomDesktop.request/onEvent`. production은 정확히 `https://study-room-attendance.vercel.app`만 로드한다. loopback/격리 userData 옵션은 unpackaged 개발 실행에만 허용한다.
 - main/runtime는 단일 창·트레이·출처/현재 mainFrame/문서 세대 검증·명시적 카메라 동의·OS 설정·단일 인스턴스를 소유한다. X는 같은 창/문서를 숨길 뿐 카메라·학습 종료를 호출하지 않는다. `backgroundThrottling:false`를 유지한다.

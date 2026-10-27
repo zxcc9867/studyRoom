@@ -558,7 +558,15 @@
   .dashboard-redesign .forest-customizer-options { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .dashboard-redesign .tech-feed :is(.feed-card, .feed-daily-briefing) { padding: var(--study-space-4); }
 }
-@media (prefers-reduced-motion: reduce) { .dashboard-redesign * { transition: none !important; } }
+@media (prefers-reduced-motion: reduce) {
+  :is(.dashboard-redesign, .login-shell) *,
+  :is(.dashboard-redesign, .login-shell) *::before,
+  :is(.dashboard-redesign, .login-shell) *::after {
+    animation: none !important;
+    transition: none !important;
+    scroll-behavior: auto !important;
+  }
+}
 
 /* HIG-inspired hierarchy: shared content tokens, platform-appropriate navigation.
    Study/session ownership and user-defined section order are unchanged. */

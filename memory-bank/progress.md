@@ -2,10 +2,23 @@
 
 ## HIG 공통 UI·Windows 로그인 안내
 
-- 구현/로컬 검증: 승인 목업의 정보 위계·사이드/하단 메뉴·세션/하루 목표 분리·공통 로그인/초기 배경/Android 팔레트. native 이메일 한도/요청 제한/통신 실패를 고정 코드로 구분하고 Google 브라우저 대기/만료를 표시한다. DB/학습 정책 변경 없음. [PRD](prd-hig-ui.md).
+- 현재 UI 점검(0.1.6): 완료/오류/연결 실패를 고정 로컬 CSS·공통 팔레트/한글 폰트/반응형 카드로 통일, 로그인 동작 줄이기 누락 수정. Chrome1424/1424·native155/155·통합27/27/6분숨김·verify7/Dune0·독립 최종 차단0. CRLF/CSP 문제 RED→GREEN 및 독립 Chrome4/4. 승인된0.1.6 무삭제 설치exit0/ASAR일치/암호문1파일동일/재실행 완료, 웹 배포는 진행 중. 기존 학습/서버 정책 불변. [새 검증 기록](../docs/verification/2026-10-27-hig-completeness.md). 이전 Google 무한 로딩 조사 항목은0.1.4 실제 로그인 성공 이전의 이력이다.
+
+- 로그인 탭 자동 닫기(0.1.5): 승인된 성공응답 고정 close script/SHA256 CSP. 실제 격리 Chrome4개·native154/154·통합21/21/6분숨김·verify7/Dune0·독립차단0. 승인된0.1.5 무삭제 덮어설치exit0/ASAR일치/기존암호화1파일동일/app.ready 확인. 본인 Chrome탭의 이력상 거부 가능/fallback 유지. 자동로그아웃 없이 다음 직접 로그인부터 적용한다. [검증](../docs/verification/2026-10-27-auth-tab-close.md).
+
+- Windows 로그인 복귀(0.1.4): 승인 loopback·CLI 패턴1개/기존8주소·다른13설정 보존. native153/Chrome1423/Electron17/숨김6분·verify7/Dune0·독립차단0·무삭제설치/암호문·학습7테이블동일. 이후 사용자 앱 로그인 성공 보고+실제native callback.completed(13:19:24.445UTC) 확인. AX/재실행은 Esc중단으로 미검증이다. [검증](../docs/verification/2026-10-27-desktop-loopback.md).
+
+- 구현/웹 배포: 승인 목업의 정보 위계·사이드/하단 메뉴·세션/하루 목표 분리·공통 로그인/초기 배경/Android 팔레트. 208a12c·Actions40347306976 success·Vercel dpl_7xgEEA2RtEiWDrwEqnbQAipsYfZC READY/exactSHA·HTML/JS/CSS200. native 이메일 오류 분류/Google 대기 안내는 실제 Google 해결과 구분한다. DB/학습 정책 변경 없음. [PRD](prd-hig-ui.md).
 - 검증: native119/119·Chrome1423/1423·실제Electron16/16(숨김6분 영상/성공ACK 유지)·verify7/Dune0·375/1440 공통 화면/대비/조작 영역·독립 검토 차단 결함0. 실패 코호트/실제 수용과 [검증 기록](../docs/verification/2026-10-26-hig-ui-auth.md)을 구분한다.
-- Windows0.1.1 로컬 빌드·승인된 같은 경로 덮어설치exit0/asar일치·기존프로필 유지·미서명. 공개 게시/실계정 로그인은 아직 미수용. 직전052fede 웹 연결은 배포 완료지만 Google는 사용자 Chrome 계정 선택 화면에서 정지, 이메일은 운영 로그에 한도429가 확인됐다. Chrome 지원을 제거하거나 프로필/기록을 초기화하지 않는다.
+- Windows0.1.1 빌드·승인된 같은 경로 덮어설치exit0/asar일치·기존프로필/새 로그인 화면 확인·미서명. 공개 게시/실계정 로그인은 미수용. Google 무한 로딩은 새 설치에서도 재현되며 [복귀 경로 조사](../docs/verification/2026-10-27-google-return.md) 중이다. 이메일 운영 한도429는 특정 요청 원인과 일대일 대응 미확정. Chrome 지원/프로필/기록은 보존한다.
 - Android 설치/공개 APK0.2.4/code7 유지. 공통 hosted UI와 새 native 로그인 팔레트 소스 반영은 구분한다. 새 APK 배포는 후속이다.
+- Google 원인 조사: 새10/27 02:01UTC 시도의 앱 provider.started/opened·정확 native return/s256·서버 코드 발급1/callback302·token0, 앱 callback0을 확인했다. 같은 날 OS 무인증 전달은 실제 handler까지 통과하지만 Chrome 직접 링크는 사용자 무반응/수신0이다. Chrome→OS 전달 경로를 조사하며 정확한 원인은 아직 미확정이다. 구조/운영 설정 변경 없음.
+- 원인 추적0.1.2 로컬 설치: 인증 동작 불변인 비동기 고정 단계 로그만 추가했다. 진단12/12·native131/131/check12·verify7/Dune0·실제Electron16/16/숨김6분·독립 재검토 차단0·패키지/무삭제 설치/기존 암호문 보존 확인. OS URI가 실제 앱 callback handler까지 도달하는 무인증 대조도 확인했다. 실제 Google 재시도 결과 대기이며 원인 해결로 표시하지 않는다. 운영 웹/DB/APK 변경 없음.
+- 비교 정정/Claude: yh는 정상 Study Notes의 의도된 비교 화면이다. 잘못된 로그인 요청 혼동 해석 철회. Opus5.5 두 차례 읽기 전용 검토 exit0, Notes의 prompt 차이는 원인 미확정. Windows 두 앱 연결 조회는 정상, 사용자 승인한 Default/공통 Chrome 프로토콜 설정에 저장된 두 scheme 항목은 없었다. 임시 양쪽 링크 비교는 종료했으며 실제 로그인 검증을 대신하지 않는다. 제품 코드/추가 배포/학습·노트 기록 변경 없음.
+- Opus 수정 담당 위임 결과: 제한된 native 코드 수정 권한으로 추가 조사했으나 재현 가능한 코드 결함/수정 패치 없음. check12/native131통과는 실제 로그인 성공이 아니다. [Opus 보고/부모 검토](../docs/verification/2026-10-27-opus-oauth-fix.md). 사용자가 올바른 Supabase 계정으로 연 실제 URL 설정에서 정확한 Windows callback 포함8주소를 확인했다. 목록 누락은 아니며 계정·설정·키/학습 변경 없음. 실제 원인·로그인은 미해결이다.
+- 0.1.3 단일 옵션 호환성 시험 실패: Google만 prompt=select_account, PKCE/콜백/TTL/저장소/티켓/학습 불변. 실제 SDK RED2→GREEN3·native134/134·verify7/Dune0·독립 C/I/M0·NSIS/ASAR 검증 완료. Electron 테스트 준비 오류 수정 후 최종16/16·6분 숨김·재실행·재검토 통과. 승인된 무삭제 설치exit0/asar일치/암호문 불변이지만 실제 Google 로그인은 여전히 실패했다. 04:52UTC 앱opened후callback0·서버callback302/발급/정확주소/s256각1/token0. 자동 검사를 실제 성공으로 쓰지 않는다. loopback 직접 수신 대안은 설계/원격 allowlist 변경 승인 대기이며 미구현·운영 변경 없음. [근거](../docs/verification/2026-10-27-google-return.md).
+- 실제 Location 확인: 사용자 제공 DevTools의09:28:53UTC GET302는 정확한 studyroom-desktop://auth/callback으로 반환했다(query제외). 이 시도의 허용URL 누락/오등록·웹 fallback은 제외하며 native09:26UTC opened뒤 수신0과 구분한다. CSP sandbox만으로 원인을 확정하지 않고 현재 Console의 외부 앱 오류 이유를 URL제외로 요청했다. Windows UI 도구의URL확인 중단을 우회하지 않았으며 원문 코드/Cookie는 사용·문서화하지 않는다. 구조/설정/학습/설치 변경 없음.
+- Chrome handler 오류 미해결: 실제 재시작도 효과 없음. Opus5.5 재검토/host 등록·권한/Win32 정상 대조 뒤 승인된 Procmon4.12/메모리 보관에서 Include4+Drop Filtered Events 체크 확인→사용자 새 로그인/중지 보고. ChromePID43188 RegOpenKey12행 모두 NAME NOT FOU...를 관측, 정확 HKCR 경로/철자를 Event탭으로 확인 요청 중이다. 같은11:54–11:58UTC 서버flow는 정확desktop referrer/s256/발급/연결 각1, native11:54:57 opened후callback0. 아직 alias/등록·보안·코드 변경이나 실제 해결로 쓰지 않는다. [제한 진단](../docs/verification/2026-10-27-procmon-handler.md). 원시 trace·인증값 저장/학습·앱 설치·배포 변경 없음.
 
 ## 2026-10-25 공부 시작 출석 분리 — 운영 배포 완료
 
