@@ -58,7 +58,7 @@ async function withDesktop(mode, run, options = {}) {
     b.onLoad({ filter: /.*/, namespace: 'fixture' }, () => ({ contents: backend, loader: 'js' }));
     b.onLoad({ filter: /bodyPresenceDetection\.mjs$/ }, () => ({ contents: 'export async function createUpperBodyPresenceDetector(){return {detect:()=>true,close(){}}}', loader: 'js' }));
   } }] });
-  const built = await bundle, js = built.outputFiles.find(f => f.path.endsWith('.js')).text;
+  const built = await bundle, js = built.outputFiles.find(f => f.path.endsWith('.js')).text, css = built.outputFiles.find(f => f.path.endsWith('.css'))?.text ?? '';
   let browser;
   try {
     browser = await chromium.launch({ headless: true, executablePath: process.env.FEED_BROWSER_EXECUTABLE || undefined, args: ['--use-fake-ui-for-media-stream', '--use-fake-device-for-media-stream'] });
@@ -88,7 +88,7 @@ async function withDesktop(mode, run, options = {}) {
     }, { mode, options });
     await page.route('https://study-room-attendance.vercel.app/**', async route => {
       const path = new URL(route.request().url()).pathname;
-      await route.fulfill({ contentType: path === '/app.js' ? 'text/javascript' : 'text/html', body: path === '/app.js' ? js : '<html><body><div id="root"></div><script src="/app.js"></script></body></html>' });
+      await route.fulfill({ contentType: path === '/app.js' ? 'text/javascript' : 'text/html', body: path === '/app.js' ? js : `<html><head>${options.styled ? '<style>'+css+'</style>' : ''}</head><body><div id="root"></div><script src="/app.js"></script></body></html>` });
     });
     await page.goto('https://study-room-attendance.vercel.app/?mode=' + mode, { waitUntil: 'domcontentloaded' }); await run(page); assert.deepEqual(errors, []);
   } finally { await browser?.close(); }
@@ -180,12 +180,15 @@ mounted('desktop auth connection failure retries without showing stale dashboard
 }, { fail: 'webTicket' }));
 mounted('desktop settings show Windows build, secure storage and OS camera settings, never APK updater', () => withDesktop('start', async page => {
   await page.locator('.topbar-actions button').first().waitFor(); await page.goto('https://study-room-attendance.vercel.app/?mode=start#settings');
+  await page.getByRole('navigation',{name:'설정 분류',exact:true}).getByRole('button',{name:'앱 정보',exact:true}).click();
   await page.getByText('0.1.0 · 빌드 17', { exact: true }).waitFor();
   assert.equal(await page.getByRole('button', { name: '앱 업데이트 열기' }).count(), 0);
   await page.getByText(/암호화 저장/).waitFor();
+  await page.getByRole('navigation',{name:'설정 분류',exact:true}).getByRole('button',{name:'기기 연결',exact:true}).click();
   await page.getByRole('button', { name: 'Windows 카메라 설정 열기' }).click();
   assert.equal(await page.evaluate(() => desktopFixture.calls.some(c => c.action === 'cameraConsent')), false);
   assert.equal(await page.evaluate(() => desktopFixture.calls.some(c => c.action === 'openCameraSettings')), true);
+  await page.getByRole('navigation',{name:'설정 분류',exact:true}).getByRole('button',{name:'계정',exact:true}).click();
   await page.getByRole('button', { name: '로그아웃', exact: true }).click(); await page.getByRole('heading', { name: '독서실에 로그인' }).waitFor();
   assert.equal(await page.evaluate(() => fixture.calls.filter(c => c.name === 'auth.signOut').every(c => c.args?.scope === 'local')), true);
 }));
@@ -269,9 +272,22 @@ async function probe(page,id){
   await page.waitForFunction(id=>desktopFixture.calls.some(c=>c.id===id),id);
   return page.evaluate(id=>desktopFixture.calls.find(c=>c.id===id).payload,id);
 }
+mounted('settings redesign: Windows permissions belong to device settings, separate from app version',()=>withDesktop('start',async page=>{
+ await page.locator('.topbar-actions button').first().waitFor();await page.evaluate(()=>location.hash='settings');
+ const nav=page.getByRole('navigation',{name:'설정 분류',exact:true});await nav.getByRole('button',{name:'기기 연결',exact:true}).click();
+ assert.equal(await page.locator('[data-settings-panel=device]').getByRole('button',{name:'Windows 카메라 설정 열기',exact:true}).isVisible(),true);
+ await page.getByRole('button',{name:'Windows 카메라 설정 열기',exact:true}).click();await page.waitForFunction(()=>desktopFixture.calls.some(c=>c.action==='openCameraSettings'));
+ await nav.getByRole('button',{name:'앱 정보',exact:true}).click();await page.getByRole('heading',{name:'Windows 앱 정보',exact:true}).waitFor();
+ assert.equal(await page.getByRole('button',{name:'Windows 카메라 설정 열기',exact:true}).count(),0);
+ assert.equal(await page.evaluate(()=>fixture.calls.some(c=>/start_study|complete_study|pause_actual/.test(c.name))),false);
+},{styled:true}));
+async function editSettingsTimezone(page){
+ await page.getByRole('navigation',{name:'설정 분류',exact:true}).getByRole('button',{name:'공부와 화면',exact:true}).click();
+ await page.getByRole('button',{name:'시간대 변경',exact:true}).click();return page.locator('.profile-timezone');
+}
 for(const outcome of ['success','rejection'])mounted(`desktop timezone ${outcome} stays pending from same-turn submit through actual settlement`,()=>withDesktop('start',async page=>{
   await page.locator('.topbar-actions button').first().waitFor();await page.evaluate(()=>{location.hash='settings';fixture.holdTimezone=true;});
-  const form=page.locator('.profile-timezone');await form.getByLabel('시간대 검색·선택').fill('Asia/Seoul');
+  const form=await editSettingsTimezone(page);await form.getByLabel('시간대 검색·선택').fill('Asia/Seoul');
   await form.getByRole('button',{name:'시간대 저장',exact:true}).evaluate(button=>{button.click();desktopFixture.emit({type:'state-requested',requestId:'timezone-same-turn'});});
   await page.waitForFunction(()=>desktopFixture.calls.some(c=>c.id==='timezone-same-turn'));
   assert.equal(await page.evaluate(()=>desktopFixture.calls.find(c=>c.id==='timezone-same-turn').payload.operationPending),true);
@@ -290,7 +306,7 @@ for(const outcome of ['success','rejection'])mounted(`desktop team goal ${outcom
   assert.equal(await page.evaluate(()=>desktopFixture.calls.find(c=>c.id==='team-same-turn').payload.operationPending),true);
   await page.waitForFunction(()=>!!fixture.releaseGoal);
   await page.evaluate(()=>{location.hash='settings';fixture.holdTimezone=true;});
-  const zone=page.locator('.profile-timezone');await zone.getByLabel('시간대 검색·선택').fill('Asia/Seoul');await zone.getByRole('button',{name:'시간대 저장',exact:true}).click();
+  const zone=await editSettingsTimezone(page);await zone.getByLabel('시간대 검색·선택').fill('Asia/Seoul');await zone.getByRole('button',{name:'시간대 저장',exact:true}).click();
   await page.waitForFunction(()=>!!fixture.releaseTimezone);
   await page.evaluate(outcome=>outcome==='success'?fixture.releaseGoal():fixture.rejectGoal(),outcome);
   assert.equal((await probe(page,'team-settled-zone-held')).operationPending,true);
@@ -312,7 +328,7 @@ for(const action of ['save','topics_save'])for(const outcome of ['success','reje
   await page.waitForFunction(()=>desktopFixture.calls.some(c=>c.id==='feed-same-turn'));
   assert.equal(await page.evaluate(()=>desktopFixture.calls.find(c=>c.id==='feed-same-turn').payload.operationPending),true);
   await page.waitForFunction(()=>!!fixture.releaseFeed);
-  await page.evaluate(()=>location.hash='settings');await page.locator('.profile-timezone').waitFor();
+  await page.evaluate(()=>location.hash='settings');await page.getByRole('navigation',{name:'설정 분류',exact:true}).getByRole('button',{name:'공부와 화면',exact:true}).click();await page.locator('.profile-timezone').waitFor();
   assert.equal((await probe(page,'feed-unmounted-held')).operationPending,true);
   await page.evaluate(outcome=>outcome==='success'?fixture.releaseFeed():fixture.rejectFeed(),outcome);
   const idle=await probe(page,'feed-settled');assert.equal(idle.operationPending,false);assert.equal(idle.activity,'allowed');assert.equal(idle.ready,true);
@@ -336,19 +352,21 @@ for(const producer of ['team','feed'])mounted(`desktop ${producer} unresolved ol
 mounted('desktop overlapping timezone and public-tag saves release only their own pending count',()=>withDesktop('start',async page=>{
   await page.locator('.topbar-actions button').first().waitFor();await page.evaluate(()=>{location.hash='settings';fixture.holdTimezone=true;fixture.holdTag=true;});
   const zone=page.locator('.profile-timezone'),tag=page.locator('.public-tag-settings');
+  await tag.getByRole('button',{name:'공개 태그 변경',exact:true}).click();
   await tag.getByLabel('공개 사용자 태그',{exact:true}).waitFor();await tag.getByLabel('공개 사용자 태그',{exact:true}).fill('새이름#새태그');
   await tag.getByRole('button',{name:'태그 저장',exact:true}).evaluate(button=>{button.click();desktopFixture.emit({type:'state-requested',requestId:'tag-same-turn'});});
   await page.waitForFunction(()=>desktopFixture.calls.some(c=>c.id==='tag-same-turn'));
   assert.equal(await page.evaluate(()=>desktopFixture.calls.find(c=>c.id==='tag-same-turn').payload.operationPending),true);
   await page.waitForFunction(()=>!!fixture.releaseTag);
-  await zone.getByLabel('시간대 검색·선택').fill('Asia/Seoul');await zone.getByRole('button',{name:'시간대 저장',exact:true}).click();await page.waitForFunction(()=>!!fixture.releaseTimezone);
+  await editSettingsTimezone(page);await zone.getByLabel('시간대 검색·선택').fill('Asia/Seoul');await zone.getByRole('button',{name:'시간대 저장',exact:true}).click();await page.waitForFunction(()=>!!fixture.releaseTimezone);
   await page.evaluate(()=>fixture.releaseTimezone());await zone.getByText('시간대를 저장했어요. 앞으로의 일정과 알림에 적용됩니다.',{exact:true}).waitFor();
   assert.equal((await probe(page,'tag-still-held')).operationPending,true);
-  await page.evaluate(()=>fixture.rejectTag());await tag.getByRole('alert').waitFor();
+  await page.evaluate(()=>fixture.rejectTag());await page.getByRole('navigation',{name:'설정 분류',exact:true}).getByRole('button',{name:'계정',exact:true}).click();await tag.getByRole('alert').waitFor();
   const state=await probe(page,'both-settled');assert.equal(state.operationPending,false);assert.equal(state.activity,'allowed');
 }));
 mounted('desktop retained alarm save marks pending synchronously before React commits',()=>withDesktop('start',async page=>{
   await page.locator('.topbar-actions button').first().waitFor();await page.evaluate(()=>{location.hash='settings';fixture.holdAlarm=true;});
+  await page.getByRole('navigation',{name:'설정 분류',exact:true}).getByRole('button',{name:'알림',exact:true}).click();
   const settings=page.locator('.settings-notifications');await settings.locator('summary').click();
   await settings.getByRole('button',{name:'알람 편집',exact:true}).click();
   await settings.getByLabel('평일 알림 시간').fill('10:00');

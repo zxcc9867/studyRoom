@@ -16,6 +16,12 @@ export default function PublicTagSettings({ supabase, userId, registered, onPend
   const [pending, setPending] = useState(false);
   const [error, setError] = useState('');
   const [notice, setNotice] = useState('');
+  const [editing, setEditing] = useState(false);
+  const changeButton = useRef<HTMLButtonElement>(null);
+  function finishEditing() {
+    setEditing(false);
+    requestAnimationFrame(() => changeButton.current?.focus());
+  }
 
   useEffect(() => {
     const current = createTeamStudyController(supabase, userId, { onState: setState });
@@ -47,6 +53,7 @@ export default function PublicTagSettings({ supabase, userId, registered, onPend
       if (controller.current !== current) return;
       setDraft(tag);
       setNotice('공개 태그를 저장했어요.');
+      finishEditing();
     } catch (failure) {
       if (controller.current === current) setError(failure instanceof Error ? failure.message : '태그를 저장하지 못했어요. 다시 시도해 주세요.');
     } finally {
@@ -56,17 +63,19 @@ export default function PublicTagSettings({ supabase, userId, registered, onPend
   }
 
   return <div className="public-tag-settings" aria-busy={registered && (state.loading || pending)}>
-    <h3>내 공개 태그</h3>
-    <p>친구가 전체 태그로 나를 찾아 초대할 수 있어요. 이메일과는 별개예요.</p>
+    <div className="settings-edit-row"><div><h3>공개 태그</h3><p className="settings-current-value">{!registered ? '정식 계정 전용' : state.loading ? '확인 중…' : state.error ? '확인 필요' : state.snapshot?.tag || '아직 설정하지 않았어요'}</p></div>
+      {registered && <button ref={changeButton} type="button" className="secondary" aria-label="공개 태그 변경" aria-expanded={editing} aria-controls={editing ? 'settings-public-tag-editor' : undefined} disabled={editing || pending || state.loading || Boolean(state.error) || !state.snapshot} onClick={() => { setDraft(state.snapshot?.tag ?? ''); setError(''); setNotice(''); setEditing(true); }}>변경</button>}
+    </div>
     {!registered ? <p>공개 태그는 정식 계정으로 로그인한 뒤 설정할 수 있어요.</p> : <>
       {state.loading && <p role="status">공개 태그를 확인하고 있어요…</p>}
       {(error || state.error) && <p role="alert">{error || state.error}</p>}
-      <form onSubmit={save}>
+      {state.error && <button className="plain" type="button" onClick={() => void controller.current?.refresh()}>태그 다시 확인</button>}
+      {editing && <form id="settings-public-tag-editor" className="settings-inline-editor" onSubmit={save}>
         <label htmlFor="settings-public-tag">공개 사용자 태그</label>
-        <input id="settings-public-tag" value={draft} onChange={event => { setDraft(event.target.value); setError(''); setNotice(''); }} maxLength={41} placeholder="A스타#지니" autoComplete="off" aria-describedby="settings-public-tag-help" aria-invalid={Boolean(error)} disabled={state.loading || pending || !state.snapshot} />
+        <input autoFocus id="settings-public-tag" value={draft} onChange={event => { setDraft(event.target.value); setError(''); setNotice(''); }} maxLength={41} placeholder="A스타#지니" autoComplete="off" aria-describedby="settings-public-tag-help" aria-invalid={Boolean(error)} disabled={state.loading || pending || !state.snapshot} />
         <p id="settings-public-tag-help">이름#식별자 · 양쪽 2~20자, 한글·영문·숫자·밑줄·하이픈</p>
-        <div className="settings-actions"><button className="secondary" type="submit" disabled={pending || state.loading || Boolean(state.error) || !state.snapshot || !draft.trim()}>{pending ? '저장 중…' : '태그 저장'}</button>{state.error && <button className="plain" type="button" onClick={() => void controller.current?.refresh()}>태그 다시 확인</button>}</div>
-      </form>
+        <div className="settings-actions"><button className="primary" type="submit" disabled={pending || state.loading || Boolean(state.error) || !state.snapshot || !draft.trim()}>{pending ? '저장 중…' : '태그 저장'}</button><button className="secondary" type="button" disabled={pending} onClick={() => { setDraft(state.snapshot?.tag ?? ''); setError(''); finishEditing(); }}>취소</button></div>
+      </form>}
       {notice && <p role="status">{notice}</p>}
     </>}
   </div>;

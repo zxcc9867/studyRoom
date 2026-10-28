@@ -2,6 +2,8 @@
 
 ## HIG 공통 UI·Windows 로그인 안내
 
+- 설정 UX 재구성: 승인된5분류/현재값+변경/명시적 편집·취소·저장, 분류 간 초안/저장 중 상태 보존. UI 상태만 SettingsLayout이 소유하고 기존 서버/API·학습/계정·네이티브 updater는 유지한다. Chrome1449/1449(실패/생략/취소0)·집중10/10·익명1/1·기존대시보드2/2·verify7/Dune0·독립C/I/M0. 운영 출시 대기. [검증](../docs/verification/2026-10-29-settings-redesign.md).
+
 - 전체 내부 UI 통일: 회복 요약/이력·목표/습관/숲·설정 편집·출석 달력·로그인/모달·Android 고정 설치 안내를 공통 토큰으로 정리했다. 외곽 검사의 누락·달력39px·상태색/본문 CSS 우선순위 재현/수정. Chrome1441/1441(실패/생략0)·집중13/13·verify7/Dune0·독립C/I/M0·375/1440/200%/44px/대비/기존흐름 통과.7773466 push·Actions40722576237 success·Vercel dpl_6GJQa7bTarDxzqtUJGR84zwBz2j4 READY/exactSHA/alias·HTML/JS/CSS/설치안내200/새스타일 확인. 학습/인증/카메라/DB·APK0.2.4 불변. [검증](../docs/verification/2026-10-29-full-ui-audit.md).
 
 - 내 페이지 UI 통일: 회고 목록의 노란 점선/우표 순번/입체 버튼과 리포트 중복 영문 라벨 제거, 기간 입력/초점/빈 상태·rem 글자 크기를 공통 토큰에 연결했다. Chrome1429/1429(실패/생략0)·신규5/5·관련13/13·verify7/Dune0·독립 최종C/I/M0.375/1440·200%·44px·대비4.5·키보드·기존 회고 저장/학습 회귀 통과.8ac9325 push·Actions40709394959 success·Vercel dpl_4mjwm9cBxwkvcDp1VkYTCfiroqJA READY/exactSHA/alias·HTML/JS/CSS200/새 문구·스타일 확인. native 인증 후속과 별개다. [검증](../docs/verification/2026-10-28-ui-unification.md).

@@ -227,31 +227,34 @@ async function designSnapshot(page,name,width) {
  await page.screenshot({path:`output/playwright/app-theme-${name}-${phase}-${width}.png`,fullPage:true});
 }
 
+async function settingsCategory(page,name){await page.locator('#settings').getByRole('navigation',{name:'설정 분류',exact:true}).getByRole('button',{name,exact:true}).click();}
 for(const width of [375,1440]) browserTest(`app settings: direct navigation and grouped controls preserve study and history at ${width}px`,()=>withApp(width,async page=>{
  const nav=page.locator(width===375?'.mobile-navigation':'.desktop-navigation');
  if(width===375)assert.deepEqual(await nav.getByRole('link').allTextContents(),['오늘','목표','기술 피드','공부 숲','설정']);
  await nav.getByRole('link',{name:'설정',exact:true}).click();
  const panel=page.locator('#settings');await panel.getByRole('heading',{name:'설정',exact:true}).waitFor();
  assert.equal(await page.evaluate(()=>location.hash),'#settings');
- for(const title of ['계정','공부·화면','알림','휴대폰','앱 정보'])assert.equal(await panel.getByRole('heading',{name:title,exact:true}).isVisible(),true);
+ for(const [category,title] of [['계정','계정'],['공부와 화면','공부·화면'],['알림','알림'],['기기 연결','기기 연결'],['앱 정보','앱 정보']]){
+  await settingsCategory(page,category);assert.equal(await panel.getByRole('heading',{name:title,exact:true}).isVisible(),true);
+  await readableGroup(panel.locator('h1:visible,h2:visible,h3:visible,p:visible,dt:visible,dd:visible,summary:visible,button:visible,a:visible'));
+  await touchControls(panel.locator('button:visible,a:visible,summary:visible,input:not([type=checkbox]):visible'));
+ }
  assert.equal(await panel.locator('.settings-notifications').getAttribute('open'),null);
- assert.equal(await panel.getByRole('combobox',{name:/시간대 검색·선택/}).count(),1);
+ assert.equal(await panel.getByRole('combobox',{name:/시간대 검색·선택/}).count(),0);
  assert.doesNotMatch(await panel.locator('.app-device-settings').textContent(),/설치된 버전/);
  assert.equal(await panel.getByRole('link',{name:'Android 설치 안내',exact:true}).getAttribute('href'),'/download/android');
- await panel.getByRole('button',{name:'휴대폰 상태 다시 확인',exact:true}).click();
+ await settingsCategory(page,'기기 연결');await panel.getByRole('button',{name:'휴대폰 상태 다시 확인',exact:true}).click();
  assert.equal(await page.evaluate(()=>fixture.sessions[0].ended_at),null);
  assert.equal(await page.evaluate(()=>fixture.calls.some(c=>/start_study|pause_actual|confirm_actual/.test(c.name))),false);
  await designSnapshot(page,'settings',width);
- await readableGroup(panel.locator('h1,h2,h3,p,dt,dd,summary,button,a'));
- await touchControls(panel.locator('button,a,summary,input:not([type=checkbox])'));
  await touchControls(nav.locator('a'));
- const summary=panel.locator('.settings-notifications > summary');await summary.focus();await page.keyboard.press('Tab');
+ await settingsCategory(page,'알림');const summary=panel.locator('.settings-notifications > summary');await summary.focus();await page.keyboard.press('Enter');await page.keyboard.press('Tab');
  assert.equal(await page.evaluate(()=>getComputedStyle(document.activeElement).outlineStyle!=='none'),true);
- await panel.getByRole('link',{name:'내 페이지',exact:true}).click();
+ await settingsCategory(page,'계정');await panel.getByRole('link',{name:'내 페이지',exact:true}).click();
  await page.locator('#me').getByRole('heading',{name:'완료한 일 이력'}).waitFor();
  assert.equal(await page.locator('#me .profile-timezone').count(),0);
  await page.locator('a[href="#settings"]:visible').first().click();
- await page.locator('#settings').getByRole('button',{name:'화면 구성',exact:true}).click();
+ await settingsCategory(page,'공부와 화면');await page.locator('#settings').getByRole('button',{name:'화면 구성',exact:true}).click();
  await page.getByRole('button',{name:'순서 저장',exact:true}).waitFor();
  assert.equal(await page.evaluate(()=>location.hash),'#today');
  await page.locator('a[href="#settings"]:visible').first().click();
@@ -271,12 +274,13 @@ for(const state of ['ready','failed','failure','legacy']) browserTest(`app setti
   window.ReactNativeWebView={postMessage(raw){const m=JSON.parse(raw);window.nativeMessages.push(m);if(m.type==='STUDY_WEB_SETTINGS_INFO'&&['ready','failed'].includes(state))window.dispatchEvent(new CustomEvent('study-room-native-message',{detail:{type:'STUDY_NATIVE_SETTINGS_INFO',requestId:m.requestId,snapshot:{versionName:'0.2.2',versionCode:5,updaterStatus:state==='failed'?'failed':'downloading',permissions:{camera:'denied',notifications:'granted',focus:'unknown'}}}}));}};
  },state);
  await page.locator('.mobile-navigation a[href="#settings"]').click();
- const info=page.locator('.app-device-settings');await info.waitFor();
+ await settingsCategory(page,'앱 정보');const info=page.locator('.app-device-settings');await info.waitFor();
  if(['ready','failed'].includes(state)){
   await info.getByText('0.2.2 · 빌드 5',{exact:true}).waitFor();
   assert.match(await info.textContent(),state==='failed'?/업데이트 확인 실패/:/다운로드 중/);
   assert.match(await page.locator('.settings-phone').textContent(),/카메라.*미허용/s);
   await info.getByRole('button',{name:'앱 업데이트 열기',exact:true}).click();
+  await settingsCategory(page,'기기 연결');
   await page.getByRole('button',{name:'휴대폰 연결 설정 열기',exact:true}).click();
   await page.getByRole('button',{name:'앱 권한 설정 열기',exact:true}).click();
   assert.deepEqual(await page.evaluate(()=>nativeMessages.filter(m=>m.type==='STUDY_WEB_OPEN_SETTINGS').map(m=>m.target)),['update','focus','permissions']);
@@ -310,11 +314,12 @@ browserTest('app settings: login guidance has no account queries or invented nat
 browserTest('app settings: timezone and alarm saves preserve authenticated transport and past study',()=>withApp(375,async page=>{
  await page.locator('.mobile-navigation a[href="#settings"]').click();
  const panel=page.locator('#settings');
+ await settingsCategory(page,'공부와 화면');await panel.getByRole('button',{name:'시간대 변경',exact:true}).click();
  await panel.getByRole('combobox',{name:/시간대 검색·선택/}).fill('Asia/Seoul');
  await panel.getByRole('button',{name:'시간대 저장',exact:true}).click();
  await panel.getByText('시간대를 저장했어요. 앞으로의 일정과 알림에 적용됩니다.',{exact:true}).waitFor();
  assert.deepEqual(await page.evaluate(()=>fixture.calls.find(c=>c.name==='tech-feed'&&c.args.action==='timezone').args),{action:'timezone',time_zone:'Asia/Seoul'});
- await panel.locator('.settings-notifications > summary').click();
+ await settingsCategory(page,'알림');await panel.locator('.settings-notifications > summary').click();
  await panel.getByRole('button',{name:'알람 편집',exact:true}).click();
  await panel.getByLabel('평일 알림 시간',{exact:true}).fill('21:15');
  await panel.getByRole('checkbox',{name:'이메일 보완 알림 사용'}).check();
@@ -330,6 +335,7 @@ browserTest('app settings: timezone and alarm saves preserve authenticated trans
 
 browserTest('app settings: layout preference save keeps study session then explicit logout uses existing auth',()=>withApp(375,async page=>{
  await page.locator('.mobile-navigation a[href="#settings"]').click();
+ await settingsCategory(page,'공부와 화면');
  await page.getByRole('button',{name:'화면 구성',exact:true}).click();
  await page.getByRole('button',{name:'순서 저장',exact:true}).click();
  await page.locator('.section-order-editor').waitFor({state:'detached'});
@@ -356,6 +362,7 @@ browserTest('app settings: pending native response cannot display previous accou
 
 browserTest('app settings: phone recheck shows pending and failure without claiming a local permission change',()=>withApp(375,async page=>{
  await page.locator('.mobile-navigation a[href="#settings"]').click();
+ await settingsCategory(page,'기기 연결');
  await page.evaluate(()=>fixture.holdFocus=true);
  await page.getByRole('button',{name:'휴대폰 상태 다시 확인',exact:true}).click();
  const checking=page.getByRole('button',{name:'휴대폰 상태 확인 중',exact:true});await checking.waitFor();
@@ -370,6 +377,7 @@ browserTest('app settings: failed updater opening has an inline actionable error
  await page.evaluate(()=>{window.studyRoomNativeSettings=true;window.ReactNativeWebView={postMessage(raw){const m=JSON.parse(raw);if(m.type==='STUDY_WEB_SETTINGS_INFO')window.dispatchEvent(new CustomEvent('study-room-native-message',{detail:{type:'STUDY_NATIVE_SETTINGS_INFO',requestId:m.requestId,snapshot:{versionName:'0.2.2',versionCode:5,updaterStatus:'failed',permissions:{camera:'unknown',notifications:'unknown',focus:'unknown'}}}}));else throw new Error('test transport failure');}};});
  await page.locator('.mobile-navigation a[href="#settings"]').click();
  const info=page.locator('.app-device-settings');
+ await settingsCategory(page,'앱 정보');
  await info.getByRole('button',{name:'앱 업데이트 열기',exact:true}).click();
  await info.getByRole('alert').waitFor();
  assert.match(await info.getByRole('alert').textContent(),/앱을 다시 열고/);
@@ -422,7 +430,8 @@ for(const width of [375,1440]) {
    await page.waitForTimeout(50);await page.clock.runFor(500);
    const panel=page.locator(selector);await panel.waitFor();
    await designSnapshot(page,route,width);
-   metrics.push(await panel.evaluate(el=>{const probe=document.createElement('span');probe.style.backgroundColor='var(--study-surface)';el.append(probe);const sharedSurface=getComputedStyle(probe).backgroundColor;probe.remove();return {route:location.hash,border:getComputedStyle(el).borderTopWidth,background:getComputedStyle(el).backgroundColor,sharedSurface,radius:getComputedStyle(el).borderTopLeftRadius,overflow:document.documentElement.scrollWidth>innerWidth};}));
+   const surface=route==='settings'?panel.locator('.settings-content'):panel;
+   metrics.push(await surface.evaluate(el=>{const probe=document.createElement('span');probe.style.backgroundColor='var(--study-surface)';el.append(probe);const sharedSurface=getComputedStyle(probe).backgroundColor;probe.remove();return {route:location.hash,border:getComputedStyle(el).borderTopWidth,background:getComputedStyle(el).backgroundColor,sharedSurface,radius:getComputedStyle(el).borderTopLeftRadius,overflow:document.documentElement.scrollWidth>innerWidth};}));
    if(route==='forest'){
     assert.equal(await page.getByRole('button',{name:'위로 이동',exact:true}).count(),0);
     await panel.focus();await page.keyboard.press('ArrowRight');
@@ -495,6 +504,7 @@ for (const width of [375, 1440]) browserTest(`dashboard redesign: shared focus h
  if(width===375){
   await page.locator('.mobile-navigation a[href="#settings"]').click();
   assert.equal(await page.locator('#settings').getByRole('link',{name:'내 페이지',exact:true}).isVisible(),true);
+  await settingsCategory(page,'공부와 화면');
   assert.equal(await page.locator('#settings').getByRole('button',{name:'화면 구성',exact:true}).isVisible(),true);
   await page.locator('.mobile-navigation a[href="#today"]').click();
  }
@@ -705,6 +715,46 @@ browserTest('camera return: observed remote pause closes an already live camera'
  assert.equal(await page.getByRole('button',{name:'공부 계속하기',exact:true}).isVisible(),true);
 }));
 
+browserTest('settings redesign: anonymous account gets a settled tag explanation without a tag lookup',()=>withApp(375,async page=>{
+ const dialog=page.getByRole('dialog',{name:'카메라 인증 필요',exact:true});await dialog.waitFor();await page.keyboard.press('Escape');await dialog.waitFor({state:'detached'});
+ await page.locator('a[href="#settings"]:visible').first().click();const tag=page.locator('.public-tag-settings');await tag.waitFor();
+ assert.equal(await tag.getByText('정식 계정 전용',{exact:true}).isVisible(),true);
+ assert.equal(await tag.getAttribute('aria-busy'),'false');assert.doesNotMatch(await tag.textContent(),/확인 중/);
+ assert.equal(await tag.getByRole('button',{name:'공개 태그 변경',exact:true}).count(),0);
+ assert.equal(await page.evaluate(()=>fixture.calls.some(c=>c.name==='team_study_snapshot')),false);
+},'anonymous'));
+
+for(const width of [375,1440])for(const scale of [1,2])browserTest(`settings redesign: categories preserve drafts and show summary before editing at ${width}px / ${scale}x`,()=>withApp(width,async page=>{
+ if(scale===2)await page.addStyleTag({content:'html { font-size:200%; }'});
+ await page.locator('a[href="#settings"]:visible').first().click();const panel=page.locator('#settings');
+ const categories=panel.getByRole('navigation',{name:'설정 분류',exact:true});assert.equal(await categories.count(),1);
+ assert.deepEqual(await categories.getByRole('button').allTextContents(),['계정','공부와 화면','알림','기기 연결','앱 정보']);
+ assert.equal(await panel.locator('[data-settings-panel]:visible').count(),1);
+ const before=await page.evaluate(()=>structuredClone({sessions:fixture.sessions,todos:fixture.todos,recoveries:fixture.recoveries}));
+ const writesBefore=await page.evaluate(()=>fixture.calls.filter(c=>c.name==='profiles.upsert'||/start_study|pause_actual|confirm_actual/.test(c.name)));
+ await categories.getByRole('button',{name:'공부와 화면',exact:true}).click();
+ assert.equal(await panel.getByRole('combobox',{name:/시간대 검색·선택/}).count(),0);
+ await panel.getByRole('button',{name:'시간대 변경',exact:true}).click();
+ const input=panel.getByRole('combobox',{name:/시간대 검색·선택/});await input.fill('Asia/Seoul');
+ await categories.getByRole('button',{name:'알림',exact:true}).click();assert.equal(await input.isVisible(),false);
+ await categories.getByRole('button',{name:'공부와 화면',exact:true}).click();assert.equal(await input.inputValue(),'Asia/Seoul');
+ await panel.locator('.profile-timezone').getByRole('button',{name:'취소',exact:true}).click();assert.equal(await input.count(),0);
+ assert.equal(await panel.locator('.profile-timezone').getByText('Asia/Tokyo',{exact:true}).isVisible(),true);
+ for(const name of ['계정','공부와 화면','알림','기기 연결','앱 정보']){
+  const button=categories.getByRole('button',{name,exact:true});await button.click();assert.equal(await button.getAttribute('aria-pressed'),'true');
+  assert.equal(await panel.locator('[data-settings-panel]:visible').count(),1);
+  await readableGroup(panel.locator('h1:visible,h2:visible,h3:visible,p:visible,dt:visible,dd:visible,button:visible,a:visible'));
+  await touchControls(panel.locator('button:visible,a:visible,summary:visible,input:not([type=checkbox]):visible'));
+  assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),true,name+' reflows');
+ }
+ await categories.getByRole('button',{name:'계정',exact:true}).click();await categories.getByRole('button',{name:'계정',exact:true}).focus();
+ await page.keyboard.press('Tab');assert.equal(await categories.getByRole('button',{name:'공부와 화면',exact:true}).evaluate(el=>el===document.activeElement),true);
+ assert.notEqual(await page.evaluate(()=>getComputedStyle(document.activeElement).outlineStyle),'none');
+ assert.deepEqual(await page.evaluate(()=>({sessions:fixture.sessions,todos:fixture.todos,recoveries:fixture.recoveries})),before);
+ assert.deepEqual(await page.evaluate(()=>fixture.calls.filter(c=>c.name==='profiles.upsert'||/start_study|pause_actual|confirm_actual/.test(c.name))),writesBefore);
+ await mkdir('output/playwright',{recursive:true});await panel.screenshot({path:`output/playwright/settings-redesign-${width}-${scale}x.png`});
+}));
+
 async function auditSharedDetails(panel) {
  const badges=panel.locator('.recovery-history-header > strong, .todo-history-header > strong, .recovery-history-meta strong, .recovery-history-meta em, .recovery-history-meta small, .weekly-habit-heading > span, .forest-weekly-reward-heading > strong');
  for(const badge of await badges.all()){
@@ -742,12 +792,13 @@ for(const width of [375,1440])for(const scale of [1,2])browserTest(`full UI audi
  for(const [route,selector] of [['goals','.goals-panel'],['forest','.study-forest-panel'],['feed','.tech-feed'],['me','.my-page-panel'],['settings','.settings-panel']]){
   await page.evaluate(route=>{location.hash='#'+route;window.dispatchEvent(new HashChangeEvent('hashchange'));},route);
   const panel=page.locator(selector);await panel.waitFor();await page.clock.runFor(500);
-  if(route==='settings')await panel.locator('.settings-notifications > summary').click();
+  if(route==='settings'){await settingsCategory(page,'알림');await panel.locator('.settings-notifications > summary').click();}
   await auditSharedDetails(panel);
   for(const symbol of await panel.locator('.forest-weekly-reward-seeds > span').all())assert.equal(await symbol.evaluate(el=>getComputedStyle(el).boxShadow),'none','forest progress markers are flat, not raised buttons');
   assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),true,route+' reflows without horizontal overflow');
   await mkdir('output/playwright',{recursive:true});await panel.screenshot({path:`output/playwright/full-ui-${route}-${width}-${scale}x.png`});
   if(route==='settings'){
+   await settingsCategory(page,'공부와 화면');
    await panel.getByRole('button',{name:'화면 구성',exact:true}).click();const editor=page.locator('.section-order-editor');await editor.waitFor();
    for(const row of await editor.locator('.section-order-row').all())assert.equal(await row.evaluate(el=>getComputedStyle(el).boxShadow),'none');
    await auditSharedDetails(editor);assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),true);
@@ -798,7 +849,7 @@ state.recoveries=mode==='recovery'?[{id:'recovery',local_date:'2026-09-20',cover
 if(mode==='lease')state.sessions[0].lease_expires_at='2026-09-21T14:34:00Z';
 if(mode==='unknown'){state.current=null;state.sessions[0].paused_at=now;state.todos.forEach(t=>{t.first_started_at=null;t.unknown_allocation=true;t.evaluation_eligible=false;});}
 if(mode==='precheck'){state.sessions=[];state.recoveries=Array.from({length:5},(_,i)=>({id:'submitted-'+i,local_date:'2026-09-21',trigger_type:'missed_attendance',status:'submitted',reason:'일정 조정',makeup_todo_title:'보충 독서',pledge_todo_title:'다시 시작',created_at:now}));}
-const authSession=mode==='login'?null:{access_token:'test-only',user:{id:'owner',email:'fixture@example.test',user_metadata:{}}};
+const authSession=mode==='login'?null:{access_token:'test-only',user:{id:'owner',email:'fixture@example.test',user_metadata:{},is_anonymous:mode==='anonymous'}};
 state.profile={user_id:'owner',time_zone:'Asia/Tokyo',reminder_time:'09:00',email_reminders_enabled:false};
 const track=()=>({session_id:'session',current_todo_id:state.current,tracking_started_at:row.started_at,excluded_seconds:state.excluded,unknown_allocation:false,server_now:now,todos:state.todos.filter(t=>state.links.includes(t.id)).map(t=>({...t,open_started_at:state.sessions[0]?.paused_at||t.id!==state.current?null:row.started_at}))});
 function result(name,args){state.calls.push({name,args});
@@ -836,6 +887,7 @@ function result(name,args){state.calls.push({name,args});
  }
  if(name==='get_actual_study_report')return state.reportFail?{error:{message:'report failed'},data:null}:{error:null,data:{scheduled_count:2,started_count:1,on_time_count:0,on_time_ratio:0,adjustment_count:3,unstarted_count:1,plans:[{todo_id:'a',title:'집중 독서',original_start_at:'2026-09-21T12:00:00Z',first_started_at:'2026-09-21T14:00:00Z',delay_minutes:120,adjustment_count:3,is_unstarted:false}]}};
  if(name==='get_study_period_summary')return {data:{completed_seconds:mode==='attendance-goal'?7200:3600,completed_session_count:1,anomaly_session_count:0,cross_date_session_count:0},error:null};
+ if(name==='team_study_snapshot')return {data:{tag:'테스트#계정',team:null,members:[],invitations:[],invite_links:[],round:null,connection:null,forest:{accepted_seconds:0,pending_sessions:0,trees:0,progress_seconds:0},server_now:now},error:null};
  return {data:[],error:null};
 }
 function query(table){let single=false,insert=null,update=null,reflectionOps=[],filters=[];const q=new Proxy({}, {get(_,key){if(key==='then')return (resolve,reject)=>Promise.resolve().then(()=>{
@@ -970,7 +1022,7 @@ for(const width of [375,1440]) browserTest(`section recovery: settings chunk fai
  await tools.getByRole('button',{name:'카메라 감시 켜기',exact:true}).click();
  await tools.getByRole('button',{name:'카메라 감시 끄기',exact:true}).waitFor();
  await page.evaluate(()=>{window.savedTrack=document.querySelector('video').srcObject.getVideoTracks()[0];window.savedRequests=window.fixtureCameraRequests;fixture.calls=[];location.hash='settings';});
- await page.locator('.settings-notifications > summary').click();
+ await settingsCategory(page,'알림');await page.locator('.settings-notifications > summary').click();
  const recovery=page.locator('.section-load-recovery');await recovery.waitFor();
  assert.equal(await recovery.getByRole('button',{name:'새 화면 불러오기',exact:true}).isDisabled(),true);
  assert.equal(await page.getByRole('navigation',{name:'대시보드 섹션'}).first().count(),1);
@@ -1018,7 +1070,7 @@ for(const [chunk,route] of [['TechFeedSection','feed'],['TeamStudySection','toge
 
 browserTest('section recovery: fresh study state blocks reload and idle reload needs an explicit click',()=>withApp(375,async page=>{
  await page.evaluate(()=>{location.hash='settings';});
- await page.locator('.settings-notifications > summary').click();
+ await settingsCategory(page,'알림');await page.locator('.settings-notifications > summary').click();
  const recovery=page.locator('.section-load-recovery');await recovery.waitFor();
  const reload=recovery.getByRole('button',{name:'새 화면 불러오기',exact:true});assert.equal(await reload.isEnabled(),true);
  await page.getByLabel('Slack Channel ID',{exact:true}).fill('[테스트] 미저장 입력');
@@ -1039,7 +1091,7 @@ browserTest('section recovery: an unresolved goal write blocks full reload acros
  await page.getByRole('button',{name:'목표 달성',exact:true}).first().click();
  await page.waitForFunction(()=>!!fixture.releaseGoalWrite);
  await page.evaluate(()=>{location.hash='settings';});
- await page.locator('.settings-notifications > summary').click();
+ await settingsCategory(page,'알림');await page.locator('.settings-notifications > summary').click();
  const reload=page.locator('.section-load-recovery').getByRole('button',{name:'새 화면 불러오기',exact:true});await reload.waitFor();
  assert.equal(await reload.isDisabled(),true);
  await page.evaluate(()=>fixture.releaseGoalWrite());

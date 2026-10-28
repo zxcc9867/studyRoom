@@ -19,6 +19,7 @@ import SessionReflectionModal from "./SessionReflectionModal";
 import { createTechFeedClient, feedTodoDraft } from "./techFeed.mjs";
 import type { FeedArticle } from "./techFeedTypes";
 import TimeZonePicker from "./TimeZonePicker";
+import SettingsLayout from "./SettingsLayout";
 import AppDeviceSettings, { AppInstallGuidance } from "./AppDeviceSettings";
 import {
   Bell,
@@ -6935,9 +6936,8 @@ function DashboardApp() {
         )}
 
         {activeSection === "settings" && (
-        <section id="settings" className="settings-panel app-settings-panel">
-          <header className="app-settings-heading"><h1>설정</h1><p>계정과 공부 환경, 알림과 앱 정보를 한곳에서 확인하세요.</p></header>
-          <section className="settings-group" aria-labelledby="settings-account-title">
+        <SettingsLayout key={session.user.id}>
+          <section id="settings-panel-account" data-settings-panel="account" className="settings-group" aria-labelledby="settings-account-title">
             <h2 id="settings-account-title">계정</h2>
             <dl className="settings-values"><div><dt>이메일</dt><dd>{session.user.email ?? profile?.email ?? "등록 없음"}</dd></div><div><dt>로그인 방식</dt><dd>{formatAuthProvider(session.user.app_metadata?.provider)}</dd></div></dl>
             <div className="settings-actions"><a href="#me">내 페이지</a><button type="button" className="plain" onClick={() => {
@@ -6949,7 +6949,7 @@ function DashboardApp() {
               <PublicTagSettings key={session.user.id} supabase={supabase} userId={session.user.id} registered={!session.user.is_anonymous} onPendingChange={desktopAuth ? desktopSettingsPending : undefined} />
             </RecoverableSection>
           </section>
-          <section className="settings-group" aria-labelledby="settings-study-title">
+          <section id="settings-panel-study" data-settings-panel="study" className="settings-group" aria-labelledby="settings-study-title">
             <h2 id="settings-study-title">공부·화면</h2>
             <TimeZonePicker key={session.user.id} value={timeZone} onSave={async zone => {
               desktopSettingsPending(true);
@@ -6975,8 +6975,8 @@ function DashboardApp() {
               setSectionOrderEditing(true);
             }}>화면 구성</button></div>
           </section>
-          <details className="settings-group settings-notifications">
-            <summary><h2>알림</h2><span>알람·이메일·Slack·브라우저·적응형 알림</span></summary>
+          <details id="settings-panel-notifications" data-settings-panel="notifications" className="settings-group settings-notifications">
+            <summary><h2>알림</h2><span>평일 {formatAlarmTime(profile?.reminder_time ?? reminderTime)} · 주말 {formatAlarmTime(WEEKEND_REMINDER_TIME)}</span></summary>
             <div className="settings-notification-content">
           <div className="settings-header">
             <div>
@@ -7162,7 +7162,7 @@ function DashboardApp() {
               finally { if (currentUserIdRef.current === userId) setFocusStatusRechecking(false); }
             }}>{focusStatusRechecking ? "휴대폰 상태 확인 중" : "휴대폰 상태 다시 확인"}</button>
           </div>} />
-        </section>
+        </SettingsLayout>
         )}
 
       </section>

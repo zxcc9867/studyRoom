@@ -40,8 +40,8 @@ function AndroidWebDeviceSettings({ phoneStatus }: { phoneStatus: ReactNode }) {
   const snapshot = info.status === "ready" ? info.snapshot : null;
   const embedded = typeof (window as Window & { ReactNativeWebView?: { postMessage?: unknown } }).ReactNativeWebView?.postMessage === "function";
   return <>
-    <section className="settings-group settings-phone" aria-labelledby="settings-phone-title">
-      <h2 id="settings-phone-title">휴대폰</h2>
+    <section id="settings-panel-device" data-settings-panel="device" className="settings-group settings-phone" aria-labelledby="settings-phone-title">
+      <h2 id="settings-phone-title">기기 연결</h2>
       {phoneStatus}
       {snapshot ? <>
         <dl className="settings-values">
@@ -54,7 +54,7 @@ function AndroidWebDeviceSettings({ phoneStatus }: { phoneStatus: ReactNode }) {
       </> : <p>웹에서는 서버의 연결 상태만 확인합니다. 실제 연결·해제와 권한 변경은 Android 앱에서 진행해 주세요.</p>}
       {openError && openError !== "update" && <p role="alert">앱 설정창을 열지 못했어요. 앱을 다시 열고 확인해 주세요.</p>}
     </section>
-    <section className="settings-group app-device-settings" aria-labelledby="settings-app-title">
+    <section id="settings-panel-app" data-settings-panel="app" className="settings-group app-device-settings" aria-labelledby="settings-app-title">
       <h2 id="settings-app-title">앱 정보</h2>
       {info.status === "checking" && <p role="status">앱 정보를 확인하고 있어요…</p>}
       {snapshot ? <>

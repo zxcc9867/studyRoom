@@ -2,6 +2,18 @@ import test from 'node:test';import assert from 'node:assert/strict';
 import {createServer} from 'node:http';import {mkdir,readFile} from 'node:fs/promises';import {fileURLToPath,pathToFileURL} from 'node:url';import {build} from 'esbuild';
 let chromium;try{({chromium}=await import(process.env.FEED_BROWSER_MODULE?pathToFileURL(process.env.FEED_BROWSER_MODULE).href:'playwright'));}catch{}
 const mounted=(name,run)=>test(name,{skip:!chromium&&'Enable FEED_BROWSER_MODULE and FEED_BROWSER_EXECUTABLE'},run);
+for(const width of [375,1440])mounted(`settings redesign: public tag opens on demand and cancel restores saved value at ${width}px`,()=>withDashboard(width,'active','#today',async page=>{
+ await page.evaluate(()=>fixture.team.tag='테스트#독서');await page.locator('a[href="#settings"]:visible').first().click();
+ const account=page.getByRole('region',{name:'계정',exact:true});await account.getByText('테스트#독서',{exact:true}).waitFor();
+ assert.equal(await account.getByLabel('공개 사용자 태그',{exact:true}).count(),0);
+ await account.getByRole('button',{name:'공개 태그 변경',exact:true}).click();const input=account.getByLabel('공개 사용자 태그',{exact:true});await input.fill('테스트#초안');
+ const nav=page.getByRole('navigation',{name:'설정 분류',exact:true});await nav.getByRole('button',{name:'알림',exact:true}).click();await nav.getByRole('button',{name:'계정',exact:true}).click();
+ assert.equal(await input.inputValue(),'테스트#초안');await account.getByRole('button',{name:'취소',exact:true}).click();assert.equal(await input.count(),0);
+ assert.equal(await page.evaluate(()=>fixture.calls.some(c=>c.args?.p_action==='set_tag')),false);
+ await account.getByRole('button',{name:'공개 태그 변경',exact:true}).click();assert.equal(await input.inputValue(),'테스트#독서');
+ await input.fill('테스트#저장');await account.getByRole('button',{name:'태그 저장',exact:true}).click();await account.getByText('공개 태그를 저장했어요.',{exact:true}).waitFor();
+ assert.equal(await input.count(),0);assert.equal(await account.getByText('테스트#저장',{exact:true}).isVisible(),true);assert.equal(await page.evaluate(()=>fixture.sessions[0].ended_at),null);
+}));
 for(const width of [375,1440])mounted(`team UI audit: shared controls and enlarged text at ${width}px`,()=>withDashboard(width,'active','#together',async page=>{
  await page.addStyleTag({content:'html { font-size:200%; }'});const panel=page.locator('#together');
  await panel.getByLabel('팀 이름',{exact:true}).fill('테스트 전용 공부방');await panel.getByRole('button',{name:'팀 만들기',exact:true}).click();
@@ -315,15 +327,16 @@ for(const width of [375,1440])mounted(`personal-first study tabs and account-onl
  await page.evaluate(()=>fixture.team.tag='기존이름#독서');
  await panel.getByRole('link',{name:'공개 태그 설정하기',exact:true}).click();
  const account=page.getByRole('region',{name:'계정',exact:true});
- const tag=account.getByLabel('공개 사용자 태그',{exact:true});await page.waitForFunction(()=>document.querySelector('#settings-public-tag')?.value==='기존이름#독서');
+ await account.getByText('기존이름#독서',{exact:true}).waitFor();await account.getByRole('button',{name:'공개 태그 변경',exact:true}).click();
+ const tag=account.getByLabel('공개 사용자 태그',{exact:true});
  assert.equal(await tag.inputValue(),'기존이름#독서');
  await tag.fill(' A스타#지니 ');await account.getByRole('button',{name:'태그 저장',exact:true}).click();
  await account.getByText('공개 태그를 저장했어요.',{exact:true}).waitFor();
- assert.equal(await tag.inputValue(),'a스타#지니');
+ assert.equal(await account.getByText('a스타#지니',{exact:true}).isVisible(),true);
  assert.deepEqual(await page.evaluate(()=>fixture.calls.filter(c=>c.name==='team_study_action').map(c=>[c.args.p_action,c.args.p_payload])),[['set_tag',{tag:'a스타#지니'}]]);
  await capture(page,'settings-public-tag',width);
- for(const el of await account.locator('button,input,a').all()){const box=await el.boundingBox();assert.ok(box.height>=44);}
- await readableTeamText(page,['.public-tag-settings label','.public-tag-settings p'],width);
+ for(const el of await account.locator('button:visible,input:visible,a:visible').all()){const box=await el.boundingBox();assert.ok(box.height>=44);}
+ await account.getByRole('button',{name:'공개 태그 변경',exact:true}).click();await readableTeamText(page,['.public-tag-settings label','.public-tag-settings p'],width);
  await tag.focus();await page.keyboard.press('Tab');assert.equal(await account.getByRole('button',{name:'태그 저장',exact:true}).evaluate(el=>el===document.activeElement),true);
  const nav=page.locator(width===375?'.mobile-navigation':'.desktop-navigation');await nav.locator('a[href="#today"]').click();
  await modes.getByRole('link',{name:'팀 공부',exact:true}).click();await panel.getByLabel('팀 이름',{exact:true}).waitFor();
@@ -334,7 +347,7 @@ for(const width of [375,1440])mounted(`personal-first study tabs and account-onl
 }));
 
 mounted('public tag settings validate input and preserve draft after save failure',()=>withDashboard(375,'active','#settings',async page=>{
- const account=page.getByRole('region',{name:'계정',exact:true}),tag=account.getByLabel('공개 사용자 태그',{exact:true});await tag.waitFor();
+ const account=page.getByRole('region',{name:'계정',exact:true}),tag=account.getByLabel('공개 사용자 태그',{exact:true});await account.getByRole('button',{name:'공개 태그 변경',exact:true}).click();await tag.waitFor();
  await tag.fill('잘못된태그');await account.getByRole('button',{name:'태그 저장',exact:true}).click();
  await account.getByRole('alert').waitFor();assert.equal(await page.evaluate(()=>fixture.calls.some(c=>c.name==='team_study_action')),false);
  await tag.fill('내이름#독서');await page.evaluate(()=>fixture.actionError='TAG_TAKEN');await account.getByRole('button',{name:'태그 저장',exact:true}).click();
@@ -346,16 +359,16 @@ mounted('public tag settings loading failure retries without changing study or e
  await page.getByRole('timer',{name:'이번 세션 공부시간',exact:true}).waitFor();await page.evaluate(()=>fixture.teamError=true);
  await page.locator('.mobile-navigation a[href="#settings"]').click();const account=page.getByRole('region',{name:'계정',exact:true});
  await account.getByRole('alert').waitFor();assert.doesNotMatch(await account.textContent(),/PRIVATE_RAW_EXCEPTION/);
- assert.equal(await account.getByRole('button',{name:'태그 저장',exact:true}).isDisabled(),true);
+ assert.equal(await account.getByRole('button',{name:'공개 태그 변경',exact:true}).isDisabled(),true);
  await page.evaluate(()=>{fixture.teamError=false;fixture.team.tag='읽기성공#독서';});await account.getByRole('button',{name:'태그 다시 확인',exact:true}).click();
- await page.waitForFunction(()=>document.querySelector('#settings-public-tag')?.value==='읽기성공#독서');
+ await account.getByText('읽기성공#독서',{exact:true}).waitFor();
  assert.equal(await page.evaluate(()=>fixture.calls.some(c=>c.name==='team_study_action')),false);assert.equal(await page.evaluate(()=>fixture.sessions[0].ended_at),null);
 }));
 
 mounted('public tag settings late save is discarded on account switch',()=>withDashboard(375,'active','#settings',async page=>{
- const account=page.getByRole('region',{name:'계정',exact:true}),tag=account.getByLabel('공개 사용자 태그',{exact:true});await tag.fill('이전계정#독서');
+ const account=page.getByRole('region',{name:'계정',exact:true}),tag=account.getByLabel('공개 사용자 태그',{exact:true});await account.getByRole('button',{name:'공개 태그 변경',exact:true}).click();await tag.fill('이전계정#독서');
  await page.evaluate(()=>fixture.holdAction=true);await account.getByRole('button',{name:'태그 저장',exact:true}).click();await page.waitForFunction(()=>!!fixture.releaseAction);
  await page.evaluate(()=>{fixture.currentAuth={...fixture.currentAuth,user:{...fixture.currentAuth.user,id:'other'}};fixture.holdAction=false;fixture.changeOwner();fixture.releaseAction();});
- await page.waitForFunction(()=>document.querySelector('#settings-public-tag')&&!document.querySelector('#settings-public-tag').disabled);
+ await account.getByRole('button',{name:'공개 태그 변경',exact:true}).click();await tag.waitFor();
  assert.equal(await tag.inputValue(),'');assert.equal(await account.getByText('공개 태그를 저장했어요.',{exact:true}).count(),0);
 }));
