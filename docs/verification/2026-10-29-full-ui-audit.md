@@ -41,8 +41,13 @@
 - 독립 shared-reviewer: 실제 Chrome13/13 및 최종 테두리2/2·diff 검사 후 Critical0/Important0/Minor0. 검토자는 checkout/index/HEAD를 변경하지 않았다.
 - 전체 Chrome: `node --test --test-concurrency=2 packages/core/test/*.test.mjs apps/web/test/*.test.mjs server/ai/*.test.mjs scripts/*.test.mjs supabase/functions/_shared/*.test.mjs`에 실제 Chrome 환경을 지정해1441/1441, 실패/생략/취소0,492599ms. 기존 공부/휴식/재개/종료·카메라 복귀·관찰 기기 동기화·저장 실패/복구·팀/회고 등 실제 mounted 흐름을 포함한다. 로그/스크린샷은 `output/full-ui-audit-browser.log`, `output/playwright/full-ui-*.png`(비커밋).
 - React diff 검토: 표시 복사/속성/스타일만 변경, hook/이벤트/영속 상태 소유권·서버 호출 불변, 사용하지 않는 아이콘 import만 제거했다. TypeScript/build와 scoped `git diff --check` 통과.
-- 운영 배포: 아래 출시 항목에 갱신한다.
+- 운영 배포: 아래 출시 항목으로 완료 확인했다.
 
 ## 출시
 
-기존 `.github/workflows/vercel-production.yml`과 기존 project/team만 사용한다. 출시 메타데이터·DB·Auth·환경값은 수정하지 않는다. 현재 배포 대기.
+- UI commit `7773466fd689a2d3cc439ecf7ca7fa01ba10bc7e`를 `feat/hig-ui-auth`에 push. 기존 Actions [40722576237](https://github.com/zxcc9867/studyRoom/actions/runs/40722576237) success/exactSHA 확인. 별도 main 변경/새 pipeline/DB·Auth·APK·공급자 설정 수정 없음.
+- Vercel `dpl_6GJQa7bTarDxzqtUJGR84zwBz2j4`: production READY, 기존 project `prj_u2Q9FKwNeVjwwtVOjuXNMZRpkR3g`/team·운영 alias·위 sourceSHA 일치. 원격 buildingAt→ready 약58초.
+- [운영 독서실](https://study-room-attendance.vercel.app) HTML200·`/assets/index-Pnclj7TD.js`200·`/assets/index-Bt0rDdo8.css`200. 새 recovery status/달력 선택자 존재, 구형 recovery summary 영문 제거 확인.
+- `/download/android`와 `/download/android.css`200, 새 ‘안드로이드 앱’/흰 면 토큰 존재, 공개 버전0.2.4/code7 보존 확인. APK 다운로드/설치·Windows 바이너리 교체는 하지 않았다.
+- 출시 직후 해당 deployment의 최근5분 error/fatal 그룹 없음. 장기 모니터링·Drains 구성은 이번에 검사/변경하지 않았으며 실기기 전체 수용을 뜻하지 않는다.
+- 웹은 새로고침, 이미 열린 Windows/Android hosted 화면은 공부를 마친 뒤 앱 재실행 시 새 UI를 사용한다. 이번 웹 UI에 새 APK/Windows 설치 파일은 필요 없다. 네이티브 로그인/OS 권한 화면 및 이전 자동 전경 문제는 별도 범위다.
