@@ -30,6 +30,8 @@
 
 2026-10-29 분류형 설정 개선은 공통 웹 표시만 변경한다. 프로젝트의 웹 자동 배포 규칙에 따라 검증 후 기존 production workflow로 출시하며, APK/Windows 설치 파일·버전·공개 다운로드 경로는 바꾸지 않는다. 아래 2026-10-06의 별도 APK 출시 절차는 당시 기록이다.
 
+분류형 출시 완료: be90bea push·Chrome1449/1449·verify7/Dune0·독립C/I/M0. Actions40733635247 success·Vercel dpl_J8QqGT1Q4EQNnTpGZoxCzGjkwNp8 READY/exactSHA/운영alias·HTML/JS/CSS200·새 설정 nav/editor 포함 확인. 기록/저장 API·인증·네이티브 updater 불변. 실제 OS 권한창/물리 기기 전체 수용은 별도이며 상세는 docs/verification/2026-10-29-settings-redesign.md.
+
 375/1440px, 글자 확대·44px 조작·키보드 포커스·AA 대비, 로그인 전후·구형 APK·업데이트 상태·취소·권한 복귀·계정 전환·공부 상태 보존을 검증한다. 전체 테스트/mobile:check/build/docs:check 및 Android 빌드를 실행한다. 에뮬레이터 결과와 실기기 미검증을 구분한다.
 
 2026-10-06 사용자가 계획 구현을 승인했다. 앱 0.2.2/code5를 준비하되 공개 출시 JSON/고정 APK 링크는 기존 0.2.1/code4로 유지한다. 운영 배포·커밋·푸시는 별도 요청 후 진행한다.

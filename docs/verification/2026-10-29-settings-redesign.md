@@ -34,4 +34,8 @@
 
 ## 출시
 
-최종 검증 통과. 기존 기능 브랜치/production workflow로 공통 웹만 배포하며 운영 결과는 게시 후 갱신한다.
+- 제품 커밋 `be90bea28f27da7418aba502b9f2d2b16b647e56`을 `feat/hig-ui-auth`에 push했다. 기존 native/auth/종료 미커밋 파일은 stage하지 않았다.
+- [Actions40733635247](https://github.com/zxcc9867/studyRoom/actions/runs/40733635247) completed/success, source SHA 일치. Vercel `dpl_J8QqGT1Q4EQNnTpGZoxCzGjkwNp8` READY/production, project `prj_u2Q9FKwNeVjwwtVOjuXNMZRpkR3g` 및 운영 alias/source SHA 일치.
+- 운영 `https://study-room-attendance.vercel.app` HTML200, `/assets/index-BV81J-df.js`200, `/assets/index-BQk6_MmD.css`200. 새 settings-category-nav/data-settings-category/settings-inline-editor가 실제 운영 assets에 포함됐다.
+- 배포 직후5분 범위 runtime error/fatal 집계 그룹 없음. 장기 운영 관측·실기기 전체 수용을 대신하지 않는다.
+- 웹 새로고침/공부를 마친 뒤 앱 화면을 다시 불러오면 공통 UI를 받는다. APK/Windows 설치 파일·기존 설치 링크·서버 기록은 변경하지 않았다.
