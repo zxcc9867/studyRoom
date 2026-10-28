@@ -35,7 +35,7 @@ export default function BreakReturnPlan({
       data-state={state.due ? "due" : state.planned ? "planned" : "unplanned"}
     >
       <div className="break-return-copy">
-        <p className="eyebrow"><Clock3 size={15} aria-hidden="true" /> return promise</p>
+        <p className="eyebrow"><Clock3 size={15} aria-hidden="true" /> 복귀 시간</p>
         <strong id="break-return-plan-title">
           {!state.planned
             ? "언제 다시 앉을까요?"

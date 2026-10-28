@@ -11,7 +11,7 @@ export default function ActualStudyPanel({ tracking, paused, nowMs, cameraTotal,
   const progress = current && tracking ? getActualProgress({...current, open_started_at: paused ? null : current.open_started_at}, tracking, nowMs, cameraTotal, leaseExpiresAt) : null;
   const date = (value: string) => new Intl.DateTimeFormat('ko-KR', {timeZone, month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit',hour12:false}).format(new Date(value));
   return <div className={`session-todo-panel actual-study-panel${compact ? ' actual-study-compact' : ''}`} aria-label="이번 세션 할 일">
-    <div className="session-todo-head"><div><p className="eyebrow">{compact ? '지금 집중할 일' : 'session tasks'}</p>{!compact && <h3>이번 세션 할 일</h3>}</div><span className="actual-state">{paused ? '휴식 중' : '집중 중'}</span></div>
+    <div className="session-todo-head"><div>{compact && <p className="eyebrow">지금 집중할 일</p>}{!compact && <h3>이번 세션 할 일</h3>}</div><span className="actual-state">{paused ? '휴식 중' : '집중 중'}</span></div>
     {!tracking ? <p role="status">서버의 공부 기록을 확인하고 있어요. 확인 전에는 세션을 변경할 수 없어요.</p> : <>
       {current && progress ? <div className="actual-current">
         <h4>{current.title}</h4>

@@ -84,7 +84,7 @@ export default function EmbeddedAuthGate({ children }: { children: ReactNode }) 
   return (
     <main className="login-shell">
       <section className="login-panel" role={status === "error" ? "alert" : "status"}>
-        <p className="eyebrow">study room</p>
+        <p className="eyebrow">독서실</p>
         <h1>{status === "error" ? "앱 로그인 연결에 실패했어요" : "앱 로그인 연결 중"}</h1>
         <p className="login-copy">
           {status === "error"

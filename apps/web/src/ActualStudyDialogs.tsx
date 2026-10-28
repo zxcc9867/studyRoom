@@ -11,7 +11,7 @@ export function ActualStudyConfirmation({ intent, busy, notice, error, onConfirm
   const hasChanges=intent.preview.changes.length>0;
   const title=hasChanges?'공부와 일정 변경 확인':'공부 처리 결과 확인';
   return <AccessibleDialog className="todo-modal actual-confirmation" ariaLabel={title} onClose={()=>{if(!busy && !intent.uncertain)onCancel();}}>
-    <p className="eyebrow">{hasChanges?'review your plan':'check study result'}</p><h3>{title}</h3>
+    <h3>{title}</h3>
     {hasChanges && <><p>{intent.preview.changes.length}개 일정이 아래와 같이 바뀌어요. 원래 계획과 이미 공부한 기록은 그대로 남아요.</p>
     <p>현재 할 일 남은 분량 · <strong>{intent.preview.remaining_seconds===null?'시간 미지정':formatActualDuration(intent.preview.remaining_seconds)}</strong></p></>}
     {hasChanges && notice && <p role="status">{notice}</p>}

@@ -1,4 +1,4 @@
-import { ArrowUp, Flower2, Footprints, RefreshCw, Sprout, Target, TreePine } from "lucide-react";
+import { ArrowUp, Flower2, RefreshCw, Sprout, TreePine } from "lucide-react";
 
 import type { WeeklyHabitRhythm } from "./weeklyHabit.mjs";
 
@@ -15,14 +15,12 @@ export default function WeeklyHabitRhythmPanel({
     <section className="weekly-habit-rhythm history-panel" aria-labelledby="weekly-habit-title">
       <div className="weekly-habit-heading">
         <div>
-          <p className="eyebrow"><Footprints size={16} aria-hidden="true" /> last 7 days</p>
           <h2 id="weekly-habit-title">최근 7일 숲길</h2>
         </div>
         <span>{rhythm.rangeLabel}</span>
       </div>
       <div className={`weekly-habit-target ${rhythm.target.targetReached ? "completed" : ""} ${rhythm.isGentleRestart ? "restart" : ""}`.trim()}>
         <div className="weekly-habit-target-copy">
-          <p><Target size={15} aria-hidden="true" /> flexible goal</p>
           {rhythm.isGentleRestart && (
             <span className="weekly-habit-restart-cue"><RefreshCw size={13} aria-hidden="true" /> 다시 잇는 날</span>
           )}

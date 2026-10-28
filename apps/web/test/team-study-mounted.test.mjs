@@ -2,6 +2,18 @@ import test from 'node:test';import assert from 'node:assert/strict';
 import {createServer} from 'node:http';import {mkdir,readFile} from 'node:fs/promises';import {fileURLToPath,pathToFileURL} from 'node:url';import {build} from 'esbuild';
 let chromium;try{({chromium}=await import(process.env.FEED_BROWSER_MODULE?pathToFileURL(process.env.FEED_BROWSER_MODULE).href:'playwright'));}catch{}
 const mounted=(name,run)=>test(name,{skip:!chromium&&'Enable FEED_BROWSER_MODULE and FEED_BROWSER_EXECUTABLE'},run);
+for(const width of [375,1440])mounted(`team UI audit: shared controls and enlarged text at ${width}px`,()=>withDashboard(width,'active','#together',async page=>{
+ await page.addStyleTag({content:'html { font-size:200%; }'});const panel=page.locator('#together');
+ await panel.getByLabel('팀 이름',{exact:true}).fill('테스트 전용 공부방');await panel.getByRole('button',{name:'팀 만들기',exact:true}).click();
+ await panel.getByRole('heading',{name:'테스트 전용 공부방',exact:true}).waitFor();
+ await panel.getByLabel('목표',{exact:true}).fill('테스트 목표');await panel.getByRole('button',{name:'목표 저장',exact:true}).click();await panel.locator('.team-desk').getByText('테스트 목표',{exact:true}).waitFor();
+ const check=async scope=>{for(const el of await scope.locator('button:visible, input:not([type=checkbox]):visible, select:visible').all()){
+  const box=await el.boundingBox();assert.ok(box.width>=44&&box.height>=44);assert.equal(await el.evaluate(node=>getComputedStyle(node).boxShadow),'none');
+ }};
+ await check(panel);await panel.getByRole('button',{name:'팀 탈퇴',exact:true}).click();const dialog=page.getByRole('dialog',{name:'팀 탈퇴',exact:true});await dialog.waitFor();await check(dialog);
+ assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),true);await capture(page,'team-ui-enlarged',width);
+ await page.keyboard.press('Escape');assert.equal(await page.evaluate(()=>fixture.sessions[0].ended_at),null);
+}));
 for(const width of [375,1440])mounted(`automatic team UI ${width}: shared goal, leader badge and guarded leave modal`,()=>withDashboard(width,'active','#together',async page=>{
  const panel=page.locator('#together');await panel.getByLabel('팀 이름',{exact:true}).fill('자동 팀 공부');
  await panel.getByRole('button',{name:'팀 만들기',exact:true}).click();

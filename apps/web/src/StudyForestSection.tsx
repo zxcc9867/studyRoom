@@ -202,7 +202,6 @@ export default function StudyForestSection({
     >
       <div className="section-heading">
         <div>
-          <p className="eyebrow">study forest</p>
           <h2>공부의 숲</h2>
           <p className="section-description">꾸준한 출석으로 나무를 키우고, 5/7 작은 시작으로 반딧불 화환을 남겨 보세요.</p>
         </div>
@@ -249,7 +248,6 @@ export default function StudyForestSection({
         </div>
 
         <div className="forest-status-card">
-          <p className="eyebrow">tree status</p>
           <h3>{forestState.currentTree.label}</h3>
           <div className="forest-progress-track"><span style={{ width: `${progressPercent}%` }} /></div>
           <p>현재 연속 출석 {forestState.currentStreak}일 · 이번 나무 {forestState.currentTree.progressDays}/7일</p>
@@ -259,7 +257,7 @@ export default function StudyForestSection({
           >
             <div className="forest-weekly-reward-heading">
               <div>
-                <p className="eyebrow"><Sparkles size={15} aria-hidden="true" /> weekly glow</p>
+                <p className="eyebrow"><Sparkles size={15} aria-hidden="true" /> 최근 7일 시작</p>
                 <h4 id="forest-weekly-reward-title">
                   {weeklyHabitTarget.targetReached
                     ? "이번 7일 반딧불 화환 완성"
@@ -324,7 +322,7 @@ export default function StudyForestSection({
 
       <section className="forest-customizer" aria-labelledby="forest-customizer-title">
         <div className="forest-customizer-heading">
-          <div><p className="eyebrow">island atelier</p><h3 id="forest-customizer-title">내 숲 꾸미기</h3></div>
+          <div><h3 id="forest-customizer-title">내 숲 꾸미기</h3></div>
           <MapIcon size={28} />
         </div>
         <CustomizationGroup

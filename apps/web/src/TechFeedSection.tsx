@@ -312,7 +312,7 @@ export default function TechFeed({supabase,userId,timeZone,onPlan,linkedTodo=nul
   const state=currentFeedState(loadedState,stateOwner,userId);
   const failures=state?.sources.filter(item=>item.subscribed&&item.last_error) || [];
   return <section className="tech-feed" aria-labelledby="tech-feed-title">
-    <header className="feed-header"><div><p className="eyebrow">THE LEARNING POST</p><h2 id="tech-feed-title">오늘의 발견, 내일의 공부.</h2><p>작은 소식을 모아, 나의 배움으로 이어가요.</p></div><span className="feed-seal" aria-hidden="true"><Leaf size={32}/><small>TECH<br/>FEED</small></span></header>
+    <header className="feed-header"><div><h2 id="tech-feed-title">오늘의 발견, 내일의 공부.</h2><p>작은 소식을 모아, 나의 배움으로 이어가요.</p></div><span className="feed-seal" aria-hidden="true"><Leaf size={32}/><small>TECH<br/>FEED</small></span></header>
     {error && <div className="feed-notice feed-error" role="alert">{error}<button type="button" className="secondary" disabled={loading||Boolean(busy)} onClick={()=>setRevision(n=>n+1)}>다시 시도</button></div>}
     {notice && <p className="feed-notice" role="status">{notice}</p>}
     {!loading && state && !state.enabled ? <div className="feed-empty"><Rss size={32}/><h3>기술 피드를 준비하고 있어요</h3><p>현재는 승인된 파일럿 계정에서만 사용할 수 있어요. 기존 공부 기능은 그대로 이용해 주세요.</p></div> : <>

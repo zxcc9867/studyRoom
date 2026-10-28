@@ -11,7 +11,6 @@ export default function GoalAchievementBadges({ goals }: Props) {
     <section className="goal-achievements" aria-labelledby="goal-achievements-title">
       <div className="goal-achievements-heading">
         <div>
-          <p className="eyebrow">MY ACHIEVEMENTS</p>
           <h2 id="goal-achievements-title"><Trophy size={25} aria-hidden="true" />달성한 목표 <span>{achievements.length}개</span></h2>
         </div>
         <a className="goal-achievements-link" href="#goals">목표 관리</a>

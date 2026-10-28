@@ -150,9 +150,13 @@ test("install page offers one stable download link, readable instructions and ke
   try {
     browser = await chromium.launch({ headless: true, executablePath: process.env.FEED_BROWSER_EXECUTABLE || undefined });
     await mkdir("output/playwright", { recursive: true });
-    for (const width of [375, 1440]) {
+    for (const width of [375, 1440]) for (const scale of [1, 2]) {
       const page = await browser.newPage({ viewport: { width, height: 900 } });
       await page.goto(`http://127.0.0.1:${server.address().port}/download/android`);
+      if (scale === 2) await page.addStyleTag({ content: 'html { font-size:200%; }' });
+      assert.equal(await page.locator('.download-card').evaluate(el => getComputedStyle(el).backgroundColor), 'rgb(255, 255, 255)');
+      assert.equal(await page.locator('.eyebrow').innerText(), '안드로이드 앱');
+      assert.ok(await page.locator('.release-note').evaluate(el => parseFloat(getComputedStyle(el).fontSize)) >= 14 * scale);
       assert.equal(await page.getByRole("heading", { level: 1 }).count(), 1);
       const download = page.getByRole("link", { name: "최신 Android APK 다운로드" });
       assert.equal(await download.count(), 1);
@@ -190,7 +194,7 @@ test("install page offers one stable download link, readable instructions and ke
         return (Math.max(foreground, background) + 0.05) / (Math.min(foreground, background) + 0.05);
       }));
       assert.ok(contrast.every(value => value >= 4.5), JSON.stringify(contrast));
-      await page.screenshot({ path: `output/playwright/android-download-${width}.png`, fullPage: true });
+      await page.screenshot({ path: `output/playwright/android-download-${width}-${scale}x.png`, fullPage: true });
       await page.close();
     }
   } finally { await browser?.close(); await new Promise(resolve => server.close(resolve)); }

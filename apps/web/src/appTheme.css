@@ -502,6 +502,65 @@
 .dashboard-redesign .workspace .weekly-friction-sign { background: var(--study-soft); border-color: var(--study-border); color: var(--study-ink); box-shadow: none; }
 .dashboard-redesign .workspace .weekly-friction-sign :is(h4, .eyebrow, .weekly-friction-count) { color: var(--study-ink); font-size: var(--study-text-xs); }
 
+/* Metadata and inner cards follow the same contract as their page surfaces. */
+.dashboard-redesign .workspace :is(.todo-header, .history-header, .weekly-habit-heading, .forest-weekly-reward-heading) > :is(strong, span),
+.dashboard-redesign .workspace .recovery-history-meta :is(strong, em, small) {
+  border: 1px solid var(--study-border);
+  border-radius: var(--study-control-radius);
+  padding: var(--study-space-1) var(--study-space-2);
+  background: var(--study-soft);
+  color: var(--study-ink);
+  font-size: var(--study-text-xs);
+  font-weight: 600;
+  font-style: normal;
+  line-height: 1.5;
+  box-shadow: none;
+  max-width: 100%;
+  overflow-wrap: anywhere;
+}
+.dashboard-redesign .workspace .recovery-history-meta small[data-status=submitted] { color: var(--study-primary); }
+.dashboard-redesign .workspace .recovery-history-meta small[data-status=pending] { color: var(--study-warning); background: var(--study-warning-bg); }
+.dashboard-redesign .workspace :is(.recovery-summary-panel, .recovery-history-item) { background: var(--study-surface); border-radius: var(--study-radius); }
+.dashboard-redesign .recovery-summary-panel { gap: var(--study-space-4); }
+.dashboard-redesign .recovery-summary-grid { gap: var(--study-space-3); }
+.dashboard-redesign .workspace .recovery-summary-grid > div { background: var(--study-soft); }
+.dashboard-redesign .recovery-summary-grid strong { font-size: var(--study-text-xl); font-weight: 650; line-height: 1.4; }
+.dashboard-redesign .recovery-next-action { border: 1px solid var(--study-border); border-radius: var(--study-control-radius); background: var(--study-soft); padding: var(--study-space-4); gap: var(--study-space-2); }
+.dashboard-redesign .recovery-next-action span, .dashboard-redesign .recovery-history-meta > span, .dashboard-redesign .recovery-history-copy span { color: var(--study-muted); font-size: var(--study-text-xs); font-weight: 500; line-height: var(--study-line); text-transform: none; }
+.dashboard-redesign .recovery-next-action strong { color: var(--study-ink); font-size: var(--study-text-sm); font-weight: 600; line-height: var(--study-line); }
+.dashboard-redesign .recovery-history-list { gap: var(--study-space-3); }
+.dashboard-redesign .recovery-history-item { padding: var(--study-space-4); gap: var(--study-space-4); }
+.dashboard-redesign .recovery-history-copy { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--study-space-4); }
+.dashboard-redesign .workspace .recovery-history-copy p { color: var(--study-ink); font-size: var(--study-text-sm); font-weight: 400; line-height: var(--study-line); overflow-wrap: anywhere; }
+.dashboard-redesign .workspace :is(.section-order-toolbar, .section-order-editor, .section-order-row) { border: 1px solid var(--study-border); border-radius: var(--study-control-radius); background: var(--study-surface); box-shadow: none; }
+.dashboard-redesign .workspace .section-order-row-dragging { background: var(--study-soft); border-color: var(--study-primary); }
+.dashboard-redesign .workspace .icon-action { min-width: 44px; min-height: 44px; }
+.dashboard-redesign .workspace details > summary { min-height: 44px; padding-block: var(--study-space-2); color: var(--study-primary); font-size: var(--study-text-sm); line-height: var(--study-line); cursor: pointer; }
+.dashboard-redesign .workspace .goal-achievements-link { border: 1px solid var(--study-border); border-radius: var(--study-control-radius); background: var(--study-surface); color: var(--study-primary); font-size: var(--study-text-sm); font-weight: 600; }
+.dashboard-redesign .goal-achievements-heading h2 { font-size: var(--study-text-xl); color: var(--study-ink); line-height: 1.4; }
+.dashboard-redesign .goal-achievements-heading h2 span { font-size: var(--study-text-xs); color: var(--study-muted); }
+.dashboard-redesign .workspace :is(.weekly-habit-target-seeds > span, .forest-weekly-reward-seeds > span) { border: 1px solid var(--study-border); background: var(--study-surface); color: var(--study-muted); box-shadow: none; transform: none; }
+.dashboard-redesign .workspace :is(.weekly-habit-target-seeds > span.completed, .forest-weekly-reward-seeds > span.complete) { border-color: var(--study-primary); background: var(--study-soft); color: var(--study-primary); box-shadow: none; transform: none; }
+.dashboard-redesign .workspace .forest-next-level-card :is(p, small, div span) { color: var(--study-muted); font-size: var(--study-text-xs); font-weight: 500; line-height: var(--study-line); }
+.dashboard-redesign .workspace .forest-next-level-card > small { background: var(--study-soft); border: 1px solid var(--study-border); border-radius: var(--study-control-radius); }
+.dashboard-redesign .workspace .calendar-day, .dashboard-redesign .workspace .calendar-legend span { border: 1px solid var(--study-border); border-radius: var(--study-control-radius); background: var(--study-surface); color: var(--study-ink); box-shadow: none; opacity: 1; }
+.dashboard-redesign .workspace .calendar-day { min-width: 44px; min-height: 48px; }
+.dashboard-redesign .workspace .calendar-day :is(strong, small) { color: inherit; font-weight: 600; }
+.dashboard-redesign .workspace .calendar-day strong { font-size: var(--study-text-sm); }
+.dashboard-redesign .workspace .calendar-day small { font-size: .75rem; }
+.dashboard-redesign .workspace .calendar-present, .dashboard-redesign .workspace .calendar-legend .legend-present { background: var(--study-soft); color: var(--study-primary); }
+.dashboard-redesign .workspace .calendar-pending, .dashboard-redesign .workspace .calendar-legend .legend-pending { background: var(--study-warning-bg); color: var(--study-warning); }
+.dashboard-redesign .workspace .calendar-missed, .dashboard-redesign .workspace .calendar-legend .legend-missed { background: var(--study-danger-bg); color: var(--study-danger); }
+.dashboard-redesign .workspace .calendar-day.calendar-outside { background: var(--study-bg); color: var(--study-muted); }
+/* Legacy legend border colors are important; replace them with semantic tokens. */
+.dashboard-redesign .workspace :is(.calendar-present, .legend-present) { border-color: var(--study-primary) !important; }
+.dashboard-redesign .workspace :is(.calendar-pending, .legend-pending) { border-color: var(--study-warning) !important; }
+.dashboard-redesign .workspace :is(.calendar-missed, .legend-missed) { border-color: var(--study-danger) !important; }
+.dashboard-redesign .workspace .calendar-day.calendar-outside { border-color: var(--study-border) !important; }
+.dashboard-redesign .workspace .calendar-selected { outline-color: var(--study-primary); }
+@media (max-width: 480px) { .dashboard-redesign :is(.attendance-calendar, .calendar-weekdays) { gap: 0; } }
+@media (max-width: 760px) { .dashboard-redesign .recovery-history-copy { grid-template-columns: minmax(0, 1fr); } }
+
 /* Forest controls stay in the scene (touch) and on the keyboard. */
 .dashboard-redesign .study-forest-grid { grid-template-columns: minmax(0, 1fr) 320px; gap: var(--study-space-6); align-items: start; }
 .dashboard-redesign .forest-badges { display: flex; flex-wrap: wrap; gap: var(--study-space-2); }

@@ -510,7 +510,7 @@ function SetupRequired() {
   return (
     <main className="login-shell">
       <section className="login-panel">
-        <p className="eyebrow">local setup</p>
+        <p className="eyebrow">연결 설정</p>
         <h1>Supabase 설정이 필요합니다</h1>
         <p className="login-copy">
           로컬 Vite 서버는 열려 있습니다. 앱을 사용하려면 <code>apps/web/.env.local</code>에 Supabase 값을
@@ -4868,7 +4868,6 @@ function DashboardApp() {
           <div className="planner-detail-panel">
             {selectedPlannerSegment ? (
               <>
-                <p className="eyebrow">selected plan</p>
                 <h3>{selectedPlannerSegment.title}</h3>
                 <p>
                   {selectedPlannerSegment.startTime} - {selectedPlannerSegment.endTime}
@@ -4918,7 +4917,6 @@ function DashboardApp() {
               </>
             ) : (
               <>
-                <p className="eyebrow">selected plan</p>
                 <h3>시간 있는 할 일이 없습니다.</h3>
                 <p>원형 빈 시간대를 누르면 해당 시간으로 새 할 일을 만들 수 있습니다.</p>
               </>
@@ -4979,7 +4977,6 @@ function DashboardApp() {
         <div className="planner-unscheduled">
           <div className="todo-header compact">
             <div>
-              <p className="eyebrow">no time</p>
               <h3>시간 없는 할 일</h3>
             </div>
             <button className="secondary compact-action" type="button" onClick={() => selectTodoDate(selectedTodoDate)}>
@@ -5016,7 +5013,6 @@ function DashboardApp() {
       <section className="section-order-editor today-ordered-section" style={{ order: 0 }}>
         <div className="history-header">
           <div>
-            <p className="eyebrow">dashboard order</p>
             <h2>오늘 화면 순서 편집</h2>
           </div>
           <div className="section-order-actions">
@@ -5170,7 +5166,6 @@ function DashboardApp() {
       <div className="recovery-summary-panel" aria-label="회복루틴 주간 요약">
         <div className="todo-header recovery-history-header">
           <div>
-            <p className="eyebrow">recovery summary</p>
             <h3>회복루틴 요약</h3>
           </div>
           <strong>{summaryLabel}</strong>
@@ -5217,7 +5212,7 @@ function DashboardApp() {
                   <span>{formatTodoDate(request.local_date)}</span>
                   <strong>{getRecoveryTriggerLabel(request.trigger_type)}</strong>
                   <em>{category.label}</em>
-                  <small>{request.status === "submitted" ? "제출 완료" : "작성 필요"}</small>
+                  <small data-status={request.status}>{request.status === "submitted" ? "제출 완료" : "작성 필요"}</small>
                 </div>
                 <div className="recovery-history-copy">
                   <p><span>사유</span>{request.reason || "아직 작성되지 않았습니다."}</p>
@@ -5261,7 +5256,6 @@ function DashboardApp() {
     return (
       <main className="login-shell">
         <section className="login-panel" role="status" aria-live="polite">
-          <p className="eyebrow">session</p>
           <h1>로그인 상태 확인 중</h1>
           <p className="login-copy">
             저장된 세션이 있는지 확인하고 있습니다. 응답이 늦으면 로그인 화면에서 다시 확인할 수
@@ -5505,7 +5499,6 @@ function DashboardApp() {
               aria-labelledby="daily-habit-title"
             >
               <div className="daily-habit-copy">
-                <p className="eyebrow"><TreePine size={16} aria-hidden="true" /> daily habit</p>
                 <h3 id="daily-habit-title">{dailyHabitState.title}</h3>
                 <p>{dailyHabitState.description}</p>
               </div>
@@ -5554,7 +5547,6 @@ function DashboardApp() {
                   <div className="goal-hero-main">
                     <span className="goal-dday">{formatDdayLabel(calendarDateKey, activeGoal.target_date)}</span>
                     <div>
-                      <p className="eyebrow">today goal</p>
                       <h3>{activeGoal.title}</h3>
                       <p>{formatGoalDate(activeGoal.target_date)}까지</p>
                     </div>
@@ -5590,7 +5582,6 @@ function DashboardApp() {
                   <div className="goal-hero-main">
                     <span className="goal-dday">D-day</span>
                     <div>
-                      <p className="eyebrow">today goal</p>
                       <h3>아직 목표가 없습니다</h3>
                       <p>시험일이나 프로젝트 마감일을 등록하면 남은 D-day와 연결된 할 일이 표시됩니다.</p>
                     </div>
@@ -5614,7 +5605,6 @@ function DashboardApp() {
             aria-live="polite"
           >
             <div>
-              <p className="eyebrow">recovery required</p>
               <h3>회복 루틴 필요</h3>
               <p>사유와 오늘의 보충 계획을 작성하고 다시 시작해요.</p>
             </div>
@@ -5644,7 +5634,6 @@ function DashboardApp() {
             aria-live="polite"
           >
             <div>
-              <p className="eyebrow">study precheck</p>
               <h3>공부 시작 전 체크</h3>
               <p>
                 이번 주 회복루틴 {recoveryWeeklySummary.totalCount}건 중 주요 원인은 {recoveryWeeklySummary.topCategory?.label ?? "기타"}입니다.
@@ -5686,7 +5675,6 @@ function DashboardApp() {
         >
           <div className="history-header">
             <div>
-              <p className="eyebrow">attendance map</p>
               <h2>출석 캘린더</h2>
             </div>
             <div className="calendar-controls">
@@ -5743,7 +5731,6 @@ function DashboardApp() {
           >
               <div className="todo-header">
                 <div>
-                  <p className="eyebrow">daily checklist</p>
                   <h3>{formatTodoDate(selectedTodoDate)} 할 일</h3>
                 </div>
                 <button
@@ -5969,7 +5956,6 @@ function DashboardApp() {
           >
               <div className="todo-header">
                 <div>
-                  <p className="eyebrow">copy planner</p>
                   <h3>{"\uC5EC\uB7EC \uB0A0\uC9DC\uC5D0 \uC801\uC6A9"}</h3>
                 </div>
                 <button className="modal-close" type="button" aria-label="close" onClick={closePlanCopyModal}>
@@ -6086,7 +6072,6 @@ function DashboardApp() {
           >
               <div className="todo-header">
                 <div>
-                  <p className="eyebrow">session plan</p>
                   <h3 id="session-todo-title">이번 세션에서 할 일<span className="session-todo-visually-hidden"> 선택</span></h3>
                 </div>
                 <button
@@ -6269,7 +6254,6 @@ function DashboardApp() {
           >
               <div className="todo-header">
                 <div>
-                  <p className="eyebrow">study goal</p>
                   <h3>{editingGoalId ? "목표 편집" : "목표 만들기"}</h3>
                 </div>
                 <button className="modal-close" type="button" aria-label="목표 모달 닫기" onClick={closeGoalModal}>
@@ -6303,7 +6287,6 @@ function DashboardApp() {
                 </div>
                 <div className="goal-link-panel">
                   <div>
-                    <p className="eyebrow">linked tasks</p>
                     <strong>연결할 할 일</strong>
                   </div>
                   {studyTodos.length === 0 ? (
@@ -6363,7 +6346,6 @@ function DashboardApp() {
           >
               <div className="todo-header">
                 <div>
-                  <p className="eyebrow">study alarm</p>
                   <h3>독서실 입장 시간입니다</h3>
                 </div>
                 <button
@@ -6410,7 +6392,6 @@ function DashboardApp() {
           >
               <div className="todo-header">
                 <div>
-                  <p className="eyebrow">recovery routine</p>
                   <h3>회복 루틴 작성</h3>
                 </div>
                 <button
@@ -6499,7 +6480,6 @@ function DashboardApp() {
           >
               <div className="todo-header">
                 <div>
-                  <p className="eyebrow">camera required</p>
                   <h3>카메라 인증이 필요합니다</h3>
                 </div>
                 <button
@@ -6555,7 +6535,6 @@ function DashboardApp() {
           >
               <div className="todo-header">
                 <div>
-                  <p className="eyebrow">camera warning</p>
                   <h3>자리 비움 경고</h3>
                 </div>
                 <button
@@ -6689,7 +6668,6 @@ function DashboardApp() {
         >
           <div className="todo-header">
             <div>
-              <p className="eyebrow">selected tasks</p>
               <h2>{plannerDateLabel}</h2>
             </div>
             <strong>{selectedPlannerTodoStats.percent}% {"\uB2EC\uC131"}</strong>
@@ -6771,7 +6749,6 @@ function DashboardApp() {
         <section id="goals" className="history-panel goals-panel">
           <div className="history-header">
             <div>
-              <p className="eyebrow">study goals</p>
               <h2>목표</h2>
             </div>
             <button className="primary compact-action" type="button" onClick={openNewGoalModal}>
@@ -6880,7 +6857,6 @@ function DashboardApp() {
         <section id="me" className="history-panel my-page-panel">
           <div className="history-header">
             <div>
-              <p className="eyebrow">my page</p>
               <h2>내 페이지</h2>
             </div>
             <strong className="profile-badge">할 일 {todoHistoryStats.completedTodos}개 완료</strong>
@@ -6942,7 +6918,6 @@ function DashboardApp() {
 
           <div className="todo-header recovery-history-header">
             <div>
-              <p className="eyebrow">recovery history</p>
               <h3>회복루틴 이력</h3>
             </div>
             <strong>{studyRecoveryRequests.length}건</strong>
@@ -6951,7 +6926,6 @@ function DashboardApp() {
 
           <div className="todo-header todo-history-header">
             <div>
-              <p className="eyebrow">completed tasks</p>
               <h3>완료한 일 이력</h3>
             </div>
             <strong>{todoHistoryStats.completionPercent}% 완료율</strong>
@@ -7006,7 +6980,6 @@ function DashboardApp() {
             <div className="settings-notification-content">
           <div className="settings-header">
             <div>
-              <p className="eyebrow">notification</p>
               <h3>알림 상태</h3>
             </div>
             <div className="notification-state-list">
@@ -7023,7 +6996,6 @@ function DashboardApp() {
           <div className={`alarm-summary-card ${alarmEditing ? "alarm-edit-mode" : ""}`}>
             <div className="alarm-summary-top">
               <div>
-                <p className="eyebrow">daily alarm</p>
                 <h3>설정된 알람</h3>
               </div>
               {!alarmEditing && (
@@ -7113,7 +7085,6 @@ function DashboardApp() {
           <div className="notification-channel-card">
             <div className="channel-card-header">
               <div>
-                <p className="eyebrow">channels</p>
                 <h3>알림 수단</h3>
               </div>
               <span>브라우저와 Slack 발송 상태를 관리합니다.</span>
@@ -7160,7 +7131,6 @@ function DashboardApp() {
           <div className="notification-diagnostics-card">
             <div className="channel-card-header">
               <div>
-                <p className="eyebrow">diagnostics</p>
                 <h3>{"\uc54c\ub9bc \uc9c4\ub2e8"}</h3>
               </div>
               <span>{"\ucd5c\uadfc \ubc1c\uc1a1 \uae30\ub85d\uacfc \ud604\uc7ac \ub4f1\ub85d \uc0c1\ud0dc\ub97c \ud655\uc778\ud569\ub2c8\ub2e4."}</span>

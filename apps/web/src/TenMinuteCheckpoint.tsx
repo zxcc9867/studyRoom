@@ -29,7 +29,6 @@ export default function TenMinuteCheckpoint({
         <div className="ten-minute-checkpoint-head">
           <span className="ten-minute-checkpoint-icon" aria-hidden="true"><Sprout size={20} /></span>
           <div>
-            <p className="eyebrow">first ten minutes</p>
             <h4 id="ten-minute-checkpoint-progress-title">
               {paused
                 ? "첫 10분 체크포인트도 잠시 쉬는 중"
@@ -70,7 +69,6 @@ export default function TenMinuteCheckpoint({
       <div className="ten-minute-checkpoint-head">
         <span className="ten-minute-checkpoint-icon" aria-hidden="true"><CheckCircle2 size={22} /></span>
         <div>
-          <p className="eyebrow">checkpoint complete</p>
           <h4 id="ten-minute-checkpoint-complete-title">오늘의 시작은 이미 성공했어요</h4>
         </div>
         <strong>10분</strong>

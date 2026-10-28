@@ -705,6 +705,75 @@ browserTest('camera return: observed remote pause closes an already live camera'
  assert.equal(await page.getByRole('button',{name:'공부 계속하기',exact:true}).isVisible(),true);
 }));
 
+async function auditSharedDetails(panel) {
+ const badges=panel.locator('.recovery-history-header > strong, .todo-history-header > strong, .recovery-history-meta strong, .recovery-history-meta em, .recovery-history-meta small, .weekly-habit-heading > span, .forest-weekly-reward-heading > strong');
+ for(const badge of await badges.all()){
+  const style=await badge.evaluate(el=>{const s=getComputedStyle(el);return {border:s.borderTopWidth,radius:s.borderTopLeftRadius,shadow:s.boxShadow};});
+  assert.equal(style.border,'1px','metadata uses the shared single border');
+  assert.equal(style.radius,'10px','metadata uses the shared control radius');
+  assert.equal(style.shadow,'none');assert.ok((await readableText(badge)).contrast>=4.5);
+ }
+ for(const label of await panel.locator('.eyebrow').all())assert.doesNotMatch(await label.innerText(),/[A-Za-z]{3}/,'redundant English interface labels are removed or localized');
+ for(const control of await panel.locator('button:visible, input:not([type=checkbox]):not([type=radio]):visible, select:visible, summary:visible').all()){
+  const box=await control.boundingBox();const identity=await control.evaluate(el=>`${el.tagName}.${el.className}: ${el.textContent?.trim().slice(0,60)}`);assert.ok(box.width>=44&&box.height>=44,`${identity} retains a 44px target (${box.width}×${box.height})`);
+ }
+}
+
+for(const width of [375,1440])for(const scale of [1,2])browserTest(`full UI audit: recovery details and history stay consistent at ${width}px / ${scale}x`,()=>withApp(width,async page=>{
+ if(scale===2)await page.addStyleTag({content:'html { font-size:200%; }'});
+ const before=await page.evaluate(()=>structuredClone({sessions:fixture.sessions,todos:fixture.todos,recoveries:fixture.recoveries,reflections:fixture.reflections}));
+ await page.evaluate(()=>{location.hash='#me';window.dispatchEvent(new HashChangeEvent('hashchange'));});
+ const panel=page.locator('.my-page-panel');await panel.getByRole('heading',{name:'회복루틴 요약',exact:true}).waitFor();
+ assert.equal(await panel.locator('.recovery-next-action').evaluate(el=>getComputedStyle(el).borderTopStyle),'solid');
+ await auditSharedDetails(panel);
+ for(const label of await panel.locator('.recovery-next-action span, .recovery-next-action strong, .recovery-history-copy p, .recovery-history-copy span').all()){
+  const text=await readableText(label);assert.ok(text.contrast>=4.5);assert.ok(text.fontSize>=14*scale);
+ }
+ assert.equal(await panel.locator('.recovery-history-copy p').first().evaluate(el=>getComputedStyle(el).color),'rgb(32, 51, 43)');
+ assert.equal(await panel.locator('.recovery-history-item').count(),5,'all supplied records remain available');
+ assert.deepEqual(await page.evaluate(()=>({sessions:fixture.sessions,todos:fixture.todos,recoveries:fixture.recoveries,reflections:fixture.reflections})),before);
+ assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),true);
+ await mkdir('output/playwright',{recursive:true});await panel.screenshot({path:`output/playwright/full-ui-recovery-${width}-${scale}x.png`});
+ await panel.locator('.recovery-summary-panel').screenshot({path:`output/playwright/full-ui-recovery-summary-${width}-${scale}x.png`});
+},'precheck'));
+
+for(const width of [375,1440])for(const scale of [1,2])browserTest(`full UI audit: every page and its inner controls at ${width}px / ${scale}x`,()=>withApp(width,async page=>{
+ if(scale===2)await page.addStyleTag({content:'html { font-size:200%; }'});
+ for(const [route,selector] of [['goals','.goals-panel'],['forest','.study-forest-panel'],['feed','.tech-feed'],['me','.my-page-panel'],['settings','.settings-panel']]){
+  await page.evaluate(route=>{location.hash='#'+route;window.dispatchEvent(new HashChangeEvent('hashchange'));},route);
+  const panel=page.locator(selector);await panel.waitFor();await page.clock.runFor(500);
+  if(route==='settings')await panel.locator('.settings-notifications > summary').click();
+  await auditSharedDetails(panel);
+  for(const symbol of await panel.locator('.forest-weekly-reward-seeds > span').all())assert.equal(await symbol.evaluate(el=>getComputedStyle(el).boxShadow),'none','forest progress markers are flat, not raised buttons');
+  assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),true,route+' reflows without horizontal overflow');
+  await mkdir('output/playwright',{recursive:true});await panel.screenshot({path:`output/playwright/full-ui-${route}-${width}-${scale}x.png`});
+  if(route==='settings'){
+   await panel.getByRole('button',{name:'화면 구성',exact:true}).click();const editor=page.locator('.section-order-editor');await editor.waitFor();
+   for(const row of await editor.locator('.section-order-row').all())assert.equal(await row.evaluate(el=>getComputedStyle(el).boxShadow),'none');
+   await auditSharedDetails(editor);assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),true);
+   await editor.getByRole('button',{name:'취소',exact:true}).click();
+  }
+ }
+ await page.evaluate(()=>{location.hash='#today';window.dispatchEvent(new HashChangeEvent('hashchange'));});
+ for(const domain of ['집중','계획','기록']){
+  await page.getByRole('button',{name:domain,exact:true}).click();await page.clock.runFor(32);
+  await auditSharedDetails(page.locator('.workspace'));
+  assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),true,domain+' reflows without horizontal overflow');
+ }
+},'precheck'));
+
+for(const width of [375,1440])browserTest(`full UI audit: attendance states remain readable with enlarged text at ${width}px`,()=>withApp(width,async page=>{
+ await page.addStyleTag({content:'html { font-size:200%; }'});
+ await page.getByRole('button',{name:'기록',exact:true}).click();
+ const calendar=page.locator('.attendance-calendar');await calendar.waitFor();await auditSharedDetails(calendar);
+ await calendar.locator('.calendar-missed').first().waitFor();
+ for(const [state,color] of [['present','rgb(237, 243, 239)'],['pending','rgb(255, 241, 211)'],['missed','rgb(251, 233, 228)'],['outside','rgb(244, 246, 243)']])assert.equal(await calendar.locator('.calendar-'+state).first().evaluate(el=>getComputedStyle(el).backgroundColor),color,state+' retains its semantic surface');
+ for(const [state,color] of [['present','rgb(47, 107, 82)'],['pending','rgb(128, 91, 32)'],['missed','rgb(154, 63, 51)'],['outside','rgb(220, 228, 222)']])assert.equal(await calendar.locator('.calendar-'+state).first().evaluate(el=>getComputedStyle(el).borderTopColor),color,state+' uses a shared semantic border');
+ await readableGroup(page.locator('.calendar-legend span, .calendar-present strong, .calendar-present small'));
+ for(const badge of await page.locator('.calendar-legend span').all())assert.equal(await badge.evaluate(el=>getComputedStyle(el).borderTopWidth),'1px');
+ assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),true);
+},'attendance-goal'));
+
 const backend = `
 const now='2026-09-21T14:30:00Z';
 const todo=(id,title,date='2026-09-21')=>({id,user_id:'owner',title,local_date:date,start_time:'23:00:00',end_time:'01:00:00',is_completed:false,position:0,goal_id:'goal',repeat_group_id:'repeat',repeat_mode:'weekly',repeat_weekdays:[1],repeat_until:null,repeat_forever:true,created_at:now,original_start_at:'2026-09-21T14:00:00Z',original_end_at:'2026-09-21T16:00:00Z',target_seconds:7200,first_started_at:'2026-09-21T14:00:00Z',first_tracked_at:'2026-09-21T14:00:00Z',known_seconds:1800,open_started_at:'2026-09-21T14:00:00Z',remaining_seconds:5400,adjustment_count:1,evaluation_eligible:true,unknown_allocation:false});
@@ -716,7 +785,7 @@ state.camera=null;
 state.attendance=[];
 if(mode==='attendance-goal'){
  state.sessions=[{...row,local_date:'2026-10-25',started_at:'2026-10-25T00:00:00Z',ended_at:'2026-10-25T02:00:00Z',duration_seconds:7200,status:'completed'}];
- state.attendance=[{local_date:'2026-10-25',status:'present',reminder_at:'2026-10-25T05:00:00Z',deadline_at:'2026-10-25T19:00:00Z',qualifying_session_id:'session'}];
+ state.attendance=[{local_date:'2026-10-25',status:'present',reminder_at:'2026-10-25T05:00:00Z',deadline_at:'2026-10-25T19:00:00Z',qualifying_session_id:'session'},{local_date:'2026-10-24',status:'pending'},{local_date:'2026-10-23',status:'missed'}];
  state.todos.forEach(t=>t.local_date='2026-10-25');
 }
 

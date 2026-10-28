@@ -18,7 +18,6 @@ export default function AdaptiveReminderCard({ sessions, todayDateKey, timeZone,
     <section className="adaptive-reminder-card" aria-labelledby="adaptive-reminder-title">
       <div className="adaptive-reminder-icon"><BellRing size={28} /></div>
       <div className="adaptive-reminder-copy">
-        <p className="eyebrow">adaptive reminder</p>
         <h3 id="adaptive-reminder-title">내 공부 흐름에 맞춘 알림</h3>
         <p>{recommendation.reason}</p>
         <div className="adaptive-reminder-time"><Clock3 size={18} /><span>추천 시작 시간</span><strong>{recommendation.recommendedTime}</strong></div>

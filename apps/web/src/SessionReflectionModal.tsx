@@ -62,7 +62,6 @@ export default function SessionReflectionModal({
     >
       <div className="todo-header">
         <div>
-          <p className="eyebrow">{followUp ? "reflection follow-up" : "session reflection"}</p>
           <h3 id="session-reflection-title">
             {followUp ? "놓친 세션을 짧게 돌아봐요" : "오늘의 집중을 짧게 돌아봐요"}
           </h3>
