@@ -30,7 +30,7 @@ export default function WeeklyReviewSection(props: Props) {
   return (
     <section className="weekly-review-card" aria-labelledby="weekly-review-title">
       <div className="weekly-review-heading">
-        <div><p className="eyebrow">{props.review ? "study report" : "weekly review"}</p><h3 id="weekly-review-title">{props.reportTitle ?? "이번 주 학습 리뷰"}</h3></div>
+        <div><h3 id="weekly-review-title">{props.reportTitle ?? "이번 주 학습 리뷰"}</h3></div>
         <span className="weekly-review-period">
           <strong>{formatShortDate(current.startDate)} ~ {formatShortDate(current.endDate)}</strong>
           {!props.review && <small>{formatShortDate(props.todayDateKey)} 현재 · 지난주 같은 요일까지 비교</small>}

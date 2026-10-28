@@ -44,12 +44,12 @@
   .dashboard-redesign .settings-notifications > summary span { flex-basis: calc(100% - 32px); }
 }
 :root {
-  --study-text-xs: 14px;
-  --study-text-sm: 15px;
-  --study-text-base: 16px;
-  --study-text-lg: 20px;
-  --study-text-xl: 24px;
-  --study-text-2xl: 30px;
+  --study-text-xs: .875rem;
+  --study-text-sm: .9375rem;
+  --study-text-base: 1rem;
+  --study-text-lg: 1.25rem;
+  --study-text-xl: 1.5rem;
+  --study-text-2xl: 1.875rem;
   --study-line: 1.65;
   --study-motion: 160ms;
   --study-shadow: 0 2px 8px #28372e05;
@@ -451,6 +451,24 @@
 .dashboard-redesign .workspace .adaptive-reminder-icon { background: var(--study-soft); color: var(--study-primary); border: 1px solid var(--study-border); border-radius: var(--study-control-radius); box-shadow: none; }
 .dashboard-redesign .workspace .notification-state { background: var(--study-soft); border: 1px solid var(--study-border); border-radius: var(--study-control-radius); box-shadow: none; }
 .dashboard-redesign .workspace .notification-state :is(span, strong) { color: var(--study-ink); font-size: var(--study-text-xs); line-height: var(--study-line); }
+/* Complete the theme inside the reflection card, not only its outer surface. */
+.dashboard-redesign .workspace .reflection-inbox { margin-block: var(--study-space-6); padding: var(--study-space-6); border-radius: var(--study-radius); background: var(--study-surface); }
+.dashboard-redesign .reflection-inbox-heading { gap: var(--study-space-3); }
+.dashboard-redesign .reflection-inbox-heading h3 { margin: 0; font-weight: 650; overflow-wrap: anywhere; }
+.reflection-inbox-icon { display: grid; place-items: center; width: 44px; height: 44px; border-radius: var(--study-control-radius); color: var(--study-primary); background: var(--study-soft); }
+.dashboard-redesign .reflection-inbox-count { padding: var(--study-space-1) var(--study-space-2); border: 0; border-radius: var(--study-control-radius); background: var(--study-soft); color: var(--study-primary); font-size: var(--study-text-xs); font-weight: 600; line-height: 1.5; white-space: nowrap; }
+.dashboard-redesign .reflection-inbox-intro { margin: var(--study-space-3) 0 var(--study-space-4); font-weight: 400; }
+.dashboard-redesign .reflection-inbox-list { gap: 0; }
+.dashboard-redesign .reflection-inbox-item { grid-template-columns: minmax(0, 1fr) auto; gap: var(--study-space-4); padding: var(--study-space-4) 0; border: 0; border-top: 1px solid var(--study-border); border-radius: 0; background: transparent; }
+.dashboard-redesign .reflection-inbox-copy { gap: var(--study-space-1); }
+.dashboard-redesign .reflection-inbox-copy > strong { font-size: var(--study-text-base); font-weight: 600; color: var(--study-ink); line-height: 1.5; }
+.dashboard-redesign .reflection-inbox-copy > span { font-weight: 400; }
+.dashboard-redesign .reflection-inbox-copy svg { flex: 0 0 auto; width: 1em; height: 1em; }
+.dashboard-redesign .workspace .reflection-inbox-action { min-width: 44px; min-height: 44px; padding: var(--study-space-2) var(--study-space-3); border: 1px solid var(--study-border); border-radius: var(--study-control-radius); background: var(--study-surface); color: var(--study-primary); box-shadow: none; transform: none; font-size: var(--study-text-sm); font-weight: 600; white-space: normal; line-height: 1.5; }
+.dashboard-redesign .workspace .reflection-inbox-action:hover { background: var(--study-soft); border-color: var(--study-primary); box-shadow: none; transform: none; }
+.dashboard-redesign .reflection-inbox-action:focus-visible { outline: 3px solid var(--study-primary); outline-offset: 3px; }
+.dashboard-redesign .reflection-inbox-note { margin-top: var(--study-space-2); font-weight: 400; }
+
 .dashboard-redesign .study-report { --report-ink: var(--study-ink); --report-paper: var(--study-surface); --report-line: var(--study-border); }
 .dashboard-redesign .study-report :is(.study-report-toolbar, .study-report-ready, .study-report-status) { border-width: 1px; background: var(--study-surface); box-shadow: none; }
 .dashboard-redesign .study-report-toolbar { border-radius: var(--study-radius) var(--study-radius) 0 0; }
@@ -458,6 +476,19 @@
 .dashboard-redesign .study-report :is(p, small, .study-report-footnote, .study-report-navigation label) { color: var(--study-muted); font-size: var(--study-text-xs); line-height: var(--study-line); }
 .dashboard-redesign .study-report-mode { background: var(--study-soft); border-radius: var(--study-control-radius); }
 .dashboard-redesign .study-report-mode button[aria-pressed=true] { color: var(--study-surface); background: var(--study-primary); }
+.dashboard-redesign .study-report-toolbar { gap: var(--study-space-4); padding: var(--study-space-6); }
+.dashboard-redesign .study-report-toolbar h3 { margin: 0 0 var(--study-space-2); font-size: var(--study-text-xl); font-weight: 650; line-height: 1.4; overflow-wrap: anywhere; }
+.dashboard-redesign .study-report-mode { flex-wrap: wrap; max-width: 100%; }
+.dashboard-redesign .study-report-mode button { min-width: 44px; flex: 1 1 auto; font-weight: 600; }
+.dashboard-redesign .study-report :is(button, input) { border-radius: var(--study-control-radius); background: var(--study-surface); color: var(--study-primary); box-shadow: none; font-size: var(--study-text-sm); }
+.dashboard-redesign .study-report button:disabled { opacity: 1; color: var(--study-disabled-text); background: var(--study-disabled-bg); cursor: not-allowed; }
+.dashboard-redesign .study-report :is(button, input):focus-visible { outline: 3px solid var(--study-primary); outline-offset: 3px; }
+.dashboard-redesign .study-report-navigation { gap: var(--study-space-2); }
+.dashboard-redesign .study-report-navigation label { flex: 0 1 16rem; max-width: 100%; }
+.dashboard-redesign .study-report-navigation input { width: 100%; min-width: 0; }
+.dashboard-redesign .study-report .study-report-empty { background: var(--study-soft); border: 1px solid var(--study-border); border-radius: var(--study-control-radius); }
+.dashboard-redesign .study-report-comparison .study-report-daily-average { border-top: 1px solid var(--study-border); }
+.dashboard-redesign .study-report-error strong { color: var(--study-danger); }
 .dashboard-redesign .weekly-review-score { background: var(--study-primary); border: 0; box-shadow: none; border-radius: var(--study-control-radius); }
 .dashboard-redesign .weekly-review-score :is(strong, span) { color: var(--study-surface); }
 .dashboard-redesign .weekly-next-actions :is(h4, strong) { color: var(--study-ink); font-size: var(--study-text-base); line-height: 1.5; }
@@ -543,6 +574,8 @@
 @media (max-width: 1000px) { .dashboard-redesign .study-forest-grid { grid-template-columns: minmax(0, 1fr); } }
 @media (max-width: 800px) {
   .login-shell { padding: var(--study-space-4); }
+  .dashboard-redesign .workspace .reflection-inbox { padding: var(--study-space-4); }
+  .dashboard-redesign .study-report-toolbar { padding: var(--study-space-4); }
   .login-shell .login-panel { padding: var(--study-space-6); }
   .dashboard-redesign .workspace .recovery-precheck { grid-template-columns: minmax(0, 1fr); padding: var(--study-space-4); }
   .dashboard-redesign .workspace .session-break { padding: var(--study-space-4); }
@@ -557,6 +590,10 @@
   .dashboard-redesign .forest-customizer-category-heading { flex-wrap: wrap; gap: var(--study-space-1); }
   .dashboard-redesign .forest-customizer-options { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .dashboard-redesign .tech-feed :is(.feed-card, .feed-daily-briefing) { padding: var(--study-space-4); }
+}
+@media (max-width: 640px) {
+  .dashboard-redesign .reflection-inbox-item { grid-template-columns: minmax(0, 1fr); gap: var(--study-space-2); }
+  .dashboard-redesign .reflection-inbox-item > .reflection-inbox-action { grid-column: 1; width: 100%; }
 }
 @media (prefers-reduced-motion: reduce) {
   :is(.dashboard-redesign, .login-shell) *,

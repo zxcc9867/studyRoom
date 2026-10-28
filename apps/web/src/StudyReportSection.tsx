@@ -75,7 +75,7 @@ function StudyReportWithProfile(props: Props & { timeZone: string; todayDateKey:
   return (
     <section className="study-report" aria-labelledby="study-report-heading">
       <div className="study-report-toolbar">
-        <div><p className="eyebrow">my study journal</p><h3 id="study-report-heading">차곡차곡, 학습 리포트</h3><p className="study-report-intro">한 주의 흐름부터 한 달의 변화까지 돌아보세요.</p></div>
+        <div><h3 id="study-report-heading">차곡차곡, 학습 리포트</h3><p className="study-report-intro">주간·월간 공부 흐름을 확인하세요.</p></div>
         <div className="study-report-mode" role="group" aria-label="리포트 단위">
           <button type="button" aria-pressed={mode === "week"} onClick={() => setMode("week")}>주간</button>
           <button type="button" aria-pressed={mode === "month"} onClick={() => setMode("month")}>월간</button>

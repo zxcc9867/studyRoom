@@ -220,6 +220,12 @@
 - 원인/수정: desktopAuth가 SDK 오류를 모두 숨겨 분류도 잃었다. 고정 이메일 한도/요청 제한/통신 실패 코드만 허용하고 runtime/Web의 기존 재요청 대기와 연결했다. raw 공급자 오류/개인정보는 여전히 숨긴다.
 - 검증: native sendCode/IPC/web 대기 안내 RED→GREEN, unknown 오류 은닉·기존 auth119/119 유지. Google 계정 선택 화면 정지는 별도 미해결이며 Chrome 지원/인증 저장을 초기화하지 않는다.
 
+## HIG 회고 외곽만 통일되고 내부에 옛 디자인이 남음
+
+- 원인: appTheme.css가 실제 .reflection-inbox 외곽만 덮어써서 내부 item/stamp/button의 styles.css 점선·우표·입체 그림자가 남았다. 일부 .reflection-inbox-card 선택자는 실제 컴포넌트 이름과도 달랐다.
+- 해결: 실제 컴포넌트 자식에 공통 구분선/색/보조 버튼/초점을 연결하고 중복 영문·장식을 줄였다. 인접 리포트 입력/비활성/빈 상태도 같은 토큰을 사용한다. 서버·회고 저장 콜백은 불변이다.
+- 예방: 실제 React/CSS 순서의 Chrome 검사에서 기본/hover 그림자, 구분선,375/1440·글자200%·대비4.5·44px·키보드를 확인한다. 패널 외곽 검사만으로 전체 통일을 주장하지 않는다. docs/verification/2026-10-28-ui-unification.md.
+
 ## HIG 전환 시 메뉴 높이·초기 배경·색상 계약 불일치
 
 - 원인: 가로 메뉴 링크의 height100%가 세로 레일에서 전체 높이로 늘었고, 옛 첫 paint/다크 fallback·native 팔레트가 새 의미 토큰과 달랐다.

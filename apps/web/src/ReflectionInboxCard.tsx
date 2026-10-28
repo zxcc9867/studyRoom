@@ -1,4 +1,4 @@
-import { ArrowRight, Clock3, Leaf, Mailbox } from "lucide-react";
+import { ArrowRight, Clock3, NotebookPen } from "lucide-react";
 
 export type ReflectionInboxItem = {
   id: string;
@@ -40,42 +40,40 @@ export default function ReflectionInbox({ items, onOpen }: ReflectionInboxProps)
   return (
     <section className="reflection-inbox" aria-labelledby="reflection-inbox-title">
       <div className="reflection-inbox-heading">
-        <span className="reflection-inbox-mailbox" aria-hidden="true">
-          <Mailbox size={28} strokeWidth={2.2} />
-          <Leaf size={15} fill="currentColor" />
+        <span className="reflection-inbox-icon" aria-hidden="true">
+          <NotebookPen size={22} />
         </span>
         <div>
-          <p className="eyebrow">forest postbox</p>
-          <h3 id="reflection-inbox-title">아직 열어보지 않은 집중 편지</h3>
+          <h3 id="reflection-inbox-title">남겨둔 회고</h3>
         </div>
-        <strong className="reflection-inbox-count">{items.length}통</strong>
+        <strong className="reflection-inbox-count">{items.length}개</strong>
       </div>
       <p className="reflection-inbox-intro">
-        바쁘게 마친 세션을 지금 짧게 돌아보면, 다음 시작 때 바로 할 한 가지로 이어져요.
+        지난 공부를 짧게 돌아보고 다음 할 일을 정리해 보세요.
       </p>
       <ul className="reflection-inbox-list">
-        {items.map((item, index) => {
+        {items.map((item) => {
           const dateLabel = formatSessionDate(item.local_date);
           const durationLabel = formatSessionDuration(item.duration_seconds);
           return (
             <li className="reflection-inbox-item" key={item.id}>
-              <span className="reflection-inbox-stamp" aria-hidden="true">{index + 1}</span>
               <span className="reflection-inbox-copy">
                 <strong>{dateLabel}의 집중</strong>
-                <span><Clock3 size={15} />{durationLabel}</span>
+                <span><Clock3 size={15} aria-hidden="true" />{durationLabel}</span>
               </span>
               <button
                 type="button"
+                className="secondary reflection-inbox-action"
                 aria-label={`${dateLabel} ${durationLabel} 세션 회고 남기기`}
                 onClick={() => onOpen(item.id)}
               >
-                회고 남기기 <ArrowRight size={17} />
+                회고 남기기 <ArrowRight size={17} aria-hidden="true" />
               </button>
             </li>
           );
         })}
       </ul>
-      <small className="reflection-inbox-note">최근 7일 중 가장 최근 세션 3개까지만 가볍게 보여드려요.</small>
+      <small className="reflection-inbox-note">최근 7일의 미작성 회고 · 최대 3개</small>
     </section>
   );
 }

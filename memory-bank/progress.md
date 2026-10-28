@@ -2,6 +2,8 @@
 
 ## HIG 공통 UI·Windows 로그인 안내
 
+- 내 페이지 UI 통일: 회고 목록의 노란 점선/우표 순번/입체 버튼과 리포트 중복 영문 라벨 제거, 기간 입력/초점/빈 상태·rem 글자 크기를 공통 토큰에 연결했다. 신규 Chrome5/5·관련13/13·전체1429/1429(실패/생략0), verify7/Dune0·독립 최종C/I/M0.375/1440·200%·44px·대비4.5·키보드·기존 회고 저장/학습 회귀 통과. 운영 배포 진행 중이며 native 인증 후속과 별개다. [검증](../docs/verification/2026-10-28-ui-unification.md).
+
 - 현재 UI 점검(0.1.6): 완료/오류/연결 실패를 고정 로컬 CSS·공통 팔레트/한글 폰트/반응형 카드로 통일, 로그인 동작 줄이기 누락 수정. Chrome1424/1424·native155/155·통합27/27/6분숨김·verify7/Dune0·독립 최종 차단0. CRLF/CSP 문제 RED→GREEN 및 독립 Chrome4/4. 승인된0.1.6 무삭제 설치exit0/ASAR일치/암호문1파일동일/재실행 완료, 웹 배포는 진행 중. 기존 학습/서버 정책 불변. [새 검증 기록](../docs/verification/2026-10-27-hig-completeness.md). 이전 Google 무한 로딩 조사 항목은0.1.4 실제 로그인 성공 이전의 이력이다.
 
 - 로그인 탭 자동 닫기(0.1.5): 승인된 성공응답 고정 close script/SHA256 CSP. 실제 격리 Chrome4개·native154/154·통합21/21/6분숨김·verify7/Dune0·독립차단0. 승인된0.1.5 무삭제 덮어설치exit0/ASAR일치/기존암호화1파일동일/app.ready 확인. 본인 Chrome탭의 이력상 거부 가능/fallback 유지. 자동로그아웃 없이 다음 직접 로그인부터 적용한다. [검증](../docs/verification/2026-10-27-auth-tab-close.md).
