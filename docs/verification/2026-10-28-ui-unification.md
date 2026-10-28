@@ -19,6 +19,7 @@
 - `ai.ps1 verify --project .` →passed, Dune0위반 및7개 명령 exit0: desktop:check, desktop:test, npm test, test:edge, mobile:check, build, docs:check. 기본 게이트의 선택적 브라우저 생략은 아래 실제 Chrome 회귀와 구분한다.
 - read-only shared-reviewer: 최초 Critical0/Important0/Minor1(제품 결함 없음), 독립 신규Chrome5/5. 데이터 불변성 검사가 별도 복사본을 보던 Minor는 실제 컴포넌트에 전달한 rows를 관찰하도록 수정했고 Chrome5/5를 다시 통과했다. 재검토 최종 Critical0/Important0/Minor0.
 - 전체 명령: `node --test --test-concurrency=2 packages/core/test/*.test.mjs apps/web/test/*.test.mjs server/ai/*.test.mjs scripts/*.test.mjs supabase/functions/_shared/*.test.mjs` +실제Chrome 환경 →1429/1429, 실패/생략/취소0,451578ms. 기존 실제 mounted main의 회고 저장→새 안내 반영, 공부·휴식·재개·기기 동기화·카메라 및 공통 화면 회귀를 포함한다.
-- 운영 commit/Actions/Vercel READY/HTTP200은 배포 후 확정한다.
+- 운영 웹 commit `8ac93252111fecad3d2956636ec8c2b30c419b52`를 기능 브랜치에 push. Actions40709394959 success, Vercel `dpl_4mjwm9cBxwkvcDp1VkYTCfiroqJA` production READY/exactSHA/운영 alias 확인.
+- 공개 `https://study-room-attendance.vercel.app` HTML200·`/assets/index-CtlpXJ-G.js`200·`/assets/index-DqExwVTV.css`200. 새 ‘남겨둔 회고’ 문구/보조 버튼 선택자/rem 토큰을 실제 운영 자산에서 확인했다. 출시 직후 해당 deployment의 error/fatal 그룹은 없었으며 장시간 수용을 뜻하지 않는다.
 - 실제 Android/iOS 및 OS 전체 글자 확대/스크린리더 수용은 이번에 실행하지 않았다. hosted 공통 UI 변경이며 새 APK/Windows 설치 파일은 만들지 않는다. 이미 열린 앱은 새로고침/재실행 후 새 hosted 자산을 사용한다.
 - 로그인 자동 전경/Chrome 인증창 수명 주기 후속은 이 UI 수정의 해결 주장에 포함하지 않는다.
