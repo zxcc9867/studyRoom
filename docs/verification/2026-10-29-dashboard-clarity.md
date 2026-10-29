@@ -15,6 +15,9 @@
 
 ## 커밋·배포 상태
 - 제품7dd5a14c73938da41140aa3c5f772cc7ee8e5b2a를 fix/study-dashboard-clarity에 commit/push했다.
-- workflow_dispatch는 자동 승인 검토가 실행 전 거절했다. 현재요청은 UI수정이며 독서실 운영 배포 명시승인이 없다는 판단이다. 실행/운영반영은 없고 사용자에게 정확한 운영URL과 수정본의 배포 승인을 요청했다. 우회하지 않는다.
-- production은 기존2d55e11/dpl_zxVX7jwPPj4nr5QxF3PD1TS6xt6v 상태이며 새버전이 배포됐다고 표시하지 않는다.
-- 제품에 추가 번역·AI/수집 호출은 넣지 않았다. 배포 승인 후 기존 CI의 합성 무료 AI 연결 점검은 제품 자동 호출과 별도다.
+- 최초 workflow_dispatch는 자동 승인 검토가 운영 명시승인 부재로 실행 전 거절했다. 정확한 제품7dd5a14와 운영URL 질문에 사용자가 ‘운영 배포 진행’으로 답한 뒤 같은 기존 배포 경로를 실행했다. 우회 배포는 없다.
+- [Actions40867222261](https://github.com/zxcc9867/studyRoom/actions/runs/40867222261) completed/success. 테스트·모바일 타입·docs·Edge·build와 기존 합성 무료 AI2종 검사 및 production 배포가 통과했다. 배포 source42098dc80198ad9448af1c8d5cf02b70920ac676은 제품7dd5a14 이후 문서만 달라 제품 코드가 동일함을 git diff로 확인했다.
+- 2026-10-29 20:44 JST Vercel MCP로 team_LaN4bwvH4msrzoQtIw3fqsUj / prj_u2Q9FKwNeVjwwtVOjuXNMZRpkR3g / dpl_J2pc51wrLCiXBAbnf52xFczcakdV를 확인했다. READY/production/정확 sourceSHA와 study-room-attendance.vercel.app alias가 일치한다. 배포 URL: https://study-room-attendance-ecm32a50v-astars-projects-c2f42587.vercel.app.
+- 운영 https://study-room-attendance.vercel.app 의 HTML·/assets/index-CfoCVg92.js·/assets/index-CsFgid5K.css·/assets/StudyForestSection-DUFxrpsW.js·/assets/TechFeedSection-D8sqgOKH.js 모두 HTTP200. 공부일 새문구·계획표 공통 스타일·내 페이지 접기·숲 요약/꾸미기·기술피드 번역상태/영어요약 선택 표시를 실제 배포 파일에서 확인했다. 로컬 증거는 ignored output/dashboard-clarity/{deployment-receipt,production-audit}.json이다.
+- 실제 계정·물리 기기 수용은 수행하지 않았다. 현재 공부/카메라/회복 기록을 조작하지 않았고, 공부 종료 후 새로고침/앱 재시작으로 hosted 화면을 갱신할 수 있다. 새 APK/Windows 설치 파일은 필요하지 않다. 이번 후속 문서 커밋은 배포 source 이후 기록만 보완한다.
+- 제품에 추가 번역·AI/수집 호출은 넣지 않았다. 기존 CI의 합성 무료 AI 연결 점검은 제품 자동 호출과 별도다.

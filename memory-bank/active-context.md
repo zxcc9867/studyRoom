@@ -1,6 +1,6 @@
 # Active Context
-- 갱신: 2026-10-29 20:08 JST · 도구: codex
-- 루트/브랜치: C:/jini-dev/worktrees/study-dashboard-clarity · fix/study-dashboard-clarity · 제품7dd5a14 push 완료 · 배포 승인 대기 문서 변경 있음. 원래 study-room-desktop-current의 native/auth/lock/인계 dirty는 그대로 보존한다.
+- 갱신: 2026-10-29 20:44 JST · 도구: codex
+- 루트/브랜치: C:/jini-dev/worktrees/study-dashboard-clarity · fix/study-dashboard-clarity · 제품7dd5a14·문서42098dc push 완료. 원래 study-room-desktop-current의 native/auth/lock/인계 dirty는 그대로 보존한다.
 - 목표/완료 기준: 첨부 계획표 스타일·이전/오늘/다음 글자·04시 갱신 문구·기술피드 한국어 소개·내 페이지/숲 정보 위계 개선. 전체 Chrome/verify7·독립 검토 후 기존 production 배포/READY/HTTP200.
 - 완료: 원형 SVG 내부까지 공통 토큰, 날짜 버튼500/0자간·44px/확대, 한글24시간 눈금, 새벽4시 기준 갱신 명시. 공부일/진행 세션 귀속/기존 날짜 콜백은 보존.
 - 완료: 내 페이지 요약3개/미작성 회고/다음 공부 조언 우선, 계정·리포트·회복/완료 이력·목표 배지는 native details. 자식 mount/필터/초안/기존 callback 보존.
@@ -8,10 +8,11 @@
 - 완료: ready한국어 소개가 영어AI요약에 가려지는 오류 수정, 번역 상태 제목 앞·영어 요약 언어 명시/선택 펼침. 원문/저장/할 일/브리핑 보존.
 - 운영 관측: Supabase bqohkdzvxbrokkmuhysx(next-js) read-only: translation provider quota_exhausted,2026-10 예산449642/450000자·attempts182·ready411/failed37. 공급자/예산/키·DB/RLS/cron·번역/수집 동작은 변경하지 않는다. 이 UI수정이 미번역 전체의 번역/공급자 복구를 뜻하지 않는다.
 - 검증: forest34/34·feed30/30·집중24/24, 독립 reviewer P1/P2없음. 최초전체1492중1490통과/2실패(갱신문구 줄바꿈에 따른 모바일timer y, 접힌report의 오래된fixture열기순서). 타이머원래assert유지·caption전폭grid보완, 해당4/4와dashboard/nav12/12 통과.
-- 검증 진행: 최종 source의 dashboard-clarity-full-final.log 전체1492/1492(실패/생략/취소0),628667ms/exit0·dashboard-clarity-verify-final.log 공식verify7/Dune0 통과. 앞선 실패/일부수정후 실행을 최종전체통과로 쓰지 않는다.
-- 다음: 사용자가 독서실 운영 배포를 명시적으로 승인하면 같은 branch HEAD를 gh workflow run vercel-production.yml --ref fix/study-dashboard-clarity로 배포→CI success/Vercel READY·sourceSHA/alias/HTTP200/운영JS·CSS 확인. 승인 전에는 다른 도구/API로 같은 배포를 우회하지 않는다.
-- 배포 대상: team_LaN4bwvH4msrzoQtIw3fqsUj / prj_u2Q9FKwNeVjwwtVOjuXNMZRpkR3g / https://study-room-attendance.vercel.app. 시작 시 source2d55e11/dpl_zxVX7jwPPj4nr5QxF3PD1TS6xt6v READY 확인. 기존 main/보호브랜치에 직접push·merge하지 않는다.
+- 검증: 최종 source의 dashboard-clarity-full-final.log 전체1492/1492(실패/생략/취소0),628667ms/exit0·dashboard-clarity-verify-final.log 공식verify7/Dune0 통과. 최초 실패와 최종 통과를 구분한다. 배포 CI의 테스트/모바일/docs/Edge/build·기존 합성무료AI2종도 success다.
+- 배포 완료: 사용자 ‘운영 배포 진행’ 승인→기존 workflow_dispatch Actions40867222261 success. source42098dc80198ad9448af1c8d5cf02b70920ac676(제품7dd5a14와 코드 동일)·dpl_J2pc51wrLCiXBAbnf52xFczcakdV READY/production/정확SHA/운영alias 확인.
+- 배포 대상: team_LaN4bwvH4msrzoQtIw3fqsUj / prj_u2Q9FKwNeVjwwtVOjuXNMZRpkR3g / https://study-room-attendance.vercel.app. HTML/index-CfoCVg92.js/index-CsFgid5K.css/숲DUFxrpsW/피드D8sqgOKH 모두HTTP200·새문구/접기/숲요약/번역표시 확인. main/보호브랜치 직접push·merge 없음.
+- 다음: 이번 웹 UI 배포는 완료. 사용자는 공부 종료 후 새로고침/앱 재시작으로 새 화면을 사용할 수 있다. 실제 계정·물리 기기의 전체 수용과 무료 번역 한도 문제는 별도 범위다.
 - 테스트 명령: FEED_BROWSER_MODULE=C:/jini-dev/project/study-notes/node_modules/playwright/index.mjs, FEED_BROWSER_EXECUTABLE=C:/Program Files/Google/Chrome/Application/chrome.exe, node --test --test-concurrency=2 packages/core/test/*.test.mjs apps/web/test/*.test.mjs server/ai/*.test.mjs scripts/*.test.mjs supabase/functions/_shared/*.test.mjs. 공식 ai.ps1 verify --project <root>는7명령과경계.
 - 주의: 실제 사용자 공부/카메라 시작·종료/회복/계정 데이터 조작 없음. 기존 Windows 설치0.1.9·native 미해결과 실제 Android/iOS/물리 기기 수용은 원래 worktree 인계를 따른다. 새APK/Windows 설치 파일 없음.
 - 문서: prd-hig-ui·prd-tech-feed·prd-study-forest·architecture-map·progress·trouble-shooting, docs/verification/2026-10-29-dashboard-clarity.md. 그림/원문 로그는 ignored output/ 및 *clarity*.log.
-- 배포 차단: 자동 승인 검토가 workflow_dispatch를 실행 전에 거절했다. 이유는 현재 UI수정 요청이 별도 독서실 서비스의 운영 배포 명시승인이 아니라는 판단이다. AGENTS§5 자동배포규칙이 있으나 차단우회하지 않으며 request_user_input_async로 정확한 운영URL/제품7dd5a14의 배포 승인 질문을 보냈다. 아직 CI 실행/운영 반영 없음.
+- 승인 이력: 이전 자동 승인 검토의 명시승인 부재 차단은 사용자 답변으로 해소됐다. 같은 기존 배포 경로의 성공과 실제 READY/alias/운영 파일 반영을 확인했으며 현재 배포 차단/승인 대기는 없다.

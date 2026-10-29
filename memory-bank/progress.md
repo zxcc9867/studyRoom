@@ -2,7 +2,7 @@
 
 ## 계획표·내 페이지·숲 정보 명료화
 
-- 상태: 구현·집중24/forest34/feed30 통과, 최초 전체1492중2건(모바일 타이머·접힌 리포트 준비 순서) 보완 뒤 최종 Chrome1492/1492·실패/생략/취소0·verify7/Dune0·독립P1/P2없음. 제품7dd5a14 push완료·운영배포는 자동 승인 검토 거절로 사용자 명시승인 대기. 원형 내부 공통테마·날짜 글자·04시 갱신·요약/접기·한국어 소개 우선/상태를 개선한다. 무료 예산449642/450000·provider quota_exhausted 관측은 별도이며 한도/키/DB/학습 정책 불변. 기존 native dirty는 원래 worktree에 보존. [검증](../docs/verification/2026-10-29-dashboard-clarity.md).
+- 상태: 구현·집중24/forest34/feed30 통과, 최종 Chrome1492/1492·실패/생략/취소0·verify7/Dune0·독립P1/P2없음. 제품7dd5a14 push·사용자 운영 배포 승인·Actions40867222261 success·source42098dc/dpl_J2pc51wrLCiXBAbnf52xFczcakdV READY/정확SHA/운영alias·HTML/JS/CSS/숲/피드200·새표시 확인. 원형 내부 공통테마·날짜 글자·04시 갱신·요약/접기·한국어 소개 우선/상태를 개선했다. 무료 예산449642/450000·provider quota_exhausted 관측은 별도이며 한도/키/DB/학습 정책 불변. 기존 native dirty는 원래 worktree에 보존.  [검증](../docs/verification/2026-10-29-dashboard-clarity.md).
 
 ## HIG 공통 UI·Windows 로그인 안내
 

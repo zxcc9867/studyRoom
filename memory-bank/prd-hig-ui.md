@@ -7,6 +7,7 @@
 - 내 페이지는 할 일 요약3개·미작성 회고·다음 공부 조언을 먼저 표시하고 계정/리포트/회복·완료 이력/배지는 명명된 details로 제공한다. 자식은 mounted로 유지하여 필터/입력/저장 상태와 기존 콜백을 보존한다.
 - 숲은 현재 장면→성장·다음 변화→주간 보상을 먼저 표시, 꾸미기/성장 이력/이용법은 접는다.3D·이동·보상/출석 계산·저장 API는 보존한다.
 - 완료 기준:375/1440px·200% 글자·라이트/다크·44px·키보드·접기/다시열기·기록 불변을 실제 컴포넌트로 확인, 전체 Chrome/공식 verify·독립 검토·기존 production 배포/READY/HTTP200.
+- 완료: 제품7dd5a14·Chrome1492/1492·verify7/Dune0·독립P1/P2없음. 사용자 운영 배포 승인 후 Actions40867222261 success, source42098dc/dpl_J2pc51wrLCiXBAbnf52xFczcakdV READY/운영alias·HTML/JS/CSS/숲/피드200·새표시 확인. [배포 검증](../docs/verification/2026-10-29-dashboard-clarity.md). 번역 공급자의 무료 한도 소진과 실제 계정·기기 수용은 별도다.
 
 
 - 상태: 공부 전환·공통 다크 모드2d55e11 운영 배포(Chrome1475/1475·verify7/Dune0·독립 지적0·Actions40852672515 success/Vercel dpl_zxVX7jwPPj4nr5QxF3PD1TS6xt6v READY/exactSHA/운영alias/HTML·JS·CSS200). 기존 분류형 설정과 전체 내부 통일 위에 반영됐다. Windows 인증/창 전환 후속은 prd-windows-desktop.md의 별도 범위이며 이번 UI 배포로 해결했다고 주장하지 않는다. Android hosted UI는 공통 웹을 사용하며 OS/네이티브 전용 화면은 별도 범위다.
