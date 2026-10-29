@@ -1,5 +1,11 @@
 # Architecture Map
 
+## 이번 표시 경계 — 계획표·내 페이지·숲
+- main.tsx/appTheme.css는 기존 planner/date 콜백·04시 계산·기존 report/history 데이터를 표시만 한다. native details의 open 상태는 표시 전용이며 report/reflection/recovery 자식과 영속 상태 소유권은 그대로다.
+- StudyForestSection.tsx/forestOverview.css는 요약·접기/이벤트 표시만 소유한다. StudyForest3D와 순수 성장/주간 helper·서버 preference API는 재사용한다.
+- TechFeedSection.tsx는 기존 번역 snapshot/AI 요약의 표시 우선순위만 보정한다. 서버 번역 캐시·문자 예산·provider 상태를 변경하지 않는다.
+
+
 ## 적용 상태
 
 - 공용 DUNE 원칙 문서: `C:/jini-dev/docs/dune-architecture.md`. 이 checkout의 기능 지도와 실행 계약은 `docs/dune.md`, `dune.config.json`, `.dune/check.py`를 따른다.

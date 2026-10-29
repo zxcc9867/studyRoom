@@ -81,10 +81,13 @@
 .feed-card-body{padding-left:53px}
 .feed-topic-tags{display:flex;flex-wrap:wrap;gap:6px;margin:16px 0 5px}
 .feed-topic-tags span{color:#487156;background:#eff3e4;border-radius:6px;padding:4px 7px;font-size:var(--study-text-xs,14px);font-weight:650;max-width:100%;overflow-wrap:anywhere}
+.feed-translation-status{margin:9px 0 0;padding:8px 11px;border-left:3px solid #a47c3f;border-radius:0 7px 7px 0;background:#f6efdf;color:#715526;font-size:var(--study-text-xs,14px);line-height:1.65;overflow-wrap:anywhere}
+.feed-translation-ready{border-left-color:#769265;background:#eff4e7;color:#365b40}
 .feed-card h3{font-size:clamp(19px,2.7vw,23px);letter-spacing:-.035em;line-height:1.5;margin:12px 0 11px;overflow-wrap:anywhere;color:#253f32}
 .feed-excerpt,.feed-summary dd{margin:0;font-size:17px;line-height:1.85;color:#303e34;white-space:pre-line;overflow-wrap:anywhere}
 .feed-summary{margin:16px 0;display:grid;gap:15px;padding:18px;border-radius:12px;background:#f4f5e9;border-left:3px solid #9daf72}
 .feed-summary dt{font-size:var(--study-text-xs,14px);color:#315f4a;font-weight:850;margin-bottom:4px}
+.feed-summary-language{margin:14px 0 0;font-size:var(--study-text-xs,14px);line-height:1.65;color:var(--feed-muted)}
 .tech-feed .feed-expand{padding:0;border:0;border-radius:4px;background:none;color:#3c7452;box-shadow:none;font-size:var(--study-text-xs,14px);font-weight:750;justify-content:flex-start}
 .feed-expand[aria-expanded=true] svg{transform:rotate(-90deg)}
 .feed-evidence{display:flex;flex-wrap:wrap;gap:3px 12px;margin:14px 0 7px}

@@ -1,6 +1,56 @@
 /* One visual contract for all authenticated pages and their dialogs.
    Data, study policies and the forest's rendered environment stay unchanged. */
 
+/* Plan controls and the SVG clock use the same surfaces and type as the page. */
+.dashboard-redesign .dashboard-page-heading { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 4px 16px; }
+.dashboard-redesign .dashboard-page-heading > p { grid-column: 1 / -1; margin: 0; word-break: keep-all; overflow-wrap: anywhere; }
+.dashboard-redesign .dashboard-page-heading > h1 { grid-column: 1; }
+.dashboard-redesign .dashboard-page-heading > .dashboard-attendance { grid-column: 2; grid-row: 2; }
+.dashboard-redesign .planner-wheel { filter: none; }
+.dashboard-redesign .planner-wheel-bg { fill: var(--study-surface); stroke: var(--study-border); stroke-width: 1.5; }
+.dashboard-redesign .planner-wheel-inner { fill: var(--study-soft); stroke: var(--study-border); stroke-width: 1; }
+.dashboard-redesign .planner-wheel-pin { fill: var(--study-primary); stroke: var(--study-surface); }
+.dashboard-redesign .planner-hour-line { stroke: var(--study-border); stroke-width: 1; }
+.dashboard-redesign .planner-hour-label { fill: var(--study-muted); font-weight: 500; font-size: 18px; }
+.dashboard-redesign .workspace .planner-detail-panel h3 { font-size: var(--study-text-lg); font-weight: 600; line-height: 1.5; color: var(--study-ink); }
+.dashboard-redesign .workspace .planner-detail-panel p { color: var(--study-muted); font-size: var(--study-text-sm); font-weight: 400; line-height: var(--study-line); }
+.dashboard-redesign .planner-detail-list { border-top: 1px solid var(--study-border); padding-top: var(--study-space-4); }
+.dashboard-redesign .date-shortcut-group { gap: var(--study-space-2); flex-wrap: wrap; }
+.dashboard-redesign .date-shortcut-group button { min-height: 44px; min-width: 60px; padding: 10px 14px; gap: 8px; background: var(--study-surface); border: 1px solid var(--study-border); border-radius: var(--study-control-radius); box-shadow: none; color: var(--study-primary); font-family: inherit; font-size: var(--study-text-sm); font-weight: 500; letter-spacing: 0; line-height: 1.5; white-space: nowrap; word-break: keep-all; flex-shrink: 0; }
+.dashboard-redesign .date-shortcut-group button svg { flex-shrink: 0; }
+.dashboard-redesign .date-shortcut-group button:hover { background: var(--study-soft); }
+.dashboard-redesign .date-shortcut-group button:focus-visible { outline: 3px solid var(--study-primary); outline-offset: 3px; }
+
+/* A short overview stays visible; optional records remain mounted in details. */
+.dashboard-redesign .my-page-panel { gap: var(--study-space-6); scroll-margin-top: 96px; }
+.dashboard-redesign .my-page-overview { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--study-space-4); }
+.dashboard-redesign .my-page-overview > div { min-width: 0; padding: var(--study-space-4); border: 1px solid var(--study-border); border-radius: var(--study-control-radius); background: var(--study-soft); }
+.dashboard-redesign .my-page-overview span { color: var(--study-muted); font-size: var(--study-text-xs); }
+.dashboard-redesign .my-page-overview strong { display: block; margin: 8px 0 4px; color: var(--study-ink); font-size: 28px; line-height: 1.3; font-weight: 600; font-variant-numeric: tabular-nums; }
+.dashboard-redesign .my-page-overview strong small { margin-left: 4px; font-size: var(--study-text-sm); font-weight: 500; }
+.dashboard-redesign .my-page-overview p { margin: 0; color: var(--study-muted); font-size: var(--study-text-xs); }
+.dashboard-redesign .workspace .my-page-details { min-width: 0; border-top: 1px solid var(--study-border); }
+.dashboard-redesign .workspace .my-page-details > summary { display: flex; flex-wrap: wrap; align-items: center; gap: var(--study-space-3); cursor: pointer; min-height: 60px; padding: var(--study-space-4) 0; margin: 0; list-style: none; flex-direction: row; justify-content: flex-start; text-align: left; }
+.dashboard-redesign .workspace .my-page-details > summary::-webkit-details-marker { display: none; }
+.dashboard-redesign .workspace .my-page-details > summary h3 { margin: 0; color: var(--study-ink); font-size: var(--study-text-base); font-weight: 600; }
+.dashboard-redesign .workspace .my-page-details > summary span { margin-left: auto; color: var(--study-muted); font-size: var(--study-text-xs); }
+.dashboard-redesign .workspace .my-page-details > summary::after { content: '＋'; color: var(--study-primary); }
+.dashboard-redesign .workspace .my-page-details[open] > summary::after { content: '−'; }
+.dashboard-redesign .workspace .my-page-details > summary:focus-visible { outline: 3px solid var(--study-primary); outline-offset: 3px; border-radius: var(--study-control-radius); }
+.dashboard-redesign .workspace .my-page-details .profile-summary-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.dashboard-redesign .my-page-next-action { margin: 0; padding: 12px 16px; border-radius: var(--study-control-radius); background: var(--study-soft); color: var(--study-ink); font-size: var(--study-text-sm); line-height: var(--study-line); }
+.dashboard-redesign .my-page-next-action strong { color: var(--study-primary); font-weight: 600; }
+@media (max-width: 600px) {
+  .dashboard-redesign .my-page-overview { grid-template-columns: 1fr; gap: var(--study-space-2); }
+  .dashboard-redesign .my-page-overview > div { display: grid; grid-template-columns: minmax(0, 1fr) auto; column-gap: 12px; padding: 12px 16px; align-items: center; }
+  .dashboard-redesign .my-page-overview strong { grid-column: 2; grid-row: 1 / span 2; font-size: 24px; margin: 0; }
+  .dashboard-redesign .my-page-overview p { grid-column: 1; }
+  .dashboard-redesign .workspace .my-page-details > summary { gap: 8px; }
+  .dashboard-redesign .workspace .my-page-details > summary span { margin-left: 0; }
+  .dashboard-redesign .workspace .my-page-details > summary::after { margin-left: auto; }
+  .dashboard-redesign .workspace .my-page-details .profile-summary-grid { grid-template-columns: 1fr; }
+}
+
 /* Settings reuse the dashboard's paper surfaces and existing controls. */
 .study-navigation { display: flex; align-items: center; justify-content: flex-end; gap: var(--study-space-4); order: -5; }
 .study-mode-tabs { display: flex; gap: var(--study-space-1); padding: var(--study-space-1); background: var(--study-soft); border-radius: var(--study-control-radius); }

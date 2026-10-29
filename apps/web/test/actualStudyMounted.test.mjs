@@ -8,6 +8,55 @@ let chromium;
 try { ({chromium} = await import(process.env.FEED_BROWSER_MODULE ? pathToFileURL(process.env.FEED_BROWSER_MODULE).href : 'playwright')); } catch {}
 const browserTest = (name, run) => test(name, {skip: !chromium && 'Set FEED_BROWSER_MODULE and FEED_BROWSER_EXECUTABLE for mounted main application tests'}, run);
 
+for (const width of [375, 1440]) {
+ browserTest(`dashboard clarity: study date explains the 4am rollover at ${width}px`,()=>withApp(width,async page=>{
+  assert.match(await page.locator('.dashboard-page-heading p').textContent(),/공부일 · 새벽 4시 기준 갱신/);
+ }));
+ browserTest(`dashboard clarity: planner matches the theme and date labels remain readable at ${width}px`,()=>withApp(width,async page=>{
+  await page.getByRole('button',{name:'계획',exact:true}).click();
+  await page.getByRole('button',{name:'생활계획표',exact:true}).click();
+  const colors=await page.locator('.planner-wheel').evaluate(el=>{
+   const style=getComputedStyle(el),probe=document.createElement('span');probe.style.color='var(--study-surface)';el.parentElement.append(probe);
+   const surface=getComputedStyle(probe).color;probe.remove();
+   return {fill:getComputedStyle(el.querySelector('.planner-wheel-bg')).fill,surface,filter:style.filter};
+  });
+  assert.equal(colors.fill,colors.surface,'clock face uses the same paper as other app components');assert.equal(colors.filter,'none');
+  for(const button of await page.locator('.date-shortcut-group button').all()){
+   const metric=await button.evaluate(el=>{const s=getComputedStyle(el),r=el.getBoundingClientRect();return {weight:Number(s.fontWeight),spacing:s.letterSpacing,height:r.height,width:r.width};});
+   assert.ok(metric.weight<=650,`date label must not inherit the legacy 900 weight: ${JSON.stringify(metric)}`);
+   assert.ok(['normal','0px'].includes(metric.spacing));assert.ok(metric.height>=44&&metric.width>=44);
+  }
+  const date=page.locator('.planner-date-controls input[type=date]'),before=await date.inputValue();
+  await page.getByRole('button',{name:'이전 날짜로 이동',exact:true}).click();assert.notEqual(await date.inputValue(),before);
+  await page.locator('.date-shortcut-group').getByRole('button',{name:'오늘',exact:true}).click();assert.equal(await date.inputValue(),before);
+  assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),true);
+  await mkdir('output/dashboard-clarity',{recursive:true});await page.screenshot({path:`output/dashboard-clarity/planner-${width}.png`,fullPage:true});
+ }));
+ browserTest(`dashboard clarity: my page shows a summary before optional records at ${width}px`,()=>withApp(width,async page=>{
+  const before=await page.evaluate(()=>structuredClone({sessions:fixture.sessions,todos:fixture.todos,recoveries:fixture.recoveries}));
+  await page.evaluate(()=>{location.hash='me';});const panel=page.locator('#me');await panel.waitFor();
+  await panel.getByRole('group',{name:'할 일 요약',exact:true}).waitFor();
+  assert.equal(await panel.locator('.my-page-overview > div').count(),3);
+  for(const name of ['학습 리포트','계정 정보','목표 달성 배지','회복루틴 이력','완료한 일 이력']){
+   const summary=panel.locator('details > summary').filter({has:page.getByRole('heading',{name,exact:true})});await summary.waitFor();
+   assert.equal(await summary.evaluate(el=>el.parentElement.open),false,`${name} starts collapsed`);
+   await summary.focus();await page.keyboard.press('Enter');assert.equal(await summary.evaluate(el=>el.parentElement.open),true);
+   await page.keyboard.press('Enter');
+  }
+  const report=panel.locator('details > summary').filter({has:page.getByRole('heading',{name:'학습 리포트',exact:true})});
+  await report.click();assert.equal(await panel.getByRole('heading',{name:'차곡차곡, 학습 리포트',exact:true}).isVisible(),true);await report.click();
+  assert.deepEqual(await page.evaluate(()=>({sessions:fixture.sessions,todos:fixture.todos,recoveries:fixture.recoveries})),before);
+  assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),true);
+  await mkdir('output/dashboard-clarity',{recursive:true});await page.screenshot({path:`output/dashboard-clarity/me-${width}.png`,fullPage:true});
+ }));
+ browserTest(`dashboard clarity: planner controls reflow at double text size at ${width}px`,()=>withApp(width,async page=>{
+  await page.addStyleTag({content:'html {font-size:200%}'});
+  await page.getByRole('button',{name:'계획',exact:true}).click();await page.getByRole('button',{name:'생활계획표',exact:true}).click();
+  assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),true,'large date text must wrap controls instead of squeezing labels or overflowing');
+  for(const button of await page.locator('.date-shortcut-group button').all())assert.equal(await button.evaluate(el=>el.scrollWidth<=el.clientWidth),true);
+ }));
+}
+
 for(const width of [375,1440]) browserTest(`stable study navigation: personal and team use the same switch position at ${width}px`,()=>withApp(width,async page=>{
  const before=await page.evaluate(()=>structuredClone({sessions:fixture.sessions,todos:fixture.todos,recoveries:fixture.recoveries}));
  const modes=page.getByRole('navigation',{name:'공부 방식',exact:true});
@@ -891,7 +940,7 @@ for(const width of [375,1440])for(const scale of [1,2])browserTest(`full UI audi
  if(scale===2)await page.addStyleTag({content:'html { font-size:200%; }'});
  const before=await page.evaluate(()=>structuredClone({sessions:fixture.sessions,todos:fixture.todos,recoveries:fixture.recoveries,reflections:fixture.reflections}));
  await page.evaluate(()=>{location.hash='#me';window.dispatchEvent(new HashChangeEvent('hashchange'));});
- const panel=page.locator('.my-page-panel');await panel.getByRole('heading',{name:'회복루틴 요약',exact:true}).waitFor();
+ const panel=page.locator('.my-page-panel');await panel.locator('details > summary').filter({has:page.getByRole('heading',{name:'회복루틴 이력',exact:true})}).click();await panel.getByRole('heading',{name:'회복루틴 요약',exact:true}).waitFor();
  assert.equal(await panel.locator('.recovery-next-action').evaluate(el=>getComputedStyle(el).borderTopStyle),'solid');
  await auditSharedDetails(panel);
  for(const label of await panel.locator('.recovery-next-action span, .recovery-next-action strong, .recovery-history-copy p, .recovery-history-copy span').all()){
@@ -1177,6 +1226,7 @@ browserTest('section recovery: essential reflection stays available even if a de
 for(const [chunk,route] of [['TechFeedSection','feed'],['TeamStudySection','together'],['StudyForestSection','forest'],['StudyReportSection','me'],['PublicTagSettings','settings']]) browserTest(`section recovery: ${chunk} failure keeps navigation and idle recovery available`,()=>withApp(375,async page=>{
  let navigations=0;page.on('framenavigated',frame=>{if(frame===page.mainFrame())navigations++;});
  await page.evaluate(route=>{location.hash=route;},route);
+ if(chunk==='StudyReportSection')await page.locator('.my-page-report > summary').click();
  const recovery=page.locator('.section-load-recovery');await recovery.waitFor();
  assert.equal(await recovery.getByRole('button',{name:'새 화면 불러오기',exact:true}).isEnabled(),true);
  assert.equal(await page.locator('.dashboard-navigation').isVisible(),true);
@@ -1611,6 +1661,7 @@ browserTest('mounted main: unrepresentable schedule shows Korean help without le
 
 browserTest('mounted main: planning report failure does not erase study achievements and uses selected period',()=>withApp(1440,async page=>{
  await page.getByRole('link',{name:'내 페이지',exact:true}).click();
+ await page.locator('.my-page-report > summary').click();
  const report=page.getByRole('region',{name:'계획 준수'});await report.getByText('0%',{exact:true}).waitFor();
  await report.getByText('할 일별 최초 시작 지연',{exact:true}).click();
  assert.match(await report.textContent(),/최초 120분 지연/);assert.match(await report.textContent(),/시작한 시간 지정 할 일 1개 기준/);

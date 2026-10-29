@@ -4811,10 +4811,10 @@ function DashboardApp() {
                 );
               })}
               {[
-                { label: "12AM", angle: 0 },
-                { label: "6AM", angle: 90 },
-                { label: "12PM", angle: 180 },
-                { label: "6PM", angle: 270 },
+                { label: "0시", angle: 0 },
+                { label: "6시", angle: 90 },
+                { label: "12시", angle: 180 },
+                { label: "18시", angle: 270 },
               ].map((mark) => {
                 const point = getPlannerPoint(mark.angle, 150);
                 return (
@@ -4920,8 +4920,8 @@ function DashboardApp() {
               </>
             ) : (
               <>
-                <h3>시간 있는 할 일이 없습니다.</h3>
-                <p>원형 빈 시간대를 누르면 해당 시간으로 새 할 일을 만들 수 있습니다.</p>
+                <h3>시간을 정한 할 일이 없어요</h3>
+                <p>원하는 시간대를 누르거나 일정 추가로 계획을 만들어 보세요.</p>
               </>
             )}
             <div className="planner-detail-list" aria-label="\uC624\uB298 \uD560\uC77C \uBAA9\uB85D">
@@ -5407,7 +5407,7 @@ function DashboardApp() {
         )}
         {activeSection === "today" && (
           <>
-            <div className="dashboard-page-heading"><div><p>{todayDateKey} 공부일 · 새벽 4시 기준{activeSession && todayDateKey !== getStudyDateKey(new Date(nowMs), timeZone) ? " · 시작한 공부일로 계속 기록 중" : ""}</p><h1>오늘의 공부</h1></div><span className="dashboard-attendance">{dashboardReady ? activeSession || attendanceDays.find(day => day.local_date === todayDateKey)?.status === "present" ? "출석 완료" : "시작 준비" : "기록 확인 중"}</span></div>
+            <div className="dashboard-page-heading"><p>{todayDateKey} 공부일 · 새벽 4시 기준 갱신{activeSession && todayDateKey !== getStudyDateKey(new Date(nowMs), timeZone) ? " · 시작한 공부일로 계속 기록 중" : ""}</p><h1>오늘의 공부</h1><span className="dashboard-attendance">{dashboardReady ? activeSession || attendanceDays.find(day => day.local_date === todayDateKey)?.status === "present" ? "출석 완료" : "시작 준비" : "기록 확인 중"}</span></div>
             <TodayDomainTabs activeDomain={todayDomain} onChange={setTodayDomain} />
             {sectionOrderEditing && renderTodaySectionOrderEditor()}
           </>
@@ -6861,13 +6861,19 @@ function DashboardApp() {
           <div className="history-header">
             <div>
               <h2>내 페이지</h2>
+              <p className="section-description">학습 흐름을 확인하고, 필요한 지난 기록을 찾아보세요.</p>
             </div>
-            <strong className="profile-badge">할 일 {todoHistoryStats.completedTodos}개 완료</strong>
           </div>
 
-          <GoalAchievementBadges goals={studyGoals} />
+          <div className="my-page-overview" role="group" aria-label="할 일 요약">
+            <div><span>누적 완료</span><strong>{todoHistoryStats.completedTodos}<small>개</small></strong><p>전체 {todoHistoryStats.totalTodos}개 중</p></div>
+            <div><span>{formatMonthLabel(calendarMonth)} 완료</span><strong>{todoHistoryStats.monthCompletedTodos}<small>개</small></strong><p>선택한 달의 완료 기록</p></div>
+            <div><span>전체 완료율</span><strong>{todoHistoryStats.completionPercent}<small>%</small></strong><p>등록한 할 일 기준</p></div>
+          </div>
 
-          <div className="profile-summary-grid" aria-label="나의 정보">
+          <details className="my-page-details my-page-account">
+            <summary><h3>계정 정보</h3><span>이메일 · 로그인 · 알림 · 시간대</span></summary>
+            <div className="profile-summary-grid" aria-label="나의 정보">
             <div>
               <span>이메일</span>
               <strong>{session.user.email ?? profile?.email ?? "등록 없음"}</strong>
@@ -6884,15 +6890,8 @@ function DashboardApp() {
               <span>타임존</span>
               <strong>{timeZone}</strong>
             </div>
-            <div>
-              <span>전체 완료</span>
-              <strong>{todoHistoryStats.completedTodos}/{todoHistoryStats.totalTodos}</strong>
             </div>
-            <div>
-              <span>{formatMonthLabel(calendarMonth)} 완료</span>
-              <strong>{todoHistoryStats.monthCompletedTodos}개</strong>
-            </div>
-          </div>
+          </details>
 
           {reflectionHistoryLoaded && pendingReflectionSessions.length > 0 && (
             <ReflectionInbox
@@ -6901,6 +6900,8 @@ function DashboardApp() {
             />
           )}
 
+          <details className="my-page-details my-page-report">
+          <summary><h3>학습 리포트</h3><span>주간·월간 공부시간과 출석</span></summary>
           <RecoverableSection {...sectionRecovery} title="학습 리포트" fallback={<div className="weekly-review-card" role="status">학습 리포트를 불러오는 중...</div>}>
             <StudyReportSection
               key={session.user.id}
@@ -6916,24 +6917,25 @@ function DashboardApp() {
               onOpenPlannedTodo={openWeeklyReviewPlannedTodo}
             />
           </RecoverableSection>
+          </details>
 
-          {renderRecoverySummaryPanel()}
+          {recoveryWeeklySummary.totalCount > 0 && <p className="my-page-next-action"><strong>다음 공부 전에</strong> {recoveryWeeklySummary.nextAction}</p>}
 
-          <div className="todo-header recovery-history-header">
-            <div>
-              <h3>회복루틴 이력</h3>
-            </div>
-            <strong>{studyRecoveryRequests.length}건</strong>
-          </div>
-          {renderRecoveryHistory()}
+          <details className="my-page-details">
+            <summary className="todo-header recovery-history-header"><h3>회복루틴 이력</h3><span>{studyRecoveryRequests.length}건</span></summary>
+            {renderRecoverySummaryPanel()}
+            {renderRecoveryHistory()}
+          </details>
 
-          <div className="todo-header todo-history-header">
-            <div>
-              <h3>완료한 일 이력</h3>
-            </div>
-            <strong>{todoHistoryStats.completionPercent}% 완료율</strong>
-          </div>
-          {renderTodoHistory()}
+          <details className="my-page-details">
+            <summary className="todo-header todo-history-header"><h3>완료한 일 이력</h3><span>{todoHistoryStats.completedTodos}개 완료</span></summary>
+            {renderTodoHistory()}
+          </details>
+
+          <details className="my-page-details">
+            <summary><h3>목표 달성 배지</h3><span>완료한 목표 돌아보기</span></summary>
+            <GoalAchievementBadges goals={studyGoals} />
+          </details>
         </section>
         )}
 

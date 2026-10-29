@@ -54,6 +54,22 @@ test('untranslated cards explain the global translation status instead of a misl
  }
 });
 
+test('readers learn why an English original is shown before reaching its title',()=>{
+ const html=render({...article,translation_status:'pending'},'quota_exhausted');
+ const status=html.indexOf('class="feed-translation-status');
+ assert.ok(status>=0 && status<html.indexOf('<h3>'));
+ assert.match(html.slice(status,html.indexOf('<h3>')),/무료 번역 한도에 도달[\s\S]*영어 원문 표시/);
+ assert.doesNotMatch(html,/한국어 번역 대기/);
+});
+
+test('a ready English AI summary cannot displace an available Korean introduction',()=>{
+ const html=render({...article,translation_status:'ready',title_ko:'PostgreSQL 쿼리 계획',excerpt_ko:'검색 결과의 한국어 소개입니다.',summary_status:'ready',summary:{technology:'This explains the PostgreSQL query planner.',change:'The planner changes how queries run.',usage:'Use this to inspect query plans.'}});
+ assert.match(html,/<p class="feed-excerpt"[^>]*>검색 결과의 한국어 소개입니다\.<\/p>/);
+ assert.match(html,/영어 AI 요약 펼치기/);
+ assert.doesNotMatch(html,/<p class="feed-excerpt"[^>]*>This explains/);
+ assert.match(html,/DeepL 자동 번역/);
+});
+
 test('cached Korean translations and Korean originals remain readable when the provider quota is exhausted',()=>{
  const translated=render({...article,translation_status:'ready',title_ko:'쿼리 계획',excerpt_ko:'번역된 소개'},'quota_exhausted');
  assert.match(translated,/쿼리 계획/);assert.match(translated,/DeepL 자동 번역/);assert.doesNotMatch(translated,/무료 번역 한도에 도달/);

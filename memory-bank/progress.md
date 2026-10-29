@@ -1,5 +1,9 @@
 # Progress
 
+## 계획표·내 페이지·숲 정보 명료화
+
+- 상태: 구현·집중24/forest34/feed30 통과, 최초 전체1492중2건(모바일 타이머·접힌 리포트 준비 순서) 보완 뒤 최종 Chrome1492/1492·실패/생략/취소0·verify7/Dune0·독립P1/P2없음. 운영 배포 대기. 원형 내부 공통테마·날짜 글자·04시 갱신·요약/접기·한국어 소개 우선/상태를 개선한다. 무료 예산449642/450000·provider quota_exhausted 관측은 별도이며 한도/키/DB/학습 정책 불변. 기존 native dirty는 원래 worktree에 보존. [검증](../docs/verification/2026-10-29-dashboard-clarity.md).
+
 ## HIG 공통 UI·Windows 로그인 안내
 
 - 공부 전환·다크 모드: 상단 동일 좌표/중복 링크 제거·팀 숲 탭 공통 grid, 시스템/라이트/다크·기기 저장·OS/storage event·초기 paint·전체 공통 팔레트. Chrome1475/1475(실패/생략/취소0)·verify7/Dune0·독립C/I/M0·44px라벨/실제클릭/키보드/저장실패 통과.2d55e11 push·Actions40852672515 success·Vercel dpl_zxVX7jwPPj4nr5QxF3PD1TS6xt6v READY/exactSHA/운영alias·HTML/JS/CSS200/새테마 확인. 기록/API/native 미커밋·APK/Windows 설치파일 보존. [검증](../docs/verification/2026-10-29-dark-navigation.md).

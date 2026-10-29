@@ -21,7 +21,7 @@ export function FeedArticleCard({article,onSave,onPlan,busy,timeZone,translation
   const contentId = useId();
   const originalLanguage = feedOriginalLanguage(article.title,article.excerpt);
   const translated = originalLanguage !== 'ko' && article.translation_status === 'ready' && Boolean(article.title_ko?.trim()) && typeof article.excerpt_ko === 'string';
-  const translationNotice = originalLanguage==='ko' ? '한국어로 작성된 원문' : translated ? 'DeepL 자동 번역 · 원문 확인 권장' : `${translationService==='quota_exhausted'?'무료 번역 한도에 도달':translationService==='paused'?'한국어 번역 일시 중지':translationService==='unavailable'?'번역 서비스 확인 필요':translationService==='not_configured'?'한국어 번역 미연결':originalLanguage==='en'?'한국어 번역 대기':'원문 언어 확인 필요 · 번역 대기'} · ${originalLanguage==='en'?'영어 원문 표시':'원문 표시'}`;
+  const translationNotice = originalLanguage==='ko' ? '한국어로 작성된 원문' : translated ? '한국어 번역 · DeepL 자동 번역 · 원문 확인 권장' : `${translationService==='quota_exhausted'?'무료 번역 한도에 도달':translationService==='paused'?'한국어 번역 일시 중지':translationService==='unavailable'?'번역 서비스 확인 필요':translationService==='not_configured'?'한국어 번역 미연결':originalLanguage==='en'?'한국어 번역 대기':'원문 언어 확인 필요 · 번역 대기'} · ${originalLanguage==='en'?'영어 원문 표시':'원문 표시'}`;
   const link = safeFeedUrl(article.url);
   const host = feedSourceHost(article.url);
   const sourceNames = article.origin === 'web_search' ? ['웹 검색',host] : [...article.sources.map(source=>source.name),host];
@@ -30,7 +30,9 @@ export function FeedArticleCard({article,onSave,onPlan,busy,timeZone,translation
   const published = article.published_at && Number.isFinite(Date.parse(article.published_at));
   const video = feedContentKind(article.url) === 'video';
   const hasSummary = !video && article.summary_status === 'ready' && Boolean(article.summary);
-  const excerpt = feedExcerptView(video ? '' : feedStructuredIntroduction(hasSummary ? article.summary!.technology : (translated ? article.excerpt_ko : article.excerpt)));
+  const englishSummary = hasSummary && feedOriginalLanguage('',Object.values(article.summary!).join(' ')) === 'en';
+  const preferKoreanIntroduction = translated && englishSummary;
+  const excerpt = feedExcerptView(video ? '' : feedStructuredIntroduction(hasSummary && !preferKoreanIntroduction ? article.summary!.technology : (translated ? article.excerpt_ko : article.excerpt)));
   const classification = classifyFeedArticle(article);
   const tags = [...new Set([...(article.topics || []).filter(tag=>typeof tag==='string'&&tag.length<=32),...feedTopicTags(article.title,article.excerpt,(article.matched_topics || []).join(', '))])].slice(0,3);
   const sourceName = article.sources[0]?.name || host || '기술 소식';
@@ -43,18 +45,23 @@ export function FeedArticleCard({article,onSave,onPlan,busy,timeZone,translation
     </header>
     <div className="feed-card-body">
       <div className="feed-topic-tags"><span className="feed-language-tag"># {FEED_LANGUAGE_LABELS[originalLanguage]}</span>{tags.map(tag=><span key={tag}># {tag}</span>)}</div>
+      <p className={`feed-translation-status${translated||originalLanguage==='ko'?' feed-translation-ready':''}`}>{translationNotice}</p>
       <h3>{link ? <a href={link} target="_blank" rel="noopener noreferrer">{translated ? article.title_ko : article.title}</a> : (translated ? article.title_ko : article.title)}</h3>
       <FeedArticleMedia key={article.id+JSON.stringify(article.media)} media={article.media} title={(translated?article.title_ko:article.title)||article.title} original={link}/>
       <div id={contentId}>
-        {expanded && hasSummary ? <dl className="feed-summary">
-          <div><dt>어떤 기술인가요</dt><dd><FeedArticleText text={feedStructuredIntroduction(article.summary!.technology)}/></dd></div>
-          <div><dt>핵심 변화</dt><dd><FeedArticleText text={feedStructuredIntroduction(article.summary!.change)}/></dd></div>
-          <div><dt>이럴 때 살펴보세요</dt><dd><FeedArticleText text={feedStructuredIntroduction(article.summary!.usage)}/></dd></div>
-        </dl> : expanded && excerpt.full ? <FeedArticleText text={excerpt.full}/> : <p className="feed-excerpt">{excerpt.preview || (video ? '영상 자료입니다. 시간표·출연자 목록은 소개에서 제외했어요. 내용은 원문에서 확인해 주세요.' : '충분한 글 소개가 없어 내용을 추측하지 않았어요. 원문에서 자세히 읽어 보세요.')}</p>}
+        {expanded && hasSummary ? <>
+          {preferKoreanIntroduction && <FeedArticleText text={excerpt.full}/>}
+          {englishSummary && <p className="feed-summary-language">영어로 작성된 AI 요약이에요.</p>}
+          <dl className="feed-summary">
+          <div><dt>어떤 기술인가요</dt><dd lang={englishSummary?'en':undefined}><FeedArticleText text={feedStructuredIntroduction(article.summary!.technology)}/></dd></div>
+          <div><dt>핵심 변화</dt><dd lang={englishSummary?'en':undefined}><FeedArticleText text={feedStructuredIntroduction(article.summary!.change)}/></dd></div>
+          <div><dt>이럴 때 살펴보세요</dt><dd lang={englishSummary?'en':undefined}><FeedArticleText text={feedStructuredIntroduction(article.summary!.usage)}/></dd></div>
+          </dl>
+        </> : expanded && excerpt.full ? <FeedArticleText text={excerpt.full}/> : <p className="feed-excerpt">{excerpt.preview || (video ? '영상 자료입니다. 시간표·출연자 목록은 소개에서 제외했어요. 내용은 원문에서 확인해 주세요.' : '충분한 글 소개가 없어 내용을 추측하지 않았어요. 원문에서 자세히 읽어 보세요.')}</p>}
       </div>
-      {expandable && <button type="button" className="feed-expand" aria-expanded={expanded} aria-controls={contentId} onClick={()=>setExpanded(value=>!value)}>{expanded?'내용 접기':hasSummary?'AI 요약 펼치기':'내용 더 보기'}<ChevronRight size={14}/></button>}
+      {expandable && <button type="button" className="feed-expand" aria-expanded={expanded} aria-controls={contentId} onClick={()=>setExpanded(value=>!value)}>{expanded?'내용 접기':hasSummary?englishSummary?'영어 AI 요약 펼치기':'AI 요약 펼치기':'내용 더 보기'}<ChevronRight size={14}/></button>}
       {link && <div className="feed-citation"><span>{article.origin === 'web_search' ? '검색 소개 출처' : '발췌 출처'}</span><a href={link} target="_blank" rel="noopener noreferrer">{host || sourceName}<ExternalLink size={15}/></a></div>}
-      <div className="feed-evidence"><p>{video ? '영상 원문 링크 · 본문 요약 없음' : summaryLabel(article)}</p><p>{translationNotice}</p></div>
+      <div className="feed-evidence"><p>{video ? '영상 원문 링크 · 본문 요약 없음' : summaryLabel(article)}</p></div>
       {translated && !video && <details className="feed-original-text"><summary>원문 텍스트 보기</summary><p>{article.title}</p><FeedArticleText text={feedStructuredIntroduction(article.excerpt)}/></details>}
       <p className="feed-sources">{sourceLine}</p>
       <div className="feed-card-actions">

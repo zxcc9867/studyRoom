@@ -1,5 +1,11 @@
 # PRD: Study Forest Reward Space
 
+## Overview clarity — 2026-10-29
+- Scene, current seven-day growth, next milestone, then weekly reward form the primary hierarchy. Customization, growth/rewards and help are collapsed native disclosures with mounted children.
+- Weekly credit is displayed as credited days (one credit per day after ten minutes), preserving existing calculations and API.
+- The growth fill is a visible block with full track height; disclosure arrow keys do not move the avatar. Preference selection/save/error, mobile and dark theme remain available.
+
+
 ## 1. Problem
 
 Daily attendance pressure can feel punitive if the app only records misses, recovery routines, and warnings. The app needs a lightweight positive reward loop that makes streaks feel visible and personal.

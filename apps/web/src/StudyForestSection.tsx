@@ -31,6 +31,7 @@ import {
   type WeeklyHabitSession,
   type WeeklyHabitTargetState,
 } from "./weeklyHabit.mjs";
+import "./forestOverview.css";
 
 type AttendanceDay = {
   local_date: string;
@@ -185,6 +186,7 @@ export default function StudyForestSection({
   }
 
   function handleKeyDown(event: KeyboardEvent<HTMLElement>) {
+    if (event.target instanceof Element && event.target.closest(".forest-overview-details")) return;
     const movementKeys = ["ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight", "w", "a", "s", "d", "W", "A", "S", "D"];
     if (!movementKeys.includes(event.key)) return;
     event.preventDefault();
@@ -193,36 +195,19 @@ export default function StudyForestSection({
 
   return (
     <section
-      className="history-panel study-forest-panel"
+      className="history-panel study-forest-panel forest-overview"
       tabIndex={0}
       onKeyDown={handleKeyDown}
       aria-label="공부의 숲 탐험"
       aria-describedby="forest-movement-hint"
       data-forest-theme={preferences.islandTheme}
     >
-      <div className="section-heading">
+      <div className="section-heading forest-overview-heading">
         <div>
           <h2>공부의 숲</h2>
-          <p className="section-description">꾸준한 출석으로 나무를 키우고, 5/7 작은 시작으로 반딧불 화환을 남겨 보세요.</p>
-        </div>
-        <div className="forest-badges">
-          <span className="pill"><TreePine size={16} /> 완성 나무 {completedTreeCount}그루</span>
-          <span className="pill"><Sprout size={16} /> {progressPercent}%</span>
-          <span className="pill"><Sparkles size={16} /> 화환 {weeklyRewardHistory.earnedCount}개</span>
+          <p className="section-description">공부를 이어갈수록 나만의 숲이 자라요.</p>
         </div>
       </div>
-
-      {completedTreeCount > 0 ? (
-        <div className="success-message forest-celebration">
-          <strong>완성한 나무와 보상은 숲에 계속 남아 있어요.</strong>
-          <span>새로운 연속 출석으로 다음 나무를 키워보세요.</span>
-        </div>
-      ) : (
-        <div className="message forest-celebration">
-          <strong>첫 나무가 자라고 있어요.</strong>
-          <span>7일을 이어가면 한 그루가 완성돼 숲에 남아요.</span>
-        </div>
-      )}
 
       <div className="study-forest-grid">
         <div className="study-forest-scene-card">
@@ -248,23 +233,39 @@ export default function StudyForestSection({
         </div>
 
         <div className="forest-status-card">
+          <p className="forest-overview-label"><Sprout size={17} aria-hidden="true" /> 지금 자라는 나무</p>
           <h3>{forestState.currentTree.label}</h3>
-          <div className="forest-progress-track"><span style={{ width: `${progressPercent}%` }} /></div>
-          <p>현재 연속 출석 {forestState.currentStreak}일 · 이번 나무 {forestState.currentTree.progressDays}/7일</p>
+          <p className="forest-growth-count"><strong>{forestState.currentTree.progressDays}</strong><span> / 7일</span></p>
+          <div
+            className="forest-progress-track"
+            role="progressbar"
+            aria-label="이번 나무 성장"
+            aria-valuemin={0}
+            aria-valuemax={7}
+            aria-valuenow={forestState.currentTree.progressDays}
+            aria-valuetext={`이번 나무 ${forestState.currentTree.progressDays}일, 7일이면 완성`}
+          ><span style={{ width: `${progressPercent}%` }} /></div>
+          <p>현재 연속 출석 {forestState.currentStreak}일 · 7일을 이어가면 한 그루가 완성돼요.</p>
+          <div className="forest-next-level-card">
+            <div><Sparkles size={18} aria-hidden="true" /><span>다음 변화까지 {nextLevel.remainingDays}일</span></div>
+            <strong>{nextLevel.title}</strong>
+            <p>{nextLevel.description}</p>
+            <small className="forest-interior-unlock">집 안 보상 · {nextLevel.interiorUnlock}</small>
+          </div>
           <section
             className={`forest-weekly-reward-card ${weeklyHabitTarget.targetReached ? "complete" : ""}`.trim()}
             aria-labelledby="forest-weekly-reward-title"
           >
             <div className="forest-weekly-reward-heading">
               <div>
-                <p className="eyebrow"><Sparkles size={15} aria-hidden="true" /> 최근 7일 시작</p>
+                <p className="forest-overview-label">최근 7일 · 10분 시작</p>
                 <h4 id="forest-weekly-reward-title">
                   {weeklyHabitTarget.targetReached
                     ? "이번 7일 반딧불 화환 완성"
-                    : `새 반딧불 화환까지 ${weeklyHabitTarget.remainingTargetDays}번`}
+                    : `새 반딧불 화환까지 ${weeklyHabitTarget.remainingTargetDays}일`}
                 </h4>
               </div>
-              <strong>{weeklyHabitTarget.creditedStartDays}/{weeklyHabitTarget.targetDays}</strong>
+              <strong>{weeklyHabitTarget.creditedStartDays}/{weeklyHabitTarget.targetDays}일</strong>
             </div>
             <div
               className="forest-weekly-reward-seeds"
@@ -273,7 +274,7 @@ export default function StudyForestSection({
               aria-valuemin={0}
               aria-valuemax={weeklyHabitTarget.targetDays}
               aria-valuenow={weeklyHabitTarget.creditedStartDays}
-              aria-valuetext={`${weeklyHabitTarget.creditedStartDays}번 완료, ${weeklyHabitTarget.remainingTargetDays}번 남음`}
+              aria-valuetext={`${weeklyHabitTarget.creditedStartDays}일 완료, ${weeklyHabitTarget.remainingTargetDays}일 남음`}
             >
               {Array.from({ length: weeklyHabitTarget.targetDays }, (_, index) => (
                 <span
@@ -285,69 +286,79 @@ export default function StudyForestSection({
                 </span>
               ))}
             </div>
-            <p>
+            <p className="forest-weekly-reward-note">
               {weeklyHabitTarget.targetReached
-                ? "다섯 씨앗이 모두 빛나요. 이번 화환은 완료 세션으로 확정되면 숲에 계속 남습니다."
-                : "10분 시작 한 번마다 현재 나무 둘레의 씨앗 조명이 하나씩 켜져요."}
+                ? "완료 세션으로 확정된 화환은 숲에 계속 남아요."
+                : "최근 7일 중 5일, 하루 10분을 시작하면 화환을 받아요."}
             </p>
-            <small>
-              {weeklyRewardHistory.earnedCount > 0
-                ? `지금까지 완성한 반딧불 화환 ${weeklyRewardHistory.earnedCount}개는 다음 휴식 주에도 사라지지 않아요.`
-                : "첫 화환을 완성해도 매일 공부할 필요는 없어요. 최근 7일 중 이틀은 쉬어도 괜찮습니다."}
-            </small>
           </section>
-          <div className="forest-next-level-card">
-            <div><Sparkles size={19} /><span>다음 변화까지 {nextLevel.remainingDays}일</span></div>
-            <strong>{nextLevel.title}</strong>
-            <p>{nextLevel.description}</p>
-            <small className="forest-interior-unlock">집 안 보상 · {nextLevel.interiorUnlock}</small>
-          </div>
-          <details className="forest-growth-details">
-            <summary>성장 단계 전체 보기</summary>
-            <ol className="forest-level-roadmap" aria-label="나무 성장 단계">
-              {forestLevelMilestones.map((milestone) => {
-                const progressDays = forestState.currentTree.progressDays;
-                const state = progressDays >= milestone.days ? "complete" : nextLevel.targetDays === milestone.days ? "next" : "locked";
-                return (
-                  <li key={milestone.days} data-state={state}>
-                    <span>{milestone.days}일</span>
-                    <div><strong>{milestone.label}</strong><small>{milestone.update}</small><small className="forest-interior-unlock">{milestone.interiorUnlock}</small></div>
-                  </li>
-                );
-              })}
-            </ol>
-          </details>
         </div>
       </div>
 
-      <section className="forest-customizer" aria-labelledby="forest-customizer-title">
-        <div className="forest-customizer-heading">
-          <div><h3 id="forest-customizer-title">내 숲 꾸미기</h3></div>
-          <MapIcon size={28} />
+      <details className="forest-overview-details forest-customizer-details">
+        <summary><span><MapIcon size={19} aria-hidden="true" /> 숲 꾸미기</span><small>테마 · 집 색상 · 야외 보상</small></summary>
+        <section className="forest-customizer" aria-labelledby="forest-customizer-title">
+          <div className="forest-customizer-heading">
+            <div><h3 id="forest-customizer-title">내 숲 꾸미기</h3></div>
+          </div>
+          <CustomizationGroup
+            title="섬 테마"
+            options={customizationCatalog.themes}
+            selected={preferences.islandTheme}
+            busy={preferenceBusy}
+            onSelect={(islandTheme) => void savePreferences({ ...preferences, islandTheme })}
+          />
+          <CustomizationGroup
+            title="집 포인트 색상"
+            options={customizationCatalog.accents}
+            selected={preferences.cottageAccent}
+            busy={preferenceBusy}
+            onSelect={(cottageAccent) => void savePreferences({ ...preferences, cottageAccent })}
+          />
+          <CustomizationGroup
+            title="대표 야외 보상"
+            options={customizationCatalog.rewards}
+            selected={preferences.featuredReward}
+            busy={preferenceBusy}
+            onSelect={(featuredReward) => void savePreferences({ ...preferences, featuredReward })}
+          />
+        </section>
+      </details>
+      {preferenceMessage && <p className="forest-customizer-message" role="status">{preferenceMessage}</p>}
+
+      <details className="forest-overview-details forest-growth-details">
+        <summary><span><TreePine size={19} aria-hidden="true" /> 성장 단계와 모은 보상</span><small>나무 {completedTreeCount}그루 · 화환 {weeklyRewardHistory.earnedCount}개</small></summary>
+        <div className="forest-overview-detail-body">
+          <p className="forest-collection-count">완성 나무 {completedTreeCount}그루 · 반딧불 화환 {weeklyRewardHistory.earnedCount}개</p>
+          <p>완성한 나무와 보상은 숲에 계속 남아 있어요. 새로운 연속 출석으로 다음 나무를 키워보세요.</p>
+          <h3>나무 성장 단계</h3>
+          <ol className="forest-level-roadmap" aria-label="나무 성장 단계">
+            {forestLevelMilestones.map((milestone) => {
+              const progressDays = forestState.currentTree.progressDays;
+              const state = progressDays >= milestone.days ? "complete" : nextLevel.targetDays === milestone.days ? "next" : "locked";
+              return (
+                <li key={milestone.days} data-state={state}>
+                  <span>{milestone.days}일</span>
+                  <div><strong>{milestone.label}</strong><small>{milestone.update}</small><small className="forest-interior-unlock">{milestone.interiorUnlock}</small></div>
+                </li>
+              );
+            })}
+          </ol>
         </div>
-        <CustomizationGroup
-          title="섬 테마"
-          options={customizationCatalog.themes}
-          selected={preferences.islandTheme}
-          busy={preferenceBusy}
-          onSelect={(islandTheme) => void savePreferences({ ...preferences, islandTheme })}
-        />
-        <CustomizationGroup
-          title="집 포인트 색상"
-          options={customizationCatalog.accents}
-          selected={preferences.cottageAccent}
-          busy={preferenceBusy}
-          onSelect={(cottageAccent) => void savePreferences({ ...preferences, cottageAccent })}
-        />
-        <CustomizationGroup
-          title="대표 야외 보상"
-          options={customizationCatalog.rewards}
-          selected={preferences.featuredReward}
-          busy={preferenceBusy}
-          onSelect={(featuredReward) => void savePreferences({ ...preferences, featuredReward })}
-        />
-        {preferenceMessage && <p className="forest-customizer-message" role="status">{preferenceMessage}</p>}
-      </section>
+      </details>
+
+      <details className="forest-overview-details forest-help-details">
+        <summary><span>숲 이용 방법</span><small>이동과 보상 안내</small></summary>
+        <div className="forest-overview-detail-body">
+          <h3>숲을 둘러보세요</h3>
+          <p>장면을 클릭하거나 터치해 이동해요. 숲에 초점을 두고 방향키·WASD로도 움직일 수 있어요. 잠시 쉬면 캐릭터가 자동으로 산책해요.</p>
+          <p>집 문으로 들어가면 안을 둘러볼 수 있어요. 나올 때도 문을 향해 걸어가세요.</p>
+          <h3>나무와 화환은 이렇게 자라요</h3>
+          <p>7일 연속 출석하면 나무 한 그루가 완성돼요. 출석을 쉬면 지금 자라는 나무의 연속 기록만 다시 시작해요.</p>
+          <p>화환은 최근 7일 중 5일, 하루 10분을 시작하면 받을 수 있어요. 성공한 날마다 나무 둘레의 씨앗 조명이 하나씩 켜지고, 이틀은 쉬어도 괜찮아요. 진행 중인 공부는 씨앗에 먼저 반영되고, 완료 세션으로 저장되면 화환이 확정돼요.</p>
+          <p>완성한 나무와 화환은 휴식 뒤에도 사라지지 않아요. 완성한 나무가 늘면 새 테마와 집 색상, 야외 보상이 열려요.</p>
+        </div>
+      </details>
     </section>
   );
 }
