@@ -1,8 +1,8 @@
 # Active Context
-- 갱신: 2026-10-29 21:45 JST · 도구: codex
-- 루트/브랜치: C:/jini-dev/worktrees/study-dashboard-clarity · fix/study-dashboard-clarity · 제품7dd5a14·문서42098dc push 완료. 원래 study-room-desktop-current의 native/auth/lock/인계 dirty는 그대로 보존한다.
+- 갱신: 2026-10-29 21:51 JST · 도구: codex
+- 루트/브랜치: C:/jini-dev/worktrees/study-dashboard-clarity · fix/study-dashboard-clarity · 제품68ce558 push/운영배포 완료·출시문서 후속커밋. 원래 study-room-desktop-current의 native/auth/lock/인계 dirty는 그대로 보존한다.
 - 현재 목표/완료 기준: Windows 다크 모드 공부 시작 선택창/전체 보조 텍스트 대비 수정. 기존 표시 토큰 안에서 private palette/자식 고정 색만 연결하고 기록·Auth/API/native를 유지한다.375/1440/200%·빈/선택/시간/저장중/오류·모든 탭 details·전체 Chrome/verify7·독립검토·기존production 배포/READY/HTTP200.
-- 현재 완료/다음: appTheme.css33줄의 로컬 팔레트·고정자식색 교정, 실제 입력/빈/선택/시간/저장중/오류·펼친보조/desktop경로 검증. 라이트기준7:1은다크한정별칭으로보존. 최종A70/B71/C48/other1318=1507/1507·실패/생략/취소0·이름중복0, 순차verify7/Dune0/exit0·독립C/I/M0. 실패/중지/부하VM제한 이력은 검증문서에구분. 이제이번8파일만commit/push/기존production배포/READY/HTTP200확인. docs/verification/2026-10-29-dark-contrast.md.
+- 현재 완료: appTheme.css33줄 로컬팔레트/고정자식색 교정. 입력/빈/선택/시간/저장중/오류·펼친보조/desktop경로와 라이트7:1 보존. 최종A70/B71/C48/other1318=1507/1507·실패/생략/취소0·이름중복0, 순차verify7/Dune0/exit0·독립C/I/M0.68ce558·Actions40875906255 success·Vercel dpl_4Vch7TxQAaGVydkuvJpxiyoQUzbe READY/정확SHA/운영alias·HTML/JS/CSS200/새토큰·기존계획표/요약보존 확인·직후error/fatal그룹없음. 실패/중지/VM제한은구분기록. docs/verification/2026-10-29-dark-contrast.md.
 - 완료: 원형 SVG 내부까지 공통 토큰, 날짜 버튼500/0자간·44px/확대, 한글24시간 눈금, 새벽4시 기준 갱신 명시. 공부일/진행 세션 귀속/기존 날짜 콜백은 보존.
 - 완료: 내 페이지 요약3개/미작성 회고/다음 공부 조언 우선, 계정·리포트·회복/완료 이력·목표 배지는 native details. 자식 mount/필터/초안/기존 callback 보존.
 - 완료: 숲의 장면→현재 성장/다음 변화→주간 보상. 꾸미기/성장 이력/이용법 접기, 채움막대 block·높이 및 disclosure 방향키가 avatar로 버블링하지 않도록 수정.3D/출석/성장/저장 계산 유지.

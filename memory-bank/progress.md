@@ -2,7 +2,7 @@
 
 ## 다크 모드 내부 텍스트 대비
 
-- 상태: 모달/현재 공부 private palette·고정 자식 색을 공통 의미 토큰에 연결. 빈/선택/시간·저장중/오류·전체 탭 펼침/desktop경로 통과. 첫 전체1505/1507(라이트7:1 계약2건미달)→다크에만actual별칭적용·기준유지→분할최종1507/1507(실패/생략/취소0·실제189이름중복0), 최종verify7/Dune0·독립C/I/M0. 환경제약/부하중VM제한 실패는 별도기록하고 같은조건재검증했다. 최신 대시보드7dd5a14/기록/API/native 보존, 운영 배포 대기. [검증](../docs/verification/2026-10-29-dark-contrast.md).
+- 상태: 모달/현재 공부 private palette·고정 자식 색 교정, 빈/선택/시간/저장중/오류·전체 펼침/desktop경로 통과. 라이트7:1 보존→분할최종1507/1507(실패/생략/취소0·189이름중복0), 최종verify7/Dune0·독립C/I/M0.68ce558 push·Actions40875906255 success·Vercel dpl_4Vch7TxQAaGVydkuvJpxiyoQUzbe READY/정확SHA/운영alias·HTML/JS/CSS200/새규칙 확인. 이전실패/중지/VM제한은구분기록. 최신대시보드/기록/API/native/설치파일보존. [검증](../docs/verification/2026-10-29-dark-contrast.md).
 
 ## 계획표·내 페이지·숲 정보 명료화
 

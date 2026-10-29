@@ -23,9 +23,16 @@
 - 재현 명령: A는 `^(?:dashboard clarity:|dark contrast:|stable study navigation:|appearance:|dark appearance:|session todo time edit:|session todo time recovery:|app settings:|app theme:)`, B는 `^(?:dashboard redesign:|camera return:|settings redesign:|full UI audit:|continuation advice:|section recovery:|device sync:|device install:)`, C는 `^(?:attendance and study goal remain separate|HIG layout keeps|HIG login canvas|design completeness:|mounted actual study panel:|mounted main:|mounted session plan:|zero-change review:)`를 `node --test --test-name-pattern=<pattern> apps/web/test/actualStudyMounted.test.mjs`에 적용한다. other는 위 전체 globs의 파일에서 actualStudyMounted만 제외, `node --test --test-concurrency=2 <files>`로 실행한다.
 - 공식 첫 실행은 Dune0, desktop:check/mobile:check/build/docs:check 통과. desktop:test의 샌드박스 임시 파일 rename EPERM, test의127.0.0.1 EACCES, test:edge의 레지스트리 ENOTFOUND로 실패했다(output/dark-contrast-verify.log). 같은 `ai.ps1 verify --project .` 정상권한 재실행과 마지막 피드 오류색까지 포함한 최종 소스 모두7명령/Dune0통과(output/dark-contrast-verify-final.log, dark-contrast-verify-release.log/exit0). 첫 실패와 중지 실행은 통과로 세지 않는다. 커밋/푸시/배포는 전체 Chrome까지 최종 통과 후 수행한다.
 - 다크 한정 selector 최종본의 verify-sharded-final.log는6명령통과/1실패: 병렬 실행 중 기존 mobile-focus-status의 VM1초 제한(ERR_SCRIPT_EXECUTION_TIMEOUT). 제품/테스트 제한은 변경하지 않으며 병렬 검사가 끝난 뒤 동일 전체 게이트를 순차 재확인한다.
-- 최종 수용: 같은 소스/제한 그대로 순차 `ai.ps1 verify --project .`7명령 통과·Dune0·exit0(output/dark-contrast-verify-acceptance.log). VM1초 제한을 늘리거나 실패 테스트를 생략하지 않았다. 운영 배포 대기.
+- 최종 수용: 같은 소스/제한 그대로 순차 `ai.ps1 verify --project .`7명령 통과·Dune0·exit0(output/dark-contrast-verify-acceptance.log). VM1초 제한을 늘리거나 실패 테스트를 생략하지 않았다.
 
 ## 변경 파일
 - 제품: apps/web/src/appTheme.css33줄. 기존 의미 색의 연결만 보완한다.
 - 회귀: apps/web/test/actualStudyMounted.test.mjs, desktopMounted.test.mjs. 서버·감지기는 테스트 경계만 모의화하고 실제 main/CSS/상태 UI를 실행한다.
 - 확인: memory-bank/prd-hig-ui.md·architecture-map.md·trouble-shooting.md. 갱신: HIG PRD·active-context·progress·trouble-shooting 및 본 검증 문서. 기존 운영 배포 경로만 사용한다.
+
+## 운영 출시
+- 제품68ce558a4a4d03d527e85aacab32de099940783d commit/push, 기존 workflow Actions40875906255 completed/success. 배포 CI의 test/mobile/docs/Edge/build 및 기존 합성 무료 AI 확인도 통과했다.
+- Vercel dpl_4Vch7TxQAaGVydkuvJpxiyoQUzbe production/READY·정확 source SHA·prj_u2Q9FKwNeVjwwtVOjuXNMZRpkR3g·study-room-attendance.vercel.app 운영 alias 확인.
+- https://study-room-attendance.vercel.app HTML·/assets/index-t4IpUVLS.js·/assets/index-DGwJC61_.css 모두HTTP200. 모달 토큰·다크 한정actual토큰·피드 오류색·계정strong과 기존 계획표/요약 스타일을 확인했다. CSS custom property는 압축 시 공백이 보존되므로 공백 허용 정규식으로 대조한다.
+- 배포 직후5분 error/fatal 집계 그룹은 없었다. 이는 장기 오류 없음의 보장은 아니다. 새 APK/Windows 설치파일 없이 hosted UI만 배포했다.
+- 사용 중인 앱을 강제 종료/새로고침하거나 실제 사용자 공부를 시작·종료하지 않았다. 공부 종료 후 트레이에서 앱을 완전히 종료하고 재실행하면 새 화면을 불러온다. X 숨김은 같은 문서를 유지한다. 설치 앱/물리 기기 전체 수용은 별도다.
