@@ -1,5 +1,12 @@
 # Troubleshooting
 
+## 오늘 하위 탭·설정 분류를 열지 않아 다크 대비 누락
+- 증상: 기록 시간 숫자/목표 설명이1.13~1.61:1, 주간 밝은 카드/배지에 옅은 글자가 남음. 계획 시간 배지·집중 연결 상태·설정 알림에도 낮은 대비.
+- 원인: 부모 카드만 테마를 받고 strong/p·weekly day/stats/marker/stage·배지는 styles.css의 고정 라이트 값 유지. 기존 전역 탭 순회는 today=focus·settings=account만 검사했다.
+- 해결: appTheme.css에서 실제 전경과 소유 배경/테두리를 의미 토큰에 함께 연결한다. 주간 단계/오늘/완료 의미와 데이터 계산은 유지한다.
+- 재발 방지: 각 전역 화면 외에 집중/계획 체크리스트/생활계획표/기록·설정5분류를 명시적으로 열고, 목표 유무·주간 모든 단계·달성 전후를375/1440/200%로 검사한다. 기록/계정/API 불변과 라이트 대비도 유지한다.
+- 주의: divider에 border-style만 지정하면 기본 medium 폭의 나머지 면도 그려진다. 데스크톱 왼쪽1px/모바일 위쪽1px만 명시하고 실제 합산 폭을 검증한다. 상세 docs/verification/2026-10-29-dark-record-contrast.md.
+
 ## 다크 모드에서 중첩 모달·보조 문자가 흐림
 - 증상: 공부 시작 선택창의 새 할 일 카드만 밝고 글자/설명이 안 보임. 현재 공부 상태·펼친 계정/피드 안내에도 낮은 대비.
 - 원인: sessionTodoModal.css의 private --color-*와 actualStudy.css의 --actual-*가 라이트 고정 값이며 일부 compact/strong/span은 고정 색 selector가 공통 부모 색보다 강했다.

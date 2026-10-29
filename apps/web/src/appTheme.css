@@ -897,3 +897,32 @@ html[data-study-theme=dark] .dashboard-redesign .session-todo-panel.actual-study
 .dashboard-redesign .tech-feed :is(.feed-interest-status, .feed-interest-status span, .feed-subscriptions summary span) { color: var(--study-muted); }
 .dashboard-redesign .tech-feed .feed-interest-status strong { color: var(--study-primary); }
 .dashboard-redesign .tech-feed .feed-validation { color: var(--study-danger); }
+
+/* Record and plan sub-tabs contain legacy inner surfaces, not just page cards.
+   Keep each foreground and its owning surface on the same semantic palette. */
+.dashboard-redesign .dashboard-record-overview .study-summary strong { color: var(--study-ink); }
+.dashboard-redesign .goal-hero-main p { color: var(--study-muted); font-weight: 400; }
+.dashboard-redesign .workspace .phone-focus-status strong { color: var(--study-ink); }
+.dashboard-redesign .workspace .phone-focus-status :is(p, small) { color: var(--study-muted); }
+.dashboard-redesign .workspace .phone-focus-status .phone-focus-error { color: var(--study-danger); }
+.dashboard-redesign .workspace :is(.todo-time-chip, .todo-meta-chip) { background: var(--study-soft); border: 1px solid var(--study-border); color: var(--study-ink); box-shadow: none; }
+.dashboard-redesign .workspace :is(.weekly-habit-day, .weekly-habit-stats) { border: 1px solid var(--study-border); border-radius: var(--study-control-radius); background: var(--study-surface); color: var(--study-ink); box-shadow: none; }
+.dashboard-redesign .workspace .weekly-habit-day.today { border-color: var(--study-primary); background: var(--study-soft); }
+.dashboard-redesign .weekly-habit-path::before { background: repeating-linear-gradient(90deg, var(--study-border) 0 12px, transparent 12px 18px); }
+.dashboard-redesign .workspace .weekly-habit-day .weekly-habit-marker { background: var(--study-surface); border-color: var(--study-border); color: var(--study-muted); }
+.dashboard-redesign .workspace :is(.weekly-habit-day-seed, .weekly-habit-day-tree) .weekly-habit-marker { background: var(--study-soft); border-color: var(--study-primary); color: var(--study-primary); }
+.dashboard-redesign .workspace .weekly-habit-day .weekly-habit-stage { background: var(--study-bg); color: var(--study-muted); font-weight: 600; }
+.dashboard-redesign .workspace :is(.weekly-habit-day-seed, .weekly-habit-day-tree) .weekly-habit-stage { background: var(--study-soft); color: var(--study-primary); }
+.dashboard-redesign .workspace .weekly-habit-day-bloom :is(.weekly-habit-marker, .weekly-habit-stage) { background: var(--study-warning-bg); border-color: var(--study-warning); color: var(--study-warning); }
+.dashboard-redesign .workspace .weekly-habit-stats > div + div { border: 0; border-left: 1px solid var(--study-border); }
+.dashboard-redesign .workspace .weekly-habit-stats strong { color: var(--study-ink); }
+.dashboard-redesign .workspace .weekly-habit-stats strong small { color: var(--study-muted); }
+.dashboard-redesign .workspace .weekly-habit-action-note { color: var(--study-muted); }
+.dashboard-redesign .workspace .weekly-habit-action-note :is(strong, svg) { color: var(--study-primary); }
+.dashboard-redesign .workspace .calendar-controls > strong { border: 1px solid var(--study-border); border-radius: var(--study-control-radius); background: var(--study-soft); color: var(--study-primary); }
+.dashboard-redesign .workspace .adaptive-reminder-time { background: var(--study-soft); border: 1px solid var(--study-border); color: var(--study-primary); }
+.dashboard-redesign .workspace .adaptive-reminder-time strong { color: var(--study-ink); }
+.dashboard-redesign .workspace .channel-card-header > span { color: var(--study-muted); }
+@media (max-width: 720px) {
+  .dashboard-redesign .workspace .weekly-habit-stats > div + div { border-left: 0; border-top: 1px solid var(--study-border); }
+}

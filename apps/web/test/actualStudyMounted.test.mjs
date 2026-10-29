@@ -83,16 +83,43 @@ for(const mode of ['start','start-empty'])for(const width of [375,1440])for(cons
  assert.deepEqual(await page.evaluate(()=>({sessions:fixture.sessions,todos:fixture.todos,recoveries:fixture.recoveries})),before);
 },mode));
 
+for(const mode of ['mixed','complete'])for(const width of [375,640,1440])for(const scale of [1,2])browserTest(`dark contrast: all today domains and weekly states ${mode} at ${width}px / ${scale}x`,()=>withApp(width,async page=>{
+ await page.emulateMedia({colorScheme:'dark',reducedMotion:'reduce'});await page.waitForFunction(()=>document.documentElement.dataset.studyTheme==='dark');
+ if(scale===2)await page.addStyleTag({content:'html {font-size:200%;}'});
+ await page.getByRole('button',{name:'기록',exact:true}).click();
+ await page.waitForFunction(mode=>mode==='mixed'?!!document.querySelector('.goal-hero-main')?.textContent.includes('아직 목표가 없습니다'):document.querySelector('.weekly-habit-target')?.classList.contains('completed'),mode);
+ const before=await page.evaluate(()=>structuredClone({sessions:fixture.sessions,todos:fixture.todos,recoveries:fixture.recoveries}));
+ const failures=[];
+ const inspect=async state=>{
+  failures.push(...await textContrastFailures(page.locator('.workspace :is(h1,h2,h3,h4,p,label,legend,summary,span,small,strong,b,dt,dd,button,a):visible'),{state}));
+  assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),true,`${state} must reflow without document overflow`);
+ };
+ for(const domain of ['집중','계획','기록']){
+  await page.getByRole('button',{name:domain,exact:true}).click();
+  for(const detail of await page.locator('.workspace details:visible').all())if(await detail.getAttribute('open')===null)await detail.locator(':scope > summary').click();
+  await inspect(domain);
+  if(domain==='계획'){await page.getByRole('button',{name:'생활계획표',exact:true}).click();await inspect('계획표');}
+ }
+ for(const stage of ['ready','seed','tree','bloom'])assert.ok(await page.locator('.weekly-habit-day-'+stage).count()>0||mode==='complete'&&stage==='ready',`${stage} state is represented`);
+ assert.equal(await page.locator('.weekly-habit-target').evaluate(el=>el.classList.contains('completed')),mode==='complete');
+ const surfaces=page.locator('.weekly-habit-day,.weekly-habit-stats,.weekly-habit-marker,.weekly-habit-stage');
+ for(const surface of await surfaces.all())if(!(await surface.evaluate(el=>getComputedStyle(el).backgroundColor.match(/[\d.]+/g).slice(0,3).map(Number))).every(v=>v<110))failures.push({state:'weekly surface',identity:await surface.getAttribute('class')});
+ for(const divider of await page.locator('.weekly-habit-stats > div + div').all())assert.equal(await divider.evaluate(el=>{const s=getComputedStyle(el),stacked=getComputedStyle(el.parentElement).gridTemplateColumns.split(' ').length===1;return s.borderRightWidth==='0px'&&s.borderBottomWidth==='0px'&&(stacked?s.borderTopWidth==='1px'&&s.borderLeftWidth==='0px':s.borderTopWidth==='0px'&&s.borderLeftWidth==='1px');}),true,'summary cells use one divider matching their row or column layout');
+ await mkdir('output/playwright',{recursive:true});await page.screenshot({path:`output/playwright/dark-record-${mode}-${width}-${scale}x.png`,fullPage:true});
+ assert.deepEqual(failures,[],'every today domain uses readable text against its actual surface');
+ assert.deepEqual(await page.evaluate(()=>({sessions:fixture.sessions,todos:fixture.todos,recoveries:fixture.recoveries})),before);
+},'record-contrast-'+mode));
+
 for(const width of [375,1440])browserTest(`dark contrast: expanded secondary content across all tabs at ${width}px`,()=>withApp(width,async page=>{
  await page.emulateMedia({colorScheme:'dark',reducedMotion:'reduce'});await page.waitForFunction(()=>document.documentElement.dataset.studyTheme==='dark');
  const before=await page.evaluate(()=>structuredClone({sessions:fixture.sessions,todos:fixture.todos,recoveries:fixture.recoveries}));
  const failures=[];
  for(const [route,selector] of [['today','.focus-card'],['together','.team-study'],['goals','.goals-panel'],['forest','.study-forest-panel'],['feed','.tech-feed'],['me','.my-page-panel'],['settings','.settings-content']]){
   await page.evaluate(route=>{location.hash='#'+route;window.dispatchEvent(new HashChangeEvent('hashchange'));},route);const panel=page.locator(selector);await panel.waitFor();
+  for(const category of route==='settings'?['계정','공부와 화면','알림','기기 연결','앱 정보']:[null]){
+   if(category)await settingsCategory(page,category);
   for(const detail of await panel.locator('details').all())if(await detail.isVisible()&&await detail.getAttribute('open')===null)await detail.locator(':scope > summary').click();
-  for(const text of await panel.locator('h1:visible,h2:visible,h3:visible,h4:visible,p:visible,label:visible,legend:visible,summary:visible,span:visible,small:visible,strong:visible,b:visible,dt:visible,dd:visible,button:visible,a:visible').all()){
-   if(!await text.evaluate(el=>!el.closest('[aria-hidden=true]')&&el.getBoundingClientRect().height>=2&&[...el.childNodes].some(node=>node.nodeType===Node.TEXT_NODE&&node.textContent.trim())))continue;
-   const metric=await readableText(text);if(metric.contrast<4.5)failures.push({route,text:(await text.innerText()).slice(0,60),...metric});
+  failures.push(...await textContrastFailures(panel.locator('h1:visible,h2:visible,h3:visible,h4:visible,p:visible,label:visible,legend:visible,summary:visible,span:visible,small:visible,strong:visible,b:visible,dt:visible,dd:visible,button:visible,a:visible'),{route,category}));
   }
  }
  assert.deepEqual(failures,[],'expanded secondary text contrast');
@@ -241,6 +268,24 @@ for(const width of [375,1440])browserTest(`dark appearance: recovery form and se
  await panel.getByRole('button',{name:'알람 편집',exact:true}).click();await readableGroup(panel.locator('label:visible,button:visible'));
  assert.equal(await page.evaluate(()=>fixture.calls.some(c=>c.name==='submit_study_recovery')),false);
 },'recovery'));
+
+// Measure the full visible state in one browser round trip so the broad audit
+// does not spend hundreds of protocol calls on individual calendar/day labels.
+async function textContrastFailures(locator, context) {
+ return locator.evaluateAll((elements,context)=>{
+  const channels=value=>value.match(/[\d.]+/g).map(Number);
+  const luminance=rgb=>rgb.slice(0,3).map(v=>{v/=255;return v<=.04045?v/12.92:((v+.055)/1.055)**2.4;}).reduce((sum,v,i)=>sum+v*[.2126,.7152,.0722][i],0);
+  return elements.flatMap(element=>{
+   if(element.closest('[aria-hidden=true]')||element.getBoundingClientRect().height<2||![...element.childNodes].some(node=>node.nodeType===Node.TEXT_NODE&&node.textContent.trim()))return [];
+   let background=[255,255,255];const ancestors=[];
+   for(let node=element;node;node=node.parentElement)ancestors.unshift(node);
+   for(const node of ancestors){const c=channels(getComputedStyle(node).backgroundColor),a=c[3]??1;background=c.slice(0,3).map((v,i)=>v*a+background[i]*(1-a));}
+   const style=getComputedStyle(element),foreground=luminance(channels(style.color)),surface=luminance(background);
+   const contrast=(Math.max(foreground,surface)+.05)/(Math.min(foreground,surface)+.05);
+   return contrast<4.5?[{...context,text:element.innerText.slice(0,60),contrast,fontSize:parseFloat(style.fontSize),color:style.color,background,identity:element.tagName+'.'+element.className}]:[];
+  });
+ },context);
+}
 
 async function readableText(locator) {
  return locator.evaluate(element=>{
@@ -1077,6 +1122,12 @@ if(mode==='attendance-goal'){
 if(['empty-links','completed-links','active-empty'].includes(mode)){state.links=mode==='completed-links'?['a']:[];state.current=null;state.sessions[0].paused_at=mode==='active-empty'?null:now;state.todos[0].is_completed=mode==='completed-links';state.todos[1].local_date='2026-09-21';state.todos.forEach(t=>{t.first_started_at=null;t.unknown_allocation=true;t.evaluation_eligible=false;});}
 if(mode==='start'||mode==='recovery'||mode?.startsWith('start-reflection')){state.sessions=[];state.todos.forEach(t=>t.local_date='2026-09-21');}
 if(mode==='start-empty'){state.sessions=[];state.todos=[];state.links=[];state.current=null;}
+if(mode?.startsWith('record-contrast-')){
+ const seconds=mode.endsWith('mixed')?[0,600,7200,7200,0,0,1200]:[600,7200,7200,7200,600,7200,7200];
+ state.sessions=seconds.map((duration,index)=>{const date='2026-09-'+(15+index);return {...row,id:'test-week-'+index,local_date:date,started_at:date+'T01:00:00Z',ended_at:date+'T'+String(1+Math.floor(duration/3600)).padStart(2,'0')+':'+String(duration%3600/60).padStart(2,'0')+':00Z',duration_seconds:duration,status:'completed'};});
+ state.todos.push({...state.todos[0],id:'test-bloom',title:'[테스트] 완료한 공부',local_date:'2026-09-18',is_completed:true});
+ state.hideGoals=mode.endsWith('mixed');state.links=[];state.current=null;
+}
 state.reflections=mode?.startsWith('start-reflection')?[{id:'past-reflection',session_id:'past-session',next_action:'장고245페이지',created_at:'2026-08-01T01:00:00Z'}]:[];
 if(mode==='start-reflection-blank')state.reflections.unshift({id:'latest-reflection',session_id:'latest-session',next_action:null,created_at:now});
 if(mode==='start-reflection-inbox')state.sessions=[{...row,status:'completed',ended_at:now,duration_seconds:1800}];
@@ -1149,6 +1200,7 @@ function query(table){let single=false,insert=null,update=null,reflectionOps=[],
   }
   return finish();
  }
+ if(table==='study_goals'&&state.hideGoals)return {data:single?null:[],error:null};
  if(update&&table==='study_goals'&&state.holdGoalWrite)return new Promise(resolve=>{state.releaseGoalWrite=()=>resolve({data:{id:'goal',user_id:'owner',title:'자격증 목표',target_date:'2026-12-31',target_study_seconds:0,status:'active',created_at:now,updated_at:now,...update},error:null});});if(insert && table==='study_todos'){const added={...todo('new',''),...insert[0],id:'new'};state.todos.push(added);return {data:added,error:null};}let data=table==='profiles'?state.profile:table==='attendance_days'?state.attendance:table==='study_goals'?[{id:'goal',title:'자격증 목표',target_date:'2026-12-31',target_study_seconds:0,status:'active',created_at:now,updated_at:now}]:table==='study_sessions'?state.sessions:table==='study_todos'?state.todos:table==='study_session_reflections'?state.reflections:table==='study_recovery_requests'?state.recoveries:table==='study_session_todos'?state.todos.filter(t=>state.links.includes(t.id)).map(t=>({id:t.id,session_id:'session',todo_id:t.id,user_id:'owner',linked_at:now,completed_during_session:false})):[];if(table==='study_session_reflections'){data=[...data];for(const [op,args] of reflectionOps){if(op==='not')data=data.filter(r=>r[args[0]]!==args[2]);if(op==='order')data.sort((a,b)=>String(b[args[0]]).localeCompare(String(a[args[0]])));if(op==='limit')data=data.slice(0,args[0]);}}return {data:single?(Array.isArray(data)?data[0]??null:data):data,error:null};}).then(resolve,reject);return (...args)=>{if(key==='maybeSingle'||key==='single')single=true;if(key==='eq')filters.push(args);if(table==='study_session_reflections'&&['not','order','limit'].includes(key))reflectionOps.push([key,args]);if(key==='insert')insert=args[0];if(key==='update')update=args[0];if(key==='upsert'){state.calls.push({name:table+'.upsert',args:args[0]});if(table==='profiles')state.profile={...state.profile,...args[0]};if(table==='study_session_reflections')state.reflections.unshift({id:'saved-reflection',created_at:now,...args[0]});}return q;};}});return q;}
 export const isSupabaseConfigured=true,supabaseUrl='https://fixture.invalid',supabaseAnonKey='test';
 const feedArticles=Array.from({length:4},(_,index)=>({id:'article-'+index,title:['실무에서 살펴보는 백엔드 아키텍처','클라우드 운영과 관측 가능성','AI 개발 도구를 안전하게 활용하는 방법','새로운 웹 기술을 작은 프로젝트로 익히기'][index],excerpt:'공개 기술 블로그의 소개를 바탕으로 구현 과정과 실제 적용 시 고려할 점을 살펴봅니다. 원문에서 구체적인 예제와 설계의 근거를 확인할 수 있어요.',url:'https://example.test/article/'+index,published_at:now,discovered_at:now,summary:null,summary_status:'pending',category:'practice',interests:['backend'],topics:['백엔드'],sources:[{id:'source',name:'기술 블로그'}],saved:false,todo_id:null,origin:'rss',matched_topics:[],excerpt_provenance:'source_excerpt'}));
