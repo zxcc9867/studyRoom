@@ -864,3 +864,36 @@ html[data-study-theme=dark] .team-forest-scene { background: radial-gradient(ell
 .dashboard-redesign .workspace .session-lease { background: var(--study-surface); border: 1px solid var(--study-border); color: var(--study-ink); }
 .dashboard-redesign .workspace .session-lease :is(span, small) { color: var(--study-muted); font-size: var(--study-text-xs); line-height: var(--study-line); }
 .dashboard-redesign .workspace .session-lease strong { color: var(--study-ink); }
+
+/* The study-start picker has a private palette; keep its nested states on the
+   same semantic colors as the surrounding dashboard in both appearances. */
+.dashboard-redesign .session-todo-modal {
+  --color-primary: var(--study-primary);
+  --color-surface: var(--study-surface);
+  --color-surface-muted: var(--study-soft);
+  --color-surface-highlight: var(--study-soft);
+  --color-border: var(--study-border);
+  --color-border-strong: var(--study-border);
+  --color-text: var(--study-ink);
+  --color-text-muted: var(--study-muted);
+  --color-on-primary: var(--study-surface);
+  --color-danger: var(--study-danger);
+  --color-danger-bg: var(--study-danger-bg);
+  --color-disabled-text: var(--study-disabled-text);
+  --color-disabled-bg: var(--study-disabled-bg);
+  color-scheme: var(--study-color-scheme);
+}
+html[data-study-theme=dark] .dashboard-redesign .session-todo-panel.actual-study-panel {
+  --actual-ink: var(--study-ink);
+  --actual-muted: var(--study-muted);
+  --actual-soft-surface: var(--study-surface);
+  --actual-soft-border: var(--study-border);
+}
+.dashboard-redesign .goal-hero-progress > span:not(.progress-fill) { color: var(--study-muted); }
+.dashboard-redesign .workspace .actual-study-compact :is(.actual-state, .actual-next summary) { color: var(--study-ink); }
+.dashboard-redesign :is(.goal-hero-progress, .goal-stat-row) strong { color: var(--study-primary); }
+.dashboard-redesign .profile-summary-grid strong { color: var(--study-ink); }
+.dashboard-redesign .tech-feed .feed-consent { color: var(--study-muted); background: var(--study-surface); border-color: var(--study-border); }
+.dashboard-redesign .tech-feed :is(.feed-interest-status, .feed-interest-status span, .feed-subscriptions summary span) { color: var(--study-muted); }
+.dashboard-redesign .tech-feed .feed-interest-status strong { color: var(--study-primary); }
+.dashboard-redesign .tech-feed .feed-validation { color: var(--study-danger); }

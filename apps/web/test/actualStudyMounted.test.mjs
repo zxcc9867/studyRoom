@@ -57,6 +57,73 @@ for (const width of [375, 1440]) {
  }));
 }
 
+for(const mode of ['start','start-empty'])for(const width of [375,1440])for(const scale of [1,2]) browserTest(`dark contrast: study-start task picker ${mode} and time fields at ${width}px / ${scale}x`,()=>withApp(width,async page=>{
+ await page.emulateMedia({colorScheme:'dark',reducedMotion:'reduce'});await page.waitForFunction(()=>document.documentElement.dataset.studyTheme==='dark');
+ if(scale===2)await page.addStyleTag({content:'html {font-size:200%;}'});
+ const before=await page.evaluate(()=>structuredClone({sessions:fixture.sessions,todos:fixture.todos,recoveries:fixture.recoveries}));
+ await page.locator('.topbar-actions button').first().click();await page.getByRole('button',{name:'카메라 켜고 시작',exact:true}).click();
+ const dialog=page.getByRole('dialog',{name:'이번 세션에서 할 일'});await dialog.waitFor();
+ const inspect=async()=>{
+  await readableGroup(dialog.locator('h3:visible,p:visible,label:visible,legend:visible,small:visible,button:visible'));
+  for(const field of await dialog.locator('input:not([type=checkbox]):not([type=radio]):visible').all())assert.ok((await readableText(field)).contrast>=4.5,'input text has readable contrast');
+  for(const card of await dialog.locator('.session-todo-quick-add,.actual-time-toggle,.session-todo-time-details').all()){
+   if(await card.isVisible())assert.ok((await card.evaluate(el=>getComputedStyle(el).backgroundColor.match(/[\d.]+/g).slice(0,3).map(Number))).every(v=>v<100),'nested card uses a dark surface');
+  }
+  assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),true);
+ };
+ await inspect();await dialog.getByRole('textbox',{name:'새 할 일',exact:true}).fill('[테스트] 다크 모드 가독성');
+ const time=dialog.getByRole('checkbox',{name:/시간 지정/});await time.check();await inspect();
+ await time.focus();assert.notEqual(await time.evaluate(el=>getComputedStyle(el.closest('label')).outlineStyle),'none');
+ if(mode==='start'){
+  await dialog.getByRole('button',{name:'집중 독서 시간 편집',exact:true}).click();
+  const editor=dialog.getByRole('group',{name:'집중 독서 시간 편집',exact:true});await editor.waitFor();await inspect();await editor.getByRole('button',{name:'취소',exact:true}).click();
+ } else assert.equal(await dialog.getByRole('button',{name:'선택한 할 일로 시작',exact:true}).isDisabled(),true);
+ await mkdir('output/playwright',{recursive:true});await dialog.screenshot({path:`output/playwright/dark-start-picker-${mode}-${width}-${scale}x.png`});
+ await page.keyboard.press('Escape');await dialog.waitFor({state:'detached'});
+ assert.deepEqual(await page.evaluate(()=>({sessions:fixture.sessions,todos:fixture.todos,recoveries:fixture.recoveries})),before);
+},mode));
+
+for(const width of [375,1440])browserTest(`dark contrast: expanded secondary content across all tabs at ${width}px`,()=>withApp(width,async page=>{
+ await page.emulateMedia({colorScheme:'dark',reducedMotion:'reduce'});await page.waitForFunction(()=>document.documentElement.dataset.studyTheme==='dark');
+ const before=await page.evaluate(()=>structuredClone({sessions:fixture.sessions,todos:fixture.todos,recoveries:fixture.recoveries}));
+ const failures=[];
+ for(const [route,selector] of [['today','.focus-card'],['together','.team-study'],['goals','.goals-panel'],['forest','.study-forest-panel'],['feed','.tech-feed'],['me','.my-page-panel'],['settings','.settings-content']]){
+  await page.evaluate(route=>{location.hash='#'+route;window.dispatchEvent(new HashChangeEvent('hashchange'));},route);const panel=page.locator(selector);await panel.waitFor();
+  for(const detail of await panel.locator('details').all())if(await detail.isVisible()&&await detail.getAttribute('open')===null)await detail.locator(':scope > summary').click();
+  for(const text of await panel.locator('h1:visible,h2:visible,h3:visible,h4:visible,p:visible,label:visible,legend:visible,summary:visible,span:visible,small:visible,strong:visible,b:visible,dt:visible,dd:visible,button:visible,a:visible').all()){
+   if(!await text.evaluate(el=>!el.closest('[aria-hidden=true]')&&el.getBoundingClientRect().height>=2&&[...el.childNodes].some(node=>node.nodeType===Node.TEXT_NODE&&node.textContent.trim())))continue;
+   const metric=await readableText(text);if(metric.contrast<4.5)failures.push({route,text:(await text.innerText()).slice(0,60),...metric});
+  }
+ }
+ assert.deepEqual(failures,[],'expanded secondary text contrast');
+ assert.deepEqual(await page.evaluate(()=>({sessions:fixture.sessions,todos:fixture.todos,recoveries:fixture.recoveries})),before);
+}));
+
+for(const width of [375,1440])browserTest(`dark contrast: picker focus choices, pending save and error at ${width}px`,()=>withApp(width,async page=>{
+ await page.emulateMedia({colorScheme:'dark',reducedMotion:'reduce'});await page.waitForFunction(()=>document.documentElement.dataset.studyTheme==='dark');
+ const before=await page.evaluate(()=>structuredClone({sessions:fixture.sessions,todos:fixture.todos,recoveries:fixture.recoveries}));
+ await page.evaluate(()=>{fixture.holdTodoTimeWrite=true;fixture.todoTimeFailure='error';});
+ const {dialog,editor}=await openTodoTimeEditor(page);await dialog.getByRole('checkbox',{name:/다음 날 알고리즘/}).check();
+ await dialog.locator('.actual-focus-choice').waitFor();await readableGroup(dialog.locator('.actual-focus-choice legend,.actual-focus-choice label'));
+ assert.equal(await dialog.getByRole('checkbox',{name:/집중 독서/}).isChecked(),true);
+ await editor.getByLabel('시작',{exact:true}).fill('22:30');await editor.getByRole('button',{name:'시간 저장',exact:true}).click();await page.waitForFunction(()=>!!fixture.releaseTodoTimeWrite);
+ assert.equal(await editor.getByRole('button',{name:'저장 중',exact:true}).isDisabled(),true);
+ await readableGroup(dialog.locator('p:visible,label:visible,legend:visible,small:visible,button:visible'));
+ for(const input of await editor.locator('input:disabled').all())assert.ok((await readableText(input)).contrast>=4.5,'pending input contrast');
+ await page.evaluate(()=>fixture.releaseTodoTimeWrite());const alert=editor.getByRole('alert');await alert.waitFor();assert.ok((await readableText(alert)).contrast>=4.5,'failure alert contrast');
+ await editor.getByRole('button',{name:'취소',exact:true}).click();await page.keyboard.press('Escape');await dialog.waitFor({state:'detached'});
+ assert.deepEqual(await page.evaluate(()=>({sessions:fixture.sessions,todos:fixture.todos,recoveries:fixture.recoveries})),before);
+},'start'));
+
+for(const width of [375,1440])browserTest(`dark contrast: feed invalid-interest guidance remains readable without saving at ${width}px`,()=>withApp(width,async page=>{
+ await page.emulateMedia({colorScheme:'dark',reducedMotion:'reduce'});await page.waitForFunction(()=>document.documentElement.dataset.studyTheme==='dark');
+ await page.locator('a[href="#feed"]:visible').first().click();await page.locator('.feed-settings-panel > summary').click();const panel=page.locator('.feed-interest-settings');await panel.waitFor();
+ const before=await page.evaluate(()=>structuredClone({sessions:fixture.sessions,todos:fixture.todos}));
+ await panel.getByRole('textbox',{name:'관심 내용',exact:true}).fill('test@example.test');const validation=panel.locator('.feed-validation');await page.waitForFunction(()=>document.querySelector('.feed-validation')?.textContent.trim());
+ assert.ok((await readableText(validation)).contrast>=4.5,'invalid-interest guidance contrast');assert.equal(await panel.getByRole('button',{name:/소식 받아보기|관심 내용 변경/}).isDisabled(),true);
+ assert.deepEqual(await page.evaluate(()=>({sessions:fixture.sessions,todos:fixture.todos})),before);
+}));
+
 for(const width of [375,1440]) browserTest(`stable study navigation: personal and team use the same switch position at ${width}px`,()=>withApp(width,async page=>{
  const before=await page.evaluate(()=>structuredClone({sessions:fixture.sessions,todos:fixture.todos,recoveries:fixture.recoveries}));
  const modes=page.getByRole('navigation',{name:'공부 방식',exact:true});
@@ -1009,6 +1076,7 @@ if(mode==='attendance-goal'){
 
 if(['empty-links','completed-links','active-empty'].includes(mode)){state.links=mode==='completed-links'?['a']:[];state.current=null;state.sessions[0].paused_at=mode==='active-empty'?null:now;state.todos[0].is_completed=mode==='completed-links';state.todos[1].local_date='2026-09-21';state.todos.forEach(t=>{t.first_started_at=null;t.unknown_allocation=true;t.evaluation_eligible=false;});}
 if(mode==='start'||mode==='recovery'||mode?.startsWith('start-reflection')){state.sessions=[];state.todos.forEach(t=>t.local_date='2026-09-21');}
+if(mode==='start-empty'){state.sessions=[];state.todos=[];state.links=[];state.current=null;}
 state.reflections=mode?.startsWith('start-reflection')?[{id:'past-reflection',session_id:'past-session',next_action:'장고245페이지',created_at:'2026-08-01T01:00:00Z'}]:[];
 if(mode==='start-reflection-blank')state.reflections.unshift({id:'latest-reflection',session_id:'latest-session',next_action:null,created_at:now});
 if(mode==='start-reflection-inbox')state.sessions=[{...row,status:'completed',ended_at:now,duration_seconds:1800}];

@@ -100,6 +100,18 @@ mounted('desktop startup hides stale web user and requires same native ticket us
   await page.locator('.topbar-actions button').first().waitFor();
   assert.equal(await page.evaluate(() => desktopFixture.sdkIdentity()), 'owner');
 }, { holdStatus: true }));
+mounted('dark contrast: desktop authenticated path uses the shared dark task picker',()=>withDesktop('start',async page=>{
+ await page.locator('.topbar-actions button').first().waitFor();await page.emulateMedia({colorScheme:'dark',reducedMotion:'reduce'});await page.waitForFunction(()=>document.documentElement.dataset.studyTheme==='dark');
+ const before=await page.evaluate(()=>structuredClone({sessions:fixture.sessions,todos:fixture.todos,recoveries:fixture.recoveries}));
+ await page.locator('.topbar-actions button').first().click();await page.getByRole('button',{name:'카메라 켜고 시작',exact:true}).click();
+ const dialog=page.getByRole('dialog',{name:'이번 세션에서 할 일'});await dialog.waitFor();
+ const colors=await dialog.evaluate(el=>({note:getComputedStyle(el.querySelector('.session-todo-schedule-note')).color,background:getComputedStyle(el).backgroundColor,surface:getComputedStyle(el.querySelector('.session-todo-quick-add')).backgroundColor,scheme:getComputedStyle(el).colorScheme}));
+ assert.equal(colors.scheme,'dark');assert.ok(colors.surface.match(/[\d.]+/g).slice(0,3).map(Number).every(v=>v<100));
+ const luminance=value=>value.match(/[\d.]+/g).slice(0,3).map(Number).map(v=>{v/=255;return v<=.04045?v/12.92:((v+.055)/1.055)**2.4;}).reduce((sum,v,i)=>sum+v*[.2126,.7152,.0722][i],0);
+ const foreground=luminance(colors.note),background=luminance(colors.background);assert.ok((Math.max(foreground,background)+.05)/(Math.min(foreground,background)+.05)>=4.5,'desktop note contrast');
+ await page.keyboard.press('Escape');await dialog.waitFor({state:'detached'});assert.equal(await page.evaluate(()=>desktopFixture.nativeUser),'owner');
+ assert.deepEqual(await page.evaluate(()=>({sessions:fixture.sessions,todos:fixture.todos,recoveries:fixture.recoveries})),before);
+},{styled:true,cameraAllowed:true}));
 mounted('desktop common Google and email OTP keep eight-digit input and route native actions', () => withDesktop('login', async page => {
   await page.getByRole('heading', { name: '독서실에 로그인' }).waitFor();
   assert.equal(await page.locator('.login-shell .login-panel').count(), 1);

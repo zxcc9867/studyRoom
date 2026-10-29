@@ -1,5 +1,9 @@
 # Progress
 
+## 다크 모드 내부 텍스트 대비
+
+- 상태: 모달/현재 공부 private palette·고정 자식 색을 공통 의미 토큰에 연결. 빈/선택/시간·저장중/오류·전체 탭 펼침/desktop경로 통과. 첫 전체1505/1507(라이트7:1 계약2건미달)→다크에만actual별칭적용·기준유지→분할최종1507/1507(실패/생략/취소0·실제189이름중복0), 최종verify7/Dune0·독립C/I/M0. 환경제약/부하중VM제한 실패는 별도기록하고 같은조건재검증했다. 최신 대시보드7dd5a14/기록/API/native 보존, 운영 배포 대기. [검증](../docs/verification/2026-10-29-dark-contrast.md).
+
 ## 계획표·내 페이지·숲 정보 명료화
 
 - 상태: 구현·집중24/forest34/feed30 통과, 최종 Chrome1492/1492·실패/생략/취소0·verify7/Dune0·독립P1/P2없음. 제품7dd5a14 push·사용자 운영 배포 승인·Actions40867222261 success·source42098dc/dpl_J2pc51wrLCiXBAbnf52xFczcakdV READY/정확SHA/운영alias·HTML/JS/CSS/숲/피드200·새표시 확인. 원형 내부 공통테마·날짜 글자·04시 갱신·요약/접기·한국어 소개 우선/상태를 개선했다. 무료 예산449642/450000·provider quota_exhausted 관측은 별도이며 한도/키/DB/학습 정책 불변. 기존 native dirty는 원래 worktree에 보존.  [검증](../docs/verification/2026-10-29-dashboard-clarity.md).
