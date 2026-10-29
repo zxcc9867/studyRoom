@@ -85,7 +85,7 @@ html:has(.dashboard-redesign), body:has(.dashboard-redesign), body:has(.dashboar
 .session-clock > strong { display: block; font-size: clamp(56px, 6.2vw, 88px); line-height: 1.3; letter-spacing: -3px; color: var(--study-ink); font-weight: 650; font-variant-numeric: tabular-nums; white-space: nowrap; }
 .dashboard-redesign .topbar-actions { justify-content: center; flex-wrap: nowrap; width: 100%; gap: var(--study-space-3); margin-bottom: var(--study-space-3); }
 .dashboard-redesign .topbar-actions button { min-height: 52px; min-width: 0; padding: 12px 22px; box-shadow: none; border: 1px solid var(--study-primary); border-radius: var(--study-control-radius); font-size: 15px; flex: 1; }
-.dashboard-redesign .topbar-actions :is(.primary, .break-action) { background: var(--study-primary); color: #fff; }
+.dashboard-redesign .topbar-actions :is(.primary, .break-action) { background: var(--study-primary); color: var(--study-surface); }
 .dashboard-redesign .topbar-actions :is(.primary, .break-action):hover:not(:disabled) { background: var(--study-primary-hover); }
 .dashboard-redesign .topbar-actions .danger { flex: 0 0 105px; border-color: var(--study-border); background: transparent; color: var(--study-muted); }
 .dashboard-redesign .topbar-actions .danger:hover:not(:disabled) { background: var(--study-danger-bg); color: var(--study-danger); border-color: var(--study-danger); }

@@ -8,6 +8,124 @@ let chromium;
 try { ({chromium} = await import(process.env.FEED_BROWSER_MODULE ? pathToFileURL(process.env.FEED_BROWSER_MODULE).href : 'playwright')); } catch {}
 const browserTest = (name, run) => test(name, {skip: !chromium && 'Set FEED_BROWSER_MODULE and FEED_BROWSER_EXECUTABLE for mounted main application tests'}, run);
 
+for(const width of [375,1440]) browserTest(`stable study navigation: personal and team use the same switch position at ${width}px`,()=>withApp(width,async page=>{
+ const before=await page.evaluate(()=>structuredClone({sessions:fixture.sessions,todos:fixture.todos,recoveries:fixture.recoveries}));
+ const modes=page.getByRole('navigation',{name:'공부 방식',exact:true});
+ const personal=await modes.boundingBox();
+ await modes.getByRole('link',{name:'팀 공부',exact:true}).click();await page.locator('#together').waitFor();
+ const team=await modes.boundingBox();
+ assert.ok(Math.abs(personal.x-team.x)<=1&&Math.abs(personal.y-team.y)<=1,'switch must not jump when personal-only tabs disappear');
+ assert.equal(await page.getByRole('link',{name:'내 공부로',exact:true}).count(),0,'the shared switch is the single return path');
+ await modes.getByRole('link',{name:'내 공부',exact:true}).click();await page.locator('.dashboard-page-heading').waitFor();
+ const returned=await modes.boundingBox();assert.ok(Math.abs(personal.x-returned.x)<=1&&Math.abs(personal.y-returned.y)<=1);
+ assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),true);
+ assert.deepEqual(await page.evaluate(()=>({sessions:fixture.sessions,todos:fixture.todos,recoveries:fixture.recoveries})),before);
+}));
+
+browserTest('appearance: selection persists across reload, system changes and storage events without changing study',()=>withApp(1440,async page=>{
+ const before=await page.evaluate(()=>structuredClone({sessions:fixture.sessions,todos:fixture.todos,recoveries:fixture.recoveries}));
+ await page.locator('a[href="#settings"]:visible').first().click();await settingsCategory(page,'공부와 화면');
+ const theme=page.getByRole('group',{name:'화면 테마',exact:true});
+ const darkLabel=theme.locator('label').filter({hasText:/^다크$/});
+ await darkLabel.click({position:{x:5,y:5}});
+ assert.equal(await page.locator('html').getAttribute('data-study-theme'),'dark');
+ assert.equal(await theme.getByRole('radio',{name:'다크',exact:true}).isChecked(),true);
+ await page.reload();await page.getByRole('dialog',{name:'카메라 인증 필요'}).waitFor();await page.keyboard.press('Escape');await page.getByRole('dialog').waitFor({state:'detached'});
+ assert.equal(await page.locator('html').getAttribute('data-study-theme'),'dark','same-device preference survives app reload');
+ await page.locator('a[href="#settings"]:visible').first().click();await settingsCategory(page,'공부와 화면');
+ await theme.getByRole('radio',{name:'라이트',exact:true}).check();await page.emulateMedia({colorScheme:'dark'});
+ assert.equal(await page.locator('html').getAttribute('data-study-theme'),'light','explicit light must win over the OS');
+ await theme.getByRole('radio',{name:'시스템 설정',exact:true}).check();
+ assert.equal(await page.locator('html').getAttribute('data-study-theme'),'dark');
+ await page.emulateMedia({colorScheme:'light'});await page.waitForFunction(()=>document.documentElement.dataset.studyTheme==='light');
+ await page.evaluate(()=>window.dispatchEvent(new StorageEvent('storage',{key:'study-room-appearance',newValue:'dark'})));
+ await page.waitForFunction(()=>document.documentElement.dataset.studyTheme==='dark');assert.equal(await theme.getByRole('radio',{name:'다크',exact:true}).isChecked(),true);
+ await theme.getByRole('radio',{name:'다크',exact:true}).focus();await page.keyboard.press('ArrowLeft');
+ assert.equal(await theme.getByRole('radio',{name:'라이트',exact:true}).isChecked(),true,'native radio keyboard navigation changes appearance');
+ assert.notEqual(await theme.getByRole('radio',{name:'라이트',exact:true}).evaluate(el=>getComputedStyle(el.parentElement).outlineStyle),'none');
+ for(const label of await theme.locator('label').all())assert.ok((await label.boundingBox()).height>=44);
+ assert.deepEqual(await page.evaluate(()=>({sessions:fixture.sessions,todos:fixture.todos,recoveries:fixture.recoveries})),before);
+}));
+
+browserTest('appearance: failed overwrite keeps current choice and reloads the previously saved preference',()=>withApp(375,async page=>{
+ await page.locator('a[href="#settings"]:visible').first().click();await settingsCategory(page,'공부와 화면');
+ const theme=page.getByRole('group',{name:'화면 테마',exact:true});await theme.getByRole('radio',{name:'라이트',exact:true}).check();
+ await page.evaluate(()=>Object.defineProperty(Storage.prototype,'setItem',{configurable:true,value(){throw new DOMException('Test storage denied','QuotaExceededError');}}));
+ await theme.getByRole('radio',{name:'다크',exact:true}).check();await theme.getByRole('status').waitFor();
+ assert.equal(await page.locator('html').getAttribute('data-study-theme'),'dark');assert.equal(await page.evaluate(()=>localStorage.getItem('study-room-appearance')),'light');
+ await page.reload();await page.waitForFunction(()=>document.documentElement.dataset.studyTheme==='light');
+ await page.locator('#settings').waitFor();await settingsCategory(page,'공부와 화면');assert.equal(await theme.getByRole('radio',{name:'라이트',exact:true}).isChecked(),true);
+},'start'));
+
+browserTest('dark appearance: persistent session lease stays dark outside the study card',()=>withApp(1440,async page=>{
+ await page.emulateMedia({colorScheme:'dark',reducedMotion:'reduce'});await page.waitForFunction(()=>document.documentElement.dataset.studyTheme==='dark');
+ await page.getByRole('navigation',{name:'공부 방식',exact:true}).getByRole('link',{name:'팀 공부',exact:true}).click();await page.locator('#together').waitFor();
+ const lease=page.locator('.session-lease:visible');await lease.waitFor();
+ assert.ok(await lease.evaluate(el=>Math.max(...getComputedStyle(el).backgroundColor.match(/[\d.]+/g).slice(0,3).map(Number))<100),'persistent lease must not keep its pale legacy surface');
+ await readableGroup(lease.locator('span,small,strong,button'));
+ assert.equal(await page.evaluate(()=>fixture.sessions[0].ended_at),null);
+}));
+
+for(const width of [375,1440])for(const scale of [1,2])browserTest(`dark appearance: all pages and dialogs remain readable at ${width}px / ${scale}x`,()=>withApp(width,async page=>{
+ await page.emulateMedia({colorScheme:'dark',reducedMotion:'reduce'});
+ await page.waitForFunction(()=>document.documentElement.dataset.studyTheme==='dark');
+ if(scale===2)await page.addStyleTag({content:'html {font-size:200%;}'});
+ const canvas=await page.locator('body').evaluate(el=>getComputedStyle(el).backgroundColor);assert.notEqual(canvas,'rgb(244, 246, 243)');
+ const failures=[];
+ for(const [route,selector] of [['today','.focus-card'],['together','.team-study'],['goals','.goals-panel'],['forest','.study-forest-panel'],['feed','.tech-feed'],['me','.my-page-panel'],['settings','.settings-content']]){
+  await page.evaluate(route=>{location.hash='#'+route;window.dispatchEvent(new HashChangeEvent('hashchange'));},route);
+  const panel=page.locator(selector);await panel.waitFor();await page.clock.runFor(250);
+  for(const label of await panel.locator('h1:visible,h2:visible,h3:visible,p:visible,label:visible,button:visible,a:visible,dt:visible,dd:visible,small:visible').all()){
+   const style=await readableText(label);if(style.contrast<4.5)failures.push({route,text:(await label.innerText()).slice(0,70),...style});
+  }
+  await auditSharedDetails(panel);assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),true,route+' reflows in dark mode');
+  const bg=await panel.evaluate(el=>getComputedStyle(el).backgroundColor);assert.notEqual(bg,'rgb(255, 255, 255)',route+' has no white page surface');
+  await mkdir('output/playwright',{recursive:true});await panel.screenshot({path:`output/playwright/dark-${route}-${width}-${scale}x.png`});
+ }
+ await settingsCategory(page,'공부와 화면');await page.getByRole('radio',{name:'라이트',exact:true}).check();
+ assert.equal(await page.locator('html').getAttribute('data-study-theme'),'light');
+ assert.deepEqual(failures,[],'every visible text/control must retain AA contrast');
+},'precheck'));
+
+browserTest('dark appearance: login and its settings dialog follow system appearance',()=>withApp(375,async page=>{
+ await page.emulateMedia({colorScheme:'dark'});await page.waitForFunction(()=>document.documentElement.dataset.studyTheme==='dark');await page.clock.runFor(250);
+ await page.locator('.login-settings-entry').evaluate(async el=>{getComputedStyle(el).backgroundColor;await Promise.all(el.getAnimations().map(animation=>animation.finished));});
+ await readableGroup(page.locator('.login-panel h1,.login-panel p:visible,.login-panel label:visible,.login-panel button:visible'));
+ await page.getByRole('button',{name:'앱 설정 안내',exact:true}).click();const dialog=page.getByRole('dialog',{name:'앱 설정 안내',exact:true});await dialog.waitFor();
+ await readableGroup(dialog.locator('h2:visible,p:visible,a:visible,button:visible'));assert.notEqual(await dialog.evaluate(el=>getComputedStyle(el).backgroundColor),'rgb(255, 255, 255)');
+},'login'));
+
+for(const width of [375,1440])browserTest(`dark appearance: todo, goal and reflection dialogs preserve records at ${width}px`,()=>withApp(width,async page=>{
+ await page.emulateMedia({colorScheme:'dark',reducedMotion:'reduce'});await page.waitForFunction(()=>document.documentElement.dataset.studyTheme==='dark');
+ const before=await page.evaluate(()=>structuredClone({sessions:fixture.sessions,todos:fixture.todos,reflections:fixture.reflections}));
+ await page.locator('.topbar-actions').getByRole('button',{name:'종료',exact:true}).click();let dialog=page.locator('.session-reflection-modal');await dialog.waitFor();
+ await readableGroup(dialog.locator('h3:visible,p:visible,label:visible,legend:visible,button:visible'));await touchControls(dialog.locator('button:visible,input:not([type=checkbox]):visible,textarea:visible'));
+ await page.keyboard.press('Escape');await dialog.waitFor({state:'detached'});
+ await page.getByRole('button',{name:'계획',exact:true}).click();await page.locator('.todo-edit').first().click();dialog=page.locator('.todo-modal');await dialog.waitFor();
+ await readableGroup(dialog.locator('h3:visible,p:visible,label:visible,legend:visible,button:visible'));
+ assert.equal(await dialog.locator('input').first().evaluate(el=>getComputedStyle(el).colorScheme),'dark');
+ await page.keyboard.press('Escape');await dialog.waitFor({state:'detached'});
+ await page.locator('a[href="#goals"]:visible').first().click();await page.getByRole('button',{name:'새 목표',exact:true}).click();dialog=page.locator('.todo-modal');await dialog.waitFor();
+ await readableGroup(dialog.locator('h3:visible,p:visible,label:visible,legend:visible,button:visible'));
+ await page.keyboard.press('Escape');await dialog.waitFor({state:'detached'});
+ assert.deepEqual(await page.evaluate(()=>({sessions:fixture.sessions,todos:fixture.todos,reflections:fixture.reflections})),before);
+ assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),true);
+}));
+
+for(const width of [375,1440])browserTest(`dark appearance: recovery form and settings editors remain readable at ${width}px`,()=>withApp(width,async page=>{
+ const dialog=page.getByRole('dialog',{name:'회복 루틴 작성',exact:true});await dialog.waitFor();
+ await page.emulateMedia({colorScheme:'dark',reducedMotion:'reduce'});await page.waitForFunction(()=>document.documentElement.dataset.studyTheme==='dark');
+ await readableGroup(dialog.locator('h3:visible,p:visible,label:visible,legend:visible,button:visible'));await page.keyboard.press('Escape');await dialog.waitFor({state:'detached'});
+ await page.locator('a[href="#settings"]:visible').first().click();const panel=page.locator('#settings');
+ await settingsCategory(page,'공부와 화면');await panel.getByRole('button',{name:'시간대 변경',exact:true}).click();
+ await readableGroup(panel.locator('h2:visible,h3:visible,p:visible,label:visible,legend:visible,button:visible'));
+ assert.equal(await panel.getByRole('combobox',{name:'시간대 검색·선택'}).evaluate(el=>getComputedStyle(el).colorScheme),'dark');
+ await settingsCategory(page,'알림');await panel.locator('.settings-notifications > summary').click();
+ await readableGroup(panel.locator('h2:visible,h3:visible,p:visible,label:visible,legend:visible,button:visible'));
+ await panel.getByRole('button',{name:'알람 편집',exact:true}).click();await readableGroup(panel.locator('label:visible,button:visible'));
+ assert.equal(await page.evaluate(()=>fixture.calls.some(c=>c.name==='submit_study_recovery')),false);
+},'recovery'));
+
 async function readableText(locator) {
  return locator.evaluate(element=>{
   const channels=value=>value.match(/[\d.]+/g).map(Number);
@@ -16,7 +134,7 @@ async function readableText(locator) {
   for(let node=element;node;node=node.parentElement)ancestors.unshift(node);
   for(const node of ancestors){const c=channels(getComputedStyle(node).backgroundColor),a=c[3]??1;background=c.slice(0,3).map((v,i)=>v*a+background[i]*(1-a));}
   const style=getComputedStyle(element),foreground=luminance(channels(style.color)),surface=luminance(background);
-  return {contrast:(Math.max(foreground,surface)+.05)/(Math.min(foreground,surface)+.05),fontSize:parseFloat(style.fontSize)};
+  return {contrast:(Math.max(foreground,surface)+.05)/(Math.min(foreground,surface)+.05),fontSize:parseFloat(style.fontSize),color:style.color,background,identity:element.tagName+'.'+element.className};
  });
 }
 
@@ -937,7 +1055,7 @@ async function withApp(width, run, mode='active', nativeOrigin=false, failedChun
   const js=built.outputFiles.find(f=>f.path.endsWith('.js')).text, css=built.outputFiles.find(f=>f.path.endsWith('.css'))?.text||'';
   const server=createServer((req,res)=>{res.setHeader('Content-Type',req.url==='/app.js'?'text/javascript':req.url==='/app.css'?'text/css':'text/html');res.end(req.url==='/app.js'?js:req.url==='/app.css'?css:'<!doctype html><html lang="ko"><head><meta name="viewport" content="width=device-width,initial-scale=1"><link rel="stylesheet" href="/app.css"></head><body><div id="root"></div><script src="/app.js"></script></body></html>');});
   await new Promise(resolve=>server.listen(0,'127.0.0.1',resolve));let browser,page;
-  try {browser=await chromium.launch({headless:true,executablePath:process.env.FEED_BROWSER_EXECUTABLE||undefined,args:['--use-fake-ui-for-media-stream','--use-fake-device-for-media-stream']});page=await browser.newPage({viewport:{width,height:960}});page.setDefaultTimeout(5000);const errors=[];page.on('pageerror',e=>errors.push(e.message));await page.clock.install({time:new Date(mode==='attendance-goal'?'2026-10-25T06:00:00Z':'2026-09-21T14:30:00Z')});
+  try {browser=await chromium.launch({headless:true,executablePath:process.env.FEED_BROWSER_EXECUTABLE||undefined,args:['--use-fake-ui-for-media-stream','--use-fake-device-for-media-stream']});page=await browser.newPage({viewport:{width,height:960},colorScheme:'light'});page.setDefaultTimeout(5000);const errors=[];page.on('pageerror',e=>errors.push(e.message));await page.clock.install({time:new Date(mode==='attendance-goal'?'2026-10-25T06:00:00Z':'2026-09-21T14:30:00Z')});
   await page.addInitScript(()=>{window.fixtureCameraRequests=0;const get=navigator.mediaDevices?.getUserMedia?.bind(navigator.mediaDevices);if(get)navigator.mediaDevices.getUserMedia=options=>{window.fixtureCameraRequests++;return get(options);};});
   await page.route(/^https:\/\/cdn\.jsdelivr\.net\/gh\/orioncactus\/pretendard@/,route=>route.fulfill({contentType:'text/css',body:''}));
   await page.route('https://fixture.invalid/functions/v1/camera-presence-warning',async route=>{const args=route.request().postDataJSON();await page.evaluate(args=>fixture.calls.push({name:'camera-presence-warning',args}),args);await route.fulfill({json:{ok:true,slackSent:false,slackMissing:true,suppressed:false}});});
@@ -1628,7 +1746,10 @@ async function readableGroup(locator) {
 async function touchControls(locator) {
  for(const control of await locator.all()) {
   if(!await control.isVisible())continue;
-  const box=await control.boundingBox();
+  const box=await control.evaluate(el=>{
+   const target=el instanceof HTMLInputElement && el.type==='radio' && el.labels?.length===1 ? el.labels[0] : el;
+   const bounds=target.getBoundingClientRect();return {x:bounds.x,y:bounds.y,width:bounds.width,height:bounds.height};
+  });
   assert.ok(box.height>=44 && box.width>=44,`${await control.textContent()}: ${JSON.stringify(box)}`);
  }
 }

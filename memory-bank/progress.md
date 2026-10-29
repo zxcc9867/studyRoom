@@ -2,6 +2,8 @@
 
 ## HIG 공통 UI·Windows 로그인 안내
 
+- 공부 전환·다크 모드: 승인된 상단 동일 좌표/중복 링크 제거, 팀 숲 탭 이동도 공통 grid로 수정. 시스템/라이트/다크·기기 전용 저장·OS/storage event·초기 paint·공통 내부/하단 안내 팔레트를 연결했다. 최종Chrome1475/1475(실패/생략/취소0)·verify7/Dune0·독립C/I/M0. 라디오 원이 아닌44px라벨/원밖클릭·키보드/저장실패도 검증, 운영 배포 대기. 기록/API/native 미커밋 보존. [검증](../docs/verification/2026-10-29-dark-navigation.md).
+
 - 설정 UX 재구성: 승인된5분류/현재값+변경/명시적 편집·취소·저장, 분류 간 초안/저장 중 상태 보존. UI 상태만 SettingsLayout이 소유하고 기존 서버/API·학습/계정·네이티브 updater는 유지한다. Chrome1449/1449(실패/생략/취소0)·집중10/10·익명1/1·기존대시보드2/2·verify7/Dune0·독립C/I/M0. be90bea push·Actions40733635247 success·Vercel dpl_J8QqGT1Q4EQNnTpGZoxCzGjkwNp8 READY/exactSHA/alias·HTML/JS/CSS200/새nav·editor 확인. 새APK/Windows 설치파일 없음. [검증](../docs/verification/2026-10-29-settings-redesign.md).
 
 - 전체 내부 UI 통일: 회복 요약/이력·목표/습관/숲·설정 편집·출석 달력·로그인/모달·Android 고정 설치 안내를 공통 토큰으로 정리했다. 외곽 검사의 누락·달력39px·상태색/본문 CSS 우선순위 재현/수정. Chrome1441/1441(실패/생략0)·집중13/13·verify7/Dune0·독립C/I/M0·375/1440/200%/44px/대비/기존흐름 통과.7773466 push·Actions40722576237 success·Vercel dpl_6GJQa7bTarDxzqtUJGR84zwBz2j4 READY/exactSHA/alias·HTML/JS/CSS/설치안내200/새스타일 확인. 학습/인증/카메라/DB·APK0.2.4 불변. [검증](../docs/verification/2026-10-29-full-ui-audit.md).

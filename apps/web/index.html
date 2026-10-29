@@ -3,21 +3,32 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <meta name="color-scheme" content="only light" />
-    <meta name="supported-color-schemes" content="light" />
+    <meta name="color-scheme" content="light dark" />
+    <meta name="supported-color-schemes" content="light dark" />
     <meta name="theme-color" content="#f4f6f3" />
     <style>
       :root {
-        color-scheme: only light;
-        background: #f4f6f3;
-      }
-
-      html,
-      body {
+        color-scheme: light;
         background: #f4f6f3;
         color: #20332b;
       }
+      :root[data-study-theme="dark"] { color-scheme: dark; background: #151d19; color: #e7eee9; }
+      html,
+      body {
+        background: inherit;
+        color: inherit;
+      }
     </style>
+    <script>
+      (() => {
+        let preference = 'system';
+        try { preference = localStorage.getItem('study-room-appearance') || 'system'; } catch {}
+        const dark = preference === 'dark' || (preference !== 'light' && matchMedia('(prefers-color-scheme: dark)').matches);
+        document.documentElement.dataset.studyTheme = dark ? 'dark' : 'light';
+        document.documentElement.style.colorScheme = dark ? 'dark' : 'light';
+        document.querySelector('meta[name="theme-color"]').setAttribute('content', dark ? '#151d19' : '#f4f6f3');
+      })();
+    </script>
     <title>강제 출석 독서실</title>
   </head>
   <body>

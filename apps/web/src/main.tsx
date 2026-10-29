@@ -20,6 +20,8 @@ import { createTechFeedClient, feedTodoDraft } from "./techFeed.mjs";
 import type { FeedArticle } from "./techFeedTypes";
 import TimeZonePicker from "./TimeZonePicker";
 import SettingsLayout from "./SettingsLayout";
+import AppearanceSettings from "./AppearanceSettings";
+import { getAppearanceController } from "./appearance.mjs";
 import AppDeviceSettings, { AppInstallGuidance } from "./AppDeviceSettings";
 import {
   Bell,
@@ -5391,7 +5393,6 @@ function DashboardApp() {
           </RecoverableSection>
         )}
         {(activeSection === "today" || activeSection === "together") && <div className="study-navigation">
-          {activeSection === "today" && <TodayDomainTabs activeDomain={todayDomain} onChange={setTodayDomain} />}
           <nav className="study-mode-tabs" aria-label="공부 방식">
             <a href="#today" aria-current={activeSection === "today" ? "page" : undefined} onClick={() => setTodayDomain("focus")}>내 공부</a>
             <a href="#together" aria-current={activeSection === "together" ? "page" : undefined}>팀 공부</a>
@@ -5407,6 +5408,7 @@ function DashboardApp() {
         {activeSection === "today" && (
           <>
             <div className="dashboard-page-heading"><div><p>{todayDateKey} 공부일 · 새벽 4시 기준{activeSession && todayDateKey !== getStudyDateKey(new Date(nowMs), timeZone) ? " · 시작한 공부일로 계속 기록 중" : ""}</p><h1>오늘의 공부</h1></div><span className="dashboard-attendance">{dashboardReady ? activeSession || attendanceDays.find(day => day.local_date === todayDateKey)?.status === "present" ? "출석 완료" : "시작 준비" : "기록 확인 중"}</span></div>
+            <TodayDomainTabs activeDomain={todayDomain} onChange={setTodayDomain} />
             {sectionOrderEditing && renderTodaySectionOrderEditor()}
           </>
         )}
@@ -6951,6 +6953,7 @@ function DashboardApp() {
           </section>
           <section id="settings-panel-study" data-settings-panel="study" className="settings-group" aria-labelledby="settings-study-title">
             <h2 id="settings-study-title">공부·화면</h2>
+            <AppearanceSettings />
             <TimeZonePicker key={session.user.id} value={timeZone} onSave={async zone => {
               desktopSettingsPending(true);
               try {
@@ -7425,6 +7428,7 @@ function slackNotificationStatusClass(status: SlackNotificationStatus | null) {
   return status.connected ? "notification-ready" : "notification-needed";
 }
 
+getAppearanceController(window);
 createRoot(document.getElementById("root")!).render(
   isDesktopStudyApp(window)
     ? <DesktopAuthGate><App /></DesktopAuthGate>

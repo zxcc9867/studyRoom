@@ -1,7 +1,7 @@
 :root {
-  color-scheme: only light;
-  color: #20332b;
-  background: #f4f6f3;
+  color-scheme: light dark;
+  color: var(--study-ink, #20332b);
+  background: var(--study-bg, #f4f6f3);
   font-family:
     "Malgun Gothic", "Apple SD Gothic Neo", ui-rounded, "Segoe UI", sans-serif;
   font-synthesis: none;
@@ -16,19 +16,18 @@ html,
 body,
 #root {
   min-height: 100%;
-  background-color: #f4f6f3;
-  color: #20332b;
+  background-color: var(--study-bg, #f4f6f3);
+  color: var(--study-ink, #20332b);
 }
 
 body {
   margin: 0;
   min-width: 320px;
   min-height: 100vh;
-  background: #f4f6f3;
+  background: var(--study-bg, #f4f6f3);
 }
 
 html {
-  color-scheme: only light;
   scroll-behavior: smooth;
   scroll-padding-top: 22px;
 }
@@ -37,34 +36,8 @@ button,
 input,
 select,
 textarea {
-  color-scheme: light;
+  color-scheme: inherit;
   font: inherit;
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    color-scheme: only light;
-    color: #20332b;
-    background: #f4f6f3;
-  }
-
-  html,
-  body,
-  #root {
-    background-color: #f4f6f3 !important;
-    color: #20332b !important;
-  }
-
-  body {
-    background: #f4f6f3 !important;
-  }
-
-  button,
-  input,
-  select,
-  textarea {
-    color-scheme: light;
-  }
 }
 
 button {

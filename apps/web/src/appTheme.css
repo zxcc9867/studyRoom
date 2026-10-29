@@ -2,7 +2,7 @@
    Data, study policies and the forest's rendered environment stay unchanged. */
 
 /* Settings reuse the dashboard's paper surfaces and existing controls. */
-.study-navigation { display: flex; align-items: center; justify-content: space-between; gap: var(--study-space-4); flex-wrap: wrap; order: -3; }
+.study-navigation { display: flex; align-items: center; justify-content: flex-end; gap: var(--study-space-4); order: -5; }
 .study-mode-tabs { display: flex; gap: var(--study-space-1); padding: var(--study-space-1); background: var(--study-soft); border-radius: var(--study-control-radius); }
 .study-mode-tabs a { display: inline-flex; align-items: center; justify-content: center; min-height: 44px; min-width: 44px; padding: 0 var(--study-space-4); border-radius: var(--study-control-radius); color: var(--study-muted); font-size: var(--study-text-sm); font-weight: 600; text-decoration: none; }
 .study-mode-tabs a[aria-current=page] { color: var(--study-primary); background: var(--study-surface); }
@@ -56,6 +56,9 @@
   --study-dialog-shadow: 0 20px 64px #28372e26;
   --study-disabled-bg: #e6ebe4;
   --study-disabled-text: #5e695f;
+  --study-color-scheme: light;
+  --study-nav-selected: #dcebe2;
+  --study-nav-hover: #e1eae4;
   color-scheme: light;
 }
 
@@ -705,8 +708,8 @@ body { background-image: none; }
   .dashboard-brand { min-height: 44px; padding: 0 12px; font-size: 22px; }
   .desktop-navigation { display: flex; flex: 1; flex-direction: column; align-items: stretch; gap: 8px; min-height: 0; overflow-y: auto; padding: 8px 0; }
   .desktop-navigation a { flex: 0 0 auto; height: auto; min-height: 48px; padding: 12px; border: 0; border-radius: var(--study-control-radius); color: var(--study-ink); font-size: var(--study-text-base); font-weight: 500; }
-  .desktop-navigation a[aria-current=page] { color: var(--study-primary); background: #dcebe2; border: 0; font-weight: 600; }
-  .desktop-navigation a:hover { background: #e1eae4; }
+  .desktop-navigation a[aria-current=page] { color: var(--study-primary); background: var(--study-nav-selected); border: 0; font-weight: 600; }
+  .desktop-navigation a:hover { background: var(--study-nav-hover); }
   .desktop-navigation .dashboard-profile-link { margin-top: auto; }
   .dashboard-redesign .workspace { padding: 32px; }
 }
@@ -767,3 +770,47 @@ body { background-image: none; }
   .settings-category-nav button:last-child { grid-column: 1 / -1; }
   .dashboard-redesign .settings-content :is(.settings-edit-row, .settings-layout-row) { align-items: flex-start; flex-wrap: wrap; }
 }
+
+/* Explicit themes reuse the semantic palette across pages, forms and dialogs. */
+:root[data-study-theme=dark] {
+  --study-primary: #96d9b4;
+  --study-primary-hover: #b0e9c9;
+  --study-bg: #151d19;
+  --study-surface: #1d2822;
+  --study-soft: #25372c;
+  --study-ink: #e7eee9;
+  --study-muted: #b2c1b7;
+  --study-border: #43584a;
+  --study-warning: #f1cf85;
+  --study-warning-bg: #3a301e;
+  --study-danger: #ffb1a7;
+  --study-danger-bg: #3d2927;
+  --study-disabled-bg: #2b3730;
+  --study-disabled-text: #9eafa4;
+  --study-nav-selected: #314c3b;
+  --study-nav-hover: #2b4133;
+  --study-shadow: 0 2px 8px #00000020;
+  --study-dialog-shadow: 0 20px 64px #00000060;
+  --study-color-scheme: dark;
+  color-scheme: dark;
+}
+html[data-study-theme] :is(button, input, select, textarea) { color-scheme: var(--study-color-scheme); }
+html[data-study-theme=dark] :is(.dashboard-redesign, .login-shell) :is(h1, h2, h3, h4, label, legend) { color: var(--study-ink); }
+.login-shell .login-settings-entry { background: var(--study-surface); color: var(--study-primary); }
+.dashboard-redesign .appearance-settings { min-width: 0; margin: 0 0 var(--study-space-6); padding: 0 0 var(--study-space-6); border: 0; border-bottom: 1px solid var(--study-border); }
+.appearance-settings legend { margin-bottom: var(--study-space-3); color: var(--study-ink); font-weight: 600; font-size: var(--study-text-base); }
+.appearance-options { display: flex; gap: var(--study-space-2); flex-wrap: wrap; }
+.dashboard-redesign .appearance-options label { display: inline-flex; align-items: center; gap: var(--study-space-2); min-height: 44px; padding: var(--study-space-2) var(--study-space-3); border: 1px solid var(--study-border); border-radius: var(--study-control-radius); background: var(--study-surface); color: var(--study-muted); font-size: var(--study-text-sm); cursor: pointer; }
+.dashboard-redesign .appearance-options label:has(input:checked) { border-color: var(--study-primary); background: var(--study-soft); color: var(--study-primary); }
+.appearance-options label:focus-within { outline: 3px solid var(--study-primary); outline-offset: 3px; }
+.dashboard-redesign .forest-customizer-options .forest-item-card { color: var(--study-primary); }
+.dashboard-redesign .workspace .tech-feed .feed-card-actions button { color: var(--study-primary); background: var(--study-surface); border-color: var(--study-border); }
+.dashboard-redesign .workspace .tech-feed .feed-card-actions button:disabled { color: var(--study-disabled-text); background: var(--study-disabled-bg); opacity: 1; }
+.dashboard-redesign .planning-adherence dt { color: var(--study-muted); font-size: var(--study-text-xs); }
+.dashboard-redesign .legacy-notification-note { background: var(--study-soft); border: 1px solid var(--study-border); color: var(--study-muted); }
+.dashboard-redesign .todo-modal .goal-link-panel { background: var(--study-soft); border: 1px solid var(--study-border); color: var(--study-ink); }
+.dashboard-redesign .todo-modal .todo-link-panel { background: var(--study-soft); border: 1px solid var(--study-border); color: var(--study-ink); }
+html[data-study-theme=dark] .team-forest-scene { background: radial-gradient(ellipse at 50% 110%, var(--study-nav-selected), var(--study-soft) 60%, var(--study-surface) 100%); }
+.dashboard-redesign .workspace .session-lease { background: var(--study-surface); border: 1px solid var(--study-border); color: var(--study-ink); }
+.dashboard-redesign .workspace .session-lease :is(span, small) { color: var(--study-muted); font-size: var(--study-text-xs); line-height: var(--study-line); }
+.dashboard-redesign .workspace .session-lease strong { color: var(--study-ink); }

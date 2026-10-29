@@ -1,22 +1,19 @@
-import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
-import { test } from "node:test";
+import assert from 'node:assert/strict';
+import {readFileSync} from 'node:fs';
+import {runInNewContext} from 'node:vm';
+import test from 'node:test';
 
-test("web app opts out of mobile browser automatic dark theming", () => {
-  const html = readFileSync("apps/web/index.html", "utf8");
-  const css = readFileSync("apps/web/src/styles.css", "utf8");
-  // Pre-JS paint and dark-mode fallback must match the semantic canvas; mounted
-  // tests cover the rendered cascade instead of tying this contract to one color.
-  const theme = readFileSync("apps/web/src/dashboardRedesign.css", "utf8");
-  const canvas = theme.match(/--study-bg:\s*(#[\da-f]+)/i)[1];
-
-  assert.match(html, /<meta\s+name="color-scheme"\s+content="only light"\s*\/?>/i);
-  assert.match(html, /<meta\s+name="supported-color-schemes"\s+content="light"\s*\/?>/i);
-  assert.match(html, new RegExp(`<meta\\s+name="theme-color"\\s+content="${canvas}"\\s*\\/?>`, 'i'));
-  assert.match(html, new RegExp(`<style>[\\s\\S]*color-scheme:\\s*only light;[\\s\\S]*background:\\s*${canvas};[\\s\\S]*<\\/style>`, 'i'));
-  assert.match(css, /:root\s*{[^}]*color-scheme:\s*(?:only\s+)?light;/is);
-  assert.match(css, /html\s*{[^}]*color-scheme:\s*only light;/is);
-  assert.match(css, new RegExp(`html,\\s*body,\\s*#root\\s*{[^}]*background-color:\\s*${canvas};`, 'is'));
-  assert.match(css, /button,\s*input,\s*select,\s*textarea\s*{[^}]*color-scheme:\s*light;/is);
-  assert.match(css, new RegExp(`@media\\s*\\(prefers-color-scheme:\\s*dark\\)\\s*{[\\s\\S]*background-color:\\s*${canvas}\\s*!important;`, 'i'));
+const html=readFileSync('apps/web/index.html','utf8');
+const bootstrap=html.match(/<script>([\s\S]*?)<\/script>/)?.[1];
+for(const [saved,system,want] of [[null,false,'light'],[null,true,'dark'],['light',true,'light'],['dark',false,'dark'],['invalid',true,'dark']])test(`pre-paint appearance respects saved=${saved} / system dark=${system}`,()=>{
+ assert.ok(bootstrap,'appearance must be applied before the app module paints');
+ const root={dataset:{},style:{}},meta={};
+ runInNewContext(bootstrap,{localStorage:{getItem:()=>saved},matchMedia:()=>({matches:system}),document:{documentElement:root,querySelector:()=>({setAttribute:(key,value)=>meta[key]=value})}});
+ assert.equal(root.dataset.studyTheme,want);assert.equal(root.style.colorScheme,want);assert.equal(meta.content,want==='dark'?'#151d19':'#f4f6f3');
+});
+test('pre-paint storage denial follows system instead of breaking login bootstrap',()=>{
+ const root={dataset:{},style:{}};
+ const host={matchMedia:()=>({matches:true}),document:{documentElement:root,querySelector:()=>({setAttribute(){}})}};
+ Object.defineProperty(host,'localStorage',{get(){throw new Error('denied');}});
+ assert.doesNotThrow(()=>runInNewContext(bootstrap,host));assert.equal(root.dataset.studyTheme,'dark');
 });

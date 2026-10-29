@@ -2,6 +2,18 @@ import test from 'node:test';import assert from 'node:assert/strict';
 import {createServer} from 'node:http';import {mkdir,readFile} from 'node:fs/promises';import {fileURLToPath,pathToFileURL} from 'node:url';import {build} from 'esbuild';
 let chromium;try{({chromium}=await import(process.env.FEED_BROWSER_MODULE?pathToFileURL(process.env.FEED_BROWSER_MODULE).href:'playwright'));}catch{}
 const mounted=(name,run)=>test(name,{skip:!chromium&&'Enable FEED_BROWSER_MODULE and FEED_BROWSER_EXECUTABLE'},run);
+for(const width of [375,1440])mounted(`dark team navigation: room and forest retain tabs, readable content and membership at ${width}px`,()=>withDashboard(width,'active','#together',async page=>{
+ await page.emulateMedia({colorScheme:'dark',reducedMotion:'reduce'});await page.waitForFunction(()=>document.documentElement.dataset.studyTheme==='dark');
+ const panel=page.locator('#together');await panel.getByLabel('팀 이름',{exact:true}).fill('[테스트] 다크 검증방');await panel.getByRole('button',{name:'팀 만들기',exact:true}).click();
+ await panel.getByRole('heading',{name:'[테스트] 다크 검증방',exact:true}).waitFor();const tabs=page.getByRole('navigation',{name:'함께 공부방 화면',exact:true});const room=await tabs.boundingBox();
+ await tabs.getByRole('button',{name:'팀 숲',exact:true}).click();await page.locator('.team-forest-scene').waitFor();const forest=await tabs.boundingBox();
+ assert.ok(Math.abs(room.x-forest.x)<=1&&Math.abs(room.y-forest.y)<=1,'team tabs do not move with the selected content '+JSON.stringify({room,forest,scroll:await page.evaluate(()=>scrollY)}));
+ await readableTeamText(page,['#together h1','.team-heading>div>p:last-child','.team-forest-scene h3','.team-forest-scene p','.team-tabs button[aria-pressed=true]'],width);
+ await tabs.getByRole('button',{name:'공부방',exact:true}).click();await panel.getByRole('button',{name:'팀 탈퇴',exact:true}).click();const dialog=page.getByRole('dialog',{name:'팀 탈퇴',exact:true});await dialog.waitFor();
+ await readableTeamText(page,['.team-leave-dialog h2','.team-leave-dialog p','.team-leave-dialog .danger'],width);
+ await page.keyboard.press('Escape');assert.equal(await page.evaluate(()=>fixture.sessions[0].ended_at),null);assert.equal(await page.evaluate(()=>fixture.calls.some(c=>c.args?.p_action==='leave_team')),false);
+ await capture(page,'dark-team',width);
+}));
 for(const width of [375,1440])mounted(`settings redesign: public tag opens on demand and cancel restores saved value at ${width}px`,()=>withDashboard(width,'active','#today',async page=>{
  await page.evaluate(()=>fixture.team.tag='테스트#독서');await page.locator('a[href="#settings"]:visible').first().click();
  const account=page.getByRole('region',{name:'계정',exact:true});await account.getByText('테스트#독서',{exact:true}).waitFor();
