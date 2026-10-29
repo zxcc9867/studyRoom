@@ -24,4 +24,13 @@
 - 최초 순차 전체:1519중1518통과/1실패/생략·취소0,1110481ms. 실패는 `mounted session plan: old reflection cannot prefill a new task at 1440px`의 초기 topbar 준비5초 대기이며 실제 대비/할 일 단언에 도달하기 전이다. 이 실행 자체를 전체 통과로 표시하지 않는다. 해당 실제 화면 파일201개 전체를 단언/시간 제한 변경 없이 재검증 중(`dark-record-mounted-final.log`), 나머지1318개는 통과했다.
 - 최종 Chrome 재검증: `node --test apps/web/test/actualStudyMounted.test.mjs` →201/201·실패/생략/취소0·529065ms·exit0(`dark-record-mounted-final.log`).201개 이름 중복0, 최초 전체의 해당 파일 통과200/실패1을 모두 대조했고 미확인 실패0이다. 나머지1318개와 합쳐 최종 모든1519항목이 통과했다. 최초 전체 실패와 재실행 통과는 구분한다.
 - 공식 `ai.ps1 verify --project .`:7명령 모두 passed/exit0·Dune 위반0(`dark-record-verify.log`). desktop:check·desktop:test·npm test·test:edge·mobile:check·build·docs:check를 순차 실행했다. 위 Chrome 파일별 전체 검증과 별개다.
-- 실제 Windows StudyRoom 실행 창을 읽기 전용으로 확인했다. 사용자가 공부·카메라 미사용 및 배포 후 새로고침을 승인했다. 실제 앱 새로고침/사후 수용과 운영 배포는 아직 대기 중이다. 로그와 합성 화면 캡처는 ignored `output/`에 둔다.
+- 실제 Windows StudyRoom에서 사용자 승인 후 Ctrl+R로 새 배포를 불러왔다. 로그인 유지·기록 화면의 공부 요약 불변을 읽기 전용으로 대조했다. 시간 숫자/목표 설명·주간 날짜 카드/상태/요약·계획표·펼친 알림의 추천시간/보조문자를 실제 창에서 확인했다. 설정 값을 저장하거나 공부/카메라/회복을 조작하지 않았고, 원래 기록 탭으로 복귀했다. 개인 계정/학습 값·실제 창 이미지는 이 문서에 저장하지 않는다. Android/iOS 실기기 수용으로 확대하지 않는다.
+
+## 운영 출시
+
+- 제품 커밋 `bda9e895553fab9a9117421824de8b69ad783802`, 기능 브랜치 push 완료. main 직접 push/merge 없음.
+- 기존 workflow_dispatch [Actions40894773028](https://github.com/zxcc9867/studyRoom/actions/runs/40894773028) completed/success·정확한 headSha. CI tests/mobile/docs/Edge/build·기존 합성 무료AI 검사2종도 success.
+- Vercel `dpl_uV9N15iRrjaHZtCziq5cnNN1Ffsg` READY·정확한 제품 SHA·기존 운영 alias. 대상 `team_LaN4bwvH4msrzoQtIw3fqsUj` / `prj_u2Q9FKwNeVjwwtVOjuXNMZRpkR3g` / [운영 URL](https://study-room-attendance.vercel.app).
+- 운영 HTML·`/assets/index-ByIyBLyx.js`·`/assets/index-CwvhYFyG.css` HTTP200. 기록 strong·주간 divider·휴대폰 상태 새 규칙과 기존 planner/picker 토큰 보존 확인.
+- 배포 직후 해당 deployment의 최근5분 error/fatal 그룹 없음. 짧은 관측이며 장기 무오류 보장은 아니다.
+- 새 APK/Windows 설치파일 없이 공통 hosted UI를 반영했다. 로그와 합성 캡처는 ignored `output/`에 두며 `.serena/`와 기존 다른 worktree의 변경은 보존했다.

@@ -2,7 +2,7 @@
 
 ## 다크 모드 내부 텍스트 대비
 
-- 추가 재점검 검증: 기록/주간 상태·계획 시간/집중 연결·설정 알림의 실제 전경/배경 수정. today=focus/settings=account 누락→명시적 하위 상태·375/640/1440/200% 보완. 최종 Chrome201/201+나머지1318=1519항목 통과(실패·생략·취소0·중복0), 최초 전체1518/1519의 초기 로딩 실패는 별도 기록. 라이트7:1·독립C0/I0/M0·공식verify7/Dune0 통과. 운영 배포/승인된 실제 앱 새로고침 대기. 기록/API/Auth/native 불변. [새 검증](../docs/verification/2026-10-29-dark-record-contrast.md).
+- 추가 재점검 완료: 기록/주간 상태·계획 시간/집중 연결·설정 알림의 실제 전경/배경 수정. today=focus/settings=account 누락→명시적 하위 상태·375/640/1440/200% 보완. 최종201/201+1318=1519항목·라이트7:1·독립C0/I0/M0·verify7/Dune0 통과. 최초 로딩 실패는 구분 기록. bda9e89 push·Actions40894773028 success·dpl_uV9N15iRrjaHZtCziq5cnNN1Ffsg READY/정확SHA/alias/HTML·JS·CSS200. 승인 후 실제 Windows 앱 새로고침·기록/계획/알림 가독성·로그인/학습 요약 유지·원래 기록 탭 복귀 확인. API/Auth/학습/native/설치파일 불변. [새 검증](../docs/verification/2026-10-29-dark-record-contrast.md).
 
 - 상태: 모달/현재 공부 private palette·고정 자식 색 교정, 빈/선택/시간/저장중/오류·전체 펼침/desktop경로 통과. 라이트7:1 보존→분할최종1507/1507(실패/생략/취소0·189이름중복0), 최종verify7/Dune0·독립C/I/M0.68ce558 push·Actions40875906255 success·Vercel dpl_4Vch7TxQAaGVydkuvJpxiyoQUzbe READY/정확SHA/운영alias·HTML/JS/CSS200/새규칙 확인. 이전실패/중지/VM제한은구분기록. 최신대시보드/기록/API/native/설치파일보존. [검증](../docs/verification/2026-10-29-dark-contrast.md).
 
