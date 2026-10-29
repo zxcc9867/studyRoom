@@ -12,3 +12,9 @@
 - 최초전체1492중1490pass/2fail(375px caption줄바꿈으로timer밀림, 접힌report에맞지않는fixture준비)이었다. caption전폭grid·원래timerassert유지와 report열기setup만 보완하여 관련4/4·dashboard/nav12/12 통과. 최종전체1492/1492·실패/생략/취소0·628667ms/exit0,공식verify7명령·Dune0 통과. 운영 출시 결과는 아래에 갱신한다. 원문 로그/화면은 ignored output/ 및 로컬 *clarity*.log에 보관한다.
 
 - 검증 명령: `ai.ps1 verify --project C:/jini-dev/worktrees/study-dashboard-clarity`; 실제 Chrome은 FEED_BROWSER_MODULE/EXECUTABLE을 지정한 `node --test --test-concurrency=2 packages/core/test/*.test.mjs apps/web/test/*.test.mjs server/ai/*.test.mjs scripts/*.test.mjs supabase/functions/_shared/*.test.mjs`.
+
+## 커밋·배포 상태
+- 제품7dd5a14c73938da41140aa3c5f772cc7ee8e5b2a를 fix/study-dashboard-clarity에 commit/push했다.
+- workflow_dispatch는 자동 승인 검토가 실행 전 거절했다. 현재요청은 UI수정이며 독서실 운영 배포 명시승인이 없다는 판단이다. 실행/운영반영은 없고 사용자에게 정확한 운영URL과 수정본의 배포 승인을 요청했다. 우회하지 않는다.
+- production은 기존2d55e11/dpl_zxVX7jwPPj4nr5QxF3PD1TS6xt6v 상태이며 새버전이 배포됐다고 표시하지 않는다.
+- 제품에 추가 번역·AI/수집 호출은 넣지 않았다. 배포 승인 후 기존 CI의 합성 무료 AI 연결 점검은 제품 자동 호출과 별도다.
