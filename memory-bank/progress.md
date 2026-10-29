@@ -2,7 +2,7 @@
 
 ## HIG 공통 UI·Windows 로그인 안내
 
-- 공부 전환·다크 모드: 승인된 상단 동일 좌표/중복 링크 제거, 팀 숲 탭 이동도 공통 grid로 수정. 시스템/라이트/다크·기기 전용 저장·OS/storage event·초기 paint·공통 내부/하단 안내 팔레트를 연결했다. 최종Chrome1475/1475(실패/생략/취소0)·verify7/Dune0·독립C/I/M0. 라디오 원이 아닌44px라벨/원밖클릭·키보드/저장실패도 검증, 운영 배포 대기. 기록/API/native 미커밋 보존. [검증](../docs/verification/2026-10-29-dark-navigation.md).
+- 공부 전환·다크 모드: 상단 동일 좌표/중복 링크 제거·팀 숲 탭 공통 grid, 시스템/라이트/다크·기기 저장·OS/storage event·초기 paint·전체 공통 팔레트. Chrome1475/1475(실패/생략/취소0)·verify7/Dune0·독립C/I/M0·44px라벨/실제클릭/키보드/저장실패 통과.2d55e11 push·Actions40852672515 success·Vercel dpl_zxVX7jwPPj4nr5QxF3PD1TS6xt6v READY/exactSHA/운영alias·HTML/JS/CSS200/새테마 확인. 기록/API/native 미커밋·APK/Windows 설치파일 보존. [검증](../docs/verification/2026-10-29-dark-navigation.md).
 
 - 설정 UX 재구성: 승인된5분류/현재값+변경/명시적 편집·취소·저장, 분류 간 초안/저장 중 상태 보존. UI 상태만 SettingsLayout이 소유하고 기존 서버/API·학습/계정·네이티브 updater는 유지한다. Chrome1449/1449(실패/생략/취소0)·집중10/10·익명1/1·기존대시보드2/2·verify7/Dune0·독립C/I/M0. be90bea push·Actions40733635247 success·Vercel dpl_J8QqGT1Q4EQNnTpGZoxCzGjkwNp8 READY/exactSHA/alias·HTML/JS/CSS200/새nav·editor 확인. 새APK/Windows 설치파일 없음. [검증](../docs/verification/2026-10-29-settings-redesign.md).
 

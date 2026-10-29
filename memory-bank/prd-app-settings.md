@@ -29,7 +29,7 @@
 
 ## 5. Verification / Rollout
 
-공통 다크 모드·전환 위치 검증: Chrome1475/1475·실패/생략/취소0, verify7/Dune0, 독립C/I/M0. 375/1440·200%·라벨44px/실제 클릭/키보드·기기 저장/실패/OS 변경과 기록 보존을 확인했다. 공통 웹만 출시하며 네이티브 설치 파일은 변경하지 않는다. 운영 배포 결과는 docs/verification/2026-10-29-dark-navigation.md에 기록한다.
+공통 다크 모드·전환 위치 출시: Chrome1475/1475·실패/생략/취소0, verify7/Dune0, 독립C/I/M0. 375/1440·200%·라벨44px/실제 클릭/키보드·기기 저장/실패/OS 변경과 기록 보존을 확인했다.2d55e11·Actions40852672515 success·Vercel dpl_zxVX7jwPPj4nr5QxF3PD1TS6xt6v READY/exactSHA/운영alias·HTML/JS/CSS200. 공통 웹만 출시했으며 네이티브 설치 파일은 변경하지 않았다. 상세는 docs/verification/2026-10-29-dark-navigation.md.
 
 2026-10-29 분류형 설정 개선은 공통 웹 표시만 변경한다. 프로젝트의 웹 자동 배포 규칙에 따라 검증 후 기존 production workflow로 출시하며, APK/Windows 설치 파일·버전·공개 다운로드 경로는 바꾸지 않는다. 아래 2026-10-06의 별도 APK 출시 절차는 당시 기록이다.
 

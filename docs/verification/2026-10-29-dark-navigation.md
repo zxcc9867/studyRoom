@@ -24,4 +24,6 @@
 
 - 공통 화면: apps/web/index.html, src/main.tsx, TeamStudySection.tsx, appearance.mjs, appearance.d.mts, AppearanceSettings.tsx, appTheme.css, dashboardRedesign.css, styles.css.
 - 회귀: apps/web/test/appearance.test.mjs, mobileTheme.test.mjs, actualStudyMounted.test.mjs, team-study-mounted.test.mjs. 관련 설정/HIG PRD·architecture-map·progress·trouble-shooting·로컬 active-context를 갱신한다. 기존 native/auth/종료 미커밋 변경과 package-lock은 이번 출시에서 제외한다.
-- 검증된 웹 소스의 운영 배포 대기. 실제 Android/iOS·OS 권한창과 외부 제공자 화면 전체 수용은 별도다.
+- 제품 `2d55e11e63be5eda96e5e242f6573bdcb6749dd5` commit/push, Actions40852672515 completed/success. Vercel `dpl_zxVX7jwPPj4nr5QxF3PD1TS6xt6v` production/READY·project prj_u2Q9FKwNeVjwwtVOjuXNMZRpkR3g·동일 source SHA·운영 alias를 확인했다.
+- https://study-room-attendance.vercel.app HTML·/assets/index-DI5B6auN.js·/assets/index-Td8-Wuez.css 모두HTTP200. 초기 테마·light dark 선언·전용 저장키·화면 테마·dark token·새 전환/라디오 스타일을 운영 자산에서 확인했다. 배포 직후5분 error/fatal 그룹은 없었으며 장기 장애 없음의 보장은 아니다.
+- 웹 새로고침/공부 종료 후 앱 재실행으로 hosted UI를 갱신한다. 새 APK/Windows 설치 파일은 없다. 실제 Android/iOS·OS 권한창과 외부 제공자 화면 전체 수용은 별도다.
