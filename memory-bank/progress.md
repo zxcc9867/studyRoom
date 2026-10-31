@@ -1,5 +1,12 @@
 # Progress
 
+## 2026-10-31 main 통합
+
+- 사용자 승인에 따라 기존 main `9f381ab`에 `fix/study-dashboard-clarity` source `d83dabb`의 18개 커밋을 fast-forward했다. 공통 UI·설정·다크 모드·계획표/기록/숲·피드 표시 및 기본 Windows 앱 소스를 포함한다.
+- README 3개 언어에 기능·기기별 화면 설정·실제 합성 캡처·Windows 소스/설치판 차이를 반영했다. 기존 로컬 DUNE 변경은 백업·분리했으며 이번 커밋에 섞지 않는다.
+- 로컬 검증 완료: desktop 문법11파일·119/119, DUNE296파일/616간선·위반0·필수5명령 exit0, Edge 타입/23개 검사·README54이미지/3언어 통과. 푸시·원격 CI/배포는 이어서 확인한다: [실행 기록](../docs/verification/2026-10-31-main-integration.md). 기존 운영 코드와 제품 소스는 동일하며 새 운영 DB·Edge·설치 파일은 변경하지 않는다.
+
+
 ## 다크 모드 내부 텍스트 대비
 
 - 추가 재점검 완료: 기록/주간 상태·계획 시간/집중 연결·설정 알림의 실제 전경/배경 수정. today=focus/settings=account 누락→명시적 하위 상태·375/640/1440/200% 보완. 최종201/201+1318=1519항목·라이트7:1·독립C0/I0/M0·verify7/Dune0 통과. 최초 로딩 실패는 구분 기록. bda9e89 push·Actions40894773028 success·dpl_uV9N15iRrjaHZtCziq5cnNN1Ffsg READY/정확SHA/alias/HTML·JS·CSS200. 승인 후 실제 Windows 앱 새로고침·기록/계획/알림 가독성·로그인/학습 요약 유지·원래 기록 탭 복귀 확인. API/Auth/학습/native/설치파일 불변. [새 검증](../docs/verification/2026-10-29-dark-record-contrast.md).

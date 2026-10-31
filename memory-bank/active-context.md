@@ -1,4 +1,15 @@
 # Active Context
+
+## 2026-10-31 — 최신 기능 브랜치의 main 통합
+
+- 사용자 승인: `fix/study-dashboard-clarity`의 운영 기능을 `main`에 통합하고 검증·푸시·운영 배포 상태를 일치시킨다.
+- 기준: 기존 main `9f381ab` → source `d83dabb`의 18개 커밋을 fast-forward했다. README 3개 언어에 최신 공통 UI·설정·화면 모드·정보 정리와 실제 합성 화면을 설명한다. 제품 소스는 기존 운영 `bda9e89`와 동일하다.
+- 기존 로컬 DUNE 문서 변경 7개는 별도 백업·stash로 보존하고 미추적 파일은 유지한다. 이번 통합 커밋에는 포함하지 않으며 작업 후 원래 변경만 복원한다.
+- 로컬 검증 완료: npm ci/desktop 문법11파일·119/119, DUNE296파일/616간선·위반0·필수5명령 exit0, Edge 타입/23개 검사, README54이미지/3언어 통과. 이전 10/29 Chrome 검증과 이번 실행을 구분한다. main push·원격 CI/배포 확인은 다음 단계이며 [통합 검증 기록](../docs/verification/2026-10-31-main-integration.md)에 남긴다.
+- 범위: 새 DB/Edge/AI 정책/설치파일 변경 없음. Windows Git 소스 0.1.1과 별도 설치판 0.1.9 기록 사이의 미수신 native 수정, 번역 공급자 한도, 실기기·두 계정·실제 DB 경합 수용은 기존 후속이다.
+
+## 이전 작업: 2026-10-29 다크 대비·Windows 화면 수용
+
 - 갱신: 2026-10-29 23:55 JST · 도구: codex
 - 루트/브랜치: C:/jini-dev/worktrees/study-dashboard-clarity · fix/study-dashboard-clarity · 제품bda9e89 push/운영배포 완료·출시문서 후속커밋. 원래 study-room-desktop-current의 native/auth/lock/인계 dirty는 그대로 보존한다.
 - 현재 목표/완료 기준: 추가 제보된 오늘→기록의 시간/목표·주간 숲길 다크 대비 재점검. 오늘 집중/계획 체크리스트/생활계획표/기록과 설정5분류를 각각 연다.375/640/1440·200%·목표 유무/주간 모든 단계/달성 전후·4.5:1·기존 라이트7:1·기록 불변→전체 Chrome/verify7·독립검토·운영 READY/HTTP200.
