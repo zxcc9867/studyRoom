@@ -1,0 +1,60 @@
+/* Decorative scenery lives behind the existing app, never inside its controls. */
+:root { --study-scene: none; --study-scene-scrim: #f4f6f3ed; --study-effect-opacity: .18; }
+:root[data-study-theme=dark] { --study-scene-scrim: #111318c9; }
+:root[data-study-intensity=normal] { --study-effect-opacity: .32; }
+html[data-study-background]:not([data-study-background=charcoal]) body { isolation: isolate; }
+html[data-study-background]:not([data-study-background=charcoal]) body::before {
+  content: ''; position: fixed; inset: 0; z-index: 0; pointer-events: none;
+  background: var(--study-scene) center / cover no-repeat, var(--study-bg);
+}
+html[data-study-background]:not([data-study-background=charcoal]) body #root { position: relative; z-index: 1; background: transparent !important; }
+html[data-study-background]:not([data-study-background=charcoal]) :is(.dashboard-redesign, .login-shell) { background: transparent; }
+html[data-study-background]:not([data-study-background=charcoal]):has(.dashboard-redesign) body { background: var(--study-bg) !important; }
+body::after, #root::before, #root::after { pointer-events: none; }
+/* The constant scrim sits above scenery AND effects, but behind app content. */
+html[data-study-background]:not([data-study-background=charcoal]) #root::after {
+  content: ''; position: fixed; inset: 0; z-index: -1; background: var(--study-scene-scrim);
+}
+html[data-study-background=rain-library][data-study-motion] body::after {
+  content: ''; position: fixed; inset: -80px 0; z-index: 0; opacity: var(--study-effect-opacity);
+  background-image: repeating-linear-gradient(103deg, transparent 0 64px, #d5e7ffb3 65px, transparent 66px 131px);
+  mask-image: repeating-linear-gradient(0deg, #000 0 14px, transparent 15px 70px);
+  animation: study-rain 3.6s linear infinite; animation-play-state: paused;
+}
+html[data-study-background=star-sea][data-study-motion] body::after {
+  content: ''; position: fixed; inset: 0; z-index: 0; opacity: var(--study-effect-opacity);
+  background-image: radial-gradient(circle at 14% 14%, #fff 0 1px, transparent 2px), radial-gradient(circle at 72% 9%, #fff 0 1.5px, transparent 2.5px), radial-gradient(circle at 86% 35%, #fff 0 1px, transparent 2px), radial-gradient(circle at 40% 20%, #dde7ff 0 1px, transparent 2px);
+  background-size: 420px 340px; animation: study-stars 8s ease-in-out infinite alternate; animation-play-state: paused;
+}
+html[data-study-background=star-sea][data-study-motion] #root::before {
+  content: ''; position: fixed; top: 8vh; right: 12vw; width: 180px; height: 1px; z-index: -1; opacity: 0;
+  background: linear-gradient(90deg, transparent, #e1e9ff); transform: rotate(-24deg);
+  animation: study-meteor 19s linear infinite; animation-play-state: paused;
+}
+html[data-study-background][data-study-motion=playing] body::after, html[data-study-background][data-study-motion=playing] #root::before { animation-play-state: running; }
+html[data-study-motion=static] body::after, html[data-study-motion=static] #root::before { display: none; }
+@keyframes study-rain { to { transform: translate(-14px, 70px); } }
+@keyframes study-stars { from { opacity: calc(var(--study-effect-opacity) * .3); } to { opacity: var(--study-effect-opacity); } }
+@keyframes study-meteor { 0%, 86% { opacity: 0; transform: translate(0, 0) rotate(-24deg); } 87% { opacity: var(--study-effect-opacity); } 93%, 100% { opacity: 0; transform: translate(-35vw, 22vh) rotate(-24deg); } }
+@media (prefers-reduced-motion: reduce) { body::after, #root::before { animation: none !important; display: none !important; } }
+
+.dashboard-redesign .atmosphere-settings { padding: 0 0 var(--study-space-6); margin: 0 0 var(--study-space-6); border-bottom: 1px solid var(--study-border); }
+.dashboard-redesign .atmosphere-editor { min-width: 0; }
+.atmosphere-editor > legend { padding: 0 4px; font-size: var(--study-text-sm); color: var(--study-ink); }
+.atmosphere-options { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; }
+.dashboard-redesign .atmosphere-option { position: relative; display: flex; flex-direction: column; gap: 0; min-width: 0; padding: 0; border: 1px solid var(--study-border); border-radius: var(--study-control-radius); overflow: hidden; background: var(--study-surface); color: var(--study-ink); cursor: pointer; }
+.atmosphere-option > input { position: absolute; inset: 0; width: 100%; height: 100%; margin: 0; opacity: 0; cursor: pointer; }
+.atmosphere-option:has(input:checked) { outline: 2px solid var(--study-primary); outline-offset: 1px; }
+.atmosphere-option:focus-within { outline: 3px solid var(--study-primary); outline-offset: 4px; }
+.atmosphere-thumbnail { display: block; width: 100%; aspect-ratio: 16 / 9; background: #111318; }
+.atmosphere-thumbnail img { display: block; width: 100%; height: 100%; object-fit: cover; }
+.atmosphere-option-name { display: flex; align-items: center; justify-content: space-between; gap: 4px; min-height: 44px; padding: 8px 10px; font-size: var(--study-text-xs); font-weight: 600; overflow-wrap: anywhere; }
+.atmosphere-selected { color: var(--study-primary); min-width: 1em; }
+.dashboard-redesign .atmosphere-controls { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; border: 0; margin: 12px 0 0; padding: 0; min-width: 0; }
+.atmosphere-controls > legend { float: left; margin: 0 16px 0 0; line-height: 44px; font-size: var(--study-text-sm); color: var(--study-ink); }
+.dashboard-redesign .atmosphere-controls label { display: flex; align-items: center; gap: 8px; min-height: 44px; padding: 8px 12px; border: 1px solid var(--study-border); border-radius: var(--study-control-radius); color: var(--study-ink); background: var(--study-surface); cursor: pointer; }
+.atmosphere-controls label:focus-within { outline: 3px solid var(--study-primary); outline-offset: 3px; }
+.atmosphere-controls input { width: 18px; height: 18px; min-height: 0; accent-color: var(--study-primary); }
+.atmosphere-playback { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px; margin-top: 12px; font-size: var(--study-text-xs); color: var(--study-muted); }
+.atmosphere-editor .settings-actions { justify-content: flex-end; }
+@media (max-width: 600px) { .atmosphere-options { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; } }

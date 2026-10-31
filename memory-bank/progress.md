@@ -1,5 +1,9 @@
 # Progress
 
+## 중립 차콜·공부 배경 테마
+
+- 상태: 구현·최종 회귀/공식verify7·독립C0/I0/M0 완료, 운영 배포 대기. 6종 정적·라이브2/강도/일시정지·기기 저장/초안/포커스·OS/숨김/비활성 제어. 단위19/19. 최초 전체1542/1543 중 pending 정지 시점 검사1실패를 교정하고 최종 mounted217/217(이름중복0/실패·생략·취소0)+나머지1326=1543개 대조 검증. Dune0/exit0. 실제 최소화·실폰 배터리/GPU 수용은 별도. 학습/인증/native/설치파일/서버 기록 불변. [검증](../docs/verification/2026-10-31-study-themes.md).
+
 ## 다크 모드 내부 텍스트 대비
 
 - 추가 재점검 완료: 기록/주간 상태·계획 시간/집중 연결·설정 알림의 실제 전경/배경 수정. today=focus/settings=account 누락→명시적 하위 상태·375/640/1440/200% 보완. 최종201/201+1318=1519항목·라이트7:1·독립C0/I0/M0·verify7/Dune0 통과. 최초 로딩 실패는 구분 기록. bda9e89 push·Actions40894773028 success·dpl_uV9N15iRrjaHZtCziq5cnNN1Ffsg READY/정확SHA/alias/HTML·JS·CSS200. 승인 후 실제 Windows 앱 새로고침·기록/계획/알림 가독성·로그인/학습 요약 유지·원래 기록 탭 복귀 확인. API/Auth/학습/native/설치파일 불변. [새 검증](../docs/verification/2026-10-29-dark-record-contrast.md).

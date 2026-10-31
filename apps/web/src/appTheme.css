@@ -823,22 +823,22 @@ body { background-image: none; }
 
 /* Explicit themes reuse the semantic palette across pages, forms and dialogs. */
 :root[data-study-theme=dark] {
-  --study-primary: #96d9b4;
-  --study-primary-hover: #b0e9c9;
-  --study-bg: #151d19;
-  --study-surface: #1d2822;
-  --study-soft: #25372c;
-  --study-ink: #e7eee9;
-  --study-muted: #b2c1b7;
-  --study-border: #43584a;
+  --study-primary: #bac7ef;
+  --study-primary-hover: #d2dcff;
+  --study-bg: #111318;
+  --study-surface: #1c2028;
+  --study-soft: #282e38;
+  --study-ink: #eef0f5;
+  --study-muted: #bac1ce;
+  --study-border: #505969;
   --study-warning: #f1cf85;
   --study-warning-bg: #3a301e;
   --study-danger: #ffb1a7;
   --study-danger-bg: #3d2927;
-  --study-disabled-bg: #2b3730;
-  --study-disabled-text: #9eafa4;
-  --study-nav-selected: #314c3b;
-  --study-nav-hover: #2b4133;
+  --study-disabled-bg: #303641;
+  --study-disabled-text: #b6bfce;
+  --study-nav-selected: #353e53;
+  --study-nav-hover: #2b3343;
   --study-shadow: 0 2px 8px #00000020;
   --study-dialog-shadow: 0 20px 64px #00000060;
   --study-color-scheme: dark;

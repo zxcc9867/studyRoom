@@ -22,6 +22,7 @@ import TimeZonePicker from "./TimeZonePicker";
 import SettingsLayout from "./SettingsLayout";
 import AppearanceSettings from "./AppearanceSettings";
 import { getAppearanceController } from "./appearance.mjs";
+import { getAtmosphereController } from "./atmosphere.mjs";
 import AppDeviceSettings, { AppInstallGuidance } from "./AppDeviceSettings";
 import {
   Bell,
@@ -301,6 +302,7 @@ import "./improvements.css";
 import "./sessionTodoModal.css";
 import "./dashboardRedesign.css";
 import "./appTheme.css";
+import "./atmosphere.css";
 
 const resendCooldownKey = "study-room-auth-resend-available-at";
 const emailOtpLength = EMAIL_OTP_LENGTH;
@@ -7431,6 +7433,7 @@ function slackNotificationStatusClass(status: SlackNotificationStatus | null) {
 }
 
 getAppearanceController(window);
+getAtmosphereController(window);
 createRoot(document.getElementById("root")!).render(
   isDesktopStudyApp(window)
     ? <DesktopAuthGate><App /></DesktopAuthGate>

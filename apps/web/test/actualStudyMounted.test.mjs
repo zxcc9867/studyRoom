@@ -8,6 +8,127 @@ let chromium;
 try { ({chromium} = await import(process.env.FEED_BROWSER_MODULE ? pathToFileURL(process.env.FEED_BROWSER_MODULE).href : 'playwright')); } catch {}
 const browserTest = (name, run) => test(name, {skip: !chromium && 'Set FEED_BROWSER_MODULE and FEED_BROWSER_EXECUTABLE for mounted main application tests'}, run);
 
+for(const width of [375,1440])browserTest(`atmosphere: theme editor applies, cancels and preserves study at ${width}px`,()=>withApp(width,async page=>{
+ const before=await page.evaluate(()=>structuredClone({sessions:fixture.sessions,todos:fixture.todos,recoveries:fixture.recoveries}));
+ await page.locator('a[href="#settings"]:visible').first().click();await settingsCategory(page,'공부와 화면');
+ assert.equal(await page.getByRole('button',{name:'배경 테마 변경',exact:true}).count(),1,'background editor entry must be available');
+ await page.getByRole('button',{name:'배경 테마 변경',exact:true}).click();
+ const editor=page.getByRole('group',{name:'배경 테마 편집',exact:true});await editor.waitFor();
+ assert.equal(await editor.getByRole('radio').count(),6);
+ await editor.getByRole('radio',{name:'별빛 바다',exact:true}).check();await editor.getByRole('radio',{name:'라이브',exact:true}).check();
+ await editor.getByRole('button',{name:'취소',exact:true}).click();assert.equal(await page.evaluate(()=>document.documentElement.dataset.studyBackground),'charcoal');
+ await page.getByRole('button',{name:'배경 테마 변경',exact:true}).click();await editor.getByRole('radio',{name:'별빛 바다',exact:true}).check();
+ await editor.getByRole('radio',{name:'라이브',exact:true}).check();await editor.getByRole('button',{name:'적용',exact:true}).click();
+ assert.equal(await page.evaluate(()=>document.documentElement.dataset.studyBackground),'star-sea');
+ assert.equal(await page.evaluate(()=>JSON.parse(localStorage.getItem('study-room-atmosphere')).motion),'live');
+ await page.getByRole('button',{name:'일시정지',exact:true}).click();assert.equal(await page.evaluate(()=>document.documentElement.dataset.studyMotion),'paused');
+ await page.getByRole('button',{name:'재생',exact:true}).click();assert.equal(await page.evaluate(()=>document.documentElement.dataset.studyMotion),'playing');
+ await page.getByRole('button',{name:'일시정지',exact:true}).click();
+ await page.reload();await page.getByRole('dialog',{name:'카메라 인증 필요'}).waitFor();await page.keyboard.press('Escape');await page.getByRole('dialog').waitFor({state:'detached'});await page.locator('.settings-category-nav').waitFor();await settingsCategory(page,'공부와 화면');assert.match(await page.locator('.atmosphere-current').textContent(),/별빛 바다/);
+ assert.equal(await page.getByRole('button',{name:'재생',exact:true}).isVisible(),true);
+ assert.deepEqual(await page.evaluate(()=>({sessions:fixture.sessions,todos:fixture.todos,recoveries:fixture.recoveries})),before);
+}));
+
+browserTest('atmosphere: live CSS pauses for reduced motion and hidden windows without changing active study',()=>withApp(1440,async page=>{
+ await page.emulateMedia({colorScheme:'dark',reducedMotion:'no-preference'});
+ const before=await page.evaluate(()=>structuredClone({sessions:fixture.sessions,todos:fixture.todos,recoveries:fixture.recoveries}));
+ await page.evaluate(()=>window.dispatchEvent(new StorageEvent('storage',{key:'study-room-atmosphere',newValue:JSON.stringify({background:'star-sea',motion:'live',intensity:'subtle'})})));
+ assert.equal(await page.evaluate(()=>getComputedStyle(document.body,'::after').animationPlayState),'running');
+ assert.equal(await page.evaluate(()=>getComputedStyle(document.getElementById('root'),'::before').animationPlayState),'running');
+ await page.emulateMedia({reducedMotion:'reduce'});await page.waitForFunction(()=>document.documentElement.dataset.studyMotion==='paused');assert.equal(await page.evaluate(()=>document.documentElement.dataset.studyMotion),'paused');
+ assert.equal(await page.evaluate(()=>getComputedStyle(document.body,'::after').display),'none');
+ await page.emulateMedia({reducedMotion:'no-preference'});await page.waitForFunction(()=>document.documentElement.dataset.studyMotion==='playing');
+ await page.evaluate(()=>{Object.defineProperty(document,'visibilityState',{configurable:true,value:'hidden'});document.dispatchEvent(new Event('visibilitychange'));});
+ assert.equal(await page.evaluate(()=>getComputedStyle(document.body,'::after').animationPlayState),'paused');
+ await page.evaluate(()=>{Object.defineProperty(document,'visibilityState',{configurable:true,value:'visible'});document.dispatchEvent(new Event('visibilitychange'));});
+ assert.equal(await page.evaluate(()=>getComputedStyle(document.body,'::after').animationPlayState),'running');
+ await page.evaluate(()=>window.dispatchEvent(new StorageEvent('storage',{key:'study-room-atmosphere',newValue:JSON.stringify({background:'rain-library',motion:'live',intensity:'normal'})})));
+ assert.equal(await page.evaluate(()=>getComputedStyle(document.body,'::after').animationPlayState),'running');
+ assert.equal(await page.evaluate(()=>getComputedStyle(document.body,'::after').animationName),'study-rain');
+ await page.evaluate(()=>dispatchEvent(new Event('blur')));assert.equal(await page.evaluate(()=>document.documentElement.dataset.studyMotion),'paused');
+ assert.equal(await page.evaluate(()=>getComputedStyle(document.body,'::after').animationPlayState),'paused');
+ await page.evaluate(()=>dispatchEvent(new Event('focus')));assert.equal(await page.evaluate(()=>document.documentElement.dataset.studyMotion),'playing');
+ assert.deepEqual(await page.evaluate(()=>({sessions:fixture.sessions,todos:fixture.todos,recoveries:fixture.recoveries})),before);
+}));
+
+for(const width of [375,1440])for(const theme of ['light','dark'])for(const scale of [1,2])browserTest(`atmosphere: six real backgrounds keep controls readable ${theme} ${width}px ${scale}x`,()=>withApp(width,async page=>{
+ await page.emulateMedia({colorScheme:theme,reducedMotion:'reduce'});await page.waitForFunction(theme=>document.documentElement.dataset.studyTheme===theme,theme);
+ if(scale===2)await page.addStyleTag({content:'html {font-size:200%;}'});
+ const before=await page.evaluate(()=>structuredClone({sessions:fixture.sessions,todos:fixture.todos,recoveries:fixture.recoveries,cameraRequests:fixtureCameraRequests}));
+ await page.locator('a[href="#settings"]:visible').first().click();await settingsCategory(page,'공부와 화면');
+ const editor=page.getByRole('group',{name:'배경 테마 편집',exact:true});
+ for(const [id,name] of [['charcoal','차콜'],['dawn-city','새벽 도시'],['night-alley','심야 골목'],['star-sea','별빛 바다'],['sunset-sky','노을 하늘'],['rain-library','비 오는 서재']]){
+  await page.getByRole('button',{name:'배경 테마 변경',exact:true}).click();
+  const radio=editor.getByRole('radio',{name,exact:true});await radio.check();await radio.focus();
+  assert.notEqual(await radio.evaluate(el=>getComputedStyle(el.parentElement).outlineStyle),'none');
+  for(const label of await editor.locator('.atmosphere-option').all())assert.ok((await label.boundingBox()).height>=44);
+  await readableGroup(editor.locator('legend,label > span.atmosphere-option-name,p,button'));
+  await editor.getByRole('button',{name:'적용',exact:true}).click();
+  assert.equal(await page.evaluate(()=>document.documentElement.dataset.studyBackground),id);
+  if(id!=='charcoal'){const response=await page.request.get(new URL(`/themes/${id}.webp`,page.url()).href);assert.equal(response.status(),200);assert.match(response.headers()['content-type'],/image\/webp/);assert.ok((await response.body()).length>1000);}
+  assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),true,`${name} reflows`);
+ }
+ await page.getByRole('button',{name:'배경 테마 변경',exact:true}).click();await editor.getByRole('radio',{name:'심야 골목',exact:true}).check();
+ await settingsCategory(page,'계정');await settingsCategory(page,'공부와 화면');assert.equal(await editor.getByRole('radio',{name:'심야 골목',exact:true}).isChecked(),true,'category switches preserve draft');
+ await editor.getByRole('button',{name:'취소',exact:true}).click();assert.match(await page.locator('.atmosphere-current').textContent(),/비 오는 서재/);
+ for(const route of ['today','together','goals','forest','feed','me']){
+  await page.evaluate(route=>{location.hash='#'+route;dispatchEvent(new HashChangeEvent('hashchange'));},route);
+  await page.locator('.workspace').waitFor();await page.clock.runFor(250);
+  assert.deepEqual(await textContrastFailures(page.locator('.workspace :is(h1,h2,h3,p,button,label,legend,strong,small,span):visible'),{route}),[]);
+  assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),true,route+' reflows');
+  if(route==='today'&&theme==='dark'&&width===1440&&scale===1){await mkdir('output/playwright',{recursive:true});await page.screenshot({path:'output/playwright/atmosphere-study-dark-1440.png',fullPage:true});}
+ }
+ await page.evaluate(()=>{location.hash='#settings';dispatchEvent(new HashChangeEvent('hashchange'));});await settingsCategory(page,'공부와 화면');await page.getByRole('button',{name:'배경 테마 변경',exact:true}).click();
+ await mkdir('output/playwright',{recursive:true});await page.screenshot({path:`output/playwright/atmosphere-settings-${theme}-${width}-${scale}x.png`,fullPage:true});
+ assert.deepEqual(await page.evaluate(()=>({sessions:fixture.sessions,todos:fixture.todos,recoveries:fixture.recoveries,cameraRequests:fixtureCameraRequests})),before);
+}));
+
+browserTest('atmosphere: failed device save and failed background request leave study usable',()=>withApp(375,async page=>{
+ const before=await page.evaluate(()=>structuredClone({sessions:fixture.sessions,todos:fixture.todos,recoveries:fixture.recoveries}));
+ await page.route('**/themes/*.webp',route=>route.abort());
+ await page.locator('a[href="#settings"]:visible').first().click();await settingsCategory(page,'공부와 화면');
+ await page.getByRole('button',{name:'배경 테마 변경',exact:true}).click();const editor=page.getByRole('group',{name:'배경 테마 편집',exact:true});
+ await editor.getByRole('radio',{name:'비 오는 서재',exact:true}).check();
+ await page.evaluate(()=>Object.defineProperty(Storage.prototype,'setItem',{configurable:true,value(){throw new DOMException('Test storage denied','QuotaExceededError');}}));
+ await editor.getByRole('button',{name:'적용',exact:true}).click();await page.locator('.atmosphere-settings').getByRole('status').waitFor();
+ assert.equal(await page.evaluate(()=>document.documentElement.dataset.studyBackground),'rain-library');
+ await page.locator('a[href="#today"]:visible').first().click();await page.locator('.focus-card').waitFor();
+ assert.equal(await page.locator('.topbar-actions button').first().isEnabled(),true);
+ assert.deepEqual(await page.evaluate(()=>({sessions:fixture.sessions,todos:fixture.todos,recoveries:fixture.recoveries})),before);
+}));
+
+browserTest('atmosphere: keyboard entry and cancel restore focus to the theme change button',()=>withApp(1440,async page=>{
+ await page.locator('a[href="#settings"]:visible').first().click();await settingsCategory(page,'공부와 화면');
+ const entry=page.getByRole('button',{name:'배경 테마 변경',exact:true});await entry.focus();await page.keyboard.press('Enter');
+ const editor=page.getByRole('group',{name:'배경 테마 편집',exact:true});const charcoal=editor.getByRole('radio',{name:'차콜',exact:true});
+ assert.equal(await charcoal.evaluate(el=>document.activeElement===el),true);
+ await page.keyboard.press('ArrowRight');assert.equal(await editor.getByRole('radio',{name:'새벽 도시',exact:true}).isChecked(),true);
+ await editor.getByRole('button',{name:'취소',exact:true}).click();assert.equal(await entry.evaluate(el=>document.activeElement===el),true);
+}));
+
+for(const theme of ['light','dark'])browserTest(`atmosphere: scene scrim guarantees readable outside-panel text even over the brightest effects ${theme}`,()=>withApp(1440,async page=>{
+ await page.emulateMedia({colorScheme:theme,reducedMotion:'reduce'});await page.waitForFunction(theme=>document.documentElement.dataset.studyTheme===theme,theme);
+ await page.evaluate(()=>dispatchEvent(new StorageEvent('storage',{key:'study-room-atmosphere',newValue:JSON.stringify({background:'star-sea',motion:'live',intensity:'normal'})})));
+ const failures=await page.locator('.dashboard-page-heading p,.dashboard-page-heading h1,.study-navigation a,.today-domain-tabs button').evaluateAll((elements,theme)=>{
+  const rgba=getComputedStyle(document.getElementById('root'),'::after').backgroundColor.match(/[\d.]+/g).map(Number),alpha=rgba.length===4?rgba[3]:1;
+  const extreme=theme==='dark'?255:0,bg=rgba.slice(0,3).map(value=>value*alpha+extreme*(1-alpha));
+  const lum=rgb=>rgb.map(v=>{const n=v/255;return n<=.04045?n/12.92:((n+.055)/1.055)**2.4;}).reduce((sum,v,i)=>sum+v*[.2126,.7152,.0722][i],0);
+  return elements.filter(el=>el.getBoundingClientRect().width).flatMap(el=>{const fg=getComputedStyle(el).color.match(/[\d.]+/g).slice(0,3).map(Number),a=lum(fg),b=lum(bg),ratio=(Math.max(a,b)+.05)/(Math.min(a,b)+.05);return ratio>=4.5?[]:[{text:el.textContent,ratio,bg}];});
+ },theme);
+ assert.deepEqual(failures,[],'fixed scrim above all decoration must bound image/effect contrast');
+}));
+
+browserTest('atmosphere: rendered live effect advances and its timeline freezes on explicit pause',()=>withApp(1440,async page=>{
+ await page.emulateMedia({colorScheme:'dark',reducedMotion:'no-preference'});
+ await page.evaluate(()=>dispatchEvent(new StorageEvent('storage',{key:'study-room-atmosphere',newValue:JSON.stringify({background:'rain-library',motion:'live',intensity:'normal'})})));
+ const time=()=>page.evaluate(()=>document.getAnimations().find(animation=>animation.animationName==='study-rain')?.currentTime);
+ const start=await time();assert.equal(typeof start,'number');
+ await page.waitForFunction(start=>document.getAnimations().find(animation=>animation.animationName==='study-rain')?.currentTime>start+100,start);
+ await page.evaluate(()=>dispatchEvent(new StorageEvent('storage',{key:'study-room-atmosphere',newValue:JSON.stringify({background:'rain-library',motion:'live',intensity:'normal',paused:true})})));
+ await page.waitForFunction(()=>{const animation=document.getAnimations().find(animation=>animation.animationName==='study-rain');return animation?.playState==='paused'&&!animation.pending;});
+ const paused=await time();await page.clock.runFor(250);assert.equal(await time(),paused,'paused animation timeline must not advance');
+}));
+
 for (const width of [375, 1440]) {
  browserTest(`dashboard clarity: study date explains the 4am rollover at ${width}px`,()=>withApp(width,async page=>{
   assert.match(await page.locator('.dashboard-page-heading p').textContent(),/공부일 · 새벽 4시 기준 갱신/);
@@ -1222,7 +1343,9 @@ export const supabase={
 async function withApp(width, run, mode='active', nativeOrigin=false, failedChunk=null) {
   const built=await build({entryPoints:[fileURLToPath(new URL('../src/main.tsx',import.meta.url))],bundle:true,write:false,outdir:'fixture',platform:'browser',format:'iife',jsx:'automatic',logLevel:'silent',define:{'import.meta.env':'{}'},plugins:[{name:'local-boundaries',setup(b){b.onResolve({filter:/^\.\/supabase$/},()=>({path:'backend',namespace:'fixture'}));b.onLoad({filter:/.*/,namespace:'fixture'},()=>({contents:backend,loader:'js'}));b.onLoad({filter:/bodyPresenceDetection\.mjs$/},()=>({contents:'export async function createUpperBodyPresenceDetector(){return {detect:()=>true,close(){}}}',loader:'js'}));b.onResolve({filter:/^\.\//},args=>failedChunk&&args.kind==='dynamic-import'&&args.path==='./'+failedChunk?{path:failedChunk,namespace:'failed-chunk'}:undefined);b.onLoad({filter:/.*/,namespace:'failed-chunk'},()=>({contents:'throw new TypeError("Failed to fetch dynamically imported module: stale-test-chunk.js"); export default function FailedChunk(){return null;}',loader:'tsx'}));b.onLoad({filter:/[\\/]src[\\/]main\.tsx$/},async({path})=>({contents:(await readFile(path,'utf8')).replace('createRoot(document.getElementById("root")!).render','(window.fixtureRoot = createRoot(document.getElementById("root")!)).render'),loader:'tsx'}));}}]});
   const js=built.outputFiles.find(f=>f.path.endsWith('.js')).text, css=built.outputFiles.find(f=>f.path.endsWith('.css'))?.text||'';
-  const server=createServer((req,res)=>{res.setHeader('Content-Type',req.url==='/app.js'?'text/javascript':req.url==='/app.css'?'text/css':'text/html');res.end(req.url==='/app.js'?js:req.url==='/app.css'?css:'<!doctype html><html lang="ko"><head><meta name="viewport" content="width=device-width,initial-scale=1"><link rel="stylesheet" href="/app.css"></head><body><div id="root"></div><script src="/app.js"></script></body></html>');});
+  const server=createServer(async(req,res)=>{
+    if(/^\/themes\/[a-z-]+\.webp$/.test(req.url)){try{res.setHeader('Content-Type','image/webp');res.end(await readFile(new URL('../public'+req.url,import.meta.url)));}catch{res.writeHead(404);res.end();}return;}
+    res.setHeader('Content-Type',req.url==='/app.js'?'text/javascript':req.url==='/app.css'?'text/css':'text/html');res.end(req.url==='/app.js'?js:req.url==='/app.css'?css:'<!doctype html><html lang="ko"><head><meta name="viewport" content="width=device-width,initial-scale=1"><link rel="stylesheet" href="/app.css"></head><body><div id="root"></div><script src="/app.js"></script></body></html>');});
   await new Promise(resolve=>server.listen(0,'127.0.0.1',resolve));let browser,page;
   try {browser=await chromium.launch({headless:true,executablePath:process.env.FEED_BROWSER_EXECUTABLE||undefined,args:['--use-fake-ui-for-media-stream','--use-fake-device-for-media-stream']});page=await browser.newPage({viewport:{width,height:960},colorScheme:'light'});page.setDefaultTimeout(5000);const errors=[];page.on('pageerror',e=>errors.push(e.message));await page.clock.install({time:new Date(mode==='attendance-goal'?'2026-10-25T06:00:00Z':'2026-09-21T14:30:00Z')});
   await page.addInitScript(()=>{window.fixtureCameraRequests=0;const get=navigator.mediaDevices?.getUserMedia?.bind(navigator.mediaDevices);if(get)navigator.mediaDevices.getUserMedia=options=>{window.fixtureCameraRequests++;return get(options);};});

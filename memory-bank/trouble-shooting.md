@@ -1,5 +1,11 @@
 # Troubleshooting
 
+## 장식 라이브 CSS 정지·대비·편집 포커스
+- 증상: :is 안의 pseudo-element 및 낮은 selector 우선순위로 live 상태에서도 CSS가 paused. 효과가 스크림 위에 있으면 최악 밝기 대비가 보장되지 않는다.
+- 해결: pseudo-element 선택자를 직접 나열하고 상태 규칙의 specificity를 맞춘다. 장면/효과/유성 위·앱 콘텐츠 뒤에 고정 #root::after scrim을 둔다.
+- 키보드 편집 버튼 제거 시 focus가 body로 빠지는 문제는 entry 유지+aria-expanded/controls·선택 라디오 진입·취소/적용/Escape 복원으로 해결했다. 저장 실패 뒤 타 탭의 실제 저장값과 일치하면 persistent 안내를 복구한다.
+- 재발 방지: 실제 Chrome의 animation timeline 진행/동결·최악 흑/백 scrim 대비·Enter/Arrow/취소 초점·기기 저장 실패→타 탭 회복을 RED→GREEN으로 검사한다. 최소화/물리 기기 수용과 가짜 visibility 검사 결과를 혼동하지 않는다. prd-study-themes.md.
+
 ## 오늘 하위 탭·설정 분류를 열지 않아 다크 대비 누락
 - 증상: 기록 시간 숫자/목표 설명이1.13~1.61:1, 주간 밝은 카드/배지에 옅은 글자가 남음. 계획 시간 배지·집중 연결 상태·설정 알림에도 낮은 대비.
 - 원인: 부모 카드만 테마를 받고 strong/p·weekly day/stats/marker/stage·배지는 styles.css의 고정 라이트 값 유지. 기존 전역 탭 순회는 today=focus·settings=account만 검사했다.

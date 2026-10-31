@@ -12,7 +12,7 @@
         background: #f4f6f3;
         color: #20332b;
       }
-      :root[data-study-theme="dark"] { color-scheme: dark; background: #151d19; color: #e7eee9; }
+      :root[data-study-theme="dark"] { color-scheme: dark; background: #111318; color: #eef0f5; }
       html,
       body {
         background: inherit;
@@ -26,7 +26,15 @@
         const dark = preference === 'dark' || (preference !== 'light' && matchMedia('(prefers-color-scheme: dark)').matches);
         document.documentElement.dataset.studyTheme = dark ? 'dark' : 'light';
         document.documentElement.style.colorScheme = dark ? 'dark' : 'light';
-        document.querySelector('meta[name="theme-color"]').setAttribute('content', dark ? '#151d19' : '#f4f6f3');
+        document.querySelector('meta[name="theme-color"]').setAttribute('content', dark ? '#111318' : '#f4f6f3');
+        let ambience;
+        try { ambience = JSON.parse(localStorage.getItem('study-room-atmosphere')); } catch {}
+        const backgrounds = ['charcoal', 'dawn-city', 'night-alley', 'star-sea', 'sunset-sky', 'rain-library'];
+        document.documentElement.dataset.studyBackground = backgrounds.includes(ambience?.background) ? ambience.background : 'charcoal';
+        document.documentElement.dataset.studyMotion = 'static';
+        document.documentElement.dataset.studyIntensity = ambience?.intensity === 'normal' ? 'normal' : 'subtle';
+        const background = document.documentElement.dataset.studyBackground;
+        document.documentElement.style.setProperty('--study-scene', background === 'charcoal' ? 'none' : `url("/themes/${background}.webp")`);
       })();
     </script>
     <title>강제 출석 독서실</title>

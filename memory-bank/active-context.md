@@ -1,7 +1,10 @@
 # Active Context
-- 갱신: 2026-10-29 23:55 JST · 도구: codex
+- 갱신: 2026-10-31 20:06 JST · 도구: codex
 - 루트/브랜치: C:/jini-dev/worktrees/study-dashboard-clarity · fix/study-dashboard-clarity · 제품bda9e89 push/운영배포 완료·출시문서 후속커밋. 원래 study-room-desktop-current의 native/auth/lock/인계 dirty는 그대로 보존한다.
-- 현재 목표/완료 기준: 추가 제보된 오늘→기록의 시간/목표·주간 숲길 다크 대비 재점검. 오늘 집중/계획 체크리스트/생활계획표/기록과 설정5분류를 각각 연다.375/640/1440·200%·목표 유무/주간 모든 단계/달성 전후·4.5:1·기존 라이트7:1·기록 불변→전체 Chrome/verify7·독립검토·운영 READY/HTTP200.
+- 현재 목표/완료 기준: 사용자가 6종 목업과 라이브 진행 승인. 중립 차콜/6종 정적/별빛 바다·비 오는 서재 라이브·강도·명시적 일시정지를 기기 설정에 구현. 기존 학습/인증/카메라/native 상태 불변, 전체 Chrome·공식verify7·독립 검토 후 기존 production workflow·정확SHA/READY/alias/HTTP200 확인.
+- 목업 완료: image-to-code + imagegen으로 6종 공부 화면과 설정 선택 화면 생성·직접 시각 검토. output/theme-mockups-2026-10-30/README.md 및 PNG7개(검토용·예시 데이터). 중립 차콜 패널/동일 조작 위치·모드와 배경 분리·기기 저장 방향. 이미지의 사이드바를 내비게이션 개편 승인으로 해석하지 않는다. 실제 배경은 별도 원본 제작, 썸네일/장면 일치·명도 대비·모바일/성능은 구현 때 검증.
+- 구현: atmosphere controller/설정 editor/CSS pseudo-effects·고정 scrim·prepaint/허용값·키보드 초점·타 탭 저장 안내, 5종 원본 WebP+같은 원본 thumb(총729810bytes). appearance 기존 모드 키 보존·다크만 중립 팔레트. 신규 PRD/architecture/progress/trouble/검증 문서 갱신. 메뉴·학습/인증/API/DB·모바일/native 코드·설치파일 불변.
+- 최종 검증: 단위19/19·독립C0/I0/M0. 최초전체1542/1543·pending CSS 정지 시점 검사1실패(6ms)를 테스트 대기 보완. 최종 actualStudyMounted217/217(고유217/실패·생략·취소0/489979ms/exit0)+나머지1326=1543개·예상밖 실패0을 대조. 공식verify7/Dune0/exit0·docs/diff 통과. 실제 CSS timeline 진행/동결 확인, desktop backgroundThrottling=false의 visible 잔류는 blur/focus 장식 제어로 보완. 운영 배포만 대기.
 - 현재 완료: 실제 문자/배경/배지를 의미 토큰에 연결. valid RED1.13~2.43:1→라이트7:1/720px divider 교정·독립C0/I0/M0. 병렬 중지/최초 순차1518+로딩1실패와 구분해 최종 actualStudyMounted201/201(중복0/실패·생략·취소0/exit0)+나머지1318=1519항목 통과. verify7/Dune0/exit0. bda9e89·Actions40894773028 success·dpl_uV9N15iRrjaHZtCziq5cnNN1Ffsg READY/정확SHA/운영alias·HTML/JS/CSS200/새규칙·기존planner/picker 보존·직후error/fatal그룹없음. docs/verification/2026-10-29-dark-record-contrast.md.
 - 실제 앱 수용: 사용자 미사용/새로고침 승인 후 기존 StudyRoom 창 Ctrl+R. 로그인·학습 요약 불변, 기록/목표/주간 카드·계획표·펼친 알림 추천시간/안내 확인. 설정/공부/카메라 값 조작 없이 기록 탭에 복귀. 개인값/실제 창 이미지는 문서에 저장하지 않는다.
 - 현재 완료: appTheme.css33줄 로컬팔레트/고정자식색 교정. 입력/빈/선택/시간/저장중/오류·펼친보조/desktop경로와 라이트7:1 보존. 최종A70/B71/C48/other1318=1507/1507·실패/생략/취소0·이름중복0, 순차verify7/Dune0/exit0·독립C/I/M0.68ce558·Actions40875906255 success·Vercel dpl_4Vch7TxQAaGVydkuvJpxiyoQUzbe READY/정확SHA/운영alias·HTML/JS/CSS200/새토큰·기존계획표/요약보존 확인·직후error/fatal그룹없음. 실패/중지/VM제한은구분기록. docs/verification/2026-10-29-dark-contrast.md.
@@ -14,7 +17,7 @@
 - 검증: 최종 source의 dashboard-clarity-full-final.log 전체1492/1492(실패/생략/취소0),628667ms/exit0·dashboard-clarity-verify-final.log 공식verify7/Dune0 통과. 최초 실패와 최종 통과를 구분한다. 배포 CI의 테스트/모바일/docs/Edge/build·기존 합성무료AI2종도 success다.
 - 배포 완료: 사용자 ‘운영 배포 진행’ 승인→기존 workflow_dispatch Actions40867222261 success. source42098dc80198ad9448af1c8d5cf02b70920ac676(제품7dd5a14와 코드 동일)·dpl_J2pc51wrLCiXBAbnf52xFczcakdV READY/production/정확SHA/운영alias 확인.
 - 배포 대상: team_LaN4bwvH4msrzoQtIw3fqsUj / prj_u2Q9FKwNeVjwwtVOjuXNMZRpkR3g / https://study-room-attendance.vercel.app. HTML/index-CfoCVg92.js/index-CsFgid5K.css/숲DUFxrpsW/피드D8sqgOKH 모두HTTP200·새문구/접기/숲요약/번역표시 확인. main/보호브랜치 직접push·merge 없음.
-- 다음: 이번 다크 대비 수정·운영 배포·실제 Windows 앱 반영은 완료. 출시 문서 push 후 owner codex-dark-record-20261029 claim 해제. Android/iOS 물리 기기/이전 native 미해결·번역 한도는 별도 범위이며 이번 결과로 완료를 주장하지 않는다.
+- 다음: 현재 기능 브랜치 명시 stage/커밋/push→기존 vercel-production.yml workflow_dispatch→Vercel READY/정확SHA/운영 HTML/JS/CSS·자산10개200/해시·로그 확인. owner codex-atmosphere-20261031 claim 유지. 실제 Windows 앱 refresh/테마 시험·원래 설정 복원은 async 질문 답변 전까지 하지 않는다. 물리 기기/실제 최소화/GPU·배터리·기존 native 미해결·번역 한도 별도.
 - 테스트 명령: FEED_BROWSER_MODULE=C:/jini-dev/project/study-notes/node_modules/playwright/index.mjs, FEED_BROWSER_EXECUTABLE=C:/Program Files/Google/Chrome/Application/chrome.exe, node --test --test-concurrency=2 packages/core/test/*.test.mjs apps/web/test/*.test.mjs server/ai/*.test.mjs scripts/*.test.mjs supabase/functions/_shared/*.test.mjs. 공식 ai.ps1 verify --project <root>는7명령과경계.
 - 주의: 실제 사용자 공부/카메라 시작·종료/회복/계정 데이터 조작 없음. 기존 Windows 설치0.1.9·native 미해결과 실제 Android/iOS/물리 기기 수용은 원래 worktree 인계를 따른다. 새APK/Windows 설치 파일 없음.
 - 문서: prd-hig-ui·prd-tech-feed·prd-study-forest·architecture-map·progress·trouble-shooting, docs/verification/2026-10-29-dashboard-clarity.md. 그림/원문 로그는 ignored output/ 및 *clarity*.log.

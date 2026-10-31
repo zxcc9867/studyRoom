@@ -15,7 +15,7 @@ export function createAppearanceController(host) {
     const theme = preference === 'system' ? media.matches ? 'dark' : 'light' : preference;
     host.document.documentElement.dataset.studyTheme = theme;
     host.document.documentElement.style.colorScheme = theme;
-    host.document.querySelector('meta[name="theme-color"]')?.setAttribute('content', theme === 'dark' ? '#151d19' : '#f4f6f3');
+    host.document.querySelector('meta[name="theme-color"]')?.setAttribute('content', theme === 'dark' ? '#111318' : '#f4f6f3');
     if (snapshot?.preference === preference && snapshot.theme === theme && snapshot.persistent === persistent) return;
     snapshot = Object.freeze({ preference, theme, persistent });
     listeners.forEach(listener => listener());
