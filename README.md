@@ -2,6 +2,22 @@
 
 [English](README.md) | [한국어](README.ko.md) | [日本語](README.ja.md)
 
+## Shared interface and Windows app
+
+- The HIG-inspired interface gives login, study, reflections, reports, calendars and dialogs a common visual style. Personal/team study navigation stays in a consistent position.
+- Settings groups **Account / Study and appearance / Notifications / Device connections / App information**. View current values first, then choose edit, cancel or save; changing groups preserves drafts and pending saves.
+- Choose **System / Light / Dark** under study and appearance. The preference is saved on the current device; system mode follows its OS theme. Dark text contrast also covers expanded controls and study records.
+- The planner uses the shared theme and states the **04:00 study-day boundary**. My Page and the forest prioritize summaries, next actions and growth, with detailed histories in expandable sections.
+- The technical feed shows an available Korean introduction before an English AI summary and labels translation state and summary language. This display change does not restore an exhausted translation quota or guarantee translation for every article.
+
+The Windows app source wraps the existing hosted interface. Closing its window with **X** hides it in the tray and keeps study/camera activity running; use the tray to reopen it or request a checked exit. **Windows release status:** Git contains desktop version **0.1.1**, while the handoff dated **2026-10-29** records an installed **0.1.9** with separate uncommitted native fixes. Those later fixes are not reproducible from this checkout yet. The recorded installer is unsigned, and no public Windows installer release is published. See the [Windows verification](docs/windows-desktop/verification-20261025.md) and [current status](memory-bank/active-context.md); this integration does not produce a new installer.
+
+| Desktop layout | Narrow-screen layout |
+| --- | --- |
+| ![Actual shared Today interface at 1440 px with synthetic study and task data](docs/images/hig-today-1440.png) | ![Actual shared Today interface at 375 px with synthetic study and task data](docs/images/hig-today-375.png) |
+
+These existing Chrome captures run the actual React components with synthetic data and illustrate the initial shared interface, not all later settings/dark-mode states or physical-device acceptance. Details: [capture scope](docs/verification/2026-10-26-hig-ui-auth.md), [settings](docs/verification/2026-10-29-settings-redesign.md), [appearance](docs/verification/2026-10-29-dark-navigation.md), [planner, forest and feed](docs/verification/2026-10-29-dashboard-clarity.md), [later contrast verification](docs/verification/2026-10-29-dark-record-contrast.md). Earlier screenshots below document their respective feature checks.
+
 ## Attendance and daily study goals are separate
 
 Starting a valid study session once earns **attendance** for that study day, even if the session ends before the reminder. A study day runs from **04:00 to the next 04:00 in your selected time zone**; a session stays assigned to its starting study day. The weekday **2-hour** and weekend **4-hour** goals measure study progress separately. Falling short of the goal does not mark you absent or require a recovery routine.
