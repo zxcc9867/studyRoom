@@ -46,4 +46,12 @@
 - Vercel dpl_388xRSPwnZrEVMJMHzJv7r1EGaF2: READY/production/정확 githubCommitSha 및 study-room-attendance.vercel.app alias 확인. 기존 team/project 일치.
 - 공개 https://study-room-attendance.vercel.app HTML·/assets/index-De8WtS_a.js·/assets/index-BefEcz02.css 모두200·새 테마 코드/CSS 확인. 원본5+축소본5 모두200/image-webp·크기 및 SHA256 로컬과 일치. output/atmosphere-public-final.log.
 - 배포 직후 해당 deployment의 최근5분 error/fatal level 그룹 조회는 빈 목록이었다. 장기 무장애 보장이나 모니터링 구성/물리 기기 수용 확인으로 해석하지 않는다.
-- 실제 Windows 앱 refresh/테마 시험·원래 설정 복원은 사용자 async 허용 답변 전까지 실행하지 않았다. 실제 Electron 트레이/실폰 GPU·배터리 수용은 후속이다. 기존 학습/계정·DB 데이터를 삭제/수정하지 않았고 APK/EXE·서명/버전/고정 설치 링크는 변경하지 않았다.
+- 실제 Windows 앱 refresh/테마 시험·원래 설정 복원은 사용자 async 허용 답변 전까지 실행하지 않았다. 이후 아래의 부분 수용을 진행했다. 실제 Electron 트레이/실폰 GPU·배터리 수용은 후속이다. 기존 학습/계정·DB 데이터를 삭제/수정하지 않았고 APK/EXE·서명/버전/고정 설치 링크는 변경하지 않았다.
+
+## 실제 Windows 앱 부분 수용 — 2026-10-31 당시 관찰
+- 아래의 설정 미변경·원복할 값 없음·원격 fetch 실패는 10/31 시점의 결과다. 최신 Android 수용/원복 완료와 Windows 시험 설정 원복 대기는 [11/1 후속 검증](2026-11-01-theme-device-acceptance.md)을 따른다.
+- 사용자 공부·카메라 미사용, 새로고침·테마 시험 후 원래 설정 복원 승인에 한정해 진행했다.
+- 실행 중인 독서실 창이 없어 기존 설치 StudyRoom.exe(제품0.1.9.0)를 실행했다. 실제 대시보드의 새 풍경 배경과 중립 차콜 다크 표면을 직접 확인했다. 개인값이나 실제 화면 이미지는 문서에 저장하지 않았다.
+- Computer Use 창 활성화에서 `failed to activate captured window`. 반환 창 목록을 다시 조회·재선택하고 화면 캡처는 성공했으나, 설정 버튼 클릭의 활성화에서도 같은 오류로 실패하여 추가 입력을 중단했다. 제품 오류·설정 저장 실패로 단정하지 않는다.
+- 테마/밝기 모드/계정·학습/카메라 설정은 바꾸지 않았고 원복할 값은 없다. 설정에서 적용·취소·라이브 재생/일시정지·원복·재실행 지속성은 실제 설치 앱에서 아직 수용하지 못했다. 기존 자동화/배포 근거와 구분한다.
+- 사용자가 실제 독서실 창을 앞으로 연 상태에서 도구 제어가 가능해지면 원래 설정을 먼저 기록하고 남은 시험과 원복을 진행한다. 이번에는 제품 코드 변경·재빌드·재배포 없음. 원격 갱신은 `git fetch origin`의 `getaddrinfo() thread failed to start`로 실패해 최신 원격 상태를 확인하지 못했다.

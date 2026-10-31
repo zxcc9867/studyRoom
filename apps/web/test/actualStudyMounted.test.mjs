@@ -29,6 +29,35 @@ for(const width of [375,1440])browserTest(`atmosphere: theme editor applies, can
  assert.deepEqual(await page.evaluate(()=>({sessions:fixture.sessions,todos:fixture.todos,recoveries:fixture.recoveries})),before);
 }));
 
+for(const width of [375,476,868,1440])for(const theme of ['light','dark'])for(const scale of [1,2])browserTest(`atmosphere: editor alignment ${theme} ${width}px ${scale}x`,()=>withApp(width,async page=>{
+ await page.emulateMedia({colorScheme:theme,reducedMotion:'reduce'});await page.waitForFunction(theme=>document.documentElement.dataset.studyTheme===theme,theme);
+ if(scale===2)await page.addStyleTag({content:'html {font-size:200%;}'});
+ const before=await page.evaluate(()=>structuredClone({sessions:fixture.sessions,todos:fixture.todos,recoveries:fixture.recoveries,cameraRequests:fixtureCameraRequests}));
+ await page.locator('a[href="#settings"]:visible').first().click();await settingsCategory(page,'공부와 화면');
+ await page.getByRole('button',{name:'배경 테마 변경',exact:true}).click();const editor=page.getByRole('group',{name:'배경 테마 편집',exact:true});
+ await editor.getByRole('radio',{name:'별빛 바다',exact:true}).check();await editor.getByRole('radio',{name:'라이브',exact:true}).check();
+ for(const group of await editor.locator('.atmosphere-controls').all()){
+  const labels=await group.locator('label').all(),a=await labels[0].boundingBox(),b=await labels[1].boundingBox();
+  assert.ok(Math.abs(a.y-b.y)<1||Math.abs(a.x-b.x)<1,'paired options align on one row or stack on the same edge');assert.ok(Math.abs(a.width-b.width)<1,'paired options have equal widths');
+  const legend=await group.locator('legend').boundingBox();assert.ok(legend.y+legend.height<=a.y+1,'group title sits above both options');
+  for(const label of labels){const box=await label.boundingBox();assert.ok(box.height>=44&&box.width>=44,'option keeps a touch target');assert.equal(await label.evaluate(el=>el.scrollWidth<=el.clientWidth),true,'option text fits');}
+ }
+ const brokenWords=await editor.locator('.atmosphere-option-name').evaluateAll(names=>names.flatMap(el=>{
+  const node=el.firstChild,text=node.textContent,words=[...text.matchAll(/\S+/gu)];
+  return words.flatMap(word=>{const range=document.createRange();range.setStart(node,word.index);range.setEnd(node,word.index+word[0].length);return range.getClientRects().length>1?[word[0]]:[];});
+ }));assert.deepEqual(brokenWords,[],'theme names never split a Korean word');
+ assert.equal(await editor.locator('.atmosphere-selected:not(:empty)').evaluate(el=>{const range=document.createRange();range.selectNodeContents(el);const text=range.getBoundingClientRect(),badge=el.getBoundingClientRect();return text.left>=badge.left&&text.right<=badge.right&&text.top>=badge.top&&text.bottom<=badge.bottom;}),true,'selection mark stays inside its badge at text zoom');
+ const cards=await editor.locator('.atmosphere-option').all();for(const card of cards)assert.equal(await card.evaluate(el=>el.scrollWidth<=el.clientWidth),true,'card label fits');
+ const boxes=await Promise.all(cards.map(card=>card.boundingBox()));
+ const columns=boxes.filter(box=>Math.abs(box.y-boxes[0].y)<1).length;
+ assert.equal(columns,width===1440?(scale===1?3:2):(scale===1?2:1),'cards adapt to the available panel width, including the narrow 868px desktop layout');
+ assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),true,'editor reflows without horizontal scrolling');
+ await readableGroup(editor.locator('legend,.atmosphere-option-name,.atmosphere-controls label,p,button'));
+ if(theme==='dark'){await mkdir('output/playwright',{recursive:true});await editor.screenshot({path:`output/playwright/theme-editor-alignment-${width}-${scale}x.png`});}
+ await editor.getByRole('button',{name:'취소',exact:true}).click();assert.equal(await page.evaluate(()=>document.documentElement.dataset.studyBackground),'charcoal');
+ assert.deepEqual(await page.evaluate(()=>({sessions:fixture.sessions,todos:fixture.todos,recoveries:fixture.recoveries,cameraRequests:fixtureCameraRequests})),before);
+}));
+
 browserTest('atmosphere: live CSS pauses for reduced motion and hidden windows without changing active study',()=>withApp(1440,async page=>{
  await page.emulateMedia({colorScheme:'dark',reducedMotion:'no-preference'});
  const before=await page.evaluate(()=>structuredClone({sessions:fixture.sessions,todos:fixture.todos,recoveries:fixture.recoveries}));

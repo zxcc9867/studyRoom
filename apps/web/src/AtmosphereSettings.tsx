@@ -27,10 +27,10 @@ export default function AtmosphereSettings() {
       </label>)}</div>
       {liveAvailable && <>
         <fieldset className="atmosphere-controls"><legend>배경 움직임</legend>
-          {(['static', 'live'] as const).map(value => <label key={value}><input type="radio" name={`${id}-motion`} checked={draft.motion === value} onChange={() => setDraft({...draft, motion: value, paused: false})} /><span>{value === 'live' ? '라이브' : '정적'}</span></label>)}
+          <div className="atmosphere-control-options">{(['static', 'live'] as const).map(value => <label key={value}><input type="radio" name={`${id}-motion`} checked={draft.motion === value} onChange={() => setDraft({...draft, motion: value, paused: false})} /><span>{value === 'live' ? '라이브' : '정적'}</span></label>)}</div>
         </fieldset>
         {draft.motion === 'live' && <fieldset className="atmosphere-controls"><legend>움직임 강도</legend>
-          {(['subtle', 'normal'] as const).map(value => <label key={value}><input type="radio" name={`${id}-intensity`} checked={draft.intensity === value} onChange={() => setDraft({...draft, intensity: value})} /><span>{value === 'subtle' ? '잔잔하게' : '보통'}</span></label>)}
+          <div className="atmosphere-control-options">{(['subtle', 'normal'] as const).map(value => <label key={value}><input type="radio" name={`${id}-intensity`} checked={draft.intensity === value} onChange={() => setDraft({...draft, intensity: value})} /><span>{value === 'subtle' ? '잔잔하게' : '보통'}</span></label>)}</div>
         </fieldset>}
       </>}
       <p>이 기기에 적용됩니다. 라이브 효과는 소리 없이 재생됩니다.</p>

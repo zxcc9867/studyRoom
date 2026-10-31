@@ -1,5 +1,19 @@
 # Troubleshooting
 
+## 좁은 테마 패널의 카드 이름·선택 버튼 정렬 — 2026-11-01
+- 증상: 한글 단어 중간 줄바꿈, 정적/라이브와 강도 옵션이 서로 다른 왼쪽선으로 밀렸다.
+- 원인: 카드 열을 viewport만으로 결정해 좁은 PC 패널에 3열이 남고, `overflow-wrap:anywhere`·체크 표시가 이름 폭을 줄였다. floated legend와 flex-wrap/가변폭 옵션이 겹쳤다.
+- 해결: atmosphere-settings inline-size container로 3/2/1열을 결정하고 keep-all·모서리 체크를 사용한다. legend를 위에 두고 별도 grid wrapper에 동일 폭 옵션을 배치한다. 부족한 폭은 전폭 같은 왼쪽선으로 쌓는다.
+- 재발 방지: 375/476/868/1440·라이트/다크·100/200% 실제 DOM 좌표로 옵션 정렬/동일 폭·제목 위치·단어 Range/체크 glyph 내부·넘침을 검증하고 기존 저장/취소·학습·카메라 상태를 유지한다. docs/verification/2026-11-01-theme-editor-alignment.md.
+
+## 제한 환경 ADB socketpair 실패와 실제 테마 검증 — 2026-11-01
+- 증상: ADB37.0.1 start-server가 daemon 응답을 읽지 못하고 foreground는 `fdevent interrupt socketpair: Invalid argument`로 종료. 같은 바이너리의 승인된 제한 밖 start-server는 성공했다.
+- 해결: 기존 SDK/AVD 데이터와 보안 설정을 유지하고 제한 밖 ADB/기존 Android16 AVD를 사용한다. 설치/초기화·다른 ADB 버전 교체로 해결한 것으로 기록하지 않는다.
+- 재발 방지: SDK 경로/PATH 부재, 로컬 서버 시작 실패, 기기 offline/부팅을 구분하고 `nodaemon server`의 원문 원인과 동일 바이너리 대조를 남긴다. 이번 원격 fetch도 같은 제한 밖에서 성공했다.
+- 같은 실행 제한에서 `gh auth status`가 invalid로 나왔지만 제한 밖에서는 기존 keyring 연결이 유효했다. 이번 비교에서는 로그아웃/재인증 없이 해결됐으므로 제한된 네트워크 결과만으로 토큰 만료로 단정하지 않는다.
+- 실제 애니메이션은 이미지 최초 로딩/스크롤이 끝난 안정 화면에서 비교한다. 불투명 카드·장식이 없는 여백의 0픽셀을 정지 증거로 쓰지 않는다. 인증 WebView DevTools 거절은 UI 입력/PNG 분석으로 대체하며 인증 접근을 우회하지 않는다.
+- Windows `failed to activate captured window`는 재선택/재시도·표준Raise도 실패. 테마 원복을 완료로 표시하지 말고 사용자 창 활성화/직접 원복 후 확인한다. 상세 docs/verification/2026-11-01-theme-device-acceptance.md.
+
 ## 장식 라이브 CSS 정지·대비·편집 포커스
 - 증상: :is 안의 pseudo-element 및 낮은 selector 우선순위로 live 상태에서도 CSS가 paused. 효과가 스크림 위에 있으면 최악 밝기 대비가 보장되지 않는다.
 - 해결: pseudo-element 선택자를 직접 나열하고 상태 규칙의 specificity를 맞춘다. 장면/효과/유성 위·앱 콘텐츠 뒤에 고정 #root::after scrim을 둔다.
