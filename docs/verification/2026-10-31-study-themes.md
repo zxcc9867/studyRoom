@@ -3,7 +3,7 @@
 ## 대상과 상태
 - 기준: fix/study-dashboard-clarity / d83dabb. origin/main과 제품 소스 차이는 없고 README/인계 문서 후속 변경만 있는 상태를 확인했다. main은 변경하지 않는다.
 - 승인: 6종 목업 방향과 라이브 추가 진행. 기존 메뉴·계정·학습·카메라·타이머·DB·인증·네이티브 lifecycle은 유지한다.
-- 현재: 구현·최종 회귀/공식 verify/독립 검토 완료. 운영 배포 확인 대기.
+- 현재: 구현·최종 회귀/공식 verify/독립 검토·운영 배포 확인 완료.
 
 ## 구현과 범위
 - 중립 차콜 팔레트, 정적 6종, 라이브 2종. 장면/효과 위·앱 콘텐츠 뒤의 고정 스크림으로 이미지·효과의 최악 흑/백 픽셀에도 카드 밖 글자 4.5:1 경계를 검사한다.
@@ -41,5 +41,9 @@
 | rain-library.webp | original painted rainy study room; bookshelves, blue rainy window, amber lamp at edge, wood desk, closed book/mug, blurred city lights |8840c79f-35da-4db3-bd55-2d9d5c7a872b|164462 / 9516|
 - 배경 합계693850 bytes, 축소본35960 bytes. 같은 원본의 `-thumb.webp`이며 기존 이미지를 덮어쓰지 않고 원본을 보존한다. 기존 로컬 sharp로 크기/형식만 최적화했고 제품 의존성 추가는 없다. 이미지 없는 차콜은 배경 네트워크 요청이 없다.
 
-## 다음 게이트
-- 전체 Chrome/공식 verify/차이/운영 출시·정확SHA/READY/alias/HTTP200와 자산 대조를 완료한 뒤 기록한다. 운영 학습 데이터 변경·새APK/EXE는 수행하지 않는다.
+## 운영 출시와 남은 실제 기기 수용
+- 제품 c29ec20f80b055d2bab8b23d9b28a90e1b380020을 기능 브랜치에 commit/push. 기존 vercel-production.yml의 Actions41195558979가 정확 SHA로 success. 모든 기존 CI 단계와 합성 무료 AI 2종 검사를 통과했다. main 직접 push/merge·workflow 변경 없음.
+- Vercel dpl_388xRSPwnZrEVMJMHzJv7r1EGaF2: READY/production/정확 githubCommitSha 및 study-room-attendance.vercel.app alias 확인. 기존 team/project 일치.
+- 공개 https://study-room-attendance.vercel.app HTML·/assets/index-De8WtS_a.js·/assets/index-BefEcz02.css 모두200·새 테마 코드/CSS 확인. 원본5+축소본5 모두200/image-webp·크기 및 SHA256 로컬과 일치. output/atmosphere-public-final.log.
+- 배포 직후 해당 deployment의 최근5분 error/fatal level 그룹 조회는 빈 목록이었다. 장기 무장애 보장이나 모니터링 구성/물리 기기 수용 확인으로 해석하지 않는다.
+- 실제 Windows 앱 refresh/테마 시험·원래 설정 복원은 사용자 async 허용 답변 전까지 실행하지 않았다. 실제 Electron 트레이/실폰 GPU·배터리 수용은 후속이다. 기존 학습/계정·DB 데이터를 삭제/수정하지 않았고 APK/EXE·서명/버전/고정 설치 링크는 변경하지 않았다.

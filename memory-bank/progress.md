@@ -2,7 +2,7 @@
 
 ## 중립 차콜·공부 배경 테마
 
-- 상태: 구현·최종 회귀/공식verify7·독립C0/I0/M0 완료, 운영 배포 대기. 6종 정적·라이브2/강도/일시정지·기기 저장/초안/포커스·OS/숨김/비활성 제어. 단위19/19. 최초 전체1542/1543 중 pending 정지 시점 검사1실패를 교정하고 최종 mounted217/217(이름중복0/실패·생략·취소0)+나머지1326=1543개 대조 검증. Dune0/exit0. 실제 최소화·실폰 배터리/GPU 수용은 별도. 학습/인증/native/설치파일/서버 기록 불변. [검증](../docs/verification/2026-10-31-study-themes.md).
+- 상태: 운영 배포 완료. 6종 정적·라이브2/강도/일시정지·기기 저장/초안/포커스·OS/숨김/비활성 제어. 단위19/19·최종mounted217/217(고유217/실패·생략·취소0)+나머지1326=1543개 대조(최초 pending 정지 검사1실패 구분), verify7/Dune0·독립C0/I0/M0. c29ec20 push·Actions41195558979 success·dpl_388xRSPwnZrEVMJMHzJv7r1EGaF2 READY/정확SHA/alias·HTML/JS/CSS200/자산10개200·해시일치·직후error/fatal그룹없음. 실제 앱 refresh 허용 답변 전에는 조작하지 않음. 실제 최소화·실폰 GPU/배터리 수용 별도. 학습/인증/native/설치파일/DB 불변. [검증](../docs/verification/2026-10-31-study-themes.md).
 
 ## 다크 모드 내부 텍스트 대비
 
