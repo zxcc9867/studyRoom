@@ -2,7 +2,7 @@
 
 ## 중립 차콜·공부 배경 테마
 
-- 편집 정렬 보완 구현·검증 완료/배포 대기: 뷰포트 기준 카드 열·legend float와 가변폭 줄바꿈이 사진의 원인. 패널 기준 3/2/1열·한글 단어 유지·동일 폭 옵션 grid·썸네일 모서리 체크로 최소 수정. RED 재현→전체 Chrome1559/1559·최종정렬16/16(중복 합산 안 함)·실패/생략/취소0, 독립C/I/M0·verify7/Dune0·diff/docs 통과. [정렬 검증](../docs/verification/2026-11-01-theme-editor-alignment.md).
+- 편집 정렬 보완 운영 반영 완료: 패널 기준 3/2/1열·한글 단어 유지·제목 아래 동일 폭 옵션 grid·모서리 체크. RED→전체 Chrome1559/1559·최종정렬16/16(중복 합산 안 함)·실패/생략/취소0·독립C/I/M0·verify7/Dune0. ac3ef7c push·Actions41235235666 success·dpl_5TvVYovr7xPhNnQZXggS9XD8oJW7 READY/정확SHA/alias·HTML/JS/CSS200·새 코드 확인. 학습/인증/API/native·설치파일 불변. [정렬 검증](../docs/verification/2026-11-01-theme-editor-alignment.md).
 - 상태: 운영 배포 완료. 6종 정적·라이브2/강도/일시정지·기기 저장/초안/포커스·OS/숨김/비활성 제어. 단위19/19·최종mounted217/217+나머지1326=1543개 대조(최초 pending 검사1실패 구분), verify7/Dune0·독립C0/I0/M0. c29ec20/Actions41195558979 success·dpl_388xRSPwnZrEVMJMHzJv7r1EGaF2 READY/정확SHA/alias·HTML/JS/CSS/자산10개200/해시일치. [출시 검증](../docs/verification/2026-10-31-study-themes.md).
 - 실제 기기: 11/1 ADB 소켓 실패를 제한 밖 실행으로 복구. Android16/0.2.4 무초기화·초안 취소/다크/비·별빛 실제 화면 변화/비 pause·재개/COLD 로그인·테마 유지·시스템/차콜/정적/잔잔하게 원복 PASS. Windows0.1.9 초안 취소/별빛 라이브·pause/재생 UI PASS 뒤 도구 활성화 실패. **현재 Windows 별빛 라이브이며 새벽 도시·정적 원복 대기**. 두 플랫폼 전체 완료/정적6종 실제 순회로 표시하지 않는다. 네이티브 Android 상단 라이트 잔류·물리 기기/GPU/배터리 별도. 기기 시험 자체에서는 학습·카메라·DB 및 코드/설치파일/운영 설정 미변경. [기기 수용](../docs/verification/2026-11-01-theme-device-acceptance.md).
 

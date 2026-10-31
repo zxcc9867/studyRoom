@@ -1,8 +1,8 @@
 # Active Context
-- 갱신: 2026-11-01 04:38 JST · 도구: codex
-- 루트/브랜치: C:/jini-dev/worktrees/study-dashboard-clarity · fix/study-dashboard-clarity · 제품c29ec20 push/운영배포 완료·출시문서 후속커밋. 원래 study-room-desktop-current의 native/auth/lock/인계 dirty는 그대로 보존한다.
-- 현재 목표/완료 기준: 사용자 사진의 테마 편집 정렬 수정. 실제 패널 폭 3/2/1열·한글 단어 보존·제목 아래 동일 폭 선택 그룹, 375/476/868/1440·100/200%·라이트/다크 회귀 후 운영 배포. 학습/카메라/인증/API/native 상태 불변. 이전 기기 시험의 Windows 원복 대기는 별도로 유지한다.
-- 현재 수정: AtmosphereSettings는 라디오 쌍 wrapper만 추가, atmosphere.css는 container/grid·legend float 제거·체크 표시 모서리 배치. RED 476/dark/200% 실패→전체 Chrome1559/1559·실패/생략/취소0/617606ms/exit0. 체크 glyph/실제 열 개수 최종16/16 재통과(중복 합산 안 함), 독립C0/I0/M0·공식verify7/Dune0/exit0·docs/diff 통과. 커밋·push·배포는 다음 단계. docs/verification/2026-11-01-theme-editor-alignment.md.
+- 갱신: 2026-11-01 04:43 JST · 도구: codex
+- 루트/브랜치: C:/jini-dev/worktrees/study-dashboard-clarity · fix/study-dashboard-clarity · 제품ac3ef7c push/운영 배포 완료·출시문서 후속커밋. 원래 study-room-desktop-current의 native/auth/lock/인계 dirty는 그대로 보존한다.
+- 현재 완료: 사용자 사진의 테마 편집 정렬 수정·운영 반영. 실제 패널 폭 3/2/1열·한글 단어 보존·제목 아래 동일 폭 선택 그룹, 375/476/868/1440·100/200%·라이트/다크 검증. 학습/카메라/인증/API/native 코드 불변. 이전 기기 시험의 Windows 원복 대기는 별도로 유지한다.
+- 현재 검증/출시: RED 476/dark/200% 실패→전체 Chrome1559/1559·실패/생략/취소0/617606ms/exit0. 체크 glyph/실제 열 개수 최종16/16 재통과(중복 합산 안 함), 독립C0/I0/M0·공식verify7/Dune0/exit0·docs/diff 통과. ac3ef7c/Actions41235235666 success·dpl_5TvVYovr7xPhNnQZXggS9XD8oJW7 READY/정확SHA/production alias·HTML/JS index-CLFVl0e7/CSS index-CGlHSol5 모두200·새 wrapper/container/grid 확인·직후 error/fatal그룹없음. docs/verification/2026-11-01-theme-editor-alignment.md.
 - 목업 완료: image-to-code + imagegen으로 6종 공부 화면과 설정 선택 화면 생성·직접 시각 검토. output/theme-mockups-2026-10-30/README.md 및 PNG7개(검토용·예시 데이터). 중립 차콜 패널/동일 조작 위치·모드와 배경 분리·기기 저장 방향. 이미지의 사이드바를 내비게이션 개편 승인으로 해석하지 않는다. 실제 배경은 별도 원본 제작, 썸네일/장면 일치·명도 대비·모바일/성능은 구현 때 검증.
 - 구현: atmosphere controller/설정 editor/CSS pseudo-effects·고정 scrim·prepaint/허용값·키보드 초점·타 탭 저장 안내, 5종 원본 WebP+같은 원본 thumb(총729810bytes). appearance 기존 모드 키 보존·다크만 중립 팔레트. 신규 PRD/architecture/progress/trouble/검증 문서 갱신. 메뉴·학습/인증/API/DB·모바일/native 코드·설치파일 불변.
 - 최종 검증: 단위19/19·독립C0/I0/M0. 최초전체1542/1543·pending CSS 정지 시점 검사1실패(6ms)를 테스트 대기 보완. 최종 actualStudyMounted217/217(고유217/실패·생략·취소0/489979ms/exit0)+나머지1326=1543개·예상밖 실패0 대조. 공식verify7/Dune0/exit0·docs/diff 통과. 실제 CSS timeline 진행/동결 확인, desktop backgroundThrottling=false의 visible 잔류는 blur/focus 장식 제어로 보완.
@@ -22,7 +22,7 @@
 - 검증: 최종 source의 dashboard-clarity-full-final.log 전체1492/1492(실패/생략/취소0),628667ms/exit0·dashboard-clarity-verify-final.log 공식verify7/Dune0 통과. 최초 실패와 최종 통과를 구분한다. 배포 CI의 테스트/모바일/docs/Edge/build·기존 합성무료AI2종도 success다.
 - 배포 완료: 사용자 ‘운영 배포 진행’ 승인→기존 workflow_dispatch Actions40867222261 success. source42098dc80198ad9448af1c8d5cf02b70920ac676(제품7dd5a14와 코드 동일)·dpl_J2pc51wrLCiXBAbnf52xFczcakdV READY/production/정확SHA/운영alias 확인.
 - 배포 대상: team_LaN4bwvH4msrzoQtIw3fqsUj / prj_u2Q9FKwNeVjwwtVOjuXNMZRpkR3g / https://study-room-attendance.vercel.app. HTML/index-CfoCVg92.js/index-CsFgid5K.css/숲DUFxrpsW/피드D8sqgOKH 모두HTTP200·새문구/접기/숲요약/번역표시 확인. main/보호브랜치 직접push·merge 없음.
-- 다음: 기능 브랜치 명시 경로 커밋·push→기존 production workflow→정확SHA READY/alias/HTTP200 확인·문서 후속 갱신. 사용자 창 앞으로 열기/직접 원복 응답 후 **Windows 원래 시스템/새벽 도시/정적/잔잔하게·pause=false 복원**은 별도 계속 필요하다. 활성화 실패를 강제 종료/다른 UI 제어로 우회하지 않는다. Android 원복 완료·로그인/오늘 상태 유지. 물리 기기/실제 최소화/GPU·배터리/native 별도.
+- 다음: 정렬 수정은 배포 완료, 새 APK/EXE 없이 공부·카메라 미사용 시 공통 웹 화면 재로드로 적용. 사용자 창 앞으로 열기/직접 원복 응답 후 **Windows 원래 시스템/새벽 도시/정적/잔잔하게·pause=false 복원**은 별도 계속 필요하다. 활성화 실패를 강제 종료/다른 UI 제어로 우회하지 않는다. Android 원복 완료·로그인/오늘 상태 유지. 물리 기기/실제 최소화/GPU·배터리/native 별도.
 - 테스트 명령: FEED_BROWSER_MODULE=C:/jini-dev/project/study-notes/node_modules/playwright/index.mjs, FEED_BROWSER_EXECUTABLE=C:/Program Files/Google/Chrome/Application/chrome.exe, node --test --test-concurrency=2 packages/core/test/*.test.mjs apps/web/test/*.test.mjs server/ai/*.test.mjs scripts/*.test.mjs supabase/functions/_shared/*.test.mjs. 공식 ai.ps1 verify --project <root>는7명령과경계.
 - 주의: 실제 사용자 공부/카메라 시작·종료/회복/계정 데이터 조작 없음. 기존 Windows 설치0.1.9·native 미해결과 실제 Android/iOS/물리 기기 수용은 원래 worktree 인계를 따른다. 새APK/Windows 설치 파일 없음.
 - 문서: prd-hig-ui·prd-tech-feed·prd-study-forest·architecture-map·progress·trouble-shooting, docs/verification/2026-10-29-dashboard-clarity.md. 그림/원문 로그는 ignored output/ 및 *clarity*.log.
