@@ -10,6 +10,42 @@ const ORIGIN = 'https://study-room-attendance.vercel.app';
 const defer = () => { let resolve; const promise = new Promise(r => { resolve = r; }); return { promise, resolve }; };
 const idle = { userId: 'u', ready: true, session: null, cameraActive: false, operationPending: false, activity: 'allowed' };
 
+test('native callback diagnostics distinguish receipt, validation and completion without recording URLs', async () => {
+  const stages = [];
+  const f = fixture({ runtime: { onAuthDiagnostic: stage => stages.push(stage) }, auth: { handleCallback: async () => ({}) } });
+  await f.runtime.handleCallback('studyroom-desktop://auth/callback?code=synthetic-private-code');
+  assert.deepEqual(stages, ['callback.received', 'callback.validated', 'callback.completed']);
+  f.runtime.dispose();
+});
+
+test('native callback diagnostic failure records only an allowlisted code', async () => {
+  const stages = [];
+  const f = fixture({ runtime: { onAuthDiagnostic: stage => stages.push(stage) },
+    auth: { handleCallback: async () => { throw Error('private dependency text'); } } });
+  await f.runtime.handleCallback('studyroom-desktop://auth/callback?code=synthetic-private-code');
+  assert.deepEqual(stages, ['callback.received', 'callback.validated', 'callback.failed.INTERNAL_ERROR']);
+  f.runtime.dispose();
+});
+
+test('second-instance diagnostics identify a missing callback argument without storing command lines', async () => {
+  const stages = [];
+  const f = fixture({ runtime: { onAuthDiagnostic: stage => stages.push(stage) } });
+  f.app.emit('second-instance', {}, ['app.exe', 'private-other-argument']);
+  assert.deepEqual(stages, ['second-instance.received', 'second-instance.callback-missing']);
+  f.runtime.dispose();
+});
+
+for (const [suffix, shape] of [['#', 'fragment-present'], ['&iss=https%3A%2F%2Fsynthetic.test', 'extra-query']]) {
+  test(`callback shape diagnostic identifies ${shape} without weakening callback rejection`, async () => {
+    const stages = [];
+    const f = fixture({ runtime: { onAuthDiagnostic: stage => stages.push(stage) },
+      auth: { handleCallback: async () => assert.fail('malformed callback cannot reach auth') } });
+    await f.runtime.handleCallback('studyroom-desktop://auth/callback?code=synthetic-private-code' + suffix);
+    assert.deepEqual(stages, ['callback.received', `callback.${shape}`, 'callback.failed.INVALID_CALLBACK']);
+    f.runtime.dispose();
+  });
+}
+
 function fixture(options = {}) {
   assert.equal(typeof module.createDesktopRuntime, 'function', 'desktop runtime feature must exist');
   const calls = { loads: [], external: [], dialogs: [], quit: 0, events: [], hidden: 0, shown: 0, authReads: 0 };
@@ -80,6 +116,28 @@ function fixture(options = {}) {
   const navigate = () => { contents.emit('did-start-navigation', { url: ORIGIN + '/', isMainFrame: true, isSameDocument: false }); };
   return { calls, runtime, request, event, contents, app, life, navigate, advance: ms => { clock += ms; } };
 }
+
+test('runtime cleanup after window destruction denies permissions without reading destroyed WebContents', () => {
+  const f = fixture();
+  f.calls.window.isDestroyed = () => true;
+  f.contents.isDestroyed = () => true;
+  Object.defineProperty(f.contents, 'session', { get() { throw new TypeError('Object has been destroyed'); } });
+  assert.doesNotThrow(() => f.runtime.dispose());
+  assert.equal(f.calls.permissionCheck(f.contents, 'media', ORIGIN, { mediaType: 'video' }), false);
+  let permission;
+  f.calls.permissionRequest(f.contents, 'media', allowed => { permission = allowed; }, { mediaTypes: ['video'] });
+  assert.equal(permission, false);
+});
+
+test('runtime disposal releases its resources only once', () => {
+  let disposed = 0;
+  const f = fixture({ auth: { dispose() { disposed++; } } });
+  f.runtime.dispose();
+  f.calls.window.isDestroyed = () => true;
+  Object.defineProperty(f.contents, 'session', { get() { throw new TypeError('Object has been destroyed'); } });
+  assert.doesNotThrow(() => f.runtime.dispose());
+  assert.equal(disposed, 1);
+});
 
 test('IPC accepts only owning current trusted main frame and never leaks dependency errors', async () => {
   const f = fixture({ auth: { sendCode: async () => { throw Error('secret dependency error'); } } });
@@ -219,6 +277,45 @@ test('second launch restores existing window and never loads another document', 
   f.app.emit('second-instance', {}, ['StudyRoom.exe']);
   assert.ok(f.calls.shown > 0);
   assert.equal(f.calls.loads.length, 1);
+});
+
+for (const minimized of [false, true]) {
+  test(`provider completion raises the existing ${minimized ? 'minimized' : 'background'} window without permanent topmost or study actions`, () => {
+    const f = fixture();
+    const actions = [];
+    f.calls.window.isMinimized = () => minimized;
+    f.calls.window.restore = () => actions.push('restore');
+    f.calls.window.show = () => actions.push('show');
+    f.calls.window.moveTop = () => actions.push('raise');
+    f.calls.window.focus = () => actions.push('focus');
+    f.calls.window.setAlwaysOnTop = () => assert.fail('must not change persistent topmost');
+    f.runtime.restoreAfterProvider();
+    assert.deepEqual(actions, minimized ? ['restore', 'show', 'raise', 'focus'] : ['show', 'raise', 'focus']);
+    assert.equal(f.calls.loads.length, 1);
+    assert.equal(f.calls.events.length, 0);
+    assert.equal(f.calls.authReads, 0);
+    f.runtime.dispose();
+    actions.length = 0;
+    f.runtime.restoreAfterProvider();
+    assert.deepEqual(actions, [], 'a disposed window cannot be reactivated');
+  });
+}
+
+test('provider window raise errors do not turn an authenticated callback into an auth failure', () => {
+  const stages = [];
+  const f = fixture({ runtime: { onAuthDiagnostic: stage => stages.push(stage) } });
+  let focused = 0;
+  f.calls.window.moveTop = () => { throw Error('synthetic window failure'); };
+  f.calls.window.focus = () => { focused += 1; };
+  f.calls.window.isFocused = () => false;
+  assert.doesNotThrow(() => f.runtime.restoreAfterProvider());
+  assert.equal(focused, 1, 'native focus is still attempted when stacking failed');
+  assert.deepEqual(stages, ['provider.window-raise-failed', 'provider.window-focus-pending']);
+  assert.equal(f.calls.authReads, 0);
+  f.calls.window.isDestroyed = () => true;
+  f.runtime.restoreAfterProvider();
+  assert.equal(focused, 1);
+  f.runtime.dispose();
 });
 
 test('video requests are denied without explicit consent and permission handlers never show UI', async () => {

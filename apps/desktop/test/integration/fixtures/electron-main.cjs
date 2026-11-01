@@ -16,8 +16,9 @@ app.setName('StudyRoom isolated acceptance');
 
 app.whenReady().then(async () => {
   const load = name => import(pathToFileURL(path.join(root, 'apps/desktop/src', name)).href);
-  const [{ createDesktopRuntime }, { createEncryptedStorage }, { createDesktopAuth }, { createDesktopLifecycle }] = await Promise.all([
+  const [{ createDesktopRuntime }, { createEncryptedStorage }, { createDesktopAuth }, { createDesktopLifecycle }, { createLoopbackCallback }] = await Promise.all([
     load('desktopRuntime.mjs'), load('desktopStorage.mjs'), load('desktopAuth.mjs'), load('desktopLifecycle.mjs'),
+    load('desktopLoopback.mjs'),
   ]);
   const storage = createEncryptedStorage({ safeStorage: electron.safeStorage,
     ...createStorageIO(path.join(userData, 'encrypted-auth')) });
@@ -36,10 +37,17 @@ app.whenReady().then(async () => {
     }, details);
   });
   let runtime;
-  const auth = createDesktopAuth({ storage, supabase: { auth: {
+  const auth = createDesktopAuth({ storage, supabase: { supabaseUrl: 'https://synthetic.supabase.co', auth: {
     getUser: async () => { observations.authReads++; return { data: { user: { id: 'synthetic-windows-user' } }, error: null }; },
     onAuthStateChange: () => ({ data: { subscription: { unsubscribe() {} } } }),
-  } }, openExternal: async url => observations.external.push(url), onChange: () => runtime?.authChanged() });
+    signInWithOAuth: async ({ provider, options }) => { observations.providerRedirect = options.redirectTo; return { data: { url: `https://synthetic.supabase.co/auth/v1/authorize?provider=${provider}&redirect_to=${encodeURIComponent(options.redirectTo)}&code_challenge=synthetic-test-challenge&code_challenge_method=s256` }, error: null }; },
+    exchangeCodeForSession: async code => {
+      if (code !== 'synthetic-electron-loopback') throw Error('SYNTHETIC_CODE_REQUIRED');
+      observations.exchanges = (observations.exchanges || 0) + 1;
+      return { data: { user: { id: 'synthetic-windows-user' }, session: { user: { id: 'synthetic-windows-user' } } }, error: null };
+    },
+  } }, createProviderCallback: createLoopbackCallback, onProviderComplete: () => runtime?.restoreAfterProvider(),
+    openExternal: async url => observations.external.push(url), onChange: () => runtime?.authChanged() });
   const lifecycle = createDesktopLifecycle({ storage });
   function ObservedTray(...args) {
     try {
@@ -78,6 +86,8 @@ app.whenReady().then(async () => {
     preloadPath: path.join(root, 'apps/desktop/preload.cjs'),
     iconPath: path.join(root, 'apps/desktop/resources/study-room-icon.png'),
     errorPath: path.join(root, 'apps/desktop/error.html') });
+  const nativeMoveTop = runtime.window.moveTop.bind(runtime.window);
+  runtime.window.moveTop = () => { observations.providerRaises = (observations.providerRaises || 0) + 1; return nativeMoveTop(); };
   runtime.window.webContents.on('preload-error', (_event, preloadPath, error) => {
     (observations.preloadErrors ||= []).push({ preloadPath, message: error.message });
   });

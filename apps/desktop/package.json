@@ -1,6 +1,6 @@
 {
   "name": "@study-room/desktop",
-  "version": "0.1.1",
+  "version": "0.1.9",
   "private": true,
   "description": "Windows 독서실 앱",
   "author": "Study Room",
@@ -26,7 +26,7 @@
     "asar": true,
     "directories": { "output": "dist", "buildResources": "resources" },
     "files": [
-      "main.cjs", "preload.cjs", "error.html", "src/*.mjs", "scripts/prepare.mjs",
+      "main.cjs", "preload.cjs", "error.html", "src/*.mjs", "src/*.css", "scripts/prepare.mjs",
       "resources/public-config.json", "resources/study-room-icon.png", "package.json",
       "!**/*.test.*", "!**/.env*", "!**/*.log", "!test/**", "!dist/**"
     ],

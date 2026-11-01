@@ -14,7 +14,7 @@ const fail = code => { throw new Error(code); };
 export function createDesktopRuntime({ electron, auth, storage, preloadPath, iconPath, errorPath,
   origin = PRODUCTION_ORIGIN, allowDevelopmentOrigin = false, now = Date.now,
   lifecycle = createDesktopLifecycle({ now, storage }), build = '0.1.0', confirmCamera,
-  schedule = setImmediate, quitProbeTimeoutMs = 5000, shellSettings }) {
+  schedule = setImmediate, quitProbeTimeoutMs = 5000, shellSettings, onAuthDiagnostic = () => {} }) {
   const { app, BrowserWindow, Tray, Menu, ipcMain, dialog, shell } = electron;
   if (origin !== PRODUCTION_ORIGIN) {
     const url = new URL(origin);
@@ -22,6 +22,7 @@ export function createDesktopRuntime({ electron, auth, storage, preloadPath, ico
       || !['127.0.0.1', 'localhost', '[::1]'].includes(url.hostname)) fail('INVALID_ORIGIN');
   }
   const policy = createDesktopPolicy({ origin });
+  const diagnose = stage => { try { onAuthDiagnostic(stage); } catch { /* Best-effort only. */ } };
   const savedShell = shellSettings?.read();
   const bounds = restoreBounds(savedShell?.bounds, electron.screen?.getAllDisplays());
   const window = new BrowserWindow({
@@ -33,6 +34,7 @@ export function createDesktopRuntime({ electron, auth, storage, preloadPath, ico
   });
   window.setMenuBarVisibility(false);
   const contents = window.webContents;
+  const permissionSession = contents.session;
   let epoch = 0;
   let authGeneration = 0;
   let verified = null;
@@ -71,6 +73,18 @@ export function createDesktopRuntime({ electron, auth, storage, preloadPath, ico
     if (window.isDestroyed()) return;
     if (window.isMinimized()) window.restore();
     window.show(); window.focus();
+  }
+  function restoreAfterProvider() {
+    if (disposed || window.isDestroyed()) return;
+    // A loopback response does not activate the app through the OS protocol handler.
+    // Raise this existing window once; never leave it permanently always-on-top.
+    try {
+      if (window.isMinimized()) window.restore();
+      window.show();
+      try { window.moveTop(); } catch { diagnose('provider.window-raise-failed'); }
+      window.focus();
+      diagnose(window.isFocused() ? 'provider.window-focused' : 'provider.window-focus-pending');
+    } catch { diagnose('provider.window-raise-failed'); }
   }
   function emit(value) { if (trusted()) contents.send(EVENT_CHANNEL, value); }
   function authChanged() {
@@ -262,13 +276,13 @@ export function createDesktopRuntime({ electron, auth, storage, preloadPath, ico
       return url.origin;
     } catch { return null; }
   }
-  contents.session.setPermissionCheckHandler((owner, kind, requestingOrigin, details) => allowPermission(owner, kind, requestingOrigin, details));
-  contents.session.setPermissionRequestHandler((owner, kind, callback, details) => {
+  permissionSession.setPermissionCheckHandler((owner, kind, requestingOrigin, details) => allowPermission(owner, kind, requestingOrigin, details));
+  permissionSession.setPermissionRequestHandler((owner, kind, callback, details) => {
     let requestingOrigin = '';
     try { requestingOrigin = new URL(details?.requestingUrl).origin; } catch { /* deny */ }
     callback(allowPermission(owner, kind, requestingOrigin, details));
   });
-  contents.session.setDisplayMediaRequestHandler((_request, callback) => callback({}));
+  permissionSession.setDisplayMediaRequestHandler((_request, callback) => callback({}));
 
   ipcMain.handle(REQUEST_CHANNEL, async (event, input) => {
     const capturedEpoch = epoch;
@@ -361,19 +375,34 @@ export function createDesktopRuntime({ electron, auth, storage, preloadPath, ico
   });
   window.on('close', event => { saveBounds(); if (!quitting) { event.preventDefault(); hideToTray(); } });
   const secondInstance = (_event, argv) => {
+    diagnose('second-instance.received');
     restore();
     const callback = argv?.find(value => typeof value === 'string' && value.startsWith('studyroom-desktop:'));
+    diagnose(callback ? 'second-instance.callback-found' : 'second-instance.callback-missing');
     if (callback) void handleCallback(callback);
   };
   const activate = () => restore();
   const beforeQuit = event => { if (!quitting) { event.preventDefault(); void requestQuit(); } };
-  const openUrl = (event, value) => { event.preventDefault(); void handleCallback(value); };
+  const openUrl = (event, value) => { diagnose('open-url.received'); event.preventDefault(); void handleCallback(value); };
   app.on('second-instance', secondInstance); app.on('activate', activate);
   app.on('before-quit', beforeQuit); app.on('open-url', openUrl);
   async function handleCallback(value) {
+    diagnose('callback.received');
+    if (typeof value === 'string') {
+      if (value.includes('#')) diagnose('callback.fragment-present');
+      try { if ([...new URL(value).searchParams.keys()].length > 1) diagnose('callback.extra-query'); } catch { /* Policy below owns rejection. */ }
+    }
     restore();
-    try { policy.parseAuthCallback(value); await auth.handleCallback(value); authChanged(); }
-    catch { await dialog.showMessageBox(window, { type: 'warning', message: '로그인을 완료하지 못했습니다.',
+    try {
+      policy.parseAuthCallback(value);
+      diagnose('callback.validated');
+      await auth.handleCallback(value);
+      diagnose('callback.completed');
+      authChanged();
+    }
+    catch (error) {
+      diagnose(`callback.failed.${PUBLIC_ERRORS.has(error?.message) ? error.message : 'INTERNAL_ERROR'}`);
+      await dialog.showMessageBox(window, { type: 'warning', message: '로그인을 완료하지 못했습니다.',
       detail: '독서실에서 로그인을 다시 시작하세요. 시간이 초과된 경우 앱을 다시 실행해야 할 수 있습니다.', buttons: ['확인'] }); }
   }
   if(!createTray())schedule(()=>recoverTray());
@@ -381,16 +410,17 @@ export function createDesktopRuntime({ electron, auth, storage, preloadPath, ico
   trayClock.unref?.();
   void window.loadURL(origin).catch(() => recover());
   return {
-    window, requestQuit, restore, authChanged, handleCallback, storageFailed,
+    window, requestQuit, restore, restoreAfterProvider, authChanged, handleCallback, storageFailed,
     dispose() {
+      if (disposed) return;
       clearTimeout(boundsTimer);saveBounds();
       disposed = true; invalidate(); auth.dispose(); tray?.destroy(); ipcMain.removeHandler(REQUEST_CHANNEL);
       clearInterval(trayClock);
       app.removeListener('second-instance', secondInstance); app.removeListener('activate', activate);
       app.removeListener('before-quit', beforeQuit); app.removeListener('open-url', openUrl);
       electron.screen?.removeListener('display-removed',clampDisplay);electron.screen?.removeListener('display-metrics-changed',clampDisplay);
-      contents.session.setPermissionCheckHandler(() => false);
-      contents.session.setPermissionRequestHandler((_wc, _kind, callback) => callback(false));
+      permissionSession.setPermissionCheckHandler(() => false);
+      permissionSession.setPermissionRequestHandler((_wc, _kind, callback) => callback(false));
     },
   };
 }

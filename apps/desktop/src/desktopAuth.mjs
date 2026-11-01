@@ -16,7 +16,8 @@ function emailRequestError(error) {
   return authError('AUTH_FAILED');
 }
 
-export function createDesktopAuth({ supabase, storage, openExternal, now = Date.now, onChange = () => {}, timeoutMs = 10000 }) {
+export function createDesktopAuth({ supabase, storage, openExternal, now = Date.now, onChange = () => {}, timeoutMs = 10000, onDiagnostic = () => {}, createProviderCallback, onProviderComplete = () => {} }) {
+  const diagnose = stage => { try { onDiagnostic(stage); } catch { /* Best-effort only. */ } };
   let generation = 0;
   let userId = null;
   let identityKnown = false;
@@ -25,6 +26,7 @@ export function createDesktopAuth({ supabase, storage, openExternal, now = Date.
   let busy = false;
   let pending = null;
   let pendingVersion = 0;
+  let providerCallback = null;
   let isolatingFallback = false;
   let fallbackIsolated = false;
   let fallbackIsolation = null;
@@ -51,13 +53,15 @@ export function createDesktopAuth({ supabase, storage, openExternal, now = Date.
     } finally { clearTimeout(timer); }
   }
   function validPending(value) {
-    return value && Object.keys(value).length === 3 && ['google', 'github'].includes(value.provider)
+    return value && (Object.keys(value).length === 3 || (Object.keys(value).length === 4 && value.transport === 'loopback')) && ['google', 'github'].includes(value.provider)
       && Number.isFinite(value.createdAt) && now() >= value.createdAt && now() - value.createdAt <= 300000
       && (value.userId === null || boundedText(value.userId));
   }
   async function clearPending() {
     pendingVersion += 1;
     pending = null;
+    providerCallback?.receiver?.close();
+    providerCallback = null;
     await bounded(() => storage.removeItem(PENDING_KEY));
   }
   function trackVerifierOperation(operation) {
@@ -113,7 +117,8 @@ export function createDesktopAuth({ supabase, storage, openExternal, now = Date.
     if (logout === '1') { signedOut = true; userId = null; identityKnown = true; }
     try {
       const decoded = value ? JSON.parse(value) : null;
-      pending = validPending(decoded) ? decoded : null;
+      // A loopback port is process-local. Never revive its intent as a custom-URI login after restart.
+      pending = validPending(decoded) && decoded.transport !== 'loopback' ? decoded : null;
     } catch { pending = null; }
   });
   // Keep a failed adapter from producing an unhandled rejection before the first request.
@@ -264,7 +269,7 @@ export function createDesktopAuth({ supabase, storage, openExternal, now = Date.
     return policy.parseRequest({ id: 'auth', action, payload }).payload;
   }
 
-  function authorizeUrl(value, provider) {
+  function authorizeUrl(value, provider, redirectTo = DESKTOP_AUTH_CALLBACK) {
     try {
       const configured = new URL(supabase.supabaseUrl);
       if (configured.protocol !== 'https:' || configured.username || configured.password || configured.search || configured.hash) throw authError('AUTH_FAILED');
@@ -273,14 +278,48 @@ export function createDesktopAuth({ supabase, storage, openExternal, now = Date.
       const names = [...url.searchParams.keys()];
       if (url.origin !== expected.origin || url.pathname !== expected.pathname || url.username || url.password
         || url.hash || names.length !== new Set(names).size
-        || names.some(name => !['provider', 'redirect_to', 'code_challenge', 'code_challenge_method', 'skip_http_redirect'].includes(name))
+        || names.some(name => !['provider', 'redirect_to', 'code_challenge', 'code_challenge_method', 'skip_http_redirect', 'prompt'].includes(name))
         || url.searchParams.get('provider') !== provider
-        || url.searchParams.get('redirect_to') !== DESKTOP_AUTH_CALLBACK
+        || url.searchParams.get('redirect_to') !== redirectTo
         || !boundedText(url.searchParams.get('code_challenge'), 256)
         || url.searchParams.get('code_challenge_method') !== 's256'
-        || (url.searchParams.has('skip_http_redirect') && url.searchParams.get('skip_http_redirect') !== 'true')) throw authError('AUTH_FAILED');
+        || (url.searchParams.has('skip_http_redirect') && url.searchParams.get('skip_http_redirect') !== 'true')
+        || (url.searchParams.has('prompt') && (provider !== 'google' || url.searchParams.get('prompt') !== 'select_account'))) throw authError('AUTH_FAILED');
       return url.href;
     } catch { throw authError('AUTH_FAILED'); }
+  }
+
+  async function consumeCallback(code, scope = null) {
+    if (disposed || busy || callbacks.has(code) || (scope ? providerCallback !== scope : providerCallback !== null)) throw authError('INVALID_CALLBACK');
+    const epoch = generation;
+    await hydrated;
+    assertCurrent(epoch);
+    await ensureStorageIsolation();
+    assertCurrent(epoch);
+    if (scope && providerCallback !== scope) throw authError('INVALID_CALLBACK');
+    if (!validPending(pending) || (!scope && pending.transport === 'loopback')) {
+      diagnose('callback.pending-invalid');
+      await clearPending();
+      throw authError('INVALID_CALLBACK');
+    }
+    const attempt = pending;
+    diagnose('callback.pending-valid');
+    const current = await verifiedUser(epoch);
+    if (current !== attempt.userId || pending !== attempt || (scope && providerCallback !== scope)) {
+      // A slower prior callback may finish preflight after a new deliberate login.
+      // It must reject itself without consuming or closing the successor's intent.
+      if (pending === attempt && (!scope || providerCallback === scope)) await clearPending();
+      throw authError('INVALID_CALLBACK');
+    }
+    callbacks.add(code);
+    if (callbacks.size > 32) callbacks.delete(callbacks.values().next().value);
+    await clearPending();
+    assertCurrent(epoch);
+    diagnose('callback.intent-consumed');
+    return authenticate(() => {
+      diagnose('callback.exchange-started');
+      return supabase.auth.exchangeCodeForSession(code);
+    });
   }
 
   return {
@@ -288,6 +327,7 @@ export function createDesktopAuth({ supabase, storage, openExternal, now = Date.
       if (disposed) return;
       if (refreshStoppedForStorage) return; // One degradation owns one bounded cleanup, including its own failed removal.
       generation += 1;
+      providerCallback?.receiver?.close(); providerCallback = null;
       signedOut = true; userId = null; identityKnown = true;
       fallbackIsolated = false; fallbackIsolation = null;
       refreshStoppedForStorage = true;
@@ -353,11 +393,15 @@ export function createDesktopAuth({ supabase, storage, openExternal, now = Date.
     },
     async signInProvider(provider) {
       validate('signInProvider', { provider });
+      diagnose('provider.started');
       if (disposed) throw authError('AUTH_CHANGED');
       if (busy) throw authError('AUTH_BUSY');
       busy = true;
       const epoch = generation;
       let work;
+      let callbackScope = null;
+      let releaseOpening;
+      const openingSettled = new Promise(resolve => { releaseOpening = resolve; });
       try {
         await hydrated;
         assertCurrent(epoch);
@@ -367,19 +411,56 @@ export function createDesktopAuth({ supabase, storage, openExternal, now = Date.
         assertCurrent(epoch);
         assertNoRawCleanup();
         const startingUser = await verifiedUser(epoch);
+        let redirectTo = DESKTOP_AUTH_CALLBACK;
+        if (provider === 'google' && createProviderCallback) {
+          const scope = { receiver: null };
+          callbackScope = scope;
+          providerCallback = scope;
+          scope.receiver = createProviderCallback({
+            onCallback: async code => {
+              await openingSettled;
+              diagnose('callback.received');
+              try {
+                assertCurrent(epoch);
+                if (providerCallback !== scope) throw authError('INVALID_CALLBACK');
+                diagnose('callback.validated');
+                await consumeCallback(code, scope);
+                diagnose('callback.completed');
+                onProviderComplete();
+              } catch (error) {
+                diagnose(`callback.failed.${knownErrors.has(error?.message) ? error.message : 'INTERNAL_ERROR'}`);
+                throw error;
+              }
+            },
+            onExpire: () => { if (providerCallback === scope) void clearPending().catch(() => {}); },
+          });
+          redirectTo = await bounded(() => scope.receiver.ready);
+          assertCurrent(epoch);
+          if (providerCallback !== scope || !/^http:\/\/127\.0\.0\.1:[1-9]\d{0,4}\/auth\/callback\/[a-f0-9]{64}$/.test(redirectTo)
+            || Number(new URL(redirectTo).port) > 65535) throw authError('AUTH_FAILED');
+        }
         // OAuth and email OTP preparation both own the SDK's shared PKCE verifier until they settle.
         work = trackVerifierOperation(() => supabase.auth.signInWithOAuth({ provider,
-          options: { redirectTo: DESKTOP_AUTH_CALLBACK, skipBrowserRedirect: true } }));
+          options: { redirectTo, skipBrowserRedirect: true,
+            ...(provider === 'google' ? { queryParams: { prompt: 'select_account' } } : {}) } }));
         const result = await bounded(() => work.result);
         assertCurrent(epoch);
         if (result?.error) throw authError('AUTH_FAILED');
-        const url = authorizeUrl(result?.data?.url, provider);
-        pending = { provider, createdAt: now(), userId: startingUser };
+        const url = authorizeUrl(result?.data?.url, provider, redirectTo);
+        if (callbackScope && providerCallback !== callbackScope) throw authError('AUTH_CHANGED');
+        pending = { provider, createdAt: now(), userId: startingUser, ...(callbackScope ? { transport: 'loopback' } : {}) };
         pendingVersion += 1;
         await bounded(() => storage.setItem(PENDING_KEY, JSON.stringify(pending)));
         assertCurrent(epoch);
-        await bounded(() => openExternal(url));
+        let browserUrl = url;
+        if (callbackScope) {
+          if (providerCallback !== callbackScope) throw authError('AUTH_CHANGED');
+          browserUrl = callbackScope.receiver.authorizationEntry(url);
+          if (browserUrl !== redirectTo.replace('/auth/callback/', '/auth/start/')) throw authError('AUTH_FAILED');
+        }
+        await bounded(() => openExternal(browserUrl));
         assertCurrent(epoch);
+        diagnose('provider.opened');
         return { opened: true };
       } catch (error) {
         work?.abandon();
@@ -388,32 +469,12 @@ export function createDesktopAuth({ supabase, storage, openExternal, now = Date.
       } finally {
         if (work) work.release();
         else busy = false;
+        releaseOpening();
       }
     },
     async handleCallback(url) {
       const { code } = policy.parseAuthCallback(url);
-      if (disposed || busy || callbacks.has(code)) throw authError('INVALID_CALLBACK');
-      const epoch = generation;
-      await hydrated;
-      assertCurrent(epoch);
-      await ensureStorageIsolation();
-      assertCurrent(epoch);
-      if (!validPending(pending)) {
-        await clearPending();
-        throw authError('INVALID_CALLBACK');
-      }
-      const attempt = pending;
-      const current = await verifiedUser(epoch);
-      if (current !== attempt.userId || !pending) {
-        await clearPending();
-        throw authError('INVALID_CALLBACK');
-      }
-      // Consume persisted intent before any exchange; concurrent/replayed callbacks cannot reuse it.
-      callbacks.add(code);
-      if (callbacks.size > 32) callbacks.delete(callbacks.values().next().value);
-      await clearPending();
-      assertCurrent(epoch);
-      return authenticate(() => supabase.auth.exchangeCodeForSession(code));
+      return consumeCallback(code);
     },
     async webTicket(requestId) {
       policy.parseRequest({ id: requestId, action: 'webTicket', payload: {} });
@@ -463,6 +524,7 @@ export function createDesktopAuth({ supabase, storage, openExternal, now = Date.
     dispose() {
       disposed = true;
       generation += 1;
+      providerCallback?.receiver?.close(); providerCallback = null;
       for (const controller of controllers) controller.abort();
       subscription.unsubscribe();
     },

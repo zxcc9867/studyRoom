@@ -9,7 +9,7 @@ import { randomUUID } from 'node:crypto';
 
 const playwrightPath = process.env.STUDY_ROOM_PLAYWRIGHT_MODULE
   || 'C:/Users/zxcc9/.cache/codex-runtimes/codex-primary-runtime/dependencies/node/node_modules/playwright/index.mjs';
-const { _electron } = await import(pathToFileURL(playwrightPath).href);
+const { _electron, chromium } = await import(pathToFileURL(playwrightPath).href);
 const root = fileURLToPath(new URL('../../../../', import.meta.url));
 const output = path.join(root, 'output/windows-electron-acceptance', `${Date.now()}-${randomUUID()}`);
 const entry = fileURLToPath(new URL('./fixtures/electron-main.cjs', import.meta.url));
@@ -123,6 +123,34 @@ async function save(name, value) {
   await writeFile(path.join(output, name + '.json'), JSON.stringify(value, null, 2));
   console.log(`${name}: ${JSON.stringify(value)}`);
 }
+
+test('real Electron quit cleanup runs safely after all windows are destroyed', { timeout: 40000 }, async t => {
+  const { app, page } = await fixture(t);
+  await state(page, idle);
+  await app.evaluate(({ app }) => {
+    // Hold this isolated process once so the controller can inspect will-quit cleanup.
+    // The owning BrowserWindow and WebContents still follow Electron's real quit order.
+    app.once('will-quit', event => {
+      event.preventDefault();
+      const result = { destroyed: acceptance.runtime.window.isDestroyed(), error: null };
+      try { acceptance.runtime.dispose(); } catch (error) { result.error = `${error.name}: ${error.message}`; }
+      acceptance.observations.quitCleanup = result;
+    });
+  });
+  await app.evaluate(() => { void acceptance.runtime.requestQuit(); });
+  let result;
+  for (let attempt = 0; attempt < 100; attempt++) {
+    result = await app.evaluate(() => acceptance.observations.quitCleanup);
+    if (result) break;
+    await new Promise(resolve => setTimeout(resolve, 50));
+  }
+  assert.equal(result?.destroyed, true, 'cleanup must run after the real window closes');
+  assert.equal(result.error, null, 'will-quit must not access destroyed WebContents');
+  const closing = app.waitForEvent('close');
+  void app.evaluate(({ app }) => app.quit()).catch(() => {});
+  await closing;
+  await save('quit-after-destroyed-window', { passed: true, result });
+});
 
 test('heartbeat oracle rejects pending, rejected and malformed native responses rather than counting attempts', { timeout: 60000 }, async t => {
   for (const mode of ['pending', 'reject', 'ok-false', 'wrong-id', 'missing-accepted', 'false-accepted']) {
@@ -295,10 +323,13 @@ test('test-only unsandboxed stronger subframe attacker is rejected by real runti
   assert.equal(preferences.nodeIntegration, false);
   assert.deepEqual(await page.evaluate(() => ({ process: typeof process, require: typeof require })), { process: 'undefined', require: 'undefined' });
   assert.equal(await page.evaluate(() => typeof attackRequest), 'function');
+  const navigation = page.waitForEvent('framenavigated', { predicate: frame => frame.url() === origin + '/frame' });
   await page.evaluate(() => { const frame = document.createElement('iframe'); frame.src = '/frame'; document.body.append(frame); });
+  const frame = await navigation;
   try {
-    await page.waitForFunction(() => document.querySelector('iframe').contentDocument?.title === 'Subframe'
-      && typeof document.querySelector('iframe').contentWindow.attackRequest === 'function', null, { timeout: 5000 });
+    // Do not read the new iframe's contentWindow/contentDocument before its navigation:
+    // creating its script context early can suppress Electron's subframe preload (#34727).
+    await frame.waitForFunction(() => document.title === 'Subframe' && typeof attackRequest === 'function', null, { timeout: 5000 });
   } catch (error) {
     await save('adversarial-preload-failure', {
       frames: await Promise.all(page.frames().map(async frame => ({ url: frame.url(), attack: await frame.evaluate(() => typeof attackRequest) }))),
@@ -307,13 +338,93 @@ test('test-only unsandboxed stronger subframe attacker is rejected by real runti
     });
     throw error;
   }
-  const frame = page.frames().find(frame => frame.url() === origin + '/frame');
   assert.deepEqual(await frame.evaluate(() => ({ process: typeof process, require: typeof require })), { process: 'undefined', require: 'undefined' });
   const response = await frame.evaluate(() => attackRequest());
   assert.equal(response.ok, false); assert.equal(response.error, 'UNTRUSTED_DOCUMENT');
   assert.equal(await app.evaluate(() => acceptance.observations.ipc.some(value => !value.top && value.owning)), true);
   await save('adversarial-subframe', { response, actualOwningSubframeIpc: true,
     boundary: 'Separate isolated UNSANDBOXED stronger-attacker launch with hostile BrowserWindow preload, nodeIntegrationInSubFrames:true, contextIsolation/webSecurity:true and nodeIntegration:false; not production configuration or sandbox acceptance.' });
+});
+
+const visibleAuthProbe = process.env.STUDY_ROOM_VISIBLE_AUTH_PROBE === '1';
+test('real Electron Google loopback returns through native IPC and restores the same window', { timeout: visibleAuthProbe ? 180000 : 60000 }, async t => {
+  const { app, page } = await fixture(t);
+  if (visibleAuthProbe) await app.evaluate(() => {
+    acceptance.focusEvents = [];
+    for (const event of ['focus', 'blur']) acceptance.runtime.window.on(event, () => {
+      acceptance.focusEvents.push({ event, at: Date.now(), focused: acceptance.runtime.window.isFocused() });
+    });
+  });
+  const before = await page.evaluate(() => documentToken);
+  const result = await page.evaluate(() => request('signInProvider', { provider: 'google' }));
+  assert.equal(result.ok, true);
+  const url = await app.evaluate(() => acceptance.observations.external.at(-1));
+  const redirect = await app.evaluate(() => acceptance.observations.providerRedirect);
+  assert.match(redirect, /^http:\/\/127\.0\.0\.1:\d+\/auth\/callback\/[a-f0-9]{64}$/);
+  assert.equal(url, redirect.replace('/auth/callback/', '/auth/start/'));
+  if (!visibleAuthProbe) {
+    await app.evaluate(() => acceptance.runtime.window.close());
+    assert.equal(await app.evaluate(() => acceptance.runtime.window.isVisible()), false);
+  }
+  const browser = await chromium.launch({ headless: !visibleAuthProbe, executablePath: process.env.STUDY_ROOM_CHROME_EXECUTABLE
+    || process.env.FEED_BROWSER_EXECUTABLE || 'C:/Program Files/Google/Chrome/Application/chrome.exe', ignoreDefaultArgs: ['--disable-popup-blocking'] });
+  t.after(() => browser.close());
+  const context = await browser.newContext();
+  const unrelated = await context.newPage();
+  await unrelated.goto('data:text/html,<title>Pre-existing synthetic Chrome tab</title>');
+  await context.route('https://synthetic.supabase.co/**', route => route.fulfill({ contentType: 'text/html', headers: { 'Cross-Origin-Opener-Policy': 'same-origin' }, body:
+    new URL(route.request().url()).pathname === '/synthetic-consent'
+      ? `<!doctype html><title>TEST ONLY - StudyRoom activation</title><h1>TEST ONLY — no real account</h1><a href="${redirect}?code=synthetic-electron-loopback">Complete synthetic login</a>`
+      : '<!doctype html><a href="/synthetic-consent">Choose synthetic account</a>' }));
+  const entryReady = context.waitForEvent('page');
+  const browserSession = await browser.newBrowserCDPSession();
+  const tabSession = await context.newCDPSession(unrelated);
+  const { targetInfo } = await tabSession.send('Target.getTargetInfo');
+  await browserSession.send('Target.createTarget', { url, browserContextId: targetInfo.browserContextId });
+  const entry = await entryReady;
+  const popupReady = context.waitForEvent('page');
+  const entryClick = entry.getByRole('button', { name: 'Google로 계속' }).click().catch(error => {
+    if (!entry.isClosed() || !/Target page, context or browser has been closed/.test(error.message)) throw error;
+  });
+  const [popup] = await Promise.all([popupReady, entryClick]);
+  await popup.getByRole('link', { name: 'Choose synthetic account' }).click();
+  if (visibleAuthProbe) {
+    console.log('VISIBLE_AUTH_PROBE_READY: activate only the TEST ONLY - StudyRoom activation Chrome window and click Complete synthetic login.');
+    await app.evaluate(async () => {
+      const deadline = Date.now() + 120000;
+      while (acceptance.runtime.window.isFocused()) {
+        if (Date.now() > deadline) throw Error('PROBE_PRECONDITION_NO_NATIVE_BLUR');
+        await new Promise(resolve => setTimeout(resolve, 50));
+      }
+      acceptance.probeBlurConfirmed = true;
+    });
+    if (!popup.isClosed()) await popup.waitForEvent('close', { timeout: 120000 });
+  } else await popup.getByRole('link', { name: 'Complete synthetic login' }).click();
+  if (!popup.isClosed()) await popup.waitForEvent('close', { timeout: 5000 });
+  assert.equal(entry.isClosed(), true);
+  assert.deepEqual(context.pages(), [unrelated]);
+  assert.equal(await unrelated.title(), 'Pre-existing synthetic Chrome tab');
+  await page.waitForFunction(() => events.some(event => event.type === 'auth-changed'));
+  assert.equal(await app.evaluate(() => acceptance.runtime.window.isVisible()), true);
+  assert.equal(await app.evaluate(() => acceptance.observations.providerRaises), 1, 'successful login must issue the native one-time raise');
+  assert.equal(await app.evaluate(() => acceptance.runtime.window.isAlwaysOnTop()), false);
+  assert.equal(await page.evaluate(() => documentToken), before);
+  assert.equal(await app.evaluate(() => acceptance.observations.exchanges), 1);
+  if (visibleAuthProbe) {
+    const observed = await app.evaluate(async () => {
+      const samples = [];
+      for (let index = 0; index < 20; index++) {
+        samples.push({ at: Date.now(), focused: acceptance.runtime.window.isFocused() });
+        await new Promise(resolve => setTimeout(resolve, 50));
+      }
+      return { blurConfirmed: acceptance.probeBlurConfirmed, events: acceptance.focusEvents, samples };
+    });
+    console.log('VISIBLE_AUTH_PROBE_RESULT', JSON.stringify(observed));
+    await writeFile(path.join(output, 'visible-auth-focus.json'), JSON.stringify(observed));
+    assert.equal(observed.blurConfirmed, true, 'external-window precondition must be observed');
+    assert.equal(observed.samples.at(-1).focused, true, 'app must remain focused after its authentication popup closes');
+  }
+  await assert.rejects(fetch(`${redirect}?code=synthetic-replay`));
 });
 
 test('real Electron X hides one document and fake video plus heartbeat continue for six minutes', { timeout: 420000 }, async t => {
