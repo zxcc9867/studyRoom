@@ -1,6 +1,6 @@
 # PRD: 풍경 집중 화면과 Windows 미니 창
 
-- 구현: 제품43b563e, 전체Chrome1575/native168/Electron35·공식7/Dune0·task검토C0/I0/M0, Windows0.1.10 설치본 준비. 전체 커밋 범위 검토·웹운영배포는 후속 중이며 실제 설치/실계정 수용은 별도다. [검증](../docs/verification/2026-11-01-scenic-study.md).
+- 완료: 제품43b563e·배포source b837be6, 전체Chrome1575/native168/Electron35·공식7/Dune0·최종독립검토C0/I0/M0. Actions41329328044 success/Vercel dpl_AaJ5EgdDBe6S8UsVEqPEbBuVVsfH READY·운영alias·HTML/새JS/CSS/배경200 확인. Windows0.1.10 설치본 준비·NotSigned·미설치, 실제계정/기기 수용은 별도다. [검증](../docs/verification/2026-11-01-scenic-study.md).
 
 ## 문제와 승인
 - 배경을 골라도 대시보드 카드가 가려 분위기를 느끼기 어렵다. 사용자는 승인한 목업처럼 풍경을 크게 보면서 공부하고 싶다.

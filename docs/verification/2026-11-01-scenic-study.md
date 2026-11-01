@@ -4,15 +4,15 @@
 - 승인: 풍경 우선 집중 화면 및 같은 Windows 창을 줄이는 미니 모드. 원래 다른 작업 트리의 0.1.9 로그인·종료 수정 검토·보존 통합 후 0.1.10 준비 승인. 실제 덮어설치는 별도 확인한다.
 - 작업 루트: `C:/jini-dev/worktrees/study-dashboard-clarity`, 시작 HEAD `d47dae1dbf30ff04a53e1e08d2a091f37dd89da5`.
 - PRD: [풍경 집중](../../memory-bank/prd-scenic-study.md), [실행 계획](../superpowers/plans/2026-11-01-scenic-study.md).
-- 현재 상태: 풍경·미니 구현과 자동 검증 완료, Windows0.1.10 설치본 준비 완료. 웹 운영 배포와 실제 덮어설치·실기기 수용은 대기 중이다. 아래 사전 검사와 최종 기능 수용을 혼동하지 않는다.
+- 현재 상태: 풍경·미니 구현/자동 검증·웹 운영 배포 완료, Windows0.1.10 설치본 준비 완료. 실제 덮어설치·실계정/실기기 수용은 별도다. 아래 사전 단계와 최종 출시 결과를 구분한다.
 
 ## 사전 검사
-- 출시 대상 재확인: team `team_LaN4bwvH4msrzoQtIw3fqsUj` / project `prj_u2Q9FKwNeVjwwtVOjuXNMZRpkR3g` / `study-room-attendance.vercel.app`. 작업 중 운영은 기존 ac3ef7c / dpl_5TvVYovr7xPhNnQZXggS9XD8oJW7 READY/production alias로 유지됨을 MCP로 확인했다. GitHub workflow294915408은 active이며 아직 새 배포를 실행하지 않았다.
+- 사전 확인 당시 출시 대상: team `team_LaN4bwvH4msrzoQtIw3fqsUj` / project `prj_u2Q9FKwNeVjwwtVOjuXNMZRpkR3g` / `study-room-attendance.vercel.app`. 당시 운영은 기존 ac3ef7c / dpl_5TvVYovr7xPhNnQZXggS9XD8oJW7 READY/production alias였고 workflow294915408 active를 확인했다. 이후 실제 새 배포는 아래 최종 출시 결과다.
 - 기존 theme 단위 19/19, 실패·생략·취소0.
 - 현재 작업 트리의 기존 native0.1.1 `desktop:test`119/119. 아직 0.1.9 통합/풍경/미니 동작 결과가 아니다.
 - 기존 실제 Windows/Android 테마 검증과 설정 복원은 [기기 검증](2026-11-01-theme-device-acceptance.md)에 보존한다. 이번 기능은 실계정 공부·회복·카메라·서버 행을 직접 조작하지 않고 합성 fixture부터 검증한다.
 
-## 이후 기록할 근거
+## 검증·출시 흐름
 - 0.1.9 통합 파일/원본 보존·회귀 결과.
 - 풍경/미니 RED→GREEN 및 실제 Chrome/Electron 합성 흐름.
 - 공식7개/Dune·전체 Chrome·독립 검토·최종 diff.
@@ -34,6 +34,7 @@
 - 최초 full native `output/scenic-full-native-final.log`:35중33통과/실패0/취소2/생략0·472606ms·exit1. heartbeat oracle parent60000ms와 마지막 false-accepted child가 취소됐다. 같은 baseline의 기존 순차 통과와 구분하고 source/timeout 변경 없이 재실행한다.
 - 최종 native→Chrome은 겹치지 않는 순서이며 Chrome 파일 실행도 --test-concurrency=1로 제한했다. native35/35·실패/취소/생략0·412681ms·exit0, Chrome1575/1575·실패/취소/생략0·892921ms·exit0 통과. 기존timeout/assertion은 완화하지 않았다. 로그 scenic-full-native-sequential-final.log / scenic-full-chrome-sequential-final.log. source16개 고정해시를 완료·커밋 전 다시 확인해 차이0이다.
 - 최종 official `ai.ps1 verify` 재실행도7개passed/exit0·Dune0위반·exit0(`output/scenic-verify-release.log`). 별도 lint명령은 없다. 제품 커밋43b563e는 검토한16경로만 포함하고 인계/docs/output은 포함하지 않는다. task검토 C0/I0/M0이며 전체 커밋 범위 검토는 별도다.
+- 재현 명령: Chrome은 `FEED_BROWSER_MODULE=C:/jini-dev/project/study-notes/node_modules/playwright/index.mjs`, `FEED_BROWSER_EXECUTABLE=C:/Program Files/Google/Chrome/Application/chrome.exe` 환경에서 `node --test --test-concurrency=1 packages/core/test/*.test.mjs apps/web/test/*.test.mjs server/ai/*.test.mjs scripts/*.test.mjs supabase/functions/_shared/*.test.mjs`. Native는 같은 Playwright를 `STUDY_ROOM_PLAYWRIGHT_MODULE`로, readonly `C:/jini-dev/worktrees/study-room-desktop-current/output/electron-runtime-45/electron.exe`를 `STUDY_ROOM_ELECTRON_EXECUTABLE`로 지정하고 `npm.cmd run desktop:integration`. 제한 밖 실행의 localhost 권한 대조와 실패/통과 구분은 위 기록을 따른다.
 - Task2 독립 spec/quality 검토는 고정된16파일 worktree patch에서C0/I0/M0 승인. 미통과 검사 상태에서 커밋하지 않는 프로젝트 규칙을 지키면서 선검토했으며, 커밋 전 byte hash 대조와 이후 전체 커밋 범위 검토가 필수다. 작은350x430 논리 작업영역은 pure unit, 실제 Electron은 현재 모니터/DPI 조건의 수용으로 구분한다.
 - 빌드 사전 준비: 기존 readonly 원본의 공개 public-config에서 origin/URL/anon키만 기존 prepareDesktop에 전달하여 현재 ignored resources를 운영 공개 설정으로 준비했다. 동일값/정확 production origin 확인, 원본·비밀값·서버 설정 변경/출력 없음. 설치 빌드 때도 같은 공개값만 사용한다.
 
@@ -42,6 +43,18 @@
 - 설치 파일: `apps/desktop/dist/StudyRoom-Setup-0.1.10-x64.exe`,123059756bytes, SHA256 `21d4b243852c94a8c30c570cbc6f8ca46279542c05bd767cfece09e10d1bd69c`. 패키지@study-room/desktop0.1.10·appId app.studyroom.desktop·executable StudyRoom.exe·product 독서실·고정Electron45.0.0/builder26.18.0 유지. FileVersion0.1.10/ProductVersion0.1.10.0.
 - ASAR533entries: main/preload/error 및 모든 native src의13파일을 현재 소스 바이트와 비교해 차이0. 새 presentation와 기존 loopback/diagnostics/status CSS 포함, 소유 test/output/memory-bank/.git/.serena/.env 경로0. public-config는 origin/URL/anon3필드만 있고 기존 운영 공개 설정과 동일하다(값 출력 없음).
 - 코드 서명 인증서가 없어 NotSigned다. 서명/보안 설정을 변경하지 않았으며 Windows 경고 가능성을 숨기지 않는다. 기존 package/userData/암호화저장 계약을 유지하지만 실제 무삭제 덮어설치·실계정 로그인/실카메라 수용은 아직 수행하지 않았다.
+
+## 최종 검토·웹 운영 배포
+- 제품43b563e 및 보존기준d39e06a, release source `b837be6c97cb68fa05e12af2f56baa31fbfd99eb`. 전체 커밋 검토C0/I0/M1(문서 시점 표현)→문서2줄 수정b837be6→범위 재검토 모두해소/새문제0. 최종C0/I0/M0, 런타임 소스 변경 없음.
+- 기능 브랜치fix/study-dashboard-clarity에만 push, main/보호브랜치 직접 push·PR·merge 없음. 기존 workflow_dispatch [Actions41329328044](https://github.com/zxcc9867/studyRoom/actions/runs/41329328044) completed/success·정확 head SHA 일치.
+- Vercel `dpl_AaJ5EgdDBe6S8UsVEqPEbBuVVsfH` READY/production·정확 source SHA·위 project/team·[운영 주소](https://study-room-attendance.vercel.app) alias 확인. 별도 서버/DB/RLS/인증설정 배포/학습 데이터 초기화 없음.
+- 운영 HTML200, `/assets/index-DQxhpP1H.js`200, `/assets/index-DeWbb41l.css`200. 새 scenic component/mini bridge/한글진입/전용CSS/`data-scenic-study` 선택자 확인. 최초 HTTP 확인 스크립트가 실제와 다른 data-study-presentation 이름을 조회한 false negative는 실제 소스 선택자로 정정했으며 제품은 수정하지 않았다. `output/scenic-production-http.log`.
+- 새벽도시/심야골목/별빛바다/노을하늘/비오는서재5종 기존 WebP 모두HEAD200/image-webp. 정확 deployment의 직후5분error/fatal group 조회는 빈 결과다(장기/전체frontend 무오류 보장 아님).
+- 웹/Android/구형Windows의 풍경 화면은 공통 hosted 화면을 다시 불러오면 사용한다. 실제 미니/확대는 새Windows0.1.10 설치가 필요하며 이 작업에서 기존 앱을 닫거나 덮어설치하지 않았다. 항상 위는 사용자 승인대로 제외했다.
+
+## 진행 판단과 한계
+- 검증 미통과 상태에서 커밋하지 않으면서 시간을 줄이기 위해 Task2 고정 worktree를 먼저 독립 검토했다. 변경이 끼면 검토가 낡을 비용이 있어16파일 bytehash를 커밋 전 대조(차이0)하고, 이후 전체 커밋 범위도 별도 검토했다. 이 절차 판단 외의 항상 위 보류는 사용자의 명시적 선택이다.
+- 원본보존 raw JSON은 `output/windows-electron-acceptance/scenic-native-baseline-preservation.json`에 별도 보존했다. 빌드/실행 로그와 합성 이미지/진단은 Git 제외, 기존 unrelated 검증2문서/.serena/다른output은 그대로 보존한다.
 
 ## 0.1.9 기준선 보존 통합
 - 커밋 `d39e06a0fc81adce4c2396a5224d6006f345e33c`, native18파일+root lock의 desktop version1항목만 통합. 원본 `study-room-desktop-current` HEAD305b587+기존 dirty를 읽기 전용으로 비교했다. 가져온18파일은 LF 정규화 시 원본과 동일하다.

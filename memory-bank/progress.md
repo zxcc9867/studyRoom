@@ -2,8 +2,8 @@
 
 ## 풍경 집중·Windows 미니 창
 
-- 구현·최종 검증 진행: 기존 Dashboard/타이머/카메라 DOM 유지·수동 풍경 전환·할 일/상태/동일 시간/기존 시작·휴식·재개·종료 콜백·모달/초점/스크롤 보존. 고정은 사용자 승인으로 보류, 미니는 같은 BrowserWindow/webContents 축소·확대·정상 bounds/최대화 복원만 제공한다.
-- 0.1.9 보존 통합 d39e06a: 원본40/웹332 해시 유지, native164/164·Electron34/34·독립C0/I0/M0. 제품43b563e: 최종 전체Chrome1575/1575·native168/168·Electron35/35·실패/생략/취소0, officialverify7/Dune0·task검토C0/I0/M0·16해시동일. 최초병행14실패/2취소는 별도원인·수정/순차통과와 구분한다.0.1.10 NSIS/ASAR13파일동일·identity·공개config 확인, NotSigned·미설치. 전체branch검토/웹배포는 후속 중이다.
+- 구현·웹 배포/설치본 준비 완료: 기존 Dashboard/타이머/카메라 DOM 유지·수동 풍경 전환·할 일/상태/동일 시간/기존 시작·휴식·재개·종료 콜백·모달/초점/스크롤 보존. 고정은 사용자 승인으로 보류, 미니는 같은 BrowserWindow/webContents 축소·확대·정상 bounds/최대화 복원만 제공한다.
+- 0.1.9 보존 통합 d39e06a: 원본40/웹332 해시 유지, native164/164·Electron34/34·독립C0/I0/M0. 제품43b563e: 최종Chrome1575/1575·native168/168·Electron35/35·실패/생략/취소0, official7/Dune0·최종검토C0/I0/M0·16해시동일. 최초병행14실패/2취소와 수정/순차통과는 구분한다.0.1.10 NSIS/ASAR13파일동일·identity/공개config·NotSigned·미설치. 배포b837be6/Actions41329328044 success·dpl_AaJ5EgdDBe6S8UsVEqPEbBuVVsfH READY/정확SHA/alias·HTML/새JS/CSS/배경5개200·직후error/fatal그룹없음.
 - 실제 학습/서버/DB·실카메라·설치 앱은 조작하지 않는다. 합성 fixture 결과를 실계정/물리 수용으로 쓰지 않는다. [PRD](prd-scenic-study.md)·[검증](../docs/verification/2026-11-01-scenic-study.md).
 
 ## 중립 차콜·공부 배경 테마

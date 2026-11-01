@@ -1,15 +1,15 @@
 # Active Context
-- 갱신: 2026-11-02 01:44 JST · 도구: codex
-- 루트/브랜치: C:/jini-dev/worktrees/study-dashboard-clarity · fix/study-dashboard-clarity · 제품 HEAD43b563e. 미커밋: 이번 docs/.gitignore 및 기존 테마검증2문서·.serena/output. 기존2문서/.serena/다른output은 stage 제외해 보존한다.
+- 갱신: 2026-11-02 02:09 JST · 도구: codex
+- 루트/브랜치: C:/jini-dev/worktrees/study-dashboard-clarity · fix/study-dashboard-clarity · 제품43b563e/운영source b837be6. 이후인계는 docs-only commit이다. 기존 테마검증2문서/.serena/다른output은 stage 제외해 보존하며 실제Git HEAD는 gitlog/resume에서 확인한다.
 - 목표/완료 기준: 승인 목업의 풍경 우선 공부 화면 + 동일 Windows 창 미니/확대, 기존 학습/카메라 보존. 사용자 승인으로 항상 위 고정은 이번 출시에서 보류. 공식7/Dune·전체Chrome/Electron·독립검토·운영READY/HTTP200·동일identity0.1.10 EXE 준비까지, 실설치는 별도 확인.
 - 완료: d39e06a로 원본 worktree의0.1.9 auth/loopback/종료18파일+lock1 보존 통합. 원본40해시/porcelain·당시 web332해시 동일. study-room-desktop-current는 read-only dirty 보존. raw근거 output/windows-electron-acceptance/scenic-native-baseline-preservation.json.
 - 완료: 43b563e16paths의 ScenicStudyView/scenicStudy.css·기존 Dashboard 파생props/공식콜백·DOM/video/초안 유지·inline모달/초점/scroll, 기존theme/effects 재사용. capability-gated exact mode-only bridge→desktopPresentation geometry, 같은 window/webContents·normal/최대화/minimum복원·mini bounds 저장제외·X트레이 유지. 새timer/media/studyRPC/서버·DB·학습정책 없음.
-- 최종 검증: Chrome1575/1575(실패/생략/취소0,892921ms,exit0), native168/168, Electron35/35(실패/생략/취소0,412681ms,exit0), officialverify7/Dune0 재실행exit0·diff통과. baseline/feature task검토 각각C0/I0/M0. 선검토한 고정16파일과 커밋전 bytehash 차이0. 전체 커밋 범위 검토는 다음 단계다.
+- 최종 검증: Chrome1575/1575(실패/생략/취소0,892921ms,exit0), native168/168, Electron35/35(실패/생략/취소0,412681ms,exit0), official7/Dune0 재실행exit0·diff통과. baseline/feature검토C0/I0/M0·고정16bytehash차이0. 전체검토C0/I0/M1 문구수정b837be6→재검토해소/새문제0, 최종C0/I0/M0.
 - 초기실패 구분: 병행Chrome14실패(clock tick3/fold4/VM1000ms7)·native parent60s/child취소2. 제품clock/기존fold assertion/timeout완화 없이 동시읽기 테스트와 버튼한줄위치만 수정. mobile3파일별도36/36·focused19/19. 이후 전체는 native→Chrome파일순차로 모두 통과, 최초로그 보존.
 - 빌드 완료: Windows0.1.10 NSIS/x64/per-user exit0, apps/desktop/dist/StudyRoom-Setup-0.1.10-x64.exe123059756bytes·SHA25621d4b243852c94a8c30c570cbc6f8ca46279542c05bd767cfece09e10d1bd69c. ASAR533entries/native13파일동일/허용경로·운영공개config 확인. NotSigned·미설치. package/appId/executable/userData/고정의존성·서버/요금설정 불변, 실계정/카메라 조작 없음. output/scenic-desktop-build-0.1.10.log.
-- 다음: 이번docs/metadata commit→d47dae1..releaseHEAD 전체shared-reviewer→feature push·기존 vercel-production.yml dispatch. team_LaN4bwvH4msrzoQtIw3fqsUj/project prj_u2Q9FKwNeVjwwtVOjuXNMZRpkR3g/https://study-room-attendance.vercel.app 정확SHA READY·alias·HTTP200/자산 확인. main/보호branch push·merge/PR 없음.
-- 문서/ledger: prd-scenic-study·architecture-map/implementation-plan/progress/trouble-shooting, docs/superpowers/plans/2026-11-01-scenic-study.md·docs/verification/2026-11-01-scenic-study.md; .superpowers/sdd/2026-11-01-scenic-study/progress.md가 현재 세부ledger다.
+- 웹 배포 완료: b837be6c97cb68fa05e12af2f56baa31fbfd99eb·Actions41329328044 completed/success·dpl_AaJ5EgdDBe6S8UsVEqPEbBuVVsfH READY/production/정확SHA/project prj_u2Q9FKwNeVjwwtVOjuXNMZRpkR3g/운영alias. HTML/index-DQxhpP1H.js/index-DeWbb41l.css200·새코드/선택자·배경5종200/image-webp·직후5분error/fatal그룹없음. main/PR/merge·실설치·공개EXE Release 없음.
+- 다음(선택): 사용자 공부/카메라 미사용 및 별도 승인 후0.1.10 무삭제 덮어설치·실계정/실기기 검증. 현재 설치앱은 건드리지 않는다. 임시SDD가 아닌 docs/superpowers/plans/2026-11-01-scenic-study.md·docs/verification/2026-11-01-scenic-study.md와Git커밋이 최종근거다. 관련PRD/architecture/implementation/progress/trouble 갱신.
 - 주의: setAlwaysOnTop은 별도 최소Electron45앱에서도 false, 내부원인 미확정. 보안/레지스트리/의존성 변경·Win32우회 없이 사용자 승인으로 고정 UI/새요청/owner조작 제외. 350x430은 pure unit이며 실제 작은화면 물리수용은 아니다.
 - 기기/기록 한계: 이번 결과는 합성Chrome/Electron/가짜video. 실제Google/실카메라/설치앱·Android실기기/물리GPU·배터리·서버전체digest 수용 아님. 기존app/학습행 직접조작 없음. hosted 풍경은 웹/Android공유, 미니는 새Windows EXE 필요. 기존blur/reduced-motion 장식정지 유지.
 - 이전기기검증: Windows원복 시스템/새벽도시/정적/잔잔하게, Android원복 시스템/차콜/정적/잔잔하게는 이전검증문서 보존. 당시Windows재로드의 기존회복자동종료 관찰을 서버무변경으로 쓰지 않는다. Android인증WebView DevTools우회금지·nativefocusbar라이트잔류는 별도범위.
-- 이전 상세 인계는 [archive](archive/active-context-before-scenic-20261102.md)에 보존. release/build 완료 후 위 상태 갱신.
+- 이전 상세 인계는 [archive](archive/active-context-before-scenic-20261102.md)에 보존했다.

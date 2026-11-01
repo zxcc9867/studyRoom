@@ -2,6 +2,7 @@
 
 - 후속 승인(2026-11-01): [풍경 집중 화면·같은 창 미니 모드](prd-scenic-study.md)를 추가한다. 다른 작업 트리의 기존0.1.9 로그인·종료 수정은 원본을 보존해 검토·통합하고0.1.10을 준비한다. 아래 초기 버전의 미완 수용과 최신 검증은 [후속 기록](../docs/verification/2026-11-01-scenic-study.md)으로 구분한다. 실제 덮어설치는 별도 확인한다.
 - 현재 후속: 제품43b563e·0.1.10 NSIS 빌드/ASAR13파일동일/identity·운영공개config 검증 완료, native168/168·Electron35/35·Chrome1575/1575·공식7/Dune0. 항상 위는 사용자승인으로 보류했고 설치파일은NotSigned 개인용이다. 기존 설치앱/실계정/실카메라를 조작하지 않았으며 실설치는 별도 승인 전이다.
+- 공통 웹 화면은 b837be6·Actions41329328044 success·Vercel dpl_AaJ5EgdDBe6S8UsVEqPEbBuVVsfH READY/운영alias/HTTP200로 반영했다. 구형EXE는 풍경 화면만,0.1.10 설치 후 미니를 제공한다. 아래 초기버전 상태를 이번 설치본의 실제 설치/물리 수용 완료로 읽지 않는다.
 
 - 상태: 2026-10-25 승인 설계의 Windows0.1.0 구현·로컬 설치와052fede 웹 연결 배포 완료. 실제 Google/이메일 인증 수용은 미완이다. [구현 계획](../docs/superpowers/plans/2026-10-25-windows-desktop.md)을 따른다.
 - 후속: 사용자 승인 HIG UI·로그인 실패 안내의0.1.1 후보를 준비했다. R1 raw cleanup 경합은 기존052fede에서 해결/회귀/독립검토 완료로 유지하고 새 Google 계정 선택 화면 정지와 혼동하지 않는다. 새 검증·배포·덮어설치는 [HIG 검증 기록](../docs/verification/2026-10-26-hig-ui-auth.md)으로 구분한다. 실제 웹캠/Google 수용을 합성 검사로 대체하지 않는다.
