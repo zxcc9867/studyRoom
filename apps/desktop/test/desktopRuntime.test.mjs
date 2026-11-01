@@ -10,6 +10,25 @@ const ORIGIN = 'https://study-room-attendance.vercel.app';
 const defer = () => { let resolve; const promise = new Promise(r => { resolve = r; }); return { promise, resolve }; };
 const idle = { userId: 'u', ready: true, session: null, cameraActive: false, operationPending: false, activity: 'allowed' };
 
+test('window presentation is capability gated, local, strict, trusted and restores on navigation without storing mini bounds',async()=>{
+  const saved=[];const f=fixture({auth:{status:async()=>{throw Error('offline');}},runtime:{shellSettings:{read:()=>null,saveBounds:value=>saved.push(value)}}});
+  const info=await f.request('info');assert.equal(info.value.capabilities.windowPresentation,true);
+  assert.deepEqual((await f.request('windowPresentationStatus')).value,{mode:'normal'});
+  for(const payload of [{},{mode:'bad'},{mode:true},{mode:'mini',pinned:false},{mode:'normal',pinned:true},{mode:'mini',x:1}])assert.equal((await f.request('windowPresentation',payload)).error,'BAD_REQUEST');
+  assert.equal((await f.request('windowPresentationStatus',{extra:true})).error,'BAD_REQUEST');
+  const child={sender:f.contents,senderFrame:{url:ORIGIN}};
+  assert.equal((await f.request('windowPresentation',{mode:'mini'},child)).error,'UNTRUSTED_DOCUMENT');
+  const before={...f.calls.window.bounds};
+  f.calls.window.emit('resize');
+  assert.deepEqual((await f.request('windowPresentation',{mode:'mini'})).value,{mode:'mini'});
+  await new Promise(r=>setTimeout(r,280));assert.deepEqual(saved,[],'a pending normal-window debounce cannot persist mini geometry');
+  f.navigate();assert.deepEqual(f.calls.window.bounds,before);
+  assert.deepEqual((await f.request('windowPresentationStatus')).value,{mode:'normal'});
+  const stale=f.event();f.navigate();f.contents.mainFrame={url:ORIGIN};
+  assert.equal((await f.request('windowPresentation',{mode:'mini'},stale)).error,'UNTRUSTED_DOCUMENT');
+  assert.equal(f.calls.authReads,0); f.runtime.dispose();
+});
+
 test('native callback diagnostics distinguish receipt, validation and completion without recording URLs', async () => {
   const stages = [];
   const f = fixture({ runtime: { onAuthDiagnostic: stage => stages.push(stage) }, auth: { handleCallback: async () => ({}) } });

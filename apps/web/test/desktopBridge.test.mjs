@@ -20,6 +20,22 @@ function host() {
   h.top = h;
   return { h, calls, emit: m => [...listeners].forEach(fn => fn(m)) };
 }
+
+test('presentation capability uses strict true and validates mode-only replies',async()=>{
+  assert.equal(typeof api.getWindowPresentationSupport,'function','capability helper is available');
+  const {h}=host();
+  for(const capabilities of [undefined,{windowPresentation:'true'},{windowPresentation:false}]){
+    h.studyRoomDesktop.request=async m=>({id:m.id,ok:true,value:{capabilities}});
+    assert.equal(await api.getWindowPresentationSupport(h),false);
+  }
+  h.studyRoomDesktop.request=async m=>({id:m.id,ok:true,value:m.action==='info'?{capabilities:{windowPresentation:true}}:{mode:'mini'}});
+  assert.equal(await api.getWindowPresentationSupport(h),true);
+  assert.deepEqual(await api.setWindowPresentation(h,{mode:'mini'}),{mode:'mini'});
+  for(const value of [{mode:'bad'},{mode:'mini',pinned:false},{}]){
+    h.studyRoomDesktop.request=async m=>({id:m.id,ok:true,value});
+    await assert.rejects(api.setWindowPresentation(h,{mode:'mini'}),/DESKTOP_REPLY/);
+  }
+});
 test('desktop bridge rejects spoof origins, old protocols and subframes', () => {
   assert.ok(api, 'desktop bridge implementation is missing');
   const { h } = host(); assert.equal(api.isDesktopStudyApp(h), true);

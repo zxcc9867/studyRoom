@@ -21,6 +21,7 @@ import type { FeedArticle } from "./techFeedTypes";
 import TimeZonePicker from "./TimeZonePicker";
 import SettingsLayout from "./SettingsLayout";
 import AppearanceSettings from "./AppearanceSettings";
+import ScenicStudyView from "./ScenicStudyView";
 import { getAppearanceController } from "./appearance.mjs";
 import { getAtmosphereController } from "./atmosphere.mjs";
 import AppDeviceSettings, { AppInstallGuidance } from "./AppDeviceSettings";
@@ -673,6 +674,8 @@ function DashboardApp() {
     getDashboardSectionFromHash(window.location.hash),
   );
   const [todayDomain, setTodayDomain] = useState<TodayDomain>("focus");
+  const [scenicOpen, setScenicOpen] = useState(false);
+  useEffect(() => { if (!session || activeSection !== "today" || todayDomain !== "focus") setScenicOpen(false); }, [session?.user.id, activeSection, todayDomain]);
   const [selectedCalendarMonth, setCalendarMonth] = useState<string | null>(null);
   const [todoHistoryPage, setTodoHistoryPage] = useState(1);
   const [recoveryHistoryPage, setRecoveryHistoryPage] = useState(1);
@@ -5372,6 +5375,11 @@ function DashboardApp() {
     },
   };
 
+  const focusActionDisabled = busy || !dashboardReady || Boolean(actualIntent) || Boolean(activeSession && actualTracking?.session_id !== activeSession.id);
+  const focusEndDisabled = busy || !activeSession || Boolean(actualIntent) || actualTracking?.session_id !== activeSession?.id;
+  const focusActionLabel = !dashboardReady ? (dashboardLoading ? "학습 정보 확인 중…" : "학습 정보 확인 필요") : !activeSession && blockingRecoveryRequests.length > 0 ? "회복루틴 작성 후 시작" : !activeSession ? studyStartAction.label : activeSessionPaused ? "공부 계속하기" : "잠시 쉬기";
+  const focusAction = !activeSession ? requestAdaptiveStudyStart : activeSessionPaused ? requestResumeTimer : () => { void pauseTimer(); };
+
   return (
     <main className="dashboard-shell dashboard-redesign">
       <DashboardNavigation activeSection={activeSection} />
@@ -5427,31 +5435,24 @@ function DashboardApp() {
                 <button
                   className={activeSession && !activeSessionPaused ? "break-action" : "primary"}
                   type="button"
-                  onClick={() => {
-                    if (!activeSession) {
-                      requestAdaptiveStudyStart();
-                    } else if (activeSessionPaused) {
-                      requestResumeTimer();
-                    } else {
-                      void pauseTimer();
-                    }
-                  }}
-                  disabled={busy || !dashboardReady || Boolean(actualIntent) || Boolean(activeSession && actualTracking?.session_id !== activeSession.id)}
+                  onClick={focusAction}
+                  disabled={focusActionDisabled}
                 >
                   {activeSession && !activeSessionPaused ? <Pause size={18} /> : <Play size={18} />}
-                  {!dashboardReady ? (dashboardLoading ? "학습 정보 확인 중…" : "학습 정보 확인 필요") : !activeSession && blockingRecoveryRequests.length > 0 ? "회복루틴 작성 후 시작" : !activeSession ? studyStartAction.label : activeSessionPaused ? "공부 계속하기" : "잠시 쉬기"}
+                  {focusActionLabel}
                 </button>
                 {activeSession && <button
                   className="danger"
                   onClick={() => {
                     void openEndSessionCompletionModal();
                   }}
-                  disabled={busy || !activeSession || Boolean(actualIntent) || actualTracking?.session_id !== activeSession?.id}
+                  disabled={focusEndDisabled}
                 >
                   <Square size={18} />
                   종료
                 </button>}
               </div>
+            <button type="button" className="secondary" onClick={() => setScenicOpen(true)}>풍경으로 집중</button>
             {activeSession && <TenMinuteCheckpoint state={tenMinuteCheckpoint} paused={activeSessionPaused} busy={busy} onContinue={acknowledgeTenMinuteCheckpoint} onFinish={() => void openEndSessionCompletionModal()} />}
             </section>
             <aside className="focus-side" aria-label="오늘의 간략 계획">
@@ -7173,6 +7174,14 @@ function DashboardApp() {
         )}
 
       </section>
+      {scenicOpen && activeSection === "today" && todayDomain === "focus" && <ScenicStudyView
+        task={actualTracking?.todos.find(todo => todo.id === actualTracking.current_todo_id)?.title ?? (activeSession ? "현재 할 일 확인 중" : latestNextAction || "오늘의 공부를 준비해요")}
+        clock={dashboardReady ? formatTimerClock(currentSessionSeconds) : "확인 필요"}
+        status={!dashboardReady ? "학습 정보 확인 필요" : activeSession && actualTracking?.session_id !== activeSession.id ? "세션 상태 확인 중" : !activeSession ? "시작 준비" : activeSessionPaused ? "휴식 중" : presenceState.timerPaused || sharedCameraView.status === "auto_paused" ? "자리 비움" : "공부 중"}
+        camera={activeSessionPaused ? "휴식 중 · 카메라 감시 중지" : sharedCameraView.remote ? sharedCameraView.label : `카메라 감시 · ${getPresenceStatusLabel({ cameraEnabled, status: cameraStatus, absenceSeconds: presenceState.absenceSeconds })}`}
+        actionLabel={focusActionLabel} actionDisabled={focusActionDisabled} endDisabled={focusEndDisabled} hasSession={Boolean(activeSession)}
+        notice={[dashboardError, message, actualError, sharedStudyError, focusStatusError, !activeSessionPaused && cameraStatus !== "watching" ? cameraMessage : ""].filter(Boolean).join(" · ")}
+        onAction={focusAction} onEnd={openEndSessionCompletionModal} onClose={() => setScenicOpen(false)} />}
     </main>
   );
 }

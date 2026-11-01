@@ -36,6 +36,18 @@ export async function desktopRequest(host, action, payload = {}, { id, timeoutMs
   } finally { clearTimeout(timer); }
 }
 
+export async function getWindowPresentationSupport(host) {
+  if (!isDesktopStudyApp(host)) return false;
+  const info = await desktopRequest(host, 'info');
+  return info?.capabilities?.windowPresentation === true;
+}
+export async function setWindowPresentation(host, value) {
+  const result = await desktopRequest(host, 'windowPresentation', value);
+  if (!result || Object.keys(result).length !== 1 || !Object.hasOwn(result,'mode')
+    || !['normal','mini'].includes(result.mode)) throw Error('DESKTOP_REPLY');
+  return {mode:result.mode};
+}
+
 export function subscribeDesktop(host, listener) {
   if (!isDesktopStudyApp(host)) return () => {};
   return host.studyRoomDesktop.onEvent(event => {

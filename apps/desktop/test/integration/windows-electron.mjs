@@ -124,6 +124,49 @@ async function save(name, value) {
   console.log(`${name}: ${JSON.stringify(value)}`);
 }
 
+test('real Electron scenic mini uses the same live window, camera and tray and restores maximized prior geometry without pin changes', {timeout:45000}, async t=>{
+  const {app,page}=await fixture(t);
+  await state(page,{...idle,session:{id:'synthetic-session',paused:false},cameraActive:true,activity:'studying'});
+  await consent(page);await page.evaluate(()=>startVideo());await page.waitForFunction(()=>metrics.frames>2);
+  const initial=await app.evaluate(({BrowserWindow})=>{
+    const w=acceptance.runtime.window;
+    w.setAlwaysOnTop=()=>{throw Error('DEFERRED_PIN_MUST_NOT_BE_CALLED');};
+    return {id:w.id,contents:w.webContents.id,count:BrowserWindow.getAllWindows().length,normal:w.getNormalBounds(),pin:w.isAlwaysOnTop()};
+  });
+  await app.evaluate(()=>acceptance.runtime.window.maximize());
+  for(let i=0;i<50&&!await app.evaluate(()=>acceptance.runtime.window.isMaximized());i++)await new Promise(r=>setTimeout(r,20));
+  assert.equal(await app.evaluate(()=>acceptance.runtime.window.isMaximized()),true);
+  const token=await page.evaluate(()=>{window.scenicTrack=stream.getVideoTracks()[0];return documentToken;});
+  const before=await page.evaluate(()=>({frames:metrics.frames,events:events.length}));
+  const info=await page.evaluate(()=>request('info'));assert.equal(info.value.capabilities.windowPresentation,true);
+  assert.equal((await page.evaluate(()=>request('windowPresentation',{mode:'mini',pinned:true}))).error,'BAD_REQUEST');
+  assert.deepEqual((await page.evaluate(()=>request('windowPresentation',{mode:'mini'}))).value,{mode:'mini'});
+  assert.deepEqual((await page.evaluate(()=>request('windowPresentation',{mode:'mini'}))).value,{mode:'mini'});
+  const mini=await app.evaluate(({BrowserWindow})=>{const w=acceptance.runtime.window;return {id:w.id,contents:w.webContents.id,count:BrowserWindow.getAllWindows().length,bounds:w.getBounds(),pin:w.isAlwaysOnTop()};});
+  assert.equal(mini.id,initial.id);assert.equal(mini.contents,initial.contents);assert.equal(mini.count,1);assert.equal(mini.pin,initial.pin);
+  // Windows non-client/DPI rounding on the scale-2 display adds one DIP here.
+  assert.ok(Math.abs(mini.bounds.width-420)<=4&&Math.abs(mini.bounds.height-560)<=4,JSON.stringify(mini));
+  await app.evaluate(()=>acceptance.runtime.window.close());assert.equal(await app.evaluate(()=>acceptance.runtime.window.isVisible()),false);
+  await app.evaluate(()=>acceptance.observations.tray.emit('click'));assert.equal(await app.evaluate(()=>acceptance.runtime.window.isVisible()),true);
+  await page.waitForFunction(frames=>metrics.frames>frames,before.frames);
+  assert.equal(await page.evaluate(()=>scenicTrack===stream.getVideoTracks()[0]&&scenicTrack.readyState==='live'),true);
+  assert.equal(await page.evaluate(()=>documentToken),token);
+  assert.deepEqual((await page.evaluate(()=>request('windowPresentation',{mode:'normal'}))).value,{mode:'normal'});
+  const restored=await app.evaluate(()=>{const w=acceptance.runtime.window;return {normal:w.getNormalBounds(),maximized:w.isMaximized(),pin:w.isAlwaysOnTop()};});
+  assert.equal(restored.maximized,true);assert.equal(restored.pin,initial.pin);
+  for(const key of ['x','y','width','height'])assert.ok(Math.abs(restored.normal[key]-initial.normal[key])<=4,JSON.stringify({initial,restored}));
+  await app.evaluate(()=>acceptance.runtime.window.unmaximize());
+  const unmaximized=await app.evaluate(()=>acceptance.runtime.window.getBounds());
+  for(const key of ['x','y','width','height'])assert.ok(Math.abs(unmaximized[key]-initial.normal[key])<=4,'unmaximize restores prior normal bounds, not maximized or mini geometry');
+  await page.evaluate(()=>request('windowPresentation',{mode:'mini'}));await page.reload();await page.waitForFunction(()=>typeof request==='function');
+  assert.deepEqual((await page.evaluate(()=>request('windowPresentationStatus'))).value,{mode:'normal'});
+  const after=await app.evaluate(({BrowserWindow})=>({id:acceptance.runtime.window.id,contents:acceptance.runtime.window.webContents.id,count:BrowserWindow.getAllWindows().length,ipc:acceptance.observations.ipc.map(item=>item.action)}));
+  assert.equal(after.id,initial.id);assert.equal(after.contents,initial.contents);assert.equal(after.count,1);
+  assert.equal(after.ipc.filter(action=>action==='cameraConsent').length,1);
+  assert.equal(after.ipc.some(action=>/start|stop|pause|endStudy/i.test(action)),false);
+  await save('scenic-same-window-mode-only',{passed:true,initial,mini,restored,after});
+});
+
 test('real Electron quit cleanup runs safely after all windows are destroyed', { timeout: 40000 }, async t => {
   const { app, page } = await fixture(t);
   await state(page, idle);

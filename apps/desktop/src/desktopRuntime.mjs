@@ -1,13 +1,14 @@
 import { createDesktopPolicy } from './desktopPolicy.mjs';
 import { createDesktopLifecycle } from './desktopLifecycle.mjs';
 import { restoreBounds } from './desktopShellSettings.mjs';
+import { createDesktopPresentation } from './desktopPresentation.mjs';
 
 export const PRODUCTION_ORIGIN = 'https://study-room-attendance.vercel.app';
 export const REQUEST_CHANNEL = 'study-room-desktop:request';
 export const EVENT_CHANNEL = 'study-room-desktop:event';
 const PUBLIC_ERRORS = new Set(['BAD_REQUEST', 'AUTH_FAILED', 'AUTH_CHANGED', 'AUTH_TIMEOUT', 'AUTH_BUSY',
   'INVALID_CALLBACK', 'STORAGE_UNAVAILABLE', 'UNTRUSTED_DOCUMENT', 'DUPLICATE_REQUEST',
-  'AUTH_EMAIL_RATE_LIMIT', 'AUTH_RATE_LIMIT', 'AUTH_NETWORK_ERROR']);
+  'AUTH_EMAIL_RATE_LIMIT', 'AUTH_RATE_LIMIT', 'AUTH_NETWORK_ERROR', 'WINDOW_UNAVAILABLE']);
 const fail = code => { throw new Error(code); };
 
 /** Owns one native window, never the web/server study lifecycle. Electron is an OS adapter. */
@@ -33,6 +34,7 @@ export function createDesktopRuntime({ electron, auth, storage, preloadPath, ico
       ...(origin !== PRODUCTION_ORIGIN ? { additionalArguments: [`--study-room-development-origin=${origin}`] } : {}) },
   });
   window.setMenuBarVisibility(false);
+  const presentation = createDesktopPresentation({window,getDisplays:()=>electron.screen?.getAllDisplays()??[]});
   const contents = window.webContents;
   const permissionSession = contents.session;
   let epoch = 0;
@@ -64,6 +66,7 @@ export function createDesktopRuntime({ electron, auth, storage, preloadPath, ico
     if (!trusted() || epoch !== capturedEpoch || !policy.isTrustedSender(event, contents)) fail('UNTRUSTED_DOCUMENT');
   }
   function invalidate() {
+    try { presentation.restore(); } catch { /* Keep snapshot available for a later cleanup retry. */ }
     settleProbe(false);
     epoch += 1; consent = null; verified = null; verification = null; quitIntent = null;
     requests.clear(); completed.clear(); lifecycle.invalidate();
@@ -88,6 +91,7 @@ export function createDesktopRuntime({ electron, auth, storage, preloadPath, ico
   }
   function emit(value) { if (trusted()) contents.send(EVENT_CHANNEL, value); }
   function authChanged() {
+    try { presentation.restore(); } catch { /* Local geometry cleanup must not block auth. */ }
     settleProbe(false);
     authGeneration += 1; verified = null; verification = null; consent = null;
     lifecycle.invalidate(); quitIntent = null; refreshTray();
@@ -172,13 +176,14 @@ export function createDesktopRuntime({ electron, auth, storage, preloadPath, ico
       .catch(()=>{}).finally(()=>{storageRecovery=false;});
   }
   function saveBounds() {
-    if(disposed||window.isDestroyed()||window.isMinimized()||window.isMaximized?.())return;
+    if(disposed||presentation.status().mode==='mini'||window.isDestroyed()||window.isMinimized()||window.isMaximized?.())return;
     const value=window.getNormalBounds?.()??window.getBounds?.();
     if(value)shellSettings?.saveBounds(value);
   }
   const queueBounds = () => {clearTimeout(boundsTimer);boundsTimer=setTimeout(saveBounds,250);};
   const clampDisplay = () => {
     if(window.isDestroyed())return;
+    if(presentation.status().mode==='mini'){presentation.clampCurrent();return;}
     const value=window.getNormalBounds?.()??window.getBounds?.();
     if(value){window.setBounds?.(restoreBounds(value,electron.screen?.getAllDisplays()));saveBounds();}
   };
@@ -297,7 +302,9 @@ export function createDesktopRuntime({ electron, auth, storage, preloadPath, ico
       const { action, payload, id } = request;
       let value;
       switch (action) {
-        case 'info': value = { platform: 'windows', version: app.getVersion(), build, protocolVersion: 1, secureStorage: storage.secure }; break;
+        case 'info': value = { platform: 'windows', version: app.getVersion(), build, protocolVersion: 1, secureStorage: storage.secure, capabilities: {windowPresentation:true} }; break;
+        case 'windowPresentationStatus': value = presentation.status(); break;
+        case 'windowPresentation': value = presentation.set(payload); break;
         case 'authStatus': value = await verifiedUser(true); break;
         case 'sendCode': value = await auth.sendCode(payload.email); break;
         case 'verifyCode': value = await auth.verifyCode(payload.email, payload.code); break;
