@@ -1,5 +1,12 @@
 # Troubleshooting
 
+## 풍경 표시의 모달·확대·Windows 고정 — 2026-11-02
+- inline AccessibleDialog와 유지할 video가 같은 workspace에 섞여 있어 전체 wrapper inert/display:none은 확인창이나 카메라 layout을 깨뜨린다. ScenicStudyView는 모달 경로만 열어 둔 scoped shielding과 원래 attribute/opacity 복원으로 제한한다.
+- 부모 scene/자식 dialog가 함께 unmount되면 자식 cleanup이 옛 overflow:hidden을 뒤늦게 복원할 수 있다. 남아 있는 modal/scene을 확인하는 한정된 cleanup reconciliation으로 누수를 막는다. 재현 RED→GREEN과 초점/초안/video 보존 회귀를 유지한다.
+- 전역 고정 px 버튼 규칙이 scenic header의 확대를 막았다. scoped1rem으로 명시하고 실제 computed32px/200%와 좁은 높이의 스크롤·44px 조작을 검증한다.
+- Electron45 Windows 최소앱에서도 constructor/setAlwaysOnTop(true) 후 getter false가 재현됐다. helper/탐색/DPI 이동만의 문제로 단정하지 않고, 보안/OS/레지스트리/의존성을 바꾸지 않는다. 사용자가 이번 고정 기능 보류를 승인해 버튼/새 요청을 제외했다. 실패 근거와 미해결 원인은 [검증 기록](../docs/verification/2026-11-01-scenic-study.md)에 보존한다.
+- icon이 없는 checkout의 native integration은 Tray 전제4건이 실패한다. 기존 prepareDesktop으로 합성 public config+기존 icon만 준비 후 동일 suite를 대조하고, 설치 빌드 전에는 운영 공개 설정으로 다시 준비한다.
+
 ## 좁은 테마 패널의 카드 이름·선택 버튼 정렬 — 2026-11-01
 - 증상: 한글 단어 중간 줄바꿈, 정적/라이브와 강도 옵션이 서로 다른 왼쪽선으로 밀렸다.
 - 원인: 카드 열을 viewport만으로 결정해 좁은 PC 패널에 3열이 남고, `overflow-wrap:anywhere`·체크 표시가 이름 폭을 줄였다. floated legend와 flex-wrap/가변폭 옵션이 겹쳤다.
@@ -12,7 +19,12 @@
 - 재발 방지: SDK 경로/PATH 부재, 로컬 서버 시작 실패, 기기 offline/부팅을 구분하고 `nodaemon server`의 원문 원인과 동일 바이너리 대조를 남긴다. 이번 원격 fetch도 같은 제한 밖에서 성공했다.
 - 같은 실행 제한에서 `gh auth status`가 invalid로 나왔지만 제한 밖에서는 기존 keyring 연결이 유효했다. 이번 비교에서는 로그아웃/재인증 없이 해결됐으므로 제한된 네트워크 결과만으로 토큰 만료로 단정하지 않는다.
 - 실제 애니메이션은 이미지 최초 로딩/스크롤이 끝난 안정 화면에서 비교한다. 불투명 카드·장식이 없는 여백의 0픽셀을 정지 증거로 쓰지 않는다. 인증 WebView DevTools 거절은 UI 입력/PNG 분석으로 대체하며 인증 접근을 우회하지 않는다.
-- Windows `failed to activate captured window`는 재선택/재시도·표준Raise도 실패. 테마 원복을 완료로 표시하지 말고 사용자 창 활성화/직접 원복 후 확인한다. 상세 docs/verification/2026-11-01-theme-device-acceptance.md.
+- Windows `failed to activate captured window`는 재선택/재시도·표준Raise도 실패했으나 사용자 창 앞으로 열기 답변 후 같은 창의 정상 입력이 복구됐다. UI 원복 완료를 직접 확인했고 일반 원인 해결/네이티브 수정으로 단정하지 않는다. 상세 docs/verification/2026-11-01-theme-device-acceptance.md.
+
+## 테마 실기기 검사 재로드 중 회복 자동 종료 안내
+- 실제 Windows 재로드 후 회복 입력창과 자동 종료 성공 안내를 관찰했다. 공부/종료/회복 제출 버튼을 직접 누르거나 DB/API 직접 조작은 하지 않았다.
+- 기존 main.tsx의 회복 차단 effect는 activeSession·blockingRecoveryRequests가 있으면 endTimer→end_study_session RPC를 호출한다. 테마 controller/CSS가 학습을 종료하는 변경은 없다.
+- 첫 화면의 시작 준비/0초만으로 전 기기의 서버 세션이 없다고 단정하지 않는다. 재로드 전 진행 공부 없음 확인과 서버 상태 정착을 구분하고, 회복 자동 정책/세션 전후 확인을 별도 검증한다. 이 정책을 테마 시험을 위해 우회·변경하지 않는다.
 
 ## 장식 라이브 CSS 정지·대비·편집 포커스
 - 증상: :is 안의 pseudo-element 및 낮은 selector 우선순위로 live 상태에서도 CSS가 paused. 효과가 스크림 위에 있으면 최악 밝기 대비가 보장되지 않는다.

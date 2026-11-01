@@ -1,5 +1,11 @@
 # Architecture Map
 
+## 풍경 집중·Windows 미니 경계
+- [PRD](prd-scenic-study.md): main.tsx의 DashboardApp은 기존 공부·카메라·actual tracking과 모달을 계속 소유한다. ScenicStudyView.tsx/scenicStudy.css는 파생값/공식 콜백·수동 표시 전환만 사용하고 기존 Dashboard 자식을 유지한다. scoped DOM shielding은 inline 모달 조상 경로와 video layout을 보존하며 inert/aria/opacity·초점/body lock만 임시 소유한다.
+- atmosphere controller/기기별 저장은 기존 소유자다. atmosphere.css의 명시적 scenic scrim만 약하게 하며 일반 대시보드 대비/움직임 줄이기/blur 정지 계약을 유지한다. 배경 편집은 기존 AtmosphereSettings의 독립 초안이다.
+- desktopBridge.mjs의 getWindowPresentationSupport/setWindowPresentation→desktopPolicy/desktopRuntime→desktopPresentation.mjs가 공식 미니 경로다. protocolVersion1·정확 mode-only payload·신뢰 최상위/current epoch로 제한하고 capability가 없는 EXE/웹/Android에는 native 버튼이 없다.
+- desktopPresentation은 동일 BrowserWindow/webContents의 geometry만 소유하고 정상 bounds/최대화/minimum 복원·작업영역 clamp를 한다. 기존 영속 bounds 저장은 미니 값을 제외하며 탐색/무효화/파기는 정상 복원만 시도한다. 학습/auth/media 의존성이 없고 항상 위 고정은 사용자 승인으로 보류한다. 실제 검증/출시는 [기록](../docs/verification/2026-11-01-scenic-study.md).
+
 ## 이번 표시 경계 — 계획표·내 페이지·숲
 - main.tsx/appTheme.css는 기존 planner/date 콜백·04시 계산·기존 report/history 데이터를 표시만 한다. native details의 open 상태는 표시 전용이며 report/reflection/recovery 자식과 영속 상태 소유권은 그대로다.
 - StudyForestSection.tsx/forestOverview.css는 요약·접기/이벤트 표시만 소유한다. StudyForest3D와 순수 성장/주간 helper·서버 preference API는 재사용한다.

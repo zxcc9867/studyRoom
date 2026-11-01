@@ -20,3 +20,5 @@ supabase/.temp/
 apps/desktop/resources/
 apps/desktop/dist/
 output/windows-electron-acceptance/
+output/scenic-fixture/
+output/pin-diagnostic.cjs

@@ -1,10 +1,16 @@
 # Progress
 
+## 풍경 집중·Windows 미니 창
+
+- 구현·최종 검증 진행: 기존 Dashboard/타이머/카메라 DOM 유지·수동 풍경 전환·할 일/상태/동일 시간/기존 시작·휴식·재개·종료 콜백·모달/초점/스크롤 보존. 고정은 사용자 승인으로 보류, 미니는 같은 BrowserWindow/webContents 축소·확대·정상 bounds/최대화 복원만 제공한다.
+- 0.1.9 보존 통합 d39e06a: 원본40/웹332 해시 유지, native164/164·Electron34/34·독립C0/I0/M0. 제품43b563e: 최종 전체Chrome1575/1575·native168/168·Electron35/35·실패/생략/취소0, officialverify7/Dune0·task검토C0/I0/M0·16해시동일. 최초병행14실패/2취소는 별도원인·수정/순차통과와 구분한다.0.1.10 NSIS/ASAR13파일동일·identity·공개config 확인, NotSigned·미설치. 전체branch검토/웹배포는 후속 중이다.
+- 실제 학습/서버/DB·실카메라·설치 앱은 조작하지 않는다. 합성 fixture 결과를 실계정/물리 수용으로 쓰지 않는다. [PRD](prd-scenic-study.md)·[검증](../docs/verification/2026-11-01-scenic-study.md).
+
 ## 중립 차콜·공부 배경 테마
 
 - 편집 정렬 보완 운영 반영 완료: 패널 기준 3/2/1열·한글 단어 유지·제목 아래 동일 폭 옵션 grid·모서리 체크. RED→전체 Chrome1559/1559·최종정렬16/16(중복 합산 안 함)·실패/생략/취소0·독립C/I/M0·verify7/Dune0. ac3ef7c push·Actions41235235666 success·dpl_5TvVYovr7xPhNnQZXggS9XD8oJW7 READY/정확SHA/alias·HTML/JS/CSS200·새 코드 확인. 학습/인증/API/native·설치파일 불변. [정렬 검증](../docs/verification/2026-11-01-theme-editor-alignment.md).
 - 상태: 운영 배포 완료. 6종 정적·라이브2/강도/일시정지·기기 저장/초안/포커스·OS/숨김/비활성 제어. 단위19/19·최종mounted217/217+나머지1326=1543개 대조(최초 pending 검사1실패 구분), verify7/Dune0·독립C0/I0/M0. c29ec20/Actions41195558979 success·dpl_388xRSPwnZrEVMJMHzJv7r1EGaF2 READY/정확SHA/alias·HTML/JS/CSS/자산10개200/해시일치. [출시 검증](../docs/verification/2026-10-31-study-themes.md).
-- 실제 기기: 11/1 ADB 소켓 실패를 제한 밖 실행으로 복구. Android16/0.2.4 무초기화·초안 취소/다크/비·별빛 실제 화면 변화/비 pause·재개/COLD 로그인·테마 유지·시스템/차콜/정적/잔잔하게 원복 PASS. Windows0.1.9 초안 취소/별빛 라이브·pause/재생 UI PASS 뒤 도구 활성화 실패. **현재 Windows 별빛 라이브이며 새벽 도시·정적 원복 대기**. 두 플랫폼 전체 완료/정적6종 실제 순회로 표시하지 않는다. 네이티브 Android 상단 라이트 잔류·물리 기기/GPU/배터리 별도. 기기 시험 자체에서는 학습·카메라·DB 및 코드/설치파일/운영 설정 미변경. [기기 수용](../docs/verification/2026-11-01-theme-device-acceptance.md).
+- 실제 기기: Android16/0.2.4 무초기화·비/별빛 실제 화면 변화·pause/재개·앱 COLD·시스템/차콜/정적/잔잔하게 원복 PASS(이번 후속에서 미조작). Windows0.1.9는 사용자 창 앞으로 열기 후 입력 정상화·최신2열/동일 폭 옵션·재로드 로그인/테마 유지·비 라이브 pause/재개·별빛 적용·**시스템/새벽 도시/정적/잔잔하게 원복 완료**. Windows 독립 픽셀/timeline/프로세스 COLD와 물리 GPU·배터리·native 상단은 별도. 공부/종료 버튼·카메라·DB 직접 조작은 없지만 재로드 중 기존 회복 정책의 자동 종료 안내가 관찰돼 서버 세션 무변경으로 단정하지 않는다. 단위19/19·docs/diff 통과, 문서만 갱신·추가 제품 배포 없음. [기기 수용](../docs/verification/2026-11-01-theme-device-acceptance.md).
 
 ## 다크 모드 내부 텍스트 대비
 
