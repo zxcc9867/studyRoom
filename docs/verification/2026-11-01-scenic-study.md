@@ -4,7 +4,7 @@
 - 승인: 풍경 우선 집중 화면 및 같은 Windows 창을 줄이는 미니 모드. 원래 다른 작업 트리의 0.1.9 로그인·종료 수정 검토·보존 통합 후 0.1.10 준비 승인. 실제 덮어설치는 별도 확인한다.
 - 작업 루트: `C:/jini-dev/worktrees/study-dashboard-clarity`, 시작 HEAD `d47dae1dbf30ff04a53e1e08d2a091f37dd89da5`.
 - PRD: [풍경 집중](../../memory-bank/prd-scenic-study.md), [실행 계획](../superpowers/plans/2026-11-01-scenic-study.md).
-- 현재 상태: 구현 진행 중. 아래 사전 검사와 최종 기능 수용을 혼동하지 않는다.
+- 현재 상태: 풍경·미니 구현과 자동 검증 완료, Windows0.1.10 설치본 준비 완료. 웹 운영 배포와 실제 덮어설치·실기기 수용은 대기 중이다. 아래 사전 검사와 최종 기능 수용을 혼동하지 않는다.
 
 ## 사전 검사
 - 출시 대상 재확인: team `team_LaN4bwvH4msrzoQtIw3fqsUj` / project `prj_u2Q9FKwNeVjwwtVOjuXNMZRpkR3g` / `study-room-attendance.vercel.app`. 작업 중 운영은 기존 ac3ef7c / dpl_5TvVYovr7xPhNnQZXggS9XD8oJW7 READY/production alias로 유지됨을 MCP로 확인했다. GitHub workflow294915408은 active이며 아직 새 배포를 실행하지 않았다.
@@ -50,7 +50,7 @@
 - `desktop:check`13파일 통과. sandbox 단위164중13건 localhost EACCES 후 동일 source 제한 밖 재실행164/164·실패/생략/취소0. Dune17파일/4경계/위반0.
 - 최초 Electron34중30통과/4실패: 현재 트리에 ignored resources/icon 부재로 Tray 생성 실패. 기존 prepareDesktop에 합성 공개 설정만 주어 아이콘을 준비하고 source/테스트 변경 없이 재실행했다. 최종34/34·실패/생략/취소0·408210ms·exit0, `output/scenic-native-baseline-integration-prepared.log`.
 - 6분 숨김360275ms: 같은 process/webContents/document·합성 영상7213frame·heartbeat361시도/361ACK·오류/대기/timeout0·track live. 물리 카메라/실계정 공부 검증은 아니다.
-- 현재 ignored public-config는 합성 시험 설정이다. 설치 빌드 전 기존 production 공개 설정으로 다시 준비해야 하며 Git에 포함하지 않는다. 실제 앱/인증 provider/브라우저/Supabase 설정·학습 행은 조작하지 않았다.
+- Task1 종료 당시 ignored public-config는 합성 시험 설정이었다. 최종 설치본 빌드 전 기존 production 공개 설정으로 교체·동일값 확인 및 패키징 검증을 완료했으며 Git에는 포함하지 않았다. Task1에서 실제 앱/인증 provider/브라우저/Supabase 설정·학습 행은 조작하지 않았다.
 - 독립 task 검토: spec/quality 승인·Critical0/Important0/Minor0. 컨트롤러도 단위164/164를 새로 실행하고 원본18파일 LF 동일18/18·현재 tracked web clean을 확인했다. 구현자의 작업 전 도구 변수 스냅샷을 별도 JSON으로 보존한 뒤 baseline/완료 직전 original40+web332해시/porcelain 일치를 직접 대조했고, 현재 원본40개 바이트도 baseline 대비 차이0이다. 이 스냅샷에는 수집 시각이 없고 최종 raw snapshot은 보존되지 않았다는 한계를 명시했다.
 
 ## 보존 한계
