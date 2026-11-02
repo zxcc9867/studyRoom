@@ -1,5 +1,7 @@
 # PRD: 풍경 집중 화면과 Windows 미니 창
 
+- 영상형/미니 제거 후속 완료: 기존6개 보존·구름/파도2개·종류 사전표시·지연 다운로드/실제 재생·실패복구, 미니 진입 제거/정상복원 유지. Chrome1611/1611·공식7/Dune0·독립C/I/M0·17해시/diff통과. 제품786d1a4·Actions41460028405 success·dpl_Aw4mxhxE2S4qAtNfvKHmShQem2kB READY/동일SHA/운영alias·웹자산200/영상206·격리운영영상 재생2/2. 실제앱/기록/설정 조작·새APK/EXE 없음. [검증](../docs/verification/2026-11-02-video-live.md).
+
 - 시작 통합 후속 완료: 별도 풍경 버튼 제거·주 시작/재개 성공 진입·같은 위치의 실행 중 재진입, 취소/계정/화면 왕복 의도 폐기·차콜 canvas 보정. 최종Chrome1603/1603·공식7/Dune0·독립C/I/M0·4해시/diff통과. 제품b4c8748·Actions41398177995 success·dpl_FPqPCj2xkfgxp1NkpTyiT24uatvA READY/정확SHA/운영alias·HTML/새JS/CSS200. 실제 기기/학습 기록 조작·새APK/EXE 없음. [검증](../docs/verification/2026-11-02-scenic-start.md).
 
 - 메뉴/설정 후속 완료: 햄버거7경로·라이브 직접조작/실제상태·설정창 공통토큰/paint교정. 최종Chrome1583/1583·공식7/Dune0·독립재검토C/I/M0·해시/diff통과. 제품8b8dc02·Actions41384495691 success·dpl_J1sjugA4G7rLh5GG1jfjDez92V9j READY/정확SHA/운영alias·HTML/새JS/CSS200/새코드 확인. 실기기 조작·새APK/EXE 없음. [후속 검증](../docs/verification/2026-11-02-scenic-menu.md).

@@ -20,3 +20,12 @@
 
 - 최초 후보의 paused seek→canvas는 decoder가 갱신한 프레임을 기다리지 않아 어둡거나 오래된 프레임을 반환했다. 해당 결과만으로 원본 영상 불량을 확정하지 않는다. 최종 소스는 직접 재생과 연속 프레임으로 확인하고 실제 앱 fixture의 painted viewport 픽셀 변화도 검증한다.
 - 도구/SDK/계정 추가 없음. public licensed WebM을 같은 Vercel 배포에서 제공한다. 카메라 영상을 공유/전송하지 않는다.
+
+## 운영 출시 확인
+
+- 제품 source 786d1a46d0b163f08a3b9f49f4684b471d144f97, 기능 브랜치 커밋·푸시 완료. Actions41460028405 completed/success/동일 SHA.
+- Vercel dpl_Aw4mxhxE2S4qAtNfvKHmShQem2kB READY/production/동일 SHA, 운영 alias study-room-attendance.vercel.app 확인.
+- 운영 HTML/새 JS/CSS200, 새 영상 종류/구름/파도/스타일 marker 확인. 영상2개 Range bytes0-63 요청206·video/webm·64bytes·전체크기5,252,372/4,555,474 일치. 포스터2개200·image/webp.
+- 격리 Chrome에서 운영 공개 영상2개 직접 디코딩/무음 재생: 구름1280×720·파도1920×1080, 각각 currentTime>0.5·paused=false·srcObject=null, exit0. output/video-live-production-playback.log. 실제 계정/설치 앱 검증과 구분한다.
+- 즉시5분 창 error/fatal 집계는 빈 결과다. 장기 무장애·GPU/배터리 보장이 아니며 기존 관측 설정은 변경하지 않았다.
+- 공통 hosted UI 배포이며 새 APK/EXE 없음. 공부·카메라 미사용 시 사용자가 앱/웹을 다시 불러와 설정→공부와 화면→배경 테마의 영상 라이브 카드를 적용한다. 기존 테마/사용자 설정·학습 기록을 자동 변경하지 않았다.
