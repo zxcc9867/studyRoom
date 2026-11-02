@@ -1,13 +1,15 @@
 # Active Context
-- 갱신: 2026-11-02 13:34 JST · 도구: codex
+- 갱신: 2026-11-02 15:08 JST · 도구: codex
 - 루트/브랜치: C:/jini-dev/worktrees/study-dashboard-clarity · fix/study-dashboard-clarity · 제품/운영 source f9f6212bbf2aec1160ce7b50fc6aabd8956e9628 커밋·푸시 완료. 이후 출시기록 커밋은 문서 전용이며 실제 HEAD는 gitlog/resume으로 확인한다. 별도 작업의 미커밋 변경은 보존한다.
-- 현재 목표/완료 기준 달성: 화면 순서 편집을 뒤로 가기·다른 페이지/오늘 탭·같은 오늘 링크로 나가면 편집 UI를 닫고, 저장 버튼 전에는 기존 순서/학습기록을 유지한다. route/domain 이탈 정리·공통nav 취소·today/focus 동시진입·modifier가드 적용. 새 탭 modifier 클릭은 현재 초안을 유지한다.
-- 현재 검증/배포 완료: RED5+같은hash RED2+검토I1 RED1→최종Chrome1591/1591(실패/생략/취소0,1029763ms,exit0)·공식7/Dune0·독립재검토C/I/M0/직접3통과·3파일해시동일/diff통과. Actions41388475177 success·dpl_9iNdk4ybcAAjZKXUo9bwgn1Bfejv READY/production/정확SHA/운영alias. HTML/index-CCuclcir.js/index-BbeAEX0S.css200·새JS의 modifier가드/편집코드 확인. 직후5분error/fatal그룹없음은 장기보장이 아니다. [후속근거](../docs/verification/2026-11-02-layout-editor-exit.md).
+- 현재 구현·검증 완료/배포 대기: 사용자 ‘이 흐름으로 구현·검증·배포’ 승인. 별도 풍경 버튼 제거·주 버튼 준비/확인 후 start/resume 성공 진입·진행 중 표시 전용 재진입 구현. PRD/architecture-map 개정. 표시 intent는 주 클릭부터 소유하고 route revision/계정/취소/hard error에서 폐기한다. 기존 학습/카메라/팀/서버/API/native 소유권 불변. [근거](../docs/verification/2026-11-02-scenic-start.md).
+- 검증/다음: 기능/route/account/검토camera/회복취소/paint RED를 보완했다. 최종풍경35/35·메인/동기화43/43·전체Chrome1603/1603 실패/생략/취소0·970897ms exit0. 최종공식7/Dune0·독립 추가C/I/M0. 소스4해시는고정동일. 최종diff→관련경로만commit/push→기존Actions/정확SHA READY·HTTP 확인 필요. 아직배포안함.
+- 병행 조사/미해결: Windows0.1.10 테마 재실행 유지 보고. 단위13/13·격리Electron45 정상 cold2/2는 통과, 실제 설치 앱 적용/원복도 정상이다. 저장 소실 원인은 미확정이며 scenicOpen의 비영속화는 별개다. 실제 시험 설정은 시스템·새벽 도시/정적/잔잔하게로 원복 완료, 설치앱 cold 수용은 사용자 트레이 정상 종료 대기다. 종료 후 같은 EXE 재실행 승인 있음. 강제종료·인증/전체저장소 조회로 우회하지 않는다. [조사](../docs/verification/2026-11-02-theme-restart-diagnosis.md).
+- 이전 화면순서 완료: Back/탭/같은 오늘 링크 이탈 정리·modifier초안 유지. Chrome1591/1591·공식7/Dune0·독립C/I/M0·3파일해시/diff통과. f9f6212/Actions41388475177 success·dpl_9iNdk4ybcAAjZKXUo9bwgn1Bfejv READY/정확SHA/운영alias·HTML/JS/CSS200. [근거](../docs/verification/2026-11-02-layout-editor-exit.md).
 - 완료: ScenicStudyView/scenicStudy.css·DashboardNavigation 공통 destination·main의 기존 hash/section 이동. 미니 정상 복원 실패 시 이동하지 않고 메뉴만 닫아 복구 가능. 공통토큰 설정창/헤더닫기·scene80/modal90·OS/비활성/일시정지 실제설명. 새영상/서버/DB/Auth/학습정책·native 변경 없음.
 - 검증: 최종 실제Chrome1583/1583·실패/생략/취소0·850388ms·exit0, 공식7/Dune0·diff/제품test5해시동일. 독립 최초C0/I1/M1→hover-only Escape/미니설명 RED→GREEN·재검토C0/I0/M0/직접3통과. 첫 전체중단/초기RED는 별도보존하며 최종통과로 합산하지 않는다.
 - 이전 풍경 배포: source8b8dc027·Actions41384495691 success·dpl_J1sjugA4G7rLh5GG1jfjDez92V9j READY/정확SHA/운영alias. 현재 화면순서 수정의 배포·검증과 구분한다.
 - 근거: [후속 검증](../docs/verification/2026-11-02-scenic-menu.md), output/scenic-menu-full-chrome-final.log/scenic-menu-official-verify.log. PRD/architecture-map/progress/trouble-shooting 갱신. 실제설치앱/Android 에뮬레이터/물리카메라/DB전체digest는 이번 범위에서 조작·수용하지 않았다.
-- 다음: 사용자 공부를 마친 뒤 웹/앱 새로고침으로 hosted UI 확인. 이번변경은 새APK/EXE 없이 공유한다. 실제 사용자 설정을 변경하지 않아 원복할 값도 없다. 현재실제Windows0.1.10 수용 여부는 별도세션의 Windows PRD 최신diff를 따른다.
+- 이전 출시 다음 단계: 공부를 마친 뒤 웹/앱 새로고침으로 hosted UI 확인. 풍경/화면순서 hosted 변경은 새APK/EXE 없이 공유하며 당시에는 실제 사용자 설정을 변경하지 않았다. 현재 테마 진단의 실제 시험/원복은 위 조사 항목을 따른다. Windows0.1.10 설치 수용은 별도세션의 Windows PRD 최신diff를 따른다.
 - 보존: 기존 테마검증2문서, prd-tech-feed/prd-windows-desktop·새desktop-install-acceptance 문서, .serena/다른output은 이번커밋에서 제외했다. 원본 study-room-desktop-current는 이번 작업에서 read-only이며 관련dirty를 되돌리지 않는다.
 - 이전 네이티브: d39e06a로0.1.9 auth/loopback/종료 보존 통합, 제품43b563e의 같은BrowserWindow 미니/확대/트레이·기존학습/미디어 경계 유지.0.1.10 설치본은 dist/StudyRoom-Setup-0.1.10-x64.exe, SHA25621d4b243852c94a8c30c570cbc6f8ca46279542c05bd767cfece09e10d1bd69c·NotSigned. 이전1575/native168/Electron35·보존원본40해시/ASAR근거는 [기존 기록](../docs/verification/2026-11-01-scenic-study.md)에 있다.
 - 주의: 항상위는 최소Electron45에서도false·내부원인미확정으로 사용자승인 보류. 고정UI/새요청/Win32·보안·레지스트리 우회 없음. Android인증WebView DevTools우회금지, 기존회복정책의 실제재로드 자동종료 관측과 blur/reduced-motion 장식정지 계약은 유지한다.

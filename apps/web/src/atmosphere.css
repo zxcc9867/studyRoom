@@ -2,7 +2,7 @@
 :root { --study-scene: none; --study-scene-scrim: #f4f6f3ed; --study-effect-opacity: .18; }
 :root[data-study-theme=dark] { --study-scene-scrim: #111318c9; }
 /* Only explicit scenic presentation lightens the scrim; controller/effects stay shared. */
-:root[data-scenic-study=active] { --study-scene-scrim: #11131820; }
+:root[data-scenic-study=active] { --study-scene-scrim: #11131820; --study-bg: #111318; background: #111318 !important; }
 html[data-scenic-study=active] .dashboard-redesign { background: transparent !important; }
 html[data-scenic-study=active][data-study-background=charcoal] body { background: #111318 !important; }
 :root[data-study-intensity=normal] { --study-effect-opacity: .32; }

@@ -1,5 +1,13 @@
 # Progress
 
+## 공부 시작·풍경 자동 진입
+
+- 구현·검증 완료/운영배포 대기: 주 시작/재개 성공 뒤 풍경, 실행 중 같은 위치에서 세션 무변경 재진입, 별도 풍경 버튼 제거. 최초 클릭의 표시 intent를 유지하며 route/계정/취소/확정 전 실패는 폐기, 불확실 재확인은 보존. 기존학습·카메라/배경 저장·native 정책 불변. 라이트 차콜의 실제 paint도 보정. 최종Chrome1603/1603·실패/생략/취소0, 공식7/Dune0·독립 소스C/I/M0. 초기 fixture/paint RED는 보완했고 기록은 별도 유지한다. [검증](../docs/verification/2026-11-02-scenic-start.md).
+
+## Windows 테마 재실행 조사
+
+- 부분·원인 미확정: 테마 전용 localStorage·persist 파티션과 초기 복원 경로 확인, 단위13/13·격리Electron45 cold2/2 통과. 실제0.1.10에서 별빛 바다/라이브 적용 뒤 원래 시스템·새벽 도시/정적/잔잔하게로 원복. 실제 트레이 종료는 도구 target 부재로 사용자 동작 대기, 설치앱 cold 수용은 미실행이다. 풍경 진입 상태는 비영속이며 배경 선택 소실과 구분한다. 제품/기록·설치·배포 변경 없음. [조사](../docs/verification/2026-11-02-theme-restart-diagnosis.md).
+
 ## 화면 순서 편집 이탈
 
 - 운영배포 완료: 뒤로 가기·다른 페이지·오늘 하위 탭·같은 오늘 링크에서 편집/드래그를 닫고, 미저장 상태는 저장 순서로 복귀한다. 새 탭 modifier 클릭은 현재 초안을 유지한다. today/focus 진입·명시적 저장 유지. 최종Chrome1591/1591(실패/생략/취소0)·공식7/Dune0·독립재검토C/I/M0·3파일해시/diff통과. 제품f9f6212·Actions41388475177 success·dpl_9iNdk4ybcAAjZKXUo9bwgn1Bfejv READY/정확SHA/운영alias·HTML/새JS/CSS200. 실제 학습/설정 서버 쓰기·새APK/EXE 없음. [검증](../docs/verification/2026-11-02-layout-editor-exit.md).

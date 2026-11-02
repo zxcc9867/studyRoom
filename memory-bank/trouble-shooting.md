@@ -1,5 +1,21 @@
 # Troubleshooting
 
+## 공부 성공 후 풍경 자동 진입의 오래된 표시 의도 — 2026-11-02
+- 원인: RPC 직전의 현재 화면만 검사하면 카메라 준비 중 탭 왕복이 새 의도로 취급된다. 회복 취소의 의도가 남으면 별도 알림 시작이 이를 빌릴 수도 있다.
+- 해결: 주 버튼 클릭에서 표시 전용 사용자/revision intent를 만들고 성공 응답에서 동일 객체·사용자·현재 today/focus·revision을 확인한다. route/계정/각 준비창 취소·hard error는 폐기하고 불확실 요청의 재확인은 보존한다. 학습 mutation 정책은 변경하지 않는다.
+- 회귀: 카메라 지연/화면 왕복·계정·회복 취소→별도 알림 시작을 실제 합성 UI RED로 확인한다. 자동 진입 뒤 메인 검증은 기존 햄버거로 복귀하며 숨겨진 메인 DOM을 직접 조작하지 않는다. 최종 결과는 docs/verification/2026-11-02-scenic-start.md.
+
+## 라이트 모드의 차콜 풍경이 밝게 칠해짐 — 2026-11-02
+- 원인: body는 차콜이어도 html root의 기존 밝은 canvas가 실제 viewport를 덮었다. body computed style 검사만으로는 발견하지 못했다.
+- 해결: atmosphere.css의 scenic-active 동안만 root canvas와 이미지 실패 fallback을 차콜로 지정한다. appearance/배경 저장값과 일반 대시보드는 변경하지 않는다.
+- 재발 방지: screenshot PNG의 실제 픽셀 RED244/246/243→GREEN17/19/24와 종료 후 root 배경 복원을 검사한다. 자동 회복창 시험은 count가 아닌 명시적 표시/닫힘을 기다린다.
+
+## Windows 테마 재실행 유지 보고 — 조사 중 2026-11-02
+- 원인 미확정: 두 controller는 전용 localStorage·초기 복원, native는 persist 파티션이다. 단위13/13·격리Electron45 정상 cold2/2와 실제 적용/원복은 정상이나 설치앱 cold 수용은 아직 없다.
+- scenicOpen의 useState(false)는 풍경 진입 상태를 재실행 시 복원하지 않는다. 배경 설정 소실과 같은 문제라고 단정하지 않는다.
+- Computer Use에 트레이 target이 없어 사용자 정상 종료를 요청했다. 실제 시험 설정은 원래 시스템·새벽 도시/정적/잔잔하게로 원복했고 강제 종료/저장소 초기화·제품 패치는 하지 않았다.
+- 다음: 같은 설치 EXE cold 시작에서 원래 UI 선택값을 대조한다. 제품 수정/해결 완료로 보고하지 않는다. docs/verification/2026-11-02-theme-restart-diagnosis.md.
+
 ## 화면 순서 편집 이탈 후 재표시 — 2026-11-02
 - 증상: 설정→화면 구성→뒤로 가기→오늘에서 편집창과 미저장 미리보기가 계속 나왔다. 같은 #today 메뉴 클릭은 hashchange조차 없어 닫히지 않았다.
 - 원인: DashboardApp에 sectionOrderEditing이 유지되지만 route/domain 이탈 시 정리하는 경로가 없었다. 기존 취소 버튼만 editing/dragging/초안을 복구했다.

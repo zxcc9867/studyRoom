@@ -680,6 +680,13 @@ function DashboardApp() {
     setDraggingSectionId(null);
   }, [activeSection, todayDomain]);
   const [scenicOpen, setScenicOpen] = useState(false);
+  const scenicStartIntentRef = useRef<{ userId: string; revision: number } | null>(null);
+  const scenicRouteRef = useRef({ section: activeSection, domain: todayDomain, revision: 0 });
+  if (scenicRouteRef.current.section !== activeSection || scenicRouteRef.current.domain !== todayDomain) {
+    scenicRouteRef.current = { section: activeSection, domain: todayDomain, revision: scenicRouteRef.current.revision + 1 };
+    scenicStartIntentRef.current = null;
+  }
+  useEffect(() => { scenicStartIntentRef.current = null; setScenicOpen(false); }, [session?.user.id]);
   useEffect(() => { if (!session || activeSection !== "today" || todayDomain !== "focus") setScenicOpen(false); }, [session?.user.id, activeSection, todayDomain]);
   const [selectedCalendarMonth, setCalendarMonth] = useState<string | null>(null);
   const [todoHistoryPage, setTodoHistoryPage] = useState(1);
@@ -2529,6 +2536,7 @@ function DashboardApp() {
 
   function closeSessionTodoSelection() {
     if (busy || sessionTodoAddBusy || ((todoBusy || sessionTodoTimeSaveRef.current) && !sessionTodoTimeChecking)) return;
+    scenicStartIntentRef.current = null;
     cancelSessionTodoTimeCheck();
     if (sessionTodoStartRequest?.cameraReadyOverride && !activeSession) {
       stopCameraMonitoring({ recordEvent: false });
@@ -3686,6 +3694,7 @@ function DashboardApp() {
   }
 
   function closeRecoveryRoutineModal() {
+    scenicStartIntentRef.current = null;
     if (recoveryModalRequest) {
       recoveryModalDismissedIdsRef.current.add(recoveryModalRequest.id);
     }
@@ -3856,6 +3865,7 @@ function DashboardApp() {
 
   function cancelActualAction() {
     if (busy || actualIntentRef.current?.uncertain) return;
+    scenicStartIntentRef.current = null;
     const action = actualIntentRef.current?.input.action;
     setPendingActualIntent(null);
     setActualNotice("");
@@ -3904,6 +3914,7 @@ function DashboardApp() {
     const userId = session?.user.id;
     if (!userId || !dashboardReady || sessionStartRequestRef.current || (actualIntentRef.current && !retryIntent)) return false;
     if (input?.action !== "start" && !retryIntent && !actualTrackingRef.current) return false;
+    const scenicIntent = scenicStartIntentRef.current;
     const controller = new AbortController();
     sessionStartRequestRef.current = controller;
     const revision = ++actualStateRevisionRef.current;
@@ -3946,6 +3957,11 @@ function DashboardApp() {
       }
       setPendingActualIntent(null);
       applyActualResult(outcome.result);
+      if ((outcome.result.preview.action === "start" || outcome.result.preview.action === "resume")
+        && scenicIntent && scenicStartIntentRef.current === scenicIntent && scenicIntent.userId === userId
+        && scenicRouteRef.current.revision === scenicIntent.revision
+        && scenicRouteRef.current.section === "today" && scenicRouteRef.current.domain === "focus") setScenicOpen(true);
+      if (scenicStartIntentRef.current === scenicIntent) scenicStartIntentRef.current = null;
       committed = true;
       return true;
     } catch (error) {
@@ -3956,6 +3972,7 @@ function DashboardApp() {
         setPendingActualIntent({ ...intent });
         setActualError(help);
       } else {
+        if (scenicStartIntentRef.current === scenicIntent) scenicStartIntentRef.current = null;
         if (input?.action === "start" || input?.action === "resume") stopCameraMonitoring({ recordEvent: false, preserveExcludedSeconds: input.action === "resume" });
         cameraSessionStartingRef.current = false;
       }
@@ -4545,6 +4562,7 @@ function DashboardApp() {
   }
 
   function closeCameraSetupPrompt() {
+    scenicStartIntentRef.current = null;
     if (cameraSetupPrompt?.mode === "start") {
       sessionTodoSuggestionRef.current = null;
     }
@@ -5438,14 +5456,21 @@ function DashboardApp() {
             <div className="session-clock"><span>{activeSessionPaused ? "휴식 중 · 공부시간은 멈춰 있어요" : activeSession && (presenceState.timerPaused || sharedCameraView.status === "auto_paused") ? "자리 비움 · 공부시간은 멈춰 있어요" : "이번 세션 공부시간"}</span><strong role="timer" aria-label="이번 세션 공부시간">{dashboardReady ? formatTimerClock(currentSessionSeconds) : "확인 필요"}</strong></div>
               <div className="topbar-actions" aria-label="집중 세션 조작">
                 <button
-                  className={activeSession && !activeSessionPaused ? "break-action" : "primary"}
+                  className="primary"
                   type="button"
-                  onClick={focusAction}
+                  onClick={() => {
+                    if (activeSession && !activeSessionPaused) setScenicOpen(true);
+                    else {
+                      scenicStartIntentRef.current = { userId: session.user.id, revision: scenicRouteRef.current.revision };
+                      focusAction();
+                    }
+                  }}
                   disabled={focusActionDisabled}
                 >
-                  {activeSession && !activeSessionPaused ? <Pause size={18} /> : <Play size={18} />}
-                  {focusActionLabel}
+                  <Play size={18} />
+                  {activeSession && !activeSessionPaused ? "공부 화면 열기" : focusActionLabel}
                 </button>
+                {activeSession && !activeSessionPaused && <button className="break-action" type="button" onClick={focusAction} disabled={focusActionDisabled}><Pause size={18} />잠시 쉬기</button>}
                 {activeSession && <button
                   className="danger"
                   onClick={() => {
@@ -5457,7 +5482,6 @@ function DashboardApp() {
                   종료
                 </button>}
               </div>
-            <button type="button" className="secondary" onClick={() => setScenicOpen(true)}>풍경으로 집중</button>
             {activeSession && <TenMinuteCheckpoint state={tenMinuteCheckpoint} paused={activeSessionPaused} busy={busy} onContinue={acknowledgeTenMinuteCheckpoint} onFinish={() => void openEndSessionCompletionModal()} />}
             </section>
             <aside className="focus-side" aria-label="오늘의 간략 계획">

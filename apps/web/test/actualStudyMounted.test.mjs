@@ -18,9 +18,137 @@ async function scenicDashboard(scene) {
  await scene.getByRole('button',{name:'전체 메뉴',exact:true}).hover();
  await scene.getByRole('navigation',{name:'풍경 화면 메뉴'}).getByRole('link',{name:'내 공부',exact:true}).click();
 }
+async function dashboardAfterStudySuccess(page) {
+ const scene=page.getByRole('region',{name:'풍경 집중 화면'});await scene.waitFor();
+ await scenicDashboard(scene);await scene.waitFor({state:'detached'});
+}
+
+for(const width of [375,1440])browserTest(`scenic start: primary study start opens scenery only after commit at ${width}px`,()=>withApp(width,async page=>{
+ await page.evaluate(()=>{fixture.collision=false;window.scenicStudyBefore=structuredClone({todos:fixture.todos,recoveries:fixture.recoveries});});
+ await page.locator('.topbar-actions button').first().click();
+ assert.equal(await page.getByRole('region',{name:'풍경 집중 화면'}).count(),0,'camera preparation is not a successful start');
+ await page.getByRole('button',{name:'카메라 켜고 시작',exact:true}).click();
+ const tasks=page.getByRole('dialog',{name:'이번 세션에서 할 일 선택'});await tasks.waitFor();
+ assert.equal(await page.getByRole('region',{name:'풍경 집중 화면'}).count(),0,'task selection remains on the dashboard');
+ await tasks.getByRole('button',{name:'선택한 할 일로 시작'}).click();
+ await page.waitForFunction(()=>fixture.sessions.length===1);
+ const scene=page.getByRole('region',{name:'풍경 집중 화면'});await scene.waitFor({timeout:2500});
+ assert.equal(await scene.getByRole('button',{name:'잠시 쉬기',exact:true}).isEnabled(),true);
+ assert.equal(await page.getByRole('button',{name:'풍경으로 집중',exact:true,includeHidden:true}).count(),0,'there is no competing scenic entry action');
+ assert.deepEqual(await page.evaluate(()=>({todos:fixture.todos,recoveries:fixture.recoveries})),await page.evaluate(()=>scenicStudyBefore));
+ assert.equal(await page.evaluate(()=>fixture.calls.filter(c=>c.name==='confirm_actual_study_action').length),1);
+ await page.clock.runFor(250);
+ await scenicScreenshot(page,`scenic-start-${width}`);
+},'start'));
+
+browserTest('scenic start: running study primary reopens the same session without pause or another camera request',()=>withApp(1440,async page=>{
+ const before=await page.evaluate(()=>structuredClone({sessions:fixture.sessions,todos:fixture.todos,camera:fixtureCameraRequests}));
+ assert.equal(await page.getByRole('region',{name:'풍경 집중 화면'}).count(),0,'restored server sessions do not open scenery by themselves');
+ const entry=page.locator('.topbar-actions').getByRole('button',{name:'공부 화면 열기',exact:true});
+ assert.equal(await entry.count(),1,'the primary button becomes the re-entry action');await entry.click();
+ const scene=page.getByRole('region',{name:'풍경 집중 화면'});await scene.waitFor();
+ await scenicDashboard(scene);await scene.waitFor({state:'detached'});await entry.click();await scene.waitFor();
+ assert.deepEqual(await page.evaluate(()=>({sessions:fixture.sessions,todos:fixture.todos,camera:fixtureCameraRequests})),before);
+ assert.equal(await page.evaluate(()=>fixture.calls.some(c=>/^(confirm_actual_study_action|pause_actual_study_session|start_study_session)$/.test(c.name))),false);
+}));
+
+browserTest('scenic start: schedule cancellation and an uncertain start never open scenery before confirmed recovery',()=>withApp(375,async page=>{
+ await page.locator('.topbar-actions button').first().click();await page.getByRole('button',{name:'카메라 켜고 시작',exact:true}).click();
+ const tasks=page.getByRole('dialog',{name:'이번 세션에서 할 일 선택'});await tasks.getByRole('button',{name:'선택한 할 일로 시작'}).click();
+ const review=page.getByRole('dialog',{name:'공부와 일정 변경 확인'});await review.waitFor();
+ assert.equal(await page.getByRole('region',{name:'풍경 집중 화면'}).count(),0);await review.getByRole('button',{name:'취소 · 그대로 두기'}).click();
+ assert.equal(await page.evaluate(()=>fixture.sessions.length),0);
+ await page.evaluate(()=>{fixture.collision=false;fixture.failConfirm=true;});
+ await page.locator('.topbar-actions button').first().click();await page.getByRole('button',{name:'카메라 켜고 시작',exact:true}).click();await tasks.getByRole('button',{name:'선택한 할 일로 시작'}).click();
+ const recovery=page.getByRole('dialog',{name:'공부 처리 결과 확인'});await recovery.waitFor();
+ assert.equal(await page.getByRole('region',{name:'풍경 집중 화면'}).count(),0,'a network error cannot claim a successful start');
+ await recovery.getByRole('button',{name:'같은 요청 다시 확인'}).click();await page.getByRole('region',{name:'풍경 집중 화면'}).waitFor({timeout:2500});
+ const calls=await page.evaluate(()=>fixture.calls.filter(c=>c.name==='confirm_actual_study_action'));
+ assert.equal(calls.length,2);assert.deepEqual(calls[0].args,calls[1].args);assert.equal(await page.evaluate(()=>fixture.sessions.length),1);
+},'start'));
+
+browserTest('scenic start: a late successful commit after navigating away does not leave a pending scenic entry',()=>withApp(1440,async page=>{
+ await page.evaluate(()=>{fixture.collision=false;fixture.holdConfirm=true;});
+ await page.locator('.topbar-actions button').first().click();await page.getByRole('button',{name:'카메라 켜고 시작',exact:true}).click();
+ await page.getByRole('dialog',{name:'이번 세션에서 할 일 선택'}).getByRole('button',{name:'선택한 할 일로 시작'}).click();
+ await page.waitForFunction(()=>Boolean(fixture.releaseConfirm));await page.evaluate(()=>location.hash='goals');await page.locator('.goals-panel').waitFor();
+ await page.evaluate(()=>fixture.releaseConfirm());await page.waitForFunction(()=>!document.querySelector('.topbar-actions button')?.disabled);
+ await page.locator('.desktop-navigation').getByRole('link',{name:'오늘',exact:true}).click();await page.locator('.topbar-actions').waitFor();
+ assert.equal(await page.getByRole('region',{name:'풍경 집중 화면'}).count(),0,'the former route cannot reopen scenery on a later visit');
+},'start'));
+
+browserTest('scenic start: navigation roundtrip during commit does not reuse the previous screen intent',()=>withApp(1440,async page=>{
+ await page.evaluate(()=>{fixture.collision=false;fixture.holdConfirm=true;});
+ await page.locator('.topbar-actions button').first().click();await page.getByRole('button',{name:'카메라 켜고 시작',exact:true}).click();
+ await page.getByRole('dialog',{name:'이번 세션에서 할 일 선택'}).getByRole('button',{name:'선택한 할 일로 시작'}).click();
+ await page.waitForFunction(()=>Boolean(fixture.releaseConfirm));await page.evaluate(()=>location.hash='goals');await page.locator('.goals-panel').waitFor();
+ await page.locator('.desktop-navigation').getByRole('link',{name:'오늘',exact:true}).click();await page.locator('.topbar-actions').waitFor();
+ await page.evaluate(()=>fixture.releaseConfirm());await page.waitForFunction(()=>!document.querySelector('.topbar-actions button')?.disabled);
+ assert.equal(await page.getByRole('region',{name:'풍경 집중 화면'}).count(),0,'returning later is not a new explicit start request');
+},'start'));
+
+browserTest('scenic start: changing accounts closes an open presentation instead of carrying it to the new account',()=>withApp(1440,async page=>{
+ await page.getByRole('button',{name:'공부 화면 열기',exact:true}).click();const scene=page.getByRole('region',{name:'풍경 집중 화면'});await scene.waitFor();
+ await page.evaluate(()=>fixture.changeOwner());await scene.waitFor({state:'detached',timeout:2500});
+ assert.equal(await page.evaluate(()=>fixture.calls.some(c=>c.name==='confirm_actual_study_action')),false);
+}));
+
+browserTest('scenic start: camera preparation keeps the original display intent across a navigation roundtrip',()=>withApp(1440,async page=>{
+ await page.getByRole('button',{name:'잠시 쉬기',exact:true}).click();await page.getByRole('button',{name:'공부 계속하기',exact:true}).waitFor();
+ await page.evaluate(()=>{
+  fixture.collision=false;const original=navigator.mediaDevices.getUserMedia.bind(navigator.mediaDevices);
+  navigator.mediaDevices.getUserMedia=options=>new Promise(resolve=>{window.releaseScenicCamera=async()=>resolve(await original(options));});
+ });
+ await page.getByRole('button',{name:'공부 계속하기',exact:true}).click();await page.getByRole('button',{name:'카메라 켜고 공부 계속하기',exact:true}).click();
+ await page.waitForFunction(()=>typeof releaseScenicCamera==='function');await page.evaluate(()=>location.hash='goals');await page.locator('.goals-panel').waitFor();
+ await page.evaluate(()=>location.hash='today');await page.locator('.topbar-actions').waitFor();await page.evaluate(()=>releaseScenicCamera());
+ await page.waitForFunction(()=>fixture.sessions[0].paused_at===null&&!document.querySelector('.topbar-actions button')?.disabled);
+ assert.equal(await page.getByRole('region',{name:'풍경 집중 화면'}).count(),0,'the original request cannot gain a fresh display intent after async camera preparation');
+ assert.equal(await page.evaluate(()=>fixture.sessions.length),1,'the display guard does not change the existing resume mutation');
+}));
+
+browserTest('scenic start: resuming from the dashboard opens scenery after camera preparation without another session',()=>withApp(375,async page=>{
+ const sessionId=await page.evaluate(()=>fixture.sessions[0].id);
+ await page.getByRole('button',{name:'잠시 쉬기',exact:true}).click();await page.getByRole('button',{name:'공부 계속하기',exact:true}).waitFor();
+ await page.evaluate(()=>fixture.collision=false);await page.getByRole('button',{name:'공부 계속하기',exact:true}).click();
+ assert.equal(await page.getByRole('region',{name:'풍경 집중 화면'}).count(),0);
+ await page.getByRole('button',{name:'카메라 켜고 공부 계속하기',exact:true}).click();
+ const scene=page.getByRole('region',{name:'풍경 집중 화면'});await scene.waitFor();
+ assert.equal(await scene.getByRole('button',{name:'잠시 쉬기',exact:true}).isEnabled(),true);
+ assert.equal(await page.evaluate(()=>fixture.sessions.length),1);assert.equal(await page.evaluate(()=>fixture.sessions[0].id),sessionId);
+}));
+
+browserTest('scenic start: camera cancellation and pending recovery preserve the dashboard and existing records',async()=>{
+ await withApp(375,async page=>{
+  await page.locator('.topbar-actions button').first().click();await page.getByRole('dialog',{name:'카메라 인증 필요'}).waitFor();await page.keyboard.press('Escape');
+  assert.equal(await page.getByRole('region',{name:'풍경 집중 화면'}).count(),0);assert.equal(await page.evaluate(()=>fixture.sessions.length),0);
+  assert.equal(await page.evaluate(()=>fixtureCameraRequests),0);
+ },'start');
+ await withApp(375,async page=>{
+  const before=await page.evaluate(()=>structuredClone({sessions:fixture.sessions,recoveries:fixture.recoveries}));
+  const initialRecovery=page.getByRole('dialog',{name:'회복 루틴 작성',exact:true});await initialRecovery.waitFor();await page.keyboard.press('Escape');await initialRecovery.waitFor({state:'detached'});
+  await page.locator('.topbar-actions button').first().click();await page.getByRole('dialog').waitFor();
+  assert.equal(await page.getByRole('region',{name:'풍경 집중 화면'}).count(),0);
+  assert.deepEqual(await page.evaluate(()=>({sessions:fixture.sessions,recoveries:fixture.recoveries})),before);
+  assert.equal(await page.evaluate(()=>fixture.calls.some(c=>c.name==='confirm_actual_study_action')),false);
+ },'recovery');
+});
+
+browserTest('scenic start: cancelled recovery does not lend its display intent to a later reminder start',()=>withApp(375,async page=>{
+ const initialRecovery=page.getByRole('dialog',{name:'회복 루틴 작성',exact:true});await initialRecovery.waitFor();await page.keyboard.press('Escape');await initialRecovery.waitFor({state:'detached'});
+ await page.locator('.topbar-actions button').first().click();await page.getByRole('dialog').waitFor();await page.keyboard.press('Escape');
+ await page.locator('.recovery-blocker').getByRole('button',{name:'회복 루틴 작성',exact:true}).click();
+ const recovery=page.getByRole('dialog',{name:'회복 루틴 작성',exact:true});for(const input of await recovery.getByRole('textbox').all())await input.fill('[테스트] 회복 취소 표시 의도 검사');
+ await page.evaluate(()=>{fixture.recoveries[0].status='submitted';fixture.profile.reminder_time='23:30';fixture.collision=false;});
+ await recovery.getByRole('button',{name:'제출하고 잠금 해제',exact:true}).click();await recovery.waitFor({state:'detached'});
+ await page.getByRole('button',{name:'입장하고 시작',exact:true}).click();await page.getByRole('button',{name:'카메라 켜고 시작',exact:true}).click();
+ const tasks=page.getByRole('dialog',{name:'이번 세션에서 할 일 선택'});await tasks.locator('.session-todo-choice-list input[type=checkbox]').first().check();await tasks.getByRole('button',{name:'선택한 할 일로 시작'}).click();
+ await page.waitForFunction(()=>fixture.sessions.length===1&&!document.querySelector('.topbar-actions button')?.disabled);
+ assert.equal(await page.getByRole('region',{name:'풍경 집중 화면'}).count(),0,'the reminder uses its existing start flow, not the cancelled primary request');
+},'recovery'));
 
 browserTest('scenic menu: Escape dismisses a hover-only menu before leaving scenery',()=>withApp(1440,async page=>{
- await page.getByRole('button',{name:'풍경으로 집중'}).click();const scene=page.getByRole('region',{name:'풍경 집중 화면'}),trigger=scene.getByRole('button',{name:'전체 메뉴',exact:true});
+ await page.getByRole('button',{name:'공부 화면 열기'}).click();const scene=page.getByRole('region',{name:'풍경 집중 화면'}),trigger=scene.getByRole('button',{name:'전체 메뉴',exact:true});
  await scene.focus();await trigger.hover();assert.equal(await trigger.getAttribute('aria-expanded'),'true');
  assert.equal(await scene.evaluate(el=>el===document.activeElement),true,'hover does not move keyboard focus into the menu');
  await page.keyboard.press('Escape');assert.equal(await scene.count(),1,'a hover-only disclosure must consume Escape before the presentation closes');
@@ -30,7 +158,7 @@ browserTest('scenic menu: Escape dismisses a hover-only menu before leaving scen
 browserTest('scenic menu: hover, focus, dismissal and destination preserve the running study and camera',()=>withApp(1440,async page=>{
  const tools=page.locator('.focus-tools');await tools.locator('summary').click();await tools.getByRole('button',{name:'카메라 감시 켜기',exact:true}).click();await tools.getByRole('button',{name:'카메라 감시 끄기',exact:true}).waitFor();
  await page.evaluate(()=>{window.menuBefore={sessions:structuredClone(fixture.sessions),todos:structuredClone(fixture.todos),track:document.querySelector('video').srcObject.getVideoTracks()[0],requests:fixtureCameraRequests};fixture.calls=[];});
- await page.getByRole('button',{name:'풍경으로 집중',exact:true}).click();
+ await page.getByRole('button',{name:'공부 화면 열기',exact:true}).click();
  const scene=page.getByRole('region',{name:'풍경 집중 화면'}),trigger=scene.getByRole('button',{name:'전체 메뉴',exact:true}),menu=scene.getByRole('navigation',{name:'풍경 화면 메뉴'});
  assert.equal(await trigger.count(),1,'navigation is available from the scenic header');
  assert.equal(await scene.getByRole('button',{name:'대시보드로 돌아가기'}).count(),0);
@@ -54,7 +182,7 @@ browserTest('scenic menu: hover, focus, dismissal and destination preserve the r
 
 browserTest('scenic menu: touch toggle, keyboard links and reduced-motion animation stay usable on a narrow screen',()=>withApp(375,async page=>{
  await page.setViewportSize({width:375,height:640});await page.emulateMedia({reducedMotion:'no-preference'});
- await page.getByRole('button',{name:'풍경으로 집중'}).tap();const scene=page.getByRole('region',{name:'풍경 집중 화면'}),trigger=scene.getByRole('button',{name:'전체 메뉴',exact:true}),menu=scene.getByRole('navigation',{name:'풍경 화면 메뉴'});
+ await page.getByRole('button',{name:'공부 화면 열기'}).tap();const scene=page.getByRole('region',{name:'풍경 집중 화면'}),trigger=scene.getByRole('button',{name:'전체 메뉴',exact:true}),menu=scene.getByRole('navigation',{name:'풍경 화면 메뉴'});
  await trigger.tap();await menu.waitFor({state:'visible'});assert.equal(await trigger.getAttribute('aria-expanded'),'true');
  assert.ok(await menu.evaluate(el=>getComputedStyle(el).transitionDuration.split(',').some(value=>parseFloat(value)>0)),'menu has a real animated transition');
  await trigger.tap();assert.equal(await trigger.getAttribute('aria-expanded'),'false','a second touch closes the disclosure');
@@ -66,7 +194,7 @@ browserTest('scenic menu: touch toggle, keyboard links and reduced-motion animat
 
 for(const [width,scale,scheme] of [[375,1,'light'],[375,2,'dark'],[1440,1,'dark'],[1440,2,'light']])browserTest(`scenic settings: shared controls, contrast and layout ${width}px ${scale}x ${scheme}`,()=>withApp(width,async page=>{
  await page.emulateMedia({colorScheme:scheme,reducedMotion:'reduce'});if(scale===2)await page.addStyleTag({content:'html{font-size:200%}'});
- await page.getByRole('button',{name:'풍경으로 집중',exact:true}).click();await page.getByRole('button',{name:'풍경 배경 설정'}).click();const dialog=page.getByRole('dialog',{name:'풍경 배경 설정'});await dialog.waitFor();
+ await page.getByRole('button',{name:'공부 화면 열기',exact:true}).click();await page.getByRole('button',{name:'풍경 배경 설정'}).click();const dialog=page.getByRole('dialog',{name:'풍경 배경 설정'});await dialog.waitFor();
  const change=dialog.getByRole('button',{name:'배경 테마 변경'});
  assert.equal(await dialog.evaluate(el=>Number(getComputedStyle(el.closest('.modal-backdrop')).zIndex)>Number(getComputedStyle(document.querySelector('.scenic-study')).zIndex)),true,'the backdrop must paint above the fixed scenic presentation');
  const style=await change.evaluate(el=>{const s=getComputedStyle(el),probe=document.createElement('span');probe.style.background='var(--study-surface)';el.append(probe);const surface=getComputedStyle(probe).backgroundColor;probe.remove();return {shadow:s.boxShadow,background:s.backgroundColor,surface};});
@@ -82,7 +210,7 @@ for(const [width,scale,scheme] of [[375,1,'light'],[375,2,'dark'],[1440,1,'dark'
 
 browserTest('scenic live controls: direct opt-in, pause, resume and reduced motion keep learning state untouched',()=>withApp(375,async page=>{
  await page.emulateMedia({reducedMotion:'no-preference'});await page.evaluate(()=>{dispatchEvent(new StorageEvent('storage',{key:'study-room-atmosphere',newValue:JSON.stringify({background:'rain-library',motion:'static',intensity:'subtle'})}));window.liveBefore=structuredClone({sessions:fixture.sessions,todos:fixture.todos,camera:fixtureCameraRequests});});
- await page.getByRole('button',{name:'풍경으로 집중',exact:true}).click();const scene=page.getByRole('region',{name:'풍경 집중 화면'});
+ await page.getByRole('button',{name:'공부 화면 열기',exact:true}).click();const scene=page.getByRole('region',{name:'풍경 집중 화면'});
  const enable=scene.getByRole('button',{name:'라이브 켜기',exact:true});assert.equal(await enable.count(),1);await enable.click();await scene.getByText('라이브 재생 중',{exact:true}).waitFor();
  assert.equal(await page.evaluate(()=>document.documentElement.dataset.studyMotion),'playing');
  await scene.getByRole('button',{name:'라이브 일시정지',exact:true}).click();await scene.getByText('라이브 일시정지',{exact:true}).waitFor();assert.equal(await page.evaluate(()=>document.documentElement.dataset.studyMotion),'paused');
@@ -96,8 +224,13 @@ browserTest('scenic live controls: direct opt-in, pause, resume and reduced moti
 for(const [width,height,scale] of [[1440,960,1],[1440,960,2],[375,700,1],[375,420,2]])browserTest(`scenic: mounted state, focus and responsive controls ${width}x${height} ${scale}x`,()=>withApp(width,async page=>{
  await page.setViewportSize({width,height});
  if(scale===2)await page.addStyleTag({content:'html {font-size:200%;}'});
+ for(const action of await page.locator('.topbar-actions button').all()){
+  const box=await action.boundingBox();assert.ok(box.width>=44&&box.height>=44,'dashboard study actions retain their touch targets');
+  assert.equal(await action.evaluate(el=>el.scrollWidth<=el.clientWidth),true,'the consolidated study actions keep their labels inside the button');
+ }
+ assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),true,'the new primary action does not overflow the dashboard');
  await page.evaluate(()=>{document.querySelector('.focus-tools').open=true;window.scenicVideo=document.querySelector('video');window.scenicBefore=structuredClone({sessions:fixture.sessions,todos:fixture.todos,camera:fixtureCameraRequests});});
- const entry=page.getByRole('button',{name:'풍경으로 집중',exact:true});assert.equal(await entry.count(),1,'explicit scenic entry exists');await entry.click();
+ const entry=page.getByRole('button',{name:'공부 화면 열기',exact:true});assert.equal(await entry.count(),1,'the study primary action reopens the existing session');await entry.click();
  const scene=page.getByRole('region',{name:'풍경 집중 화면',exact:true});await scene.waitFor();
  const clocks=await page.evaluate(()=>({dashboard:document.querySelector('.session-clock [role="timer"]').textContent,scenic:document.querySelector('.scenic-clock').textContent}));
  assert.equal(clocks.scenic,clocks.dashboard,'both mounted presentations show the same canonical timer in one JavaScript task');
@@ -122,7 +255,7 @@ for(const [width,height,scale] of [[1440,960,1],[1440,960,2],[375,700,1],[375,42
 }));
 
 browserTest('scenic: required dialog dismissal returns keyboard focus to the scene',()=>withApp(375,async page=>{
- await page.getByRole('button',{name:'풍경으로 집중',exact:true}).click();
+ await page.getByRole('button',{name:'공부 화면 열기',exact:true}).click();
  const scene=page.getByRole('region',{name:'풍경 집중 화면',exact:true});
  await scene.getByRole('button',{name:'종료',exact:true}).click();await page.getByRole('dialog').waitFor();
  await page.keyboard.press('Escape');await page.getByRole('dialog').waitFor({state:'detached'});
@@ -138,7 +271,7 @@ for(const [width,height,scale] of [[420,520,1],[375,420,2]])browserTest(`scenic:
  await page.evaluate(()=>{window.presentationCalls=[];window.failRestore=false;window.studyRoomDesktop={protocolVersion:1,onEvent:()=>()=>{},request:async m=>{
    presentationCalls.push(m);return {id:m.id,ok:!(window.failRestore&&m.action==='windowPresentation'&&m.payload.mode==='normal'),error:'INTERNAL_ERROR',value:m.action==='info'?{capabilities:{windowPresentation:true}}:m.payload};
  }};});
- await page.getByRole('button',{name:'풍경으로 집중',exact:true}).click();const scene=page.getByRole('region',{name:'풍경 집중 화면',exact:true});
+ await page.getByRole('button',{name:'공부 화면 열기',exact:true}).click();const scene=page.getByRole('region',{name:'풍경 집중 화면',exact:true});
  await scene.getByRole('button',{name:'미니 창',exact:true}).click();await scene.getByRole('button',{name:'확대',exact:true}).waitFor();
  assert.equal(await scene.getByRole('button',{name:'항상 위',exact:true}).count(),0,'pin is explicitly deferred');
  assert.equal(await scene.evaluate(el=>el.scrollWidth<=el.clientWidth),true);
@@ -159,7 +292,7 @@ browserTest('scenic: live camera node, stream, layout and dashboard attributes s
  const tools=page.locator('.focus-tools');await tools.locator('summary').click();await tools.getByRole('button',{name:'카메라 감시 켜기',exact:true}).click();await tools.getByRole('button',{name:'카메라 감시 끄기',exact:true}).waitFor();
  await page.locator('.focus-coach > summary').click();await page.getByLabel('다시 시작할 할 일',{exact:true}).selectOption('a');
  await page.evaluate(()=>{window.savedScenic={video:document.querySelector('video'),track:document.querySelector('video').srcObject.getVideoTracks()[0],requests:fixtureCameraRequests,rect:document.querySelector('video').getBoundingClientRect().toJSON()};const nav=document.querySelector('.study-navigation');nav.inert=true;nav.setAttribute('aria-hidden','false');nav.style.opacity='.7';fixture.calls=[];});
- await page.getByRole('button',{name:'풍경으로 집중',exact:true}).click();const scene=page.getByRole('region',{name:'풍경 집중 화면'});
+ await page.getByRole('button',{name:'공부 화면 열기',exact:true}).click();const scene=page.getByRole('region',{name:'풍경 집중 화면'});
  assert.equal(await page.evaluate(()=>document.querySelector('video')===savedScenic.video&&savedScenic.track.readyState==='live'),true);
  assert.deepEqual(await page.evaluate(()=>{const rect=document.querySelector('video').getBoundingClientRect();return {width:rect.width,height:rect.height};}),await page.evaluate(()=>({width:savedScenic.rect.width,height:savedScenic.rect.height})), 'camera rendering dimensions stay unchanged; viewport position can change with entry focus scroll');
  await scene.getByRole('button',{name:'풍경 배경 설정'}).click();await page.getByRole('dialog',{name:'풍경 배경 설정'}).waitFor();await page.keyboard.press('Escape');await page.getByRole('dialog').waitFor({state:'detached'});
@@ -170,10 +303,10 @@ browserTest('scenic: live camera node, stream, layout and dashboard attributes s
  assert.equal(await page.evaluate(()=>fixture.calls.some(c=>/^(start|pause|end|complete)_(actual_)?study_session$/.test(c.name))),false);
 }));
 
-browserTest('scenic: existing start, task and schedule confirmations remain above the landscape',()=>withApp(375,async page=>{
+browserTest('scenic: existing start, task and schedule confirmations finish before the landscape opens',()=>withApp(375,async page=>{
  const startLabel=(await page.locator('.topbar-actions button').first().textContent()).trim();
- await page.getByRole('button',{name:'풍경으로 집중'}).click();const scene=page.getByRole('region',{name:'풍경 집중 화면'});
- await scene.getByRole('button',{name:startLabel,exact:true}).click();await page.getByRole('button',{name:'카메라 켜고 시작',exact:true}).click();
+ const scene=page.getByRole('region',{name:'풍경 집중 화면'});
+ await page.getByRole('button',{name:startLabel,exact:true}).click();await page.getByRole('button',{name:'카메라 켜고 시작',exact:true}).click();
  const tasks=page.getByRole('dialog',{name:'이번 세션에서 할 일 선택'});await tasks.waitFor();assert.equal(await tasks.evaluate(el=>!el.closest('[inert],[aria-hidden=true]')),true);
  await tasks.getByRole('button',{name:'선택한 할 일로 시작'}).click();const confirm=page.getByRole('dialog',{name:'공부와 일정 변경 확인'});await confirm.waitFor();
  assert.equal(await confirm.evaluate(el=>!el.closest('[inert],[aria-hidden=true]')),true);assert.equal(await page.evaluate(()=>fixture.sessions.length),0);
@@ -183,7 +316,7 @@ browserTest('scenic: existing start, task and schedule confirmations remain abov
 },'start'));
 
 browserTest('scenic: pause and resume use the existing RPC path and camera preparation',()=>withApp(375,async page=>{
- await page.getByRole('button',{name:'풍경으로 집중'}).click();const scene=page.getByRole('region',{name:'풍경 집중 화면'});
+ await page.getByRole('button',{name:'공부 화면 열기'}).click();const scene=page.getByRole('region',{name:'풍경 집중 화면'});
  await scene.getByRole('button',{name:'잠시 쉬기',exact:true}).click();await scene.getByRole('button',{name:'공부 계속하기',exact:true}).waitFor();
  assert.match(await scene.innerText(),/휴식 중/);const pausedClock=await scene.getByRole('timer').textContent();await page.clock.runFor(2000);assert.equal(await scene.getByRole('timer').textContent(),pausedClock);
  assert.equal(await page.evaluate(()=>fixture.calls.filter(c=>c.name==='pause_actual_study_session').length),1);
@@ -196,7 +329,7 @@ browserTest('scenic: atmosphere settings draft cancels and shared live/reduced-m
  await page.emulateMedia({reducedMotion:'no-preference'});
  await page.evaluate(()=>dispatchEvent(new StorageEvent('storage',{key:'study-room-atmosphere',newValue:JSON.stringify({background:'rain-library',motion:'live',intensity:'normal'})})));
  const storage=await page.evaluate(()=>localStorage.getItem('study-room-atmosphere'));
- await page.getByRole('button',{name:'풍경으로 집중'}).click();const scene=page.getByRole('region',{name:'풍경 집중 화면'});
+ await page.getByRole('button',{name:'공부 화면 열기'}).click();const scene=page.getByRole('region',{name:'풍경 집중 화면'});
  assert.equal(await page.evaluate(()=>getComputedStyle(document.body,'::after').animationName),'study-rain');
  await scene.getByRole('button',{name:'풍경 배경 설정'}).click();const dialog=page.getByRole('dialog',{name:'풍경 배경 설정'});await dialog.getByRole('button',{name:'배경 테마 변경'}).click();
  const editor=dialog.getByRole('group',{name:'배경 테마 편집',exact:true});await editor.getByRole('radio',{name:'별빛 바다',exact:true}).check();await editor.getByRole('button',{name:'취소',exact:true}).click();
@@ -209,21 +342,36 @@ browserTest('scenic: atmosphere settings draft cancels and shared live/reduced-m
 
 for(const mode of ['old','failed'])browserTest(`scenic: ${mode} native info offers scenic-only fallback`,()=>withApp(375,async page=>{
  await page.evaluate(mode=>{window.studyRoomDesktop={protocolVersion:1,onEvent:()=>()=>{},request:async m=>({id:m.id,ok:mode!=='failed',value:{protocolVersion:1},error:'INTERNAL_ERROR'})};},mode);
- await page.getByRole('button',{name:'풍경으로 집중'}).click();const scene=page.getByRole('region',{name:'풍경 집중 화면'});await scene.waitFor();
+ await page.getByRole('button',{name:'공부 화면 열기'}).click();const scene=page.getByRole('region',{name:'풍경 집중 화면'});await scene.waitFor();
  if(mode==='failed'){await scene.getByRole('alert').waitFor();await scene.getByRole('button',{name:'지원 다시 확인'}).click();}
  assert.equal(await scene.getByRole('button',{name:'미니 창',exact:true}).count(),0);await scenicDashboard(scene);await scene.waitFor({state:'detached'});
 },'active',true));
 
 browserTest('scenic: navigation while the settings dialog is open releases the scene body scroll lock',()=>withApp(375,async page=>{
  const before=await page.evaluate(()=>document.body.style.overflow);
- await page.getByRole('button',{name:'풍경으로 집중'}).click();await page.getByRole('button',{name:'풍경 배경 설정'}).click();await page.getByRole('dialog',{name:'풍경 배경 설정'}).waitFor();
+ await page.getByRole('button',{name:'공부 화면 열기'}).click();await page.getByRole('button',{name:'풍경 배경 설정'}).click();await page.getByRole('dialog',{name:'풍경 배경 설정'}).waitFor();
  await page.evaluate(()=>location.hash='settings');await page.locator('.scenic-study').waitFor({state:'detached'});
  assert.equal(await page.evaluate(()=>document.body.style.overflow),before,'parent and inline-dialog unmount cannot leak overflow:hidden');
 }));
 
+browserTest('scenic: light appearance paints a dark charcoal canvas and restores the dashboard after exit',()=>withApp(375,async page=>{
+ const original=await page.evaluate(()=>getComputedStyle(document.documentElement).backgroundColor);
+ await page.getByRole('button',{name:'공부 화면 열기'}).click();const scene=page.getByRole('region',{name:'풍경 집중 화면'});await scene.waitFor();
+ await page.clock.runFor(250);
+ const screenshot=await page.screenshot();
+ const pixel=await page.evaluate(async data=>{
+  const image=new Image();image.src=`data:image/png;base64,${data}`;await image.decode();
+  const canvas=document.createElement('canvas');canvas.width=image.width;canvas.height=image.height;
+  const context=canvas.getContext('2d');context.drawImage(image,0,0);return [...context.getImageData(190,220,1,1).data];
+ },screenshot.toString('base64'));
+ assert.deepEqual(pixel,[17,19,24,255],'the painted viewport, not just the body computed style, must be charcoal');
+ await scenicDashboard(scene);await scene.waitFor({state:'detached'});
+ assert.equal(await page.evaluate(()=>getComputedStyle(document.documentElement).backgroundColor),original);
+}));
+
 browserTest('scenic: charcoal and failed decorative image keep readable usable controls without changing dashboard contrast',()=>withApp(375,async page=>{
  const original=await page.evaluate(()=>getComputedStyle(document.body).backgroundColor);
- await page.getByRole('button',{name:'풍경으로 집중'}).click();const scene=page.getByRole('region',{name:'풍경 집중 화면'});
+ await page.getByRole('button',{name:'공부 화면 열기'}).click();const scene=page.getByRole('region',{name:'풍경 집중 화면'});
  assert.equal(await page.evaluate(()=>getComputedStyle(document.body).backgroundColor),'rgb(17, 19, 24)');
  await readableGroup(scene.locator('h1,p,strong,button,button span,.scenic-theme'));
  await page.route('**/themes/night-alley.webp',route=>route.abort());
@@ -2033,7 +2181,7 @@ for(const mode of ['empty-links','completed-links'])browserTest('mounted main: '
  await selection.locator('.session-todo-choice-list label').filter({hasText:'재개할 새 공부'}).locator('input').check();
  const focus=selection.getByRole('radio',{name:'재개할 새 공부',exact:true});if(await focus.count())await focus.check();
  await selection.getByRole('button',{name:'선택한 할 일로 재개'}).click();await page.getByRole('button',{name:'카메라 켜고 공부 계속하기',exact:true}).click();
- await confirmation.waitFor();await page.getByRole('button',{name:'변경 확인 후 재개'}).click();
+ await confirmation.waitFor();await page.getByRole('button',{name:'변경 확인 후 재개'}).click();await dashboardAfterStudySuccess(page);
  await page.locator('.actual-current').getByRole('heading',{name:'재개할 새 공부',exact:true}).waitFor();
  assert.equal(await page.evaluate(()=>fixture.links.includes('new')),true);
  assert.equal(await page.evaluate(()=>fixture.sessions[0].paused_at),null);
@@ -2113,7 +2261,7 @@ browserTest('mounted main: single-focus no-collision start commits through the e
  await page.evaluate(()=>fixture.collision=false);
  await page.locator('.topbar-actions button').first().click();await page.getByRole('button',{name:'카메라 켜고 시작',exact:true}).click();
  const selection=page.getByRole('dialog',{name:'이번 세션에서 할 일 선택'});await selection.waitFor();
- await selection.getByRole('button',{name:'선택한 할 일로 시작'}).click();
+ await selection.getByRole('button',{name:'선택한 할 일로 시작'}).click();await dashboardAfterStudySuccess(page);
  await page.locator('.actual-current').getByRole('heading',{name:'집중 독서',exact:true}).waitFor();
  assert.equal(await page.getByRole('dialog',{name:'공부와 일정 변경 확인'}).count(),0);
  const actions=await page.evaluate(()=>fixture.calls.filter(c=>c.name.includes('actual_study_action')));
@@ -2123,7 +2271,7 @@ browserTest('mounted main: single-focus no-collision start commits through the e
 for(const width of [375,1440])browserTest('zero-change review: stale start revalidates and starts without a schedule dialog at '+width+'px',()=>withApp(width,async page=>{
  await page.evaluate(()=>{fixture.collision=false;fixture.stale=true;});
  await page.locator('.topbar-actions button').first().click();await page.getByRole('button',{name:'카메라 켜고 시작',exact:true}).click();
- await page.getByRole('dialog',{name:'이번 세션에서 할 일 선택'}).getByRole('button',{name:'선택한 할 일로 시작'}).click();
+ await page.getByRole('dialog',{name:'이번 세션에서 할 일 선택'}).getByRole('button',{name:'선택한 할 일로 시작'}).click();await dashboardAfterStudySuccess(page);
  await page.locator('.actual-current').getByRole('heading',{name:'집중 독서',exact:true}).waitFor({timeout:2500});
  assert.equal(await page.getByRole('dialog',{name:'공부와 일정 변경 확인'}).count(),0);
  const actions=await page.evaluate(()=>fixture.calls.filter(c=>c.name.includes('actual_study_action')));
@@ -2172,7 +2320,7 @@ browserTest('zero-change review: new real changes found during revalidation wait
  const confirmation=page.getByRole('dialog',{name:'공부와 일정 변경 확인'});await confirmation.waitFor();
  assert.equal(await confirmation.locator('.actual-changes > li').count(),2);
  assert.equal(await page.evaluate(()=>fixture.sessions.length),0);
- await confirmation.getByRole('button',{name:'변경 확인 후 시작'}).click();
+ await confirmation.getByRole('button',{name:'변경 확인 후 시작'}).click();await dashboardAfterStudySuccess(page);
  await page.locator('.actual-current').getByRole('heading',{name:'집중 독서',exact:true}).waitFor();
 },'start'));
 
@@ -2183,7 +2331,7 @@ browserTest('zero-change review: uncertain result uses a result-recovery dialog 
  const recovery=page.getByRole('dialog',{name:'공부 처리 결과 확인'});await recovery.waitFor({timeout:2500});
  assert.equal(await page.getByRole('dialog',{name:'공부와 일정 변경 확인'}).count(),0);
  assert.doesNotMatch(await recovery.textContent(),/0개 일정/);
- await recovery.getByRole('button',{name:'같은 요청 다시 확인'}).click();
+ await recovery.getByRole('button',{name:'같은 요청 다시 확인'}).click();await dashboardAfterStudySuccess(page);
  await page.locator('.actual-current').getByRole('heading',{name:'집중 독서',exact:true}).waitFor();
  const confirmations=await page.evaluate(()=>fixture.calls.filter(c=>c.name==='confirm_actual_study_action'));
  assert.deepEqual(confirmations[0].args,confirmations[1].args);
@@ -2195,7 +2343,7 @@ browserTest('mounted main: legacy unknown resume asks focus without inventing fi
  await page.getByRole('button',{name:'공부 계속하기',exact:true}).click();
  await page.getByRole('button',{name:'카메라 켜고 공부 계속하기',exact:true}).click();
  await page.getByRole('dialog',{name:'공부와 일정 변경 확인'}).waitFor();
- await page.getByRole('button',{name:'변경 확인 후 재개'}).click();
+ await page.getByRole('button',{name:'변경 확인 후 재개'}).click();await dashboardAfterStudySuccess(page);
  await page.locator('.actual-current').getByRole('heading',{name:'다음 날 알고리즘',exact:true}).waitFor();
  assert.match(await page.locator('.session-todo-panel').textContent(),/이전 공부시간 배분 미확인/);
  assert.doesNotMatch(await page.locator('.actual-current').textContent(),/최초 시작|늦게 시작/);
@@ -2225,7 +2373,7 @@ browserTest('mounted main: planning report failure does not erase study achievem
 
 browserTest('mounted main: duplicate pause is one request and late confirm cannot restore the old account',async()=>{
  await withApp(1440,async page=>{
-  await page.evaluate(()=>{fixture.holdPause=true;const b=document.querySelector('.topbar-actions button');b.click();b.click();});
+  await page.evaluate(()=>{fixture.holdPause=true;const b=[...document.querySelectorAll('.topbar-actions button')].find(button=>button.textContent.includes('잠시 쉬기'));b.click();b.click();});
   await page.waitForFunction(()=>Boolean(fixture.releasePause));
   assert.equal(await page.evaluate(()=>fixture.calls.filter(c=>c.name==='pause_actual_study_session').length),1);
   await page.evaluate(()=>fixture.releasePause());

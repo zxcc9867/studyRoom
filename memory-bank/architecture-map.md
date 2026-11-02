@@ -1,8 +1,8 @@
 # Architecture Map
 
 ## 풍경 집중·Windows 미니 경계
-- [PRD](prd-scenic-study.md): main.tsx의 DashboardApp은 기존 공부·카메라·actual tracking과 모달을 계속 소유한다. ScenicStudyView.tsx/scenicStudy.css는 파생값/공식 콜백·수동 표시 전환만 사용하고 기존 Dashboard 자식을 유지한다. scoped DOM shielding은 inline 모달 조상 경로와 video layout을 보존하며 inert/aria/opacity·초점/body lock만 임시 소유한다.
-- atmosphere controller/기기별 저장은 기존 소유자다. atmosphere.css의 명시적 scenic scrim만 약하게 하며 일반 대시보드 대비/움직임 줄이기/blur 정지 계약을 유지한다. 배경 편집은 기존 AtmosphereSettings의 독립 초안이다.
+- [PRD](prd-scenic-study.md): main.tsx의 DashboardApp은 기존 공부·카메라·actual tracking과 모달을 계속 소유한다. ScenicStudyView.tsx/scenicStudy.css는 파생값/공식 콜백과 표시 전환만 사용하고 기존 Dashboard 자식을 유지한다. 2026-11-02 승인한 자동 진입은 DashboardApp의 기존 local start/resume 성공 경계와 현재 today/focus 표시 문맥에서만 수행한다. 이미 실행 중인 공부의 재진입은 표시만 바꾸며 scene 내부 pause/resume 콜백과 별개다. 서버 snapshot/계정 전환/취소/실패로 진입하지 않는다. scoped DOM shielding은 inline 모달 조상 경로와 video layout을 보존하며 inert/aria/opacity·초점/body lock만 임시 소유한다.
+- atmosphere controller/기기별 저장은 기존 소유자다. atmosphere.css의 명시적 scenic scrim을 약하게 하고 풍경이 열린 동안만 root canvas/이미지 실패 fallback을 차콜로 칠한다. 일반 대시보드 대비/움직임 줄이기/blur 정지 계약과 저장값을 유지한다. 배경 편집은 기존 AtmosphereSettings의 독립 초안이다.
 - ScenicStudyView의 햄버거는 DashboardNavigation의 공통 destination 목록과 DashboardApp의 기존 hash/section 콜백을 사용한다. 풍경 종료/정상 크기 복원 이후 이동하며 학습/media API를 호출하지 않는다. 직접 라이브 조작은 기존 atmosphere controller만 갱신한다. 공통 토큰의 설정창·scene80/modal90 겹침 순서는 scenicStudy.css가 소유한다.
 - desktopBridge.mjs의 getWindowPresentationSupport/setWindowPresentation→desktopPolicy/desktopRuntime→desktopPresentation.mjs가 공식 미니 경로다. protocolVersion1·정확 mode-only payload·신뢰 최상위/current epoch로 제한하고 capability가 없는 EXE/웹/Android에는 native 버튼이 없다.
 - desktopPresentation은 동일 BrowserWindow/webContents의 geometry만 소유하고 정상 bounds/최대화/minimum 복원·작업영역 clamp를 한다. 기존 영속 bounds 저장은 미니 값을 제외하며 탐색/무효화/파기는 정상 복원만 시도한다. 학습/auth/media 의존성이 없고 항상 위 고정은 사용자 승인으로 보류한다. 실제 검증/출시는 [기록](../docs/verification/2026-11-01-scenic-study.md).
