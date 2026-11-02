@@ -2,7 +2,7 @@
 
 ## 화면 순서 편집 이탈
 
-- 검증 완료·배포대기: 뒤로 가기·다른 페이지·오늘 하위 탭·같은 오늘 링크에서 편집/드래그를 닫고, 미저장 상태는 저장 순서로 복귀한다. 새 탭 modifier 클릭은 현재 초안을 유지한다. today/focus 진입·명시적 저장 유지. 최종Chrome1591/1591(실패/생략/취소0)·공식7/Dune0·독립재검토C/I/M0·3파일해시/diff통과. 실제 학습/설정 서버 쓰기 없음. [검증](../docs/verification/2026-11-02-layout-editor-exit.md).
+- 운영배포 완료: 뒤로 가기·다른 페이지·오늘 하위 탭·같은 오늘 링크에서 편집/드래그를 닫고, 미저장 상태는 저장 순서로 복귀한다. 새 탭 modifier 클릭은 현재 초안을 유지한다. today/focus 진입·명시적 저장 유지. 최종Chrome1591/1591(실패/생략/취소0)·공식7/Dune0·독립재검토C/I/M0·3파일해시/diff통과. 제품f9f6212·Actions41388475177 success·dpl_9iNdk4ybcAAjZKXUo9bwgn1Bfejv READY/정확SHA/운영alias·HTML/새JS/CSS200. 실제 학습/설정 서버 쓰기·새APK/EXE 없음. [검증](../docs/verification/2026-11-02-layout-editor-exit.md).
 
 ## 풍경 집중·Windows 미니 창
 

@@ -20,4 +20,12 @@
 - 최종 실제 Chrome 전체1591/1591·실패/생략/취소0·1029763ms·exit0. `node --test --test-concurrency=1 packages/core/test/*.test.mjs apps/web/test/*.test.mjs server/ai/*.test.mjs scripts/*.test.mjs supabase/functions/_shared/*.test.mjs`와 기존 FEED_BROWSER_MODULE/FEED_BROWSER_EXECUTABLE을 사용했다. `output/layout-editor-exit-full-chrome.log`.
 - 최초 공식7/Dune0은 modifier 보완 전 통과했다. 보완 후 최종 공식7(`desktop:check`, `desktop:test`, `test`, `test:edge`, `mobile:check`, `build`, `docs:check`)/Dune0도 통과했다. 공식 test의 브라우저 미설정 범위는 별도 전체 실제Chrome로 보완했다. `output/layout-editor-exit-official-final.log`.
 - 독립 최초C0/I1/M0→modifier 가드 후 재검토C0/I0/M0·직접3/3. 제품/테스트3파일 검증 전후SHA256차이0·`git diff --check` 통과. 집중11과 검토3은 전체1591에 중복 합산하지 않는다.
-- 운영배포는 검증 후 기존 workflow로 진행한다. READY/정확SHA/운영alias/HTTP200 전에는 출시 완료로 표시하지 않는다.
+
+## 운영 반영
+- 제품 커밋 `f9f6212bbf2aec1160ce7b50fc6aabd8956e9628`을 기능 브랜치에 커밋·푸시했다. 기본 브랜치 변경·PR/머지·강제 푸시는 없다.
+- 기존 workflow의 [Actions41388475177](https://github.com/zxcc9867/studyRoom/actions/runs/41388475177)이 completed/success이며 headSha와 branch가 일치한다.
+- Vercel `dpl_9iNdk4ybcAAjZKXUo9bwgn1Bfejv`은 READY/production·동일 제품SHA·운영 alias `study-room-attendance.vercel.app` 연결을 확인했다. project `prj_u2Q9FKwNeVjwwtVOjuXNMZRpkR3g`, team `team_LaN4bwvH4msrzoQtIw3fqsUj`.
+- 운영 HTML·`/assets/index-CCuclcir.js`·`/assets/index-BbeAEX0S.css` 모두 HTTP200. 새 JS entry와 modifier가드/편집 코드 반영을 확인했다. CSS는 변경하지 않아 기존 파일명이 유지된다.
+- 배포 직후5분 error/fatal 그룹 조회에 항목이 없었다. 이는 장기 관측·실제 계정/설치앱의 수용 검증을 대신하지 않는다.
+- hosted UI만 변경하므로 새 APK/EXE 설치는 필요 없다. 공부·카메라 사용을 마친 뒤 웹/앱을 새로 불러오면 반영된다. 이번 검증에서 실제 학습 기록·설정·인증·카메라·기기를 조작하지 않았다.
+- 후속 출시기록 커밋은 문서 전용이며 위 제품SHA의 운영 결과를 기록한다.
