@@ -6,6 +6,8 @@
 html[data-scenic-study=active] .dashboard-redesign { background: transparent !important; }
 html[data-scenic-study=active][data-study-background=charcoal] body { background: #111318 !important; }
 :root[data-study-intensity=normal] { --study-effect-opacity: .32; }
+.atmosphere-video { position: fixed; inset: 0; z-index: -2; width: 100%; height: 100%; object-fit: cover; pointer-events: none; opacity: 0; }
+.atmosphere-video[data-painted=true] { opacity: 1; }
 html[data-study-background]:not([data-study-background=charcoal]) body { isolation: isolate; }
 html[data-study-background]:not([data-study-background=charcoal]) body::before {
   content: ''; position: fixed; inset: 0; z-index: 0; pointer-events: none;
@@ -53,6 +55,9 @@ html[data-study-motion=static] body::after, html[data-study-motion=static] #root
 .atmosphere-thumbnail { display: block; width: 100%; aspect-ratio: 16 / 9; background: #111318; }
 .atmosphere-thumbnail img { display: block; width: 100%; height: 100%; object-fit: cover; }
 .atmosphere-option-name { display: flex; align-items: center; min-height: 44px; padding: 8px 10px; font-size: var(--study-text-xs); font-weight: 600; word-break: keep-all; overflow-wrap: normal; }
+.atmosphere-option-kind { display: block; padding: 0 10px 10px; font-size: var(--study-text-xs); color: var(--study-muted); word-break: keep-all; }
+.atmosphere-credits { margin-top: 12px; color: var(--study-muted); font-size: var(--study-text-xs); }
+.atmosphere-credits summary { min-height: 44px; padding-block: 10px; cursor: pointer; }
 .atmosphere-selected { position: absolute; top: 8px; right: 8px; display: grid; place-items: center; width: 24px; height: 24px; border: 1px solid var(--study-primary); border-radius: 50%; color: var(--study-primary); background: var(--study-surface); font-size: 16px; line-height: 1; pointer-events: none; }
 .atmosphere-selected:empty { display: none; }
 .dashboard-redesign .atmosphere-controls { display: block; border: 0; margin: 12px 0 0; padding: 0; min-width: 0; }

@@ -1,10 +1,10 @@
 import {useEffect, useId, useRef, useState, useSyncExternalStore} from 'react';
-import {BookOpen, Camera, Maximize2, Menu, Minimize2, Pause, Play, Settings, X} from 'lucide-react';
+import {BookOpen, Camera, Maximize2, Menu, Pause, Play, Settings, X} from 'lucide-react';
 import {AccessibleDialog} from './AccessibleDialog';
 import {dashboardDestinations} from './DashboardNavigation';
 import type {DashboardSection} from './dashboardRoute.mjs';
 import AtmosphereSettings from './AtmosphereSettings';
-import {atmosphereThemes, getAtmosphereController} from './atmosphere.mjs';
+import {atmospherePlayback, atmosphereThemes, getAtmosphereController} from './atmosphere.mjs';
 import {getWindowPresentationSupport, isDesktopStudyApp, setWindowPresentation, type WindowPresentation} from './desktopBridge.mjs';
 import './scenicStudy.css';
 
@@ -24,15 +24,13 @@ export default function ScenicStudyView(props: Props) {
   const suppressMenuFocus=useRef(false);
   const pointerMenuOpen=useRef(false);
   const menuId=useId();
-  const [supported,setSupported]=useState(false);
   const capability = useRef(false);
-  const [presentation,setPresentation]=useState<WindowPresentation>({mode:'normal'});
   const [nativeBusy,setNativeBusy]=useState(false);
   const [nativeError,setNativeError]=useState('');
   const controller=getAtmosphereController(window);
   const atmosphere=useSyncExternalStore(controller.subscribe,controller.getSnapshot);
   const theme=atmosphereThemes.find(item=>item.id===atmosphere.background)!;
-  const playback=atmosphere.motion!=='live'?'정적 배경':atmosphere.reducedMotion?'움직임 줄이기로 정지':atmosphere.paused?'라이브 일시정지':atmosphere.playing?'라이브 재생 중':'비활성 창에서 정지';
+  const playback=atmospherePlayback(atmosphere);
   function dismissMenu(restoreFocus=false) {
     setMenuOpen(false);
     if(restoreFocus){suppressMenuFocus.current=true;menuButton.current?.focus();suppressMenuFocus.current=false;}
@@ -43,21 +41,17 @@ export default function ScenicStudyView(props: Props) {
     document.addEventListener('pointerdown',outside);
     return ()=>document.removeEventListener('pointerdown',outside);
   },[menuOpen]);
-  async function probe() {
-    try { const value=await getWindowPresentationSupport(window);capability.current=value;setSupported(value);setNativeError(''); }
-    catch {setNativeError('미니 창 지원을 확인하지 못했어요. 풍경 화면은 계속 사용할 수 있어요.');}
-  }
   useEffect(()=>{
     let disposed=false;
     if(isDesktopStudyApp(window))void getWindowPresentationSupport(window).then(value=>{
-      if(!disposed){capability.current=value;setSupported(value);}
-    }).catch(()=>{if(!disposed)setNativeError('미니 창 지원을 확인하지 못했어요. 풍경 화면은 계속 사용할 수 있어요.');});
+      if(!disposed)capability.current=value;
+    }).catch(()=>{});
     return ()=>{disposed=true;if(capability.current)void setWindowPresentation(window,{mode:'normal'}).catch(()=>{});};
   },[]);
   async function change(value: WindowPresentation) {
     if(nativeBusy)return false;
     setNativeBusy(true);setNativeError('');
-    try {setPresentation(await setWindowPresentation(window,value));return true;}
+    try {await setWindowPresentation(window,value);return true;}
     catch {setNativeError('창 크기를 바꾸지 못했어요. 다시 확대하거나 메뉴에서 이동을 시도해 주세요.');return false;}
     finally {setNativeBusy(false);}
   }
@@ -122,7 +116,7 @@ export default function ScenicStudyView(props: Props) {
   },[]);
 
   return <>
-    <section ref={view} tabIndex={-1} className={`scenic-study${presentation.mode==='mini'?' scenic-study--mini':''}`} aria-label="풍경 집중 화면">
+    <section ref={view} tabIndex={-1} className="scenic-study" aria-label="풍경 집중 화면">
       <header className="scenic-header">
         <div ref={menuRoot} className="scenic-navigation" onPointerEnter={event=>{if(event.pointerType==='mouse')setMenuOpen(true);}} onPointerLeave={()=>{if(!menuRoot.current?.contains(document.activeElement))dismissMenu();}} onBlur={event=>{if(!event.currentTarget.contains(event.relatedTarget))dismissMenu();}}>
           <button ref={menuButton} type="button" disabled={nativeBusy} aria-label="전체 메뉴" aria-expanded={menuOpen} aria-controls={menuId} onFocus={()=>{if(!suppressMenuFocus.current)setMenuOpen(true);}} onPointerDown={()=>{pointerMenuOpen.current=menuOpen;}} onClick={event=>setMenuOpen(event.detail===0?!menuOpen:!pointerMenuOpen.current)}><Menu size={20}/><span>메뉴</span></button>
@@ -134,7 +128,7 @@ export default function ScenicStudyView(props: Props) {
         <div className="scenic-tools">
           <span className="scenic-theme"><span>{theme.name}</span><span className="scenic-playback">{playback}</span></span>
           {theme.live&&<button type="button" className="scenic-live" disabled={atmosphere.reducedMotion} aria-label={atmosphere.motion!=='live'?'라이브 켜기':atmosphere.paused?'라이브 재생':'라이브 일시정지'} onClick={()=>controller.setPreferences({...atmosphere,motion:'live',paused:atmosphere.motion==='live'&&!atmosphere.paused})}>{atmosphere.motion==='live'&&!atmosphere.paused?<Pause size={18}/>:<Play size={18}/>}<span>{atmosphere.motion!=='live'?'라이브 켜기':atmosphere.paused?'재생':'일시정지'}</span></button>}
-          {supported&&<button type="button" disabled={nativeBusy} onClick={()=>void change({mode:presentation.mode==='mini'?'normal':'mini'})} aria-label={presentation.mode==='mini'?'확대':'미니 창'}>{presentation.mode==='mini'?<Maximize2 size={18}/>:<Minimize2 size={18}/>}<span>{presentation.mode==='mini'?'확대':'미니 창'}</span></button>}
+          {theme.video&&atmosphere.videoStatus==='error'&&<button type="button" onClick={()=>controller.retryVideo()}>영상 다시 시도</button>}
           <button type="button" aria-label="풍경 배경 설정" onClick={()=>setSettingsOpen(true)}><Settings size={18}/></button>
         </div>
       </header>
@@ -144,7 +138,7 @@ export default function ScenicStudyView(props: Props) {
         <strong className="scenic-clock" role="timer" aria-label="풍경 세션 공부시간">{props.clock}</strong>
         <div className="scenic-actions"><button type="button" disabled={props.actionDisabled} onClick={props.onAction}>{props.actionLabel}</button>{props.hasSession&&<button type="button" disabled={props.endDisabled} onClick={props.onEnd}>종료</button>}</div>
         {props.notice&&<p className="scenic-notice" role="status">{props.notice}</p>}
-        {nativeError&&<div className="scenic-notice" role="alert"><p>{nativeError}</p>{!supported&&<button type="button" onClick={()=>void probe()}>지원 다시 확인</button>}</div>}
+        {nativeError&&<div className="scenic-notice" role="alert"><p>{nativeError}</p><button type="button" disabled={nativeBusy} onClick={()=>void change({mode:'normal'})}><Maximize2 size={18}/>정상 크기로 복원</button></div>}
       </div>
     </section>
     {settingsOpen&&<AccessibleDialog className="scenic-settings" ariaLabel="풍경 배경 설정" onClose={()=>setSettingsOpen(false)} closeOnBackdrop><div className="scenic-settings-heading"><h2>풍경 배경 설정</h2><button type="button" className="secondary" aria-label="풍경 배경 설정 닫기" onClick={()=>setSettingsOpen(false)}><X size={20}/></button></div><div className="settings-content"><AtmosphereSettings/></div></AccessibleDialog>}

@@ -1,5 +1,9 @@
 # Progress
 
+## 라이브 배경 구분·미니 진입 제거·체감 움직임
+
+- 구현·검증 완료/출시 준비: 사용자 선택은 실제 영상형. 기존6개를 유지하며 흐르는 구름(CC0)·해변의 파도(CC BY4.0), 종류 사전표시·지연 다운로드·실제 재생/실패/재시도·미니 진입 제거/정상복구 보존. 카메라/학습/인증/설정 스키마 불변. 최종Chrome1611/1611 실패/생략/취소0·공식7/Dune0·독립C/I/M0·17해시/diff통과. 실제 앱은 공부 중이므로 새로고침/설정변경 없음. [진단](../docs/verification/2026-11-02-live-motion-diagnosis.md), [검증](../docs/verification/2026-11-02-video-live.md).
+
 ## 공부 시작·풍경 자동 진입
 
 - 운영배포 완료: 주 시작/재개 성공 뒤 풍경, 실행 중 같은 위치에서 세션 무변경 재진입, 별도 풍경 버튼 제거. route/계정/취소/확정 전 실패의 표시 intent 폐기·불확실 재확인 유지·라이트 차콜 paint 보정. 기존학습·카메라/배경 저장·native 정책 불변. 최종Chrome1603/1603 실패/생략/취소0·공식7/Dune0·독립C/I/M0·4해시/diff통과. 제품b4c8748·Actions41398177995 success·dpl_FPqPCj2xkfgxp1NkpTyiT24uatvA READY/정확SHA/운영alias·HTML/새JS/CSS200. 새APK/EXE·실제 학습/설정 쓰기 없음. [검증](../docs/verification/2026-11-02-scenic-start.md).

@@ -79,3 +79,18 @@ test('unfocused desktop windows pause decoration even when native background stu
  e.focus(false);assert.equal(e.host.document.visibilityState,'visible');assert.equal(c.getSnapshot().playing,false);
  e.focus(true);assert.equal(c.getSnapshot().playing,true);assert.equal(c.getSnapshot().motion,'live');
 });
+
+test('video backgrounds report actual playback separately from playback eligibility without persisting runtime state',()=>{
+ const e=environment(),c=controller(e);c.setPreferences({background:'cloud-sky',motion:'live',intensity:'subtle'});
+ assert.equal(c.getSnapshot().background,'cloud-sky');assert.equal(c.getSnapshot().playing,true);assert.equal(c.getSnapshot().videoStatus,'idle');
+ const saved=e.values.get('study-room-atmosphere');assert.equal(typeof c.reportVideoPlayback,'function');c.reportVideoPlayback('cloud-sky','playing');assert.equal(c.getSnapshot().videoStatus,'playing');
+ c.reportVideoPlayback('ocean-waves','error');assert.equal(c.getSnapshot().videoStatus,'playing','a late result from another source cannot overwrite the current source');
+ c.reportVideoPlayback('cloud-sky','error');assert.equal(c.getSnapshot().videoStatus,'error');assert.equal(e.values.get('study-room-atmosphere'),saved);
+ assert.equal(typeof c.retryVideo,'function');const request=c.getSnapshot().videoRequest;c.retryVideo();assert.equal(c.getSnapshot().videoRequest,request+1);assert.equal(c.getSnapshot().videoStatus,'idle');assert.equal(e.values.get('study-room-atmosphere'),saved);
+});
+
+test('video playback cannot report playing after reduced-motion or focus has stopped decoration',()=>{
+ const e=environment(),c=controller(e);c.setPreferences({background:'ocean-waves',motion:'live',intensity:'normal'});assert.equal(c.getSnapshot().background,'ocean-waves');
+ assert.equal(typeof c.reportVideoPlayback,'function');c.reportVideoPlayback('ocean-waves','playing');e.focus(false);c.reportVideoPlayback('ocean-waves','playing');assert.notEqual(c.getSnapshot().videoStatus,'playing');
+ e.focus(true);e.reduced(true);c.reportVideoPlayback('ocean-waves','playing');assert.notEqual(c.getSnapshot().videoStatus,'playing');assert.equal(c.getSnapshot().motion,'live');
+});

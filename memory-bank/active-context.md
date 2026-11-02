@@ -1,6 +1,7 @@
 # Active Context
-- 갱신: 2026-11-02 15:14 JST · 도구: codex
+- 갱신: 2026-11-02 23:14 JST · 도구: codex
 - 루트/브랜치: C:/jini-dev/worktrees/study-dashboard-clarity · fix/study-dashboard-clarity · 제품/운영 source b4c87481946a4170c9240ffc6837529dfef0c73d 커밋·푸시 완료. 이후 출시기록 커밋은 문서 전용이며 실제 HEAD는 gitlog/resume으로 확인한다. 별도 작업의 미커밋 변경은 보존한다.
+- 현재 요청/검증 완료·출시 준비: 영상형 구름(CC0)·파도(CC BY4.0)2개 추가, 기존6개 보존, 종류 사전표시/실제play상태/실패포스터/재시도·미니 진입 제거(정상복구 유지). 최종Chrome1611/1611 실패/생략/취소0·공식7/Dune0·독립C/I/M0·제품/테스트/자산17해시/diff통과. 다음: 명시경로 커밋/푸시→기존 Actions workflow_dispatch→정확SHA READY/alias/HTTP와영상Range 확인. 실제 앱은 공부·카메라 사용중이므로 새로고침/설정변경 금지. [진단](../docs/verification/2026-11-02-live-motion-diagnosis.md), [검증](../docs/verification/2026-11-02-video-live.md).
 - 현재 운영 완료: 별도 풍경 버튼 제거·주 버튼 준비/확인 후 start/resume 성공 진입·진행 중 표시 전용 재진입 구현. PRD/architecture-map 개정. 표시 intent는 주 클릭부터 소유하고 route revision/계정/취소/hard error에서 폐기한다. 기존 학습/카메라/팀/서버/API/native 소유권 불변. [근거](../docs/verification/2026-11-02-scenic-start.md).
 - 검증/출시: 최종풍경35/35·메인/동기화43/43·전체Chrome1603/1603 실패/생략/취소0·970897ms exit0. 공식7/Dune0·독립C/I/M0·소스4해시동일/diff통과. Actions41398177995 success·dpl_FPqPCj2xkfgxp1NkpTyiT24uatvA READY/정확SHA/운영alias·HTML/새JS/CSS200·새코드 확인. 실제 기기/학습 기록 조작·새APK/EXE 없음. 공부·카메라를 마친 뒤 웹/앱 새로고침으로 hosted UI를 확인한다.
 - 병행 조사/미해결: Windows0.1.10 테마 재실행 유지 보고. 단위13/13·격리Electron45 정상 cold2/2는 통과, 실제 설치 앱 적용/원복도 정상이다. 저장 소실 원인은 미확정이며 scenicOpen의 비영속화는 별개다. 실제 시험 설정은 시스템·새벽 도시/정적/잔잔하게로 원복 완료, 설치앱 cold 수용은 사용자 트레이 정상 종료 대기다. 종료 후 같은 EXE 재실행 승인 있음. 강제종료·인증/전체저장소 조회로 우회하지 않는다. [조사](../docs/verification/2026-11-02-theme-restart-diagnosis.md).

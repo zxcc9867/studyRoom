@@ -23,6 +23,69 @@ async function dashboardAfterStudySuccess(page) {
  await scenicDashboard(scene);await scene.waitFor({state:'detached'});
 }
 
+browserTest('video backgrounds: theme kinds are visible before selection without downloading videos',()=>withApp(375,async page=>{
+ const downloads=[];page.on('request',request=>{if(/\/themes\/video\/.*\.(webm|mp4)/.test(request.url()))downloads.push(request.url());});
+ await page.locator('a[href="#settings"]:visible').first().click();await settingsCategory(page,'공부와 화면');await page.getByRole('button',{name:'배경 테마 변경',exact:true}).click();
+ const editor=page.getByRole('group',{name:'배경 테마 편집',exact:true});
+ for(const [name,kind] of [['흐르는 구름','영상 라이브'],['해변의 파도','영상 라이브'],['별빛 바다','이미지 효과'],['새벽 도시','정적 이미지']]){
+  const card=editor.locator('.atmosphere-option').filter({has:page.getByRole('radio',{name,exact:true})});assert.equal(await card.getByText(kind,{exact:true}).isVisible(),true,'the type is readable before clicking '+name);
+ }
+ await editor.getByRole('radio',{name:'흐르는 구름',exact:true}).check();assert.deepEqual(downloads,[],'editing is not applying');await editor.getByRole('button',{name:'취소',exact:true}).click();assert.deepEqual(downloads,[]);
+}));
+
+browserTest('video backgrounds: real muted playback advances frames and preserves study state',()=>withApp(1440,async page=>{
+ const before=await page.evaluate(()=>structuredClone({sessions:fixture.sessions,todos:fixture.todos,camera:fixtureCameraRequests}));
+ await page.locator('a[href="#settings"]:visible').first().click();await settingsCategory(page,'공부와 화면');await page.getByRole('button',{name:'배경 테마 변경',exact:true}).click();
+ const editor=page.getByRole('group',{name:'배경 테마 편집',exact:true});await editor.getByRole('radio',{name:'흐르는 구름',exact:true}).check();await editor.getByRole('button',{name:'적용',exact:true}).click();
+ const video=page.locator('video[data-atmosphere-video]');await video.waitFor({state:'attached'});await page.waitForFunction(()=>{const v=document.querySelector('video[data-atmosphere-video]');return v&&!v.paused&&v.currentTime>.15;});
+ assert.deepEqual(await video.evaluate(v=>({muted:v.muted,loop:v.loop,inline:v.playsInline,stream:v.srcObject,hidden:v.getAttribute('aria-hidden')})),{muted:true,loop:true,inline:true,stream:null,hidden:'true'});
+ await page.getByText('영상 라이브 재생 중',{exact:true}).waitFor();const time=await video.evaluate(v=>v.currentTime);await page.waitForFunction(time=>document.querySelector('video[data-atmosphere-video]').currentTime>time+.2,time);
+ assert.deepEqual(await page.evaluate(()=>({sessions:fixture.sessions,todos:fixture.todos,camera:fixtureCameraRequests})),before);
+}));
+
+browserTest('video backgrounds: desktop presentation has no mini entry and retains normal restore',()=>withApp(1440,async page=>{
+ await page.evaluate(()=>{window.presentationCalls=[];window.studyRoomDesktop={protocolVersion:1,onEvent:()=>()=>{},request:async m=>{presentationCalls.push(m);return {id:m.id,ok:true,value:m.action==='info'?{capabilities:{windowPresentation:true}}:m.payload};}};});
+ await page.getByRole('button',{name:'공부 화면 열기',exact:true}).click();const scene=page.getByRole('region',{name:'풍경 집중 화면'});await scene.waitFor();
+ assert.equal(await scene.getByRole('button',{name:'미니 창',exact:true}).count(),0,'mini mode has no user entry');await scenicDashboard(scene);await scene.waitFor({state:'detached'});
+ assert.equal(await page.evaluate(()=>presentationCalls.some(c=>c.action==='windowPresentation'&&c.payload.mode==='mini')),false);assert.equal(await page.evaluate(()=>presentationCalls.some(c=>c.action==='windowPresentation'&&c.payload.mode==='normal')),true);
+},'active',true));
+
+async function applyVideo(page,background='ocean-waves',paused=false) {
+ await page.evaluate(({background,paused})=>dispatchEvent(new StorageEvent('storage',{key:'study-room-atmosphere',newValue:JSON.stringify({background,motion:'live',intensity:'normal',paused})})),{background,paused});
+}
+browserTest('video backgrounds: initial reduced motion defers download and focus or explicit pause stops video only',()=>withApp(375,async page=>{
+ const requests=[];page.on('request',r=>{if(r.url().endsWith('.webm'))requests.push(r.url());});
+ const before=await page.evaluate(()=>structuredClone(fixture.sessions));await page.emulateMedia({reducedMotion:'reduce'});await applyVideo(page);
+ const video=page.locator('video[data-atmosphere-video]');await video.waitFor({state:'attached'});assert.equal(await video.getAttribute('src'),null);assert.deepEqual(requests,[]);
+ await page.emulateMedia({reducedMotion:'no-preference'});await page.waitForFunction(()=>{const v=document.querySelector('[data-atmosphere-video]');return !v.paused&&v.currentTime>.1;});
+ await page.evaluate(()=>dispatchEvent(new Event('blur')));await page.waitForFunction(()=>document.querySelector('[data-atmosphere-video]').paused);
+ await page.evaluate(()=>dispatchEvent(new Event('focus')));await page.waitForFunction(()=>!document.querySelector('[data-atmosphere-video]').paused);
+ await applyVideo(page,'ocean-waves',true);await page.waitForFunction(()=>document.querySelector('[data-atmosphere-video]').paused);
+ await page.evaluate(()=>{dispatchEvent(new Event('blur'));dispatchEvent(new Event('focus'));});assert.equal(await video.evaluate(v=>v.paused),true);
+ assert.deepEqual(await page.evaluate(()=>fixture.sessions),before);
+}));
+browserTest('video backgrounds: decode failure shows poster and explicit retry recovers without changing study',()=>withApp(375,async page=>{
+ const before=await page.evaluate(()=>structuredClone({sessions:fixture.sessions,todos:fixture.todos,camera:fixtureCameraRequests}));
+ await page.route('**/themes/video/ocean-waves.webm',route=>route.abort());await applyVideo(page);await page.locator('a[href="#settings"]:visible').first().click();await settingsCategory(page,'공부와 화면');
+ await page.getByText('영상을 재생하지 못했어요',{exact:true}).waitFor();assert.notEqual(await page.locator('[data-atmosphere-video]').getAttribute('data-painted'),'true');
+ assert.equal(await page.getByText('영상 라이브 재생 중',{exact:true}).count(),0);await page.unroute('**/themes/video/ocean-waves.webm');await page.getByRole('button',{name:'영상 다시 시도',exact:true}).click();
+ await page.getByText('영상 라이브 재생 중',{exact:true}).waitFor();assert.equal(await page.locator('[data-atmosphere-video]').evaluate(v=>v.paused),false);
+ assert.deepEqual(await page.evaluate(()=>({sessions:fixture.sessions,todos:fixture.todos,camera:fixtureCameraRequests})),before);
+}));
+browserTest('video backgrounds: painted scene visibly moves while the live camera node and stream remain unchanged',()=>withApp(1440,async page=>{
+ const tools=page.locator('.focus-tools');await tools.locator('summary').click();await tools.getByRole('button',{name:'카메라 감시 켜기',exact:true}).click();await tools.getByRole('button',{name:'카메라 감시 끄기',exact:true}).waitFor();
+ await page.evaluate(()=>{const v=document.querySelector('video');window.videoCameraBefore={node:v,stream:v.srcObject,track:v.srcObject.getVideoTracks()[0],requests:fixtureCameraRequests,sessions:structuredClone(fixture.sessions)};});
+ await applyVideo(page);await page.getByRole('button',{name:'공부 화면 열기',exact:true}).click();const scene=page.getByRole('region',{name:'풍경 집중 화면'});await scene.getByText('영상 라이브 재생 중',{exact:true}).waitFor();
+ await page.waitForFunction(()=>document.querySelector('[data-atmosphere-video]').currentTime>.3);
+ const first=await page.screenshot({clip:{x:100,y:200,width:1000,height:350}});
+ const time=await page.locator('[data-atmosphere-video]').evaluate(v=>v.currentTime);await page.waitForFunction(t=>document.querySelector('[data-atmosphere-video]').currentTime>t+1.2,time);
+ const second=await page.screenshot({clip:{x:100,y:200,width:1000,height:350}});
+ const changed=await page.evaluate(async images=>{const data=[];for(const base64 of images){const img=new Image();img.src='data:image/png;base64,'+base64;await img.decode();const c=document.createElement('canvas');c.width=img.width;c.height=img.height;c.getContext('2d').drawImage(img,0,0);data.push(c.getContext('2d').getImageData(0,0,c.width,c.height).data);}let count=0;for(let i=0;i<data[0].length;i+=4)if(Math.max(...[0,1,2].map(k=>Math.abs(data[0][i+k]-data[1][i+k])))>12)count++;return count;},[first.toString('base64'),second.toString('base64')]);
+ assert.ok(changed>3500,'at least 1% of the actual scenery pixels visibly change, not just media currentTime: '+changed);
+ await scenicScreenshot(page,'video-live-ocean-1440');await scenicDashboard(scene);await scene.waitFor({state:'detached'});
+ assert.equal(await page.evaluate(()=>{const b=videoCameraBefore,v=document.querySelector('video');return v===b.node&&v.srcObject===b.stream&&b.track.readyState==='live'&&fixtureCameraRequests===b.requests;}),true);assert.deepEqual(await page.evaluate(()=>fixture.sessions),await page.evaluate(()=>videoCameraBefore.sessions));
+}));
+
 for(const width of [375,1440])browserTest(`scenic start: primary study start opens scenery only after commit at ${width}px`,()=>withApp(width,async page=>{
  await page.evaluate(()=>{fixture.collision=false;window.scenicStudyBefore=structuredClone({todos:fixture.todos,recoveries:fixture.recoveries});});
  await page.locator('.topbar-actions button').first().click();
@@ -211,10 +274,10 @@ for(const [width,scale,scheme] of [[375,1,'light'],[375,2,'dark'],[1440,1,'dark'
 browserTest('scenic live controls: direct opt-in, pause, resume and reduced motion keep learning state untouched',()=>withApp(375,async page=>{
  await page.emulateMedia({reducedMotion:'no-preference'});await page.evaluate(()=>{dispatchEvent(new StorageEvent('storage',{key:'study-room-atmosphere',newValue:JSON.stringify({background:'rain-library',motion:'static',intensity:'subtle'})}));window.liveBefore=structuredClone({sessions:fixture.sessions,todos:fixture.todos,camera:fixtureCameraRequests});});
  await page.getByRole('button',{name:'공부 화면 열기',exact:true}).click();const scene=page.getByRole('region',{name:'풍경 집중 화면'});
- const enable=scene.getByRole('button',{name:'라이브 켜기',exact:true});assert.equal(await enable.count(),1);await enable.click();await scene.getByText('라이브 재생 중',{exact:true}).waitFor();
+ const enable=scene.getByRole('button',{name:'라이브 켜기',exact:true});assert.equal(await enable.count(),1);await enable.click();await scene.getByText('이미지 효과 재생 중',{exact:true}).waitFor();
  assert.equal(await page.evaluate(()=>document.documentElement.dataset.studyMotion),'playing');
  await scene.getByRole('button',{name:'라이브 일시정지',exact:true}).click();await scene.getByText('라이브 일시정지',{exact:true}).waitFor();assert.equal(await page.evaluate(()=>document.documentElement.dataset.studyMotion),'paused');
- await scene.getByRole('button',{name:'라이브 재생',exact:true}).click();await scene.getByText('라이브 재생 중',{exact:true}).waitFor();
+ await scene.getByRole('button',{name:'라이브 재생',exact:true}).click();await scene.getByText('이미지 효과 재생 중',{exact:true}).waitFor();
  await page.emulateMedia({reducedMotion:'reduce'});await scene.getByText('움직임 줄이기로 정지',{exact:true}).waitFor();assert.equal(await scene.getByRole('button',{name:'라이브 일시정지',exact:true}).isDisabled(),true);
  assert.deepEqual(await page.evaluate(()=>({sessions:fixture.sessions,todos:fixture.todos,camera:fixtureCameraRequests})),await page.evaluate(()=>liveBefore));
  await page.evaluate(()=>dispatchEvent(new StorageEvent('storage',{key:'study-room-atmosphere',newValue:JSON.stringify({background:'dawn-city',motion:'static',intensity:'subtle'})})));
@@ -266,13 +329,13 @@ browserTest('scenic: required dialog dismissal returns keyboard focus to the sce
  await page.keyboard.press('Escape');await scene.waitFor({state:'detached'});
 }));
 
-for(const [width,height,scale] of [[420,520,1],[375,420,2]])browserTest(`scenic: native mini and recoverable restore failure at ${width}x${height} ${scale}x`,()=>withApp(width,async page=>{
+for(const [width,height,scale] of [[420,520,1],[375,420,2]])browserTest(`scenic: native restore recovery without mini entry at ${width}x${height} ${scale}x`,()=>withApp(width,async page=>{
  await page.setViewportSize({width,height});if(scale===2)await page.addStyleTag({content:'html{font-size:200%}'});
  await page.evaluate(()=>{window.presentationCalls=[];window.failRestore=false;window.studyRoomDesktop={protocolVersion:1,onEvent:()=>()=>{},request:async m=>{
    presentationCalls.push(m);return {id:m.id,ok:!(window.failRestore&&m.action==='windowPresentation'&&m.payload.mode==='normal'),error:'INTERNAL_ERROR',value:m.action==='info'?{capabilities:{windowPresentation:true}}:m.payload};
  }};});
  await page.getByRole('button',{name:'공부 화면 열기',exact:true}).click();const scene=page.getByRole('region',{name:'풍경 집중 화면',exact:true});
- await scene.getByRole('button',{name:'미니 창',exact:true}).click();await scene.getByRole('button',{name:'확대',exact:true}).waitFor();
+ assert.equal(await scene.getByRole('button',{name:'미니 창',exact:true}).count(),0);
  assert.equal(await scene.getByRole('button',{name:'항상 위',exact:true}).count(),0,'pin is explicitly deferred');
  assert.equal(await scene.evaluate(el=>el.scrollWidth<=el.clientWidth),true);
  const controls=await scene.getByRole('button').all();for(const control of controls){await control.scrollIntoViewIfNeeded();const box=await control.boundingBox();assert.ok(box.height>=44&&box.width>=44&&box.y>=0&&box.y+box.height<=height+1,'mini actions stay reachable by scrolling');}
@@ -281,7 +344,7 @@ for(const [width,height,scale] of [[420,520,1],[375,420,2]])browserTest(`scenic:
  await page.emulateMedia({reducedMotion:'reduce'});await page.evaluate(()=>dispatchEvent(new StorageEvent('storage',{key:'study-room-atmosphere',newValue:JSON.stringify({background:'rain-library',motion:'live',intensity:'subtle'})})));
  assert.equal(await scene.getByText('움직임 줄이기로 정지',{exact:true}).isVisible(),true,'mini mode keeps the actual live playback explanation visible');
  await page.evaluate(()=>window.failRestore=true);await scenicDashboard(scene);await scene.getByRole('alert').waitFor();assert.equal(await scene.isVisible(),true);
- await page.evaluate(()=>window.failRestore=false);await scene.getByRole('button',{name:'확대',exact:true}).click();await scene.getByRole('button',{name:'미니 창',exact:true}).waitFor();
+ await page.evaluate(()=>window.failRestore=false);await scene.getByRole('button',{name:'정상 크기로 복원',exact:true}).click();await scene.getByRole('alert').waitFor({state:'detached'});
  const infoCalls=await page.evaluate(()=>presentationCalls.filter(c=>c.action==='info').length);await page.clock.runFor(4000);assert.equal(await page.evaluate(()=>presentationCalls.filter(c=>c.action==='info').length),infoCalls,'timer ticks do not re-probe capability');
  await scenicDashboard(scene);await scene.waitFor({state:'detached'});
  assert.equal(await page.evaluate(()=>presentationCalls.filter(c=>c.action!=='info'&&c.action!=='windowPresentation').length),0);
@@ -343,7 +406,7 @@ browserTest('scenic: atmosphere settings draft cancels and shared live/reduced-m
 for(const mode of ['old','failed'])browserTest(`scenic: ${mode} native info offers scenic-only fallback`,()=>withApp(375,async page=>{
  await page.evaluate(mode=>{window.studyRoomDesktop={protocolVersion:1,onEvent:()=>()=>{},request:async m=>({id:m.id,ok:mode!=='failed',value:{protocolVersion:1},error:'INTERNAL_ERROR'})};},mode);
  await page.getByRole('button',{name:'공부 화면 열기'}).click();const scene=page.getByRole('region',{name:'풍경 집중 화면'});await scene.waitFor();
- if(mode==='failed'){await scene.getByRole('alert').waitFor();await scene.getByRole('button',{name:'지원 다시 확인'}).click();}
+ assert.equal(await scene.getByRole('alert').count(),0,'unused mini capability failure does not interrupt scenery');
  assert.equal(await scene.getByRole('button',{name:'미니 창',exact:true}).count(),0);await scenicDashboard(scene);await scene.waitFor({state:'detached'});
 },'active',true));
 
@@ -388,7 +451,7 @@ for(const width of [375,1440])browserTest(`atmosphere: theme editor applies, can
  assert.equal(await page.getByRole('button',{name:'배경 테마 변경',exact:true}).count(),1,'background editor entry must be available');
  await page.getByRole('button',{name:'배경 테마 변경',exact:true}).click();
  const editor=page.getByRole('group',{name:'배경 테마 편집',exact:true});await editor.waitFor();
- assert.equal(await editor.getByRole('radio').count(),6);
+ assert.equal(await editor.getByRole('radio').count(),8);
  await editor.getByRole('radio',{name:'별빛 바다',exact:true}).check();await editor.getByRole('radio',{name:'라이브',exact:true}).check();
  await editor.getByRole('button',{name:'취소',exact:true}).click();assert.equal(await page.evaluate(()=>document.documentElement.dataset.studyBackground),'charcoal');
  await page.getByRole('button',{name:'배경 테마 변경',exact:true}).click();await editor.getByRole('radio',{name:'별빛 바다',exact:true}).check();
@@ -411,9 +474,9 @@ for(const width of [375,476,868,1440])for(const theme of ['light','dark'])for(co
  await page.getByRole('button',{name:'배경 테마 변경',exact:true}).click();const editor=page.getByRole('group',{name:'배경 테마 편집',exact:true});
  await editor.getByRole('radio',{name:'별빛 바다',exact:true}).check();await editor.getByRole('radio',{name:'라이브',exact:true}).check();
  for(const group of await editor.locator('.atmosphere-controls').all()){
-  const labels=await group.locator('label').all(),a=await labels[0].boundingBox(),b=await labels[1].boundingBox();
+  const labels=await group.locator('label').all(),{a,b,legend}=await group.evaluate(group=>{const boxes=[...group.querySelectorAll('label')].map(label=>label.getBoundingClientRect().toJSON());return {a:boxes[0],b:boxes[1],legend:group.querySelector('legend').getBoundingClientRect().toJSON()};});
   assert.ok(Math.abs(a.y-b.y)<1||Math.abs(a.x-b.x)<1,'paired options align on one row or stack on the same edge');assert.ok(Math.abs(a.width-b.width)<1,'paired options have equal widths');
-  const legend=await group.locator('legend').boundingBox();assert.ok(legend.y+legend.height<=a.y+1,'group title sits above both options');
+  assert.ok(legend.y+legend.height<=a.y+1,'group title sits above both options');
   for(const label of labels){const box=await label.boundingBox();assert.ok(box.height>=44&&box.width>=44,'option keeps a touch target');assert.equal(await label.evaluate(el=>el.scrollWidth<=el.clientWidth),true,'option text fits');}
  }
  const brokenWords=await editor.locator('.atmosphere-option-name').evaluateAll(names=>names.flatMap(el=>{
@@ -1799,7 +1862,7 @@ async function withApp(width, run, mode='active', nativeOrigin=false, failedChun
   const built=await build({entryPoints:[fileURLToPath(new URL('../src/main.tsx',import.meta.url))],bundle:true,write:false,outdir:'fixture',platform:'browser',format:'iife',jsx:'automatic',logLevel:'silent',define:{'import.meta.env':'{}'},plugins:[{name:'local-boundaries',setup(b){b.onResolve({filter:/^\.\/supabase$/},()=>({path:'backend',namespace:'fixture'}));b.onLoad({filter:/.*/,namespace:'fixture'},()=>({contents:backend,loader:'js'}));b.onLoad({filter:/bodyPresenceDetection\.mjs$/},()=>({contents:'export async function createUpperBodyPresenceDetector(){return {detect:()=>true,close(){}}}',loader:'js'}));b.onResolve({filter:/^\.\//},args=>failedChunk&&args.kind==='dynamic-import'&&args.path==='./'+failedChunk?{path:failedChunk,namespace:'failed-chunk'}:undefined);b.onLoad({filter:/.*/,namespace:'failed-chunk'},()=>({contents:'throw new TypeError("Failed to fetch dynamically imported module: stale-test-chunk.js"); export default function FailedChunk(){return null;}',loader:'tsx'}));b.onLoad({filter:/[\\/]src[\\/]main\.tsx$/},async({path})=>({contents:(await readFile(path,'utf8')).replace('createRoot(document.getElementById("root")!).render','(window.fixtureRoot = createRoot(document.getElementById("root")!)).render'),loader:'tsx'}));}}]});
   const js=built.outputFiles.find(f=>f.path.endsWith('.js')).text, css=built.outputFiles.find(f=>f.path.endsWith('.css'))?.text||'';
   const server=createServer(async(req,res)=>{
-    if(/^\/themes\/[a-z-]+\.webp$/.test(req.url)){try{res.setHeader('Content-Type','image/webp');res.end(await readFile(new URL('../public'+req.url,import.meta.url)));}catch{res.writeHead(404);res.end();}return;}
+    if(/^\/themes\/(video\/)?[a-z-]+\.(webp|webm)$/.test(req.url)){try{const data=await readFile(new URL('../public'+req.url,import.meta.url));res.setHeader('Content-Type',req.url.endsWith('.webm')?'video/webm':'image/webp');res.setHeader('Content-Length',data.length);res.end(data);}catch{res.writeHead(404);res.end();}return;}
     res.setHeader('Content-Type',req.url==='/app.js'?'text/javascript':req.url==='/app.css'?'text/css':'text/html');res.end(req.url==='/app.js'?js:req.url==='/app.css'?css:'<!doctype html><html lang="ko"><head><meta name="viewport" content="width=device-width,initial-scale=1"><link rel="stylesheet" href="/app.css"></head><body><div id="root"></div><script src="/app.js"></script></body></html>');});
   await new Promise(resolve=>server.listen(0,'127.0.0.1',resolve));let browser,page;
   try {browser=await chromium.launch({headless:true,executablePath:process.env.FEED_BROWSER_EXECUTABLE||undefined,args:['--use-fake-ui-for-media-stream','--use-fake-device-for-media-stream']});page=await browser.newPage({viewport:{width,height:960},colorScheme:'light',hasTouch});page.setDefaultTimeout(5000);const errors=[];page.on('pageerror',e=>errors.push(e.message));await page.clock.install({time:new Date(mode==='attendance-goal'?'2026-10-25T06:00:00Z':'2026-09-21T14:30:00Z')});

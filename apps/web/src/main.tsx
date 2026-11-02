@@ -24,6 +24,7 @@ import AppearanceSettings from "./AppearanceSettings";
 import ScenicStudyView from "./ScenicStudyView";
 import { getAppearanceController } from "./appearance.mjs";
 import { getAtmosphereController } from "./atmosphere.mjs";
+import AtmosphereBackground from "./AtmosphereBackground";
 import AppDeviceSettings, { AppInstallGuidance } from "./AppDeviceSettings";
 import {
   Bell,
@@ -509,7 +510,7 @@ function App() {
     return <SetupRequired />;
   }
 
-  return <DashboardApp />;
+  return <><DashboardApp /><AtmosphereBackground /></>;
 }
 
 function SetupRequired() {
