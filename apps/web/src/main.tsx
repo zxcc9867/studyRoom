@@ -674,6 +674,11 @@ function DashboardApp() {
     getDashboardSectionFromHash(window.location.hash),
   );
   const [todayDomain, setTodayDomain] = useState<TodayDomain>("focus");
+  useEffect(() => {
+    if (activeSection === "today" && todayDomain === "focus") return;
+    setSectionOrderEditing(false);
+    setDraggingSectionId(null);
+  }, [activeSection, todayDomain]);
   const [scenicOpen, setScenicOpen] = useState(false);
   useEffect(() => { if (!session || activeSection !== "today" || todayDomain !== "focus") setScenicOpen(false); }, [session?.user.id, activeSection, todayDomain]);
   const [selectedCalendarMonth, setCalendarMonth] = useState<string | null>(null);
@@ -5382,7 +5387,7 @@ function DashboardApp() {
 
   return (
     <main className="dashboard-shell dashboard-redesign">
-      <DashboardNavigation activeSection={activeSection} />
+      <DashboardNavigation activeSection={activeSection} onNavigate={cancelTodaySectionOrderEditing} />
 
       <section className={activeSection === "feed" ? "workspace feed-workspace" : "workspace"}>
         {(dashboardLoading || dashboardError) && (
@@ -6979,6 +6984,8 @@ function DashboardApp() {
             }} />
             <div className="settings-layout-row"><div><h3>오늘 화면 구성</h3><p>오늘 화면의 섹션 순서를 바꿀 수 있습니다.</p></div><button type="button" className="secondary" onClick={() => {
               window.location.hash = "today";
+              setActiveSection("today");
+              setTodayDomain("focus");
               setDraftTodaySectionOrder(todaySectionOrder);
               setSectionOrderEditing(true);
             }}>화면 구성</button></div>

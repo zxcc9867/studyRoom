@@ -1003,6 +1003,58 @@ browserTest('app settings: layout preference save keeps study session then expli
  assert.equal(await page.evaluate(()=>fixture.calls.filter(c=>c.name==='auth.signOut').length),1);
 }));
 
+for(const width of [375,1440])browserTest(`layout editor exit: browser back closes an unchanged editor without saving at ${width}px`,()=>withApp(width,async page=>{
+ await page.evaluate(()=>window.layoutExitBefore=structuredClone({sessions:fixture.sessions,todos:fixture.todos,camera:fixtureCameraRequests}));
+ await page.locator('a[href="#settings"]:visible').first().click();await settingsCategory(page,'공부와 화면');await page.getByRole('button',{name:'화면 구성',exact:true}).click();
+ await page.locator('.section-order-editor').waitFor();assert.equal(await page.evaluate(()=>location.hash),'#today');
+ await page.goBack();await page.waitForURL(/#settings$/);await page.getByRole('heading',{name:'설정',exact:true}).waitFor();
+ await page.getByRole('navigation',{name:'대시보드 섹션'}).filter({visible:true}).getByRole('link',{name:'오늘',exact:true}).click();
+ await page.getByRole('heading',{name:'오늘의 공부',exact:true}).waitFor();
+ assert.equal(await page.locator('.section-order-editor').count(),0,'returning to Today must not reopen the dismissed editor');
+ assert.equal(await page.evaluate(()=>fixture.calls.filter(c=>c.name==='profiles.upsert'&&Array.isArray(c.args.today_section_order)).length),0,'leaving an unchanged editor must not save a preference');
+ assert.deepEqual(await page.evaluate(()=>({sessions:fixture.sessions,todos:fixture.todos,camera:fixtureCameraRequests})),await page.evaluate(()=>layoutExitBefore));
+ await scenicScreenshot(page,`layout-editor-exit-${width}`);
+}));
+
+for(const destination of ['goals','together'])browserTest(`layout editor exit: ${destination} navigation discards only unsaved layout preview`,()=>withApp(1440,async page=>{
+ await page.locator('a[href="#settings"]:visible').first().click();await settingsCategory(page,'공부와 화면');await page.getByRole('button',{name:'화면 구성',exact:true}).click();
+ const editor=page.locator('.section-order-editor');await editor.waitFor();
+ await editor.getByRole('button',{name:'타이머/목표 아래로 이동',exact:true}).click();
+ assert.deepEqual(await editor.locator('.section-order-row > strong').allTextContents(),['출석 캘린더','타이머/목표','카메라 감시','오늘 할 일']);
+ await page.evaluate(hash=>location.hash=hash,destination);await editor.waitFor({state:'detached'});
+ await page.evaluate(()=>location.hash='today');await page.getByRole('heading',{name:'오늘의 공부',exact:true}).waitFor();
+ assert.equal(await editor.count(),0,'normal navigation cannot carry an editor into Today');
+ await page.locator('a[href="#settings"]:visible').first().click();await settingsCategory(page,'공부와 화면');await page.getByRole('button',{name:'화면 구성',exact:true}).click();await editor.waitFor();
+ assert.deepEqual(await editor.locator('.section-order-row > strong').allTextContents(),['타이머/목표','출석 캘린더','카메라 감시','오늘 할 일'],'fresh editing starts from the saved layout, not a discarded preview');
+ assert.equal(await page.evaluate(()=>fixture.calls.filter(c=>c.name==='profiles.upsert'&&Array.isArray(c.args.today_section_order)).length),0);
+}));
+
+browserTest('layout editor exit: changing the Today domain closes editing and a fresh entry opens in Focus',()=>withApp(375,async page=>{
+ await page.locator('a[href="#settings"]:visible').first().click();await settingsCategory(page,'공부와 화면');await page.getByRole('button',{name:'화면 구성',exact:true}).click();
+ const editor=page.locator('.section-order-editor');await editor.waitFor();await page.getByRole('navigation',{name:'오늘 화면'}).getByRole('button',{name:'계획',exact:true}).click();
+ assert.equal(await editor.count(),0,'a separate Today domain must not keep the order editor visible');
+ await page.locator('a[href="#settings"]:visible').first().click();await settingsCategory(page,'공부와 화면');await page.getByRole('button',{name:'화면 구성',exact:true}).click();await editor.waitFor();
+ assert.equal(await page.getByRole('navigation',{name:'오늘 화면'}).getByRole('button',{name:'집중',exact:true}).getAttribute('aria-pressed'),'true');
+ await editor.getByRole('button',{name:'취소',exact:true}).click();assert.equal(await editor.count(),0);
+ assert.equal(await page.evaluate(()=>fixture.calls.filter(c=>c.name==='profiles.upsert'&&Array.isArray(c.args.today_section_order)).length),0);
+}));
+
+for(const width of [375,1440])browserTest(`layout editor exit: the current Today navigation also exits editing at ${width}px`,()=>withApp(width,async page=>{
+ await page.locator('a[href="#settings"]:visible').first().click();await settingsCategory(page,'공부와 화면');await page.getByRole('button',{name:'화면 구성',exact:true}).click();
+ await page.locator('.section-order-editor').waitFor();await page.getByRole('navigation',{name:'대시보드 섹션'}).filter({visible:true}).getByRole('link',{name:'오늘',exact:true}).click();
+ assert.equal(await page.locator('.section-order-editor').count(),0,'Today link is an exit even when the URL hash is already today');
+ assert.equal(await page.evaluate(()=>fixture.calls.filter(c=>c.name==='profiles.upsert'&&Array.isArray(c.args.today_section_order)).length),0);
+}));
+
+browserTest('layout editor exit: opening Today in a new tab preserves the current unsaved preview',()=>withApp(1440,async page=>{
+ await page.locator('a[href="#settings"]:visible').first().click();await settingsCategory(page,'공부와 화면');await page.getByRole('button',{name:'화면 구성',exact:true}).click();
+ const editor=page.locator('.section-order-editor');await editor.waitFor();await editor.getByRole('button',{name:'타이머/목표 아래로 이동',exact:true}).click();
+ const opened=page.context().waitForEvent('page');await page.locator('.desktop-navigation').getByRole('link',{name:'오늘',exact:true}).click({modifiers:['Control']});const second=await opened;await second.close();
+ assert.equal(await editor.count(),1,'opening a separate tab must not cancel editing in the original tab');
+ assert.deepEqual(await editor.locator('.section-order-row > strong').allTextContents(),['출석 캘린더','타이머/목표','카메라 감시','오늘 할 일']);
+ assert.equal(await page.evaluate(()=>fixture.calls.filter(c=>c.name==='profiles.upsert'&&Array.isArray(c.args.today_section_order)).length),0);
+}));
+
 browserTest('app settings: pending native response cannot display previous account snapshot',()=>withApp(375,async page=>{
  await page.evaluate(()=>{window.nativeMessages=[];window.studyRoomNativeSettings=true;window.ReactNativeWebView={postMessage(raw){nativeMessages.push(JSON.parse(raw));}};});
  await page.locator('.mobile-navigation a[href="#settings"]').click();

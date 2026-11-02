@@ -1,7 +1,8 @@
 # Active Context
-- 갱신: 2026-11-02 12:46 JST · 도구: codex
+- 갱신: 2026-11-02 13:25 JST · 도구: codex
 - 루트/브랜치: C:/jini-dev/worktrees/study-dashboard-clarity · fix/study-dashboard-clarity · 제품/운영 source8b8dc02738c964046d13dc8fa84b96b07fcad00c. 이후 출시기록 커밋은 문서 전용이며 실제 HEAD는 gitlog/resume으로 확인한다.
-- 목표/완료 기준: 승인된 풍경 햄버거7경로·hover/focus/touch·라이브 직접조작/실제상태·설정창 공통 디자인/겹침 교정. 학습/카메라/native 불변, 최종검증·독립검토·정확SHA 운영READY/HTTP200까지 완료.
+- 현재 목표/완료 기준: 화면 순서 편집을 뒤로 가기·다른 페이지/오늘 탭·같은 오늘 링크로 나가면 편집 UI를 닫고, 저장 버튼 전에는 기존 순서/학습기록을 유지한다. 공식7/Dune·전체Chrome·독립검토·정확SHA 운영READY/HTTP200까지. 현재HEAD02f67e9에 source2/test1+문서 미커밋.
+- 현재 구현/검증 완료·배포대기: route/domain 이탈 정리·공통nav 취소·today/focus 동시진입·modifier가드. RED5+같은hash RED2+검토I1 RED1→최종Chrome1591/1591(실패/생략/취소0,1029763ms,exit0)·공식7/Dune0·독립재검토C/I/M0/직접3통과·3파일해시동일/diff통과. 이번10경로만 명시stage/commit/push→기존Actions배포/정확SHA READY·HTTP확인 필요. [후속근거](../docs/verification/2026-11-02-layout-editor-exit.md).
 - 완료: ScenicStudyView/scenicStudy.css·DashboardNavigation 공통 destination·main의 기존 hash/section 이동. 미니 정상 복원 실패 시 이동하지 않고 메뉴만 닫아 복구 가능. 공통토큰 설정창/헤더닫기·scene80/modal90·OS/비활성/일시정지 실제설명. 새영상/서버/DB/Auth/학습정책·native 변경 없음.
 - 검증: 최종 실제Chrome1583/1583·실패/생략/취소0·850388ms·exit0, 공식7/Dune0·diff/제품test5해시동일. 독립 최초C0/I1/M1→hover-only Escape/미니설명 RED→GREEN·재검토C0/I0/M0/직접3통과. 첫 전체중단/초기RED는 별도보존하며 최종통과로 합산하지 않는다.
 - 배포: Actions41384495691 completed/success·dpl_J1sjugA4G7rLh5GG1jfjDez92V9j READY/production/정확SHA·project prj_u2Q9FKwNeVjwwtVOjuXNMZRpkR3g/team LaN4bwvH4msrzoQtIw3fqsUj/운영alias. HTML/index-_Icelvs1.js/index-BbeAEX0S.css200·메뉴/라이브/설정/겹침 새코드 확인. 직후5분error/fatal그룹없음은 장기보장이 아니다.

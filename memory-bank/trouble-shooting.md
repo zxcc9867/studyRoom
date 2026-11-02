@@ -1,5 +1,11 @@
 # Troubleshooting
 
+## 화면 순서 편집 이탈 후 재표시 — 2026-11-02
+- 증상: 설정→화면 구성→뒤로 가기→오늘에서 편집창과 미저장 미리보기가 계속 나왔다. 같은 #today 메뉴 클릭은 hashchange조차 없어 닫히지 않았다.
+- 원인: DashboardApp에 sectionOrderEditing이 유지되지만 route/domain 이탈 시 정리하는 경로가 없었다. 기존 취소 버튼만 editing/dragging/초안을 복구했다.
+- 해결: 오늘·집중 밖에서는 편집/드래그만 닫고, 명시적 공통 메뉴 이동은 기존 cancel 콜백을 호출한다. 설정 편집 진입은 hash·activeSection·todayDomain을 같은 동작에서 today/focus로 맞춘다. 저장은 기존 명시적 버튼에서만 실행한다.
+- 재발 방지: 실제 Chrome375/1440 뒤로 가기·같은 오늘·목표/팀/오늘 하위 탭·다시 열기·취소·기존 저장을 검사하고 profiles 무쓰기·학습/카메라 요청 보존을 확인한다. 다른 설정 초안 유지 규칙은 변경하지 않는다.
+
 ## 풍경 설정창의 예전 버튼·도크 겹침 — 2026-11-02
 - 원인: 설정창이 `.workspace` 밖에 있어 공통 버튼 selector에서 빠져 노란 5px 그림자가 적용됐다. 별도 scene z80이 기존 modal backdrop보다 높아 inert 상태에서도 도크가 앞에 그려졌다.
 - 해결: scenic 설정 범위에 공통 의미 토큰/평면 버튼/요약·편집/헤더 닫기를 적용하고, 풍경이 열린 동안만 modal backdrop을 z90의 중립색으로 올린다. DOM/inert만이 아니라 실제 paint 순서·스크린샷·클릭 위치를 검사한다.

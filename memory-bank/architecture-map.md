@@ -8,6 +8,7 @@
 - desktopPresentation은 동일 BrowserWindow/webContents의 geometry만 소유하고 정상 bounds/최대화/minimum 복원·작업영역 clamp를 한다. 기존 영속 bounds 저장은 미니 값을 제외하며 탐색/무효화/파기는 정상 복원만 시도한다. 학습/auth/media 의존성이 없고 항상 위 고정은 사용자 승인으로 보류한다. 실제 검증/출시는 [기록](../docs/verification/2026-11-01-scenic-study.md).
 
 ## 이번 표시 경계 — 계획표·내 페이지·숲
+- main.tsx의 화면 순서 편집 여부/드래그는 오늘·집중의 일시적인 UI 상태다. 다른 페이지/오늘 하위 탭 이탈 시 닫고, DashboardNavigation의 명시적 이동 callback으로 같은 #today 링크도 취소한다. 저장은 기존 saveTodaySectionOrderPreference의 profiles upsert만 담당하며 취소/이동은 서버·학습·다른 설정 초안을 변경하지 않는다.
 - main.tsx/appTheme.css는 기존 planner/date 콜백·04시 계산·기존 report/history 데이터를 표시만 한다. native details의 open 상태는 표시 전용이며 report/reflection/recovery 자식과 영속 상태 소유권은 그대로다.
 - StudyForestSection.tsx/forestOverview.css는 요약·접기/이벤트 표시만 소유한다. StudyForest3D와 순수 성장/주간 helper·서버 preference API는 재사용한다.
 - TechFeedSection.tsx는 기존 번역 snapshot/AI 요약의 표시 우선순위만 보정한다. 서버 번역 캐시·문자 예산·provider 상태를 변경하지 않는다.

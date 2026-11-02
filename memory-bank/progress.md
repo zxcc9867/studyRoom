@@ -1,5 +1,9 @@
 # Progress
 
+## 화면 순서 편집 이탈
+
+- 검증 완료·배포대기: 뒤로 가기·다른 페이지·오늘 하위 탭·같은 오늘 링크에서 편집/드래그를 닫고, 미저장 상태는 저장 순서로 복귀한다. 새 탭 modifier 클릭은 현재 초안을 유지한다. today/focus 진입·명시적 저장 유지. 최종Chrome1591/1591(실패/생략/취소0)·공식7/Dune0·독립재검토C/I/M0·3파일해시/diff통과. 실제 학습/설정 서버 쓰기 없음. [검증](../docs/verification/2026-11-02-layout-editor-exit.md).
+
 ## 풍경 집중·Windows 미니 창
 
 - 후속 메뉴/설정 개선 운영배포 완료: 햄버거 hover·focus·touch/기존7경로·단계별 Escape·미니 복원 실패 복구, 라이브 직접 조작/실제 재생 상태, 공통 토큰 설정창·modal paint 교정. 최종Chrome1583/1583(실패/생략/취소0)·공식7/Dune0·독립재검토C/I/M0·5파일해시동일/diff통과. 제품8b8dc02·Actions41384495691 success·dpl_J1sjugA4G7rLh5GG1jfjDez92V9j READY/정확SHA/운영alias·HTML/새JS/CSS200/직후오류그룹없음. 새APK/EXE/native·DB·학습정책 변경 없음. [후속 검증](../docs/verification/2026-11-02-scenic-menu.md).
