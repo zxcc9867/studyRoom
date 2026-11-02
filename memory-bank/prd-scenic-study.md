@@ -1,5 +1,7 @@
 # PRD: 풍경 집중 화면과 Windows 미니 창
 
+- 감성 영상3종 후속 완료: 별빛 밤하늘·비 오는 창가·도시의 밤 추가, 영상5개/전체11개/기존설정 보존. 최종Chrome1621/1621·공식7/Dune0·독립C/I/M0·21해시/diff통과. 제품2929276·Actions41485061586 success·dpl_hLkBKoQbp7oqNZneccd4rd9d4gti READY/동일SHA/운영alias·웹/이미지200/영상206·격리운영영상 재생3/3. 새APK/EXE/실계정·기록·현재설정 조작 없음. [검증](../docs/verification/2026-11-03-emotional-video-themes.md).
+
 - 영상형/미니 제거 후속 완료: 기존6개 보존·구름/파도2개·종류 사전표시·지연 다운로드/실제 재생·실패복구, 미니 진입 제거/정상복원 유지. Chrome1611/1611·공식7/Dune0·독립C/I/M0·17해시/diff통과. 제품786d1a4·Actions41460028405 success·dpl_Aw4mxhxE2S4qAtNfvKHmShQem2kB READY/동일SHA/운영alias·웹자산200/영상206·격리운영영상 재생2/2. 실제앱/기록/설정 조작·새APK/EXE 없음. [검증](../docs/verification/2026-11-02-video-live.md).
 
 - 시작 통합 후속 완료: 별도 풍경 버튼 제거·주 시작/재개 성공 진입·같은 위치의 실행 중 재진입, 취소/계정/화면 왕복 의도 폐기·차콜 canvas 보정. 최종Chrome1603/1603·공식7/Dune0·독립C/I/M0·4해시/diff통과. 제품b4c8748·Actions41398177995 success·dpl_FPqPCj2xkfgxp1NkpTyiT24uatvA READY/정확SHA/운영alias·HTML/새JS/CSS200. 실제 기기/학습 기록 조작·새APK/EXE 없음. [검증](../docs/verification/2026-11-02-scenic-start.md).

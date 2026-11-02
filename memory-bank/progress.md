@@ -2,7 +2,7 @@
 
 ## 감성 영상 테마 확장
 
-- 구현·검증 완료/출시 준비: 승인3종(별빛 밤하늘·비 오는 창가·도시의 밤) 실제 영상/포스터/크레딧·catalog/types/prepaint 추가. 기존8개/현재설정/학습·카메라·native/서버 불변. RED4→단위14/14·집중6/6·최종Chrome1621/1621 실패/생략/취소0·공식7/Dune0·독립C/I/M0·21해시/diff통과. 다음: 커밋·푸시·동일SHA 운영배포/영상응답·재생 확인. [검증](../docs/verification/2026-11-03-emotional-video-themes.md).
+- 운영배포 완료: 승인3종 별빛 밤하늘·비 오는 창가·도시의 밤 추가, 영상5개/전체11개. 기존8개/현재설정/학습·카메라·native/서버 불변. 최종Chrome1621/1621 실패/생략/취소0·공식7/Dune0·독립C/I/M0·21해시/diff통과. 제품2929276·Actions41485061586 success·dpl_hLkBKoQbp7oqNZneccd4rd9d4gti READY/동일SHA/운영alias·웹/이미지200·영상3개206·격리운영영상 재생3/3. 새APK/EXE·실계정·기록·현재설정 조작 없음. 설치Windows/Android 직접수용은 별도다. [검증](../docs/verification/2026-11-03-emotional-video-themes.md).
 
 ## 라이브 배경 구분·미니 진입 제거·체감 움직임
 

@@ -12,4 +12,13 @@
 - 첫 mounted6개는 카드를 찾는 has locator에 이미 editor로 scoped된 radio를 다시 넣어 카드 내부에서 group을 찾는 fixture 오류로 실패했다. 기존 패턴처럼 page radio를 카드 내부 상대조회하도록 보정했으며 제품 수정으로 우회하지 않았다. output/emotional-video-focused.log. 최종6/6 통과, 실패/생략/취소0. output/emotional-video-focused-final.log.
 - 실제320×180 프레임의1.5초 이상 간격 RGB차이>8 픽셀수: 별빛20,939/57,600, 비창가4,613~4,720/57,600, 도시31,020/57,600. currentTime만으로 움직임을 주장하지 않는다. 375/1440에서 종류 사전표시·초안 무다운로드·현재 영상src·무음/loop/inline/srcObjectnull·일시정지/재생·풍경 진입/복귀·선택 저장·동일sessions/todos/camera요청수 보존 확인.
 - 공식7/Dune exit0. output/emotional-video-official.log. 독립 shared-reviewer C0/I0/M0·직접 단위14/14·자산크기/해시/원본3개 라이선스·프레임시트/간판/보케/루프 설명 대조 통과.
-- 최종 전체Chrome1621/1621, 실패/생략/취소0, 1,291,155ms, exit0. output/emotional-video-full-chrome.log. 제품/테스트/모든 영상자산21개 고정 해시를 전후 대조해 동일, diffcheck 통과. 운영 출시는 다음 단계다.
+- 최종 전체Chrome1621/1621, 실패/생략/취소0, 1,291,155ms, exit0. output/emotional-video-full-chrome.log. 제품/테스트/모든 영상자산21개 고정 해시를 전후 대조해 동일, diffcheck 통과. 운영 출시 확인은 아래 절에 기록한다.
+
+## 운영 출시
+
+- 제품 source29292762538a7565170fb06267adcd3a4ed7cfbc 기능 브랜치 커밋·푸시 완료. Actions41485061586 completed/success/동일SHA.
+- Vercel dpl_hLkBKoQbp7oqNZneccd4rd9d4gti READY/production/동일SHA·study-room-attendance.vercel.app 운영alias 확인.
+- 운영 HTML/JS/CSS200·새3종 id/한국어 이름/prepaint marker 확인. 영상3개 Range bytes0-63 요청206·video/webm·64bytes·전체크기3,953,858/6,490,046/4,613,541 일치. 포스터/썸네일6개200·image/webp·길이 일치.
+- 격리 Chrome에서 운영 공개 영상3개를 직접 디코딩/재생했다: 모두1280×720·currentTime>0.5·paused=false·muted=true·srcObject=null, exit0. output/emotional-video-production-playback.log. 실제 계정/설치 앱/카메라 조작 없이 자산만 확인했다.
+- 즉시5분 error/fatal 집계는 빈 결과다. 장기 무장애/GPU/배터리나 실제 설치앱 수용을 의미하지 않는다. 관측·보안·요금제/환경 설정은 변경하지 않았다.
+- 영상 라이브는 총5개, 전체테마11개다. 새APK/EXE 없이 공통 hosted UI를 제공한다. 사용자가 공부·카메라 사용을 마친 뒤 앱을 다시 불러와 설정→공부와 화면→배경 테마에서 새3종을 선택한다. 기존 별빛 바다/비 오는 서재는 이전 이미지 효과이며 자동 교체하지 않았다.
