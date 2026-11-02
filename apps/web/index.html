@@ -29,12 +29,12 @@
         document.querySelector('meta[name="theme-color"]').setAttribute('content', dark ? '#111318' : '#f4f6f3');
         let ambience;
         try { ambience = JSON.parse(localStorage.getItem('study-room-atmosphere')); } catch {}
-        const backgrounds = ['charcoal', 'dawn-city', 'night-alley', 'star-sea', 'sunset-sky', 'rain-library', 'cloud-sky', 'ocean-waves'];
+        const backgrounds = ['charcoal', 'dawn-city', 'night-alley', 'star-sea', 'sunset-sky', 'rain-library', 'cloud-sky', 'ocean-waves', 'starry-night', 'rain-window', 'city-night'];
         document.documentElement.dataset.studyBackground = backgrounds.includes(ambience?.background) ? ambience.background : 'charcoal';
         document.documentElement.dataset.studyMotion = 'static';
         document.documentElement.dataset.studyIntensity = ambience?.intensity === 'normal' ? 'normal' : 'subtle';
         const background = document.documentElement.dataset.studyBackground;
-        const poster = ['cloud-sky', 'ocean-waves'].includes(background) ? `/themes/video/${background}-poster.webp` : `/themes/${background}.webp`;
+        const poster = ['cloud-sky', 'ocean-waves', 'starry-night', 'rain-window', 'city-night'].includes(background) ? `/themes/video/${background}-poster.webp` : `/themes/${background}.webp`;
         document.documentElement.style.setProperty('--study-scene', background === 'charcoal' ? 'none' : `url("${poster}")`);
       })();
     </script>

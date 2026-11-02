@@ -16,6 +16,22 @@ function environment(saved=null) {
 }
 function controller(e){assert.equal(typeof createAtmosphereController,'function','atmosphere controller must exist');return createAtmosphereController(e.host);}
 
+for(const background of ['starry-night','rain-window','city-night'])test(`emotional video themes: ${background} restores the saved video and poster without touching study data`,()=>{
+ const saved=JSON.stringify({background,motion:'live',intensity:'subtle',paused:false}),e=environment(saved);e.values.set('study-session','preserved');const c=controller(e);
+ assert.equal(c.getSnapshot().background,background);assert.equal(c.getSnapshot().motion,'live');assert.equal(c.getSnapshot().videoStatus,'idle');assert.equal(c.getSnapshot().playing,true);
+ assert.equal(e.root.style['--study-scene'],`url("/themes/video/${background}-poster.webp")`);
+ c.reportVideoPlayback(background,'playing');assert.equal(c.getSnapshot().videoStatus,'playing');assert.equal(e.values.get('study-room-atmosphere'),saved);assert.equal(e.values.get('study-session'),'preserved');
+});
+
+test('emotional video themes: prepaint restores each new poster without requesting or claiming video playback',async()=>{
+ const html=await readFile(new URL('../index.html',import.meta.url),'utf8'),scripts=[...html.matchAll(/<script>([\s\S]*?)<\/script>/g)].map(match=>match[1]);
+ for(const background of ['starry-night','rain-window','city-night']){
+  const root={dataset:{},style:{setProperty(key,value){this[key]=value;}}};
+  vm.runInNewContext(scripts.join('\n'),{localStorage:{getItem:key=>key==='study-room-atmosphere'?JSON.stringify({background,motion:'live'}):'dark'},matchMedia:()=>({matches:false}),document:{documentElement:root,querySelector:()=>({setAttribute(){}})}});
+  assert.equal(root.dataset.studyBackground,background);assert.equal(root.dataset.studyMotion,'static');assert.equal(root.style['--study-scene'],`url("/themes/video/${background}-poster.webp")`);
+ }
+});
+
 test('atmosphere persists only a validated device-local background and does not change brightness or study keys',()=>{
  const e=environment();e.values.set('study-room-appearance','light');e.values.set('study-session','unchanged');const c=controller(e);
  assert.equal(c.getSnapshot().background,'charcoal');assert.equal(e.root.dataset.studyMotion,'static');

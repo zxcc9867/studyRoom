@@ -21,8 +21,40 @@ These are public licensed decorative video files, not camera recordings. No remo
 - SHA256: 602027aa206be043a3161e88919db628b47472ee3b5ae39f666e83b11cec3ec3
 - Primary license evidence: Commons parse API wikitext, `source={{own}}`, `author=[[User:L. Beck|Lukas Beck]]`, `{{self|cc-by-4.0}}`; read 2026-11-02.
 
+## 별빛 밤하늘 / starry-night
+
+- Work: Milky Way in Glen Canyon National Recreation Area; creator: Mike Wetzel, 2015-06-12.
+- Source: https://commons.wikimedia.org/wiki/File:Milky_Way_in_Glen_Canyon_National_Recreation_Area.webm
+- Original source: https://vimeo.com/130574481
+- License: CC BY 3.0, https://creativecommons.org/licenses/by/3.0/ ; original-source license reviewed by INeverCry on 2016-03-24.
+- Local file: starry-night.webm, Wikimedia 720p VP9 transcode, 1280×720, 21.4 seconds, 3,953,858 bytes.
+- Download: https://upload.wikimedia.org/wikipedia/commons/transcoded/0/0b/Milky_Way_in_Glen_Canyon_National_Recreation_Area.webm/Milky_Way_in_Glen_Canyon_National_Recreation_Area.webm.720p.vp9.webm
+- SHA256: f9816b57f54a471250ff2a77af631f5e062319b6e8e61ad4a559a1a768fe5ba3
+
+## 비 오는 창가 / rain-window
+
+- Work: Raindrops against the window in the night city, Las Palmas; creator: slavikfi (Vjatseslav Robtsenkov), 2016-11-05.
+- Source: https://commons.wikimedia.org/wiki/File:Raindrops_against_the_window_in_the_night_city,_Las_Palmas.webm
+- Original source: https://pixabay.com/en/videos/city-night-water-black-las-palmas-1501/
+- License: CC0 1.0, https://creativecommons.org/publicdomain/zero/1.0/ ; original historical CC0 release and review are recorded on the Commons source page. This does not assert that current Pixabay-wide licensing is CC0.
+- Local file: rain-window.webm, unchanged Commons original VP9, 1280×720, 18.2 seconds, 6,490,046 bytes.
+- Download: https://upload.wikimedia.org/wikipedia/commons/9/95/Raindrops_against_the_window_in_the_night_city%2C_Las_Palmas.webm
+- SHA256: e96a46f335f599742b1699714f3ab0465bf60d57b8505d97e15ed47153fac2b8
+- Visual note: distant incidental HOTEL/AC roof signage remains in this real city footage; no endorsement is implied. No privacy-redaction or seamless-loop claim.
+
+## 도시의 밤 / city-night
+
+- Work: City at night, aerial San Francisco; creator: Editor (https://www.youtube.com/user/Editor), 2011-05-28.
+- Source: https://commons.wikimedia.org/wiki/File:City_at_night.webm
+- Original source: https://www.youtube.com/watch?v=ncRts4zrQSs
+- License: CC BY 3.0, https://creativecommons.org/licenses/by/3.0/ ; original-source license reviewed by McZusatz on 2013-02-03.
+- Local file: city-night.webm, Wikimedia 720p VP9/Opus transcode, 1280×720, 29.108 seconds, 4,613,541 bytes.
+- Download: https://upload.wikimedia.org/wikipedia/commons/transcoded/c/cd/City_at_night.webm/City_at_night.webm.720p.vp9.webm
+- SHA256: 771b7aac308e4ca247418752a5d44f43d75ed0240a6c8d696b916a8f8af3208f
+- Visual note: blue/orange bokeh changes focus into the city and returns to bokeh; no custom seamless-loop editing is claimed.
+
 ## Presentation changes and verification
 
-The video bytes are unchanged Wikimedia transcodes. Posters and thumbnails are extracted WebP frames. The application crops to fill the viewport, repeats playback, mutes sound, and uses 0.75× or 1× playback speed. Original audio tracks, if present, have not been removed. Attribution, source/license links and changes are also available under Settings → 배경 테마 → 영상 출처.
+The video bytes are unchanged Wikimedia originals/transcodes as identified above. Posters and thumbnails are extracted WebP frames. The application crops to fill the viewport, repeats playback, mutes sound, and uses 0.75× or 1× playback speed. Original audio tracks, if present, have not been removed. Attribution, source/license links and changes are also available under Settings → 배경 테마 → 영상 출처.
 
 Loops restart at the beginning; seamless loop editing is not claimed. Frames and playback were inspected in isolated Chrome without an account, microphone or camera. The initial dark night-sky/subtle lake candidates were not shipped. No generated posters or videos contain user learning records.

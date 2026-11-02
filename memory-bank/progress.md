@@ -1,5 +1,9 @@
 # Progress
 
+## 감성 영상 테마 확장
+
+- 구현·검증 완료/출시 준비: 승인3종(별빛 밤하늘·비 오는 창가·도시의 밤) 실제 영상/포스터/크레딧·catalog/types/prepaint 추가. 기존8개/현재설정/학습·카메라·native/서버 불변. RED4→단위14/14·집중6/6·최종Chrome1621/1621 실패/생략/취소0·공식7/Dune0·독립C/I/M0·21해시/diff통과. 다음: 커밋·푸시·동일SHA 운영배포/영상응답·재생 확인. [검증](../docs/verification/2026-11-03-emotional-video-themes.md).
+
 ## 라이브 배경 구분·미니 진입 제거·체감 움직임
 
 - 운영배포 완료: 기존6개 유지·흐르는 구름/해변의 파도 영상2개·종류 사전표시·지연 다운로드·실제 재생/실패/재시도·미니 진입 제거/정상복구 보존. 카메라/학습/인증/설정 스키마 불변. 최종Chrome1611/1611 실패/생략/취소0·공식7/Dune0·독립C/I/M0·17해시/diff통과. 제품786d1a4·Actions41460028405 success·dpl_Aw4mxhxE2S4qAtNfvKHmShQem2kB READY/동일SHA/운영alias·HTML/JS/CSS/포스터200·영상206·격리Chrome운영영상 재생2/2. 새APK/EXE·실제계정·학습·현재설정 변경 없음. Windows/Android 설치앱 실제수용은 별도다. [검증](../docs/verification/2026-11-02-video-live.md).

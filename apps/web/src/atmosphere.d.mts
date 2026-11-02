@@ -1,4 +1,4 @@
-export type AtmosphereBackground = 'charcoal' | 'dawn-city' | 'night-alley' | 'star-sea' | 'sunset-sky' | 'rain-library' | 'cloud-sky' | 'ocean-waves';
+export type AtmosphereBackground = 'charcoal' | 'dawn-city' | 'night-alley' | 'star-sea' | 'sunset-sky' | 'rain-library' | 'cloud-sky' | 'ocean-waves' | 'starry-night' | 'rain-window' | 'city-night';
 export type AtmospherePreferences = {background: AtmosphereBackground; motion: 'static' | 'live'; intensity: 'subtle' | 'normal'; paused?: boolean};
 export type VideoStatus = 'idle' | 'loading' | 'playing' | 'paused' | 'error';
 export type AtmosphereSnapshot = Readonly<AtmospherePreferences & {paused: boolean; persistent: boolean; reducedMotion: boolean; hidden: boolean; focused: boolean; playing: boolean; videoStatus: VideoStatus; videoRequest: number}>;
