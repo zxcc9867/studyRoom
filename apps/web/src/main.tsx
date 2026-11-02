@@ -7181,7 +7181,8 @@ function DashboardApp() {
         camera={activeSessionPaused ? "휴식 중 · 카메라 감시 중지" : sharedCameraView.remote ? sharedCameraView.label : `카메라 감시 · ${getPresenceStatusLabel({ cameraEnabled, status: cameraStatus, absenceSeconds: presenceState.absenceSeconds })}`}
         actionLabel={focusActionLabel} actionDisabled={focusActionDisabled} endDisabled={focusEndDisabled} hasSession={Boolean(activeSession)}
         notice={[dashboardError, message, actualError, sharedStudyError, focusStatusError, !activeSessionPaused && cameraStatus !== "watching" ? cameraMessage : ""].filter(Boolean).join(" · ")}
-        onAction={focusAction} onEnd={openEndSessionCompletionModal} onClose={() => setScenicOpen(false)} />}
+        onAction={focusAction} onEnd={openEndSessionCompletionModal} onClose={() => setScenicOpen(false)}
+        onNavigate={section => { setScenicOpen(false); if (section === "today") setTodayDomain("focus"); window.location.hash = section; setActiveSection(section); }} />}
     </main>
   );
 }

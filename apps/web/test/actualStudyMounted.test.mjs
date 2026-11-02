@@ -14,6 +14,84 @@ async function scenicScreenshot(page,name) {
  await page.screenshot({path:`output/scenic-fixture/${name}.png`});
  await page.evaluate(()=>document.getElementById('synthetic-screenshot-label').remove());
 }
+async function scenicDashboard(scene) {
+ await scene.getByRole('button',{name:'전체 메뉴',exact:true}).hover();
+ await scene.getByRole('navigation',{name:'풍경 화면 메뉴'}).getByRole('link',{name:'내 공부',exact:true}).click();
+}
+
+browserTest('scenic menu: Escape dismisses a hover-only menu before leaving scenery',()=>withApp(1440,async page=>{
+ await page.getByRole('button',{name:'풍경으로 집중'}).click();const scene=page.getByRole('region',{name:'풍경 집중 화면'}),trigger=scene.getByRole('button',{name:'전체 메뉴',exact:true});
+ await scene.focus();await trigger.hover();assert.equal(await trigger.getAttribute('aria-expanded'),'true');
+ assert.equal(await scene.evaluate(el=>el===document.activeElement),true,'hover does not move keyboard focus into the menu');
+ await page.keyboard.press('Escape');assert.equal(await scene.count(),1,'a hover-only disclosure must consume Escape before the presentation closes');
+ assert.equal(await trigger.getAttribute('aria-expanded'),'false');assert.equal(await trigger.evaluate(el=>el===document.activeElement),true);
+}));
+
+browserTest('scenic menu: hover, focus, dismissal and destination preserve the running study and camera',()=>withApp(1440,async page=>{
+ const tools=page.locator('.focus-tools');await tools.locator('summary').click();await tools.getByRole('button',{name:'카메라 감시 켜기',exact:true}).click();await tools.getByRole('button',{name:'카메라 감시 끄기',exact:true}).waitFor();
+ await page.evaluate(()=>{window.menuBefore={sessions:structuredClone(fixture.sessions),todos:structuredClone(fixture.todos),track:document.querySelector('video').srcObject.getVideoTracks()[0],requests:fixtureCameraRequests};fixture.calls=[];});
+ await page.getByRole('button',{name:'풍경으로 집중',exact:true}).click();
+ const scene=page.getByRole('region',{name:'풍경 집중 화면'}),trigger=scene.getByRole('button',{name:'전체 메뉴',exact:true}),menu=scene.getByRole('navigation',{name:'풍경 화면 메뉴'});
+ assert.equal(await trigger.count(),1,'navigation is available from the scenic header');
+ assert.equal(await scene.getByRole('button',{name:'대시보드로 돌아가기'}).count(),0);
+ assert.equal(await trigger.getAttribute('aria-expanded'),'false','entry does not open the menu by programmatic focus');
+ await trigger.hover();await menu.waitFor({state:'visible'});
+ for(const [name,hash] of [['내 공부','today'],['팀 공부','together'],['목표','goals'],['기술 피드','feed'],['공부 숲','forest'],['내 페이지','me'],['설정','settings']])assert.equal(await menu.getByRole('link',{name,exact:true}).getAttribute('href'),'#'+hash);
+ await scenicScreenshot(page,'scenic-menu-1440');
+ await trigger.focus();await page.keyboard.press('Escape');assert.equal(await trigger.getAttribute('aria-expanded'),'false');assert.equal(await scene.isVisible(),true,'Escape closes the menu before leaving scenery');
+ assert.equal(await trigger.evaluate(el=>el===document.activeElement),true);
+ await scene.getByRole('button',{name:'풍경 배경 설정'}).focus();await trigger.focus();await menu.waitFor({state:'visible'});
+ await scene.locator('.scenic-landscape').click({force:true});assert.equal(await trigger.getAttribute('aria-expanded'),'false');
+ await trigger.focus();await menu.waitFor({state:'visible'});await menu.getByRole('link',{name:'설정',exact:true}).click();await scene.waitFor({state:'detached'});
+ assert.equal(await page.evaluate(()=>location.hash),'#settings');await page.getByRole('heading',{name:'설정',exact:true}).waitFor();
+ assert.deepEqual(await page.evaluate(()=>({sessions:fixture.sessions,todos:fixture.todos})),await page.evaluate(()=>({sessions:menuBefore.sessions,todos:menuBefore.todos})));
+ assert.equal(await page.evaluate(()=>menuBefore.track.readyState==='live'&&fixtureCameraRequests===menuBefore.requests),true);
+ assert.equal(await page.evaluate(()=>fixture.calls.some(c=>/^(start|pause|end|complete)_(actual_)?study_session$/.test(c.name))),false);
+ await page.locator('.desktop-navigation').getByRole('link',{name:'오늘',exact:true}).click();
+ await page.waitForFunction(()=>document.querySelector('video')?.srcObject?.getVideoTracks()[0]===menuBefore.track);
+ assert.equal(await page.evaluate(()=>fixtureCameraRequests===menuBefore.requests),true,'returning to study reattaches the same live camera without requesting another');
+}));
+
+browserTest('scenic menu: touch toggle, keyboard links and reduced-motion animation stay usable on a narrow screen',()=>withApp(375,async page=>{
+ await page.setViewportSize({width:375,height:640});await page.emulateMedia({reducedMotion:'no-preference'});
+ await page.getByRole('button',{name:'풍경으로 집중'}).tap();const scene=page.getByRole('region',{name:'풍경 집중 화면'}),trigger=scene.getByRole('button',{name:'전체 메뉴',exact:true}),menu=scene.getByRole('navigation',{name:'풍경 화면 메뉴'});
+ await trigger.tap();await menu.waitFor({state:'visible'});assert.equal(await trigger.getAttribute('aria-expanded'),'true');
+ assert.ok(await menu.evaluate(el=>getComputedStyle(el).transitionDuration.split(',').some(value=>parseFloat(value)>0)),'menu has a real animated transition');
+ await trigger.tap();assert.equal(await trigger.getAttribute('aria-expanded'),'false','a second touch closes the disclosure');
+ await scene.getByRole('button',{name:'풍경 배경 설정'}).focus();await trigger.focus();await page.keyboard.press('Tab');assert.equal(await menu.getByRole('link',{name:'내 공부',exact:true}).evaluate(el=>el===document.activeElement),true);
+ await page.emulateMedia({reducedMotion:'reduce'});assert.equal(await menu.evaluate(el=>getComputedStyle(el).transitionDuration),'0s');
+ for(const link of await menu.getByRole('link').all()){await link.scrollIntoViewIfNeeded();const box=await link.boundingBox();assert.ok(box.width>=44&&box.height>=44&&box.x>=0&&box.x+box.width<=375);}
+ await scenicScreenshot(page,'scenic-menu-375-touch');await menu.getByRole('link',{name:'내 공부',exact:true}).click();await scene.waitFor({state:'detached'});
+},'active',false,null,true));
+
+for(const [width,scale,scheme] of [[375,1,'light'],[375,2,'dark'],[1440,1,'dark'],[1440,2,'light']])browserTest(`scenic settings: shared controls, contrast and layout ${width}px ${scale}x ${scheme}`,()=>withApp(width,async page=>{
+ await page.emulateMedia({colorScheme:scheme,reducedMotion:'reduce'});if(scale===2)await page.addStyleTag({content:'html{font-size:200%}'});
+ await page.getByRole('button',{name:'풍경으로 집중',exact:true}).click();await page.getByRole('button',{name:'풍경 배경 설정'}).click();const dialog=page.getByRole('dialog',{name:'풍경 배경 설정'});await dialog.waitFor();
+ const change=dialog.getByRole('button',{name:'배경 테마 변경'});
+ assert.equal(await dialog.evaluate(el=>Number(getComputedStyle(el.closest('.modal-backdrop')).zIndex)>Number(getComputedStyle(document.querySelector('.scenic-study')).zIndex)),true,'the backdrop must paint above the fixed scenic presentation');
+ const style=await change.evaluate(el=>{const s=getComputedStyle(el),probe=document.createElement('span');probe.style.background='var(--study-surface)';el.append(probe);const surface=getComputedStyle(probe).backgroundColor;probe.remove();return {shadow:s.boxShadow,background:s.backgroundColor,surface};});
+ assert.equal(style.shadow,'none','settings controls cannot retain the legacy raised button shadow');assert.equal(style.background,style.surface,'secondary control uses the common surface');
+ await change.click();await dialog.getByRole('radio',{name:'비 오는 서재',exact:true}).check();await dialog.getByRole('radio',{name:'라이브',exact:true}).check();
+ assert.equal(await dialog.evaluate(el=>el.scrollWidth<=el.clientWidth),true,'expanded editor fits the actual dialog width');
+ await readableGroup(dialog.locator('h2,h3,p,legend,.atmosphere-option-name,button'));
+ for(const button of await dialog.getByRole('button').all()){await button.scrollIntoViewIfNeeded();const box=await button.boundingBox();assert.ok(box.height>=44&&box.width>=44);assert.equal(await button.evaluate(el=>getComputedStyle(el).boxShadow),'none');assert.equal(await button.evaluate(el=>{const r=el.getBoundingClientRect();return el.contains(document.elementFromPoint(r.x+r.width/2,r.y+r.height/2));}),true,'the actual dialog control must be above the scenic dock and header, not merely visible in the DOM');}
+ await dialog.evaluate(el=>el.scrollTop=0);await scenicScreenshot(page,`scenic-settings-menu-${width}-${scale}x-${scheme}`);
+ await dialog.getByRole('button',{name:'취소',exact:true}).click();await dialog.getByRole('button',{name:'풍경 배경 설정 닫기',exact:true}).click();await dialog.waitFor({state:'detached'});
+ assert.equal(await page.getByRole('button',{name:'풍경 배경 설정',exact:true}).evaluate(el=>el===document.activeElement),true);
+}));
+
+browserTest('scenic live controls: direct opt-in, pause, resume and reduced motion keep learning state untouched',()=>withApp(375,async page=>{
+ await page.emulateMedia({reducedMotion:'no-preference'});await page.evaluate(()=>{dispatchEvent(new StorageEvent('storage',{key:'study-room-atmosphere',newValue:JSON.stringify({background:'rain-library',motion:'static',intensity:'subtle'})}));window.liveBefore=structuredClone({sessions:fixture.sessions,todos:fixture.todos,camera:fixtureCameraRequests});});
+ await page.getByRole('button',{name:'풍경으로 집중',exact:true}).click();const scene=page.getByRole('region',{name:'풍경 집중 화면'});
+ const enable=scene.getByRole('button',{name:'라이브 켜기',exact:true});assert.equal(await enable.count(),1);await enable.click();await scene.getByText('라이브 재생 중',{exact:true}).waitFor();
+ assert.equal(await page.evaluate(()=>document.documentElement.dataset.studyMotion),'playing');
+ await scene.getByRole('button',{name:'라이브 일시정지',exact:true}).click();await scene.getByText('라이브 일시정지',{exact:true}).waitFor();assert.equal(await page.evaluate(()=>document.documentElement.dataset.studyMotion),'paused');
+ await scene.getByRole('button',{name:'라이브 재생',exact:true}).click();await scene.getByText('라이브 재생 중',{exact:true}).waitFor();
+ await page.emulateMedia({reducedMotion:'reduce'});await scene.getByText('움직임 줄이기로 정지',{exact:true}).waitFor();assert.equal(await scene.getByRole('button',{name:'라이브 일시정지',exact:true}).isDisabled(),true);
+ assert.deepEqual(await page.evaluate(()=>({sessions:fixture.sessions,todos:fixture.todos,camera:fixtureCameraRequests})),await page.evaluate(()=>liveBefore));
+ await page.evaluate(()=>dispatchEvent(new StorageEvent('storage',{key:'study-room-atmosphere',newValue:JSON.stringify({background:'dawn-city',motion:'static',intensity:'subtle'})})));
+ assert.equal(await scene.getByRole('button',{name:/라이브 (켜기|일시정지|재생)/}).count(),0,'static-only themes do not offer a dead live control');
+}));
 
 for(const [width,height,scale] of [[1440,960,1],[1440,960,2],[375,700,1],[375,420,2]])browserTest(`scenic: mounted state, focus and responsive controls ${width}x${height} ${scale}x`,()=>withApp(width,async page=>{
  await page.setViewportSize({width,height});
@@ -37,7 +115,7 @@ for(const [width,height,scale] of [[1440,960,1],[1440,960,2],[375,700,1],[375,42
  await page.evaluate(()=>window.dispatchEvent(new StorageEvent('storage',{key:'study-room-atmosphere',newValue:JSON.stringify({background:'rain-library',motion:'live',intensity:'subtle'})})));
  await page.evaluate(async()=>{const image=new Image();image.src='/themes/rain-library.webp';await image.decode();});
  await scenicScreenshot(page,`scenic-${width}-${height}-${scale}x`);
- await scene.getByRole('button',{name:'대시보드로 돌아가기',exact:true}).click();await scene.waitFor({state:'detached'});
+ await scenicDashboard(scene);await scene.waitFor({state:'detached'});
  assert.equal(await entry.evaluate(el=>document.activeElement===el),true,'entry focus restored');
  assert.equal(await page.evaluate(()=>document.querySelector('video')===window.scenicVideo),true);
  assert.deepEqual(await page.evaluate(()=>({sessions:fixture.sessions,todos:fixture.todos,camera:fixtureCameraRequests})),await page.evaluate(()=>scenicBefore));
@@ -50,6 +128,8 @@ browserTest('scenic: required dialog dismissal returns keyboard focus to the sce
  await page.keyboard.press('Escape');await page.getByRole('dialog').waitFor({state:'detached'});
  assert.equal(await scene.getByRole('button',{name:'종료',exact:true}).evaluate(el=>document.activeElement===el),true,'closing inline dialog restores its scenic trigger focus');
  await page.keyboard.press('Tab');assert.equal(await scene.evaluate(el=>el.contains(document.activeElement)),true);
+ await page.keyboard.press('Escape');assert.equal(await scene.isVisible(),true,'focus wraps to the hamburger and Escape dismisses its menu first');
+ assert.equal(await scene.getByRole('button',{name:'전체 메뉴',exact:true}).getAttribute('aria-expanded'),'false');
  await page.keyboard.press('Escape');await scene.waitFor({state:'detached'});
 }));
 
@@ -65,10 +145,12 @@ for(const [width,height,scale] of [[420,520,1],[375,420,2]])browserTest(`scenic:
  const controls=await scene.getByRole('button').all();for(const control of controls){await control.scrollIntoViewIfNeeded();const box=await control.boundingBox();assert.ok(box.height>=44&&box.width>=44&&box.y>=0&&box.y+box.height<=height+1,'mini actions stay reachable by scrolling');}
  await page.evaluate(()=>dispatchEvent(new StorageEvent('storage',{key:'study-room-atmosphere',newValue:JSON.stringify({background:'rain-library',motion:'static',intensity:'subtle'})})));
  await scene.evaluate(el=>el.scrollTop=0);await scenicScreenshot(page,`mini-${width}-${height}-${scale}x`);
- await page.evaluate(()=>window.failRestore=true);await scene.getByRole('button',{name:'대시보드로 돌아가기',exact:true}).click();await scene.getByRole('alert').waitFor();assert.equal(await scene.isVisible(),true);
+ await page.emulateMedia({reducedMotion:'reduce'});await page.evaluate(()=>dispatchEvent(new StorageEvent('storage',{key:'study-room-atmosphere',newValue:JSON.stringify({background:'rain-library',motion:'live',intensity:'subtle'})})));
+ assert.equal(await scene.getByText('움직임 줄이기로 정지',{exact:true}).isVisible(),true,'mini mode keeps the actual live playback explanation visible');
+ await page.evaluate(()=>window.failRestore=true);await scenicDashboard(scene);await scene.getByRole('alert').waitFor();assert.equal(await scene.isVisible(),true);
  await page.evaluate(()=>window.failRestore=false);await scene.getByRole('button',{name:'확대',exact:true}).click();await scene.getByRole('button',{name:'미니 창',exact:true}).waitFor();
  const infoCalls=await page.evaluate(()=>presentationCalls.filter(c=>c.action==='info').length);await page.clock.runFor(4000);assert.equal(await page.evaluate(()=>presentationCalls.filter(c=>c.action==='info').length),infoCalls,'timer ticks do not re-probe capability');
- await scene.getByRole('button',{name:'대시보드로 돌아가기',exact:true}).click();await scene.waitFor({state:'detached'});
+ await scenicDashboard(scene);await scene.waitFor({state:'detached'});
  assert.equal(await page.evaluate(()=>presentationCalls.filter(c=>c.action!=='info'&&c.action!=='windowPresentation').length),0);
  assert.equal(await page.evaluate(()=>presentationCalls.filter(c=>c.action==='windowPresentation').every(c=>Object.keys(c.payload).join(',')==='mode')),true,'release bridge sends mode only');
 },'active',true));
@@ -81,7 +163,7 @@ browserTest('scenic: live camera node, stream, layout and dashboard attributes s
  assert.equal(await page.evaluate(()=>document.querySelector('video')===savedScenic.video&&savedScenic.track.readyState==='live'),true);
  assert.deepEqual(await page.evaluate(()=>{const rect=document.querySelector('video').getBoundingClientRect();return {width:rect.width,height:rect.height};}),await page.evaluate(()=>({width:savedScenic.rect.width,height:savedScenic.rect.height})), 'camera rendering dimensions stay unchanged; viewport position can change with entry focus scroll');
  await scene.getByRole('button',{name:'풍경 배경 설정'}).click();await page.getByRole('dialog',{name:'풍경 배경 설정'}).waitFor();await page.keyboard.press('Escape');await page.getByRole('dialog').waitFor({state:'detached'});
- await scene.getByRole('button',{name:'대시보드로 돌아가기'}).click();await scene.waitFor({state:'detached'});
+ await scenicDashboard(scene);await scene.waitFor({state:'detached'});
  assert.equal(await page.evaluate(()=>document.querySelector('video')===savedScenic.video&&document.querySelector('video').srcObject.getVideoTracks()[0]===savedScenic.track&&savedScenic.track.readyState==='live'&&fixtureCameraRequests===savedScenic.requests),true);
  assert.deepEqual(await page.locator('.study-navigation').evaluate(el=>({inert:el.inert,hidden:el.getAttribute('aria-hidden'),opacity:el.style.opacity})),{inert:true,hidden:'false',opacity:'0.7'});
  assert.equal(await page.getByLabel('다시 시작할 할 일',{exact:true}).inputValue(),'a','independent child selection draft survives scenic entry/back');
@@ -120,7 +202,7 @@ browserTest('scenic: atmosphere settings draft cancels and shared live/reduced-m
  const editor=dialog.getByRole('group',{name:'배경 테마 편집',exact:true});await editor.getByRole('radio',{name:'별빛 바다',exact:true}).check();await editor.getByRole('button',{name:'취소',exact:true}).click();
  assert.equal(await page.evaluate(()=>document.documentElement.dataset.studyBackground),'rain-library');await page.keyboard.press('Escape');await dialog.waitFor({state:'detached'});
  await page.emulateMedia({reducedMotion:'reduce'});await page.waitForFunction(()=>document.documentElement.dataset.studyMotion==='paused');
- await scene.getByRole('button',{name:'대시보드로 돌아가기'}).click();await scene.waitFor({state:'detached'});
+ await scenicDashboard(scene);await scene.waitFor({state:'detached'});
  assert.equal(await page.evaluate(()=>localStorage.getItem('study-room-atmosphere')),storage);assert.equal(await page.evaluate(()=>document.documentElement.dataset.studyBackground),'rain-library');
  assert.equal(await page.evaluate(()=>getComputedStyle(document.body,'::after').display),'none');
 }));
@@ -129,7 +211,7 @@ for(const mode of ['old','failed'])browserTest(`scenic: ${mode} native info offe
  await page.evaluate(mode=>{window.studyRoomDesktop={protocolVersion:1,onEvent:()=>()=>{},request:async m=>({id:m.id,ok:mode!=='failed',value:{protocolVersion:1},error:'INTERNAL_ERROR'})};},mode);
  await page.getByRole('button',{name:'풍경으로 집중'}).click();const scene=page.getByRole('region',{name:'풍경 집중 화면'});await scene.waitFor();
  if(mode==='failed'){await scene.getByRole('alert').waitFor();await scene.getByRole('button',{name:'지원 다시 확인'}).click();}
- assert.equal(await scene.getByRole('button',{name:'미니 창',exact:true}).count(),0);await scene.getByRole('button',{name:'대시보드로 돌아가기'}).click();await scene.waitFor({state:'detached'});
+ assert.equal(await scene.getByRole('button',{name:'미니 창',exact:true}).count(),0);await scenicDashboard(scene);await scene.waitFor({state:'detached'});
 },'active',true));
 
 browserTest('scenic: navigation while the settings dialog is open releases the scene body scroll lock',()=>withApp(375,async page=>{
@@ -147,7 +229,7 @@ browserTest('scenic: charcoal and failed decorative image keep readable usable c
  await page.route('**/themes/night-alley.webp',route=>route.abort());
  await page.evaluate(()=>dispatchEvent(new StorageEvent('storage',{key:'study-room-atmosphere',newValue:JSON.stringify({background:'night-alley',motion:'static',intensity:'subtle'})})));
  await readableGroup(scene.locator('h1,p,strong,button,button span,.scenic-theme'));
- await scene.getByRole('button',{name:'대시보드로 돌아가기'}).click();await scene.waitFor({state:'detached'});
+ await scenicDashboard(scene);await scene.waitFor({state:'detached'});
  await page.evaluate(()=>dispatchEvent(new StorageEvent('storage',{key:'study-room-atmosphere',newValue:null})));
  assert.equal(await page.evaluate(()=>getComputedStyle(document.body).backgroundColor),original);
 }));
@@ -1513,14 +1595,14 @@ export const supabase={
 };
 `;
 
-async function withApp(width, run, mode='active', nativeOrigin=false, failedChunk=null) {
+async function withApp(width, run, mode='active', nativeOrigin=false, failedChunk=null, hasTouch=false) {
   const built=await build({entryPoints:[fileURLToPath(new URL('../src/main.tsx',import.meta.url))],bundle:true,write:false,outdir:'fixture',platform:'browser',format:'iife',jsx:'automatic',logLevel:'silent',define:{'import.meta.env':'{}'},plugins:[{name:'local-boundaries',setup(b){b.onResolve({filter:/^\.\/supabase$/},()=>({path:'backend',namespace:'fixture'}));b.onLoad({filter:/.*/,namespace:'fixture'},()=>({contents:backend,loader:'js'}));b.onLoad({filter:/bodyPresenceDetection\.mjs$/},()=>({contents:'export async function createUpperBodyPresenceDetector(){return {detect:()=>true,close(){}}}',loader:'js'}));b.onResolve({filter:/^\.\//},args=>failedChunk&&args.kind==='dynamic-import'&&args.path==='./'+failedChunk?{path:failedChunk,namespace:'failed-chunk'}:undefined);b.onLoad({filter:/.*/,namespace:'failed-chunk'},()=>({contents:'throw new TypeError("Failed to fetch dynamically imported module: stale-test-chunk.js"); export default function FailedChunk(){return null;}',loader:'tsx'}));b.onLoad({filter:/[\\/]src[\\/]main\.tsx$/},async({path})=>({contents:(await readFile(path,'utf8')).replace('createRoot(document.getElementById("root")!).render','(window.fixtureRoot = createRoot(document.getElementById("root")!)).render'),loader:'tsx'}));}}]});
   const js=built.outputFiles.find(f=>f.path.endsWith('.js')).text, css=built.outputFiles.find(f=>f.path.endsWith('.css'))?.text||'';
   const server=createServer(async(req,res)=>{
     if(/^\/themes\/[a-z-]+\.webp$/.test(req.url)){try{res.setHeader('Content-Type','image/webp');res.end(await readFile(new URL('../public'+req.url,import.meta.url)));}catch{res.writeHead(404);res.end();}return;}
     res.setHeader('Content-Type',req.url==='/app.js'?'text/javascript':req.url==='/app.css'?'text/css':'text/html');res.end(req.url==='/app.js'?js:req.url==='/app.css'?css:'<!doctype html><html lang="ko"><head><meta name="viewport" content="width=device-width,initial-scale=1"><link rel="stylesheet" href="/app.css"></head><body><div id="root"></div><script src="/app.js"></script></body></html>');});
   await new Promise(resolve=>server.listen(0,'127.0.0.1',resolve));let browser,page;
-  try {browser=await chromium.launch({headless:true,executablePath:process.env.FEED_BROWSER_EXECUTABLE||undefined,args:['--use-fake-ui-for-media-stream','--use-fake-device-for-media-stream']});page=await browser.newPage({viewport:{width,height:960},colorScheme:'light'});page.setDefaultTimeout(5000);const errors=[];page.on('pageerror',e=>errors.push(e.message));await page.clock.install({time:new Date(mode==='attendance-goal'?'2026-10-25T06:00:00Z':'2026-09-21T14:30:00Z')});
+  try {browser=await chromium.launch({headless:true,executablePath:process.env.FEED_BROWSER_EXECUTABLE||undefined,args:['--use-fake-ui-for-media-stream','--use-fake-device-for-media-stream']});page=await browser.newPage({viewport:{width,height:960},colorScheme:'light',hasTouch});page.setDefaultTimeout(5000);const errors=[];page.on('pageerror',e=>errors.push(e.message));await page.clock.install({time:new Date(mode==='attendance-goal'?'2026-10-25T06:00:00Z':'2026-09-21T14:30:00Z')});
   await page.addInitScript(()=>{window.fixtureCameraRequests=0;const get=navigator.mediaDevices?.getUserMedia?.bind(navigator.mediaDevices);if(get)navigator.mediaDevices.getUserMedia=options=>{window.fixtureCameraRequests++;return get(options);};});
   await page.route(/^https:\/\/cdn\.jsdelivr\.net\/gh\/orioncactus\/pretendard@/,route=>route.fulfill({contentType:'text/css',body:''}));
   await page.route('https://fixture.invalid/functions/v1/camera-presence-warning',async route=>{const args=route.request().postDataJSON();await page.evaluate(args=>fixture.calls.push({name:'camera-presence-warning',args}),args);await route.fulfill({json:{ok:true,slackSent:false,slackMissing:true,suppressed:false}});});

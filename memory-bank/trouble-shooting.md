@@ -1,5 +1,11 @@
 # Troubleshooting
 
+## 풍경 설정창의 예전 버튼·도크 겹침 — 2026-11-02
+- 원인: 설정창이 `.workspace` 밖에 있어 공통 버튼 selector에서 빠져 노란 5px 그림자가 적용됐다. 별도 scene z80이 기존 modal backdrop보다 높아 inert 상태에서도 도크가 앞에 그려졌다.
+- 해결: scenic 설정 범위에 공통 의미 토큰/평면 버튼/요약·편집/헤더 닫기를 적용하고, 풍경이 열린 동안만 modal backdrop을 z90의 중립색으로 올린다. DOM/inert만이 아니라 실제 paint 순서·스크린샷·클릭 위치를 검사한다.
+- 메뉴 선택 후 미니 복원 실패 시 메뉴가 확대 버튼을 가리던 회귀는 선택 즉시 메뉴만 닫아 복구 조작을 남긴다. Escape는 필수 모달→열린 메뉴→풍경 순서다.
+- 합성 Chrome375/1440·100/200%·라이트/다크 및 같은 카메라 트랙 복귀를 검증한다. 실제 설치앱/실기기 수용과 구분한다.
+
 ## 풍경 표시의 모달·확대·Windows 고정 — 2026-11-02
 - inline AccessibleDialog와 유지할 video가 같은 workspace에 섞여 있어 전체 wrapper inert/display:none은 확인창이나 카메라 layout을 깨뜨린다. ScenicStudyView는 모달 경로만 열어 둔 scoped shielding과 원래 attribute/opacity 복원으로 제한한다.
 - 부모 scene/자식 dialog가 함께 unmount되면 자식 cleanup이 옛 overflow:hidden을 뒤늦게 복원할 수 있다. 남아 있는 modal/scene을 확인하는 한정된 cleanup reconciliation으로 누수를 막는다. 재현 RED→GREEN과 초점/초안/video 보존 회귀를 유지한다.

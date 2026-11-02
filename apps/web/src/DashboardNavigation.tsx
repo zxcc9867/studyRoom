@@ -1,12 +1,15 @@
-import { Home, Leaf, Rss, Settings, Target, TreePine, UserRound } from "lucide-react";
+import { Home, Leaf, Rss, Settings, Target, TreePine, UserRound, UsersRound } from "lucide-react";
 
-const destinations = [
+export const dashboardDestinations = [
   { id: "today", label: "오늘", icon: Home },
+  { id: "together", label: "팀 공부", icon: UsersRound },
   { id: "goals", label: "목표", icon: Target },
   { id: "feed", label: "기술 피드", icon: Rss },
   { id: "forest", label: "공부 숲", icon: TreePine },
+  { id: "me", label: "내 페이지", icon: UserRound },
   { id: "settings", label: "설정", icon: Settings },
-];
+] as const;
+const destinations = dashboardDestinations.filter(({id}) => id !== "together" && id !== "me");
 
 export default function DashboardNavigation({ activeSection }: { activeSection: string }) {
   const current = activeSection === "together" ? "today" : activeSection;
