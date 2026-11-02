@@ -24,6 +24,11 @@
 - 최종 공식 게이트는7/7·각exit0, Dune 위반0이다. `ai.ps1 verify --project C:/jini-dev/worktrees/study-dashboard-clarity`, `output/scenic-start-official-release.log`. 명령은 desktop:check/desktop:test/test/test:edge/mobile:check/build/docs:check다.
 - 최종 실제 Chrome 전체1603/1603·실패/생략/취소0·970897.2998ms·exit0. `node --test --test-concurrency=1 packages/core/test/*.test.mjs apps/web/test/*.test.mjs server/ai/*.test.mjs scripts/*.test.mjs supabase/functions/_shared/*.test.mjs`, 기존 FEED_BROWSER_MODULE/FEED_BROWSER_EXECUTABLE. `output/scenic-start-full-chrome-release.log`. 기본 npm test의 미설정 브라우저 범위도 보완했다. 집중35·메인43·격리2는 전체1603에 중복 합산하지 않는다.
 
-## 출시 대기
-- 최종 전체 검증과 독립 검토가 통과한 소스만 기능 브랜치에 커밋·푸시하고 기존 production workflow로 배포한다. 정확SHA·READY·운영alias·HTML/새JS/CSS HTTP 확인 뒤 출시 완료로 기록한다.
-- hosted UI 변경이므로 새 APK/EXE가 필요하지 않다. 실제 앱 재시작/공부·물리 카메라 수용과 서버 전체 행 digest 검증은 별도다.
+## 운영 반영
+- 제품 커밋 `b4c87481946a4170c9240ffc6837529dfef0c73d`을 기능 브랜치에 커밋·푸시했다. 기본 브랜치·PR/머지·force push·무관한 dirty 파일은 변경하지 않았다.
+- 기존 [Actions41398177995](https://github.com/zxcc9867/studyRoom/actions/runs/41398177995)가 completed/success이며 headSha/branch가 일치한다. CI의 사전 검사와 기존 합성 free-coaching/feed 검사가 통과했다.
+- Vercel `dpl_FPqPCj2xkfgxp1NkpTyiT24uatvA`은 READY/production·동일SHA·운영 alias `study-room-attendance.vercel.app` 연결을 확인했다. project `prj_u2Q9FKwNeVjwwtVOjuXNMZRpkR3g`, team `team_LaN4bwvH4msrzoQtIw3fqsUj`.
+- 운영 HTML·`/assets/index-bYsgPaE0.js`·`/assets/index-BmC-KZvO.css` 모두 HTTP200이다. 실제 HTML에서 연결된 entry를 파싱해 새 재진입 문구·기존 풍경 버튼 문구 제거·scenic root canvas 보정 코드를 확인했다.
+- 배포 직후5분 error/fatal 그룹 조회에 항목이 없었다. 장기 관측·실제 설치기기/계정 수용을 대신하지 않는다. 검증 전후 제품/테스트4파일 SHA256이 동일하고 diff 검사를 통과했다.
+- hosted UI 변경이므로 새 APK/EXE가 필요하지 않다. 공부·카메라를 마친 뒤 웹/앱을 새로 불러오면 반영된다. 실제 앱 재시작/공부·물리 카메라 수용과 서버 전체 행 digest 검증은 별도다. 학습 기록·설정·실제 계정/기기를 이번 검증에서 조작하지 않았다.
+- 기존 테마 검증2문서·feed/windows PRD·desktop-install-acceptance·.serena/output은 이번 커밋에서 제외했다. 테마 재실행 조사의 본 세션 진단 문서와 관련 인계만 함께 보존했다. 후속 출시기록 커밋은 문서 전용이다.

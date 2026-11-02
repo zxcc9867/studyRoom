@@ -1,8 +1,8 @@
 # Active Context
-- 갱신: 2026-11-02 15:08 JST · 도구: codex
-- 루트/브랜치: C:/jini-dev/worktrees/study-dashboard-clarity · fix/study-dashboard-clarity · 제품/운영 source f9f6212bbf2aec1160ce7b50fc6aabd8956e9628 커밋·푸시 완료. 이후 출시기록 커밋은 문서 전용이며 실제 HEAD는 gitlog/resume으로 확인한다. 별도 작업의 미커밋 변경은 보존한다.
-- 현재 구현·검증 완료/배포 대기: 사용자 ‘이 흐름으로 구현·검증·배포’ 승인. 별도 풍경 버튼 제거·주 버튼 준비/확인 후 start/resume 성공 진입·진행 중 표시 전용 재진입 구현. PRD/architecture-map 개정. 표시 intent는 주 클릭부터 소유하고 route revision/계정/취소/hard error에서 폐기한다. 기존 학습/카메라/팀/서버/API/native 소유권 불변. [근거](../docs/verification/2026-11-02-scenic-start.md).
-- 검증/다음: 기능/route/account/검토camera/회복취소/paint RED를 보완했다. 최종풍경35/35·메인/동기화43/43·전체Chrome1603/1603 실패/생략/취소0·970897ms exit0. 최종공식7/Dune0·독립 추가C/I/M0. 소스4해시는고정동일. 최종diff→관련경로만commit/push→기존Actions/정확SHA READY·HTTP 확인 필요. 아직배포안함.
+- 갱신: 2026-11-02 15:14 JST · 도구: codex
+- 루트/브랜치: C:/jini-dev/worktrees/study-dashboard-clarity · fix/study-dashboard-clarity · 제품/운영 source b4c87481946a4170c9240ffc6837529dfef0c73d 커밋·푸시 완료. 이후 출시기록 커밋은 문서 전용이며 실제 HEAD는 gitlog/resume으로 확인한다. 별도 작업의 미커밋 변경은 보존한다.
+- 현재 운영 완료: 별도 풍경 버튼 제거·주 버튼 준비/확인 후 start/resume 성공 진입·진행 중 표시 전용 재진입 구현. PRD/architecture-map 개정. 표시 intent는 주 클릭부터 소유하고 route revision/계정/취소/hard error에서 폐기한다. 기존 학습/카메라/팀/서버/API/native 소유권 불변. [근거](../docs/verification/2026-11-02-scenic-start.md).
+- 검증/출시: 최종풍경35/35·메인/동기화43/43·전체Chrome1603/1603 실패/생략/취소0·970897ms exit0. 공식7/Dune0·독립C/I/M0·소스4해시동일/diff통과. Actions41398177995 success·dpl_FPqPCj2xkfgxp1NkpTyiT24uatvA READY/정확SHA/운영alias·HTML/새JS/CSS200·새코드 확인. 실제 기기/학습 기록 조작·새APK/EXE 없음. 공부·카메라를 마친 뒤 웹/앱 새로고침으로 hosted UI를 확인한다.
 - 병행 조사/미해결: Windows0.1.10 테마 재실행 유지 보고. 단위13/13·격리Electron45 정상 cold2/2는 통과, 실제 설치 앱 적용/원복도 정상이다. 저장 소실 원인은 미확정이며 scenicOpen의 비영속화는 별개다. 실제 시험 설정은 시스템·새벽 도시/정적/잔잔하게로 원복 완료, 설치앱 cold 수용은 사용자 트레이 정상 종료 대기다. 종료 후 같은 EXE 재실행 승인 있음. 강제종료·인증/전체저장소 조회로 우회하지 않는다. [조사](../docs/verification/2026-11-02-theme-restart-diagnosis.md).
 - 이전 화면순서 완료: Back/탭/같은 오늘 링크 이탈 정리·modifier초안 유지. Chrome1591/1591·공식7/Dune0·독립C/I/M0·3파일해시/diff통과. f9f6212/Actions41388475177 success·dpl_9iNdk4ybcAAjZKXUo9bwgn1Bfejv READY/정확SHA/운영alias·HTML/JS/CSS200. [근거](../docs/verification/2026-11-02-layout-editor-exit.md).
 - 완료: ScenicStudyView/scenicStudy.css·DashboardNavigation 공통 destination·main의 기존 hash/section 이동. 미니 정상 복원 실패 시 이동하지 않고 메뉴만 닫아 복구 가능. 공통토큰 설정창/헤더닫기·scene80/modal90·OS/비활성/일시정지 실제설명. 새영상/서버/DB/Auth/학습정책·native 변경 없음.

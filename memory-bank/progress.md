@@ -2,7 +2,7 @@
 
 ## 공부 시작·풍경 자동 진입
 
-- 구현·검증 완료/운영배포 대기: 주 시작/재개 성공 뒤 풍경, 실행 중 같은 위치에서 세션 무변경 재진입, 별도 풍경 버튼 제거. 최초 클릭의 표시 intent를 유지하며 route/계정/취소/확정 전 실패는 폐기, 불확실 재확인은 보존. 기존학습·카메라/배경 저장·native 정책 불변. 라이트 차콜의 실제 paint도 보정. 최종Chrome1603/1603·실패/생략/취소0, 공식7/Dune0·독립 소스C/I/M0. 초기 fixture/paint RED는 보완했고 기록은 별도 유지한다. [검증](../docs/verification/2026-11-02-scenic-start.md).
+- 운영배포 완료: 주 시작/재개 성공 뒤 풍경, 실행 중 같은 위치에서 세션 무변경 재진입, 별도 풍경 버튼 제거. route/계정/취소/확정 전 실패의 표시 intent 폐기·불확실 재확인 유지·라이트 차콜 paint 보정. 기존학습·카메라/배경 저장·native 정책 불변. 최종Chrome1603/1603 실패/생략/취소0·공식7/Dune0·독립C/I/M0·4해시/diff통과. 제품b4c8748·Actions41398177995 success·dpl_FPqPCj2xkfgxp1NkpTyiT24uatvA READY/정확SHA/운영alias·HTML/새JS/CSS200. 새APK/EXE·실제 학습/설정 쓰기 없음. [검증](../docs/verification/2026-11-02-scenic-start.md).
 
 ## Windows 테마 재실행 조사
 
