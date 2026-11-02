@@ -19,8 +19,12 @@
 - 집중23/23 및 검토수정3/3은 중복 합산하지 않는다. 모바일 touch, hover/focus, 모든 기존 destination href, 바깥 클릭/Escape, 같은 학습 데이터·카메라 트랙/추가 요청 없음·다시 부착, 기존 시작/휴식/재개/모달/미니 복원 실패를 포함한다.
 - 설정375/1440·100/200%·라이트/다크에서 실제 스타일/명도대비4.5·14px·44px·가로 넘침·클릭 위치·paint 순서, 실제 라이브/정지/OS 정지와 초안 취소를 검사한다.
 - `ai.ps1 verify --project <root>` 최종7명령(`desktop:check`, `desktop:test`, `test`, `test:edge`, `mobile:check`, `build`, `docs:check`) 모두exit0/Dune위반0. 공식 test의 브라우저 환경 미설정 범위는 별도 전체 실제 Chrome 검사로 보완했다. `output/scenic-menu-official-verify.log`.
-- 독립 shared-reviewer 최초C0/I1/M1→위 두 수정과 직접 Chrome3/3 재검토 후C0/I0/M0. 제품/테스트5파일의 검증 전후 SHA256차이0·`git diff --check` 통과. 운영배포는 아직 대기다.
+- 독립 shared-reviewer 최초C0/I1/M1→위 두 수정과 직접 Chrome3/3 재검토 후C0/I0/M0. 제품/테스트5파일의 검증 전후 SHA256차이0·`git diff --check` 통과.
 - 합성 화면은 `output/scenic-fixture/scenic-settings-menu-*.png`, `scenic-menu-1440.png`, `scenic-menu-375-touch.png`에 ‘합성 테스트 · 예시 데이터’를 표시한다. 실제 설치앱/Android 에뮬레이터·물리 카메라·서버 전체 digest 검증이 아니다.
 
 ## 출시
-- 프로젝트 규칙에 따라 검증 후 기존 Actions production workflow로 배포한다. 정확 SHA/READY/운영alias/HTML·새 JS/CSS200 확인 전에는 완료로 표시하지 않는다.
+- 제품 커밋 `8b8dc02738c964046d13dc8fa84b96b07fcad00c`, 명시한11경로만 commit/push. 기본 브랜치/PR/merge와 무관하게 기존 workflow를 기능 브랜치에서 dispatch했다.
+- Actions [41384495691](https://github.com/zxcc9867/studyRoom/actions/runs/41384495691) completed/success·정확SHA. Vercel `dpl_J1sjugA4G7rLh5GG1jfjDez92V9j` READY/production·project `prj_u2Q9FKwNeVjwwtVOjuXNMZRpkR3g`·team `team_LaN4bwvH4msrzoQtIw3fqsUj`·정확SHA 및 운영alias `study-room-attendance.vercel.app` 확인.
+- 운영 HTML200, `/assets/index-_Icelvs1.js`200, `/assets/index-BbeAEX0S.css`200. JS 전체메뉴/풍경화면메뉴/라이브켜기, CSS scenic-menu/scenic-settings-heading/scoped modal z90 마커 모두 확인했다.
+- 새 배포의 직후5분 error/fatal 그룹 조회 결과 항목없음. 장기·전체 클라이언트 오류 보장으로 확대하지 않는다. 새 APK/EXE·네이티브 설치나 실제 기기 새로고침은 이번 작업에서 수행하지 않았다.
+- 동시 작업의 기존 테마검증2문서, Windows 설치/피드 PRD·설치수용 문서는 커밋하지 않고 보존했다. 이 문서의 합성검증을 별도 실제 설치 수용과 혼동하지 않는다.

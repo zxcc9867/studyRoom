@@ -1,6 +1,6 @@
 # PRD: 풍경 집중 화면과 Windows 미니 창
 
-- 메뉴/설정 후속: 햄버거7경로·라이브 직접조작/실제상태·설정창 공통토큰/paint교정 구현. 최종Chrome1583/1583·공식7/Dune0·독립재검토C/I/M0·해시/diff통과, 운영배포대기. [후속 검증](../docs/verification/2026-11-02-scenic-menu.md).
+- 메뉴/설정 후속 완료: 햄버거7경로·라이브 직접조작/실제상태·설정창 공통토큰/paint교정. 최종Chrome1583/1583·공식7/Dune0·독립재검토C/I/M0·해시/diff통과. 제품8b8dc02·Actions41384495691 success·dpl_J1sjugA4G7rLh5GG1jfjDez92V9j READY/정확SHA/운영alias·HTML/새JS/CSS200/새코드 확인. 실기기 조작·새APK/EXE 없음. [후속 검증](../docs/verification/2026-11-02-scenic-menu.md).
 
 - 완료: 제품43b563e·배포source b837be6, 전체Chrome1575/native168/Electron35·공식7/Dune0·최종독립검토C0/I0/M0. Actions41329328044 success/Vercel dpl_AaJ5EgdDBe6S8UsVEqPEbBuVVsfH READY·운영alias·HTML/새JS/CSS/배경200 확인. Windows0.1.10 설치본 준비·NotSigned·미설치, 실제계정/기기 수용은 별도다. [검증](../docs/verification/2026-11-01-scenic-study.md).
 
