@@ -37,4 +37,10 @@
 
 - ignored output: live-expansion-red-ui.log / hidden-green.log / focused.log / focused-final.log / media-final.log / frame-analysis.log / render.log / snow-render-final.log.
 - ignored output/playwright: cozy-original-contact-1104.png / snow-source-intervals.png / cozy-contact-1104.png / cozy-media-results-1104.json / cozy-frame-analysis-1104.json 및 합성 화면 캡처.
-- 공식 검증/전체Chrome 통과: output/live-expansion-official.log / live-expansion-full-chrome.log / live-expansion-frozen-hashes.json. 제품SHA·Actions/Vercel/HTTP는 아직 미완료.
+- 공식 검증/전체Chrome 통과: output/live-expansion-official.log / live-expansion-full-chrome.log / live-expansion-frozen-hashes.json.
+- 제품/운영SHA: `f07b2c81a0af28e9d1fd4e1ccaee86e59ce0abe9`, 기능 브랜치 commit/push 완료. 후속 출시기록 커밋은 문서 전용이다.
+- [GitHub Actions41670977196](https://github.com/zxcc9867/studyRoom/actions/runs/41670977196): completed/success·동일headSha, 실패step없음.
+- Vercel `dpl_CjPuFEvf8b6zLsSNaFZQ9paq2Q7V`: READY·production·meta.githubCommitSha동일. 운영alias `study-room-attendance.vercel.app` 연결 확인, 배포호스트 `study-room-attendance-8y5plt0p0-astars-projects-c2f42587.vercel.app`.
+- [운영 주소](https://study-room-attendance.vercel.app) HTML/새JS `/assets/index-BxE_Eyjh.js`/새CSS `/assets/index-DYEs6odE.css` HTTP200, 신규catalog·구형미지원표시없음 확인. 포스터/썸네일6개200, 영상6개Range206·크기일치.
+- 계정 없는 격리Chrome에서 운영영상6/6 실제720p/1080p·muted/loop=true·paused=false·srcObject=null·시간진행·끝→처음 반복 확인. output/live-expansion-production.log 및 output/playwright/cozy-production-results-1104.json.
+- 배포 직후 해당deployment의5분 error/fatal 집계는 빈 결과였다. 클라이언트/장기 무장애 보장은 아니다. 새APK/EXE나 실제앱 새로고침·계정·설정·학습기록 변경은 하지 않았다. 공부·카메라 종료 후 앱을 새로고침하고 설정에서 새 영상을 선택한다.

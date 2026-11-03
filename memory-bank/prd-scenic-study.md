@@ -1,5 +1,7 @@
 # PRD: 풍경 집중 화면과 Windows 미니 창
 
+- 감성 루프3종·미지원1080p 숨김 운영완료: 영상8/전체14·23/19/9초720/1080. Chrome1648/1648·공식7/Dune0·독립C/I/M0·19해시/diff통과. sourcef07b2c8/Actions41670977196 success·dpl_CjPuFEvf8b6zLsSNaFZQ9paq2Q7V READY·동일SHA/운영alias·HTML/JS/CSS/이미지200·영상6Range206·격리운영재생/loop6/6. 학습/카메라/native/실제설정 불변·새설치없음. [검증](../docs/verification/2026-11-04-live-video-expansion.md).
+
 - 해상도 표시 후속 운영 완료: 자동/720p/1080p·미지원 비활성/원본720 안내·구형high 취소 보존/명시 적용. Chrome1636/1636·공식7/Dune0·독립C/I/M0·3해시/diff/docs통과. sourcedae832d/Actions41658560298 success/dpl_Hvq1xkUxM7zkCcP5n3v5nW2QDoJ1 READY·동일SHA/alias·HTML/JS/CSS200/새표시확인. 새APK/EXE·영상/카메라/학습 변경 없음. [검증](../docs/verification/2026-11-03-resolution-labels.md).
 
 - 화질 후속 운영배포 완료: PC1080p/모바일720p 자동·절약·고화질·구형설정 보존/구름·도시HD·파도SD. Chrome1634/1634·공식7/Dune0·독립C/I/M0, source666faf1/Actions41637301396 success/dpl_9XydhnZgWJiAP1P6PkmRP53rViq6 READY·동일SHA/alias·HTTP200/영상206·운영재생3/3. 실제모델/합성카메라 warm병행 정상, cold초기지연/물리기기 장시간 수용은 별도다. [검증](../docs/verification/2026-11-03-video-quality.md).
