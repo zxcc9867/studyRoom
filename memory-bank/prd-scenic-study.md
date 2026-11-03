@@ -1,5 +1,7 @@
 # PRD: 풍경 집중 화면과 Windows 미니 창
 
+- 해상도 표시 후속 운영 완료: 자동/720p/1080p·미지원 비활성/원본720 안내·구형high 취소 보존/명시 적용. Chrome1636/1636·공식7/Dune0·독립C/I/M0·3해시/diff/docs통과. sourcedae832d/Actions41658560298 success/dpl_Hvq1xkUxM7zkCcP5n3v5nW2QDoJ1 READY·동일SHA/alias·HTML/JS/CSS200/새표시확인. 새APK/EXE·영상/카메라/학습 변경 없음. [검증](../docs/verification/2026-11-03-resolution-labels.md).
+
 - 화질 후속 운영배포 완료: PC1080p/모바일720p 자동·절약·고화질·구형설정 보존/구름·도시HD·파도SD. Chrome1634/1634·공식7/Dune0·독립C/I/M0, source666faf1/Actions41637301396 success/dpl_9XydhnZgWJiAP1P6PkmRP53rViq6 READY·동일SHA/alias·HTTP200/영상206·운영재생3/3. 실제모델/합성카메라 warm병행 정상, cold초기지연/물리기기 장시간 수용은 별도다. [검증](../docs/verification/2026-11-03-video-quality.md).
 
 - 감성 영상3종 후속 완료: 별빛 밤하늘·비 오는 창가·도시의 밤 추가, 영상5개/전체11개/기존설정 보존. 최종Chrome1621/1621·공식7/Dune0·독립C/I/M0·21해시/diff통과. 제품2929276·Actions41485061586 success·dpl_hLkBKoQbp7oqNZneccd4rd9d4gti READY/동일SHA/운영alias·웹/이미지200/영상206·격리운영영상 재생3/3. 새APK/EXE/실계정·기록·현재설정 조작 없음. [검증](../docs/verification/2026-11-03-emotional-video-themes.md).

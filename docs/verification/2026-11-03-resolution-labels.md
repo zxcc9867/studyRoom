@@ -12,4 +12,8 @@
 - 최종 전체 Chrome1636/1636, 실패/생략/취소0·1,082,066.91ms·exit0. `output/resolution-labels-full-chrome.log`. 검증 전후 고정3파일 해시는 모두 동일하며 제품 코드/테스트 변경 없이 출시한다. 최종diff/docs검사도 통과했다. 공식7·전체Chrome·집중7은 각각의 범위로 구분하고 이전1634개 결과를 새검사로 재사용하지 않았다.
 
 ## 출시
-- 검증 완료·운영 배포 대기. 실제 앱·공부·카메라·사용자 설정이나 서버 기록은 조작하지 않는다. 학습/카메라 정책 변경 또는 새APK/EXE가 필요한 작업이 아니다.
+- 2026-11-04 00:00 JST 운영 확인. 제품 source `dae832dea159b227b7ce707e8617d95278bbdd52` 기능 브랜치 커밋·푸시, Actions `41658560298` completed/success/동일SHA.
+- Vercel `dpl_Hvq1xkUxM7zkCcP5n3v5nW2QDoJ1` READY/production/동일SHA·운영alias `study-room-attendance.vercel.app` 확인.
+- 운영 HTML/JS `/assets/index-BLAacgHS.js`/CSS `/assets/index-C3gTwXQ0.css` 모두HTTP200. JS의 saver720p/high1080p·미지원/기기 안내, CSS의 disabled 상태 규칙 확인. `output/resolution-labels-production-http.log`, exit0. 영상/선택기/재생기 바이트는 변경하지 않아 새 미디어 출시나 실제 기기 재생 수용으로 표현하지 않는다.
+- 배포 한정 직후5분 error/fatal 집계는 빈 결과다. 장기·클라이언트 전체 무오류 보장은 아니다. 관측·서버·요금제/보안/환경 설정 변경 없음.
+- 이후 출시 기록 커밋은 문서 전용이다. 실제 앱·공부·카메라·사용자 설정이나 서버 기록은 조작하지 않았으며 학습/카메라 정책 변경 또는 새APK/EXE가 필요한 작업이 아니다. 공부·카메라 사용을 마친 뒤 새로고침해 확인한다.

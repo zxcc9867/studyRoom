@@ -2,7 +2,7 @@
 
 ## 영상 화질 해상도 표시
 
-- 구현·검증 완료/출시대기: 자동/720p/1080p·미지원 비활성/720p 설명·구형high 실제해상도 요약/편집 초안정규화. 새2개RED→화질7/7 GREEN·전체Chrome1636/1636 실패/생략/취소0·공식7/Dune0·독립C/I/M0·3해시/diff/docs통과. 저장enum/player/영상/학습·카메라·native 불변. [검증](../docs/verification/2026-11-03-resolution-labels.md).
+- 운영배포 완료: 자동/720p/1080p·미지원 비활성/720p 설명·구형high 실제해상도 요약/초안정규화. 화질7/7·Chrome1636/1636 실패/생략/취소0·공식7/Dune0·독립C/I/M0·3해시/diff/docs통과. 제품dae832d·Actions41658560298 success·dpl_Hvq1xkUxM7zkCcP5n3v5nW2QDoJ1 READY/동일SHA/운영alias·HTML/JS/CSS200·새표시확인. 저장enum/player/영상/학습·카메라·native/실제설정 불변. [검증](../docs/verification/2026-11-03-resolution-labels.md).
 
 ## 영상 배경 화질 선택
 
