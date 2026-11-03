@@ -1,5 +1,7 @@
 # PRD: 풍경 집중 화면과 Windows 미니 창
 
+- 화질 후속 운영배포 완료: PC1080p/모바일720p 자동·절약·고화질·구형설정 보존/구름·도시HD·파도SD. Chrome1634/1634·공식7/Dune0·독립C/I/M0, source666faf1/Actions41637301396 success/dpl_9XydhnZgWJiAP1P6PkmRP53rViq6 READY·동일SHA/alias·HTTP200/영상206·운영재생3/3. 실제모델/합성카메라 warm병행 정상, cold초기지연/물리기기 장시간 수용은 별도다. [검증](../docs/verification/2026-11-03-video-quality.md).
+
 - 감성 영상3종 후속 완료: 별빛 밤하늘·비 오는 창가·도시의 밤 추가, 영상5개/전체11개/기존설정 보존. 최종Chrome1621/1621·공식7/Dune0·독립C/I/M0·21해시/diff통과. 제품2929276·Actions41485061586 success·dpl_hLkBKoQbp7oqNZneccd4rd9d4gti READY/동일SHA/운영alias·웹/이미지200/영상206·격리운영영상 재생3/3. 새APK/EXE/실계정·기록·현재설정 조작 없음. [검증](../docs/verification/2026-11-03-emotional-video-themes.md).
 
 - 영상형/미니 제거 후속 완료: 기존6개 보존·구름/파도2개·종류 사전표시·지연 다운로드/실제 재생·실패복구, 미니 진입 제거/정상복원 유지. Chrome1611/1611·공식7/Dune0·독립C/I/M0·17해시/diff통과. 제품786d1a4·Actions41460028405 success·dpl_Aw4mxhxE2S4qAtNfvKHmShQem2kB READY/동일SHA/운영alias·웹자산200/영상206·격리운영영상 재생2/2. 실제앱/기록/설정 조작·새APK/EXE 없음. [검증](../docs/verification/2026-11-02-video-live.md).

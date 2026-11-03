@@ -2,7 +2,7 @@
 
 ## 영상 배경 화질 선택
 
-- 구현/최종검증 완료·출시대기: 구름·도시HD/파도SD, PC1080p·모바일720p/자동·절약·고화질·최대720표시/구형설정 호환. Chrome1634/1634 실패/생략/취소0·공식7/Dune0·독립C/I/M0·9해시/diff/docs통과. 실제모델/합성카메라 병행: 기존 cold감지3~4.25초 지연 별도관측, warm720/1080 각6초 누락0/감지11.3~23.2ms·동일stream유지. 학습·카메라 owner/native/API·실제설정 불변. 물리 카메라/장시간 배터리·발열은 별도다. [검증](../docs/verification/2026-11-03-video-quality.md).
+- 운영배포 완료: 구름·도시HD/파도SD, PC1080p·모바일720p/자동·절약·고화질·최대720표시/구형설정 호환. Chrome1634/1634 실패/생략/취소0·공식7/Dune0·독립C/I/M0·9해시/diff/docs통과. 제품666faf1·Actions41637301396 success·dpl_9XydhnZgWJiAP1P6PkmRP53rViq6 READY/동일SHA/운영alias·HTML/JS200·새영상206·격리운영재생3/3. 실제모델/합성카메라 warm720/1080 누락0·11.3~23.2ms·stream유지, 기존cold3~4.25초 별도. 실제학습/설정/native/API 조작없음. 물리카메라/장시간배터리 수용은 별도다. [검증](../docs/verification/2026-11-03-video-quality.md).
 
 ## 감성 영상 테마 확장
 

@@ -17,7 +17,7 @@
 
 ## 실제 감지 모델·합성 카메라 병행 측정
 - 별도 로컬 Chrome에서 수정하지 않은 production `bodyPresenceDetection.mjs`를 bundle하고 같은 tasks-vision0.10.35/pose_landmarker_lite 모델·WASM을 로컬 제공했다. 카메라는 Chrome 가상 입력이며 실제 사용자 영상/계정/서버는 사용하지 않는다. 각 영상에서1초 간격6회 실제 detectForVideo를 실행했다. 스크립트/원자료는 ignored `output/playwright/video-quality-detector.mjs`, `...-results.json`, `...-baseline-results.json`과 두 log다.
-- 첫1080p 구름 검사: 첫 감지3,005.3ms, 프레임227/누락14. 이후 도시/파도 감지5.3~8.7ms, 프레임182/152·누락0. 이를 ‘모두 무결한 성능’으로 숨기지 않았다.
+- 첫1080p 구름 검사: 첫 감지3,005.3ms, 프레임227/누락14. 이후 도시/파도 감지4.8~8.7ms, 프레임182/152·누락0. 이를 ‘모두 무결한 성능’으로 숨기지 않았다.
 - 한 변수 비교: 새 격리 프로세스에서 **배경 없이** 첫 감지4,249.5ms를 관측했다. 고화질에서만 생기는 지연이 아니며 기존 모델 초기실행 비용이 있음을 확인한 범위다. GPU 내부 컴파일의 정확한 원인은 단정하지 않는다. 모델/카메라 정책이나 worker 구조를 이번 화질 기능에 섞어 바꾸지 않았다.
 - 이후 같은 detector·카메라로 구름720p→구름1080p→도시1080p→파도1080p 각각 약6.15초를 대조했다. 카메라 같은stream/live·프레임 진행, 배경154/154/184/154프레임·누락0, 감지11.3~23.2ms, pageerror0. 이 짧은 합성 비교는 통계적 성능 보장·물리 상반신 판정 정확도·실기기 장시간 발열/배터리 수용이 아니다. 카메라가 끊기거나 학습 기록이 바뀐 관측은 없었다.
 
@@ -26,4 +26,9 @@
 - 새APK/EXE 없이 hosted UI를 제공하며 실제 앱을 임의 새로고침하지 않는다. 사용자 학습 기록과 현재 실제 테마 선택에는 쓰지 않는다.
 
 ## 최종 게이트·운영 출시
-- 검증 게이트 완료. 정확 SHA의 Actions success/Vercel READY/운영 alias·자산 응답 확인 뒤 출시 정보를 확정한다.
+- 제품 source `666faf1533ec8ad41aa80e41153f3f54a8712e08` 기능 브랜치 커밋·푸시 완료. Actions `41637301396` completed/success/동일 headSha.
+- Vercel `dpl_9XydhnZgWJiAP1P6PkmRP53rViq6` READY/production/동일 githubCommitSha 및 운영 alias `study-room-attendance.vercel.app` 확인. 새 문서 출시기록 커밋은 운영 source와 구분한다.
+- 운영 HTML/새 JS `/assets/index-BU2rJXCQ.js` HTTP200·신규 파일경로/영상화질/자동·절약·고화질 코드 확인. 새3개 video Range0-63은 모두206/video-webm/64bytes·총파일크기 일치. `output/video-quality-production-http.log`.
+- 격리 Chrome의 공개 운영 영상 디코딩/재생3/3: 구름HD1920x1080, 도시HD1920x1080, 파도SD1280x720·currentTime>.5·paused=false·muted=true·srcObject=null. `output/video-quality-production-playback.log`, exit0. 실제 앱/계정/카메라·사용자 설정은 조작하지 않았다.
+- 배포 한정 직후5분 error/fatal 집계는 빈 결과다. 장기 안정성/클라이언트 전체 오류 보장이 아니다. 관측/환경/보안/요금제 설정 변경 없음.
+- 전체1634/1634·공식7/Dune0·최종 독립 C0/I0/M0(원자료 수치 경미1개 정정 뒤 재확인)·9해시/최종diff/docs통과. 새APK/EXE는 필요 없다. 공부·카메라 사용을 마친 뒤 웹/앱 재로드→설정→공부와 화면→배경 테마 변경→영상 화질에서 선택한다. 원본720p뿐인 두 영상과 이전 이미지 효과를 HD영상으로 오표시하지 않는다.
