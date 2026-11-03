@@ -1,5 +1,9 @@
 # Progress
 
+## 영상 화질 해상도 표시
+
+- 구현·검증 완료/출시대기: 자동/720p/1080p·미지원 비활성/720p 설명·구형high 실제해상도 요약/편집 초안정규화. 새2개RED→화질7/7 GREEN·전체Chrome1636/1636 실패/생략/취소0·공식7/Dune0·독립C/I/M0·3해시/diff/docs통과. 저장enum/player/영상/학습·카메라·native 불변. [검증](../docs/verification/2026-11-03-resolution-labels.md).
+
 ## 영상 배경 화질 선택
 
 - 운영배포 완료: 구름·도시HD/파도SD, PC1080p·모바일720p/자동·절약·고화질·최대720표시/구형설정 호환. Chrome1634/1634 실패/생략/취소0·공식7/Dune0·독립C/I/M0·9해시/diff/docs통과. 제품666faf1·Actions41637301396 success·dpl_9XydhnZgWJiAP1P6PkmRP53rViq6 READY/동일SHA/운영alias·HTML/JS200·새영상206·격리운영재생3/3. 실제모델/합성카메라 warm720/1080 누락0·11.3~23.2ms·stream유지, 기존cold3~4.25초 별도. 실제학습/설정/native/API 조작없음. 물리카메라/장시간배터리 수용은 별도다. [검증](../docs/verification/2026-11-03-video-quality.md).

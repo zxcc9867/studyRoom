@@ -23,6 +23,22 @@ async function dashboardAfterStudySuccess(page) {
  await scenicDashboard(scene);await scene.waitFor({state:'detached'});
 }
 
+for(const width of [375,1440])browserTest(`resolution labels: unsupported 1080p is disabled and legacy high shows real 720p at ${width}px`,()=>withApp(width,async page=>{
+ const saved=JSON.stringify({background:'starry-night',motion:'live',intensity:'subtle',paused:true,quality:'high'});
+ const before=await page.evaluate(saved=>{localStorage.setItem('study-room-atmosphere',saved);dispatchEvent(new StorageEvent('storage',{key:'study-room-atmosphere',newValue:saved}));return structuredClone({sessions:fixture.sessions,todos:fixture.todos});},saved);
+ const requests=[];page.on('request',r=>{if(r.url().endsWith('.webm'))requests.push(r.url());});
+ await page.locator('a[href="#settings"]:visible').first().click();await settingsCategory(page,'공부와 화면');assert.equal(await page.locator('.atmosphere-quality-summary').innerText(),'화질: 720p');
+ await page.getByRole('button',{name:'배경 테마 변경',exact:true}).click();let editor=page.getByRole('group',{name:'배경 테마 편집',exact:true}),quality=editor.getByRole('group',{name:'영상 화질',exact:true});
+ assert.equal(await quality.getByRole('radio',{name:'1080p',exact:true}).isDisabled(),true);assert.equal(await quality.getByRole('radio',{name:'720p',exact:true}).isChecked(),true);assert.equal(await quality.getByRole('radio',{name:/고화질|절약/}).count(),0);
+ await quality.getByRole('radio',{name:'자동',exact:true}).check();await editor.getByRole('radio',{name:'흐르는 구름',exact:true}).check();assert.equal(await quality.getByRole('radio',{name:'1080p',exact:true}).isEnabled(),true);await quality.getByRole('radio',{name:'1080p',exact:true}).check();
+ await editor.getByRole('radio',{name:'별빛 밤하늘',exact:true}).check();assert.equal(await quality.getByRole('radio',{name:'720p',exact:true}).isChecked(),true);assert.equal(await quality.getByRole('radio',{name:'1080p',exact:true}).isDisabled(),true);assert.deepEqual(requests,[],'draft changes do not download either resolution');
+ await quality.scrollIntoViewIfNeeded();for(const name of ['자동','720p','1080p']){const box=await quality.getByRole('radio',{name,exact:true}).locator('..').boundingBox();assert.ok(box.height>=44);}
+ assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),true);await scenicScreenshot(page,`resolution-labels-${width}`);
+ await editor.getByRole('button',{name:'취소',exact:true}).click();assert.equal(await page.evaluate(()=>localStorage.getItem('study-room-atmosphere')),saved,'cancel preserves the legacy stored preference');
+ await page.getByRole('button',{name:'배경 테마 변경',exact:true}).click();editor=page.getByRole('group',{name:'배경 테마 편집',exact:true});await editor.getByRole('button',{name:'적용',exact:true}).click();assert.equal(await page.evaluate(()=>JSON.parse(localStorage.getItem('study-room-atmosphere')).quality),'saver');assert.deepEqual(requests,[],'applying the normalized paused choice does not start video');
+ assert.deepEqual(await page.evaluate(()=>({sessions:fixture.sessions,todos:fixture.todos})),before);
+}));
+
 for(const mobile of [false,true])browserTest(`video quality: ${mobile?'mobile':'PC'} auto and explicit quality changes preserve the live camera and saved study`,()=>withApp(mobile?375:1440,async page=>{
  const tools=page.locator('.focus-tools');await tools.locator('summary').click();await tools.getByRole('button',{name:'카메라 감시 켜기',exact:true}).click();await tools.getByRole('button',{name:'카메라 감시 끄기',exact:true}).waitFor();
  await page.evaluate(()=>{const v=[...document.querySelectorAll('video')].find(v=>v.srcObject);window.qualityCamera={node:v,stream:v.srcObject,track:v.srcObject.getVideoTracks()[0],requests:fixtureCameraRequests,sessions:structuredClone(fixture.sessions),todos:structuredClone(fixture.todos)};});
@@ -33,24 +49,24 @@ for(const mobile of [false,true])browserTest(`video quality: ${mobile?'mobile':'
  await edit.getByRole('button',{name:'적용',exact:true}).click();
  const expected=mobile?720:1080;await page.waitForFunction(res=>{const v=document.querySelector('[data-atmosphere-video]');return v?.videoHeight===res&&!v.paused&&v.currentTime>.2;},expected);
  assert.match(await page.locator('.atmosphere-quality-summary').innerText(),new RegExp('자동 · '+expected+'p'));
- edit=await editor();await edit.getByRole('group',{name:'영상 화질',exact:true}).getByRole('radio',{name:'고화질',exact:true}).check();const beforeCancel=requests.length;await edit.getByRole('button',{name:'취소',exact:true}).click();assert.equal(requests.length,beforeCancel);
- for(const [name,resolution] of [['절약',720],['고화질',1080]]){
+ edit=await editor();await edit.getByRole('group',{name:'영상 화질',exact:true}).getByRole('radio',{name:'1080p',exact:true}).check();const beforeCancel=requests.length;await edit.getByRole('button',{name:'취소',exact:true}).click();assert.equal(requests.length,beforeCancel);
+ for(const [name,resolution] of [['720p',720],['1080p',1080]]){
   edit=await editor();await edit.getByRole('group',{name:'영상 화질',exact:true}).getByRole('radio',{name,exact:true}).check();await edit.getByRole('button',{name:'적용',exact:true}).click();
   await page.waitForFunction(res=>{const v=document.querySelector('[data-atmosphere-video]');return v.videoHeight===res&&!v.paused&&v.currentTime>.2;},resolution);
-  assert.match(await page.locator('.atmosphere-quality-summary').innerText(),new RegExp(name+' · '+resolution+'p'));
+  assert.equal(await page.locator('.atmosphere-quality-summary').innerText(),'화질: '+name);
  }
  const frames=await page.evaluate(()=>({camera:qualityCamera.node.currentTime,total:document.querySelector('[data-atmosphere-video]').getVideoPlaybackQuality().totalVideoFrames}));
  await page.waitForFunction(t=>qualityCamera.node.currentTime>t+1.5,frames.camera);
  const playback=await page.locator('[data-atmosphere-video]').evaluate(v=>{const q=v.getVideoPlaybackQuality();return {height:v.videoHeight,total:q.totalVideoFrames,dropped:q.droppedVideoFrames};});assert.ok(playback.total>frames.total,'1080p video and camera frames both progress');console.log('Quality with virtual camera',JSON.stringify({mobile,...playback}));
  await page.getByRole('button',{name:'일시정지',exact:true}).click();await page.waitForFunction(()=>document.querySelector('[data-atmosphere-video]').paused);
- edit=await editor();await edit.getByRole('group',{name:'영상 화질',exact:true}).getByRole('radio',{name:'절약',exact:true}).check();await edit.getByRole('button',{name:'적용',exact:true}).click();assert.equal(await page.locator('[data-atmosphere-video]').getAttribute('src'),null,'switching quality while paused must not fetch a replacement');
+ edit=await editor();await edit.getByRole('group',{name:'영상 화질',exact:true}).getByRole('radio',{name:'720p',exact:true}).check();await edit.getByRole('button',{name:'적용',exact:true}).click();assert.equal(await page.locator('[data-atmosphere-video]').getAttribute('src'),null,'switching quality while paused must not fetch a replacement');
  await page.getByRole('button',{name:'재생',exact:true}).click();await page.waitForFunction(()=>{const v=document.querySelector('[data-atmosphere-video]');return v.videoHeight===720&&!v.paused&&v.currentTime>.2;});
  assert.deepEqual(await page.evaluate(()=>{const q=qualityCamera,v=[...document.querySelectorAll('video')].find(v=>v.srcObject);return {sameNode:v===q.node,sameStream:v.srcObject===q.stream,sameTrack:v.srcObject.getVideoTracks()[0]===q.track,track:q.track.readyState,sessions:JSON.stringify(fixture.sessions)===JSON.stringify(q.sessions),todos:JSON.stringify(fixture.todos)===JSON.stringify(q.todos),requests:fixtureCameraRequests===q.requests,quality:JSON.parse(localStorage.getItem('study-room-atmosphere')).quality};}),{sameNode:true,sameStream:true,sameTrack:true,track:'live',sessions:true,todos:true,requests:true,quality:'saver'});
  await scenicScreenshot(page,`video-quality-${mobile?'mobile':'pc'}`);
  const saved=await page.evaluate(()=>localStorage.getItem('study-room-atmosphere'));await page.reload();await page.locator('.topbar-actions button:not([disabled])').first().waitFor();
  if(await page.getByRole('dialog',{name:'카메라 인증 필요'}).isVisible())await page.keyboard.press('Escape');
  await page.locator('a[href="#settings"]:visible').first().click();await settingsCategory(page,'공부와 화면');await page.locator('.atmosphere-quality-summary').waitFor();
- assert.equal(await page.evaluate(()=>localStorage.getItem('study-room-atmosphere')),saved,'quality persists across reload');assert.match(await page.locator('.atmosphere-quality-summary').innerText(),/절약 · 720p/);
+ assert.equal(await page.evaluate(()=>localStorage.getItem('study-room-atmosphere')),saved,'quality persists across reload');assert.match(await page.locator('.atmosphere-quality-summary').innerText(),/720p/);
 },'active',false,null,mobile,mobile));
 
 browserTest('video quality: failed HD can recover at 720p without changing study',()=>withApp(1440,async page=>{
@@ -58,14 +74,14 @@ browserTest('video quality: failed HD can recover at 720p without changing study
  await page.route('**/themes/video/cloud-sky-hd.webm',route=>route.abort());
  await page.locator('a[href="#settings"]:visible').first().click();await settingsCategory(page,'공부와 화면');await page.getByRole('button',{name:'배경 테마 변경',exact:true}).click();
  let edit=page.getByRole('group',{name:'배경 테마 편집',exact:true});await edit.getByRole('radio',{name:'흐르는 구름',exact:true}).check();await edit.getByRole('button',{name:'적용',exact:true}).click();await page.getByText('영상을 재생하지 못했어요',{exact:true}).waitFor();
- await page.getByRole('button',{name:'배경 테마 변경',exact:true}).click();edit=page.getByRole('group',{name:'배경 테마 편집',exact:true});await edit.getByRole('group',{name:'영상 화질',exact:true}).getByRole('radio',{name:'절약',exact:true}).check();await edit.getByRole('button',{name:'적용',exact:true}).click();
+ await page.getByRole('button',{name:'배경 테마 변경',exact:true}).click();edit=page.getByRole('group',{name:'배경 테마 편집',exact:true});await edit.getByRole('group',{name:'영상 화질',exact:true}).getByRole('radio',{name:'720p',exact:true}).check();await edit.getByRole('button',{name:'적용',exact:true}).click();
  await page.waitForFunction(()=>{const v=document.querySelector('[data-atmosphere-video]');return v.videoHeight===720&&!v.paused&&v.currentTime>.2;});assert.equal(await page.getByText('영상을 재생하지 못했어요',{exact:true}).count(),0);assert.deepEqual(await page.evaluate(()=>fixture.sessions),before);
 }));
 
 browserTest('video quality: 720p-only source is labelled honestly and high does not request a fabricated HD file',()=>withApp(375,async page=>{
  const requests=[];page.on('request',r=>{if(r.url().endsWith('.webm'))requests.push(r.url());});await page.locator('a[href="#settings"]:visible').first().click();await settingsCategory(page,'공부와 화면');await page.getByRole('button',{name:'배경 테마 변경',exact:true}).click();
- const edit=page.getByRole('group',{name:'배경 테마 편집',exact:true});await edit.getByRole('radio',{name:'별빛 밤하늘',exact:true}).check();await edit.getByRole('group',{name:'영상 화질',exact:true}).getByRole('radio',{name:'고화질',exact:true}).check();await edit.getByText('이 영상의 최대 화질은 720p입니다.',{exact:true}).waitFor();await edit.getByRole('button',{name:'적용',exact:true}).click();
- await page.waitForFunction(()=>{const v=document.querySelector('[data-atmosphere-video]');return v.videoHeight===720&&!v.paused&&v.currentTime>.2;});assert.ok(requests.every(url=>url.endsWith('/starry-night.webm')));assert.match(await page.locator('.atmosphere-quality-summary').innerText(),/고화질 · 720p/);
+ const edit=page.getByRole('group',{name:'배경 테마 편집',exact:true});await edit.getByRole('radio',{name:'별빛 밤하늘',exact:true}).check();assert.equal(await edit.getByRole('group',{name:'영상 화질',exact:true}).getByRole('radio',{name:'1080p',exact:true}).isDisabled(),true);await edit.getByRole('group',{name:'영상 화질',exact:true}).getByRole('radio',{name:'720p',exact:true}).check();await edit.getByText('이 영상의 최대 화질은 720p입니다.',{exact:true}).waitFor();await edit.getByRole('button',{name:'적용',exact:true}).click();
+ await page.waitForFunction(()=>{const v=document.querySelector('[data-atmosphere-video]');return v.videoHeight===720&&!v.paused&&v.currentTime>.2;});assert.ok(requests.every(url=>url.endsWith('/starry-night.webm')));assert.equal(await page.locator('.atmosphere-quality-summary').innerText(),'화질: 720p');
 }));
 
 browserTest('video quality: supplied city HD and wave saver files decode at their advertised native dimensions',()=>withApp(1440,async page=>{
