@@ -43,7 +43,7 @@ export default function AtmosphereSettings() {
       </>}
       {draftTheme?.video && draft.motion === 'live' && <>
         <fieldset className="atmosphere-controls"><legend>영상 화질</legend>
-          <div className="atmosphere-control-options">{(['auto', 'saver', 'high'] as const).map(value => <label key={value}><input type="radio" name={`${id}-quality`} aria-label={qualityLabels[value]} aria-describedby={value === 'high' && !draftTheme.videoSources?.[1080] ? `${id}-quality-limit` : undefined} disabled={value === 'high' && !draftTheme.videoSources?.[1080]} checked={(draft.quality ?? 'auto') === value} onChange={() => setDraft({...draft, quality: value})} /><span>{qualityLabels[value]}{value === 'high' && !draftTheme.videoSources?.[1080] && ' (미지원)'}</span></label>)}</div>
+          <div className="atmosphere-control-options">{(['auto', 'saver', 'high'] as const).filter(value => value !== 'high' || draftTheme.videoSources?.[1080]).map(value => <label key={value}><input type="radio" name={`${id}-quality`} aria-label={qualityLabels[value]} checked={(draft.quality ?? 'auto') === value} onChange={() => setDraft({...draft, quality: value})} /><span>{qualityLabels[value]}</span></label>)}</div>
         </fieldset>
         <p>자동은 지원 범위 안에서 PC 1080p · 모바일 720p로 재생합니다.</p>
         <p>선택 화질: {atmosphereVideoSource(draftTheme, draft.quality, current.mobile)?.resolution}p</p>
@@ -53,7 +53,7 @@ export default function AtmosphereSettings() {
       <div className="settings-actions"><button type="button" className="secondary" onClick={closeEditor}>취소</button><button type="button" className="primary" onClick={() => {controller.setPreferences(draft); closeEditor();}}>적용</button></div>
     </fieldset>}
     {current.motion === 'live' && <div className="atmosphere-playback"><span role="status">{atmospherePlayback(current)}</span>{currentTheme.video && current.videoStatus === 'error' && <button type="button" className="secondary" onClick={()=>controller.retryVideo()}>영상 다시 시도</button>}<button type="button" className="secondary" aria-pressed={current.paused} onClick={() => controller.setPreferences({...current, paused: !current.paused})}>{current.paused ? '재생' : '일시정지'}</button></div>}
-    {currentTheme.video && <details className="atmosphere-credits"><summary>영상 출처</summary><p><a href={currentTheme.source} target="_blank" rel="noreferrer">{currentTheme.name}</a> · {currentTheme.author} · <a href={currentTheme.licenseUrl} target="_blank" rel="noreferrer">{currentTheme.license}</a></p><p>Wikimedia 파생 영상. 포스터 추출·화면 채움·무음·반복 및 재생 속도 조정.</p></details>}
+    {currentTheme.video && <details className="atmosphere-credits"><summary>영상 출처</summary><p><a href={currentTheme.source} target="_blank" rel="noreferrer">{currentTheme.name}</a> · {currentTheme.author} · <a href={currentTheme.licenseUrl} target="_blank" rel="noreferrer">{currentTheme.license}</a></p><p>Wikimedia 파생 영상. {currentTheme.changes ?? '포스터 추출·화면 채움·무음·반복 및 재생 속도 조정.'}</p></details>}
     {!current.persistent && <p role="status">배경은 적용했지만 기기에 저장하지 못했어요. 다시 열면 이전 설정으로 돌아갈 수 있어요.</p>}
   </section>;
 }

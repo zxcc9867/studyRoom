@@ -66,7 +66,6 @@ html[data-study-motion=static] body::after, html[data-study-motion=static] #root
 .dashboard-redesign .atmosphere-controls label { display: flex; align-items: center; justify-content: center; gap: 8px; min-width: 0; min-height: 44px; padding: 8px 12px; border: 1px solid var(--study-border); border-radius: var(--study-control-radius); color: var(--study-ink); background: var(--study-surface); font-size: var(--study-text-sm); word-break: keep-all; cursor: pointer; }
 .atmosphere-controls label:has(input:checked) { border-color: var(--study-primary); background: var(--study-soft); }
 .atmosphere-controls label:focus-within { outline: 3px solid var(--study-primary); outline-offset: 3px; }
-.dashboard-redesign .atmosphere-controls label:has(input:disabled) { color: var(--study-muted); background: var(--study-soft); cursor: not-allowed; }
 .atmosphere-controls input { flex: 0 0 18px; width: 18px; height: 18px; min-height: 0; margin: 0; accent-color: var(--study-primary); }
 .atmosphere-playback { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px; margin-top: 12px; font-size: var(--study-text-xs); color: var(--study-muted); }
 .atmosphere-editor .settings-actions { justify-content: flex-end; }

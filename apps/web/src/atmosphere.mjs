@@ -3,6 +3,9 @@ const videoVariants = {
   'cloud-sky': {720: '/themes/video/cloud-sky.webm', 1080: '/themes/video/cloud-sky-hd.webm'},
   'ocean-waves': {720: '/themes/video/ocean-waves-sd.webm', 1080: '/themes/video/ocean-waves.webm'},
   'city-night': {720: '/themes/video/city-night.webm', 1080: '/themes/video/city-night-hd.webm'},
+  'fireplace': {720: '/themes/video/fireplace.webm', 1080: '/themes/video/fireplace-hd.webm'},
+  'snow-night': {720: '/themes/video/snow-night.webm', 1080: '/themes/video/snow-night-hd.webm'},
+  'lake-sunset': {720: '/themes/video/lake-sunset.webm', 1080: '/themes/video/lake-sunset-hd.webm'},
 };
 export const atmosphereThemes = Object.freeze([
   {id: 'charcoal', name: '차콜', live: false},
@@ -16,7 +19,10 @@ export const atmosphereThemes = Object.freeze([
   {id: 'starry-night', name: '별빛 밤하늘', live: true, video: '/themes/video/starry-night.webm', poster: '/themes/video/starry-night-poster.webp', thumbnail: '/themes/video/starry-night-thumb.webp', author: 'Mike Wetzel', source: 'https://commons.wikimedia.org/wiki/File:Milky_Way_in_Glen_Canyon_National_Recreation_Area.webm', license: 'CC BY 3.0', licenseUrl: 'https://creativecommons.org/licenses/by/3.0/'},
   {id: 'rain-window', name: '비 오는 창가', live: true, video: '/themes/video/rain-window.webm', poster: '/themes/video/rain-window-poster.webp', thumbnail: '/themes/video/rain-window-thumb.webp', author: 'slavikfi (Vjatseslav Robtsenkov)', source: 'https://commons.wikimedia.org/wiki/File:Raindrops_against_the_window_in_the_night_city,_Las_Palmas.webm', license: 'CC0 1.0', licenseUrl: 'https://creativecommons.org/publicdomain/zero/1.0/'},
   {id: 'city-night', name: '도시의 밤', live: true, video: '/themes/video/city-night.webm', poster: '/themes/video/city-night-poster.webp', thumbnail: '/themes/video/city-night-thumb.webp', author: 'Editor (youtube.com/user/Editor)', source: 'https://commons.wikimedia.org/wiki/File:City_at_night.webm', license: 'CC BY 3.0', licenseUrl: 'https://creativecommons.org/licenses/by/3.0/'},
-].map(theme => Object.freeze({...theme, ...(theme.video ? {videoSources: Object.freeze(videoVariants[theme.id] ?? {720: theme.video})} : {})})));
+  {id: 'fireplace', name: '따뜻한 벽난로', live: true, video: '/themes/video/fireplace.webm', poster: '/themes/video/fireplace-poster.webp', thumbnail: '/themes/video/fireplace-thumb.webp', author: 'free video library', source: 'https://commons.wikimedia.org/wiki/File:Fantastic-fireplace-fire-chimney-hearth-_background_-_texture_-_motion_graphics_-_free_video_library.webm', license: 'CC BY 3.0', licenseUrl: 'https://creativecommons.org/licenses/by/3.0/'},
+  {id: 'snow-night', name: '눈 내리는 밤거리', live: true, video: '/themes/video/snow-night.webm', poster: '/themes/video/snow-night-poster.webp', thumbnail: '/themes/video/snow-night-thumb.webp', author: 'Mike E.', source: 'https://commons.wikimedia.org/wiki/File:Dec_8th_Snow_Timelapse.webm', license: 'CC BY 3.0', licenseUrl: 'https://creativecommons.org/licenses/by/3.0/'},
+  {id: 'lake-sunset', name: '노을 지는 호수', live: true, video: '/themes/video/lake-sunset.webm', poster: '/themes/video/lake-sunset-poster.webp', thumbnail: '/themes/video/lake-sunset-thumb.webp', author: 'John Brighenti', source: 'https://commons.wikimedia.org/wiki/File:Seventh_Lake_Sunset.webm', license: 'CC BY 2.0', licenseUrl: 'https://creativecommons.org/licenses/by/2.0/'},
+].map(theme => Object.freeze({...theme, ...(['fireplace', 'snow-night', 'lake-sunset'].includes(theme.id) ? {changes: '구간 편집·1초 반복 연결·무음 재인코딩·포스터 추출·화면 채움·재생 속도 조정.'} : {}), ...(theme.video ? {videoSources: Object.freeze(videoVariants[theme.id] ?? {720: theme.video})} : {})})));
 
 export function atmosphereVideoSource(theme, quality = 'auto', mobile = false) {
   if (!theme.video) return null;

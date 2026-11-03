@@ -1,5 +1,9 @@
 # Progress
 
+## 감성 루프3종·미지원1080p 숨김
+
+- 구현/검증 완료·운영배포 준비: 벽난로/눈길/호수720·1080/23·19·9초 무음루프, 전체14/영상8. 단위28/28·실제Chrome19/19·전체Chrome1648/1648 실패/생략/취소0·공식7/Dune0·독립C/I/M0·19해시/diff통과. 기존player/학습/카메라/native/API 불변. 정확SHA 운영배포는 아직 미완료다. 애니메이션풍은 별도 조사/별빛 바다·유성 선호만 확인했다. [검증](../docs/verification/2026-11-04-live-video-expansion.md).
+
 ## 영상 화질 해상도 표시
 
 - 운영배포 완료: 자동/720p/1080p·미지원 비활성/720p 설명·구형high 실제해상도 요약/초안정규화. 화질7/7·Chrome1636/1636 실패/생략/취소0·공식7/Dune0·독립C/I/M0·3해시/diff/docs통과. 제품dae832d·Actions41658560298 success·dpl_Hvq1xkUxM7zkCcP5n3v5nW2QDoJ1 READY/동일SHA/운영alias·HTML/JS/CSS200·새표시확인. 저장enum/player/영상/학습·카메라·native/실제설정 불변. [검증](../docs/verification/2026-11-03-resolution-labels.md).
