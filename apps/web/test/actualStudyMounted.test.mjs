@@ -23,6 +23,58 @@ async function dashboardAfterStudySuccess(page) {
  await scenicDashboard(scene);await scene.waitFor({state:'detached'});
 }
 
+for(const mobile of [false,true])browserTest(`video quality: ${mobile?'mobile':'PC'} auto and explicit quality changes preserve the live camera and saved study`,()=>withApp(mobile?375:1440,async page=>{
+ const tools=page.locator('.focus-tools');await tools.locator('summary').click();await tools.getByRole('button',{name:'카메라 감시 켜기',exact:true}).click();await tools.getByRole('button',{name:'카메라 감시 끄기',exact:true}).waitFor();
+ await page.evaluate(()=>{const v=[...document.querySelectorAll('video')].find(v=>v.srcObject);window.qualityCamera={node:v,stream:v.srcObject,track:v.srcObject.getVideoTracks()[0],requests:fixtureCameraRequests,sessions:structuredClone(fixture.sessions),todos:structuredClone(fixture.todos)};});
+ const requests=[];page.on('request',r=>{if(r.url().endsWith('.webm'))requests.push(r.url());});
+ await page.getByRole('button',{name:'공부 화면 열기',exact:true}).click();await page.getByRole('button',{name:'풍경 배경 설정',exact:true}).click();await page.getByRole('dialog',{name:'풍경 배경 설정',exact:true}).waitFor();
+ async function editor(){await page.getByRole('button',{name:'배경 테마 변경',exact:true}).click();return page.getByRole('group',{name:'배경 테마 편집',exact:true});}
+ let edit=await editor();await edit.getByRole('radio',{name:'흐르는 구름',exact:true}).check();await edit.getByRole('group',{name:'영상 화질',exact:true}).getByRole('radio',{name:'자동',exact:true}).check();assert.deepEqual(requests,[]);
+ await edit.getByRole('button',{name:'적용',exact:true}).click();
+ const expected=mobile?720:1080;await page.waitForFunction(res=>{const v=document.querySelector('[data-atmosphere-video]');return v?.videoHeight===res&&!v.paused&&v.currentTime>.2;},expected);
+ assert.match(await page.locator('.atmosphere-quality-summary').innerText(),new RegExp('자동 · '+expected+'p'));
+ edit=await editor();await edit.getByRole('group',{name:'영상 화질',exact:true}).getByRole('radio',{name:'고화질',exact:true}).check();const beforeCancel=requests.length;await edit.getByRole('button',{name:'취소',exact:true}).click();assert.equal(requests.length,beforeCancel);
+ for(const [name,resolution] of [['절약',720],['고화질',1080]]){
+  edit=await editor();await edit.getByRole('group',{name:'영상 화질',exact:true}).getByRole('radio',{name,exact:true}).check();await edit.getByRole('button',{name:'적용',exact:true}).click();
+  await page.waitForFunction(res=>{const v=document.querySelector('[data-atmosphere-video]');return v.videoHeight===res&&!v.paused&&v.currentTime>.2;},resolution);
+  assert.match(await page.locator('.atmosphere-quality-summary').innerText(),new RegExp(name+' · '+resolution+'p'));
+ }
+ const frames=await page.evaluate(()=>({camera:qualityCamera.node.currentTime,total:document.querySelector('[data-atmosphere-video]').getVideoPlaybackQuality().totalVideoFrames}));
+ await page.waitForFunction(t=>qualityCamera.node.currentTime>t+1.5,frames.camera);
+ const playback=await page.locator('[data-atmosphere-video]').evaluate(v=>{const q=v.getVideoPlaybackQuality();return {height:v.videoHeight,total:q.totalVideoFrames,dropped:q.droppedVideoFrames};});assert.ok(playback.total>frames.total,'1080p video and camera frames both progress');console.log('Quality with virtual camera',JSON.stringify({mobile,...playback}));
+ await page.getByRole('button',{name:'일시정지',exact:true}).click();await page.waitForFunction(()=>document.querySelector('[data-atmosphere-video]').paused);
+ edit=await editor();await edit.getByRole('group',{name:'영상 화질',exact:true}).getByRole('radio',{name:'절약',exact:true}).check();await edit.getByRole('button',{name:'적용',exact:true}).click();assert.equal(await page.locator('[data-atmosphere-video]').getAttribute('src'),null,'switching quality while paused must not fetch a replacement');
+ await page.getByRole('button',{name:'재생',exact:true}).click();await page.waitForFunction(()=>{const v=document.querySelector('[data-atmosphere-video]');return v.videoHeight===720&&!v.paused&&v.currentTime>.2;});
+ assert.deepEqual(await page.evaluate(()=>{const q=qualityCamera,v=[...document.querySelectorAll('video')].find(v=>v.srcObject);return {sameNode:v===q.node,sameStream:v.srcObject===q.stream,sameTrack:v.srcObject.getVideoTracks()[0]===q.track,track:q.track.readyState,sessions:JSON.stringify(fixture.sessions)===JSON.stringify(q.sessions),todos:JSON.stringify(fixture.todos)===JSON.stringify(q.todos),requests:fixtureCameraRequests===q.requests,quality:JSON.parse(localStorage.getItem('study-room-atmosphere')).quality};}),{sameNode:true,sameStream:true,sameTrack:true,track:'live',sessions:true,todos:true,requests:true,quality:'saver'});
+ await scenicScreenshot(page,`video-quality-${mobile?'mobile':'pc'}`);
+ const saved=await page.evaluate(()=>localStorage.getItem('study-room-atmosphere'));await page.reload();await page.locator('.topbar-actions button:not([disabled])').first().waitFor();
+ if(await page.getByRole('dialog',{name:'카메라 인증 필요'}).isVisible())await page.keyboard.press('Escape');
+ await page.locator('a[href="#settings"]:visible').first().click();await settingsCategory(page,'공부와 화면');await page.locator('.atmosphere-quality-summary').waitFor();
+ assert.equal(await page.evaluate(()=>localStorage.getItem('study-room-atmosphere')),saved,'quality persists across reload');assert.match(await page.locator('.atmosphere-quality-summary').innerText(),/절약 · 720p/);
+},'active',false,null,mobile,mobile));
+
+browserTest('video quality: failed HD can recover at 720p without changing study',()=>withApp(1440,async page=>{
+ const before=await page.evaluate(()=>structuredClone(fixture.sessions));
+ await page.route('**/themes/video/cloud-sky-hd.webm',route=>route.abort());
+ await page.locator('a[href="#settings"]:visible').first().click();await settingsCategory(page,'공부와 화면');await page.getByRole('button',{name:'배경 테마 변경',exact:true}).click();
+ let edit=page.getByRole('group',{name:'배경 테마 편집',exact:true});await edit.getByRole('radio',{name:'흐르는 구름',exact:true}).check();await edit.getByRole('button',{name:'적용',exact:true}).click();await page.getByText('영상을 재생하지 못했어요',{exact:true}).waitFor();
+ await page.getByRole('button',{name:'배경 테마 변경',exact:true}).click();edit=page.getByRole('group',{name:'배경 테마 편집',exact:true});await edit.getByRole('group',{name:'영상 화질',exact:true}).getByRole('radio',{name:'절약',exact:true}).check();await edit.getByRole('button',{name:'적용',exact:true}).click();
+ await page.waitForFunction(()=>{const v=document.querySelector('[data-atmosphere-video]');return v.videoHeight===720&&!v.paused&&v.currentTime>.2;});assert.equal(await page.getByText('영상을 재생하지 못했어요',{exact:true}).count(),0);assert.deepEqual(await page.evaluate(()=>fixture.sessions),before);
+}));
+
+browserTest('video quality: 720p-only source is labelled honestly and high does not request a fabricated HD file',()=>withApp(375,async page=>{
+ const requests=[];page.on('request',r=>{if(r.url().endsWith('.webm'))requests.push(r.url());});await page.locator('a[href="#settings"]:visible').first().click();await settingsCategory(page,'공부와 화면');await page.getByRole('button',{name:'배경 테마 변경',exact:true}).click();
+ const edit=page.getByRole('group',{name:'배경 테마 편집',exact:true});await edit.getByRole('radio',{name:'별빛 밤하늘',exact:true}).check();await edit.getByRole('group',{name:'영상 화질',exact:true}).getByRole('radio',{name:'고화질',exact:true}).check();await edit.getByText('이 영상의 최대 화질은 720p입니다.',{exact:true}).waitFor();await edit.getByRole('button',{name:'적용',exact:true}).click();
+ await page.waitForFunction(()=>{const v=document.querySelector('[data-atmosphere-video]');return v.videoHeight===720&&!v.paused&&v.currentTime>.2;});assert.ok(requests.every(url=>url.endsWith('/starry-night.webm')));assert.match(await page.locator('.atmosphere-quality-summary').innerText(),/고화질 · 720p/);
+}));
+
+browserTest('video quality: supplied city HD and wave saver files decode at their advertised native dimensions',()=>withApp(1440,async page=>{
+ for(const [background,quality,resolution] of [['city-night','high',1080],['ocean-waves','saver',720]]){
+  await page.evaluate(({background,quality})=>dispatchEvent(new StorageEvent('storage',{key:'study-room-atmosphere',newValue:JSON.stringify({background,quality,motion:'live',intensity:'normal'})})),{background,quality});
+  await page.waitForFunction(res=>{const v=document.querySelector('[data-atmosphere-video]');return v?.videoWidth===res*16/9&&v.videoHeight===res&&!v.paused&&v.currentTime>.25;},resolution);
+ }
+}));
+
 for(const [id,name] of [['starry-night','별빛 밤하늘'],['rain-window','비 오는 창가'],['city-night','도시의 밤']])for(const width of [375,1440])browserTest(`emotional video themes: ${id} selects and plays real moving frames without changing study at ${width}px`,()=>withApp(width,async page=>{
  const before=await page.evaluate(()=>structuredClone({sessions:fixture.sessions,todos:fixture.todos,cameraRequests:fixtureCameraRequests}));
  const requests=[];page.on('request',r=>{if(r.url().endsWith('.webm'))requests.push(r.url());});
@@ -31,7 +83,7 @@ for(const [id,name] of [['starry-night','별빛 밤하늘'],['rain-window','비 
  const card=editor.locator('.atmosphere-option').filter({has:page.getByRole('radio',{name,exact:true})});assert.equal(await card.getByText('영상 라이브',{exact:true}).isVisible(),true);await radio.check();assert.deepEqual(requests,[],'draft does not download video');
  await editor.getByRole('button',{name:'적용',exact:true}).click();await page.getByText('영상 라이브 재생 중',{exact:true}).waitFor();
  const video=page.locator('video[data-atmosphere-video]');await page.waitForFunction(()=>document.querySelector('[data-atmosphere-video]').currentTime>.3);
- assert.match(await video.evaluate(v=>v.currentSrc),new RegExp('/'+id+'\\.webm$'));assert.deepEqual(await video.evaluate(v=>({muted:v.muted,loop:v.loop,inline:v.playsInline,stream:v.srcObject})),{muted:true,loop:true,inline:true,stream:null});
+ assert.match(await video.evaluate(v=>v.currentSrc),new RegExp('/'+id+(id==='city-night'?'-hd':'')+'\\.webm$'));assert.deepEqual(await video.evaluate(v=>({muted:v.muted,loop:v.loop,inline:v.playsInline,stream:v.srcObject})),{muted:true,loop:true,inline:true,stream:null});
  async function pixels(){return video.evaluate(v=>{const c=document.createElement('canvas');c.width=320;c.height=180;c.getContext('2d').drawImage(v,0,0,320,180);return {time:v.currentTime,data:[...c.getContext('2d').getImageData(0,0,320,180).data]};});}
  const a=await pixels();await page.waitForFunction(t=>document.querySelector('[data-atmosphere-video]').currentTime>t+1.5,a.time);const b=await pixels();let changed=0;
  for(let i=0;i<a.data.length;i+=4)if(Math.max(...[0,1,2].map(k=>Math.abs(a.data[i+k]-b.data[i+k])))>8)changed++;
@@ -1879,14 +1931,14 @@ export const supabase={
 };
 `;
 
-async function withApp(width, run, mode='active', nativeOrigin=false, failedChunk=null, hasTouch=false) {
+async function withApp(width, run, mode='active', nativeOrigin=false, failedChunk=null, hasTouch=false, mobile=false) {
   const built=await build({entryPoints:[fileURLToPath(new URL('../src/main.tsx',import.meta.url))],bundle:true,write:false,outdir:'fixture',platform:'browser',format:'iife',jsx:'automatic',logLevel:'silent',define:{'import.meta.env':'{}'},plugins:[{name:'local-boundaries',setup(b){b.onResolve({filter:/^\.\/supabase$/},()=>({path:'backend',namespace:'fixture'}));b.onLoad({filter:/.*/,namespace:'fixture'},()=>({contents:backend,loader:'js'}));b.onLoad({filter:/bodyPresenceDetection\.mjs$/},()=>({contents:'export async function createUpperBodyPresenceDetector(){return {detect:()=>true,close(){}}}',loader:'js'}));b.onResolve({filter:/^\.\//},args=>failedChunk&&args.kind==='dynamic-import'&&args.path==='./'+failedChunk?{path:failedChunk,namespace:'failed-chunk'}:undefined);b.onLoad({filter:/.*/,namespace:'failed-chunk'},()=>({contents:'throw new TypeError("Failed to fetch dynamically imported module: stale-test-chunk.js"); export default function FailedChunk(){return null;}',loader:'tsx'}));b.onLoad({filter:/[\\/]src[\\/]main\.tsx$/},async({path})=>({contents:(await readFile(path,'utf8')).replace('createRoot(document.getElementById("root")!).render','(window.fixtureRoot = createRoot(document.getElementById("root")!)).render'),loader:'tsx'}));}}]});
   const js=built.outputFiles.find(f=>f.path.endsWith('.js')).text, css=built.outputFiles.find(f=>f.path.endsWith('.css'))?.text||'';
   const server=createServer(async(req,res)=>{
     if(/^\/themes\/(video\/)?[a-z-]+\.(webp|webm)$/.test(req.url)){try{const data=await readFile(new URL('../public'+req.url,import.meta.url));res.setHeader('Content-Type',req.url.endsWith('.webm')?'video/webm':'image/webp');res.setHeader('Content-Length',data.length);res.end(data);}catch{res.writeHead(404);res.end();}return;}
     res.setHeader('Content-Type',req.url==='/app.js'?'text/javascript':req.url==='/app.css'?'text/css':'text/html');res.end(req.url==='/app.js'?js:req.url==='/app.css'?css:'<!doctype html><html lang="ko"><head><meta name="viewport" content="width=device-width,initial-scale=1"><link rel="stylesheet" href="/app.css"></head><body><div id="root"></div><script src="/app.js"></script></body></html>');});
   await new Promise(resolve=>server.listen(0,'127.0.0.1',resolve));let browser,page;
-  try {browser=await chromium.launch({headless:true,executablePath:process.env.FEED_BROWSER_EXECUTABLE||undefined,args:['--use-fake-ui-for-media-stream','--use-fake-device-for-media-stream']});page=await browser.newPage({viewport:{width,height:960},colorScheme:'light',hasTouch});page.setDefaultTimeout(5000);const errors=[];page.on('pageerror',e=>errors.push(e.message));await page.clock.install({time:new Date(mode==='attendance-goal'?'2026-10-25T06:00:00Z':'2026-09-21T14:30:00Z')});
+  try {browser=await chromium.launch({headless:true,executablePath:process.env.FEED_BROWSER_EXECUTABLE||undefined,args:['--use-fake-ui-for-media-stream','--use-fake-device-for-media-stream']});page=await browser.newPage({viewport:{width,height:960},colorScheme:'light',hasTouch,...(mobile?{userAgent:'Mozilla/5.0 (Linux; Android 16) AppleWebKit/537.36 Chrome/155.0.0.0 Mobile Safari/537.36'}:{})});page.setDefaultTimeout(5000);const errors=[];page.on('pageerror',e=>errors.push(e.message));await page.clock.install({time:new Date(mode==='attendance-goal'?'2026-10-25T06:00:00Z':'2026-09-21T14:30:00Z')});
   await page.addInitScript(()=>{window.fixtureCameraRequests=0;const get=navigator.mediaDevices?.getUserMedia?.bind(navigator.mediaDevices);if(get)navigator.mediaDevices.getUserMedia=options=>{window.fixtureCameraRequests++;return get(options);};});
   await page.route(/^https:\/\/cdn\.jsdelivr\.net\/gh\/orioncactus\/pretendard@/,route=>route.fulfill({contentType:'text/css',body:''}));
   await page.route('https://fixture.invalid/functions/v1/camera-presence-warning',async route=>{const args=route.request().postDataJSON();await page.evaluate(args=>fixture.calls.push({name:'camera-presence-warning',args}),args);await route.fulfill({json:{ok:true,slackSent:false,slackMissing:true,suppressed:false}});});

@@ -1,5 +1,7 @@
 import {useId, useLayoutEffect, useRef, useState, useSyncExternalStore} from 'react';
-import {atmosphereKind, atmospherePlayback, atmosphereThemes, getAtmosphereController, type AtmospherePreferences} from './atmosphere.mjs';
+import {atmosphereKind, atmospherePlayback, atmosphereThemes, atmosphereVideoSource, getAtmosphereController, type AtmospherePreferences} from './atmosphere.mjs';
+
+const qualityLabels = {auto: '자동', saver: '절약', high: '고화질'} as const;
 
 export default function AtmosphereSettings() {
   const controller = getAtmosphereController(window);
@@ -12,11 +14,12 @@ export default function AtmosphereSettings() {
   useLayoutEffect(() => { if (editing) editor.current?.querySelector<HTMLInputElement>('input:checked')?.focus(); }, [editing]);
   function closeEditor() { setDraft(null); entry.current?.focus(); }
   const currentTheme = atmosphereThemes.find(theme => theme.id === current.background)!;
-  const liveAvailable = atmosphereThemes.find(theme => theme.id === draft?.background)?.live;
+  const draftTheme = atmosphereThemes.find(theme => theme.id === draft?.background);
+  const liveAvailable = draftTheme?.live;
   return <section className="atmosphere-settings" aria-label="배경 테마">
     <div className="settings-edit-row">
-      <div><h3>배경 테마</h3><p className="settings-current-value atmosphere-current">{currentTheme.name} · {current.motion === 'live' ? atmosphereKind(currentTheme) : '정적 이미지'}</p></div>
-      <button ref={entry} type="button" className="secondary" aria-label="배경 테마 변경" aria-expanded={editing} aria-controls={`${id}-editor`} onClick={() => draft ? closeEditor() : setDraft({background: current.background, motion: current.motion, intensity: current.intensity, paused: current.paused})}>{editing ? '닫기' : '변경'}</button>
+      <div><h3>배경 테마</h3><p className="settings-current-value atmosphere-current">{currentTheme.name} · {current.motion === 'live' ? atmosphereKind(currentTheme) : '정적 이미지'}</p>{currentTheme.video && current.motion === 'live' && <p className="atmosphere-quality-summary">화질: {qualityLabels[current.quality]} · {current.videoResolution}p</p>}</div>
+      <button ref={entry} type="button" className="secondary" aria-label="배경 테마 변경" aria-expanded={editing} aria-controls={`${id}-editor`} onClick={() => draft ? closeEditor() : setDraft({background: current.background, motion: current.motion, intensity: current.intensity, paused: current.paused, quality: current.quality})}>{editing ? '닫기' : '변경'}</button>
     </div>
     {draft && <fieldset ref={editor} id={`${id}-editor`} className="settings-inline-editor atmosphere-editor" onKeyDown={event => {if (event.key === 'Escape') {event.preventDefault(); event.stopPropagation(); closeEditor();}}}>
       <legend>배경 테마 편집</legend>
@@ -33,6 +36,14 @@ export default function AtmosphereSettings() {
         {draft.motion === 'live' && <fieldset className="atmosphere-controls"><legend>움직임 강도</legend>
           <div className="atmosphere-control-options">{(['subtle', 'normal'] as const).map(value => <label key={value}><input type="radio" name={`${id}-intensity`} checked={draft.intensity === value} onChange={() => setDraft({...draft, intensity: value})} /><span>{value === 'subtle' ? '잔잔하게' : '보통'}</span></label>)}</div>
         </fieldset>}
+      </>}
+      {draftTheme?.video && draft.motion === 'live' && <>
+        <fieldset className="atmosphere-controls"><legend>영상 화질</legend>
+          <div className="atmosphere-control-options">{(['auto', 'saver', 'high'] as const).map(value => <label key={value}><input type="radio" name={`${id}-quality`} checked={(draft.quality ?? 'auto') === value} onChange={() => setDraft({...draft, quality: value})} /><span>{qualityLabels[value]}</span></label>)}</div>
+        </fieldset>
+        <p>자동: PC 1080p · 모바일 720p. 절약: 720p · 고화질: 최대 1080p.</p>
+        <p>선택 화질: {atmosphereVideoSource(draftTheme, draft.quality, current.mobile)?.resolution}p</p>
+        {!draftTheme.videoSources?.[1080] && <p>이 영상의 최대 화질은 720p입니다.</p>}
       </>}
       <p>이 기기에 적용됩니다. 영상은 적용 후 소리 없이 반복 재생됩니다.</p>
       <div className="settings-actions"><button type="button" className="secondary" onClick={closeEditor}>취소</button><button type="button" className="primary" onClick={() => {controller.setPreferences(draft); closeEditor();}}>적용</button></div>

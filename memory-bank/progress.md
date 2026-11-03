@@ -1,5 +1,9 @@
 # Progress
 
+## 영상 배경 화질 선택
+
+- 구현/최종검증 완료·출시대기: 구름·도시HD/파도SD, PC1080p·모바일720p/자동·절약·고화질·최대720표시/구형설정 호환. Chrome1634/1634 실패/생략/취소0·공식7/Dune0·독립C/I/M0·9해시/diff/docs통과. 실제모델/합성카메라 병행: 기존 cold감지3~4.25초 지연 별도관측, warm720/1080 각6초 누락0/감지11.3~23.2ms·동일stream유지. 학습·카메라 owner/native/API·실제설정 불변. 물리 카메라/장시간 배터리·발열은 별도다. [검증](../docs/verification/2026-11-03-video-quality.md).
+
 ## 감성 영상 테마 확장
 
 - 운영배포 완료: 승인3종 별빛 밤하늘·비 오는 창가·도시의 밤 추가, 영상5개/전체11개. 기존8개/현재설정/학습·카메라·native/서버 불변. 최종Chrome1621/1621 실패/생략/취소0·공식7/Dune0·독립C/I/M0·21해시/diff통과. 제품2929276·Actions41485061586 success·dpl_hLkBKoQbp7oqNZneccd4rd9d4gti READY/동일SHA/운영alias·웹/이미지200·영상3개206·격리운영영상 재생3/3. 새APK/EXE·실계정·기록·현재설정 조작 없음. 설치Windows/Android 직접수용은 별도다. [검증](../docs/verification/2026-11-03-emotional-video-themes.md).

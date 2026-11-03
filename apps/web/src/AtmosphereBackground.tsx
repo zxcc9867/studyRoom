@@ -18,7 +18,7 @@ function VideoBackground({theme}: {theme: AtmosphereTheme}) {
       if (disposed) return;
       if (status === 'error') { failedRequest.current = state.videoRequest; setPainted(false); }
       if (status === 'playing') setPainted(true);
-      controller.reportVideoPlayback(theme.id, status);
+      controller.reportVideoPlayback(theme.id, status, state.videoRequest);
     };
     if (!state.playing) { node.pause(); return; }
     if (failedRequest.current === state.videoRequest) return;
@@ -30,12 +30,12 @@ function VideoBackground({theme}: {theme: AtmosphereTheme}) {
     void node.play().then(() => { if (!disposed) report('playing'); }).catch(() => report('error'));
     return () => { disposed = true; node.removeEventListener('playing', playing); node.removeEventListener('waiting', waiting); node.removeEventListener('error', error); node.pause(); };
   }, [activated, state.playing, state.videoRequest, state.intensity, controller, theme]);
-  return <video ref={video} data-atmosphere-video data-painted={painted} className="atmosphere-video" aria-hidden="true" tabIndex={-1} muted loop playsInline disablePictureInPicture disableRemotePlayback preload="none" poster={theme.poster} src={activated ? theme.video : undefined} />;
+  return <video ref={video} data-atmosphere-video data-painted={painted} className="atmosphere-video" aria-hidden="true" tabIndex={-1} muted loop playsInline disablePictureInPicture disableRemotePlayback preload="none" poster={theme.poster} src={activated ? state.videoSource : undefined} />;
 }
 
 export default function AtmosphereBackground() {
   const controller = getAtmosphereController(window);
   const state = useSyncExternalStore(controller.subscribe, controller.getSnapshot);
   const theme = atmosphereThemes.find(theme => theme.id === state.background)!;
-  return theme.video && state.motion === 'live' ? <VideoBackground key={theme.id} theme={theme}/> : null;
+  return theme.video && state.motion === 'live' ? <VideoBackground key={`${theme.id}:${state.videoSource}`} theme={theme}/> : null;
 }

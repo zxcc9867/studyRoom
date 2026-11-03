@@ -1,4 +1,9 @@
 const STORAGE_KEY = 'study-room-atmosphere';
+const videoVariants = {
+  'cloud-sky': {720: '/themes/video/cloud-sky.webm', 1080: '/themes/video/cloud-sky-hd.webm'},
+  'ocean-waves': {720: '/themes/video/ocean-waves-sd.webm', 1080: '/themes/video/ocean-waves.webm'},
+  'city-night': {720: '/themes/video/city-night.webm', 1080: '/themes/video/city-night-hd.webm'},
+};
 export const atmosphereThemes = Object.freeze([
   {id: 'charcoal', name: '차콜', live: false},
   {id: 'dawn-city', name: '새벽 도시', live: false},
@@ -11,7 +16,13 @@ export const atmosphereThemes = Object.freeze([
   {id: 'starry-night', name: '별빛 밤하늘', live: true, video: '/themes/video/starry-night.webm', poster: '/themes/video/starry-night-poster.webp', thumbnail: '/themes/video/starry-night-thumb.webp', author: 'Mike Wetzel', source: 'https://commons.wikimedia.org/wiki/File:Milky_Way_in_Glen_Canyon_National_Recreation_Area.webm', license: 'CC BY 3.0', licenseUrl: 'https://creativecommons.org/licenses/by/3.0/'},
   {id: 'rain-window', name: '비 오는 창가', live: true, video: '/themes/video/rain-window.webm', poster: '/themes/video/rain-window-poster.webp', thumbnail: '/themes/video/rain-window-thumb.webp', author: 'slavikfi (Vjatseslav Robtsenkov)', source: 'https://commons.wikimedia.org/wiki/File:Raindrops_against_the_window_in_the_night_city,_Las_Palmas.webm', license: 'CC0 1.0', licenseUrl: 'https://creativecommons.org/publicdomain/zero/1.0/'},
   {id: 'city-night', name: '도시의 밤', live: true, video: '/themes/video/city-night.webm', poster: '/themes/video/city-night-poster.webp', thumbnail: '/themes/video/city-night-thumb.webp', author: 'Editor (youtube.com/user/Editor)', source: 'https://commons.wikimedia.org/wiki/File:City_at_night.webm', license: 'CC BY 3.0', licenseUrl: 'https://creativecommons.org/licenses/by/3.0/'},
-].map(Object.freeze));
+].map(theme => Object.freeze({...theme, ...(theme.video ? {videoSources: Object.freeze(videoVariants[theme.id] ?? {720: theme.video})} : {})})));
+
+export function atmosphereVideoSource(theme, quality = 'auto', mobile = false) {
+  if (!theme.video) return null;
+  const resolution = quality === 'saver' || quality === 'auto' && mobile || !theme.videoSources[1080] ? 720 : 1080;
+  return {src: theme.videoSources[resolution], resolution};
+}
 
 export function atmosphereKind(theme) { return theme.video ? '영상 라이브' : theme.live ? '이미지 효과' : '정적 이미지'; }
 export function atmospherePlayback(snapshot) {
@@ -27,7 +38,7 @@ export function atmospherePlayback(snapshot) {
 function normalize(value) {
   const theme = atmosphereThemes.find(theme => theme.id === value?.background) ?? atmosphereThemes[0];
   const motion = theme.live && value?.motion === 'live' ? 'live' : 'static';
-  return {background: theme.id, motion, intensity: value?.intensity === 'normal' ? 'normal' : 'subtle', paused: motion === 'live' && value?.paused === true};
+  return {background: theme.id, motion, intensity: value?.intensity === 'normal' ? 'normal' : 'subtle', paused: motion === 'live' && value?.paused === true, quality: ['saver', 'high'].includes(value?.quality) ? value.quality : 'auto'};
 }
 function parse(value) {
   try { return normalize(JSON.parse(value)); } catch { return normalize(null); }
@@ -35,26 +46,30 @@ function parse(value) {
 
 // Decorative presentation only. Never observes or controls study/camera/native state.
 export function createAtmosphereController(host) {
+  const navigator = host.navigator;
+  const mobile = navigator?.userAgentData?.mobile === true || /Android|iPhone|iPad|iPod/i.test(navigator?.userAgent ?? '') || /Macintosh/i.test(navigator?.userAgent ?? '') && navigator?.maxTouchPoints > 1;
   let storage, preferences = normalize(null), persistent = false;
   try { storage = host.localStorage; preferences = parse(storage.getItem(STORAGE_KEY)); persistent = true; } catch {}
   const reduced = host.matchMedia('(prefers-reduced-motion: reduce)');
   let focused = host.document.hasFocus?.() !== false;
   const listeners = new Set();
-  let videoStatus = 'idle', videoRequest = 0, videoBackground = preferences.background, videoMotion = preferences.motion;
+  let videoStatus = 'idle', videoRequest = 0, videoBackground = preferences.background, videoMotion = preferences.motion, videoSource;
   let snapshot;
   function apply() {
     const hidden = host.document.visibilityState === 'hidden';
     const playing = preferences.motion === 'live' && !preferences.paused && !reduced.matches && !hidden && focused;
-    if (videoBackground !== preferences.background || videoMotion !== preferences.motion) {
+    const theme = atmosphereThemes.find(theme => theme.id === preferences.background);
+    const source = atmosphereVideoSource(theme, preferences.quality, mobile);
+    if (videoBackground !== preferences.background || videoMotion !== preferences.motion || videoSource !== source?.src) {
       videoBackground = preferences.background; videoMotion = preferences.motion; videoStatus = 'idle'; videoRequest++;
+      videoSource = source?.src;
     }
     if (!playing && (videoStatus === 'playing' || videoStatus === 'loading')) videoStatus = 'paused';
-    const next = {...preferences, persistent, reducedMotion: reduced.matches, hidden, focused, playing, videoStatus, videoRequest};
+    const next = {...preferences, persistent, reducedMotion: reduced.matches, hidden, focused, playing, videoStatus, videoRequest, mobile, videoSource, videoResolution: source?.resolution};
     const root = host.document.documentElement;
     root.dataset.studyBackground = preferences.background;
     root.dataset.studyMotion = preferences.motion === 'static' ? 'static' : playing ? 'playing' : 'paused';
     root.dataset.studyIntensity = preferences.intensity;
-    const theme = atmosphereThemes.find(theme => theme.id === preferences.background);
     root.style.setProperty('--study-scene', preferences.background === 'charcoal' ? 'none' : `url("${theme.poster ?? `/themes/${preferences.background}.webp`}")`);
     if (snapshot && Object.keys(next).every(key => snapshot[key] === next[key])) return;
     snapshot = Object.freeze(next);
@@ -77,7 +92,8 @@ export function createAtmosphereController(host) {
   return {
     getSnapshot: () => snapshot,
     subscribe(listener) { listeners.add(listener); return () => listeners.delete(listener); },
-    reportVideoPlayback(background, status) {
+    reportVideoPlayback(background, status, request = videoRequest) {
+      if (request !== videoRequest) return;
       if (background !== preferences.background || !atmosphereThemes.find(theme => theme.id === background)?.video) return;
       if (!['idle','loading','playing','paused','error'].includes(status) || status === 'playing' && !snapshot.playing) return;
       videoStatus = status; apply();

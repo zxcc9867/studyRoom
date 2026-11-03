@@ -2,6 +2,29 @@
 
 These are public licensed decorative video files, not camera recordings. No remote video service is used at runtime.
 
+## Quality variants — 2026-11-03
+
+Auto selects 1080p on desktop and 720p on mobile (Android/iOS user agent or mobile client hint; iPad desktop user agent plus touch is treated as mobile). Saver selects 720p; High selects the highest supplied resolution, at most 1080p. This is device-based file selection, not adaptive bitrate streaming. A narrow desktop window is still a desktop. Only the applied eligible source is requested; editing or a paused replacement does not prefetch either file. A failed source keeps the poster and offers retry; selecting Saver can recover independently.
+
+| Theme | 720p | 1080p |
+| --- | --- | --- |
+| 흐르는 구름 | existing cloud-sky.webm | cloud-sky-hd.webm |
+| 해변의 파도 | ocean-waves-sd.webm | existing ocean-waves.webm |
+| 도시의 밤 | existing city-night.webm | city-night-hd.webm |
+| 별빛 밤하늘 | existing starry-night.webm | not supplied; confirmed source is 720p |
+| 비 오는 창가 | existing rain-window.webm | not supplied; confirmed source is 720p |
+
+The new files below are unchanged Commons VP9 transcodes of the same credited works, not upscaled copies. Their work/creator/source/license are the corresponding sections below. No new artwork or license is introduced.
+
+- cloud-sky-hd.webm: 1920×1080, 56.404s, 15,687,378 bytes; SHA256 `a925c2edb1cf64f9a97a3de967ed64a0d6bb015d6def4548494a1e8cfcac3a0f`.
+  Download: https://upload.wikimedia.org/wikipedia/commons/transcoded/c/cd/All4sounds_-_Cloud_Time_lapse.webm/All4sounds_-_Cloud_Time_lapse.webm.1080p.vp9.webm
+- city-night-hd.webm: 1920×1080, 29.108s, 11,554,890 bytes; SHA256 `543a41746e7ee7fd63d535ad7be6b0fa86cf2bc92e35ae7a644bec9541cbf3b8`.
+  Download: https://upload.wikimedia.org/wikipedia/commons/transcoded/c/cd/City_at_night.webm/City_at_night.webm.1080p.vp9.webm
+- ocean-waves-sd.webm: 1280×720, 10.524s, 2,342,199 bytes; SHA256 `48686f58e1b418b89741edab1c4839a08c09f966ef46467365f05b2b8de07a0c`.
+  Download: https://upload.wikimedia.org/wikipedia/commons/transcoded/3/36/Naturschutzgebiet_Riedensee_lub_2025-02-14_mov01.webm/Naturschutzgebiet_Riedensee_lub_2025-02-14_mov01.webm.720p.vp9.webm
+
+All variants retain the same poster, credits, mute/loop/speed presentation and camera separation. Original audio, if any, is still present but playback is muted. The three added files total 29,584,467 bytes; an individual user does not download all variants when opening the editor.
+
 ## 흐르는 구름 / cloud-sky
 
 - Work: All4sounds - Cloud Time lapse; creator: All4sounds.

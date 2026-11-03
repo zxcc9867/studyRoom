@@ -1,5 +1,10 @@
 # Troubleshooting
 
+## 화질/카메라 병행 검사의 경로와 브라우저 값 직렬화 — 2026-11-03
+- 설정 탭으로 이동하면 기존 main.tsx 조건부 카메라 DOM이 사라진다. 이를 화질 교체의 카메라 중단으로 오판하지 않고 풍경 설정창의 실제 사용자 경로에서 동일 node/stream/track·프레임 진행을 대조한다. 기존 camera owner는 바꾸지 않는다.
+- VideoPlaybackQuality 객체는 직접 반환하면 prototype 값이 빠진다. totalVideoFrames/droppedVideoFrames를 명시적 수치로 반환한다. 재로드 뒤 기존 intent가 카메라를 자동 복원하면 인증창이 없을 수 있으므로 창 존재를 성공 조건으로 강제하지 않는다.
+- 제한 환경의 Chrome ERR_NETWORK_ACCESS_DENIED·node loopback EACCES·npm 네트워크 실패는 같은 명령을 허용된 실행에서 대조한다. 최초 실패 로그와 최종 검증을 구분하고 timeout/실패를 삭제하지 않는다. 파도 SD 첫429 뒤 일정 간격의 재시도1회는 정상 수신됐다.
+
 ## 테마 카드 has locator의 중복 범위 — 2026-11-03
 - 증상: 신규3종 mounted 검사가 영상 재생 전 카드 종류 조회에서 모두 false였다. 제품 카드 자체는 표시되고 있었다.
 - 원인/해결: editor로 이미 범위가 지정된 radio를 카드의 has에 다시 넣어 카드 내부에서 상위 group을 재탐색했다. 기존 방식처럼 page 기준 radio를 카드 내부 has로 상대조회한다. 제품 동작을 바꾸거나 표시 검사를 생략하지 않는다.

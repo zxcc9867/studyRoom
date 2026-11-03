@@ -3,8 +3,8 @@ import assert from 'node:assert/strict';
 import {readFile} from 'node:fs/promises';
 import vm from 'node:vm';
 
-let createAtmosphereController;
-try { ({createAtmosphereController}=await import('../src/atmosphere.mjs')); } catch {}
+let createAtmosphereController, atmosphereVideoSource, atmosphereThemes;
+try { ({createAtmosphereController, atmosphereVideoSource, atmosphereThemes}=await import('../src/atmosphere.mjs')); } catch {}
 
 function environment(saved=null) {
  const values=new Map(saved===null?[]:[['study-room-atmosphere',saved]]),handlers={},root={dataset:{},style:{setProperty(key,value){this[key]=value;}}},flags={denied:false,focused:true};
@@ -15,6 +15,31 @@ function environment(saved=null) {
  return {host,root,values,flags,reduced(value){reduced.matches=value;handlers.reduced();},hidden(value){document.visibilityState=value?'hidden':'visible';handlers.visibility();},focus(value){flags.focused=value;handlers[value?'focus':'blur']?.();},external(value){handlers.storage({key:'study-room-atmosphere',newValue:value,storageArea:storage});}};
 }
 function controller(e){assert.equal(typeof createAtmosphereController,'function','atmosphere controller must exist');return createAtmosphereController(e.host);}
+
+test('video quality: old saved selections default to auto without rewriting storage or study data',()=>{
+ const saved='{"background":"cloud-sky","motion":"live","intensity":"normal","paused":true}',e=environment(saved);e.values.set('study-session','preserved');const c=controller(e);
+ assert.equal(c.getSnapshot().quality,'auto');assert.equal(c.getSnapshot().videoSource,'/themes/video/cloud-sky-hd.webm');assert.equal(c.getSnapshot().videoResolution,1080);
+ assert.equal(c.getSnapshot().playing,false);assert.equal(e.values.get('study-room-atmosphere'),saved);assert.equal(e.values.get('study-session'),'preserved');
+});
+
+for(const [name,navigator,want] of [['desktop',{},1080],['Android',{userAgent:'Mozilla/5.0 (Linux; Android 16) AppleWebKit/537.36'},720],['iPhone',{userAgent:'Mozilla/5.0 (iPhone; CPU iPhone OS 19)'},720],['iPad desktop UA',{userAgent:'Mozilla/5.0 (Macintosh)',maxTouchPoints:5},720],['client hints',{userAgentData:{mobile:true}},720]])test(`video quality: auto chooses the device default for ${name}`,()=>{
+ const e=environment('{"background":"city-night","motion":"live"}');e.host.navigator=navigator;assert.equal(controller(e).getSnapshot().videoResolution,want);
+});
+
+test('video quality: saver and high persist explicitly, reject invalid input and isolate stale playback reports',()=>{
+ const e=environment(),c=controller(e);c.setPreferences({background:'cloud-sky',motion:'live',quality:'saver'});assert.equal(c.getSnapshot().videoSource,'/themes/video/cloud-sky.webm');assert.equal(c.getSnapshot().videoResolution,720);
+ const request=c.getSnapshot().videoRequest;c.setPreferences({...c.getSnapshot(),quality:'high'});assert.equal(c.getSnapshot().videoResolution,1080);assert.ok(c.getSnapshot().videoRequest>request);
+ c.reportVideoPlayback('cloud-sky','error',request);assert.equal(c.getSnapshot().videoStatus,'idle','late low-quality result must not overwrite the new player');
+ assert.equal(controller(environment(e.values.get('study-room-atmosphere'))).getSnapshot().quality,'high');
+ c.setPreferences({...c.getSnapshot(),quality:'https://bad.test'});assert.equal(c.getSnapshot().quality,'auto');
+});
+
+test('video quality: a 720p-only source never pretends to be 1080p and savings uses the real wave SD variant',()=>{
+ assert.equal(typeof atmosphereVideoSource,'function');
+ for(const id of ['rain-window','starry-night'])assert.deepEqual(atmosphereVideoSource(atmosphereThemes.find(t=>t.id===id),'high',false),{src:`/themes/video/${id}.webm`,resolution:720});
+ assert.deepEqual(atmosphereVideoSource(atmosphereThemes.find(t=>t.id==='ocean-waves'),'saver',false),{src:'/themes/video/ocean-waves-sd.webm',resolution:720});
+ assert.deepEqual(atmosphereVideoSource(atmosphereThemes.find(t=>t.id==='ocean-waves'),'high',true),{src:'/themes/video/ocean-waves.webm',resolution:1080});
+});
 
 for(const background of ['starry-night','rain-window','city-night'])test(`emotional video themes: ${background} restores the saved video and poster without touching study data`,()=>{
  const saved=JSON.stringify({background,motion:'live',intensity:'subtle',paused:false}),e=environment(saved);e.values.set('study-session','preserved');const c=controller(e);
@@ -37,7 +62,7 @@ test('atmosphere persists only a validated device-local background and does not 
  assert.equal(c.getSnapshot().background,'charcoal');assert.equal(e.root.dataset.studyMotion,'static');
  c.setPreferences({background:'star-sea',motion:'live',intensity:'normal'});
  assert.equal(e.root.dataset.studyBackground,'star-sea');assert.equal(e.root.dataset.studyMotion,'playing');
- assert.deepEqual(JSON.parse(e.values.get('study-room-atmosphere')),{background:'star-sea',motion:'live',intensity:'normal',paused:false});
+ assert.deepEqual(JSON.parse(e.values.get('study-room-atmosphere')),{background:'star-sea',motion:'live',intensity:'normal',paused:false,quality:'auto'});
  assert.equal(e.values.get('study-room-appearance'),'light');assert.equal(e.values.get('study-session'),'unchanged');
  assert.equal(controller(environment(e.values.get('study-room-atmosphere'))).getSnapshot().background,'star-sea');
 });
