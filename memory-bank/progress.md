@@ -2,7 +2,7 @@
 
 ## 오리지널 애니메이션풍 별빛 바다와 유성
 
-- 구현·전체검증 완료·배포 대기: anime-sea 실제24초 무음/30fps720·1080·원화/제작출처·기존star-sea 보존. 단위32/32·Chrome21/21·전체Chrome1654/1654 실패/생략/취소0·공식7/Dune0·독립C/I/M0·19해시/diff동일·HF움직임300시점/오류0·실제디코딩수면/루프2파일통과. 학습/카메라/player/native/API·실제설정은 변경하지 않았다. [검증](../docs/verification/2026-11-04-anime-sea-video.md).
+- 운영배포 완료: anime-sea 실제24초 무음/30fps720·1080·원화/제작출처·기존star-sea 보존. 단위32/32·Chrome21/21·전체Chrome1654/1654 실패/생략/취소0·공식7/Dune0·독립C/I/M0·19해시/diff동일·HF움직임300시점/오류0. 제품698414d/Actions41758240677 success·dpl_9mVCs7quH4akfDfzna6ZmCa5c8iB READY/동일SHA/alias·HTML/JS/CSS/이미지200·영상2Range206·공개4파일해시동일·격리운영재생/loop2/2. 학습/카메라/player/native/API·실제설정은 변경하지 않았고 새APK/EXE는 없다. [검증](../docs/verification/2026-11-04-anime-sea-video.md).
 
 ## 감성 루프3종·미지원1080p 숨김
 

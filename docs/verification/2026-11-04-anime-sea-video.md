@@ -15,8 +15,8 @@
 |---|---:|---|---|
 | anime-sea.webm |1610136|1280×720·VP9·30fps·24초·무음|860A18FC9A95C29B721F9902A693394FFBADD7459F3BA89D31055F837EAD3F49|
 | anime-sea-hd.webm |3579940|1920×1080·VP9·30fps·24초·무음|CD42726405F3649E30F738AA9330E24B1EA8DA0EB347A17128AF258D351F5532|
-| anime-sea-poster.webp |—|정지 포스터|9FD3178A548F0D462CF955A0ED0403F115303C0F93628C6CE70CF3CE4307A17F|
-| anime-sea-thumb.webp |—|480×270·선택 카드|01BE3DD2A3635645865AB4D16EA6F94C0667BD6A2440A5635AA6C9D7E806845F|
+| anime-sea-poster.webp |242212|정지 포스터|9FD3178A548F0D462CF955A0ED0403F115303C0F93628C6CE70CF3CE4307A17F|
+| anime-sea-thumb.webp |21372|480×270·선택 카드|01BE3DD2A3635645865AB4D16EA6F94C0667BD6A2440A5635AA6C9D7E806845F|
 
 ## 재현·검증
 - TDD RED: 제작 함수 미구현2실패→2통과; catalog/prepaint/quality 신규3실패→단위30통과; mounted 신규 카드 미존재2실패→실제경로2통과. RED 로그는 output/anime-video-1104에 보존한다.
@@ -30,8 +30,12 @@
 - 전체Chrome:1654/1654·실패/생략/취소0·1110492ms·exit0. 소스·제작·공개자산·테스트19파일 SHA256을 고정했고 완료 뒤19개 모두 동일함을 확인했다. output/anime-video-1104/full-chrome.log / frozen-hashes.json. 범위diff와 문서검사도 통과했다.
 
 ## 배포
-- 배포 준비: 전체Chrome/고정해시·범위diff를 확인했다. 제품 커밋/푸시 및 기존 feature-ref workflow로 운영 배포하고, 운영확인 전 완료로 보고하지 않는다.
+- 제품 `698414d268f68019a0a8616c57126a943dd11ba9` 기능브랜치 커밋·푸시 완료. [GitHub Actions41758240677](https://github.com/zxcc9867/studyRoom/actions/runs/41758240677) completed/success·같은headSha 확인.
 - 대상 확인: Vercel study-room-attendance / prj_u2Q9FKwNeVjwwtVOjuXNMZRpkR3g / team_LaN4bwvH4msrzoQtIw3fqsUj.
+- Vercel `dpl_9mVCs7quH4akfDfzna6ZmCa5c8iB` READY/production·정확SHA·fix/study-dashboard-clarity. 배포host study-room-attendance-bdycbube8-astars-projects-c2f42587.vercel.app, 운영alias [독서실](https://study-room-attendance.vercel.app) 연결 확인.
+- 운영 HTML·`/assets/index-CSgTUxlH.js`·`/assets/index-DYEs6odE.css` HTTP200·신규catalog/출처 표시 확인. 포스터/썸네일200·영상2개Range206, 공개4파일 전체다운로드 SHA256이 검증본과 모두 일치했다. 제작 출처 GitHub링크도200이다.
+- 새 격리 Chrome에서 운영720/1080 파일2/2 모두 videoWidth/Height·24초·무음/loop·stream=null·19개 디코딩 프레임 진행과 실제끝→처음 재생 확인. output/anime-video-1104/production-check.log / output/playwright/anime-production-results-1104.json.
+- 배포 직후5분 error/fatal 수준 집계는 빈 결과였다. 이는 클라이언트 오류·장기 안정성·실기기 수용 보장이 아니다. 기존CI action Node20→24 강제실행/ubuntu-latest 이전 안내 경고2개는 성공과 별개인 후속 운영 점검 대상으로 남기고 이번에 workflow를 변경하지 않았다.
 - 새APK/EXE는 만들지 않는다. 공통 hosted자산 변경이므로 공부·카메라 종료 후 사용자가 새로고침하면 설정에 추가된다.
 
 ## 제한·보존

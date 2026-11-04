@@ -1,12 +1,13 @@
 # Active Context
-- 갱신: 2026-11-04 11:02 JST · 도구: codex
-- 브랜치: fix/study-dashboard-clarity · 기준 HEAD d6ce4ef · 미커밋 변경 있음(이번 작업과 기존 사용자 변경을 구분).
+- 갱신: 2026-11-04 11:09 JST · 도구: codex
+- 브랜치: fix/study-dashboard-clarity · 제품/운영SHA698414d268f68019a0a8616c57126a943dd11ba9 커밋·푸시 완료. 이후 출시기록은 문서전용이며 실제HEAD는 gitlog/resume으로 확인한다. 기존 사용자 미커밋 변경을 보존한다.
 - 목표 / 완료 기준: 승인한 ‘별빛 바다·유성’ 독창적인 애니메이션풍 실제 영상 테마를 추가하고, 실제 움직임/반복·카메라/학습 보존·공식/전체Chrome 검증 후 동일SHA로 운영 배포한다.
 - 구현: anime-sea/별빛 바다와 유성·24초/30fps/무음·720/1080 WebM·포스터/썸네일·catalog/type/prepaint·원본 제작 출처. 기존star-sea 이미지 효과/재생기/저장schema/학습·카메라·서버/native는 유지한다.
 - 원화/제작: 내장imagegen 원화1672×941(4K 아님), docs/media/anime-sea의 순수시간/WebGL/HyperFrames0.9.9 로컬 제작. 앱은 완성영상만 재생하며 제작 의존성은 추가하지 않는다. 원화는 약간 확대된1080p 출력임을 표시하고 가짜Commons/CC 라이선스를 부여하지 않는다.
 - 검증 완료: TDD RED(scene2/catalog3/mounted2)→단위32/32·집중Chrome21/21(375/1440·실제픽셀5601/57600변화·loop·카메라node/stream/track/합성기록 보존)·공식7/Dune0·독립C0/I0/M0. HF최종67ddf91b 검사 motion300시점/오류0·의도된무음경고1. WebM2개 실제96프레임표본/수면95구간 전부움직임/루프경계 정상.
 - 전체 검증 완료: Chrome1654/1654·실패/생략/취소0·1110492ms·exit0, 소스·영상·제작/테스트19파일 SHA256 동일. output/anime-video-1104/full-chrome.log / frozen-hashes.json. 범위diff/문서 검사 통과.
-- 다음 단계: 직접 변경 파일만 커밋/푸시→vercel-production.yml feature ref dispatch→정확SHA/READY/운영alias/HTML·JS·CSS·영상Range·격리 실제재생/loop 확인→출시기록. 운영확인 전 완료로 보고하지 않는다.
+- 운영 배포 완료: Actions41758240677 completed/success·dpl_9mVCs7quH4akfDfzna6ZmCa5c8iB READY/production·동일SHA·운영alias. HTML/새JS/CSS/이미지200·영상2Range206·공개4파일 SHA256 동일·격리운영720/1080재생/loop2/2. 직후5분 error/fatal집계빈결과(장기보장 아님).
+- 다음 단계: 사용자가 공부·카메라를 마친 뒤 웹/앱을 새로고침하고 설정→공부와 화면→배경 테마→별빛 바다와 유성을 선택·적용한다. 자동은PC1080/모바일720이며 새APK/EXE는 필요 없다. 기존 실제설정은 바꾸지 않았다.
 - 근거: [애니메이션 제작/검증](../docs/verification/2026-11-04-anime-sea-video.md), [제작 원본](../docs/media/anime-sea/README.md). 현재 실사용 앱/계정/설정·학습기록·기기 카메라는 조작하지 않았다.
 - 직전 운영: 제품f07b2c8/Actions41670977196 success·dpl_CjPuFEvf8b6zLsSNaFZQ9paq2Q7V READY/동일SHA/alias. 벽난로/눈길/호수3종720/1080·미지원1080숨김·전체Chrome1648/1648·공식7/Dune0. [기록](../docs/verification/2026-11-04-live-video-expansion.md).
 - 기존 불변 경계: 풍경 주버튼 start/resume 성공 후 진입·표시전용 재진입·햄버거 공통탭·미니진입 제거/정상복구·시작/회복/카메라/팀/인증/종료 정책 유지. [풍경](../docs/verification/2026-11-02-scenic-start.md), [메뉴](../docs/verification/2026-11-02-scenic-menu.md), [화면순서 이탈](../docs/verification/2026-11-02-layout-editor-exit.md).
