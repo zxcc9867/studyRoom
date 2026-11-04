@@ -1,5 +1,9 @@
 # Progress
 
+## 풍경 화면 세션 연장
+
+- 검증 완료 / 배포 준비: 세션 유지 남은 시간·+1시간 연장을 공부/휴식 중 제공, 세션 없으면 숨김. 기존60분/최대2시간·동일 RPC·기록/카메라 보존. 신규14/14·최종Chrome 분할1668건(동일소스317보존+1351/1351재실행)·실패/생략/취소0·공식7/Dune0·독립C/I/M0·5해시/diff 통과. 최초 전체1666/1668의 팀fixture2fail은 SDK builder 보정 후 같은재현2/2 및179파일 재검증으로 해소했으며 단일 전체exit0은 아니다. 정확 SHA 운영 배포는 대기다. [검증](../docs/verification/2026-11-04-scenic-session-extension.md).
+
 ## 오리지널 애니메이션풍 별빛 바다와 유성
 
 - 운영배포 완료: anime-sea 실제24초 무음/30fps720·1080·원화/제작출처·기존star-sea 보존. 단위32/32·Chrome21/21·전체Chrome1654/1654 실패/생략/취소0·공식7/Dune0·독립C/I/M0·19해시/diff동일·HF움직임300시점/오류0. 제품698414d/Actions41758240677 success·dpl_9mVCs7quH4akfDfzna6ZmCa5c8iB READY/동일SHA/alias·HTML/JS/CSS/이미지200·영상2Range206·공개4파일해시동일·격리운영재생/loop2/2. 학습/카메라/player/native/API·실제설정은 변경하지 않았고 새APK/EXE는 없다. [검증](../docs/verification/2026-11-04-anime-sea-video.md).

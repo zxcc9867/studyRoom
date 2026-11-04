@@ -389,3 +389,12 @@
 - 생성 요청의4K와 실제 원화1672×941는 다르다. 실제 파일을 probe하고1080p 출력은 약간 확대된 영상 캔버스임을 명시한다. 자체 제작 영상에 기존 공통 Wikimedia/CC 링크를 붙이지 않는다.
 - HyperFrames 하위 template는 root의 data-composition-id/width/height와 등록 timeline id가 일치해야 한다. 누락하면 lint에서 거부되므로 초기 검사 후 수정하고 actual-frame check/render를 다시 실행한다.
 - 움직임은 이전 프레임/타이머가 아닌 seek 시간의 순수 함수로 렌더링한다. 반복 끝과 시작의 상태·디코딩 픽셀을 모두 검사하고, 카드/시간 속성만 보고 실제 영상이라고 판단하지 않는다. [근거](../docs/verification/2026-11-04-anime-sea-video.md).
+
+## 풍경 세션 연장 요청의 계정 경계와 키보드 초점
+
+- 증상/원인: 공유 boolean 잠금은 A 연장 대기 중 유효한 B로 전환해도 남았고 이전 finally가 새 busy를 풀 수 있었다. owner/session 없는 전역 정리는 응답 무시만으로 해결되지 않는다.
+- 해결: owner/session별 request token/AbortController, context cleanup과 current-token-only finally. 응답 전체 row 대신 lease 필드만 병합해 최신 휴식/종료를 보존한다. 서버60분/최대2시간·학습/카메라 정책은 불변이다.
+- 검증: 활성 B가 A 응답 전 연장 가능·A 완료 뒤 B 잠금 유지·B 성공, 지연 응답/원격 휴식·카메라 보존을 합성 실제 Chrome으로 확인한다. 신규14/14·독립 재검토C/I/M0, 근거 docs/verification/2026-11-04-scenic-session-extension.md.
+- UI 원인/예방: 전역 dashboard focus 규칙이 scenic outline을 덮어 대비2.27이었다. scoped specificity로 보정하고 실제 Tab 이동/대비3 이상을 검사한다. 새 마지막 연장 버튼이 추가됐으므로 End→Tab은 연장→메뉴 순서로 검증한다.
+- fixture 주의: lease 모드의 기존 카메라 인증 안내는 Escape로 정상 닫은 뒤 검사한다. 정책을 우회하지 않는다. StudySession DTO에 없는 user_id를 읽지 않으며 소유권은 기존 인증 RPC와 현재 계정/세션 토큰으로 검증한다.
+- 전체 Chrome의 팀2건 실패는 팀 fixture가 Promise만 반환해 SDK abortSignal builder를 지원하지 않던 문제였다. 제품 코드/기존 경고·60분·종료 안함 assertions는 유지하고 fixture만 보정·signal 검사 추가, 동일 재현2/2 통과. 변경 없는4해시의 대형 화면 성공 결과와 나머지 전체파일 재실행을 최종 분할 gate로 구분 기록한다.

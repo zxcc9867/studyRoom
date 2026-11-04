@@ -664,6 +664,9 @@ function DashboardApp() {
   const [goalBusy, setGoalBusy] = useState(false);
   const [message, setMessage] = useState("");
   const [busy, setBusy] = useState(false);
+  const [sessionLeaseExtending, setSessionLeaseExtending] = useState(false);
+  const sessionLeaseExtensionInFlightRef = useRef<{ userId: string; sessionId: string; controller: AbortController } | null>(null);
+  const sessionLeaseContextRef = useRef<{ userId: string | undefined; sessionId: string | null }>({ userId: undefined, sessionId: null });
   const [todoBusy, setTodoBusy] = useState(false);
   const [webPushStatus, setWebPushStatus] = useState<WebPushStatus | null>(null);
   const [slackStatus, setSlackStatus] = useState<SlackNotificationStatus | null>(null);
@@ -938,6 +941,19 @@ function DashboardApp() {
   const timeZone = profile?.time_zone ?? Intl.DateTimeFormat().resolvedOptions().timeZone;
   const calendarMonth = selectedCalendarMonth ?? getStudyMonthKey(new Date(nowMs), timeZone);
   const activeSession = studySessions.find((item) => item.status === "active") ?? null;
+  sessionLeaseContextRef.current = { userId: session?.user.id, sessionId: activeSession?.id ?? null };
+  useEffect(() => {
+    const userId = session?.user.id;
+    const sessionId = activeSession?.id ?? null;
+    return () => {
+      const request = sessionLeaseExtensionInFlightRef.current;
+      if (!request || request.userId !== userId || request.sessionId !== sessionId) return;
+      request.controller.abort();
+      sessionLeaseExtensionInFlightRef.current = null;
+      setSessionLeaseExtending(false);
+      setBusy(false);
+    };
+  }, [session?.user.id, activeSession?.id]);
   const activeSessionPaused = isStudySessionPaused(activeSession);
   const sharedCameraView = getSharedCameraView(sharedStudySnapshot, studyClientId, nowMs);
 
@@ -3642,7 +3658,16 @@ function DashboardApp() {
   }
 
   async function extendSessionLease() {
-    if (!activeSession) return;
+    if (!activeSession || !session?.user.id || !dashboardReady || busy || sessionLeaseExtensionInFlightRef.current) return;
+
+    const userId = session.user.id;
+    const sessionId = activeSession.id;
+    const request = { userId, sessionId, controller: new AbortController() };
+    const isCurrent = () => sessionLeaseExtensionInFlightRef.current === request
+      && !request.controller.signal.aborted
+      && currentUserIdRef.current === userId
+      && sessionLeaseContextRef.current.userId === userId
+      && sessionLeaseContextRef.current.sessionId === sessionId;
 
     const requestNowMs = Date.now();
     const parsedCurrentDeadlineMs = activeSession.lease_expires_at
@@ -3655,32 +3680,47 @@ function DashboardApp() {
       nowMs: requestNowMs,
     });
 
+    sessionLeaseExtensionInFlightRef.current = request;
+    setSessionLeaseExtending(true);
     setBusy(true);
-    const { data, error } = await supabase.rpc("extend_study_session_lease", {
-      p_session_id: activeSession.id,
-      p_extension_minutes: 60,
-    });
-    setBusy(false);
+    setMessage("");
+    try {
+      const { data, error } = await supabase.rpc("extend_study_session_lease", {
+        p_session_id: sessionId,
+        p_extension_minutes: 60,
+      }).abortSignal(request.controller.signal);
+      if (!isCurrent()) return;
+      if (error) {
+        setMessage(`세션 유지 시간을 연장하지 못했어요. ${formatError(error)}`);
+        return;
+      }
 
-    if (error) {
-      setMessage(error.message);
-      return;
+      const updatedSession = data as StudySession | null;
+      if (updatedSession && (updatedSession.id !== sessionId || updatedSession.status !== "active" || updatedSession.ended_at)) {
+        setMessage("현재 세션 상태를 다시 확인해 주세요.");
+        return;
+      }
+      const parsedDeadlineMs = updatedSession?.lease_expires_at ? Date.parse(updatedSession.lease_expires_at) : Number.NaN;
+      const deadlineMs = Number.isFinite(parsedDeadlineMs)
+        ? Math.floor(parsedDeadlineMs)
+        : fallbackDeadlineMs;
+
+      persistSessionLease(sessionId, deadlineMs);
+      if (updatedSession) {
+        setStudySessions((current) => current.map((item) => item.id === sessionId && item.status === "active"
+          ? { ...item, lease_expires_at: updatedSession.lease_expires_at, lease_warning_sent_at: updatedSession.lease_warning_sent_at }
+          : item));
+      }
+      setMessage("세션 유지 시간을 1시간 연장했습니다. 남은 시간은 현재 시각 기준 최대 2시간입니다.");
+    } catch {
+      if (isCurrent()) setMessage("세션 유지 시간을 연장하지 못했어요. 다시 시도해 주세요.");
+    } finally {
+      if (isCurrent()) {
+        sessionLeaseExtensionInFlightRef.current = null;
+        setSessionLeaseExtending(false);
+        setBusy(false);
+      }
     }
-
-    const updatedSession = data as StudySession | null;
-    const parsedDeadlineMs = updatedSession?.lease_expires_at ? Date.parse(updatedSession.lease_expires_at) : Number.NaN;
-    const deadlineMs = Number.isFinite(parsedDeadlineMs)
-      ? Math.floor(parsedDeadlineMs)
-      : fallbackDeadlineMs;
-
-    persistSessionLease(activeSession.id, deadlineMs);
-    if (updatedSession) {
-      setStudySessions((current) => [
-        updatedSession,
-        ...current.filter((item) => item.id !== updatedSession.id),
-      ]);
-    }
-    setMessage("세션 유지 시간을 1시간 연장했습니다. 남은 시간은 현재 시각 기준 최대 2시간입니다.");
   }
 
   function openRecoveryRoutineModal(request: StudyRecoveryRequest, options: { auto?: boolean } = {}) {
@@ -7212,6 +7252,8 @@ function DashboardApp() {
         status={!dashboardReady ? "학습 정보 확인 필요" : activeSession && actualTracking?.session_id !== activeSession.id ? "세션 상태 확인 중" : !activeSession ? "시작 준비" : activeSessionPaused ? "휴식 중" : presenceState.timerPaused || sharedCameraView.status === "auto_paused" ? "자리 비움" : "공부 중"}
         camera={activeSessionPaused ? "휴식 중 · 카메라 감시 중지" : sharedCameraView.remote ? sharedCameraView.label : `카메라 감시 · ${getPresenceStatusLabel({ cameraEnabled, status: cameraStatus, absenceSeconds: presenceState.absenceSeconds })}`}
         actionLabel={focusActionLabel} actionDisabled={focusActionDisabled} endDisabled={focusEndDisabled} hasSession={Boolean(activeSession)}
+        leaseClock={activeSession && activeSessionLeaseDeadlineMs !== null ? formatTimerClock(sessionLeaseRemainingSeconds) : null}
+        leaseBusy={sessionLeaseExtending} leaseDisabled={focusEndDisabled || !dashboardReady} onExtendLease={extendSessionLease}
         notice={[dashboardError, message, actualError, sharedStudyError, focusStatusError, !activeSessionPaused && cameraStatus !== "watching" ? cameraMessage : ""].filter(Boolean).join(" · ")}
         onAction={focusAction} onEnd={openEndSessionCompletionModal} onClose={() => setScenicOpen(false)}
         onNavigate={section => { setScenicOpen(false); if (section === "today") setTodayDomain("focus"); window.location.hash = section; setActiveSection(section); }} />}

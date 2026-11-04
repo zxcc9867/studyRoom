@@ -1,5 +1,5 @@
 import {useEffect, useId, useRef, useState, useSyncExternalStore} from 'react';
-import {BookOpen, Camera, Maximize2, Menu, Pause, Play, Settings, X} from 'lucide-react';
+import {BookOpen, Camera, Clock3, Maximize2, Menu, Pause, Play, Settings, X} from 'lucide-react';
 import {AccessibleDialog} from './AccessibleDialog';
 import {dashboardDestinations} from './DashboardNavigation';
 import type {DashboardSection} from './dashboardRoute.mjs';
@@ -10,6 +10,7 @@ import './scenicStudy.css';
 
 type Props = {task: string; clock: string; status: string; camera: string; actionLabel: string;
   actionDisabled: boolean; endDisabled: boolean; hasSession: boolean; notice: string;
+  leaseClock: string | null; leaseBusy: boolean; leaseDisabled: boolean; onExtendLease: () => void;
   onAction: () => void; onEnd: () => void; onClose: () => void; onNavigate: (section: DashboardSection) => void};
 const focusable = 'button:not(:disabled),a[href],input:not(:disabled),select:not(:disabled),textarea:not(:disabled),[tabindex="0"]';
 
@@ -137,6 +138,7 @@ export default function ScenicStudyView(props: Props) {
         <div className="scenic-task"><p className="scenic-status">● {props.status}</p><h1>{props.task}</h1><p className="scenic-camera"><Camera size={16}/>{props.camera}</p></div>
         <strong className="scenic-clock" role="timer" aria-label="풍경 세션 공부시간">{props.clock}</strong>
         <div className="scenic-actions"><button type="button" disabled={props.actionDisabled} onClick={props.onAction}>{props.actionLabel}</button>{props.hasSession&&<button type="button" disabled={props.endDisabled} onClick={props.onEnd}>종료</button>}</div>
+        {props.hasSession&&props.leaseClock!==null&&<div className="scenic-lease" role="group" aria-label="세션 유지"><div><span>세션 유지 남은 시간</span><strong>{props.leaseClock}</strong></div><button type="button" disabled={props.leaseDisabled||props.leaseBusy} onClick={props.onExtendLease}><Clock3 size={18} aria-hidden="true"/>{props.leaseBusy?'연장 중…':'+1시간 연장'}</button></div>}
         {props.notice&&<p className="scenic-notice" role="status">{props.notice}</p>}
         {nativeError&&<div className="scenic-notice" role="alert"><p>{nativeError}</p><button type="button" disabled={nativeBusy} onClick={()=>void change({mode:'normal'})}><Maximize2 size={18}/>정상 크기로 복원</button></div>}
       </div>

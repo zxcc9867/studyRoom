@@ -23,6 +23,83 @@ async function dashboardAfterStudySuccess(page) {
  await scenicDashboard(scene);await scene.waitFor({state:'detached'});
 }
 
+async function withLeaseApp(width,run) {
+ return withApp(width,async page=>{const camera=page.getByRole('dialog',{name:'카메라 인증 필요',exact:true});await camera.waitFor();await page.keyboard.press('Escape');await camera.waitFor({state:'detached'});await run(page);},'lease');
+}
+for(const width of [375,1440])for(const paused of [false,true])browserTest(`scenic lease: extends the same ${paused?'paused':'studying'} session without restarting camera or study at ${width}px`,()=>withLeaseApp(width,async page=>{
+ await page.clock.setFixedTime(new Date('2026-09-21T14:31:00Z'));await page.clock.runFor(1000);
+ const tools=page.locator('.focus-tools');await tools.locator('summary').first().click();await tools.getByRole('button',{name:'카메라 감시 켜기',exact:true}).click();await tools.getByRole('button',{name:'카메라 감시 끄기',exact:true}).waitFor();
+ await page.getByRole('button',{name:'공부 화면 열기',exact:true}).click();const scene=page.getByRole('region',{name:'풍경 집중 화면'});await scene.waitFor();
+ if(paused){await scene.getByRole('button',{name:'잠시 쉬기',exact:true}).click();await scene.getByRole('button',{name:'공부 계속하기',exact:true}).waitFor();}
+ await page.evaluate(()=>{const video=[...document.querySelectorAll('video')].find(v=>v.srcObject);window.leaseBefore={node:video,stream:video?.srcObject,track:video?.srcObject.getVideoTracks()[0],cameraRequests:fixtureCameraRequests,sessions:structuredClone(fixture.sessions),todos:structuredClone(fixture.todos),reflections:structuredClone(fixture.reflections),recoveries:structuredClone(fixture.recoveries)};fixture.leaseDeadlines=['2026-09-21T15:34:00Z','2026-09-21T16:31:00Z'];});
+ const lease=scene.getByRole('group',{name:'세션 유지',exact:true}),button=lease.getByRole('button',{name:'+1시간 연장',exact:true});await lease.waitFor();
+ assert.equal(await lease.locator('strong').textContent(),'00:03:00');const clock=await scene.getByRole('timer').textContent();
+ await button.click();await page.waitForFunction(()=>document.querySelector('.scenic-lease strong')?.textContent==='01:03:00');
+ await button.click();await page.waitForFunction(()=>document.querySelector('.scenic-lease strong')?.textContent==='02:00:00');
+ assert.equal(await scene.getByRole('timer').textContent(),clock,'lease extension does not reset or advance the study clock');
+ assert.match(await scene.innerText(),/세션 유지 시간을 1시간 연장했습니다/);
+ assert.deepEqual(await page.evaluate(()=>fixture.calls.filter(c=>c.name==='extend_study_session_lease').map(c=>c.args)),[{p_session_id:'session',p_extension_minutes:60},{p_session_id:'session',p_extension_minutes:60}]);
+ assert.deepEqual(await page.evaluate(()=>{const b=leaseBefore,v=[...document.querySelectorAll('video')].find(v=>v.srcObject),strip=row=>Object.fromEntries(Object.entries(row).filter(([key])=>key!=='lease_expires_at'));return {sessions:JSON.stringify(fixture.sessions.map(strip))===JSON.stringify(b.sessions.map(strip)),todos:JSON.stringify(fixture.todos)===JSON.stringify(b.todos),reflections:JSON.stringify(fixture.reflections)===JSON.stringify(b.reflections),recoveries:JSON.stringify(fixture.recoveries)===JSON.stringify(b.recoveries),cameraRequests:fixtureCameraRequests===b.cameraRequests,sameNode:v===b.node,sameStream:v?.srcObject===b.stream,sameTrack:v?.srcObject?.getVideoTracks()[0]===b.track,track:b.track?.readyState};}),{sessions:true,todos:true,reflections:true,recoveries:true,cameraRequests:true,sameNode:true,sameStream:true,sameTrack:true,track:paused?undefined:'live'});
+ await scenicScreenshot(page,`scenic-lease-${paused?'paused':'active'}-${width}`);
+}));
+
+for(const failure of ['error','throw'])browserTest(`scenic lease: pending blocks duplicate requests and ${failure} recovers without changing the deadline`,()=>withLeaseApp(375,async page=>{
+ await page.evaluate(failure=>{fixture.holdLease=true;fixture.leaseFailure=failure;},failure);
+ await page.getByRole('button',{name:'공부 화면 열기',exact:true}).click();const scene=page.getByRole('region',{name:'풍경 집중 화면'}),lease=scene.getByRole('group',{name:'세션 유지',exact:true});await lease.waitFor();
+ const before=await page.evaluate(()=>structuredClone({sessions:fixture.sessions,todos:fixture.todos}));
+ await lease.getByRole('button',{name:'+1시간 연장',exact:true}).click();await page.waitForFunction(()=>typeof fixture.releaseLease==='function');
+ assert.equal(await lease.getByRole('button',{name:'연장 중…',exact:true}).isDisabled(),true);assert.equal(await scene.getByRole('button',{name:'잠시 쉬기',exact:true}).isDisabled(),true);assert.equal(await scene.getByRole('button',{name:'종료',exact:true}).isDisabled(),true);
+ await lease.getByRole('button',{name:'연장 중…',exact:true}).evaluate(el=>{el.click();el.click();});assert.equal(await page.evaluate(()=>fixture.calls.filter(c=>c.name==='extend_study_session_lease').length),1);
+ await page.evaluate(()=>fixture.releaseLease());await lease.getByRole('button',{name:'+1시간 연장',exact:true}).waitFor();await scene.getByText(/연장하지 못했어요/).waitFor();
+ assert.equal(await lease.getByRole('button',{name:'+1시간 연장',exact:true}).isEnabled(),true);assert.deepEqual(await page.evaluate(()=>({sessions:fixture.sessions,todos:fixture.todos})),before);
+ await page.evaluate(()=>{fixture.leaseFailure=null;fixture.leaseDeadlines=['2026-09-21T15:34:00Z'];});await lease.getByRole('button',{name:'+1시간 연장',exact:true}).click();await scene.getByText(/세션 유지 시간을 1시간 연장했습니다/).waitFor();
+}));
+
+browserTest('scenic lease: no active session means no extension action',()=>withApp(375,async page=>{
+ await page.getByRole('button',{name:'공부 화면 열기',exact:true}).click();const scene=page.getByRole('region',{name:'풍경 집중 화면'});await scene.waitFor();
+ await page.evaluate(()=>{fixture.sessions=[];});await page.clock.runFor(16000);
+ assert.equal(await scene.getByRole('group',{name:'세션 유지',exact:true}).count(),0);assert.equal(await scene.getByRole('button',{name:'+1시간 연장',exact:true}).count(),0);
+ assert.equal(await page.evaluate(()=>fixture.calls.some(c=>c.name==='extend_study_session_lease')),false);
+}));
+
+browserTest('scenic lease: a late response from a previous account cannot restore its session or success notice',()=>withLeaseApp(375,async page=>{
+ await page.evaluate(()=>{fixture.holdLease=true;});await page.getByRole('button',{name:'공부 화면 열기',exact:true}).click();const scene=page.getByRole('region',{name:'풍경 집중 화면'});await scene.getByRole('button',{name:'+1시간 연장',exact:true}).click();await page.waitForFunction(()=>typeof fixture.releaseLease==='function');
+ await page.evaluate(()=>fixture.changeOwner());await scene.waitFor({state:'detached'});await page.evaluate(()=>fixture.releaseLease());await page.clock.runFor(1000);
+ assert.equal(await page.getByRole('button',{name:'공부 화면 열기',exact:true}).count(),0);assert.equal(await page.getByText(/세션 유지 시간을 1시간 연장했습니다/).count(),0);
+ assert.deepEqual(await page.evaluate(()=>fixture.sessions),[]);
+}));
+
+browserTest('scenic lease: a usable new account can extend while an old request is pending without stale cleanup unlocking it',()=>withLeaseApp(375,async page=>{
+ await page.evaluate(()=>{fixture.holdLease=true;});await page.getByRole('button',{name:'공부 화면 열기',exact:true}).click();let scene=page.getByRole('region',{name:'풍경 집중 화면'});await scene.getByRole('button',{name:'+1시간 연장',exact:true}).click();await page.waitForFunction(()=>typeof fixture.releaseLease==='function');
+ await page.evaluate(()=>{fixture.releaseOldLease=fixture.releaseLease;fixture.changeOwner(true);});await scene.waitFor({state:'detached'});await page.getByRole('button',{name:'공부 화면 열기',exact:true}).waitFor();await page.clock.runFor(200);
+ const camera=page.getByRole('dialog',{name:'카메라 인증 필요',exact:true});if(await camera.isVisible()){await page.keyboard.press('Escape');await camera.waitFor({state:'detached'});}
+ await page.getByRole('button',{name:'공부 화면 열기',exact:true}).click();scene=page.getByRole('region',{name:'풍경 집중 화면'});await scene.waitFor();
+ assert.equal(await scene.getByRole('button',{name:'+1시간 연장',exact:true}).isEnabled(),true,'previous account cannot leave the new lease locked');
+ await scene.getByRole('button',{name:'+1시간 연장',exact:true}).click();await page.waitForFunction(()=>fixture.calls.filter(c=>c.name==='extend_study_session_lease').length===2);
+ await page.evaluate(()=>fixture.releaseOldLease());await page.clock.runFor(100);
+ assert.equal(await scene.getByRole('button',{name:'연장 중…',exact:true}).isDisabled(),true);assert.equal(await scene.getByRole('button',{name:'잠시 쉬기',exact:true}).isDisabled(),true,'old finally cannot unlock the new request');
+ assert.equal(await scene.getByText(/세션 유지 시간을 1시간 연장했습니다/).count(),0);await page.evaluate(()=>fixture.releaseLease());await scene.getByText(/세션 유지 시간을 1시간 연장했습니다/).waitFor();
+ assert.deepEqual(await page.evaluate(()=>fixture.calls.filter(c=>c.name==='extend_study_session_lease').map(c=>c.args.p_session_id)),['session','other-session']);
+ assert.equal(await page.evaluate(()=>fixture.sessions[0].id),'other-session');assert.equal(await scene.getByRole('button',{name:'+1시간 연장',exact:true}).isEnabled(),true);
+}));
+
+browserTest('scenic lease: a response committed before a remote pause cannot resume study or camera',()=>withLeaseApp(375,async page=>{
+ await page.evaluate(()=>{fixture.holdLease=true;fixture.commitLeaseBeforeResponse=true;});await page.getByRole('button',{name:'공부 화면 열기',exact:true}).click();const scene=page.getByRole('region',{name:'풍경 집중 화면'});await scene.getByRole('button',{name:'+1시간 연장',exact:true}).click();await page.waitForFunction(()=>typeof fixture.releaseLease==='function');
+ await page.evaluate(()=>{fixture.sessions[0]={...fixture.sessions[0],paused_at:new Date().toISOString()};});await page.clock.runFor(16000);await scene.getByRole('button',{name:'공부 계속하기',exact:true}).waitFor();
+ await page.evaluate(()=>fixture.releaseLease());await scene.getByText(/세션 유지 시간을 1시간 연장했습니다/).waitFor();
+ assert.equal(await scene.getByRole('button',{name:'공부 계속하기',exact:true}).isVisible(),true);assert.match(await scene.innerText(),/휴식 중/);assert.equal(await page.evaluate(()=>fixtureCameraRequests),0);
+}));
+
+for(const width of [375,1440])for(const scale of [1,2])browserTest(`scenic lease: controls remain readable and keyboard accessible at ${width}px ${scale}x`,()=>withLeaseApp(width,async page=>{
+ if(scale===2)await page.addStyleTag({content:'html{font-size:200%;}'});
+ await page.getByRole('button',{name:'공부 화면 열기',exact:true}).click();const scene=page.getByRole('region',{name:'풍경 집중 화면'}),lease=scene.getByRole('group',{name:'세션 유지',exact:true});await lease.waitFor();
+ await readableGroup(lease.locator('span,strong,button'));await touchControls(lease.locator('button'));
+ const button=lease.getByRole('button',{name:'+1시간 연장',exact:true});await button.focus();await page.keyboard.press('Shift+Tab');await page.keyboard.press('Tab');assert.equal(await button.evaluate(el=>el===document.activeElement),true);assert.notEqual(await button.evaluate(el=>getComputedStyle(el).outlineStyle),'none');
+ const focusContrast=await button.evaluate(el=>{const luminance=color=>color.match(/[\d.]+/g).slice(0,3).map(Number).map(v=>{v/=255;return v<=.04045?v/12.92:((v+.055)/1.055)**2.4;}).reduce((sum,v,i)=>sum+v*[.2126,.7152,.0722][i],0);const style=getComputedStyle(el),outline=luminance(style.outlineColor);return Math.min(...[style.backgroundColor,getComputedStyle(el.closest('.scenic-dock')).backgroundColor].map(color=>{const surface=luminance(color);return (Math.max(outline,surface)+.05)/(Math.min(outline,surface)+.05);}));});assert.ok(focusContrast>=3,'keyboard focus contrasts with the control and scenery dock: '+focusContrast);
+ assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),true);for(const box of await lease.locator('span,strong,button').all()){const bounds=await box.boundingBox();assert.ok(bounds.x>=0&&bounds.x+bounds.width<=width+1);}
+ await scenicScreenshot(page,`scenic-lease-layout-${width}-${scale}`);
+}));
+
 for(const width of [375,1440])browserTest(`resolution labels: unsupported 1080p is absent and legacy high shows real 720p at ${width}px`,()=>withApp(width,async page=>{
  const saved=JSON.stringify({background:'starry-night',motion:'live',intensity:'subtle',paused:true,quality:'high'});
  const before=await page.evaluate(saved=>{localStorage.setItem('study-room-atmosphere',saved);dispatchEvent(new StorageEvent('storage',{key:'study-room-atmosphere',newValue:saved}));return structuredClone({sessions:fixture.sessions,todos:fixture.todos});},saved);
@@ -428,7 +505,8 @@ browserTest('scenic: required dialog dismissal returns keyboard focus to the sce
  await scene.getByRole('button',{name:'종료',exact:true}).click();await page.getByRole('dialog').waitFor();
  await page.keyboard.press('Escape');await page.getByRole('dialog').waitFor({state:'detached'});
  assert.equal(await scene.getByRole('button',{name:'종료',exact:true}).evaluate(el=>document.activeElement===el),true,'closing inline dialog restores its scenic trigger focus');
- await page.keyboard.press('Tab');assert.equal(await scene.evaluate(el=>el.contains(document.activeElement)),true);
+ await page.keyboard.press('Tab');assert.equal(await scene.getByRole('button',{name:'+1시간 연장',exact:true}).evaluate(el=>document.activeElement===el),true,'extension is reachable after the end action');
+ await page.keyboard.press('Tab');assert.equal(await scene.getByRole('button',{name:'전체 메뉴',exact:true}).evaluate(el=>document.activeElement===el),true,'the final extension action wraps back to the hamburger');
  await page.keyboard.press('Escape');assert.equal(await scene.isVisible(),true,'focus wraps to the hamburger and Escape dismisses its menu first');
  assert.equal(await scene.getByRole('button',{name:'전체 메뉴',exact:true}).getAttribute('aria-expanded'),'false');
  await page.keyboard.press('Escape');await scene.waitFor({state:'detached'});
@@ -1879,10 +1957,16 @@ state.recoveries=mode==='recovery'?[{id:'recovery',local_date:'2026-09-20',cover
 if(mode==='lease')state.sessions[0].lease_expires_at='2026-09-21T14:34:00Z';
 if(mode==='unknown'){state.current=null;state.sessions[0].paused_at=now;state.todos.forEach(t=>{t.first_started_at=null;t.unknown_allocation=true;t.evaluation_eligible=false;});}
 if(mode==='precheck'){state.sessions=[];state.recoveries=Array.from({length:5},(_,i)=>({id:'submitted-'+i,local_date:'2026-09-21',trigger_type:'missed_attendance',status:'submitted',reason:'일정 조정',makeup_todo_title:'보충 독서',pledge_todo_title:'다시 시작',created_at:now}));}
-const authSession=mode==='login'?null:{access_token:'test-only',user:{id:'owner',email:'fixture@example.test',user_metadata:{},is_anonymous:mode==='anonymous'}};
+let authSession=mode==='login'?null:{access_token:'test-only',user:{id:'owner',email:'fixture@example.test',user_metadata:{},is_anonymous:mode==='anonymous'}};
 state.profile={user_id:'owner',time_zone:'Asia/Tokyo',reminder_time:'09:00',email_reminders_enabled:false};
-const track=()=>({session_id:'session',current_todo_id:state.current,tracking_started_at:row.started_at,excluded_seconds:state.excluded,unknown_allocation:false,server_now:now,todos:state.todos.filter(t=>state.links.includes(t.id)).map(t=>({...t,open_started_at:state.sessions[0]?.paused_at||t.id!==state.current?null:row.started_at}))});
+const track=()=>({session_id:state.usableOtherAccount?state.sessions[0]?.id??'session':'session',current_todo_id:state.current,tracking_started_at:row.started_at,excluded_seconds:state.excluded,unknown_allocation:false,server_now:now,todos:state.todos.filter(t=>state.links.includes(t.id)).map(t=>({...t,open_started_at:state.sessions[0]?.paused_at||t.id!==state.current?null:row.started_at}))});
 function result(name,args){state.calls.push({name,args});
+ if(name==='extend_study_session_lease'){
+  const original=state.sessions.find(row=>row.id===args.p_session_id);
+  const finish=()=>{if(state.leaseFailure==='throw')throw new TypeError('테스트: 연결 실패');if(state.leaseFailure==='error')return {data:null,error:{message:'테스트: 연장 거절'}};const updated={...original,lease_expires_at:state.leaseDeadlines?.shift()??'2026-09-21T15:34:00Z'};state.sessions=state.sessions.map(row=>row.id===args.p_session_id?updated:row);return {data:updated,error:null};};
+  if(state.holdLease){const committed=state.commitLeaseBeforeResponse?finish():null;return new Promise((resolve,reject)=>{state.releaseLease=()=>{state.holdLease=false;try{resolve(committed??finish());}catch(error){reject(error);}};});}
+  return finish();
+ }
  if(name==='study_camera_action'&&args.p_action==='claim'&&state.holdCameraClaim){state.holdCameraClaim=false;return new Promise(resolve=>{state.releaseCameraClaim=()=>resolve(result(name,args));});}
  if(name==='study_device_snapshot'||name==='study_camera_action'){
   const active=state.sessions.find(s=>s.status==='active'&&!s.ended_at)??null;
@@ -1956,7 +2040,7 @@ export const supabase={
  auth:{
   getSession:async()=>({data:{session:authSession},error:null}),
   signOut:async()=>{state.calls.push({name:'auth.signOut'});authCallback('SIGNED_OUT',null);return {error:null};},
-  onAuthStateChange:callback=>{authCallback=callback;state.changeOwner=()=>{state.sessions=[];state.todos=[];state.reportFail=true;callback('SIGNED_IN',{...authSession,user:{...authSession.user,id:'other'}});};return {data:{subscription:{unsubscribe(){}}}};},
+  onAuthStateChange:callback=>{authCallback=callback;state.changeOwner=(active=false)=>{state.sessions=active?[{...row,id:'other-session',user_id:'other',lease_expires_at:'2026-09-21T14:34:00Z'}]:[];state.todos=active?[{...todo('other-todo','테스트 새 계정 공부'),user_id:'other'}]:[];state.reportFail=!active;if(active){state.usableOtherAccount=true;state.links=['other-todo'];state.current='other-todo';state.camera=null;state.profile={...state.profile,user_id:'other'};authSession={...authSession,user:{...authSession.user,id:'other'}};}callback('SIGNED_IN',{...authSession,user:{...authSession.user,id:'other'}});};return {data:{subscription:{unsubscribe(){}}}};},
   getUser:async()=>({data:{user:authSession?.user??null},error:null})
  },
  functions:{invoke:async(name,{body}={})=>{state.calls.push({name,args:body});if(name==='tech-feed'&&body.action==='timezone')state.profile.time_zone=body.time_zone;return {data:name==='tech-feed'?feedResponse(body.action):{},error:null};}}
