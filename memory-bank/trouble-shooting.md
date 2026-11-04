@@ -8,7 +8,7 @@
 - 증상: 운영JS에는 anime-sea가 있지만 실제 Windows 선택창에는 이전14종만 있었고 이미지효과에도 무음 영상 안내가 표시됐다. 코드 문자열 존재만으로 설치앱에 로드됐다고 답하면 원인을 놓친다.
 - 확인: 실제 앱 UIA 목록14/noanime → 사용자 공부·카메라 미사용/새로고침 승인 → Ctrl+R·설정 재진입15/별빛 바다와 유성. 로그인/기존별빛바다 유지, 실제테마 적용/학습기록 쓰기 없음. 캐시 삭제/재설치하지 않는다.
 - 수정: AtmosphereSettings의 unconditional 영상 안내를 현재 초안 종류/모드로 제한. 이미지효과 끄기/켜기와 영상 정적/라이브를 구분한다. 영상의 intensity는 실제 playbackRate0.75/1이므로 기능을 제거하지 않고 재생 속도로 표시한다.
-- 검증: settings/scenic375/1440·정적/영상 RED→GREEN6/6, 초안 미다운로드/취소·기록·카메라 node/stream/track 보존. 실제 앱 목록 확인과 수정 UI 배포/로드 확인은 분리해 기록한다. 근거 docs/verification/2026-11-04-theme-type-controls.md.
+- 검증: settings/scenic375/1440·정적/영상 RED→GREEN6/6, 최종종류8+lease14=22/22, 초안 미다운로드/취소·기록·카메라 node/stream/track 보존. 제품75ab1da 배포 후 추가 승인 Ctrl+R로 실제앱15종/새 이미지효과 메뉴·안내 확인, 적용 없이 닫기·현재테마 동일. 목록/배포/실제 로드는 각각 확인한다. 근거 docs/verification/2026-11-04-theme-type-controls.md.
 - 전체의 baseline B포인터1실패는RPC검증전 nav hit interception/scroll불안정이었다. 같은소스단독1/1 통과·정확원인미확정. 격리시험은동일native버튼 focus/activeElement/Enter로 보강해22/22·B3반복 통과, 원포인터해결로 확대하지 않는다. 앱의focus/scroll코드는 변경하지 않았다.
 
 ## 감성 영상의 반복 경계·중간 낮 장면 — 2026-11-04

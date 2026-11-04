@@ -34,9 +34,11 @@
 | 최초 전체 실제 Chrome |1674건·1673통과/1실패·생략/취소0·1552389ms·exit1. 실패는 baseline owner-B pointer hit-test |
 | 같은 소스 pointer 단독 재실행 |1/1·실패/생략/취소0·5872ms·exit0; 간헐성 확인이며 원인 해결 완료 아님 |
 | 최종 분할 범위 | 원전체1673/1674 + 최종집중22/22, 중복19건 제외 coverage1676건. 제품 원해시 동일·최종 제품/테스트2해시/diff·독립C/I/M0. 단일 전체명령 exit0 아님 |
-| 실제 Windows | 승인 Ctrl+R 뒤 로그인/저장된 별빛 바다 유지·15종/새 영상 항목 확인. 수정 코드 배포 후 로드는 아직 별도 |
+| 실제 Windows | 배포 전 승인 Ctrl+R 뒤15종/새 영상 확인. 배포 뒤 추가 승인 Ctrl+R·설정 재진입으로15종/별빛 바다와 유성·새 이미지효과 끄기/켜기·정확한 영상아님 안내 확인, 잘못된 영상 반복 안내 없음. 로그인/기존 별빛 바다 유지·적용 없이 닫기 확인 |
 
-예시 캡처는 ‘합성 테스트 · 예시 데이터’로 표시했다. 실제 Windows 캡처는 다른 앱에 가려져 접근성 목록/현재 값으로 대조했으며 전경 영상 재생을 검증했다고 주장하지 않는다. 실제 앱의 테마 적용·공부 시작/휴식/종료·회복 제출·서버 기록 쓰기는 하지 않았다. Android 에뮬레이터·물리 카메라·장시간 GPU/배터리·DB 전체 digest 수용은 미실행이다.
+예시 캡처는 ‘합성 테스트 · 예시 데이터’로 표시했다. 초기 실제 Windows 캡처는 다른 앱에 가려져 접근성 목록/현재 값으로 대조했다. 배포 뒤에는 창을 활성화해 설정 화면과 배경 편집 화면을 캡처하고 UIA 목록/종류별 안내를 확인했다. 테마 선택/적용 없이 편집을 닫은 뒤 저장 요약 ‘별빛 바다 · 이미지 효과’가 동일했다. 전경 영상 재생을 검증했다고 주장하지 않는다. 실제 앱의 테마 적용·공부 시작/휴식/종료·회복 제출·서버 기록 쓰기는 하지 않았다. Android 에뮬레이터·물리 카메라·장시간 GPU/배터리·DB 전체 digest 수용은 미실행이다.
+
+네이티브 입력 중 coordinate input geometry is unavailable은 반환된 창을 다시 선택·활성화하고 새 관측으로 회복했다. 긴 편집 영역의 취소 버튼은 화면 밖 좌표로 거부됐으며 입력 결과를 재관측한 뒤 화면에 보이는 ‘닫기’ 버튼으로 닫았다. 거부된 입력을 성공으로 기록하거나 이전 좌표를 반복 사용하지 않았다.
 
 ### 전체 검사 중 발견한 기존 포인터 시험 경합
 
@@ -58,4 +60,11 @@ Remove-Item Env:FEED_BROWSER_MODULE,Env:FEED_BROWSER_EXECUTABLE -ErrorAction Sil
 
 ## 출시
 
-검증 완료·배포 준비. 기존 feature branch·GitHub Actions production 경로로 정확 SHA의 READY/alias/HTTP200·새 라벨/안내를 확인한다. 새APK/EXE는 필요 없다. 기존에 열린 앱 문서는 새로고침 전까지 이전 코드일 수 있으므로 실제 설치앱의 로드 여부를 배포 상태와 구분한다.
+- 제품 커밋: 75ab1da6a52f193c3997e8256d5d275a14947171, feature branch fix/study-dashboard-clarity push 완료.
+- GitHub Actions: [41777453429](https://github.com/zxcc9867/studyRoom/actions/runs/41777453429) completed/success·정확 headSha.
+- Vercel: dpl_66HWEKw4b9cVwccfByXLJEJfvm1u, production READY·동일 SHA·운영 alias 확인. React/Vite 빌드40.821초.
+- [운영 주소](https://study-room-attendance.vercel.app): HTML, index-CvQtVoEd.js, index-D96r8R7A.css, anime 포스터 모두200. 공개JS의 새 종류별 문구/별빛 바다와 유성 확인. anime720/1080 영상은 각2048바이트 Range 요청206·전체크기1610136/3579940바이트. 근거 output/theme-controls-1104/production-http.json.
+- 출시 직후5분 error/fatal 집계는 행 없음이며 장시간/클라이언트 무오류 보증은 아니다. Drains 조회404로 연결 상태 미확인·운영 설정 변경 없음.
+- 추가 사용자 유휴/미저장없음 승인 뒤 실제 Windows 앱을 새로고침해15종과 새 이미지효과 메뉴까지 확인했다. 테마·학습/회복/할 일 쓰기·native/설치 변경 없음, 로그인/저장 요약 유지.
+
+새APK/EXE는 필요 없다. 기존에 열린 앱 문서는 새로고침 전까지 이전 코드일 수 있으므로 실제 설치앱의 로드 여부를 배포 상태와 구분한다. 이번 Ctrl+R 보존을 Windows 정상 종료/cold 재실행 시 테마 소실 원인 해결로 확대하지 않는다.

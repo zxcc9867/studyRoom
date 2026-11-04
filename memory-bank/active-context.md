@@ -1,13 +1,15 @@
 # Active Context
-- 갱신: 2026-11-04 14:07 JST · 도구: codex
-- 브랜치: fix/study-dashboard-clarity · 시작 HEAD aae78c5 · 미커밋 테마 종류 UI 수정 있음. 기존 사용자 변경은 보존한다.
+- 갱신: 2026-11-04 14:20 JST · 도구: codex
+- 브랜치: fix/study-dashboard-clarity · 제품 HEAD 75ab1da · 운영 배포/실제 Windows 메뉴 확인 완료, 출시 문서 갱신. 기존 사용자 변경은 보존한다.
 - 목표 / 완료 기준: 실제 Windows 앱의 애니메이션 배경 누락 원인을 확인하고 이미지 효과/영상/정적 배경의 오해를 유발하는 메뉴·안내를 바로잡아 검증·운영 배포한다.
 - 원인 확인: 승인 전 실제 Windows 접근성 목록은 이전14종/noanime였다. 사용자 공부·카메라 미사용/새로고침 승인 뒤 Ctrl+R·동일 로그인/기존 별빛 바다 유지, 설정 재진입 목록15종/별빛 바다와 유성 확인. 새 영상 미배포나 스크롤만의 문제가 아니라 열린 이전 문서였다. 카탈로그/자산은 변경하지 않는다.
 - 구현: AtmosphereSettings만 종류별 표시. 이미지 효과=끄기/켜기·움직임 강도·영상 아님 안내, 영상=정적 이미지/영상 라이브·화질·실제 재생속도0.75배/1배, 정적=불필요한 움직임/영상 안내 없음. 내부 static/live/intensity·controller/player·학습·카메라·네이티브 불변.
 - 검증 완료: 신규6 실제 Chrome RED(이미지4/static1/video1)→GREEN6/6·실패/생략/취소0·15601ms. settings/scenic375/1440·15종 도달·초안 미다운로드/취소·설정/기록/동일카메라node/stream/track 유지. 독립 shared-reviewer C0/I0/M0·문법/diff 검사 통과.
 - 최초 공식7/Dune0·exit0. 전체 Chrome 종료1674건·1673pass/1fail·생략/취소0·1552389ms: baseline owner-B 시험76행 pointer interception(연장 assertions 이전). 같은 소스 단독 pointer-rerun1/1 통과해 간헐적임을 확인했으며 정확 원인/실사용 pointer 수용은 미확정이다. 앱 component 해시는 그대로다.
 - 최종 검증 완료: B재진입만 실제키보드로 보강/기존assertions유지·영상 다크200%2건 추가 뒤 공식7/Dune0 재통과, Chrome lease14+종류8=22/22·실패/생략/취소0·57027ms·exit0, B키보드반복3/3 통과. 제품동일해시·최종2해시/diff·독립C/I/M0. 원전체1673/1674 + 최종22/22의 분할 coverage1676건(중복19제외)이며 단일전체전건통과/원pointer해결로 표현하지 않는다.
-- 다음 단계: 기능 commit/push → 기존Actions production 배포 → 정확SHA READY/alias/HTTP200·새 라벨/영상Range 확인 → 승인 범위의 실제앱 수정UI 로드 확인/설정불변 → 출시기록push·claim해제.
+- 운영 완료: 제품75ab1da push·Actions41777453429 success·dpl_66HWEKw4b9cVwccfByXLJEJfvm1u production READY/동일SHA/운영alias·빌드40.821초. HTML/새JS/CSS/포스터200·anime720/1080 Range206·새 종류별 문구 확인. 직후5분 error/fatal 집계 행 없음, Drains404로 연결 상태는 미확인이다.
+- 실제 Windows 수용: 추가 유휴/미저장없음 승인 후 Ctrl+R·로그인 유지, 설정 UIA15종/별빛 바다와 유성·이미지 효과 끄기/켜기·영상 아님 안내/잘못된 영상 안내 없음 확인. 테마 선택/적용 없이 편집 닫음·별빛 바다/이미지 효과 동일. 좌표 geometry 오류는 창 재선택/활성화로 회복했고 화면 밖 취소는 재관측 후 보이는 닫기로 대체했다.
+- 다음 단계: 후속 요청 시 원pointer/focus 경합·Windows cold 테마 소실 원인을 각각 재현·조사한다. 이번 메뉴 수정의 해결 범위가 아니며 자동 테마/학습 변경은 하지 않는다.
 - 문서/claim: prd-study-themes.md, prd-scenic-study.md, [종류별 설정 검증](../docs/verification/2026-11-04-theme-type-controls.md). owner codex-theme-controls-1104. 새APK/EXE는 없다.
 - 직전 운영: 세션 연장 제품c7b9068/Actions41766757443 success·dpl_4SpLh99GuXLpBNJwCmNhANRNzqfa READY/동일SHA/alias·웹200. 신규14·최종Chrome 분할1668건·공식7/Dune0·독립0·5해시. [검증](../docs/verification/2026-11-04-scenic-session-extension.md). 이전 팀fixture2fail/분할 gate 기록은 그대로 보존한다.
 - 애니메이션 원본: 제품698414d/Actions41758240677 success·dpl_9mVCs7quH4akfDfzna6ZmCa5c8iB READY. 별빛 바다와 유성24초/720·1080 실제영상과 기존 별빛 바다 이미지효과는 별개다. [검증](../docs/verification/2026-11-04-anime-sea-video.md).

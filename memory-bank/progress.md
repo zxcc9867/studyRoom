@@ -2,7 +2,7 @@
 
 ## 테마 종류별 메뉴와 실제 Windows 목록
 
-- 검증완료/배포준비: 실제앱 이전14종은 승인Ctrl+R 뒤15종/새영상·기존테마/로그인 유지 확인. 이미지효과 끄기/켜기·영상 재생/화질/속도 구분, 저장/player/학습·카메라 불변. 공식7/Dune0·최종관련22/22·B키보드3반복·2해시/diff·독립C/I/M0. 원전체1673/1674+최종22의 분할coverage1676(중복19제외), 원pointer1실패/같은코드단독1pass는 보존·정확원인/실사용수용은 미확정이다. [검증](../docs/verification/2026-11-04-theme-type-controls.md).
+- 운영배포/Windows 메뉴 수용 완료: 이전14종은 승인Ctrl+R 뒤15종/새영상 확인. 제품75ab1da·Actions41777453429 success·dpl_66HWEKw4b9cVwccfByXLJEJfvm1u READY/동일SHA/alias·웹/새JS/CSS/포스터200·영상2Range206. 추가 승인 새로고침 후 실제앱의 새 이미지효과 끄기/켜기·영상아님 안내·15종 확인, 편집닫기/기존테마·로그인 유지. 저장/player/학습·카메라 불변. 공식7/Dune0·최종관련22/22·B키보드3반복·2해시/diff·독립C/I/M0. 원전체1673/1674+최종22의 분할coverage1676(중복19제외), 원pointer1실패/단독1pass는 보존·원인/실사용수용 미확정. [검증](../docs/verification/2026-11-04-theme-type-controls.md).
 
 ## 풍경 화면 세션 연장
 
