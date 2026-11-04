@@ -1,8 +1,12 @@
 # Progress
 
+## 오리지널 애니메이션풍 별빛 바다와 유성
+
+- 구현·전체검증 완료·배포 대기: anime-sea 실제24초 무음/30fps720·1080·원화/제작출처·기존star-sea 보존. 단위32/32·Chrome21/21·전체Chrome1654/1654 실패/생략/취소0·공식7/Dune0·독립C/I/M0·19해시/diff동일·HF움직임300시점/오류0·실제디코딩수면/루프2파일통과. 학습/카메라/player/native/API·실제설정은 변경하지 않았다. [검증](../docs/verification/2026-11-04-anime-sea-video.md).
+
 ## 감성 루프3종·미지원1080p 숨김
 
-- 운영배포 완료: 벽난로/눈길/호수720·1080/23·19·9초 무음루프·미지원1080p 숨김, 전체14/영상8. 단위28/28·실제Chrome19/19·전체Chrome1648/1648 실패/생략/취소0·공식7/Dune0·독립C/I/M0·19해시/diff통과. 제품f07b2c8/Actions41670977196 success·dpl_CjPuFEvf8b6zLsSNaFZQ9paq2Q7V READY/동일SHA/alias·HTML/JS/CSS/이미지200·영상6Range206·격리운영재생/loop6/6. 기존player/학습/카메라/native/API·실제설정 불변/새설치없음. 애니메이션풍은 별도 조사/별빛 바다·유성 선호만 확인했다. [검증](../docs/verification/2026-11-04-live-video-expansion.md).
+- 운영배포 완료: 벽난로/눈길/호수720·1080/23·19·9초 무음루프·미지원1080p 숨김, 전체14/영상8. 단위28/28·실제Chrome19/19·전체Chrome1648/1648 실패/생략/취소0·공식7/Dune0·독립C/I/M0·19해시/diff통과. 제품f07b2c8/Actions41670977196 success·dpl_CjPuFEvf8b6zLsSNaFZQ9paq2Q7V READY/동일SHA/alias·HTML/JS/CSS/이미지200·영상6Range206·격리운영재생/loop6/6. 기존player/학습/카메라/native/API·실제설정 불변/새설치없음. 애니메이션풍 후속 상태는 위 별도 항목을 따른다. [검증](../docs/verification/2026-11-04-live-video-expansion.md).
 
 ## 영상 화질 해상도 표시
 

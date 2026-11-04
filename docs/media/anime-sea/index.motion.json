@@ -1,0 +1,7 @@
+{
+  "duration": 24,
+  "assertions": [
+    {"kind": "staysInFrame", "selector": "#anime-sea-water"},
+    {"kind": "keepsMoving", "withinSelector": "#anime-sea-water", "maxStaticSec": 2}
+  ]
+}

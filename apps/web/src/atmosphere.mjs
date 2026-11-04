@@ -6,6 +6,7 @@ const videoVariants = {
   'fireplace': {720: '/themes/video/fireplace.webm', 1080: '/themes/video/fireplace-hd.webm'},
   'snow-night': {720: '/themes/video/snow-night.webm', 1080: '/themes/video/snow-night-hd.webm'},
   'lake-sunset': {720: '/themes/video/lake-sunset.webm', 1080: '/themes/video/lake-sunset-hd.webm'},
+  'anime-sea': {720: '/themes/video/anime-sea.webm', 1080: '/themes/video/anime-sea-hd.webm'},
 };
 export const atmosphereThemes = Object.freeze([
   {id: 'charcoal', name: '차콜', live: false},
@@ -22,6 +23,7 @@ export const atmosphereThemes = Object.freeze([
   {id: 'fireplace', name: '따뜻한 벽난로', live: true, video: '/themes/video/fireplace.webm', poster: '/themes/video/fireplace-poster.webp', thumbnail: '/themes/video/fireplace-thumb.webp', author: 'free video library', source: 'https://commons.wikimedia.org/wiki/File:Fantastic-fireplace-fire-chimney-hearth-_background_-_texture_-_motion_graphics_-_free_video_library.webm', license: 'CC BY 3.0', licenseUrl: 'https://creativecommons.org/licenses/by/3.0/'},
   {id: 'snow-night', name: '눈 내리는 밤거리', live: true, video: '/themes/video/snow-night.webm', poster: '/themes/video/snow-night-poster.webp', thumbnail: '/themes/video/snow-night-thumb.webp', author: 'Mike E.', source: 'https://commons.wikimedia.org/wiki/File:Dec_8th_Snow_Timelapse.webm', license: 'CC BY 3.0', licenseUrl: 'https://creativecommons.org/licenses/by/3.0/'},
   {id: 'lake-sunset', name: '노을 지는 호수', live: true, video: '/themes/video/lake-sunset.webm', poster: '/themes/video/lake-sunset-poster.webp', thumbnail: '/themes/video/lake-sunset-thumb.webp', author: 'John Brighenti', source: 'https://commons.wikimedia.org/wiki/File:Seventh_Lake_Sunset.webm', license: 'CC BY 2.0', licenseUrl: 'https://creativecommons.org/licenses/by/2.0/'},
+  {id: 'anime-sea', name: '별빛 바다와 유성', live: true, video: '/themes/video/anime-sea.webm', poster: '/themes/video/anime-sea-poster.webp', thumbnail: '/themes/video/anime-sea-thumb.webp', author: '독서실', source: 'https://github.com/zxcc9867/studyRoom/blob/fix/study-dashboard-clarity/docs/media/anime-sea/README.md', attribution: 'AI 생성 원화를 바탕으로 자체 제작한 애니메이션 영상.', changes: '잔물결·반사광·유성 애니메이션·24초 무음 반복. 원화 1672×941, 영상 출력 720p/1080p.'},
 ].map(theme => Object.freeze({...theme, ...(['fireplace', 'snow-night', 'lake-sunset'].includes(theme.id) ? {changes: '구간 편집·1초 반복 연결·무음 재인코딩·포스터 추출·화면 채움·재생 속도 조정.'} : {}), ...(theme.video ? {videoSources: Object.freeze(videoVariants[theme.id] ?? {720: theme.video})} : {})})));
 
 export function atmosphereVideoSource(theme, quality = 'auto', mobile = false) {

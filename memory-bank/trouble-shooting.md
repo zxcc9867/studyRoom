@@ -384,3 +384,8 @@
 - 사용자가 정상 Study Notes를 비교한 첨부를 잘못된 요청 혼동으로 해석한 것은 오류였다. 프로젝트 주소 차이는 정상 비교이며 이 해석은 철회한다. 최신 앱 provider 단계/서버 발급/OS 대조를 같은 시각에 묶어 확인하고 전체 URL/state/코드/계정은 기록하지 않는다.
 - 사용자 요청의 Claude Code Opus5.5 읽기 전용 검토는 정상 네트워크에서 성공했다. sandbox ENOTFOUND를 모델 미지원으로 단정하거나 권한 우회로 해결하지 않는다. 설치 앱 새 요청 시각/provider 단계/브라우저 callback host를 묶어 수용한다.
 - 새0.1.2 실제 Google 발급 후 callback0, OS ShellExecute 수신 통과/Chrome 직접 링크 수신0으로 구간을 분리했다. prompt 차이·하이픈·저장된 브라우저 차단을 증거 없이 원인으로 쓰지 않는다. 승인한 Default/공통 protocol_handler 두 항목 없음도 Chrome live 거부 부재의 증명이 아니다.
+
+## 오리지널 영상의 출처·원화 해상도·seek 경계 — 2026-11-04
+- 생성 요청의4K와 실제 원화1672×941는 다르다. 실제 파일을 probe하고1080p 출력은 약간 확대된 영상 캔버스임을 명시한다. 자체 제작 영상에 기존 공통 Wikimedia/CC 링크를 붙이지 않는다.
+- HyperFrames 하위 template는 root의 data-composition-id/width/height와 등록 timeline id가 일치해야 한다. 누락하면 lint에서 거부되므로 초기 검사 후 수정하고 actual-frame check/render를 다시 실행한다.
+- 움직임은 이전 프레임/타이머가 아닌 seek 시간의 순수 함수로 렌더링한다. 반복 끝과 시작의 상태·디코딩 픽셀을 모두 검사하고, 카드/시간 속성만 보고 실제 영상이라고 판단하지 않는다. [근거](../docs/verification/2026-11-04-anime-sea-video.md).

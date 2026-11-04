@@ -41,7 +41,7 @@ test('video quality: a 720p-only source never pretends to be 1080p and savings u
  assert.deepEqual(atmosphereVideoSource(atmosphereThemes.find(t=>t.id==='ocean-waves'),'high',true),{src:'/themes/video/ocean-waves.webm',resolution:1080});
 });
 
-for(const background of ['starry-night','rain-window','city-night','fireplace','snow-night','lake-sunset'])test(`emotional video themes: ${background} restores the saved video and poster without touching study data`,()=>{
+for(const background of ['starry-night','rain-window','city-night','fireplace','snow-night','lake-sunset','anime-sea'])test(`emotional video themes: ${background} restores the saved video and poster without touching study data`,()=>{
  const saved=JSON.stringify({background,motion:'live',intensity:'subtle',paused:false}),e=environment(saved);e.values.set('study-session','preserved');const c=controller(e);
  assert.equal(c.getSnapshot().background,background);assert.equal(c.getSnapshot().motion,'live');assert.equal(c.getSnapshot().videoStatus,'idle');assert.equal(c.getSnapshot().playing,true);
  assert.equal(e.root.style['--study-scene'],`url("/themes/video/${background}-poster.webp")`);
@@ -50,14 +50,14 @@ for(const background of ['starry-night','rain-window','city-night','fireplace','
 
 test('emotional video themes: prepaint restores each new poster without requesting or claiming video playback',async()=>{
  const html=await readFile(new URL('../index.html',import.meta.url),'utf8'),scripts=[...html.matchAll(/<script>([\s\S]*?)<\/script>/g)].map(match=>match[1]);
- for(const background of ['starry-night','rain-window','city-night','fireplace','snow-night','lake-sunset']){
+ for(const background of ['starry-night','rain-window','city-night','fireplace','snow-night','lake-sunset','anime-sea']){
   const root={dataset:{},style:{setProperty(key,value){this[key]=value;}}};
   vm.runInNewContext(scripts.join('\n'),{localStorage:{getItem:key=>key==='study-room-atmosphere'?JSON.stringify({background,motion:'live'}):'dark'},matchMedia:()=>({matches:false}),document:{documentElement:root,querySelector:()=>({setAttribute(){}})}});
   assert.equal(root.dataset.studyBackground,background);assert.equal(root.dataset.studyMotion,'static');assert.equal(root.style['--study-scene'],`url("/themes/video/${background}-poster.webp")`);
  }
 });
 
-for(const background of ['fireplace','snow-night','lake-sunset'])test(`cozy video quality: ${background} selects real HD on PC and SD on mobile`,()=>{
+for(const background of ['fireplace','snow-night','lake-sunset','anime-sea'])test(`cozy video quality: ${background} selects real HD on PC and SD on mobile`,()=>{
  const theme=atmosphereThemes.find(t=>t.id===background);assert.ok(theme,'approved theme is available');
  assert.deepEqual(atmosphereVideoSource(theme,'auto',false),{src:`/themes/video/${background}-hd.webm`,resolution:1080});
  assert.deepEqual(atmosphereVideoSource(theme,'auto',true),{src:`/themes/video/${background}.webm`,resolution:720});

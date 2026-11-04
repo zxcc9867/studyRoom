@@ -55,7 +55,7 @@ for(const mobile of [false,true])browserTest(`video quality: ${mobile?'mobile':'
   await page.waitForFunction(res=>{const v=document.querySelector('[data-atmosphere-video]');return v.videoHeight===res&&!v.paused&&v.currentTime>.2;},resolution);
   assert.equal(await page.locator('.atmosphere-quality-summary').innerText(),'화질: '+name);
  }
- for(const name of ['따뜻한 벽난로','눈 내리는 밤거리','노을 지는 호수']){
+ for(const name of ['따뜻한 벽난로','눈 내리는 밤거리','노을 지는 호수','별빛 바다와 유성']){
   edit=await editor();await edit.getByRole('radio',{name,exact:true}).check();await edit.getByRole('group',{name:'영상 화질',exact:true}).getByRole('radio',{name:'자동',exact:true}).check();await edit.getByRole('button',{name:'적용',exact:true}).click();
   await page.waitForFunction(res=>{const v=document.querySelector('[data-atmosphere-video]');return v.videoHeight===res&&!v.paused&&v.currentTime>.2;},expected);
  }
@@ -97,7 +97,7 @@ browserTest('video quality: supplied city HD and wave saver files decode at thei
  }
 }));
 
-for(const [id,name] of [['starry-night','별빛 밤하늘'],['rain-window','비 오는 창가'],['city-night','도시의 밤'],['fireplace','따뜻한 벽난로'],['snow-night','눈 내리는 밤거리'],['lake-sunset','노을 지는 호수']])for(const width of [375,1440])browserTest(`emotional video themes: ${id} selects and plays real moving frames without changing study at ${width}px`,()=>withApp(width,async page=>{
+for(const [id,name] of [['starry-night','별빛 밤하늘'],['rain-window','비 오는 창가'],['city-night','도시의 밤'],['fireplace','따뜻한 벽난로'],['snow-night','눈 내리는 밤거리'],['lake-sunset','노을 지는 호수'],['anime-sea','별빛 바다와 유성']])for(const width of [375,1440])browserTest(`emotional video themes: ${id} selects and plays real moving frames without changing study at ${width}px`,()=>withApp(width,async page=>{
  const before=await page.evaluate(()=>structuredClone({sessions:fixture.sessions,todos:fixture.todos,cameraRequests:fixtureCameraRequests}));
  const requests=[];page.on('request',r=>{if(r.url().endsWith('.webm'))requests.push(r.url());});
  await page.locator('a[href="#settings"]:visible').first().click();await settingsCategory(page,'공부와 화면');await page.getByRole('button',{name:'배경 테마 변경',exact:true}).click();
@@ -105,16 +105,21 @@ for(const [id,name] of [['starry-night','별빛 밤하늘'],['rain-window','비 
  const card=editor.locator('.atmosphere-option').filter({has:page.getByRole('radio',{name,exact:true})});assert.equal(await card.getByText('영상 라이브',{exact:true}).isVisible(),true);await radio.check();assert.deepEqual(requests,[],'draft does not download video');
  await editor.getByRole('button',{name:'적용',exact:true}).click();await page.getByText('영상 라이브 재생 중',{exact:true}).waitFor();
  const video=page.locator('video[data-atmosphere-video]');await page.waitForFunction(()=>document.querySelector('[data-atmosphere-video]').currentTime>.3);
- assert.match(await video.evaluate(v=>v.currentSrc),new RegExp('/'+id+(['city-night','fireplace','snow-night','lake-sunset'].includes(id)?'-hd':'')+'\\.webm$'));assert.deepEqual(await video.evaluate(v=>({muted:v.muted,loop:v.loop,inline:v.playsInline,stream:v.srcObject})),{muted:true,loop:true,inline:true,stream:null});
+ assert.match(await video.evaluate(v=>v.currentSrc),new RegExp('/'+id+(['city-night','fireplace','snow-night','lake-sunset','anime-sea'].includes(id)?'-hd':'')+'\\.webm$'));assert.deepEqual(await video.evaluate(v=>({muted:v.muted,loop:v.loop,inline:v.playsInline,stream:v.srcObject})),{muted:true,loop:true,inline:true,stream:null});
  async function pixels(){return video.evaluate(v=>{const c=document.createElement('canvas');c.width=320;c.height=180;c.getContext('2d').drawImage(v,0,0,320,180);return {time:v.currentTime,data:[...c.getContext('2d').getImageData(0,0,320,180).data]};});}
  const a=await pixels();await page.waitForFunction(t=>document.querySelector('[data-atmosphere-video]').currentTime>t+1.5,a.time);const b=await pixels();let changed=0;
  for(let i=0;i<a.data.length;i+=4)if(Math.max(...[0,1,2].map(k=>Math.abs(a.data[i+k]-b.data[i+k])))>8)changed++;
  assert.ok(changed>57,`${id} visibly changes more than 0.1% of sampled frame pixels: ${changed}`);
  console.log('Emotional video movement',JSON.stringify({id,width,changed,samples:57600}));
- if(['fireplace','snow-night','lake-sunset'].includes(id)){
-  assert.equal(await video.evaluate(v=>v.videoHeight),1080);assert.ok(Math.abs(await video.evaluate(v=>v.duration)-({fireplace:23,'snow-night':19,'lake-sunset':9}[id]))<.1,'edited loop uses only the calm source range');
+ if(['fireplace','snow-night','lake-sunset','anime-sea'].includes(id)){
+  assert.equal(await video.evaluate(v=>v.videoHeight),1080);assert.ok(Math.abs(await video.evaluate(v=>v.duration)-({fireplace:23,'snow-night':19,'lake-sunset':9,'anime-sea':24}[id]))<.1,'edited loop uses only the calm source range');
   await video.evaluate(v=>{v.currentTime=v.duration-.35;});
   await page.waitForFunction(()=>{const v=document.querySelector('[data-atmosphere-video]');return v.currentTime>.15&&v.currentTime<2&&!v.seeking&&!v.paused&&!v.ended;});
+ }
+ if(id==='anime-sea'){
+  const credits=page.locator('.atmosphere-credits');await credits.locator('summary').click();
+  assert.match(await credits.innerText(),/자체 제작/);assert.doesNotMatch(await credits.innerText(),/Wikimedia|CC BY|CC0/);
+  assert.equal(await credits.locator('a:not([href]),a[href=""]').count(),0,'original artwork has no fabricated licence link');
  }
  await page.getByRole('button',{name:'일시정지',exact:true}).click();await page.waitForFunction(()=>document.querySelector('[data-atmosphere-video]').paused);await page.getByRole('button',{name:'재생',exact:true}).click();await page.getByText('영상 라이브 재생 중',{exact:true}).waitFor();
  await page.evaluate(()=>location.hash='today');await page.getByRole('button',{name:'공부 화면 열기',exact:true}).click();const scene=page.getByRole('region',{name:'풍경 집중 화면'});await scene.getByText(name,{exact:true}).waitFor();await scene.getByText('영상 라이브 재생 중',{exact:true}).waitFor();
@@ -551,7 +556,7 @@ for(const width of [375,1440])browserTest(`atmosphere: theme editor applies, can
  assert.equal(await page.getByRole('button',{name:'배경 테마 변경',exact:true}).count(),1,'background editor entry must be available');
  await page.getByRole('button',{name:'배경 테마 변경',exact:true}).click();
  const editor=page.getByRole('group',{name:'배경 테마 편집',exact:true});await editor.waitFor();
- assert.equal(await editor.getByRole('radio').count(),14);
+ assert.equal(await editor.getByRole('radio').count(),15);
  await editor.getByRole('radio',{name:'별빛 바다',exact:true}).check();await editor.getByRole('radio',{name:'라이브',exact:true}).check();
  await editor.getByRole('button',{name:'취소',exact:true}).click();assert.equal(await page.evaluate(()=>document.documentElement.dataset.studyBackground),'charcoal');
  await page.getByRole('button',{name:'배경 테마 변경',exact:true}).click();await editor.getByRole('radio',{name:'별빛 바다',exact:true}).check();
