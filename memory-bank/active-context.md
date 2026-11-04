@@ -1,16 +1,16 @@
 # Active Context
-- 갱신: 2026-11-04 12:28 JST · 도구: codex
-- 브랜치: fix/study-dashboard-clarity · 제품/운영 SHA c7b906859a9cf330503a3c3f22ba755226e0315e 커밋·푸시 완료. 이후 출시기록은 문서전용이며 실제 HEAD는 gitlog/resume으로 확인한다. 기존 사용자 미커밋 변경을 보존한다.
-- 목표 / 완료 기준: 승인한 풍경 집중 화면의 세션 유지 남은 시간·+1시간 연장을 구현하고 기존 서버 정책/학습·카메라를 유지한 채 공식·전체 Chrome·독립 검토 후 운영 배포한다.
-- 구현 완료: ScenicStudyView는 main의 동일 연장 콜백/기한/처리 상태만 표시한다. 공부·휴식 중 제공, 세션 없으면 숨김, 중복/실패/성공 안내, 기존60분·현재시각+최대2시간 유지. DB/서버/네이티브 변경·새 설치본은 없다.
-- 보호: owner/session별 요청 토큰·AbortController로 계정/세션 변경 시 취소·잠금 정리, 이전 finally가 새 요청을 풀지 않음. 응답은 현재 row의 lease 필드만 합쳐 최신 휴식/종료 정보를 보존한다. 기존 카메라 node/stream/track과 공부 시계는 그대로다.
-- 검증 완료: 실제 Chrome 합성 fixture 신규14/14·실패/취소/생략0(375/1440·공부/휴식·중복·오류/throw·유효한 다른계정 전환·지연응답/휴식·글자200%·텍스트/키보드대비·44px). 독립 재검토 C0/I0/M0. 초기 DTO 타입 오류·계정 잠금·초점 대비 문제를 수정했다.
-- 최종 검증 완료: 공식7 재실행/Dune0·exit0. Chrome 분할1668건 모두 통과(동일4해시 actualStudyMounted317건 성공 보존 + 나머지179파일1351/1351·실패/생략/취소0·281606ms·exit0). 최초 전체1666/1668·팀fixture2fail은 그대로 기록, fixture builder 보정/동일재현2/2 뒤 재검증했다. 최종5해시/diff 통과·독립C/I/M0·180파일 누락/중복0. 단일 전체명령 exit0으로 주장하지 않는다.
-- 운영 배포 완료: Actions41766757443 completed/success·dpl_4SpLh99GuXLpBNJwCmNhANRNzqfa READY/production·정확SHA/운영alias. React/Vite 빌드41.219초, HTML/index-BjauvdUy.js/index-D96r8R7A.css HTTP200·연장 문구/레이아웃/초점 CSS 확인. 직후5분 error/fatal집계는 빈 결과이며 장기/클라이언트 보장은 아니다. Drains 조회404로 외부연결 상태는 미확인, 설정 변경 없음.
-- 다음 단계: 사용자는 공부·카메라를 마친 뒤 웹/앱을 새로고침해 풍경 하단 ‘세션 유지 남은 시간 / +1시간 연장’을 이용한다. 새APK/EXE는 필요 없다. 실제 설치 기기 수용은 별도 승인/유휴 상태에서 진행한다.
-- 근거: [풍경 세션 연장](../docs/verification/2026-11-04-scenic-session-extension.md), prd-scenic-study.md, architecture-map.md.
-- 직전 운영: 애니메이션풍 별빛 바다와 유성 제품698414d·Actions41758240677 success·dpl_9mVCs7quH4akfDfzna6ZmCa5c8iB READY/동일SHA/alias. Chrome1654/1654·공식7/Dune0·독립0·공개자산/영상206/운영재생2/2. [검증](../docs/verification/2026-11-04-anime-sea-video.md).
-- 기존 불변 경계: 주 시작/재개 성공 뒤 풍경·표시전용 재진입·햄버거 공통탭·미니진입 제거/정상복구·시작/회복/카메라/팀/인증/종료 정책 유지. [풍경](../docs/verification/2026-11-02-scenic-start.md), [메뉴](../docs/verification/2026-11-02-scenic-menu.md), [화면순서 이탈](../docs/verification/2026-11-02-layout-editor-exit.md).
-- 미해결: Windows0.1.10 테마 재실행 저장소실 원인 미확정. 이전 격리cold/실제시험 원복은 정상, 사용자 트레이 정상 종료 뒤 같은EXE 재실행 수용은 별도다. [조사](../docs/verification/2026-11-02-theme-restart-diagnosis.md). 항상위는 최소Electron에서도false로 승인보류.
-- 네이티브/보존: Android0.2.4/Windows0.1.10 hosted 화면 공유. 원본 study-room-desktop-current는 read-only. theme-device-acceptance/theme-editor-alignment, prd-tech-feed/prd-windows-desktop, desktop-install-acceptance, .serena/다른output은 이번 stage에서 제외한다.
-- 주의: 현재 실제 앱/계정/설정/기기 카메라·서버 학습 기록을 조작하지 않았다. 실제 설치 Windows/Android 에뮬레이터·물리카메라·장시간 GPU/배터리·DB 전체 digest 검증은 격리 Chrome 수용과 다르다. 사용자는 공부·카메라를 마친 뒤 새로고침한다.
+- 갱신: 2026-11-04 14:07 JST · 도구: codex
+- 브랜치: fix/study-dashboard-clarity · 시작 HEAD aae78c5 · 미커밋 테마 종류 UI 수정 있음. 기존 사용자 변경은 보존한다.
+- 목표 / 완료 기준: 실제 Windows 앱의 애니메이션 배경 누락 원인을 확인하고 이미지 효과/영상/정적 배경의 오해를 유발하는 메뉴·안내를 바로잡아 검증·운영 배포한다.
+- 원인 확인: 승인 전 실제 Windows 접근성 목록은 이전14종/noanime였다. 사용자 공부·카메라 미사용/새로고침 승인 뒤 Ctrl+R·동일 로그인/기존 별빛 바다 유지, 설정 재진입 목록15종/별빛 바다와 유성 확인. 새 영상 미배포나 스크롤만의 문제가 아니라 열린 이전 문서였다. 카탈로그/자산은 변경하지 않는다.
+- 구현: AtmosphereSettings만 종류별 표시. 이미지 효과=끄기/켜기·움직임 강도·영상 아님 안내, 영상=정적 이미지/영상 라이브·화질·실제 재생속도0.75배/1배, 정적=불필요한 움직임/영상 안내 없음. 내부 static/live/intensity·controller/player·학습·카메라·네이티브 불변.
+- 검증 완료: 신규6 실제 Chrome RED(이미지4/static1/video1)→GREEN6/6·실패/생략/취소0·15601ms. settings/scenic375/1440·15종 도달·초안 미다운로드/취소·설정/기록/동일카메라node/stream/track 유지. 독립 shared-reviewer C0/I0/M0·문법/diff 검사 통과.
+- 최초 공식7/Dune0·exit0. 전체 Chrome 종료1674건·1673pass/1fail·생략/취소0·1552389ms: baseline owner-B 시험76행 pointer interception(연장 assertions 이전). 같은 소스 단독 pointer-rerun1/1 통과해 간헐적임을 확인했으며 정확 원인/실사용 pointer 수용은 미확정이다. 앱 component 해시는 그대로다.
+- 최종 검증 완료: B재진입만 실제키보드로 보강/기존assertions유지·영상 다크200%2건 추가 뒤 공식7/Dune0 재통과, Chrome lease14+종류8=22/22·실패/생략/취소0·57027ms·exit0, B키보드반복3/3 통과. 제품동일해시·최종2해시/diff·독립C/I/M0. 원전체1673/1674 + 최종22/22의 분할 coverage1676건(중복19제외)이며 단일전체전건통과/원pointer해결로 표현하지 않는다.
+- 다음 단계: 기능 commit/push → 기존Actions production 배포 → 정확SHA READY/alias/HTTP200·새 라벨/영상Range 확인 → 승인 범위의 실제앱 수정UI 로드 확인/설정불변 → 출시기록push·claim해제.
+- 문서/claim: prd-study-themes.md, prd-scenic-study.md, [종류별 설정 검증](../docs/verification/2026-11-04-theme-type-controls.md). owner codex-theme-controls-1104. 새APK/EXE는 없다.
+- 직전 운영: 세션 연장 제품c7b9068/Actions41766757443 success·dpl_4SpLh99GuXLpBNJwCmNhANRNzqfa READY/동일SHA/alias·웹200. 신규14·최종Chrome 분할1668건·공식7/Dune0·독립0·5해시. [검증](../docs/verification/2026-11-04-scenic-session-extension.md). 이전 팀fixture2fail/분할 gate 기록은 그대로 보존한다.
+- 애니메이션 원본: 제품698414d/Actions41758240677 success·dpl_9mVCs7quH4akfDfzna6ZmCa5c8iB READY. 별빛 바다와 유성24초/720·1080 실제영상과 기존 별빛 바다 이미지효과는 별개다. [검증](../docs/verification/2026-11-04-anime-sea-video.md).
+- 기존 미해결: Windows0.1.10 정상 종료/cold 재실행 때 테마 소실 원인은 미확정이며 이번 Ctrl+R 저장유지를 cold 해결로 확대하지 않는다. [조사](../docs/verification/2026-11-02-theme-restart-diagnosis.md). 항상위는 최소Electron에서도false로 승인보류.
+- 보존: Android0.2.4/Windows0.1.10 hosted 화면 공유. 원본 study-room-desktop-current는 read-only. theme-device-acceptance/theme-editor-alignment, prd-tech-feed/prd-windows-desktop, desktop-install-acceptance, .serena/다른output은 이번 stage에서 제외한다.
+- 주의: 실제 앱에 승인한 새로고침·설정 탐색만 수행했고 테마 적용/학습 시작·휴식·종료/회복 제출/서버 기록 쓰기는 하지 않았다. Android 에뮬레이터·물리 카메라/장시간 GPU·배터리·DB digest 수용은 이번 범위에서 미실행이다.

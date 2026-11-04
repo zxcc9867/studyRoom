@@ -1,5 +1,9 @@
 # Progress
 
+## 테마 종류별 메뉴와 실제 Windows 목록
+
+- 검증완료/배포준비: 실제앱 이전14종은 승인Ctrl+R 뒤15종/새영상·기존테마/로그인 유지 확인. 이미지효과 끄기/켜기·영상 재생/화질/속도 구분, 저장/player/학습·카메라 불변. 공식7/Dune0·최종관련22/22·B키보드3반복·2해시/diff·독립C/I/M0. 원전체1673/1674+최종22의 분할coverage1676(중복19제외), 원pointer1실패/같은코드단독1pass는 보존·정확원인/실사용수용은 미확정이다. [검증](../docs/verification/2026-11-04-theme-type-controls.md).
+
 ## 풍경 화면 세션 연장
 
 - 운영배포 완료: 세션 유지 남은 시간·+1시간 연장을 공부/휴식 중 제공, 세션 없으면 숨김. 기존60분/최대2시간·동일 RPC·기록/카메라 보존. 신규14/14·최종Chrome 분할1668건(동일소스317보존+1351/1351재실행)·실패/생략/취소0·공식7/Dune0·독립C/I/M0·5해시/diff 통과. 최초 팀fixture2fail/보정 후 분할 재검증은 별도 기록. 제품c7b9068·Actions41766757443 success·dpl_4SpLh99GuXLpBNJwCmNhANRNzqfa READY/동일SHA/alias·HTML/새JS/CSS200/연장표시확인. 새APK/EXE·실제기록/설정 조작 없음. [검증](../docs/verification/2026-11-04-scenic-session-extension.md).

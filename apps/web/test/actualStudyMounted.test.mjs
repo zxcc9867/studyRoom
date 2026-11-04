@@ -73,7 +73,8 @@ browserTest('scenic lease: a usable new account can extend while an old request 
  await page.evaluate(()=>{fixture.holdLease=true;});await page.getByRole('button',{name:'공부 화면 열기',exact:true}).click();let scene=page.getByRole('region',{name:'풍경 집중 화면'});await scene.getByRole('button',{name:'+1시간 연장',exact:true}).click();await page.waitForFunction(()=>typeof fixture.releaseLease==='function');
  await page.evaluate(()=>{fixture.releaseOldLease=fixture.releaseLease;fixture.changeOwner(true);});await scene.waitFor({state:'detached'});await page.getByRole('button',{name:'공부 화면 열기',exact:true}).waitFor();await page.clock.runFor(200);
  const camera=page.getByRole('dialog',{name:'카메라 인증 필요',exact:true});if(await camera.isVisible()){await page.keyboard.press('Escape');await camera.waitFor({state:'detached'});}
- await page.getByRole('button',{name:'공부 화면 열기',exact:true}).click();scene=page.getByRole('region',{name:'풍경 집중 화면'});await scene.waitFor();
+ // Request ownership is the contract here; activate the native button by keyboard after account-driven focus restoration.
+ const reopen=page.getByRole('button',{name:'공부 화면 열기',exact:true});assert.equal(await reopen.isVisible(),true);assert.equal(await reopen.isEnabled(),true);await reopen.focus();assert.equal(await reopen.evaluate(el=>el===document.activeElement),true);await page.keyboard.press('Enter');scene=page.getByRole('region',{name:'풍경 집중 화면'});await scene.waitFor();
  assert.equal(await scene.getByRole('button',{name:'+1시간 연장',exact:true}).isEnabled(),true,'previous account cannot leave the new lease locked');
  await scene.getByRole('button',{name:'+1시간 연장',exact:true}).click();await page.waitForFunction(()=>fixture.calls.filter(c=>c.name==='extend_study_session_lease').length===2);
  await page.evaluate(()=>fixture.releaseOldLease());await page.clock.runFor(100);
@@ -444,7 +445,7 @@ for(const [width,scale,scheme] of [[375,1,'light'],[375,2,'dark'],[1440,1,'dark'
  assert.equal(await dialog.evaluate(el=>Number(getComputedStyle(el.closest('.modal-backdrop')).zIndex)>Number(getComputedStyle(document.querySelector('.scenic-study')).zIndex)),true,'the backdrop must paint above the fixed scenic presentation');
  const style=await change.evaluate(el=>{const s=getComputedStyle(el),probe=document.createElement('span');probe.style.background='var(--study-surface)';el.append(probe);const surface=getComputedStyle(probe).backgroundColor;probe.remove();return {shadow:s.boxShadow,background:s.backgroundColor,surface};});
  assert.equal(style.shadow,'none','settings controls cannot retain the legacy raised button shadow');assert.equal(style.background,style.surface,'secondary control uses the common surface');
- await change.click();await dialog.getByRole('radio',{name:'비 오는 서재',exact:true}).check();await dialog.getByRole('radio',{name:'라이브',exact:true}).check();
+ await change.click();await dialog.getByRole('radio',{name:'비 오는 서재',exact:true}).check();await dialog.getByRole('radio',{name:'켜기',exact:true}).check();
  assert.equal(await dialog.evaluate(el=>el.scrollWidth<=el.clientWidth),true,'expanded editor fits the actual dialog width');
  await readableGroup(dialog.locator('h2,h3,p,legend,.atmosphere-option-name,button'));
  for(const button of await dialog.getByRole('button').all()){await button.scrollIntoViewIfNeeded();const box=await button.boundingBox();assert.ok(box.height>=44&&box.width>=44);assert.equal(await button.evaluate(el=>getComputedStyle(el).boxShadow),'none');assert.equal(await button.evaluate(el=>{const r=el.getBoundingClientRect();return el.contains(document.elementFromPoint(r.x+r.width/2,r.y+r.height/2));}),true,'the actual dialog control must be above the scenic dock and header, not merely visible in the DOM');}
@@ -628,6 +629,43 @@ browserTest('scenic: charcoal and failed decorative image keep readable usable c
  assert.equal(await page.evaluate(()=>getComputedStyle(document.body).backgroundColor),original);
 }));
 
+for(const width of [375,1440])browserTest(`theme type controls: video options reflow with double text in dark scenery at ${width}px`,()=>withApp(width,async page=>{
+ await page.emulateMedia({colorScheme:'dark'});await page.waitForFunction(()=>document.documentElement.dataset.studyTheme==='dark');await page.addStyleTag({content:'html{font-size:200%;}'});const before=await page.evaluate(()=>structuredClone({sessions:fixture.sessions,todos:fixture.todos,preferences:localStorage.getItem('study-room-atmosphere'),cameraRequests:fixtureCameraRequests}));
+ await page.getByRole('button',{name:'공부 화면 열기',exact:true}).click();await page.getByRole('button',{name:'풍경 배경 설정',exact:true}).click();const dialog=page.getByRole('dialog',{name:'풍경 배경 설정',exact:true});await dialog.getByRole('button',{name:'배경 테마 변경',exact:true}).click();const editor=dialog.getByRole('group',{name:'배경 테마 편집',exact:true});await editor.getByRole('radio',{name:'별빛 바다와 유성',exact:true}).check();
+ await readableGroup(editor.locator('legend,.atmosphere-controls label,p,button'));await touchControls(editor.locator('.atmosphere-controls label,button'));assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),true);
+ for(const label of await editor.locator('.atmosphere-controls label').all()){const box=await label.boundingBox();assert.ok(box.x>=0&&box.x+box.width<=width+1);assert.equal(await label.evaluate(el=>el.scrollWidth<=el.clientWidth),true);}
+ await scenicScreenshot(page,`theme-type-video-dark-${width}-2x`);await editor.getByRole('button',{name:'취소',exact:true}).click();assert.deepEqual(await page.evaluate(()=>({sessions:fixture.sessions,todos:fixture.todos,preferences:localStorage.getItem('study-room-atmosphere'),cameraRequests:fixtureCameraRequests})),before);
+}));
+
+for(const kind of ['static','video'])browserTest(`theme type controls: ${kind} offers only its applicable playback information`,()=>withApp(375,async page=>{
+ await page.locator('a[href="#settings"]:visible').first().click();await settingsCategory(page,'공부와 화면');await page.getByRole('button',{name:'배경 테마 변경',exact:true}).click();const editor=page.getByRole('group',{name:'배경 테마 편집',exact:true});
+ if(kind==='static'){assert.equal(await editor.getByText(/영상은 적용 후 소리 없이 반복 재생됩니다/).count(),0);assert.equal(await editor.locator('.atmosphere-controls').count(),0);}
+ else{await editor.getByRole('radio',{name:'별빛 바다와 유성',exact:true}).check();const speed=editor.getByRole('group',{name:'재생 속도',exact:true});await speed.waitFor();assert.equal(await speed.getByRole('radio',{name:'0.75배',exact:true}).isChecked(),true);assert.equal(await speed.getByRole('radio',{name:'1배',exact:true}).count(),1);assert.equal(await editor.getByRole('group',{name:'움직임 강도',exact:true}).count(),0);}
+}));
+
+for(const width of [375,1440])for(const context of ['settings','scenic'])browserTest(`theme type controls: ${context} distinguishes effects video and static without changing study at ${width}px`,()=>withApp(width,async page=>{
+ const requests=[];page.on('request',request=>{if(/\/themes\/video\/.*\.(webm|mp4)/.test(request.url()))requests.push(request.url());});
+ if(context==='scenic'){
+  const tools=page.locator('.focus-tools');await tools.locator('summary').first().click();await tools.getByRole('button',{name:'카메라 감시 켜기',exact:true}).click();await tools.getByRole('button',{name:'카메라 감시 끄기',exact:true}).waitFor();
+ }
+ await page.evaluate(()=>{const video=[...document.querySelectorAll('video')].find(v=>v.srcObject);window.themeTypeBefore={sessions:structuredClone(fixture.sessions),todos:structuredClone(fixture.todos),recoveries:structuredClone(fixture.recoveries),preferences:localStorage.getItem('study-room-atmosphere'),cameraRequests:fixtureCameraRequests,node:video,stream:video?.srcObject,track:video?.srcObject.getVideoTracks()[0]};});
+ let container=page;
+ if(context==='scenic'){
+  await page.getByRole('button',{name:'공부 화면 열기',exact:true}).click();await page.getByRole('button',{name:'풍경 배경 설정',exact:true}).click();container=page.getByRole('dialog',{name:'풍경 배경 설정',exact:true});
+ }else{await page.locator('a[href="#settings"]:visible').first().click();await settingsCategory(page,'공부와 화면');}
+ await container.getByRole('button',{name:'배경 테마 변경',exact:true}).click();const editor=container.getByRole('group',{name:'배경 테마 편집',exact:true});
+ assert.equal(await editor.locator('.atmosphere-option').count(),15);const anime=editor.getByRole('radio',{name:'별빛 바다와 유성',exact:true});await anime.scrollIntoViewIfNeeded();assert.equal(await anime.isVisible(),true,'the video theme can be reached in the actual editor');
+ await editor.getByRole('radio',{name:'별빛 바다',exact:true}).check();const effects=editor.getByRole('group',{name:'이미지 효과',exact:true});await effects.waitFor();await effects.getByRole('radio',{name:'켜기',exact:true}).check();
+ assert.equal(await effects.getByRole('radio',{name:'끄기',exact:true}).count(),1);assert.equal(await editor.getByRole('radio',{name:'라이브',exact:true}).count(),0);
+ assert.equal(await editor.getByRole('group',{name:'움직임 강도',exact:true}).isVisible(),true);assert.equal(await editor.getByRole('group',{name:'영상 화질',exact:true}).count(),0);assert.equal(await editor.getByText(/영상은 적용 후 소리 없이 반복 재생됩니다/).count(),0);
+ await effects.getByRole('radio',{name:'끄기',exact:true}).check();assert.equal(await editor.getByRole('group',{name:'움직임 강도',exact:true}).count(),0);await effects.getByRole('radio',{name:'켜기',exact:true}).check();await scenicScreenshot(page,`theme-type-image-${context}-${width}`);
+ await anime.check();const playback=editor.getByRole('group',{name:'영상 재생',exact:true});await playback.waitFor();assert.equal(await playback.getByRole('radio',{name:'영상 라이브',exact:true}).isChecked(),true);assert.equal(await editor.getByRole('group',{name:'움직임 강도',exact:true}).count(),0);const speed=editor.getByRole('group',{name:'재생 속도',exact:true});assert.equal(await speed.getByRole('radio',{name:'0.75배',exact:true}).isChecked(),true);await speed.getByRole('radio',{name:'1배',exact:true}).check();assert.equal(await editor.getByRole('group',{name:'이미지 효과',exact:true}).count(),0);assert.equal(await editor.getByRole('group',{name:'영상 화질',exact:true}).isVisible(),true);await scenicScreenshot(page,`theme-type-video-${context}-${width}`);
+ await playback.getByRole('radio',{name:'정적 이미지',exact:true}).check();assert.equal(await editor.getByRole('group',{name:'영상 화질',exact:true}).count(),0);assert.equal(await editor.getByText(/영상은 적용 후 소리 없이 반복 재생됩니다/).count(),0);
+ await editor.getByRole('radio',{name:'새벽 도시',exact:true}).check();assert.equal(await editor.locator('.atmosphere-controls').count(),0);assert.equal(await editor.getByText(/영상은 적용 후 소리 없이 반복 재생됩니다/).count(),0);assert.deepEqual(requests,[],'draft selection never downloads a video');
+ await editor.getByRole('button',{name:'취소',exact:true}).click();if(context==='scenic')await container.getByRole('button',{name:'풍경 배경 설정 닫기',exact:true}).click();
+ assert.deepEqual(await page.evaluate(()=>{const b=themeTypeBefore,v=[...document.querySelectorAll('video')].find(v=>v.srcObject);return {sessions:JSON.stringify(fixture.sessions)===JSON.stringify(b.sessions),todos:JSON.stringify(fixture.todos)===JSON.stringify(b.todos),recoveries:JSON.stringify(fixture.recoveries)===JSON.stringify(b.recoveries),preferences:localStorage.getItem('study-room-atmosphere')===b.preferences,cameraRequests:fixtureCameraRequests===b.cameraRequests,sameNode:v===b.node,sameStream:v?.srcObject===b.stream,sameTrack:v?.srcObject?.getVideoTracks()[0]===b.track,track:b.track?.readyState};}),{sessions:true,todos:true,recoveries:true,preferences:true,cameraRequests:true,sameNode:true,sameStream:true,sameTrack:true,track:context==='scenic'?'live':undefined});
+}));
+
 for(const width of [375,1440])browserTest(`atmosphere: theme editor applies, cancels and preserves study at ${width}px`,()=>withApp(width,async page=>{
  const before=await page.evaluate(()=>structuredClone({sessions:fixture.sessions,todos:fixture.todos,recoveries:fixture.recoveries}));
  await page.locator('a[href="#settings"]:visible').first().click();await settingsCategory(page,'공부와 화면');
@@ -635,10 +673,10 @@ for(const width of [375,1440])browserTest(`atmosphere: theme editor applies, can
  await page.getByRole('button',{name:'배경 테마 변경',exact:true}).click();
  const editor=page.getByRole('group',{name:'배경 테마 편집',exact:true});await editor.waitFor();
  assert.equal(await editor.getByRole('radio').count(),15);
- await editor.getByRole('radio',{name:'별빛 바다',exact:true}).check();await editor.getByRole('radio',{name:'라이브',exact:true}).check();
+ await editor.getByRole('radio',{name:'별빛 바다',exact:true}).check();await editor.getByRole('radio',{name:'켜기',exact:true}).check();
  await editor.getByRole('button',{name:'취소',exact:true}).click();assert.equal(await page.evaluate(()=>document.documentElement.dataset.studyBackground),'charcoal');
  await page.getByRole('button',{name:'배경 테마 변경',exact:true}).click();await editor.getByRole('radio',{name:'별빛 바다',exact:true}).check();
- await editor.getByRole('radio',{name:'라이브',exact:true}).check();await editor.getByRole('button',{name:'적용',exact:true}).click();
+ await editor.getByRole('radio',{name:'켜기',exact:true}).check();await editor.getByRole('button',{name:'적용',exact:true}).click();
  assert.equal(await page.evaluate(()=>document.documentElement.dataset.studyBackground),'star-sea');
  assert.equal(await page.evaluate(()=>JSON.parse(localStorage.getItem('study-room-atmosphere')).motion),'live');
  await page.getByRole('button',{name:'일시정지',exact:true}).click();assert.equal(await page.evaluate(()=>document.documentElement.dataset.studyMotion),'paused');
@@ -655,7 +693,7 @@ for(const width of [375,476,868,1440])for(const theme of ['light','dark'])for(co
  const before=await page.evaluate(()=>structuredClone({sessions:fixture.sessions,todos:fixture.todos,recoveries:fixture.recoveries,cameraRequests:fixtureCameraRequests}));
  await page.locator('a[href="#settings"]:visible').first().click();await settingsCategory(page,'공부와 화면');
  await page.getByRole('button',{name:'배경 테마 변경',exact:true}).click();const editor=page.getByRole('group',{name:'배경 테마 편집',exact:true});
- await editor.getByRole('radio',{name:'별빛 바다',exact:true}).check();await editor.getByRole('radio',{name:'라이브',exact:true}).check();
+ await editor.getByRole('radio',{name:'별빛 바다',exact:true}).check();await editor.getByRole('radio',{name:'켜기',exact:true}).check();
  for(const group of await editor.locator('.atmosphere-controls').all()){
   const labels=await group.locator('label').all(),{a,b,legend}=await group.evaluate(group=>{const boxes=[...group.querySelectorAll('label')].map(label=>label.getBoundingClientRect().toJSON());return {a:boxes[0],b:boxes[1],legend:group.querySelector('legend').getBoundingClientRect().toJSON()};});
   assert.ok(Math.abs(a.y-b.y)<1||Math.abs(a.x-b.x)<1,'paired options align on one row or stack on the same edge');assert.ok(Math.abs(a.width-b.width)<1,'paired options have equal widths');

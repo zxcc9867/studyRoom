@@ -34,11 +34,11 @@ export default function AtmosphereSettings() {
         <span className="atmosphere-option-kind" id={`${id}-${theme.id}-kind`}>{atmosphereKind(theme)}</span>
       </label>)}</div>
       {liveAvailable && <>
-        <fieldset className="atmosphere-controls"><legend>배경 움직임</legend>
-          <div className="atmosphere-control-options">{(['static', 'live'] as const).map(value => <label key={value}><input type="radio" name={`${id}-motion`} checked={draft.motion === value} onChange={() => setDraft({...draft, motion: value, paused: false})} /><span>{value === 'live' ? '라이브' : '정적'}</span></label>)}</div>
+        <fieldset className="atmosphere-controls"><legend>{draftTheme?.video ? '영상 재생' : '이미지 효과'}</legend>
+          <div className="atmosphere-control-options">{(['static', 'live'] as const).map(value => <label key={value}><input type="radio" name={`${id}-motion`} checked={draft.motion === value} onChange={() => setDraft({...draft, motion: value, paused: false})} /><span>{draftTheme?.video ? value === 'live' ? '영상 라이브' : '정적 이미지' : value === 'live' ? '켜기' : '끄기'}</span></label>)}</div>
         </fieldset>
-        {draft.motion === 'live' && <fieldset className="atmosphere-controls"><legend>움직임 강도</legend>
-          <div className="atmosphere-control-options">{(['subtle', 'normal'] as const).map(value => <label key={value}><input type="radio" name={`${id}-intensity`} checked={draft.intensity === value} onChange={() => setDraft({...draft, intensity: value})} /><span>{value === 'subtle' ? '잔잔하게' : '보통'}</span></label>)}</div>
+        {draft.motion === 'live' && <fieldset className="atmosphere-controls"><legend>{draftTheme?.video ? '재생 속도' : '움직임 강도'}</legend>
+          <div className="atmosphere-control-options">{(['subtle', 'normal'] as const).map(value => <label key={value}><input type="radio" name={`${id}-intensity`} checked={draft.intensity === value} onChange={() => setDraft({...draft, intensity: value})} /><span>{draftTheme?.video ? value === 'subtle' ? '0.75배' : '1배' : value === 'subtle' ? '잔잔하게' : '보통'}</span></label>)}</div>
         </fieldset>}
       </>}
       {draftTheme?.video && draft.motion === 'live' && <>
@@ -49,7 +49,7 @@ export default function AtmosphereSettings() {
         <p>선택 화질: {atmosphereVideoSource(draftTheme, draft.quality, current.mobile)?.resolution}p</p>
         {!draftTheme.videoSources?.[1080] && <p id={`${id}-quality-limit`}>이 영상의 최대 화질은 720p입니다.</p>}
       </>}
-      <p>이 기기에 적용됩니다. 영상은 적용 후 소리 없이 반복 재생됩니다.</p>
+      <p>이 기기에 적용됩니다.{draft.motion === 'live' && (draftTheme?.video ? ' 영상은 적용 후 소리 없이 반복 재생됩니다.' : ' 이미지에 효과를 더하며 영상은 아닙니다.')}</p>
       <div className="settings-actions"><button type="button" className="secondary" onClick={closeEditor}>취소</button><button type="button" className="primary" onClick={() => {controller.setPreferences(draft); closeEditor();}}>적용</button></div>
     </fieldset>}
     {current.motion === 'live' && <div className="atmosphere-playback"><span role="status">{atmospherePlayback(current)}</span>{currentTheme.video && current.videoStatus === 'error' && <button type="button" className="secondary" onClick={()=>controller.retryVideo()}>영상 다시 시도</button>}<button type="button" className="secondary" aria-pressed={current.paused} onClick={() => controller.setPreferences({...current, paused: !current.paused})}>{current.paused ? '재생' : '일시정지'}</button></div>}
