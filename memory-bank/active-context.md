@@ -1,13 +1,14 @@
 # Active Context
-- 갱신: 2026-11-04 12:22 JST · 도구: codex
-- 브랜치: fix/study-dashboard-clarity · 시작 HEAD c4b0938 · 미커밋 변경 있음. 기존 사용자 변경은 보존하며 이번 경로만 stage한다.
+- 갱신: 2026-11-04 12:28 JST · 도구: codex
+- 브랜치: fix/study-dashboard-clarity · 제품/운영 SHA c7b906859a9cf330503a3c3f22ba755226e0315e 커밋·푸시 완료. 이후 출시기록은 문서전용이며 실제 HEAD는 gitlog/resume으로 확인한다. 기존 사용자 미커밋 변경을 보존한다.
 - 목표 / 완료 기준: 승인한 풍경 집중 화면의 세션 유지 남은 시간·+1시간 연장을 구현하고 기존 서버 정책/학습·카메라를 유지한 채 공식·전체 Chrome·독립 검토 후 운영 배포한다.
 - 구현 완료: ScenicStudyView는 main의 동일 연장 콜백/기한/처리 상태만 표시한다. 공부·휴식 중 제공, 세션 없으면 숨김, 중복/실패/성공 안내, 기존60분·현재시각+최대2시간 유지. DB/서버/네이티브 변경·새 설치본은 없다.
 - 보호: owner/session별 요청 토큰·AbortController로 계정/세션 변경 시 취소·잠금 정리, 이전 finally가 새 요청을 풀지 않음. 응답은 현재 row의 lease 필드만 합쳐 최신 휴식/종료 정보를 보존한다. 기존 카메라 node/stream/track과 공부 시계는 그대로다.
 - 검증 완료: 실제 Chrome 합성 fixture 신규14/14·실패/취소/생략0(375/1440·공부/휴식·중복·오류/throw·유효한 다른계정 전환·지연응답/휴식·글자200%·텍스트/키보드대비·44px). 독립 재검토 C0/I0/M0. 초기 DTO 타입 오류·계정 잠금·초점 대비 문제를 수정했다.
 - 최종 검증 완료: 공식7 재실행/Dune0·exit0. Chrome 분할1668건 모두 통과(동일4해시 actualStudyMounted317건 성공 보존 + 나머지179파일1351/1351·실패/생략/취소0·281606ms·exit0). 최초 전체1666/1668·팀fixture2fail은 그대로 기록, fixture builder 보정/동일재현2/2 뒤 재검증했다. 최종5해시/diff 통과·독립C/I/M0·180파일 누락/중복0. 단일 전체명령 exit0으로 주장하지 않는다.
-- 다음 단계: 기능 커밋·push → 기존 vercel-production.yml dispatch → 정확 SHA READY/production alias/HTTP200·새 JS/CSS 확인 → 출시 문서 커밋·push·claim 해제.
-- 근거: [풍경 세션 연장](../docs/verification/2026-11-04-scenic-session-extension.md), prd-scenic-study.md, architecture-map.md. claim owner codex-scenic-lease-1104.
+- 운영 배포 완료: Actions41766757443 completed/success·dpl_4SpLh99GuXLpBNJwCmNhANRNzqfa READY/production·정확SHA/운영alias. React/Vite 빌드41.219초, HTML/index-BjauvdUy.js/index-D96r8R7A.css HTTP200·연장 문구/레이아웃/초점 CSS 확인. 직후5분 error/fatal집계는 빈 결과이며 장기/클라이언트 보장은 아니다. Drains 조회404로 외부연결 상태는 미확인, 설정 변경 없음.
+- 다음 단계: 사용자는 공부·카메라를 마친 뒤 웹/앱을 새로고침해 풍경 하단 ‘세션 유지 남은 시간 / +1시간 연장’을 이용한다. 새APK/EXE는 필요 없다. 실제 설치 기기 수용은 별도 승인/유휴 상태에서 진행한다.
+- 근거: [풍경 세션 연장](../docs/verification/2026-11-04-scenic-session-extension.md), prd-scenic-study.md, architecture-map.md.
 - 직전 운영: 애니메이션풍 별빛 바다와 유성 제품698414d·Actions41758240677 success·dpl_9mVCs7quH4akfDfzna6ZmCa5c8iB READY/동일SHA/alias. Chrome1654/1654·공식7/Dune0·독립0·공개자산/영상206/운영재생2/2. [검증](../docs/verification/2026-11-04-anime-sea-video.md).
 - 기존 불변 경계: 주 시작/재개 성공 뒤 풍경·표시전용 재진입·햄버거 공통탭·미니진입 제거/정상복구·시작/회복/카메라/팀/인증/종료 정책 유지. [풍경](../docs/verification/2026-11-02-scenic-start.md), [메뉴](../docs/verification/2026-11-02-scenic-menu.md), [화면순서 이탈](../docs/verification/2026-11-02-layout-editor-exit.md).
 - 미해결: Windows0.1.10 테마 재실행 저장소실 원인 미확정. 이전 격리cold/실제시험 원복은 정상, 사용자 트레이 정상 종료 뒤 같은EXE 재실행 수용은 별도다. [조사](../docs/verification/2026-11-02-theme-restart-diagnosis.md). 항상위는 최소Electron에서도false로 승인보류.

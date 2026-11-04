@@ -61,7 +61,12 @@ Remove-Item Env:FEED_BROWSER_MODULE,Env:FEED_BROWSER_EXECUTABLE -ErrorAction Sil
 
 ## 출시
 
-- 검증 완료·배포 준비. 기존 feature branch의 정확 SHA로 GitHub Actions production 배포를 실행하고 READY·alias·HTTP200·새 JS/CSS를 확인한다.
+- 배포 완료: 제품 커밋 `c7b906859a9cf330503a3c3f22ba755226e0315e`, feature branch `fix/study-dashboard-clarity`에 커밋·푸시. 기존 사용자 dirty 파일은 포함하지 않았다.
+- GitHub Actions [41766757443](https://github.com/zxcc9867/studyRoom/actions/runs/41766757443): completed/success·동일 headSha·모든 배포 단계 성공.
+- Vercel `dpl_4SpLh99GuXLpBNJwCmNhANRNzqfa`: READY/production·동일 SHA·프로젝트 `prj_u2Q9FKwNeVjwwtVOjuXNMZRpkR3g`·기존 팀. [운영](https://study-room-attendance.vercel.app) alias 할당 확인. React/Vite 빌드41.219초(buildingAt→ready).
+- 2026-11-04 12:26:36 JST 공개 HTTP 검사: HTML, `/assets/index-BjauvdUy.js`, `/assets/index-D96r8R7A.css` 모두200. JS의 남은시간/+1시간/연장중 문구·CSS의 lease 행/범위지정 keyboard focus를 확인했다. bytes/SHA256은 output/scenic-lease-1104/production-http.json에 남겼다.
+- 직후5분 해당 deployment의 error/fatal 집계는 빈 결과였다. 이는 클라이언트 오류/장기간 안정성 보장이 아니다. 프로젝트 Drains 조회는404여서 외부 로그 연결 상태는 미확인이고 설정을 변경하지 않았다.
+- CI 기존 Node20 action→24 강제실행/ubuntu-latest26 이전 경고는 기능 오류와 구분한다. 이번 변경에서 workflow/권한/결제/환경변수는 수정하지 않았다.
 - 기존 APK/EXE가 hosted 웹을 공유하므로 새 설치본은 필요 없다. 사용자는 공부·카메라를 마친 뒤 새로고침한다.
 - 근거 계약: memory-bank/implementation-plan.md의 세션 유지 정책, supabase/migrations/20260716132227_cap_session_lease_remaining_time.sql. 이번 작업은 라이브 DB 스키마/함수 상태를 바꾸거나 재확인한 것이 아니다.
 - 공식 참고: [Supabase RPC](https://supabase.com/docs/reference/javascript/rpc), [changelog](https://supabase.com/changelog). SDK·서버 계약 업그레이드는 하지 않았다.

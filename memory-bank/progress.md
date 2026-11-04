@@ -2,7 +2,7 @@
 
 ## 풍경 화면 세션 연장
 
-- 검증 완료 / 배포 준비: 세션 유지 남은 시간·+1시간 연장을 공부/휴식 중 제공, 세션 없으면 숨김. 기존60분/최대2시간·동일 RPC·기록/카메라 보존. 신규14/14·최종Chrome 분할1668건(동일소스317보존+1351/1351재실행)·실패/생략/취소0·공식7/Dune0·독립C/I/M0·5해시/diff 통과. 최초 전체1666/1668의 팀fixture2fail은 SDK builder 보정 후 같은재현2/2 및179파일 재검증으로 해소했으며 단일 전체exit0은 아니다. 정확 SHA 운영 배포는 대기다. [검증](../docs/verification/2026-11-04-scenic-session-extension.md).
+- 운영배포 완료: 세션 유지 남은 시간·+1시간 연장을 공부/휴식 중 제공, 세션 없으면 숨김. 기존60분/최대2시간·동일 RPC·기록/카메라 보존. 신규14/14·최종Chrome 분할1668건(동일소스317보존+1351/1351재실행)·실패/생략/취소0·공식7/Dune0·독립C/I/M0·5해시/diff 통과. 최초 팀fixture2fail/보정 후 분할 재검증은 별도 기록. 제품c7b9068·Actions41766757443 success·dpl_4SpLh99GuXLpBNJwCmNhANRNzqfa READY/동일SHA/alias·HTML/새JS/CSS200/연장표시확인. 새APK/EXE·실제기록/설정 조작 없음. [검증](../docs/verification/2026-11-04-scenic-session-extension.md).
 
 ## 오리지널 애니메이션풍 별빛 바다와 유성
 

@@ -1,6 +1,6 @@
 # PRD: 풍경 집중 화면과 Windows 미니 창
 
-- 풍경 세션 연장 검증 완료/배포 준비: 남은 유지시간·+1시간, active/paused·동일RPC60분/최대2시간·owner/session 요청보호·기록/카메라 보존. 신규14/14·최종Chrome 분할1668건·공식7/Dune0·독립C/I/M0·5해시/diff 통과. 최초 팀fixture2fail과 분할 재검증을 별도 기록한다. [검증](../docs/verification/2026-11-04-scenic-session-extension.md).
+- 풍경 세션 연장 운영배포 완료: 남은 유지시간·+1시간, active/paused·동일RPC60분/최대2시간·owner/session 요청보호·기록/카메라 보존. 신규14/14·최종Chrome 분할1668건·공식7/Dune0·독립C/I/M0·5해시/diff 통과. 제품c7b9068/Actions41766757443 success·dpl_4SpLh99GuXLpBNJwCmNhANRNzqfa READY/동일SHA/alias·HTML/새JS/CSS200. 최초 팀fixture2fail과 분할 재검증을 별도 기록, 새설치/실제기록 조작 없음. [검증](../docs/verification/2026-11-04-scenic-session-extension.md).
 
 - 감성 루프3종·미지원1080p 숨김 운영완료: 영상8/전체14·23/19/9초720/1080. Chrome1648/1648·공식7/Dune0·독립C/I/M0·19해시/diff통과. sourcef07b2c8/Actions41670977196 success·dpl_CjPuFEvf8b6zLsSNaFZQ9paq2Q7V READY·동일SHA/운영alias·HTML/JS/CSS/이미지200·영상6Range206·격리운영재생/loop6/6. 학습/카메라/native/실제설정 불변·새설치없음. [검증](../docs/verification/2026-11-04-live-video-expansion.md).
 
