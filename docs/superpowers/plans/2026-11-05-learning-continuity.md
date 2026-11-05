@@ -62,5 +62,5 @@ test('null unentered scores do not dilute explicit ratings',()=>{
 ## Release checklist (controller)
 - [x] Task-scoped review after each task; final independent whole-feature review. Resolve important/security/data blockers before release.
 - [x] ai.ps1 verify --project . (official7 + Dune), full real Chrome suite with explicit executable/module; diff/security/immutable hashes.
-- [ ] Remote schema/policies inspect before applying reviewed additive migration; keep old-column count/digest and grants, apply via MCP, compare originals and advisors; no real account test writes.
+- [x] Remote schema/policies inspect before applying reviewed additive migration; keep old-column count/digest and grants, apply via MCP, compare originals and advisors; no real account test writes.
 - [ ] Feature branch push, existing Actions production workflow, exact SHA success/READY/alias/HTTP200/new markers, native actual reload only with fresh idle approval. Docs/progress/troubleshooting/architecture updates, explicit residual acceptance limits.

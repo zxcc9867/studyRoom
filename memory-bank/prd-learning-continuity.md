@@ -39,11 +39,11 @@
 - 이전 APK/EXE는 hosted 공통 화면을 사용하며 native 계약/설치파일을 변경하지 않는다.
 
 ## 7. Functional Requirements
-- [x] 기존 reflection에 선택적 context_todo_id, 자료 URL/위치, note_kind 메타데이터만 추가하고 note/next_action을 재사용한다 (로컬 저장 계층; 운영 적용 별도).
+- [x] 기존 reflection에 선택적 context_todo_id, 자료 URL/위치, note_kind 메타데이터만 추가하고 note/next_action을 재사용한다 (remote20261105074906 적용·기존8종 무결성 동일).
 - [x] focus_score/energy_score의 미입력 null을 지원하고 평균 계산에서 null/잘못된 점수를 제외한다.
 - [x] 소유/완료 세션·해당 세션 할 일 연결을 검증하는 RPC로 새 메타데이터를 저장한다. 기존 complete_study_session 서명/구형 caller는 유지한다.
 - [x] 새 완료 RPC는 기존 종료/실제 공부 정산을 호출하는 한 트랜잭션으로만 확장한다.
-- [x] 할 일별 최신 회고를 먼저 고른 뒤 빈 시작점을 제외한다. 제목이 같은 다른 할 일을 합치지 않는다 (snapshot 검증; UI 연결 별도).
+- [x] 할 일별 최신 회고를 먼저 고른 뒤 빈 시작점을 제외한다. 제목이 같은 다른 할 일을 합치지 않는다 (snapshot·공통 UI 연결 검증).
 - [x] 결과는 note_kind=learning_result이며 실제 작성 note가 있는 회고만 표시한다. 수정은 같은 행에 적용한다.
 - [x] 기존 결과/시작점 수정은 확인했던 updated_at과 같을 때만 저장한다. 다른 기기에서 바뀌면 초안을 보존하고 다시 확인하도록 한다.
 - [x] HTTP(S) 자료 링크/160자 위치는 선택 입력이며 unsafe scheme·과다 길이·타 계정 ID를 거부한다.
@@ -73,6 +73,7 @@
 - 롤백은 이전 웹 배포로 복귀하되 확장 schema/새 기록은 보존하는 방식이다. 이미 저장된 자료/시작점을 지우는 DROP·옛 NOT NULL 강제·과거 행 복원은 하지 않는다. DB 수정이 필요하면 검토한 forward migration을 별도로 만든다.
 - 실제 계정 데이터는 임의 작성하지 않고 합성 테스트를 사용한다. 실제 앱 재로드/종료는 유휴·초안 확인 승인을 새로 받는다.
 - 새 APK/EXE 없이 공통 hosted UI로 출시하고 운영 확인 결과를 별도 문서에 기록한다.
+- 운영 DB local20261104153953→remote20261105074906/learning_continuity 적용. 사용자 동의하에 원문 없는 count/digest8종 일치, 기존6함수·ACL/RLS/policy/trigger 동일, 신규5RPC/private2권한 검증. 실제 건수·지문은 Git에 공개하지 않는다. 신규 FK색인 INFO2건/미사용 신설색인 INFO1건은 규모별 성능 수용 후속으로 남긴다. 상세: [검증 기록](../docs/verification/2026-11-05-learning-continuity.md).
 
 ## 12. Open Questions
 - 이번 범위의 결정은 목업과 11/05 사용자 승인으로 확정. 다중 자료 파일·주제별 프로젝트 체계는 후속 범위다.

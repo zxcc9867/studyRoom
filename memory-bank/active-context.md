@@ -1,18 +1,18 @@
 # Active Context
 - 갱신: 2026-11-05 · 도구: codex
-- 사용자 최신 승인: 다음 시작점 북마크·오늘의 학습 결과 UI/검증/배포를 재개한다. 회복 루틴·카메라 감지 정책은 그대로 유지하며 분석의 개선안은 보류한다.
-- 브랜치: fix/study-dashboard-clarity · 현재HEAD76815b3 / 기능기준123c835 / 기존 운영제품75ab1da. 원격보다4앞/0뒤(배포전재fetch). 사용자 dirty 문서/output 보존.
+- 사용자 최신 승인: 다음 시작점·오늘 결과 출시, 별도 원문/이메일/ID 없는8종 count/digest 조회 승인. 회복·카메라 판정 정책은 그대로 유지한다.
+- 브랜치: fix/study-dashboard-clarity · 제품76815b3/문서b181a5f · 마지막 확인 커밋b181a5f · 미커밋 변경: 이 인계 메모와 기존 사용자 문서 있음. 원격보다5앞/0뒤(배포전재fetch). 기능기준123c835/운영75ab1da, 사용자 dirty/output 보존.
 - 목표 / 완료 기준: 기존 시작·회고·기록에 할 일 ID별 시작점·직접 작성 결과를 통합, 실제 Chrome/공식7/Dune/독립검토/DB 기록보존/운영 READY·HTTP200 확인. [PRD](prd-learning-continuity.md), [계획](../docs/superpowers/plans/2026-11-05-learning-continuity.md), [검증](../docs/verification/2026-11-05-learning-continuity.md).
 - 진행 원장: .superpowers/sdd/2026-11-05-learning-continuity/progress.md. 완료 Task1은 다시 구현하지 않는다. root owner codex-continuity-1105는 문서/원격/배포만; /root/continuity_ui_1105 owner codex-continuity-ui-1105가 Task2 소스/테스트만 소유한다. 중첩/병렬 구현 금지.
-- 완료 Task1: f3a3517 저장 계층·집중30/30/확장116/116/build/Dune0, 독립 /root/continuity_data_review_1105 spec준수/품질승인 C0/I0/M0. 로컬 migration20261104153953_learning_continuity.sql, 아직 운영 미적용/미푸시.
+- 완료 Task1: f3a3517 저장 계층·집중30/30/확장116/116/build/Dune0·독립C/I/M0. local20261104153953→remote20261105074906/learning_continuity 적용 성공. 기존8종 count/digest 일치,6핵심함수/ACL/RLS/policy/기존trigger 동일. 실제 비교값은 Git에 공개하지 않는다.
 - Task2 완료7ac8418+fix53a6598: Chrome44/44·관련14/14·계약25/25·적응기존16/16·build통과. I2/M2와 공식회귀6건 수정, scoped reviewer 전부 ADDRESSED/new C/I/M0. source claims해제. report: .superpowers/sdd/2026-11-05-learning-continuity/task-2-report.md.
 - 승인 흐름: 이전 할 일 이어가기 또는 다른 할 일 선택, A/B ID별 시작점 보존. 과거 미완료는 일정 확인·승인 후 동일 ID 날짜만 오늘로 이동. 원래 snapshot/구간/회고·다른 반복 항목 유지. 새 todo 자동생성/완료/제목 자동채움 없음.
 - UI/저장 계약: note/next_action 한 행 재사용; 과거 memo 백필 없음; 신규 명시 결과만 카드; 미입력 점수 null·평균 제외. 상세 입력은 접어도 mounted/초안 유지. 기존 시작/회복/카메라/실제 정산·계정 generation·desktop pending write 소유권 유지.
-- 결정3건: 기존 수정 exact expectedUpdatedAt(동시 수정 재확인 비용), 날짜 이동 bounded session fence+todo NOWAIT(경합 재시도 비용), Windows 확장자 충돌 회피 LearningContinuityView 이름(일회 import/doc 변경 비용). 실제 다중 연결 경합 미검증. 원장의 Ruling 최종 보고에 포함한다.
-- 원격 사전확인: next-js(bqohkdzvxbrokkmuhysx) PostgreSQL17.6/healthy, legacy scores NOT NULL, reflection RLS는 owner-only·기존 trigger 없음. links UNIQUE(session_id,todo_id), todo snapshot/coach/touch trigger 존재. 신규 trigger/RPC는 소유·연결 검증을 독립 보장하며 기존 함수/정책/권한은 유지한다.
+- 결정4건: exact revision(동시 수정 재확인), session fence+todo NOWAIT(경합 재시도), View 접미사(일회 import/doc 변경), 신규 FK색인INFO2는 규모별 후속(이력 증가 시 부모삭제/변경 scan 비용). 원장 Ruling4건 최종 보고에 포함. 실제 다중 연결 경합 미검증.
+- 원격: next-js PostgreSQL17.6, reflection14열/score nullable·제약5validated·새trigger·public5/private2 invoker/빈searchpath/anon차단 확인. 기존legacy 함수·정책·권한 유지. security/WARN 동일, INFO는 FK covering2·미사용 신설index1 추가(문서화), 새index 임의삭제 없음.
 - 최종76815b3: 회고 없는 외부완료는 원래 세션 상태 확인→명시 승인→동일 초안 follow-up 생성으로 복구, 새 세션/정산/할 일 미변경. Chrome48/48+기존14/14+read11/11, 최종 scoped review Ready Yes/new C/I/M0. 공식7/Dune0 exit0 재확인. npm1751/1277pass/0fail/474skip는 기본브라우저생략이다.
 - 전체 Chrome76815b3 완료:1751/1751·실패/생략/취소0·exit0·1115845.6014ms(max2 files), output/learning-continuity-full-chrome-76815b3-20261105.log. 앞선53a 중단 partial과 구분. source고정·보호범위diff0, 공식7/최종독립검토도 통과.
-- 현재 승인 대기: 운영8종 기록 count/digest 쿼리는 민감 파생정보의 별도 동의 부재로 도구가 거부(값 반환 없음). 원문/이메일/ID 없이 건수·무결성 지문만 계산·조회 동의 요청. 우회/재시도/원격DDL/배포 없음. 승인 시 baseline→reviewed migration→보존/핵심6함수·권한·advisors 대조→feature push/Actions/READY·동일SHA·운영200.
+- 다음 단계: 출시에 필요한 문서 커밋·feature push→기존 vercel-production.yml workflow_dispatch→exactSHA/Actions success/productionREADY/alias·HTML/새JS/CSS200→짧은 오류집계/Drains 확인→출시문서 마감. 현재 DB 게이트 완료·웹 배포는 아직이다. 기존workflow/키/환경/기본branch는 바꾸지 않는다.
 - 실기기 한계: GUI 도구 없음; E:/Android/Sdk ADB 복구됐지만 연결0/AVD꺼짐, Electron 로컬 바이너리 미설치로 integration 미실행. 실제 설치앱/프로필로 대체하지 않았으며 별도 유휴/초안 승인 후 수용한다.
 - 실행: npm.cmd 사용, rg 없음(Select-String). 공식 & C:/jini-dev/.ai/scripts/ai.ps1 verify --project .; Chrome FEED_BROWSER_MODULE=C:/jini-dev/project/study-notes/node_modules/playwright/index.mjs / FEED_BROWSER_EXECUTABLE=C:/Program Files/Google/Chrome/Application/chrome.exe. 전체 브라우저는 안정 소스에서 실행하고 로그/exit/count까지 확인한다.
 - 네이티브: Android0.2.4/Windows0.1.10이 hosted 공통 화면 사용. 이번에는 새 APK/EXE·의존성 변경 없음. 실제 앱 새로고침/종료/계정·카메라·테마 조작은 fresh 유휴/초안 승인을 받은 뒤만 한다. 미승인 실계정 쓰기/회복 해제/시간정정 없음.
@@ -20,3 +20,4 @@
 - 기존 미해결/보류: 설치 Windows cold 테마 유지 원인 미확정, 원래 owner-B pointer 간헐 실패(키보드 검사와 별개), Android/물리 카메라/장시간 GPU·배터리 수용 미완료. always-on-top 사용자 승인 보류. 이번 기능 완료로 확대하지 않는다.
 - 카메라 회복 분석: 공부일 누적 경고>=3와 pending-only 중복방지로 같은 유형 제출 뒤 재생성; 같은 연속 구간 경고도 각각 집계. 기존24/24/합성 재현, 원영상 미저장이라 실제 자세 오탐 원인 미확정. [분석](../docs/verification/2026-11-05-camera-recovery-analysis.md). 사용자가 현재대로 유지 선택, 수정/배포 금지.
 - stage 제외: theme-device-acceptance/theme-editor-alignment, prd-tech-feed/prd-windows-desktop, desktop-install-acceptance, .serena/다른output. 기존 사용자 변경을 되돌리지 않는다. prior 간단 검사의 untracked 문서는 새 기능의 fresh 완료 근거가 아니다.
+- 인계: 제품source76815b3와 동일하면 완료1751 검사를 반복하지 않는다. 최초 count/hash 거부는 우회 없이 사용자 별도 승인 뒤 재개했다. SDD scratch/작업tree는 삭제 승인 없어 보존, 실제 앱 재로드는 새 유휴/초안 승인이 있어야 한다. root 관련 문서만 stage하고 기존 사용자 dirty는 제외한다.
