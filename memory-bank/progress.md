@@ -12,8 +12,9 @@
 
 - 운영배포/Windows 메뉴 수용 완료: 이전14종은 승인Ctrl+R 뒤15종/새영상 확인. 제품75ab1da·Actions41777453429 success·dpl_66HWEKw4b9cVwccfByXLJEJfvm1u READY/동일SHA/alias·웹/새JS/CSS/포스터200·영상2Range206. 추가 승인 새로고침 후 실제앱의 새 이미지효과 끄기/켜기·영상아님 안내·15종 확인, 편집닫기/기존테마·로그인 유지. 저장/player/학습·카메라 불변. 공식7/Dune0·최종관련22/22·B키보드3반복·2해시/diff·독립C/I/M0. 원전체1673/1674+최종22의 분할coverage1676(중복19제외), 원pointer1실패/단독1pass는 보존·원인/실사용수용 미확정. [검증](../docs/verification/2026-11-04-theme-type-controls.md).
 
-## 풍경 화면 세션 연장
+## 풍경 화면 세션 연장·카메라 미리보기
 
+- 카메라 미리보기 검증완료/배포준비: 동일 로컬 stream 표시·정상 상태 간소화, 최종13/13·전체Chrome1764/1764실패/생략0·공식7/Dune0·독립C/I/M0·4해시/diff통과. 기록·감지/회복정책·native 유지, 실제설치/물리기기 조작 없음. [검증](../docs/verification/2026-11-06-scenic-camera-preview.md).
 - 운영배포 완료: 세션 유지 남은 시간·+1시간 연장을 공부/휴식 중 제공, 세션 없으면 숨김. 기존60분/최대2시간·동일 RPC·기록/카메라 보존. 신규14/14·최종Chrome 분할1668건(동일소스317보존+1351/1351재실행)·실패/생략/취소0·공식7/Dune0·독립C/I/M0·5해시/diff 통과. 최초 팀fixture2fail/보정 후 분할 재검증은 별도 기록. 제품c7b9068·Actions41766757443 success·dpl_4SpLh99GuXLpBNJwCmNhANRNzqfa READY/동일SHA/alias·HTML/새JS/CSS200/연장표시확인. 새APK/EXE·실제기록/설정 조작 없음. [검증](../docs/verification/2026-11-04-scenic-session-extension.md).
 
 ## 오리지널 애니메이션풍 별빛 바다와 유성

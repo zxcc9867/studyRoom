@@ -424,3 +424,8 @@
 - UI 원인/예방: 전역 dashboard focus 규칙이 scenic outline을 덮어 대비2.27이었다. scoped specificity로 보정하고 실제 Tab 이동/대비3 이상을 검사한다. 새 마지막 연장 버튼이 추가됐으므로 End→Tab은 연장→메뉴 순서로 검증한다.
 - fixture 주의: lease 모드의 기존 카메라 인증 안내는 Escape로 정상 닫은 뒤 검사한다. 정책을 우회하지 않는다. StudySession DTO에 없는 user_id를 읽지 않으며 소유권은 기존 인증 RPC와 현재 계정/세션 토큰으로 검증한다.
 - 전체 Chrome의 팀2건 실패는 팀 fixture가 Promise만 반환해 SDK abortSignal builder를 지원하지 않던 문제였다. 제품 코드/기존 경고·60분·종료 안함 assertions는 유지하고 fixture만 보정·signal 검사 추가, 동일 재현2/2 통과. 변경 없는4해시의 대형 화면 성공 결과와 나머지 전체파일 재실행을 최종 분할 gate로 구분 기록한다.
+
+## 풍경 카메라 미리보기 자동 접힘의 초점
+- 증상/원인: stream 종료·원격 담당 전환으로 표시용 preview가 unmount되면 내부 닫기 버튼에 있던 초점이 body로 빠진다. 수동 닫기만 초점 복구하면 이 경로를 놓친다.
+- 해결: 표시용 panel의 layout cleanup에서 내부 초점 여부만 기록하고, DOM 제거 뒤 body로 빠졌고 scene이 연결·활성일 때만 카메라 버튼/scene으로 복구한다. 살아 있는 필수 dialog·다른 경로의 초점은 건드리지 않는다. stream/track의 수명은 main이 유지한다.
+- 예방: ended-track/remote 자동 접힘·필수 모달·열린 로컬 영상에서 계정 전환을 실제 Chrome 합성 fixture로 검사한다. [검증](../docs/verification/2026-11-06-scenic-camera-preview.md). 실제 계정/영상은 사용하지 않는다.

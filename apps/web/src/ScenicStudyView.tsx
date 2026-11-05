@@ -1,4 +1,4 @@
-import {useEffect, useId, useRef, useState, useSyncExternalStore} from 'react';
+import {useEffect, useId, useLayoutEffect, useRef, useState, useSyncExternalStore} from 'react';
 import {BookOpen, Camera, Clock3, Maximize2, Menu, Pause, Play, Settings, X} from 'lucide-react';
 import {AccessibleDialog} from './AccessibleDialog';
 import {dashboardDestinations} from './DashboardNavigation';
@@ -8,16 +8,61 @@ import {atmospherePlayback, atmosphereThemes, getAtmosphereController} from './a
 import {getWindowPresentationSupport, isDesktopStudyApp, setWindowPresentation, type WindowPresentation} from './desktopBridge.mjs';
 import './scenicStudy.css';
 
-type Props = {task: string; clock: string; status: string; camera: string; actionLabel: string;
+type Props = {task: string; clock: string; status: string; camera: string; cameraStream: MediaStream | null; actionLabel: string;
   actionDisabled: boolean; endDisabled: boolean; hasSession: boolean; notice: string;
   leaseClock: string | null; leaseBusy: boolean; leaseDisabled: boolean; onExtendLease: () => void;
   onAction: () => void; onEnd: () => void; onClose: () => void; onNavigate: (section: DashboardSection) => void};
 const focusable = 'button:not(:disabled),a[href],input:not(:disabled),select:not(:disabled),textarea:not(:disabled),[tabindex="0"]';
 
+function CameraPreview({stream,onClose,onFocusLost}: {stream: MediaStream; onClose: () => void; onFocusLost: () => void}) {
+  const panel=useRef<HTMLElement>(null);
+  const focusLost=useRef(onFocusLost);focusLost.current=onFocusLost;
+  const video=useRef<HTMLVideoElement>(null);
+  const [failed,setFailed]=useState(false);
+  useLayoutEffect(()=>()=>{
+    if(panel.current?.contains(document.activeElement))requestAnimationFrame(()=>focusLost.current());
+  },[]);
+  useEffect(()=>{
+    const element=video.current;
+    if(!element)return;
+    let disposed=false;
+    element.srcObject=stream;
+    void element.play().catch(()=>{if(!disposed)setFailed(true);});
+    // This view borrows the stream; only DashboardApp may stop its tracks.
+    return ()=>{disposed=true;element.srcObject=null;};
+  },[stream]);
+  return <section ref={panel} className="scenic-camera-preview" aria-label="내 카메라">
+    <div className="scenic-camera-heading"><h2>내 카메라</h2><button type="button" aria-label="카메라 미리보기 닫기" onClick={onClose}><X size={20} aria-hidden="true"/></button></div>
+    <video ref={video} muted autoPlay playsInline aria-label="내 카메라 영상"/>
+    {failed&&<p role="status">영상을 표시하지 못했어요. 미리보기를 닫고 다시 열어 주세요.</p>}
+  </section>;
+}
+
 export default function ScenicStudyView(props: Props) {
   const view = useRef<HTMLElement>(null);
   const close = useRef(props.onClose); close.current = props.onClose;
   const [settingsOpen,setSettingsOpen]=useState(false);
+  const [previewStream,setPreviewStream]=useState<MediaStream|null>(null);
+  const cameraButton=useRef<HTMLButtonElement>(null);
+  const cameraId=useId();
+  const previewAvailable=Boolean(props.cameraStream?.getVideoTracks().some(track=>track.readyState==='live'));
+  const previewOpen=previewAvailable&&previewStream===props.cameraStream;
+  const previewOpenRef=useRef(false);previewOpenRef.current=previewOpen;
+  function dismissPreview(restoreFocus=false) {
+    setPreviewStream(null);
+    if(restoreFocus)(cameraButton.current??view.current)?.focus({preventScroll:true});
+  }
+  const dismissPreviewRef=useRef(dismissPreview);dismissPreviewRef.current=dismissPreview;
+  useEffect(()=>{
+    if(previewStream!==props.cameraStream)setPreviewStream(null);
+    const stream=props.cameraStream;
+    if(!stream)return;
+    const ended=()=>setPreviewStream(null);
+    const tracks=stream.getVideoTracks();
+    stream.addEventListener('inactive',ended);
+    for(const track of tracks)track.addEventListener('ended',ended);
+    return ()=>{stream.removeEventListener('inactive',ended);for(const track of tracks)track.removeEventListener('ended',ended);};
+  },[props.cameraStream,previewStream]);
   const [menuOpen,setMenuOpen]=useState(false);
   const menuOpenRef=useRef(false);menuOpenRef.current=menuOpen;
   const menuRoot=useRef<HTMLDivElement>(null);
@@ -99,7 +144,7 @@ export default function ScenicStudyView(props: Props) {
     const frame=requestAnimationFrame(()=>scene.focus({preventScroll:true}));
     function keyboard(event:KeyboardEvent) {
       if(root!.querySelector('[role="dialog"],.modal-backdrop'))return;
-      if(event.key==='Escape'){event.preventDefault();if(menuOpenRef.current)dismissMenu(true);else void backRef.current();return;}
+      if(event.key==='Escape'){event.preventDefault();if(menuOpenRef.current)dismissMenu(true);else if(previewOpenRef.current)dismissPreviewRef.current(true);else void backRef.current();return;}
       if(event.key!=='Tab')return;
       const controls=Array.from(scene!.querySelectorAll<HTMLElement>(focusable)).filter(control=>!control.closest('[inert]')&&control.getClientRects().length>0);
       const first=controls[0],last=controls.at(-1);
@@ -134,13 +179,18 @@ export default function ScenicStudyView(props: Props) {
         </div>
       </header>
       <div className="scenic-landscape" aria-hidden="true"/>
+      <div className="scenic-bottom">
+      {previewOpen&&previewStream&&<div id={cameraId}><CameraPreview stream={previewStream} onClose={()=>dismissPreview(true)} onFocusLost={()=>{
+        if(document.activeElement===document.body&&view.current?.isConnected&&!view.current.inert)(cameraButton.current??view.current).focus({preventScroll:true});
+      }}/></div>}
       <div className="scenic-dock">
-        <div className="scenic-task"><p className="scenic-status">● {props.status}</p><h1>{props.task}</h1><p className="scenic-camera"><Camera size={16}/>{props.camera}</p></div>
+        <div className="scenic-task"><p className="scenic-status">● {props.status}</p><h1>{props.task}</h1>{previewAvailable?<button ref={cameraButton} type="button" className="scenic-camera" aria-expanded={previewOpen} aria-controls={previewOpen?cameraId:undefined} onClick={()=>previewOpen?dismissPreview():setPreviewStream(props.cameraStream)}><Camera size={16} aria-hidden="true"/>{props.camera}</button>:<p className="scenic-camera"><Camera size={16} aria-hidden="true"/>{props.camera}</p>}</div>
         <strong className="scenic-clock" role="timer" aria-label="풍경 세션 공부시간">{props.clock}</strong>
         <div className="scenic-actions"><button type="button" disabled={props.actionDisabled} onClick={props.onAction}>{props.actionLabel}</button>{props.hasSession&&<button type="button" disabled={props.endDisabled} onClick={props.onEnd}>종료</button>}</div>
         {props.hasSession&&props.leaseClock!==null&&<div className="scenic-lease" role="group" aria-label="세션 유지"><div><span>세션 유지 남은 시간</span><strong>{props.leaseClock}</strong></div><button type="button" disabled={props.leaseDisabled||props.leaseBusy} onClick={props.onExtendLease}><Clock3 size={18} aria-hidden="true"/>{props.leaseBusy?'연장 중…':'+1시간 연장'}</button></div>}
         {props.notice&&<p className="scenic-notice" role="status">{props.notice}</p>}
         {nativeError&&<div className="scenic-notice" role="alert"><p>{nativeError}</p><button type="button" disabled={nativeBusy} onClick={()=>void change({mode:'normal'})}><Maximize2 size={18}/>정상 크기로 복원</button></div>}
+      </div>
       </div>
     </section>
     {settingsOpen&&<AccessibleDialog className="scenic-settings" ariaLabel="풍경 배경 설정" onClose={()=>setSettingsOpen(false)} closeOnBackdrop><div className="scenic-settings-heading"><h2>풍경 배경 설정</h2><button type="button" className="secondary" aria-label="풍경 배경 설정 닫기" onClick={()=>setSettingsOpen(false)}><X size={20}/></button></div><div className="settings-content"><AtmosphereSettings/></div></AccessibleDialog>}

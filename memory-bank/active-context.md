@@ -1,4 +1,14 @@
 # Active Context
+- 갱신: 2026-11-06 · 도구: codex · 현재 owner: codex-scenic-camera-1106
+- 현재 목표: 풍경 HUD ‘카메라 감시 중’ 클릭→같은 로컬 stream 미리보기·닫기. 기존 기록/감지/카메라 소유권 유지, Chrome 합성·공식7·독립검토·운영 배포 후 완료한다. 사용자 진행 승인, PRD/architecture 갱신.
+- 현재 브랜치/기준: fix/study-dashboard-clarity / 27e72cf. fetch 완료·다른 dirty 8종/output/.serena 보존. 이번 main/ScenicStudyView/scenicStudy.css/actualStudyMounted 및 관련 문서만 claim했다.
+- 현재 진행: TDD 버튼 부재 RED→신규9+기존33 Chrome42/42. 독립 Minor2보완·초점RED→최종13/13·재검토C/I/M0 ReadyYes·최종공식7/Dune0exit0. 전체Chrome1764/1764·실패/생략/취소0·exit0·1444949.4589ms, 전후4파일SHA256동일/보호범위diff0. 기능 커밋·푸시·운영배포 준비, 아직배포전이다.
+- 추가 최신 요청: 자리 비움 회복루틴 평가주기 개선. systematic-debugging·Supabase 스킬로 운영 DB함수+Edge24/ACTIVE의index/helper 읽기 전용 재확인: 5분 이후10분 간격 경고를 날짜별 누적3회로 평가하며 helper는 pending만 중복 방지한다. 기존PRD는 경고행 집계라고 명시했다. 실제 원문/계정/기록은 조회·수정하지 않았다. 주의: Edge24 helper의 결석경로는createOrExtendAttendanceRecoveryRequest, 로컬은ensure_missed_attendance_recovery RPC라 통째배포시별도범위검토필요.
+- 정책 승인 대기: 기존5분 경고/10분 시간 제외/상반신 판정 유지, 독립5분 이상 미감지 구간3회+공부일(04시) 한 번 제출 또는 하루 한 번만 변경할지 async 질문했다. 이전 ‘유지’ 결정과 충돌을 고지했으며 회복/DB/Edge는 답변 전에 수정하지 않는다.
+- 다음: 신규 Chrome 결과 확인→회귀/접근성 수정·독립 검토·공식7/Dune·전체 Chrome→정확SHA Actions/VercelREADY/HTTP200 배포. 회복 요청 답변이 오면 별도 PRD/경계/TDD/DB 검증 후 승인 범위만 통합한다.
+- 보호: 실제 설치앱/물리카메라/로그인·회복 해제·현재설정 조작 없음. 새APK/EXE 불필요. 카메라 실제 촬영·계정 시험은 새 승인 필요. 현재 신규 테스트는 합성 예시 데이터만 쓴다.
+
+## 이전 완료 출시 맥락 (현재 작업 상태와 구분)
 - 갱신: 2026-11-05 17:03 · 도구: codex
 - 사용자 최신 승인: 다음 시작점·오늘 결과 출시, 별도 원문/이메일/ID 없는8종 count/digest 조회 승인. 회복·카메라 판정 정책은 그대로 유지한다.
 - 브랜치: fix/study-dashboard-clarity · 제품76815b3/출시40cbe737b9ea7456ac3ff8d679fd08bab688fd8f · 마지막 확인40cbe73 · feature push완료. 기존 사용자 dirty/output 보존, 기본branch/태그 변경 없음.

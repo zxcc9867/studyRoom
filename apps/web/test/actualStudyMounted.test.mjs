@@ -23,6 +23,86 @@ async function dashboardAfterStudySuccess(page) {
  await scenicDashboard(scene);await scene.waitFor({state:'detached'});
 }
 
+async function withScenicCamera(width,run) {
+ return withApp(width,async page=>{
+  const tools=page.locator('.focus-tools');await tools.locator('summary').first().click();
+  await tools.getByRole('button',{name:'카메라 감시 켜기',exact:true}).click();await tools.getByRole('button',{name:'카메라 감시 끄기',exact:true}).waitFor();
+  await page.evaluate(()=>{const video=document.querySelector('.camera-preview');window.previewBefore={video,stream:video.srcObject,track:video.srcObject.getVideoTracks()[0],requests:fixtureCameraRequests,sessions:structuredClone(fixture.sessions),todos:structuredClone(fixture.todos),recoveries:structuredClone(fixture.recoveries)};});
+  await page.getByRole('button',{name:'공부 화면 열기',exact:true}).click();
+  await run(page,page.getByRole('region',{name:'풍경 집중 화면',exact:true}));
+ });
+}
+
+for(const width of [375,1440])browserTest(`scenic camera preview: displays the existing live stream and closes without stopping detection or study at ${width}px`,()=>withScenicCamera(width,async(page,scene)=>{
+ const toggle=scene.getByRole('button',{name:'카메라 감시 중',exact:true}),preview=scene.getByRole('region',{name:'내 카메라',exact:true});
+ await toggle.click();await preview.waitFor();assert.equal(await toggle.getAttribute('aria-expanded'),'true');
+ await page.waitForFunction(()=>document.querySelector('.scenic-camera-preview video')?.videoWidth>0);
+ assert.deepEqual(await preview.locator('video').evaluate(video=>({sameStream:video.srcObject===previewBefore.stream,sameTrack:video.srcObject.getVideoTracks()[0]===previewBefore.track,muted:video.muted,playsInline:video.playsInline,fit:getComputedStyle(video).objectFit})),{sameStream:true,sameTrack:true,muted:true,playsInline:true,fit:'contain'});
+ const before=await scene.getByRole('timer').textContent();await page.clock.runFor(2200);assert.notEqual(await scene.getByRole('timer').textContent(),before);
+ await preview.getByRole('button',{name:'카메라 미리보기 닫기',exact:true}).click();await preview.waitFor({state:'detached'});
+ assert.equal(await toggle.evaluate(el=>el===document.activeElement),true);
+ await page.keyboard.press('Enter');await preview.waitFor();await page.keyboard.press('Escape');await preview.waitFor({state:'detached'});assert.equal(await scene.isVisible(),true,'Escape closes the preview, not study');
+ assert.equal(await toggle.evaluate(el=>el===document.activeElement),true);
+ await toggle.click();await preview.waitFor();await toggle.click();await preview.waitFor({state:'detached'});
+ assert.deepEqual(await page.evaluate(()=>({sameVideo:document.querySelector('.camera-preview')===previewBefore.video,sameStream:previewBefore.video.srcObject===previewBefore.stream,live:previewBefore.track.readyState,requests:fixtureCameraRequests,records:JSON.stringify({sessions:fixture.sessions,todos:fixture.todos,recoveries:fixture.recoveries})===JSON.stringify({sessions:previewBefore.sessions,todos:previewBefore.todos,recoveries:previewBefore.recoveries})})),{sameVideo:true,sameStream:true,live:'live',requests:1,records:true});
+}));
+
+browserTest('scenic camera preview: pause hides the last frame and resume never reopens a previous preview',()=>withScenicCamera(375,async(page,scene)=>{
+ await scene.getByRole('button',{name:'카메라 감시 중',exact:true}).click();await scene.getByRole('region',{name:'내 카메라',exact:true}).waitFor();
+ await scene.getByRole('button',{name:'잠시 쉬기',exact:true}).click();await scene.getByRole('button',{name:'공부 계속하기',exact:true}).waitFor();
+ assert.equal(await scene.getByRole('region',{name:'내 카메라',exact:true}).count(),0);assert.equal(await scene.getByRole('button',{name:'카메라 감시 중',exact:true}).count(),0);assert.match(await scene.locator('.scenic-camera').innerText(),/휴식 중/);
+ await scene.getByRole('button',{name:'공부 계속하기',exact:true}).click();const camera=page.getByRole('dialog',{name:'카메라 인증 필요',exact:true});await camera.waitFor();await camera.getByRole('button',{name:'카메라 켜고 공부 계속하기',exact:true}).click();
+ const confirm=page.getByRole('dialog',{name:'공부와 일정 변경 확인',exact:true});await confirm.getByRole('button',{name:'변경 확인 후 재개',exact:true}).click();await scene.getByRole('button',{name:'카메라 감시 중',exact:true}).waitFor();
+ assert.equal(await scene.getByRole('region',{name:'내 카메라',exact:true}).count(),0);
+ await scene.getByRole('button',{name:'카메라 감시 중',exact:true}).click();await page.waitForFunction(()=>document.querySelector('.scenic-camera-preview video')?.srcObject===document.querySelector('.camera-preview')?.srcObject);assert.equal(await page.evaluate(()=>previewBefore.track.readyState),'ended');
+}));
+
+browserTest('scenic camera preview: an ended track cannot leave a frozen image or reopen it during recovery',()=>withScenicCamera(1440,async(page,scene)=>{
+ await scene.getByRole('button',{name:'카메라 감시 중',exact:true}).click();await scene.getByRole('region',{name:'내 카메라',exact:true}).waitFor();
+ await page.evaluate(()=>{previewBefore.track.stop();previewBefore.track.dispatchEvent(new Event('ended'));document.dispatchEvent(new Event('visibilitychange'));});
+ await scene.getByRole('region',{name:'내 카메라',exact:true}).waitFor({state:'detached'});
+ await page.waitForFunction(()=>document.querySelector('.camera-preview')?.srcObject?.getVideoTracks()[0]?.readyState==='live'&&document.querySelector('.camera-preview').srcObject!==previewBefore.stream);
+ const toggle=scene.getByRole('button',{name:'카메라 감시 중',exact:true});await toggle.waitFor();assert.equal(await toggle.getAttribute('aria-expanded'),'false');await toggle.click();
+ await page.waitForFunction(()=>document.querySelector('.scenic-camera-preview video')?.srcObject===document.querySelector('.camera-preview')?.srcObject);
+}));
+
+browserTest('scenic camera preview: remote ownership and account changes remove local video without requesting another camera',()=>withScenicCamera(375,async(page,scene)=>{
+ await scene.getByRole('button',{name:'카메라 감시 중',exact:true}).click();await scene.getByRole('region',{name:'내 카메라',exact:true}).waitFor();
+ await page.evaluate(()=>{fixture.camera={...fixture.camera,owner_client_id:'new-pc',generation:3};window.dispatchEvent(new Event('focus'));});await page.clock.runFor(16000);
+ assert.equal(await scene.getByRole('region',{name:'내 카메라',exact:true}).count(),0);assert.equal(await scene.locator('.scenic-camera').evaluate(el=>el.tagName),'P');assert.equal(await page.evaluate(()=>fixtureCameraRequests),1);
+ await page.evaluate(()=>fixture.changeOwner());await scene.waitFor({state:'detached'});assert.equal(await page.locator('.scenic-camera-preview video').count(),0);
+}));
+
+for(const cause of ['ended-track','remote-owner'])browserTest(`scenic camera preview: ${cause} automatic close preserves keyboard context`,()=>withScenicCamera(375,async(page,scene)=>{
+ await scene.getByRole('button',{name:'카메라 감시 중',exact:true}).click();const preview=scene.getByRole('region',{name:'내 카메라',exact:true});await preview.getByRole('button',{name:'카메라 미리보기 닫기',exact:true}).focus();
+ if(cause==='ended-track')await page.evaluate(()=>{previewBefore.track.stop();previewBefore.track.dispatchEvent(new Event('ended'));});
+ else await page.evaluate(()=>{fixture.camera={...fixture.camera,owner_client_id:'new-pc',generation:3};window.dispatchEvent(new Event('focus'));});
+ await preview.waitFor({state:'detached'});await page.waitForFunction(()=>document.querySelector('.scenic-study')?.contains(document.activeElement));
+ assert.equal(await scene.isVisible(),true);await page.keyboard.press('Tab');assert.equal(await page.evaluate(()=>document.querySelector('.scenic-study').contains(document.activeElement)),true);
+}));
+
+browserTest('scenic camera preview: automatic close does not steal focus from a required dialog',()=>withScenicCamera(375,async(page,scene)=>{
+ await scene.getByRole('button',{name:'카메라 감시 중',exact:true}).click();await scene.getByRole('button',{name:'풍경 배경 설정',exact:true}).click();const dialog=page.getByRole('dialog',{name:'풍경 배경 설정',exact:true});await dialog.waitFor();
+ await page.evaluate(()=>{fixture.camera={...fixture.camera,owner_client_id:'new-pc',generation:3};window.dispatchEvent(new Event('focus'));});await page.clock.runFor(16000);
+ assert.equal(await scene.getByRole('region',{name:'내 카메라',exact:true}).count(),0);assert.equal(await dialog.evaluate(el=>el.contains(document.activeElement)),true);await page.keyboard.press('Escape');await dialog.waitFor({state:'detached'});
+}));
+
+browserTest('scenic camera preview: switching accounts with an open local preview removes all previous video',()=>withScenicCamera(1440,async(page,scene)=>{
+ await scene.getByRole('button',{name:'카메라 감시 중',exact:true}).click();await scene.getByRole('region',{name:'내 카메라',exact:true}).waitFor();
+ await page.evaluate(()=>fixture.changeOwner());await scene.waitFor({state:'detached'});assert.equal(await page.locator('.scenic-camera-preview video').count(),0);await page.waitForFunction(()=>previewBefore.track.readyState==='ended');assert.equal(await page.evaluate(()=>fixtureCameraRequests),1);
+}));
+
+for(const width of [375,1440])for(const dark of [false,true])browserTest(`scenic camera preview: ${dark?'dark':'light'} 200% controls fit ${width}px and required dialogs keep precedence`,()=>withScenicCamera(width,async(page,scene)=>{
+ await page.emulateMedia({colorScheme:dark?'dark':'light'});await page.addStyleTag({content:'html{font-size:200%}'});
+ const toggle=scene.getByRole('button',{name:'카메라 감시 중',exact:true});await toggle.click();const preview=scene.getByRole('region',{name:'내 카메라',exact:true});await preview.waitFor();
+ await touchControls(scene.locator('.scenic-camera, .scenic-camera-preview button'));await readableGroup(scene.locator('.scenic-camera,.scenic-camera-preview h2'));
+ assert.equal(await scene.evaluate(el=>el.scrollWidth<=el.clientWidth),true);const bounds=await preview.boundingBox();assert.ok(bounds.x>=0&&bounds.x+bounds.width<=width+1);
+ await scene.getByRole('button',{name:'풍경 배경 설정',exact:true}).click();await page.getByRole('dialog',{name:'풍경 배경 설정',exact:true}).waitFor();assert.equal(await scene.evaluate(el=>el.inert),true);
+ await page.keyboard.press('Escape');await page.getByRole('dialog').waitFor({state:'detached'});assert.equal(await preview.isVisible(),true,'dialog Escape does not dismiss preview');
+ await preview.getByRole('button',{name:'카메라 미리보기 닫기',exact:true}).focus();await page.keyboard.press('Escape');await preview.waitFor({state:'detached'});assert.equal(await toggle.evaluate(el=>el===document.activeElement),true);
+ await toggle.click();await scenicScreenshot(page,`camera-preview-${width}-${dark?'dark':'light'}-2x`);
+}));
+
 async function withLeaseApp(width,run) {
  return withApp(width,async page=>{const camera=page.getByRole('dialog',{name:'카메라 인증 필요',exact:true});await camera.waitFor();await page.keyboard.press('Escape');await camera.waitFor({state:'detached'});await run(page);},'lease');
 }
