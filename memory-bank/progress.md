@@ -2,7 +2,7 @@
 
 ## 다음 시작점·오늘의 학습 결과
 
-- DB 적용/웹 출시 중: 최종76815b3·전체Chrome1751/1751(실패/생략0)·공식7/Dune0·최종독립C/I/M0. count/digest 별도 동의 후 remote20261105074906 적용, 기존8종 무결성/6핵심함수·권한·RLS·기존trigger 동일. 새FK색인 INFO2/미사용색인 INFO1은 후속 성능수용, 회복·카메라 정책 유지. [PRD](prd-learning-continuity.md) · [검증](../docs/verification/2026-11-05-learning-continuity.md).
+- 운영배포 완료: 제품76815b3/출시40cbe73·Chrome1751/1751(실패/생략0)·공식7/Dune0·최종독립C/I/M0. remote20261105074906·8종 무결성/6핵심함수·권한/RLS/기존trigger 동일. Actions41990690435 success·dpl_HBSod2Y6wQ8FEr6fsYUwiNS6Zpx8 READY/exactSHA/alias·HTML/새JS/CSS200·6마커true. 회복·카메라 정책/설치파일 불변, 실기기·동시연결/FK색인 INFO2·미사용색인 INFO1/Drains404는 별도 한계. [PRD](prd-learning-continuity.md) · [검증](../docs/verification/2026-11-05-learning-continuity.md).
 
 ## 카메라 회복 재생성 분석
 

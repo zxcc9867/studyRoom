@@ -4,7 +4,7 @@
 - 작업 시작 HEAD123c835, feature branch fix/study-dashboard-clarity, 운영 선행75ab1da. 기존 dirty 문서·output은 보존한다.
 - 사용자 승인: 목업3장, 할 일 A/B 자유 선택·북마크 분리, 지난날 미완료는 일정 확인 후 동일 할 일 날짜만 오늘로 이동. 기존 기록/정책은 유지한다.
 - 정식 요구사항: memory-bank/prd-learning-continuity.md. 실행 계획: docs/superpowers/plans/2026-11-05-learning-continuity.md.
-- 진행 상태: 로컬 구현·검증·최종 독립검토와 운영 DB 확장·기록 보존 비교 완료. 웹 production 배포 진행 단계다.
+- 진행 상태: 로컬 구현·검증·최종 독립검토, 운영 DB 확장·기록 보존 비교와 웹 production 배포 완료. 실제 설치 앱/물리 카메라·동시 DB 경합 수용은 아래 한계와 구분한다.
 
 ## 사전 확인
 - linked worktree/기능 branch 확인, git fetch 성공. 기존 관련 회고·리포트 단위16/16·실패/생략/취소0·exit0.
@@ -43,4 +43,12 @@
 - reflection10→14열, score2개 nullable, 새 제약5개 validated/관계 SET NULL/보호 trigger 확인. 신규 public RPC5개와 private helper2개는 invoker·빈 search_path, anon 실행 불가. authenticated는 public5/helper result만 허용, trigger 직접 호출은 불가다. 날짜 이동 lock_timeout3s도 확인했다.
 - security advisor의 기존5개 그룹/개별 경고 수는 변하지 않았다. performance WARN도 그대로다. 신규 INFO는 FK covering index2건과 아직 사용되지 않은 신규 index1건이다. 현재 소규모 회고 데이터에서 차단 결함으로 분류하지 않았으며 실제 규모·삭제 부하 수용은 별도다. [FK 색인 안내](https://supabase.com/docs/guides/database/database-linter?lint=0001_unindexed_foreign_keys), [미사용 색인 안내](https://supabase.com/docs/guides/database/database-linter?lint=0005_unused_index).
 - 웹 배포 전후로 기존 데이터·추가 schema는 유지한다. 문제 시 이전 웹 배포로 복귀하고 DB를 DROP/과거행 복원하지 않는다.
-- feature push/Actions exact SHA success/Vercel READY/alias·운영HTTP200/new UI 확인은 다음 게이트다.
+- feature push/Actions exact SHA success/Vercel READY/alias·운영HTTP200/new UI 확인도 완료했다.
+
+## 웹 production 출시 결과
+- 승인된 feature branch만 push, main/태그/기존 workflow/환경 키는 변경하지 않았다. 배포 commit40cbe737b9ea7456ac3ff8d679fd08bab688fd8f의 runtime source는 검증된76815b3과 동일하다. 이후 출시 증거 문서 커밋은 제품 코드 변경이나 재배포가 아니다.
+- [Actions41990690435](https://github.com/zxcc9867/studyRoom/actions/runs/41990690435) success/exactSHA. 테스트·mobile·docs·Edge·build 및 기존 무료 합성 AI검사 모두 통과했다. 기존 workflow_dispatch로 배포했으며 PR/기본 branch merge는 하지 않았다.
+- Vercel dpl_HBSod2Y6wQ8FEr6fsYUwiNS6Zpx8, production READY, exact40cbe73, React/Vite. 빌드36.6초. [운영 URL](https://study-room-attendance.vercel.app)의 alias 일치/aliasError없음 확인.
+- 공개 HTML200, /assets/index-7kQ9ZGiy.js200, /assets/index-BqrjglLU.css200. 오늘의 학습 결과/다음 시작점/완료된 세션의 회고로 계속/RPC명과 공통 카드·조회 상태 CSS6개 마커 모두 true, 최종 probe exit0. 최초 probe는 값이 모두 true였으나 PowerShell ValueCollection.Contains 호출 오류였고 `-contains` 판정으로 같은 조회를 재실행했다. 제품 수정은 없다.
+- 출시 직후07:58:40UTC 이후 짧은 구간의 runtime error 집계 없음. Drains API는404로 설정 여부를 확인하지 못했으므로 미설정/장기 무오류로 표현하지 않는다. 모니터링 설정·요금제 변경 없음.
+- Windows0.1.10/Android0.2.4는 hosted 공통 화면을 사용해 새 설치파일 없이 적용한다. 현재 실제 앱·계정·테마·카메라를 새로고침/조작하지 않았다. 유휴 때 재로드/다음 실행으로 새 코드가 로드된다. 실기기와 실제 다중 연결 경합 수용은 별도다.

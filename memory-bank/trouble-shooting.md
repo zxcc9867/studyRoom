@@ -17,7 +17,7 @@
 ## 선택 점수 null과 날짜 이동 경합 — 2026-11-05
 - 기존 평균의 Number(value||0)는 미입력 null을0으로 섞는다. 새 optional 점수는 null 보존·유효 숫자1~5만 평균하고 과거 점수를 백필하지 않는다. 회고 한 행의 note/next_action을 재사용한다.
 - 날짜 이동은 legacy actual start(todo→session)와 종료(session→todo)가 공존한다. 짧은 session 쓰기 fence 이후 todo table/row는 NOWAIT로만 얻고55P03 때 원자 취소·사용자 재시도한다. UI는 초안/기록을 보존하고 자동 mutation 재시도를 하지 않는다. 단일 연결 PGlite는 실제 다중 연결 경합을 증명하지 못한다.
-- 독립 검토·전체Chrome1751/1751·공식7/Dune0 통과, 운영 적용은 기록 무결성 조회 동의 대기다. 최종 근거는 docs/verification/2026-11-05-learning-continuity.md를 따른다.
+- 독립 검토·전체Chrome1751/1751·공식7/Dune0 통과, 승인 후 운영 적용·기존8종 무결성 동일·웹READY/200 확인 완료. 최종 근거는 docs/verification/2026-11-05-learning-continuity.md를 따른다.
 
 ## quality enum과 실제 지원 해상도를 혼동하는 표시 — 2026-11-03
 - 기존 high는 최고 제공해상도라720p 원본에서는720p다. 이를1080p 라벨로 단순 치환하면 미지원이 선택된 것처럼 보인다. 요약은실제resolution, 편집은지원해상도로 초안만 정규화한다.11/04후속 승인으로 비활성 대신 미지원1080p 선택을 숨기고 최대720p 안내는 유지한다.

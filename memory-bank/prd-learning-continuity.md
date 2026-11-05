@@ -74,6 +74,7 @@
 - 실제 계정 데이터는 임의 작성하지 않고 합성 테스트를 사용한다. 실제 앱 재로드/종료는 유휴·초안 확인 승인을 새로 받는다.
 - 새 APK/EXE 없이 공통 hosted UI로 출시하고 운영 확인 결과를 별도 문서에 기록한다.
 - 운영 DB local20261104153953→remote20261105074906/learning_continuity 적용. 사용자 동의하에 원문 없는 count/digest8종 일치, 기존6함수·ACL/RLS/policy/trigger 동일, 신규5RPC/private2권한 검증. 실제 건수·지문은 Git에 공개하지 않는다. 신규 FK색인 INFO2건/미사용 신설색인 INFO1건은 규모별 성능 수용 후속으로 남긴다. 상세: [검증 기록](../docs/verification/2026-11-05-learning-continuity.md).
+- 출시40cbe73·Actions41990690435 success·Vercel dpl_HBSod2Y6wQ8FEr6fsYUwiNS6Zpx8 production READY/exactSHA/운영alias·HTML/JS/CSS200. 새 APK/EXE 없이 공통 화면으로 적용, 실제 설치 앱 수용은 별도다.
 
 ## 12. Open Questions
 - 이번 범위의 결정은 목업과 11/05 사용자 승인으로 확정. 다중 자료 파일·주제별 프로젝트 체계는 후속 범위다.
