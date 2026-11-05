@@ -1,5 +1,24 @@
 # Troubleshooting
 
+## 완료 모달 작성 중 다른 기기에서 먼저 종료됨 — 2026-11-05
+- 증상: 원래 세션이 회고 없이 completed된 뒤 activeSession=null로 갱신되면, 남은 완료 초안의 재저장이 active-only guard에서 무동작이다. 회고 행 유무만으로는 응답 유실/원격 종료를 구분할 수 없다.
+- 복구 경계: 소유한 원래 세션의 상태와 회고 존재를 함께 읽고, completed/no-reflection을 명시 확인한 경우 같은 초안을 follow-up 생성으로 전환한다. 재확인만으로 쓰거나 새 활성 세션을 종료·재정산하지 않는다.
+- 최종 whole-feature 검토에서 재현 후76815b3으로 수정했다. 실제 App 원격 종료/초안·새 세션 보존48/48·전체Chrome1751/1751·최종재검토 통과. 운영 적용 상태는 docs/verification/2026-11-05-learning-continuity.md에서 확인한다.
+
+## Windows 대소문자·확장자 해석이 다른 UI 빌드 — 2026-11-05
+- LearningContinuity.tsx 뷰와 learningContinuity.mjs client가 함께 있을 때 extensionless ./LearningContinuity를 실제 Vite가 client로 해석했다. esbuild mounted 통과·tsc만으로는 배포 번들 성공이 보장되지 않았다.
+- 뷰만 LearningContinuityView.tsx로 명확히 구분하고 import를 갱신한다. 검증된 client/tsconfig/의존성은 바꾸지 않는다. 실제 npm.cmd run build와 같은 mounted 검사를 다시 실행해야 완료다. 최종 근거는 learning-continuity 검증 문서.
+
+## 제출한 카메라 회복이 다시 뜸 — 분석 2026-11-05
+- 운영 claim_study_camera_warning는 공부일 누적 경고 행을 세며 Edge24는>=3에서 요청한다. 같은 연속 미감지의5/15/25분 경고도 각각 센다. 배포 helper는 pending만 재사용해 submitted 후 다음 경고에 같은 날 새 pending을 만들 수 있다.
+- 실제 사례는 같은 camera 유형 제출 뒤 재생성이며 결석 요청 재개방이 아니다. 종료 전 생성된 요청이 endTimer/loadDashboard 후 자동 모달로 보일 수 있다. 서버 미감지는 물리 부재의 증거가 아니며 당시 영상/랜드마크를 저장하지 않아 자세 오탐은 미확정이다.
+- 기존 camera/upperBody/videoHealth24/24 및 합성 연속 미감지3경고 재현. 아직 수정/해제/재정산 없음. 중복 방지·독립구간 집계·감지확인 UX는 미승인 제안이며 docs/verification/2026-11-05-camera-recovery-analysis.md 참조.
+
+## 선택 점수 null과 날짜 이동 경합 — 2026-11-05
+- 기존 평균의 Number(value||0)는 미입력 null을0으로 섞는다. 새 optional 점수는 null 보존·유효 숫자1~5만 평균하고 과거 점수를 백필하지 않는다. 회고 한 행의 note/next_action을 재사용한다.
+- 날짜 이동은 legacy actual start(todo→session)와 종료(session→todo)가 공존한다. 짧은 session 쓰기 fence 이후 todo table/row는 NOWAIT로만 얻고55P03 때 원자 취소·사용자 재시도한다. UI는 초안/기록을 보존하고 자동 mutation 재시도를 하지 않는다. 단일 연결 PGlite는 실제 다중 연결 경합을 증명하지 못한다.
+- 독립 검토·전체Chrome1751/1751·공식7/Dune0 통과, 운영 적용은 기록 무결성 조회 동의 대기다. 최종 근거는 docs/verification/2026-11-05-learning-continuity.md를 따른다.
+
 ## quality enum과 실제 지원 해상도를 혼동하는 표시 — 2026-11-03
 - 기존 high는 최고 제공해상도라720p 원본에서는720p다. 이를1080p 라벨로 단순 치환하면 미지원이 선택된 것처럼 보인다. 요약은실제resolution, 편집은지원해상도로 초안만 정규화한다.11/04후속 승인으로 비활성 대신 미지원1080p 선택을 숨기고 최대720p 안내는 유지한다.
 - 취소로기존high 저장값을 바꾸지 않는다. 명시 적용/테마선택에서만 확인한720p 초안을 저장한다.375/1440·지원테마 왕복·취소JSON보존/Apply·다운로드없음·학습보존을 실제UI로 검증한다.

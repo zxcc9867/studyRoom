@@ -1,5 +1,13 @@
 # Progress
 
+## 다음 시작점·오늘의 학습 결과
+
+- 로컬 완료/운영 승인 대기: 최종76815b3·전체 actualChrome1751/1751(실패/생략0)·공식7/Dune0·최종독립C/I/M0. 기록8종의 원문 없는 count/digest 조회가 별도 동의 필요로 거부되어 승인 요청, 원격 migration/배포 미실행·우회없음. 회복·카메라 정책/기존기록 유지. [PRD](prd-learning-continuity.md) · [검증](../docs/verification/2026-11-05-learning-continuity.md).
+
+## 카메라 회복 재생성 분석
+
+- 분석 완료/수정 미실행: 공부일 경고 누적>=3 + pending-only 중복방지로 submitted 뒤 다음 경고에도 재생성. 같은 연속 미감지의 반복 경고도 별도 횟수다. 감지 오탐의 정확 자세 원인은 영상 미저장으로 미확정. 기존24/24와 합성 재현 확인, 실계정 쓰기/시간정정/배포 없음. [분석과 UX 대안](../docs/verification/2026-11-05-camera-recovery-analysis.md).
+
 ## 테마 종류별 메뉴와 실제 Windows 목록
 
 - 운영배포/Windows 메뉴 수용 완료: 이전14종은 승인Ctrl+R 뒤15종/새영상 확인. 제품75ab1da·Actions41777453429 success·dpl_66HWEKw4b9cVwccfByXLJEJfvm1u READY/동일SHA/alias·웹/새JS/CSS/포스터200·영상2Range206. 추가 승인 새로고침 후 실제앱의 새 이미지효과 끄기/켜기·영상아님 안내·15종 확인, 편집닫기/기존테마·로그인 유지. 저장/player/학습·카메라 불변. 공식7/Dune0·최종관련22/22·B키보드3반복·2해시/diff·독립C/I/M0. 원전체1673/1674+최종22의 분할coverage1676(중복19제외), 원pointer1실패/단독1pass는 보존·원인/실사용수용 미확정. [검증](../docs/verification/2026-11-04-theme-type-controls.md).

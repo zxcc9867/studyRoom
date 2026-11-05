@@ -1,5 +1,11 @@
 # Architecture Map
 
+## 다음 시작점·오늘의 학습 결과 경계
+- [PRD](prd-learning-continuity.md): 기존 study_session_reflections의 note/next_action을 입력 원천으로 재사용한다. learningContinuity.mjs/.d.mts는 격리 snapshot과 검증된 mutation 계약만 소유하며 조회 실패를 빈 데이터로 위장하지 않는다. 신규 schema/함수는 추가 migration20261104153953_learning_continuity.sql에 둔다. 기존 종료/실제 공부 정산 함수 정의는 변경하지 않는다.
+- 새 complete_learning_session은 기존 complete_study_session을 같은 트랜잭션에서 호출하고 metadata 검증 실패 시 종료·할 일 완료까지 원자 취소한다. save_learning_reflection/update_learning_bookmark는 동일 회고 행·소유/세션 연결·expected timestamp를 검증한다. context_todo_id/자료/note_kind만 확장하며 구 note는 memo·기존 점수 값은 보존한다. 미입력 nullable 점수는 weeklyReview 평균에서 제외한다.
+- prepare_learning_todo는 같은 소유자의 과거 미완료 항목만 명시 확인 후 동일 ID로 오늘 날짜로 이동한다. 새 항목/연속 일정은 만들거나 일괄 수정하지 않는다. 원래 계획 snapshot/학습 구간은 보존하고 기존 coach 파생 시각은 기존 trigger가 갱신한다. 짧은 세션 쓰기 fence 뒤 todo 잠금 경합은 NOWAIT로 실패시켜 교차 계정 역순 대기를 피한다. 단일 연결 SQL 시험의 실제 경합 검증 한계는 출시 기록에 남긴다.
+- UI 연결은 useLearningContinuity의 별도 조회·초안/요청 수명, LearningContinuityView의 표시/콜백에 한정한다. View 접미사는 Windows에서 learningContinuity.mjs와 extensionless 해석이 충돌하지 않도록 한다. DashboardApp이 계정 세대·공식 시작/종료·카메라·desktop pending write를 계속 소유하며 새 hook/view는 직접 학습·카메라를 시작/종료하지 않는다. 기존 회고창을 재사용하고 새 전역 탭·별도 journal 저장소를 만들지 않는다. 구현·수용 상태는 [검증](../docs/verification/2026-11-05-learning-continuity.md)에서 구분한다.
+
 ## 풍경 집중·Windows 미니 경계
 - [PRD](prd-scenic-study.md): main.tsx의 DashboardApp은 기존 공부·카메라·actual tracking과 모달을 계속 소유한다. ScenicStudyView.tsx/scenicStudy.css는 파생값/공식 콜백과 표시 전환만 사용하고 기존 Dashboard 자식을 유지한다. 2026-11-02 승인한 자동 진입은 DashboardApp의 기존 local start/resume 성공 경계와 현재 today/focus 표시 문맥에서만 수행한다. 이미 실행 중인 공부의 재진입은 표시만 바꾸며 scene 내부 pause/resume 콜백과 별개다. 서버 snapshot/계정 전환/취소/실패로 진입하지 않는다. scoped DOM shielding은 inline 모달 조상 경로와 video layout을 보존하며 inert/aria/opacity·초점/body lock만 임시 소유한다.
 - atmosphere controller/기기별 저장은 기존 소유자다. atmosphere.css의 명시적 scenic scrim을 약하게 하고 풍경이 열린 동안만 root canvas/이미지 실패 fallback을 차콜로 칠한다. 일반 대시보드 대비/움직임 줄이기/blur 정지 계약과 저장값을 유지한다. 배경 편집은 기존 AtmosphereSettings의 독립 초안이다.

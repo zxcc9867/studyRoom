@@ -1,18 +1,22 @@
 # Active Context
-- 갱신: 2026-11-04 14:20 JST · 도구: codex
-- 브랜치: fix/study-dashboard-clarity · 제품 HEAD 75ab1da · 운영 배포/실제 Windows 메뉴 확인 완료, 출시 문서 갱신. 기존 사용자 변경은 보존한다.
-- 목표 / 완료 기준: 실제 Windows 앱의 애니메이션 배경 누락 원인을 확인하고 이미지 효과/영상/정적 배경의 오해를 유발하는 메뉴·안내를 바로잡아 검증·운영 배포한다.
-- 원인 확인: 승인 전 실제 Windows 접근성 목록은 이전14종/noanime였다. 사용자 공부·카메라 미사용/새로고침 승인 뒤 Ctrl+R·동일 로그인/기존 별빛 바다 유지, 설정 재진입 목록15종/별빛 바다와 유성 확인. 새 영상 미배포나 스크롤만의 문제가 아니라 열린 이전 문서였다. 카탈로그/자산은 변경하지 않는다.
-- 구현: AtmosphereSettings만 종류별 표시. 이미지 효과=끄기/켜기·움직임 강도·영상 아님 안내, 영상=정적 이미지/영상 라이브·화질·실제 재생속도0.75배/1배, 정적=불필요한 움직임/영상 안내 없음. 내부 static/live/intensity·controller/player·학습·카메라·네이티브 불변.
-- 검증 완료: 신규6 실제 Chrome RED(이미지4/static1/video1)→GREEN6/6·실패/생략/취소0·15601ms. settings/scenic375/1440·15종 도달·초안 미다운로드/취소·설정/기록/동일카메라node/stream/track 유지. 독립 shared-reviewer C0/I0/M0·문법/diff 검사 통과.
-- 최초 공식7/Dune0·exit0. 전체 Chrome 종료1674건·1673pass/1fail·생략/취소0·1552389ms: baseline owner-B 시험76행 pointer interception(연장 assertions 이전). 같은 소스 단독 pointer-rerun1/1 통과해 간헐적임을 확인했으며 정확 원인/실사용 pointer 수용은 미확정이다. 앱 component 해시는 그대로다.
-- 최종 검증 완료: B재진입만 실제키보드로 보강/기존assertions유지·영상 다크200%2건 추가 뒤 공식7/Dune0 재통과, Chrome lease14+종류8=22/22·실패/생략/취소0·57027ms·exit0, B키보드반복3/3 통과. 제품동일해시·최종2해시/diff·독립C/I/M0. 원전체1673/1674 + 최종22/22의 분할 coverage1676건(중복19제외)이며 단일전체전건통과/원pointer해결로 표현하지 않는다.
-- 운영 완료: 제품75ab1da push·Actions41777453429 success·dpl_66HWEKw4b9cVwccfByXLJEJfvm1u production READY/동일SHA/운영alias·빌드40.821초. HTML/새JS/CSS/포스터200·anime720/1080 Range206·새 종류별 문구 확인. 직후5분 error/fatal 집계 행 없음, Drains404로 연결 상태는 미확인이다.
-- 실제 Windows 수용: 추가 유휴/미저장없음 승인 후 Ctrl+R·로그인 유지, 설정 UIA15종/별빛 바다와 유성·이미지 효과 끄기/켜기·영상 아님 안내/잘못된 영상 안내 없음 확인. 테마 선택/적용 없이 편집 닫음·별빛 바다/이미지 효과 동일. 좌표 geometry 오류는 창 재선택/활성화로 회복했고 화면 밖 취소는 재관측 후 보이는 닫기로 대체했다.
-- 다음 단계: 후속 요청 시 원pointer/focus 경합·Windows cold 테마 소실 원인을 각각 재현·조사한다. 이번 메뉴 수정의 해결 범위가 아니며 자동 테마/학습 변경은 하지 않는다.
-- 문서/claim: prd-study-themes.md, prd-scenic-study.md, [종류별 설정 검증](../docs/verification/2026-11-04-theme-type-controls.md). owner codex-theme-controls-1104. 새APK/EXE는 없다.
-- 직전 운영: 세션 연장 제품c7b9068/Actions41766757443 success·dpl_4SpLh99GuXLpBNJwCmNhANRNzqfa READY/동일SHA/alias·웹200. 신규14·최종Chrome 분할1668건·공식7/Dune0·독립0·5해시. [검증](../docs/verification/2026-11-04-scenic-session-extension.md). 이전 팀fixture2fail/분할 gate 기록은 그대로 보존한다.
-- 애니메이션 원본: 제품698414d/Actions41758240677 success·dpl_9mVCs7quH4akfDfzna6ZmCa5c8iB READY. 별빛 바다와 유성24초/720·1080 실제영상과 기존 별빛 바다 이미지효과는 별개다. [검증](../docs/verification/2026-11-04-anime-sea-video.md).
-- 기존 미해결: Windows0.1.10 정상 종료/cold 재실행 때 테마 소실 원인은 미확정이며 이번 Ctrl+R 저장유지를 cold 해결로 확대하지 않는다. [조사](../docs/verification/2026-11-02-theme-restart-diagnosis.md). 항상위는 최소Electron에서도false로 승인보류.
-- 보존: Android0.2.4/Windows0.1.10 hosted 화면 공유. 원본 study-room-desktop-current는 read-only. theme-device-acceptance/theme-editor-alignment, prd-tech-feed/prd-windows-desktop, desktop-install-acceptance, .serena/다른output은 이번 stage에서 제외한다.
-- 주의: 실제 앱에 승인한 새로고침·설정 탐색만 수행했고 테마 적용/학습 시작·휴식·종료/회복 제출/서버 기록 쓰기는 하지 않았다. Android 에뮬레이터·물리 카메라/장시간 GPU·배터리·DB digest 수용은 이번 범위에서 미실행이다.
+- 갱신: 2026-11-05 · 도구: codex
+- 사용자 최신 승인: 다음 시작점 북마크·오늘의 학습 결과 UI/검증/배포를 재개한다. 회복 루틴·카메라 감지 정책은 그대로 유지하며 분석의 개선안은 보류한다.
+- 브랜치: fix/study-dashboard-clarity · 현재HEAD76815b3 / 기능기준123c835 / 기존 운영제품75ab1da. 원격보다4앞/0뒤(배포전재fetch). 사용자 dirty 문서/output 보존.
+- 목표 / 완료 기준: 기존 시작·회고·기록에 할 일 ID별 시작점·직접 작성 결과를 통합, 실제 Chrome/공식7/Dune/독립검토/DB 기록보존/운영 READY·HTTP200 확인. [PRD](prd-learning-continuity.md), [계획](../docs/superpowers/plans/2026-11-05-learning-continuity.md), [검증](../docs/verification/2026-11-05-learning-continuity.md).
+- 진행 원장: .superpowers/sdd/2026-11-05-learning-continuity/progress.md. 완료 Task1은 다시 구현하지 않는다. root owner codex-continuity-1105는 문서/원격/배포만; /root/continuity_ui_1105 owner codex-continuity-ui-1105가 Task2 소스/테스트만 소유한다. 중첩/병렬 구현 금지.
+- 완료 Task1: f3a3517 저장 계층·집중30/30/확장116/116/build/Dune0, 독립 /root/continuity_data_review_1105 spec준수/품질승인 C0/I0/M0. 로컬 migration20261104153953_learning_continuity.sql, 아직 운영 미적용/미푸시.
+- Task2 완료7ac8418+fix53a6598: Chrome44/44·관련14/14·계약25/25·적응기존16/16·build통과. I2/M2와 공식회귀6건 수정, scoped reviewer 전부 ADDRESSED/new C/I/M0. source claims해제. report: .superpowers/sdd/2026-11-05-learning-continuity/task-2-report.md.
+- 승인 흐름: 이전 할 일 이어가기 또는 다른 할 일 선택, A/B ID별 시작점 보존. 과거 미완료는 일정 확인·승인 후 동일 ID 날짜만 오늘로 이동. 원래 snapshot/구간/회고·다른 반복 항목 유지. 새 todo 자동생성/완료/제목 자동채움 없음.
+- UI/저장 계약: note/next_action 한 행 재사용; 과거 memo 백필 없음; 신규 명시 결과만 카드; 미입력 점수 null·평균 제외. 상세 입력은 접어도 mounted/초안 유지. 기존 시작/회복/카메라/실제 정산·계정 generation·desktop pending write 소유권 유지.
+- 결정3건: 기존 수정 exact expectedUpdatedAt(동시 수정 재확인 비용), 날짜 이동 bounded session fence+todo NOWAIT(경합 재시도 비용), Windows 확장자 충돌 회피 LearningContinuityView 이름(일회 import/doc 변경 비용). 실제 다중 연결 경합 미검증. 원장의 Ruling 최종 보고에 포함한다.
+- 원격 사전확인: next-js(bqohkdzvxbrokkmuhysx) PostgreSQL17.6/healthy, legacy scores NOT NULL, reflection RLS는 owner-only·기존 trigger 없음. links UNIQUE(session_id,todo_id), todo snapshot/coach/touch trigger 존재. 신규 trigger/RPC는 소유·연결 검증을 독립 보장하며 기존 함수/정책/권한은 유지한다.
+- 최종76815b3: 회고 없는 외부완료는 원래 세션 상태 확인→명시 승인→동일 초안 follow-up 생성으로 복구, 새 세션/정산/할 일 미변경. Chrome48/48+기존14/14+read11/11, 최종 scoped review Ready Yes/new C/I/M0. 공식7/Dune0 exit0 재확인. npm1751/1277pass/0fail/474skip는 기본브라우저생략이다.
+- 전체 Chrome76815b3 완료:1751/1751·실패/생략/취소0·exit0·1115845.6014ms(max2 files), output/learning-continuity-full-chrome-76815b3-20261105.log. 앞선53a 중단 partial과 구분. source고정·보호범위diff0, 공식7/최종독립검토도 통과.
+- 현재 승인 대기: 운영8종 기록 count/digest 쿼리는 민감 파생정보의 별도 동의 부재로 도구가 거부(값 반환 없음). 원문/이메일/ID 없이 건수·무결성 지문만 계산·조회 동의 요청. 우회/재시도/원격DDL/배포 없음. 승인 시 baseline→reviewed migration→보존/핵심6함수·권한·advisors 대조→feature push/Actions/READY·동일SHA·운영200.
+- 실기기 한계: GUI 도구 없음; E:/Android/Sdk ADB 복구됐지만 연결0/AVD꺼짐, Electron 로컬 바이너리 미설치로 integration 미실행. 실제 설치앱/프로필로 대체하지 않았으며 별도 유휴/초안 승인 후 수용한다.
+- 실행: npm.cmd 사용, rg 없음(Select-String). 공식 & C:/jini-dev/.ai/scripts/ai.ps1 verify --project .; Chrome FEED_BROWSER_MODULE=C:/jini-dev/project/study-notes/node_modules/playwright/index.mjs / FEED_BROWSER_EXECUTABLE=C:/Program Files/Google/Chrome/Application/chrome.exe. 전체 브라우저는 안정 소스에서 실행하고 로그/exit/count까지 확인한다.
+- 네이티브: Android0.2.4/Windows0.1.10이 hosted 공통 화면 사용. 이번에는 새 APK/EXE·의존성 변경 없음. 실제 앱 새로고침/종료/계정·카메라·테마 조작은 fresh 유휴/초안 승인을 받은 뒤만 한다. 미승인 실계정 쓰기/회복 해제/시간정정 없음.
+- 이전 운영: 75ab1da/Actions41777453429 success/dpl_66HWEKw4b9cVwccfByXLJEJfvm1u READY·동일SHA·alias·HTTP200. 종류별 메뉴/15종 실제 Windows 수용은 docs/verification/2026-11-04-theme-type-controls.md 참고.
+- 기존 미해결/보류: 설치 Windows cold 테마 유지 원인 미확정, 원래 owner-B pointer 간헐 실패(키보드 검사와 별개), Android/물리 카메라/장시간 GPU·배터리 수용 미완료. always-on-top 사용자 승인 보류. 이번 기능 완료로 확대하지 않는다.
+- 카메라 회복 분석: 공부일 누적 경고>=3와 pending-only 중복방지로 같은 유형 제출 뒤 재생성; 같은 연속 구간 경고도 각각 집계. 기존24/24/합성 재현, 원영상 미저장이라 실제 자세 오탐 원인 미확정. [분석](../docs/verification/2026-11-05-camera-recovery-analysis.md). 사용자가 현재대로 유지 선택, 수정/배포 금지.
+- stage 제외: theme-device-acceptance/theme-editor-alignment, prd-tech-feed/prd-windows-desktop, desktop-install-acceptance, .serena/다른output. 기존 사용자 변경을 되돌리지 않는다. prior 간단 검사의 untracked 문서는 새 기능의 fresh 완료 근거가 아니다.
