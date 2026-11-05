@@ -5,7 +5,7 @@ import type { StudyReportPeriods } from "./studyReports.mjs";
 export type ReportSession = { id: string; local_date: string; status: string; duration_seconds: number };
 export type ReportTodo = { id?: string; title?: string; local_date: string; is_completed: boolean };
 export type ReportAttendance = { local_date: string; status: string };
-export type ReportReflection = { session_id: string; focus_score: number; energy_score: number; interruption_reason: "none" | "phone" | "environment" | "fatigue" | "schedule" | "other" | null; next_action: string | null; created_at: string };
+export type ReportReflection = { session_id: string; focus_score: number | null; energy_score: number | null; interruption_reason: "none" | "phone" | "environment" | "fatigue" | "schedule" | "other" | null; next_action: string | null; created_at: string };
 export type StudyReportData = {
   currentSummary: StudyPeriodSummary;
   previousSummary: StudyPeriodSummary;

@@ -16,6 +16,9 @@ import StudyRestartCoach from "./StudyRestartCoach";
 import AppNotice from "./AppNotice";
 import RecoverableSection from "./RecoverableSection";
 import SessionReflectionModal from "./SessionReflectionModal";
+import { LearningStartPoint, LearningResults } from "./LearningContinuityView";
+import { useLearningContinuity, learningErrorMessage } from "./useLearningContinuity";
+import { completeLearningSession, saveLearningReflection, prepareLearningTodo, updateLearningBookmark, normalizeLearningReflection, validateLearningResourceUrl, type LearningBookmark, type LearningResult } from "./learningContinuity.mjs";
 import { createTechFeedClient, feedTodoDraft } from "./techFeed.mjs";
 import type { FeedArticle } from "./techFeedTypes";
 import TimeZonePicker from "./TimeZonePicker";
@@ -145,6 +148,7 @@ import {
   runBoundedRequest,
   loadNotificationDeliveryData,
   loadReflectionData,
+  loadLearningReflectionForReview,
 } from "./dashboardData";
 import {
   findMatchingNextActionTodo,
@@ -437,8 +441,8 @@ type StudyRecoveryRequest = {
 type StudySessionReflection = {
   id: string;
   session_id: string;
-  focus_score: number;
-  energy_score: number;
+  focus_score: number | null;
+  energy_score: number | null;
   interruption_reason: SessionReflectionDraft["interruptionReason"] | null;
   note: string | null;
   next_action: string | null;
@@ -648,6 +652,16 @@ function DashboardApp() {
   const [sessionTodoTimeChecking, setSessionTodoTimeChecking] = useState(false);
   const sessionTodoTimeReturnFocusRef = useRef<HTMLButtonElement | null>(null);
   const [endSessionCompletionModalOpen, setEndSessionCompletionModalOpen] = useState(false);
+  const [learningSelectedId, setLearningSelectedId] = useState<string | null>(null);
+  const [learningPrepare, setLearningPrepare] = useState<LearningBookmark | null>(null);
+  const [learningEdit, setLearningEdit] = useState<LearningResult | null>(null);
+  const [learningCompletionId, setLearningCompletionId] = useState<string | null>(null);
+  const [learningReviewed, setLearningReviewed] = useState<LearningResult | null>(null);
+  const [learningBookmarkEdit, setLearningBookmarkEdit] = useState<LearningBookmark | null>(null);
+  const [learningError, setLearningError] = useState("");
+  const [reflectionLearningMode, setReflectionLearningMode] = useState(false);
+  const [learningReloadRevision, setLearningReloadRevision] = useState(0);
+  const learningStartIntentRef = useRef<{ userId: string; todoId: string } | null>(null);
   const [selectedEndSessionCompletionTodoIds, setSelectedEndSessionCompletionTodoIds] = useState<string[]>([]);
   const [sessionReflectionDraft, setSessionReflectionDraft] = useState<SessionReflectionDraft>({
     focusScore: 3,
@@ -834,6 +848,18 @@ function DashboardApp() {
 
   useEffect(() => {
     setFeedPlanArticle(null);
+    setLearningSelectedId(null);
+    setLearningPrepare(null);
+    setLearningEdit(null);
+    setLearningCompletionId(null);
+    setLearningReviewed(null);
+    setLearningBookmarkEdit(null);
+    setLearningError("");
+    setEndSessionCompletionModalOpen(false);
+    setReflectionInboxSessionId(null);
+    setReflectionInboxBusy(false);
+    learningStartIntentRef.current = null;
+    endSessionInFlightRef.current = null;
     setFeedLinkedTodo(null);
     actualStateRevisionRef.current += 1;
     actualIntentRef.current = null;
@@ -1158,6 +1184,11 @@ function DashboardApp() {
   });
   const todayDateKey = activeSession?.local_date ?? getStudyDateKey(new Date(nowMs), timeZone);
   const calendarDateKey = getLocalDateKey(new Date(nowMs), timeZone);
+  const continuity = useLearningContinuity(supabase, session?.user.id ?? null, todayDateKey, dashboardReady, beginDesktopSectionWrite);
+  useEffect(() => { if (learningReloadRevision) continuity.refresh(); }, [learningReloadRevision, continuity.refresh]);
+  const learningChoices = studyTodos.filter(todo => !todo.is_completed && todo.local_date <= calendarDateKey && (todo.local_date === calendarDateKey || continuity.data?.bookmarks.some(bookmark => bookmark.todoId === todo.id)));
+  const learningChoiceId = learningSelectedId !== null ? learningSelectedId : continuity.data?.bookmarks.find(bookmark => learningChoices.some(todo => todo.id === bookmark.todoId))?.todoId ?? "";
+  const learningBookmark = continuity.data?.bookmarks.find(bookmark => bookmark.todoId === learningChoiceId) ?? null;
   const studySummaryKey = JSON.stringify([session?.user.id, todayDateKey, calendarMonth, timeZone]);
   const tenMinuteCheckpointStorageKey = getTenMinuteCheckpointStorageKey({
     userId: session?.user.id,
@@ -1254,7 +1285,8 @@ function DashboardApp() {
     }
 
     setResumeStartAfterRecoveryUnlock(false);
-    void startTimer();
+    const intent = learningStartIntentRef.current;
+    void startTimer(false, intent && intent.userId === session?.user.id ? [intent.todoId] : undefined, undefined, intent && intent.userId === session?.user.id ? intent.todoId : undefined);
   }, [
     activeSession?.id,
     blockingRecoveryRequests.length,
@@ -1383,6 +1415,14 @@ function DashboardApp() {
     fallbackTodoTitle: incompleteTodayTodos[0]?.title,
   });
   function requestAdaptiveStudyStart() {
+    if (continuity.supported) {
+      if (learningBookmark && learningBookmark.localDate < calendarDateKey) { setLearningError(""); setLearningPrepare(learningBookmark); return; }
+      const choice = learningChoices.find(todo => todo.id === learningChoiceId && todo.local_date === calendarDateKey);
+      if (choice && session) learningStartIntentRef.current = { userId: session.user.id, todoId: choice.id };
+      else learningStartIntentRef.current = null;
+      void startTimer(false, choice ? [choice.id] : undefined, undefined, choice?.id);
+      return;
+    }
     void startTimer(false, undefined, studyStartAction.suggestedTodoTitle);
   }
   const activeSessionTodos = useMemo(
@@ -2170,6 +2210,7 @@ function DashboardApp() {
         ? (recoveryData as StudyRecoveryRequest[]).find((request) => request.id === current.id && request.status === "pending") ?? null
         : null);
       setLatestStudySessionReflection(latestReflectionData as StudySessionReflection | null);
+      setLearningReloadRevision(value => value + 1);
     } catch (error) {
       if (isCurrent() && !controller.signal.aborted) {
         setDashboardError(`학습 정보를 불러오지 못했습니다: ${formatError(error)}`);
@@ -2537,7 +2578,7 @@ function DashboardApp() {
 
   function openSessionTodoSelection(cameraReadyOverride: boolean, action: "start" | "resume" | "switch" = "start") {
     const suggestedTodoTitle = normalizeHabitText(sessionTodoSuggestionRef.current);
-    const matchingTodo = findMatchingNextActionTodo({ nextAction: suggestedTodoTitle, todos: incompleteTodayTodos });
+    const matchingTodo = continuity.supported ? incompleteTodayTodos.find(todo => todo.id === learningChoiceId) : findMatchingNextActionTodo({ nextAction: suggestedTodoTitle, todos: incompleteTodayTodos });
     const suggestedSchedule = getSuggestedSessionTodoSchedule();
     setSessionTodoStartRequest({ cameraReadyOverride, action });
     setSelectedSessionTodoIds(matchingTodo ? [matchingTodo.id] : []);
@@ -2560,6 +2601,7 @@ function DashboardApp() {
       cameraSessionStartingRef.current = false;
     }
     setSessionTodoModalOpen(false);
+    learningStartIntentRef.current = null;
     setSessionTodoStartRequest(null);
     setSelectedSessionTodoIds([]);
     setSessionTodoDraft("");
@@ -3111,18 +3153,114 @@ function DashboardApp() {
   }
   function openEndSessionCompletionModal() {
     if (!activeSession) return;
+    setLearningCompletionId(activeSession.id);
+    setLearningReviewed(null);
     setSelectedEndSessionCompletionTodoIds([]);
     setSessionReflectionDraft({
-      focusScore: 3,
-      energyScore: 3,
-      interruptionReason: "none",
+      focusScore: continuity.supported ? null : 3,
+      energyScore: continuity.supported ? null : 3,
+      interruptionReason: continuity.supported ? null : "none",
       note: "",
       nextAction: "",
+      contextTodoId: actualTrackingRef.current?.current_todo_id ?? activeSessionTodos[0]?.id ?? null,
+      resourceUrl: "",
+      resourcePosition: "",
     });
+    setReflectionLearningMode(continuity.supported);
+    setLearningError("");
     setEndSessionCompletionModalOpen(true);
   }
 
+  function validateLearningDraft() {
+    try { validateLearningResourceUrl(sessionReflectionDraft.resourceUrl); normalizeLearningReflection(sessionReflectionDraft); setLearningError(""); return true; }
+    catch { setLearningError("자료 URL은 사용자 정보가 없는 올바른 HTTP 또는 HTTPS 주소만 사용할 수 있어요. 입력 길이도 확인해 주세요."); return false; }
+  }
+
+  function openLearningResult(result: LearningResult) {
+    if (continuity.busy) return;
+    setLearningEdit(result);
+    setLearningReviewed(null);
+    setLearningBookmarkEdit(null);
+    setReflectionLearningMode(true);
+    setLearningError("");
+    setSessionReflectionDraft({ focusScore: result.focusScore, energyScore: result.energyScore, interruptionReason: result.interruptionReason, note: result.note, nextAction: result.nextAction, contextTodoId: result.todoId, resourceUrl: result.resourceUrl, resourcePosition: result.resourcePosition });
+  }
+
+  function openLearningBookmark(bookmark: LearningBookmark) {
+    if (continuity.busy) return;
+    setLearningBookmarkEdit(bookmark);
+    setLearningReviewed(null);
+    setLearningEdit(null);
+    setReflectionLearningMode(true);
+    setLearningError("");
+    setSessionReflectionDraft({ focusScore: null, energyScore: null, interruptionReason: null, note: "", nextAction: bookmark.nextAction, contextTodoId: bookmark.todoId, resourceUrl: bookmark.resourceUrl, resourcePosition: bookmark.resourcePosition });
+  }
+
+  async function saveLearningDraft(sessionId: string) {
+    if (!session?.user.id || continuity.busy || !validateLearningDraft()) return;
+    const owner = session.user.id;
+    const isCurrent = () => currentUserIdRef.current === owner;
+    try {
+      await continuity.mutate(signal => learningBookmarkEdit
+        ? updateLearningBookmark(supabase, { reflectionId: learningBookmarkEdit.reflectionId, expectedUpdatedAt: learningBookmarkEdit.updatedAt, nextAction: sessionReflectionDraft.nextAction, resourceUrl: sessionReflectionDraft.resourceUrl ?? "", resourcePosition: sessionReflectionDraft.resourcePosition ?? "" }, { signal })
+        : saveLearningReflection(supabase, { sessionId, reflection: normalizeLearningReflection(sessionReflectionDraft), expectedUpdatedAt: learningEdit?.updatedAt ?? null }, { signal }));
+      if (!isCurrent()) return;
+      setLearningEdit(null); setLearningBookmarkEdit(null); setReflectionInboxSessionId(null); setLearningError("");
+      setMessage("회고를 저장했어요.");
+      void loadDashboard(owner);
+      setReflectionHistoryLoaded(false);
+      void loadReflectionData(supabase, owner).then(rows => { if (isCurrent()) { setStudySessionReflections(rows as StudySessionReflection[]); setReflectionHistoryLoaded(true); } }).catch(() => {});
+    } catch (error) {
+      if (!isCurrent()) return;
+      setLearningError(learningErrorMessage(error));
+      continuity.refresh();
+    }
+  }
+
+  async function recheckLearningDraft() {
+    const targetId = learningEdit?.sessionId ?? learningBookmarkEdit?.sessionId ?? learningCompletionId ?? reflectionInboxSessionId;
+    const owner = session?.user.id;
+    if (!owner || !targetId || continuity.busy) return;
+    try {
+      const result = await continuity.review(signal => loadLearningReflectionForReview(supabase, owner, targetId, signal));
+      if (currentUserIdRef.current !== owner) return;
+      setLearningReviewed(result);
+      setLearningError(result ? "서버의 최신 기록을 확인했어요. 초안과 비교한 뒤 저장 기준을 직접 선택해 주세요." : "저장된 회고가 아직 없어요. 현재 세션 상태를 확인한 뒤 직접 다시 저장해 주세요.");
+      continuity.refresh();
+      void loadDashboard(owner);
+    } catch {
+      if (currentUserIdRef.current === owner) setLearningError("최신 기록 확인에 실패했어요. 초안은 그대로 보존했어요. 다시 확인해 주세요.");
+    }
+  }
+
+  function acceptReviewedLearning(result: LearningResult) {
+    if (learningBookmarkEdit) setLearningBookmarkEdit({ ...learningBookmarkEdit, updatedAt: result.updatedAt });
+    else { setLearningEdit(result); setEndSessionCompletionModalOpen(false); setReflectionInboxSessionId(null); }
+    setLearningReviewed(null);
+    setLearningError("최신 기록을 확인했어요. 보존된 초안을 검토한 뒤 직접 저장해 주세요.");
+  }
+
+  async function confirmLearningPrepare() {
+    if (!learningPrepare || !session?.user.id || continuity.busy) return;
+    const owner = session.user.id;
+    const bookmark = learningPrepare;
+    try {
+      const prepared = await continuity.mutate(signal => prepareLearningTodo(supabase, { todoId: bookmark.todoId, expectedLocalDate: bookmark.localDate, expectedUpdatedAt: bookmark.todoUpdatedAt }, { signal }));
+      if (currentUserIdRef.current !== owner) return;
+      setStudyTodos(current => current.map(todo => todo.id === prepared.todoId ? { ...todo, local_date: prepared.localDate, updated_at: prepared.updatedAt } : todo));
+      setLearningPrepare(null);
+      setLearningError("");
+      learningStartIntentRef.current = { userId: owner, todoId: prepared.todoId };
+      await startTimer(false, [prepared.todoId], undefined, prepared.todoId);
+    } catch (error) {
+      if (currentUserIdRef.current !== owner) return;
+      setLearningError(learningErrorMessage(error));
+      continuity.refresh();
+    }
+  }
+
   function closeEndSessionCompletionModal() {
+    if (busy || continuity.busy) return;
     if (desktopQuitRef.current) {
       void desktopRequest(window, "cancelQuit", { requestId: desktopQuitRef.current.requestId }).catch(() => {});
       desktopQuitRef.current = null;
@@ -3142,6 +3280,8 @@ function DashboardApp() {
 
   async function confirmEndSessionWithCompletions() {
     if (!activeSession) return;
+    if (reflectionLearningMode && activeSession.id !== learningCompletionId) { setLearningError("현재 세션이 바뀌었어요. 초안을 보존했어요. 최신 기록을 다시 확인해 주세요."); return; }
+    if (reflectionLearningMode && !validateLearningDraft()) return;
 
     await endTimer({
       completedTodoIds: selectedEndSessionCompletionTodoIds,
@@ -3157,23 +3297,34 @@ function DashboardApp() {
       return;
     }
 
+    setLearningCompletionId(null);
+    setLearningReviewed(null);
+    setLearningEdit(null);
+    setLearningBookmarkEdit(null);
+
     setSessionReflectionDraft({
-      focusScore: 3,
-      energyScore: 3,
-      interruptionReason: "none",
+      focusScore: continuity.supported ? null : 3,
+      energyScore: continuity.supported ? null : 3,
+      interruptionReason: continuity.supported ? null : "none",
       note: "",
       nextAction: "",
+      contextTodoId: studySessionTodoLinks.find(link => link.session_id === sessionId)?.todo_id ?? null,
+      resourceUrl: "",
+      resourcePosition: "",
     });
+    setReflectionLearningMode(continuity.supported);
+    setLearningError("");
     setReflectionInboxSessionId(targetSession.id);
   }
 
   function closeReflectionInbox() {
-    if (reflectionInboxBusy) return;
+    if (reflectionInboxBusy || continuity.busy) return;
     setReflectionInboxSessionId(null);
   }
 
   async function saveReflectionInboxEntry() {
     if (!session?.user.id || !reflectionInboxSession) return;
+    if (reflectionLearningMode) { await saveLearningDraft(reflectionInboxSession.id); return; }
     const isStillEligible = pendingReflectionSessions.some((item) => item.id === reflectionInboxSession.id);
     if (!isStillEligible) {
       setReflectionInboxSessionId(null);
@@ -3735,6 +3886,7 @@ function DashboardApp() {
   }
 
   function closeRecoveryRoutineModal() {
+    learningStartIntentRef.current = null;
     scenicStartIntentRef.current = null;
     if (recoveryModalRequest) {
       recoveryModalDismissedIdsRef.current.add(recoveryModalRequest.id);
@@ -3836,6 +3988,7 @@ function DashboardApp() {
     if (normalizedSuggestedTodoTitle) {
       sessionTodoSuggestionRef.current = normalizedSuggestedTodoTitle;
     }
+    if (continuity.supported && selectedTodoIds?.length === 1 && session) learningStartIntentRef.current = { userId: session.user.id, todoId: selectedTodoIds[0] };
 
     if (blockingRecoveryRequests.length > 0) {
       setResumeStartAfterRecoveryUnlock(true);
@@ -3920,6 +4073,7 @@ function DashboardApp() {
   }
 
   function applyActualResult(result: ActualResult) {
+    learningStartIntentRef.current = null;
     const updated = result.session;
     if (result.preview.action === "start") resetPresenceState();
     hydrateActualTracking(result.tracking);
@@ -4129,6 +4283,9 @@ function DashboardApp() {
     if (!activeSession || !actualTrackingRef.current || actualIntentRef.current) return;
 
     const endingSession = activeSession;
+    const owner = session?.user.id;
+    const ownsRequest = () => Boolean(owner && currentUserIdRef.current === owner && endSessionInFlightRef.current === endingSession.id);
+    const isCurrent = () => ownsRequest() && (!sessionLeaseContextRef.current.sessionId || sessionLeaseContextRef.current.sessionId === endingSession.id);
     if (endSessionInFlightRef.current === endingSession.id) {
       return;
     }
@@ -4142,7 +4299,9 @@ function DashboardApp() {
     endSessionInFlightRef.current = endingSession.id;
     setBusy(true);
     try {
-      const { error } = options.reflection
+      const { error } = options.reflection && reflectionLearningMode
+        ? await continuity.mutate(signal => completeLearningSession(supabase, { sessionId: endingSession.id, excludedSeconds, completedTodoIds: options.completedTodoIds ?? [], reflection: normalizeLearningReflection(options.reflection!) }, { signal })).then(() => ({ error: null }))
+        : options.reflection
         ? await supabase.rpc("complete_study_session", {
             p_session_id: endingSession.id,
             p_excluded_seconds: excludedSeconds,
@@ -4157,6 +4316,11 @@ function DashboardApp() {
             p_session_id: endingSession.id,
             p_excluded_seconds: excludedSeconds,
           });
+
+      if (!isCurrent()) {
+        if (ownsRequest() && options.reflection) setLearningError("현재 세션이 바뀌었어요. 이전 세션 초안을 보존했어요. 최신 기록을 다시 확인해 주세요.");
+        return;
+      }
 
       if (error) {
         if (isStaleActiveSessionEndError(error)) {
@@ -4192,9 +4356,14 @@ function DashboardApp() {
         }
         await loadDashboard(session.user.id);
       }
+    } catch (error) {
+      if (isCurrent()) {
+        setLearningError(learningErrorMessage(error));
+        continuity.refresh();
+        if (owner) void loadDashboard(owner);
+      }
     } finally {
-      endSessionInFlightRef.current = null;
-      setBusy(false);
+      if (ownsRequest()) { endSessionInFlightRef.current = null; setBusy(false); }
     }
   }
 
@@ -4606,6 +4775,7 @@ function DashboardApp() {
     scenicStartIntentRef.current = null;
     if (cameraSetupPrompt?.mode === "start") {
       sessionTodoSuggestionRef.current = null;
+      learningStartIntentRef.current = null;
     }
     setCameraSetupPrompt(null);
   }
@@ -4633,7 +4803,8 @@ function DashboardApp() {
 
     setCameraSetupPrompt(null);
     if (promptMode === "start") {
-      await startTimer(true);
+      const intent = learningStartIntentRef.current;
+      await startTimer(true, intent && intent.userId === session?.user.id ? [intent.todoId] : undefined, undefined, intent && intent.userId === session?.user.id ? intent.todoId : undefined);
     } else if (promptMode === "break-resume") {
       const resumed = await resumeTimer(prompt.todoIds, prompt.focusId);
       if (!resumed && !actualIntentRef.current) {
@@ -5441,7 +5612,7 @@ function DashboardApp() {
 
   const focusActionDisabled = busy || !dashboardReady || Boolean(actualIntent) || Boolean(activeSession && actualTracking?.session_id !== activeSession.id);
   const focusEndDisabled = busy || !activeSession || Boolean(actualIntent) || actualTracking?.session_id !== activeSession?.id;
-  const focusActionLabel = !dashboardReady ? (dashboardLoading ? "학습 정보 확인 중…" : "학습 정보 확인 필요") : !activeSession && blockingRecoveryRequests.length > 0 ? "회복루틴 작성 후 시작" : !activeSession ? studyStartAction.label : activeSessionPaused ? "공부 계속하기" : "잠시 쉬기";
+  const focusActionLabel = !dashboardReady ? (dashboardLoading ? "학습 정보 확인 중…" : "학습 정보 확인 필요") : !activeSession && blockingRecoveryRequests.length > 0 ? "회복루틴 작성 후 시작" : !activeSession ? continuity.supported && learningBookmark ? "이 지점부터 시작" : studyStartAction.label : activeSessionPaused ? "공부 계속하기" : "잠시 쉬기";
   const focusAction = !activeSession ? requestAdaptiveStudyStart : activeSessionPaused ? requestResumeTimer : () => { void pauseTimer(); };
 
   return (
@@ -5492,9 +5663,11 @@ function DashboardApp() {
           <section className="topbar focus-card daily-visual" aria-label="집중 공부">
             <div className="topbar-head">
               {activeSession && <p className="focus-session-status" role="status">{activeSessionPaused ? "휴식 중" : presenceState.timerPaused || sharedCameraView.status === "auto_paused" ? "자리 비움" : "공부 중"}</p>}
-              {activeSession ? renderSessionTodoList() : <div className="focus-ready"><p className="eyebrow">오늘, 한 걸음부터</p><h2>{blockingRecoveryRequests.length > 0 ? "회복하고 다시 시작해요" : "어떤 공부를 시작할까요?"}</h2><p>{latestNextAction ? `이어서 할 일 · ${latestNextAction}` : "할 일을 고르고 지금부터 집중해 보세요."}</p></div>}
+              {activeSession ? renderSessionTodoList() : <div className="focus-ready"><p className="eyebrow">{continuity.supported && learningBookmark ? "이어갈 공부" : "오늘, 한 걸음부터"}</p><h2>{blockingRecoveryRequests.length > 0 ? "회복하고 다시 시작해요" : continuity.supported && learningBookmark ? learningBookmark.todoTitle : "어떤 공부를 시작할까요?"}</h2>{!continuity.supported && <p>{latestNextAction ? `이어서 할 일 · ${latestNextAction}` : "할 일을 고르고 지금부터 집중해 보세요."}</p>}</div>}
             </div>
             <div className="session-clock"><span>{activeSessionPaused ? "휴식 중 · 공부시간은 멈춰 있어요" : activeSession && (presenceState.timerPaused || sharedCameraView.status === "auto_paused") ? "자리 비움 · 공부시간은 멈춰 있어요" : "이번 세션 공부시간"}</span><strong role="timer" aria-label="이번 세션 공부시간">{dashboardReady ? formatTimerClock(currentSessionSeconds) : "확인 필요"}</strong></div>
+            {!activeSession && continuity.supported && <LearningStartPoint todos={learningChoices} selectedId={learningChoiceId} bookmark={learningBookmark} busy={busy || continuity.busy} onSelect={setLearningSelectedId} onEdit={openLearningBookmark} onRefresh={continuity.refresh} />}
+            {!activeSession && (continuity.status === "error" || continuity.status === "unsupported") && <p role="status">{continuity.status === "unsupported" ? "이 서버는 새 시작점·학습 결과 기능을 아직 지원하지 않아요. 기존 공부·회고를 사용할 수 있어요." : "시작점 정보를 불러오지 못했어요. 기존 공부 제어는 사용할 수 있어요."}<button type="button" className="plain" onClick={continuity.refresh}>시작점 다시 확인</button></p>}
               <div className="topbar-actions" aria-label="집중 세션 조작">
                 <button
                   className="primary"
@@ -5506,7 +5679,7 @@ function DashboardApp() {
                       focusAction();
                     }
                   }}
-                  disabled={focusActionDisabled}
+                  disabled={focusActionDisabled || continuity.busy}
                 >
                   <Play size={18} />
                   {activeSession && !activeSessionPaused ? "공부 화면 열기" : focusActionLabel}
@@ -5523,6 +5696,7 @@ function DashboardApp() {
                   종료
                 </button>}
               </div>
+            {!activeSession && continuity.supported && <button className="plain" type="button" disabled={busy || continuity.busy} onClick={() => { learningStartIntentRef.current = null; openSessionTodoSelection(false); }}>다른 할 일 선택</button>}
             {activeSession && <TenMinuteCheckpoint state={tenMinuteCheckpoint} paused={activeSessionPaused} busy={busy} onContinue={acknowledgeTenMinuteCheckpoint} onFinish={() => void openEndSessionCompletionModal()} />}
             </section>
             <aside className="focus-side" aria-label="오늘의 간략 계획">
@@ -5569,6 +5743,7 @@ function DashboardApp() {
               </div>
             )}
             {todayDomain === "record" && <section className="dashboard-record-overview">
+            {continuity.supported && <LearningResults results={continuity.data?.results ?? []} totalLabel={formatTimerClock(todaySeconds)} sessionCount={studySessions.filter(item => item.local_date === todayDateKey && item.status === "completed").length} timeZone={timeZone} busy={continuity.busy} onEdit={openLearningResult} />}
             <div className="study-summary" aria-label="공부 시간 요약"><div><span>오늘 공부</span><strong>{dashboardReady ? formatTimerClock(todaySeconds) : "확인 필요"}</strong></div><div><span>{formatMonthLabel(calendarMonth)} 누적</span><strong>{dashboardReady ? formatTimerClock(monthSeconds) : "확인 필요"}</strong></div></div>
             <section
               className={`daily-habit-card daily-habit-${dailyHabitState.stage}`}
@@ -5604,7 +5779,7 @@ function DashboardApp() {
                   );
                 })}
               </ol>
-              {latestNextAction && !activeSession && (
+              {latestNextAction && !activeSession && !continuity.supported && (
                 <aside className="daily-habit-next-action" aria-label="지난 세션 이어가기 안내">
                   <span className="daily-habit-next-action-cue" aria-hidden="true">
                     <ArrowUp size={18} />
@@ -6107,9 +6282,16 @@ function DashboardApp() {
           <RecoverableSection {...sectionRecovery} title="공부 회고" modal onReturn={closeEndSessionCompletionModal} fallback={<div className="modal-backdrop"><div className="todo-modal" role="status">회고 화면을 불러오는 중...</div></div>}>
             <SessionReflectionModal
               candidates={endSessionCompletionCandidates}
+              learningSupported={reflectionLearningMode}
+              contextCandidates={activeSessionTodos}
+              sessionLabel={`이번 공부 ${formatTimerClock(currentSessionSeconds)}`}
+              error={learningError}
+              onRecheck={() => void recheckLearningDraft()}
+              latestRecord={learningReviewed ?? undefined}
+              onAcceptLatest={acceptReviewedLearning}
               selectedTodoIds={selectedEndSessionCompletionTodoIds}
               draft={sessionReflectionDraft}
-              busy={busy || todoBusy}
+              busy={busy || todoBusy || continuity.busy}
               onToggleTodo={toggleEndSessionCompletionTodo}
               onDraftChange={setSessionReflectionDraft}
               onClose={closeEndSessionCompletionModal}
@@ -6122,11 +6304,17 @@ function DashboardApp() {
           <RecoverableSection {...sectionRecovery} title="공부 회고" modal onReturn={closeReflectionInbox} fallback={<div className="modal-backdrop"><div className="todo-modal" role="status">회고 화면을 불러오는 중...</div></div>}>
             <SessionReflectionModal
               mode="follow-up"
+              learningSupported={reflectionLearningMode}
+              contextCandidates={studyTodos.filter(todo => studySessionTodoLinks.some(link => link.session_id === reflectionInboxSession.id && link.todo_id === todo.id))}
+              error={learningError}
+              onRecheck={() => void recheckLearningDraft()}
+              latestRecord={learningReviewed ?? undefined}
+              onAcceptLatest={acceptReviewedLearning}
               sessionLabel={formatTodoDate(reflectionInboxSession.local_date)}
               candidates={[]}
               selectedTodoIds={[]}
               draft={sessionReflectionDraft}
-              busy={reflectionInboxBusy}
+              busy={reflectionInboxBusy || continuity.busy}
               onToggleTodo={() => undefined}
               onDraftChange={setSessionReflectionDraft}
               onClose={closeReflectionInbox}
@@ -6135,6 +6323,24 @@ function DashboardApp() {
           </RecoverableSection>
         )}
 
+        {(learningEdit || learningBookmarkEdit) && <SessionReflectionModal
+          mode={learningBookmarkEdit ? "bookmark" : "follow-up"}
+          learningSupported
+          sessionLabel={learningEdit?.localDate}
+          contextCandidates={learningEdit ? studyTodos.filter(todo => studySessionTodoLinks.some(link => link.session_id === learningEdit.sessionId && link.todo_id === todo.id)) : []}
+          candidates={[]} selectedTodoIds={[]} draft={sessionReflectionDraft} busy={continuity.busy}
+          error={learningError} onRecheck={() => void recheckLearningDraft()}
+          onToggleTodo={() => undefined} onDraftChange={setSessionReflectionDraft}
+          onClose={() => { if (!continuity.busy) { setLearningEdit(null); setLearningBookmarkEdit(null); } }}
+          onSubmit={() => void saveLearningDraft((learningEdit ?? learningBookmarkEdit)!.sessionId)}
+          latestRecord={learningReviewed ?? (learningEdit ? continuity.data?.results.find(row => row.reflectionId === learningEdit.reflectionId && row.updatedAt !== learningEdit.updatedAt) : undefined)}
+          onAcceptLatest={acceptReviewedLearning}
+        />}
+        {learningPrepare && <AccessibleDialog className="todo-modal learning-dialog" labelledBy="learning-prepare-title" onClose={() => { if (!continuity.busy) setLearningPrepare(null); }}>
+          <h3 id="learning-prepare-title">지난 할 일 일정 확인</h3><p>{learningPrepare.todoTitle}</p><p>{learningPrepare.localDate} → {calendarDateKey}</p><p>같은 할 일의 날짜만 오늘로 옮깁니다. 기존 시간·계획·공부 기록은 보존하며, 이어서 평소 시작 확인을 진행해요.</p>
+          {learningError && <p role="alert">{learningError}</p>}
+          <div className="modal-actions"><button type="button" className="secondary" disabled={continuity.busy} onClick={() => setLearningPrepare(null)}>취소</button><button type="button" className="primary" disabled={continuity.busy} onClick={() => void confirmLearningPrepare()}>{continuity.busy ? "확인하는 중" : "오늘로 옮기고 계속"}</button></div>
+        </AccessibleDialog>}
 
         {actualIntent && <ActualStudyConfirmation intent={actualIntent} busy={busy} notice={actualNotice} error={actualError} onConfirm={() => { void runActualAction(undefined, actualIntent); }} onCancel={cancelActualAction} />}
 

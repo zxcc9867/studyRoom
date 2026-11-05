@@ -71,7 +71,7 @@ type WeeklyReviewInput = {
   sessions?: Array<{ id: string; local_date: string; status: string; duration_seconds: number }>;
   todos?: Array<{ local_date: string; is_completed: boolean }>;
   attendanceDays?: Array<{ local_date: string; status: string }>;
-  reflections?: Array<{ session_id: string; focus_score: number; energy_score: number; interruption_reason?: string | null; next_action: string | null; created_at: string }>;
+reflections?: Array<{ session_id: string; focus_score: number | null; energy_score: number | null; interruption_reason?: string | null; next_action: string | null; created_at: string }>;
   currentStudySummary?: WeeklyStudySummary | null;
   previousStudySummary?: WeeklyStudySummary | null;
 };

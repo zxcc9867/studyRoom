@@ -10,7 +10,7 @@ type Props = {
   sessions: Array<{ id: string; local_date: string; status: string; duration_seconds: number }>;
   todos: Array<{ id?: string; title?: string; local_date: string; is_completed: boolean }>;
   attendanceDays: Array<{ local_date: string; status: string }>;
-  reflections: Array<{ session_id: string; focus_score: number; energy_score: number; interruption_reason: "none" | "phone" | "environment" | "fatigue" | "schedule" | "other" | null; next_action: string | null; created_at: string }>;
+reflections: Array<{ session_id: string; focus_score: number | null; energy_score: number | null; interruption_reason: "none" | "phone" | "environment" | "fatigue" | "schedule" | "other" | null; next_action: string | null; created_at: string }>;
   currentStudySummary?: StudyPeriodSummary | null;
   previousStudySummary?: StudyPeriodSummary | null;
   review?: StudyReport;

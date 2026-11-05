@@ -1,4 +1,5 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
+import { normalizeLearningReflection, type LearningResult } from "./learningContinuity.mjs";
 
 type QueryError = { message?: string; code?: string } | null;
 type PageResult = { data: unknown[] | null; error: QueryError };
@@ -75,6 +76,28 @@ export async function loadReflectionData(client: SupabaseClient, userId: string)
     .eq("user_id", userId)
     .order("created_at", { ascending: false })
     .range(from, to));
+}
+
+// Explicit review also finds blank-note rows, intentionally omitted from the result-card snapshot.
+// This is read-only; revision acceptance and every write stay in the existing modal/RPC path.
+export async function loadLearningReflectionForReview(client: SupabaseClient, userId: string, sessionId: string, signal: AbortSignal): Promise<LearningResult | null> {
+  return runBoundedRequest(async requestSignal => {
+    const [reflectionResponse, sessionResponse] = await Promise.all([
+      client.from("study_session_reflections").select("id,user_id,session_id,focus_score,energy_score,interruption_reason,note,next_action,context_todo_id,resource_url,resource_position,note_kind,updated_at").eq("user_id", userId).eq("session_id", sessionId).abortSignal(requestSignal).maybeSingle(),
+      client.from("study_sessions").select("id,user_id,status,local_date,started_at,ended_at").eq("user_id", userId).eq("id", sessionId).abortSignal(requestSignal).maybeSingle(),
+    ]);
+    assertQuerySucceeded("최신 회고", reflectionResponse.error);
+    assertQuerySucceeded("회고 세션", sessionResponse.error);
+    const row = reflectionResponse.data;
+    const session = sessionResponse.data;
+    if (!row) return null;
+    if (!session || session.id !== sessionId || session.user_id !== userId || session.status !== "completed" || row.user_id !== userId || row.session_id !== sessionId || row.note_kind !== "learning_result"
+      || typeof row.id !== "string" || !/^[\da-f]{8}-(?:[\da-f]{4}-){3}[\da-f]{12}$/i.test(row.id)
+      || ![row.updated_at, session.started_at, session.ended_at].every(value => typeof value === "string" && Number.isFinite(Date.parse(value)))
+      || typeof session.local_date !== "string" || !/^\d{4}-\d{2}-\d{2}$/.test(session.local_date)) throw new Error("최신 회고의 소유자·세션 정보를 확인하지 못했습니다.");
+    const value = normalizeLearningReflection({ focusScore: row.focus_score, energyScore: row.energy_score, interruptionReason: row.interruption_reason, note: row.note, nextAction: row.next_action, contextTodoId: row.context_todo_id, resourceUrl: row.resource_url, resourcePosition: row.resource_position });
+    return { reflectionId: row.id, sessionId, todoId: value.contextTodoId, todoTitle: null, localDate: session.local_date, startedAt: session.started_at, endedAt: session.ended_at, updatedAt: row.updated_at, ...value };
+  }, { signal });
 }
 
 export async function loadNotificationDeliveryData(client: SupabaseClient, userId: string) {
