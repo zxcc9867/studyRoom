@@ -656,12 +656,16 @@ function DashboardApp() {
   const [learningPrepare, setLearningPrepare] = useState<LearningBookmark | null>(null);
   const [learningEdit, setLearningEdit] = useState<LearningResult | null>(null);
   const [learningCompletionId, setLearningCompletionId] = useState<string | null>(null);
+  const [learningCompletedReviewId, setLearningCompletedReviewId] = useState<string | null>(null);
+  const [learningCompletionFollowup, setLearningCompletionFollowup] = useState(false);
   const [learningReviewed, setLearningReviewed] = useState<LearningResult | null>(null);
   const [learningBookmarkEdit, setLearningBookmarkEdit] = useState<LearningBookmark | null>(null);
   const [learningError, setLearningError] = useState("");
   const [reflectionLearningMode, setReflectionLearningMode] = useState(false);
   const [learningReloadRevision, setLearningReloadRevision] = useState(0);
   const learningStartIntentRef = useRef<{ userId: string; todoId: string } | null>(null);
+  const learningDraftTargetRef = useRef<string | null>(null);
+  learningDraftTargetRef.current = learningEdit?.sessionId ?? learningBookmarkEdit?.sessionId ?? (endSessionCompletionModalOpen ? learningCompletionId : reflectionInboxSessionId);
   const [selectedEndSessionCompletionTodoIds, setSelectedEndSessionCompletionTodoIds] = useState<string[]>([]);
   const [sessionReflectionDraft, setSessionReflectionDraft] = useState<SessionReflectionDraft>({
     focusScore: 3,
@@ -852,6 +856,8 @@ function DashboardApp() {
     setLearningPrepare(null);
     setLearningEdit(null);
     setLearningCompletionId(null);
+    setLearningCompletedReviewId(null);
+    setLearningCompletionFollowup(false);
     setLearningReviewed(null);
     setLearningBookmarkEdit(null);
     setLearningError("");
@@ -3154,6 +3160,8 @@ function DashboardApp() {
   function openEndSessionCompletionModal() {
     if (!activeSession) return;
     setLearningCompletionId(activeSession.id);
+    setLearningCompletedReviewId(null);
+    setLearningCompletionFollowup(false);
     setLearningReviewed(null);
     setSelectedEndSessionCompletionTodoIds([]);
     setSessionReflectionDraft({
@@ -3206,6 +3214,7 @@ function DashboardApp() {
         : saveLearningReflection(supabase, { sessionId, reflection: normalizeLearningReflection(sessionReflectionDraft), expectedUpdatedAt: learningEdit?.updatedAt ?? null }, { signal }));
       if (!isCurrent()) return;
       setLearningEdit(null); setLearningBookmarkEdit(null); setReflectionInboxSessionId(null); setLearningError("");
+      if (learningCompletionFollowup && learningCompletionId === sessionId) setEndSessionCompletionModalOpen(false);
       setMessage("회고를 저장했어요.");
       void loadDashboard(owner);
       setReflectionHistoryLoaded(false);
@@ -3218,18 +3227,20 @@ function DashboardApp() {
   }
 
   async function recheckLearningDraft() {
-    const targetId = learningEdit?.sessionId ?? learningBookmarkEdit?.sessionId ?? learningCompletionId ?? reflectionInboxSessionId;
+    const targetId = learningDraftTargetRef.current;
     const owner = session?.user.id;
     if (!owner || !targetId || continuity.busy) return;
     try {
-      const result = await continuity.review(signal => loadLearningReflectionForReview(supabase, owner, targetId, signal));
-      if (currentUserIdRef.current !== owner) return;
+      const review = await continuity.review(signal => loadLearningReflectionForReview(supabase, owner, targetId, signal));
+      if (currentUserIdRef.current !== owner || learningDraftTargetRef.current !== targetId) return;
+      const result = review.reflection;
       setLearningReviewed(result);
-      setLearningError(result ? "서버의 최신 기록을 확인했어요. 초안과 비교한 뒤 저장 기준을 직접 선택해 주세요." : "저장된 회고가 아직 없어요. 현재 세션 상태를 확인한 뒤 직접 다시 저장해 주세요.");
+      setLearningCompletedReviewId(!result && review.status === "completed" && endSessionCompletionModalOpen && !learningCompletionFollowup ? targetId : null);
+      setLearningError(result ? "서버의 최신 기록을 확인했어요. 초안과 비교한 뒤 저장 기준을 직접 선택해 주세요." : review.status === "completed" ? "저장된 회고가 아직 없어요. 원래 세션은 이미 완료됐어요. 초안을 후속 회고로 저장할 수 있어요." : "저장된 회고가 아직 없어요. 현재 세션 상태를 확인한 뒤 직접 다시 저장해 주세요.");
       continuity.refresh();
       void loadDashboard(owner);
     } catch {
-      if (currentUserIdRef.current === owner) setLearningError("최신 기록 확인에 실패했어요. 초안은 그대로 보존했어요. 다시 확인해 주세요.");
+      if (currentUserIdRef.current === owner && learningDraftTargetRef.current === targetId) setLearningError("최신 기록 확인에 실패했어요. 초안은 그대로 보존했어요. 다시 확인해 주세요.");
     }
   }
 
@@ -3279,7 +3290,8 @@ function DashboardApp() {
   }
 
   async function confirmEndSessionWithCompletions() {
-    if (!activeSession) return;
+    if (reflectionLearningMode && learningCompletionFollowup && learningCompletionId) { await saveLearningDraft(learningCompletionId); return; }
+    if (!activeSession) { if (reflectionLearningMode) setLearningError("원래 세션의 상태가 바뀌었어요. 초안을 보존했어요. 최신 기록을 다시 확인해 주세요."); return; }
     if (reflectionLearningMode && activeSession.id !== learningCompletionId) { setLearningError("현재 세션이 바뀌었어요. 초안을 보존했어요. 최신 기록을 다시 확인해 주세요."); return; }
     if (reflectionLearningMode && !validateLearningDraft()) return;
 
@@ -6282,14 +6294,21 @@ function DashboardApp() {
         {endSessionCompletionModalOpen && (
           <RecoverableSection {...sectionRecovery} title="공부 회고" modal onReturn={closeEndSessionCompletionModal} fallback={<div className="modal-backdrop"><div className="todo-modal" role="status">회고 화면을 불러오는 중...</div></div>}>
             <SessionReflectionModal
-              candidates={endSessionCompletionCandidates}
+              mode={learningCompletionFollowup ? "follow-up" : "completion"}
+              candidates={learningCompletionFollowup ? [] : endSessionCompletionCandidates}
               learningSupported={reflectionLearningMode}
-              contextCandidates={activeSessionTodos}
-              sessionLabel={`이번 공부 ${formatTimerClock(currentSessionSeconds)}`}
+              contextCandidates={learningCompletionFollowup ? studyTodos.filter(todo => studySessionTodoLinks.some(link => link.session_id === learningCompletionId && link.todo_id === todo.id)) : activeSessionTodos}
+              sessionLabel={learningCompletionFollowup ? "완료된 원래 세션" : `이번 공부 ${formatTimerClock(currentSessionSeconds)}`}
               error={learningError}
               onRecheck={() => void recheckLearningDraft()}
               latestRecord={learningReviewed ?? undefined}
               onAcceptLatest={acceptReviewedLearning}
+              onContinueCompleted={learningCompletedReviewId && learningCompletedReviewId === learningCompletionId ? () => {
+                if (continuity.busy || learningDraftTargetRef.current !== learningCompletedReviewId) return;
+                setLearningCompletionFollowup(true);
+                setLearningCompletedReviewId(null);
+                setLearningError("초안을 그대로 유지했어요. 원래 완료된 세션의 회고만 저장하며 할 일 완료와 다른 세션은 변경하지 않아요.");
+              } : undefined}
               selectedTodoIds={selectedEndSessionCompletionTodoIds}
               draft={sessionReflectionDraft}
               busy={busy || todoBusy || continuity.busy}

@@ -34,6 +34,7 @@ type SessionReflectionModalProps = {
   onRecheck?: () => void;
   latestRecord?: LearningResult;
   onAcceptLatest?: (result: LearningResult) => void;
+  onContinueCompleted?: () => void;
   onToggleTodo: (todoId: string) => void;
   onDraftChange: (draft: SessionReflectionDraft) => void;
   onClose: () => void;
@@ -62,6 +63,7 @@ export default function SessionReflectionModal({
   onRecheck,
   latestRecord,
   onAcceptLatest,
+  onContinueCompleted,
   onToggleTodo,
   onDraftChange,
   onClose,
@@ -100,6 +102,7 @@ export default function SessionReflectionModal({
       </p>
 
       {error && <div className="learning-error" role="alert">{error}{onRecheck && <button type="button" className="plain" disabled={busy} onClick={onRecheck}>최신 기록 다시 확인</button>}</div>}
+      {onContinueCompleted && <button type="button" className="secondary" disabled={busy} onClick={onContinueCompleted}>완료된 세션의 회고로 계속</button>}
       {latestRecord && <div className="learning-latest"><p>서버의 최신 결과: {latestRecord.note || "작성한 결과 없음"}</p><p>최신 시작점: {latestRecord.nextAction || "없음"}</p><button type="button" className="secondary" disabled={busy} onClick={() => onAcceptLatest?.(latestRecord)}>최신 기록을 확인하고 내 초안 유지</button></div>}
       {learningSupported && <>
         {!bookmarkOnly && <label className="reflection-field">오늘 남긴 것<textarea value={draft.note} maxLength={500} rows={3} disabled={busy} placeholder="오늘 이해하거나 완성한 것을 남겨보세요. (선택)" onChange={event => onDraftChange({ ...draft, note: event.target.value })} /></label>}
