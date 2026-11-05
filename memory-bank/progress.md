@@ -14,7 +14,7 @@
 
 ## 풍경 화면 세션 연장·카메라 미리보기
 
-- 카메라 미리보기 검증완료/배포준비: 동일 로컬 stream 표시·정상 상태 간소화, 최종13/13·전체Chrome1764/1764실패/생략0·공식7/Dune0·독립C/I/M0·4해시/diff통과. 기록·감지/회복정책·native 유지, 실제설치/물리기기 조작 없음. [검증](../docs/verification/2026-11-06-scenic-camera-preview.md).
+- 카메라 미리보기 운영완료: 동일 로컬 stream 표시·정상 상태 간소화, 최종13/13·전체Chrome1764/1764실패/생략0·공식7/Dune0·독립C/I/M0·4해시/diff통과. 제품0b1da14·Actions42064095014 success·dpl_69MieswPS5gZdURwYkXnkWPFTMC3 READY/exactSHA/alias·HTML/새JS/CSS200·5마커true. 기록·감지/회복정책·native 유지, 실제기기수용미실행/Drains404미확인. [검증](../docs/verification/2026-11-06-scenic-camera-preview.md).
 - 운영배포 완료: 세션 유지 남은 시간·+1시간 연장을 공부/휴식 중 제공, 세션 없으면 숨김. 기존60분/최대2시간·동일 RPC·기록/카메라 보존. 신규14/14·최종Chrome 분할1668건(동일소스317보존+1351/1351재실행)·실패/생략/취소0·공식7/Dune0·독립C/I/M0·5해시/diff 통과. 최초 팀fixture2fail/보정 후 분할 재검증은 별도 기록. 제품c7b9068·Actions41766757443 success·dpl_4SpLh99GuXLpBNJwCmNhANRNzqfa READY/동일SHA/alias·HTML/새JS/CSS200/연장표시확인. 새APK/EXE·실제기록/설정 조작 없음. [검증](../docs/verification/2026-11-04-scenic-session-extension.md).
 
 ## 오리지널 애니메이션풍 별빛 바다와 유성
