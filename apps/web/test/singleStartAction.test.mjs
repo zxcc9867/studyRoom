@@ -57,7 +57,7 @@ test("Today routes one adaptive persistent start action and leaves habit cards i
 
   assert.match(main, /const studyStartAction = getStudyStartAction\(/);
   assert.match(main, /startTimer\(false, undefined, studyStartAction\.suggestedTodoTitle\)/);
-  assert.match(main, /!activeSession \? studyStartAction\.label/);
+  assert.match(main, /!activeSession \? continuity\.supported && learningBookmark \? "이 지점부터 시작" : studyStartAction\.label/);
   assert.equal(
     main.match(/startTimer\(false, undefined, studyStartAction\.suggestedTodoTitle\)/g)?.length,
     1,

@@ -16,7 +16,7 @@ state.todos.forEach(t=>{t.title='[테스트] 같은 제목';t.updated_at='2026-0
 state.collision=false;
 const bookmark=(t,i)=>({reflectionId:'40000000-0000-0000-0000-00000000000'+i,sessionId:'50000000-0000-0000-0000-00000000000'+i,todoId:t.id,todoTitle:t.title,localDate:t.local_date,startTime:t.start_time,endTime:t.end_time,todoUpdatedAt:t.updated_at,updatedAt:'2026-09-21T10:01:00.123456+00:00',nextAction:i===1?'A 시작점':'B 시작점',resourceUrl:'https://example.test/'+i,resourcePosition:'위치 '+i});
 state.bookmarks=state.todos.map((t,i)=>bookmark(t,i+1));state.results=[];
-state.reflections=[{id:'legacy-memo',session_id:'legacy-session',note:'옛 메모는 결과 아님',next_action:'제목으로 선택 금지',focus_score:4,energy_score:4,created_at:now}];
+state.reflections=[{id:'legacy-memo',user_id:row.user_id,session_id:'legacy-session',note:'옛 메모는 결과 아님',next_action:'제목으로 선택 금지',focus_score:4,energy_score:4,created_at:now}];
 state.sessions.forEach(s=>{s.created_at=s.started_at;s.updated_at=now;});
 state.finish=(args)=>{const r=args.p_reflection,s=state.sessions.find(s=>s.id===args.p_session_id),old=state.results.find(r=>r.sessionId===s.id);if(old&&old.updatedAt!==args.p_expected_updated_at&&args.p_expected_updated_at!==undefined)return {data:null,error:{code:'40001'}};
  const out={reflectionId:old?.reflectionId??'60000000-0000-0000-0000-000000000001',sessionId:s.id,todoId:r.context_todo_id,todoTitle:state.todos.find(t=>t.id===r.context_todo_id)?.title??null,localDate:s.local_date,startedAt:s.started_at,endedAt:now,note:r.note,nextAction:r.next_action,resourceUrl:r.resource_url,resourcePosition:r.resource_position,focusScore:r.focus_score,energyScore:r.energy_score,interruptionReason:r.interruption_reason,updatedAt:old?'2026-09-21T14:31:00.123457+00:00':'2026-09-21T14:30:00.123456+00:00'};
@@ -39,6 +39,35 @@ let chromium;
 try { ({chromium}=await import(process.env.FEED_BROWSER_MODULE?pathToFileURL(process.env.FEED_BROWSER_MODULE).href:'playwright')); } catch {}
 const test=(name,run)=>nodeTest(name,{skip:!chromium&&'Set FEED_BROWSER_MODULE and FEED_BROWSER_EXECUTABLE for real mounted tests'},run);
 let built;
+for(const capability of ['', 'PGRST202'])test(`continuity guidance: idle ${capability||'supported'} keeps one start point and legacy only when unsupported`,()=>withApp(375,async page=>{
+ await page.waitForFunction(()=>fixture.calls.some(c=>c.name==='learning_continuity_snapshot'));
+ if(capability)await page.getByText(/이 서버는 새 시작점/).waitFor();else await page.getByRole('region',{name:'다음 시작점',exact:true}).waitFor();
+ const primary=page.locator('.topbar-actions button').first();assert.equal(await primary.innerText(),capability?'이어서 준비하기':'이 지점부터 시작');await page.getByRole('button',{name:'기록',exact:true}).click();const legacy=page.getByRole('complementary',{name:'지난 세션 이어가기 안내'});if(capability){await legacy.waitFor();assert.match(await legacy.innerText(),/제목으로 선택 금지/)}else assert.equal(await legacy.count(),0);
+},{capability}));
+
+for(const capability of ['', 'PGRST202'])test(`continuity guidance: active and paused ${capability||'supported'} never show start-only guidance`,()=>withApp(375,async page=>{
+ assert.match(await page.locator('.topbar-actions').innerText(),/공부 화면 열기/);assert.equal(await page.getByRole('region',{name:'다음 시작점',exact:true}).count(),0);await page.getByRole('button',{name:'기록',exact:true}).click();assert.equal(await page.getByRole('complementary',{name:'지난 세션 이어가기 안내'}).count(),0);await page.getByRole('button',{name:'집중',exact:true}).click();await page.evaluate(()=>{fixture.sessions[0].paused_at=new Date().toISOString();dispatchEvent(new Event('focus'));});await page.getByRole('button',{name:'공부 계속하기',exact:true}).waitFor();assert.equal(await page.getByRole('region',{name:'다음 시작점',exact:true}).count(),0);await page.getByRole('button',{name:'기록',exact:true}).click();assert.equal(await page.getByRole('complementary',{name:'지난 세션 이어가기 안내'}).count(),0);
+},{mode:'active',capability}));
+// These regressions fail if read errors disappear behind an active session/record tab,
+// or a previously-supported capability remains enabled after a missing-function response.
+for(const code of ['XX000','PGRST202'])test(`continuity review: active and record read ${code} has explicit retry`,()=>withApp(375,async page=>{
+ const status=page.getByRole('status').filter({hasText:code==='PGRST202'?'이 서버는 새 시작점':'불러오지 못했어요'});await status.waitFor();assert.equal(await page.getByRole('button',{name:'종료',exact:true}).isEnabled(),true);
+ await page.getByRole('button',{name:'기록',exact:true}).click();await status.waitFor();assert.equal(await page.getByRole('region',{name:'오늘의 학습 결과'}).count(),0);await page.evaluate(()=>fixture.failRead=null);await status.getByRole('button').click();await status.waitFor({state:'detached'});assert.equal(await page.evaluate(()=>fixture.calls.filter(c=>c.name==='learning_continuity_snapshot').length)>=2,true);
+},{mode:'active',capability:code}));
+
+for(const code of ['42883','PGRST202'])test(`continuity review: capability loss ${code} preserves existing new draft but next modal is legacy`,()=>withApp(375,async page=>{
+ const modal=await finish(page);await modal.getByLabel('오늘 남긴 것').fill('보존할 신규 초안');await page.evaluate(code=>{fixture.failRead=code;fixture.failWrite=code;dispatchEvent(new Event('focus'));},code);await page.waitForFunction(()=>fixture.calls.filter(c=>c.name==='learning_continuity_snapshot').length>=2);await page.clock.runFor(100);
+ assert.equal(await modal.getByLabel('오늘 남긴 것').inputValue(),'보존할 신규 초안');await modal.getByRole('button',{name:'저장하고 종료',exact:true}).click();await modal.getByRole('alert').waitFor();assert.equal(await page.evaluate(()=>fixture.calls.some(c=>c.name==='complete_study_session')),false);assert.equal(await modal.getByLabel('오늘 남긴 것').inputValue(),'보존할 신규 초안');
+ await modal.getByRole('button',{name:'계속 공부하기',exact:true}).click();await finish(page);assert.equal(await modal.getByLabel('오늘 남긴 것').count(),0);await modal.getByLabel('한 줄 메모',{exact:true}).fill('새로 연 구형 회고');await modal.getByRole('button',{name:'회고 저장하고 종료',exact:true}).click();await page.waitForFunction(()=>fixture.calls.some(c=>c.name==='complete_study_session'));assert.equal(await page.evaluate(()=>fixture.calls.filter(c=>c.name==='complete_learning_session').length),1);
+},{mode:'active'}));
+
+test('continuity review: result card uses the common card radius',()=>withApp(375,async page=>{
+ const modal=await finish(page);await modal.getByLabel('오늘 남긴 것').fill('카드 토큰 검사');await modal.getByRole('button',{name:'저장하고 종료',exact:true}).click();await modal.waitFor({state:'detached'});await page.getByRole('button',{name:'기록',exact:true}).click();const result=page.getByRole('region',{name:'오늘의 학습 결과'});await result.waitFor();assert.equal(await result.evaluate(el=>getComputedStyle(el).borderTopLeftRadius===getComputedStyle(el).getPropertyValue('--study-radius').trim()),true);
+},{mode:'active'}));
+
+test('continuity review: failed date preparation explains cancel and reopen revision review',()=>withApp(375,async page=>{
+ await page.evaluate(()=>{fixture.bookmarks[0].localDate='2026-09-20';fixture.todos[0].local_date='2026-09-20';fixture.failWrite='40001'});await page.getByRole('button',{name:'시작점 새로고침',exact:true}).click();await page.getByRole('button',{name:'이 지점부터 시작',exact:true}).click();const modal=page.getByRole('dialog',{name:'지난 할 일 일정 확인'});await modal.getByRole('button',{name:'오늘로 옮기고 계속',exact:true}).click();await modal.getByRole('alert').waitFor();assert.match(await modal.getByRole('alert').innerText(),/취소.*다시/);assert.equal(await page.evaluate(()=>fixture.calls.filter(c=>c.name==='prepare_learning_todo').length),1);
+}));
 async function withApp(width,run,{mode='start',theme='light',scale=1,capability=''}={}){
  built??=await build({entryPoints:[fileURLToPath(new URL('../src/main.tsx',import.meta.url))],bundle:true,write:false,outdir:'fixture',platform:'browser',format:'iife',jsx:'automatic',logLevel:'silent',define:{'import.meta.env':'{}'},plugins:[{name:'actual-study-boundaries',setup(b){b.onResolve({filter:/^\.\/supabase$/},()=>({path:'backend',namespace:'fixture'}));b.onLoad({filter:/.*/,namespace:'fixture'},()=>({contents:backend,loader:'js'}));b.onLoad({filter:/bodyPresenceDetection\.mjs$/},()=>({contents:'export async function createUpperBodyPresenceDetector(){return {detect:()=>true,close(){}}}',loader:'js'}));}}]});
  const js=built.outputFiles.find(f=>f.path.endsWith('.js')).text,css=built.outputFiles.find(f=>f.path.endsWith('.css')).text;

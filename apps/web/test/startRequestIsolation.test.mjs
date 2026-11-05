@@ -12,13 +12,14 @@ const { outputText } = ts.transpileModule(source.slice(start, end), {
   compilerOptions: { target: ts.ScriptTarget.ES2022, module: ts.ModuleKind.ESNext },
 });
 
-function fixture() {
+function fixture(supported = false) {
   const writes = [];
   let rejectRequest;
   const response = new Promise((_resolve, reject) => { rejectRequest = reject; });
   const noop = () => {};
   const env = {
     dashboardReady: true,
+    continuity: { supported }, learningStartIntentRef: { current: null },
     actualStudyErrorMessage, createActualStudyFlow, resolveCurrentTodo,
     currentSessionTodoId: null,
     actualTrackingRef: {current:null}, actualIntentRef:{current:null}, actualStateRevisionRef:{current:0}, actualReturnFocusRef:{current:null},
@@ -64,6 +65,16 @@ test('starting a session invalidates the pre-start dashboard snapshot', async ()
 test('old-account start failure cannot clear readiness or show errors on the new account', async () => {
   const f = fixture();
   const request = f.handler(true, ['todo-1']);
+  f.env.currentUserIdRef.current = 'new-user';
+  f.rejectRequest(new Error('late timeout'));
+  await request;
+  assert.deepEqual(f.writes, []);
+});
+
+test('supported bookmark start captures the selected ID without weakening account isolation', async () => {
+  const f = fixture(true);
+  const request = f.handler(true, ['todo-1']);
+  assert.deepEqual(f.env.learningStartIntentRef.current, { userId: 'old-user', todoId: 'todo-1' });
   f.env.currentUserIdRef.current = 'new-user';
   f.rejectRequest(new Error('late timeout'));
   await request;

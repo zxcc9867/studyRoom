@@ -15,9 +15,9 @@ test("start guidance is shown only while the topbar is an inactive-session start
     "utf8",
   );
 
-  assert.match(main, /\{latestNextAction && !activeSession && \(/);
+  assert.match(main, /\{latestNextAction && !activeSession && !continuity\.supported && \(/);
   assert.match(weeklyPanel, /\{rhythm\.primaryActionLabel && inactiveSession && \(/);
-  assert.match(main, /!activeSession \? studyStartAction\.label : activeSessionPaused \? "공부 계속하기" : "잠시 쉬기"/);
+  assert.match(main, /!activeSession \? continuity\.supported && learningBookmark \? "이 지점부터 시작" : studyStartAction\.label : activeSessionPaused \? "공부 계속하기" : "잠시 쉬기"/);
   assert.doesNotMatch(dailyPrd, /진행 중인 세션이 있으면 이어하기 버튼을 비활성화한다/);
   assert.doesNotMatch(weeklyGoalPrd, /활성 세션 중이면 CTA를 비활성화하고/);
   assert.match(weeklyGoalPrd, /최상단 단일 시작 액션/);

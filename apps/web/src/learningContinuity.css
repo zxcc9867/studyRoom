@@ -7,7 +7,9 @@
 .learning-bookmark a { color: var(--study-primary); display: inline-flex; align-items: center; gap: 8px; min-height: 44px; overflow-wrap: anywhere; }
 .learning-start button, .learning-results button, .learning-dialog button, .learning-dialog summary, .learning-dialog select { min-height: 44px; min-width: 44px; }
 .dashboard-redesign .learning-start .learning-refresh { justify-self: end; border: 0; background: transparent; padding: 0 4px; font-size: var(--study-text-sm); font-weight: 400; color: var(--study-muted); text-decoration: underline; text-underline-offset: 3px; }
-.learning-results { padding: var(--study-space-6); border: 1px solid var(--study-border); border-radius: var(--study-card-radius); background: var(--study-surface); }
+.learning-results { padding: var(--study-space-6); border: 1px solid var(--study-border); border-radius: var(--study-radius); background: var(--study-surface); }
+.learning-read-status { color: var(--study-muted); overflow-wrap: anywhere; }
+.learning-read-status button { min-height: 44px; margin-inline-start: 8px; }
 .learning-results h2 { margin: 0 0 8px; font-size: var(--study-text-xl); }
 .learning-results ul { padding: 0; margin: 20px 0 0; list-style: none; }
 .learning-results li { display: grid; grid-template-columns: auto minmax(0,1fr); gap: 20px; padding: 20px 0; border-top: 1px solid var(--study-border); }

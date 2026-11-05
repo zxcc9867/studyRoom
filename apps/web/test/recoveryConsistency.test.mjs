@@ -8,7 +8,9 @@ async function loadTypeScript(path) {
   const { outputText } = ts.transpileModule(readFileSync(path, "utf8"), {
     compilerOptions: { module: ts.ModuleKind.ESNext, target: ts.ScriptTarget.ES2022 },
   });
-  return import(`data:text/javascript;base64,${Buffer.from(outputText).toString("base64")}`);
+  // Resolve the real dashboard validation dependency from this fixture's filesystem base.
+  const runnable = outputText.replaceAll('"./learningContinuity.mjs"', JSON.stringify(new URL('../src/learningContinuity.mjs', import.meta.url).href));
+  return import(`data:text/javascript;base64,${Buffer.from(runnable).toString("base64")}`);
 }
 
 const { loadDashboardData } = await loadTypeScript("apps/web/src/dashboardData.ts");

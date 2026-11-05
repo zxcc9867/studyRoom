@@ -32,7 +32,7 @@ export function useLearningContinuity(client: SupabaseClient, userId: string | n
     }).catch(error => {
       if (controller.signal.aborted || identity.current !== key) return;
       const missing = ["42883", "PGRST202"].includes(error?.code);
-      setState(old => ({ ...old, key, status: missing ? "unsupported" : "error" }));
+      setState(old => ({ ...old, key, supported: missing ? false : old.supported, status: missing ? "unsupported" : "error" }));
     });
     return () => controller.abort();
   }, [client, userId, studyDate, ready, revision, key]);

@@ -7,7 +7,9 @@ import ts from "typescript";
 const { outputText } = ts.transpileModule(readFileSync("apps/web/src/dashboardData.ts", "utf8"), {
   compilerOptions: { module: ts.ModuleKind.ESNext, target: ts.ScriptTarget.ES2022 },
 });
-const module = await import(`data:text/javascript;base64,${Buffer.from(outputText).toString("base64")}`);
+// data: modules have no relative base; retain the real new validation dependency.
+const runnable = outputText.replaceAll('"./learningContinuity.mjs"', JSON.stringify(new URL('../src/learningContinuity.mjs', import.meta.url).href));
+const module = await import(`data:text/javascript;base64,${Buffer.from(runnable).toString("base64")}`);
 const clientWith = (fetch) => createClient("https://fixture.supabase.co", "fixture-key", {
   global: { fetch }, auth: { persistSession: false, autoRefreshToken: false },
 });

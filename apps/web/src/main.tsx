@@ -16,7 +16,7 @@ import StudyRestartCoach from "./StudyRestartCoach";
 import AppNotice from "./AppNotice";
 import RecoverableSection from "./RecoverableSection";
 import SessionReflectionModal from "./SessionReflectionModal";
-import { LearningStartPoint, LearningResults } from "./LearningContinuityView";
+import { LearningStartPoint, LearningResults, LearningContinuityStatus } from "./LearningContinuityView";
 import { useLearningContinuity, learningErrorMessage } from "./useLearningContinuity";
 import { completeLearningSession, saveLearningReflection, prepareLearningTodo, updateLearningBookmark, normalizeLearningReflection, validateLearningResourceUrl, type LearningBookmark, type LearningResult } from "./learningContinuity.mjs";
 import { createTechFeedClient, feedTodoDraft } from "./techFeed.mjs";
@@ -3254,7 +3254,7 @@ function DashboardApp() {
       await startTimer(false, [prepared.todoId], undefined, prepared.todoId);
     } catch (error) {
       if (currentUserIdRef.current !== owner) return;
-      setLearningError(learningErrorMessage(error));
+      setLearningError(`${learningErrorMessage(error)} 취소한 뒤 시작점을 다시 확인하고 일정 확인을 다시 열어 주세요.`);
       continuity.refresh();
     }
   }
@@ -5667,7 +5667,7 @@ function DashboardApp() {
             </div>
             <div className="session-clock"><span>{activeSessionPaused ? "휴식 중 · 공부시간은 멈춰 있어요" : activeSession && (presenceState.timerPaused || sharedCameraView.status === "auto_paused") ? "자리 비움 · 공부시간은 멈춰 있어요" : "이번 세션 공부시간"}</span><strong role="timer" aria-label="이번 세션 공부시간">{dashboardReady ? formatTimerClock(currentSessionSeconds) : "확인 필요"}</strong></div>
             {!activeSession && continuity.supported && <LearningStartPoint todos={learningChoices} selectedId={learningChoiceId} bookmark={learningBookmark} busy={busy || continuity.busy} onSelect={setLearningSelectedId} onEdit={openLearningBookmark} onRefresh={continuity.refresh} />}
-            {!activeSession && (continuity.status === "error" || continuity.status === "unsupported") && <p role="status">{continuity.status === "unsupported" ? "이 서버는 새 시작점·학습 결과 기능을 아직 지원하지 않아요. 기존 공부·회고를 사용할 수 있어요." : "시작점 정보를 불러오지 못했어요. 기존 공부 제어는 사용할 수 있어요."}<button type="button" className="plain" onClick={continuity.refresh}>시작점 다시 확인</button></p>}
+            <LearningContinuityStatus status={continuity.status} onRetry={continuity.refresh} />
               <div className="topbar-actions" aria-label="집중 세션 조작">
                 <button
                   className="primary"
@@ -5743,6 +5743,7 @@ function DashboardApp() {
               </div>
             )}
             {todayDomain === "record" && <section className="dashboard-record-overview">
+            <LearningContinuityStatus status={continuity.status} onRetry={continuity.refresh} />
             {continuity.supported && <LearningResults results={continuity.data?.results ?? []} totalLabel={formatTimerClock(todaySeconds)} sessionCount={studySessions.filter(item => item.local_date === todayDateKey && item.status === "completed").length} timeZone={timeZone} busy={continuity.busy} onEdit={openLearningResult} />}
             <div className="study-summary" aria-label="공부 시간 요약"><div><span>오늘 공부</span><strong>{dashboardReady ? formatTimerClock(todaySeconds) : "확인 필요"}</strong></div><div><span>{formatMonthLabel(calendarMonth)} 누적</span><strong>{dashboardReady ? formatTimerClock(monthSeconds) : "확인 필요"}</strong></div></div>
             <section

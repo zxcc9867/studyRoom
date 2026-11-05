@@ -2,6 +2,11 @@ import { Bookmark, ExternalLink } from "lucide-react";
 import type { LearningBookmark, LearningResult } from "./learningContinuity.mjs";
 import "./learningContinuity.css";
 
+export function LearningContinuityStatus({ status, onRetry }: { status: string; onRetry: () => void }) {
+  if (status !== "error" && status !== "unsupported") return null;
+  return <p role="status" className="learning-read-status">{status === "unsupported" ? "이 서버는 새 시작점·학습 결과 기능을 아직 지원하지 않아요. 기존 공부·회고를 사용할 수 있어요." : "시작점 정보를 불러오지 못했어요. 학습 결과도 확인하지 못했으며, 기존 공부 제어는 사용할 수 있어요."}<button type="button" className="plain" onClick={onRetry}>시작점 다시 확인</button></p>;
+}
+
 type StartProps = {
   todos: Array<{ id: string; title: string; local_date: string }>;
   selectedId: string;
