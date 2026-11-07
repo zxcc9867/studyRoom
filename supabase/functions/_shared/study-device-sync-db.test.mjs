@@ -20,7 +20,7 @@ const snapshot = (client = a) => scalar('select study_device_snapshot($1) value'
 const warn = (client = a, generation = 1, type = 'camera_required_warning') => admin(() => scalar('select claim_study_camera_warning($1,$2,$3,$4,$5) value',[user,session,client,generation,type]));
 async function learningDigest() {
   const result={};
-  for(const table of ['study_sessions','study_todos','study_todo_plans','study_session_todos','study_actual_sessions','study_todo_segments','study_schedule_adjustments','study_presence_events']) {
+  for(const table of ['study_sessions','study_todos','study_todo_plans','study_session_todos','study_actual_sessions','study_todo_segments','study_schedule_adjustments','study_presence_events','study_recovery_requests']) {
     result[table]=await scalar(`select md5(coalesce(jsonb_agg(to_jsonb(t) order by to_jsonb(t)::text),'[]')::text) value from ${table} t`);
   }
   return result;
@@ -43,7 +43,11 @@ before(async () => {
     create table study_sessions(id uuid primary key,user_id uuid references auth.users,local_date date,started_at timestamptz,ended_at timestamptz,
       duration_seconds integer default 0,status text default 'active',paused_at timestamptz,paused_seconds integer default 0,lease_expires_at timestamptz,updated_at timestamptz default now(),unique(id,user_id));
     create table study_todos(id uuid primary key,user_id uuid,local_date date,title text,start_time time,end_time time,is_completed boolean default false,coach_start_at timestamptz,coach_end_at timestamptz,created_at timestamptz default now(),updated_at timestamptz default now(),unique(id,user_id));
-    create table study_recovery_requests(id uuid,user_id uuid,status text);
+    create table study_recovery_requests(id uuid primary key default gen_random_uuid(),user_id uuid references auth.users,
+      local_date date,trigger_type text,status text,covered_start_date date,covered_end_date date,covered_missed_days integer);
+    create unique index study_recovery_requests_one_pending_per_trigger_idx
+      on study_recovery_requests(user_id,local_date,trigger_type) where status='pending';
+    grant insert on study_recovery_requests to service_role;
     create table study_session_reflections(session_id uuid primary key,user_id uuid,focus_score integer,energy_score integer,interruption_reason text,note text,next_action text,updated_at timestamptz);
     create function promote_attendance_by_daily_study_total(uuid,date,timestamptz,uuid) returns boolean language sql as $$select true$$;
     insert into auth.users values('${user}'),('${other}');
@@ -70,10 +74,13 @@ before(async () => {
     insert into study_todo_segments(user_id,session_id,todo_id,started_at,ended_at,accepted_seconds,excluded_seconds)
     values('${user}','00000000-0000-4000-8000-000000000209','00000000-0000-4000-8000-000000000401','2026-10-10T08:00Z','2026-10-10T10:00Z',7170,30);
     insert into study_presence_events(user_id,session_id,event_type,metadata)
-    values('${user}','00000000-0000-4000-8000-000000000209','absence_warning','{"localDate":"2026-10-10"}');`);
+    values('${user}','00000000-0000-4000-8000-000000000209','absence_warning','{"localDate":"2026-10-10"}');
+    insert into study_recovery_requests(user_id,local_date,trigger_type,status)
+    values('${other}','2026-10-10','camera_absence_repeat','submitted');`);
   learningBaseline=await learningDigest();
   const migration = readdirSync('supabase/migrations').find(file => file.endsWith('_study_device_camera_sync.sql'));
   if (migration) await db.exec(readFileSync(`supabase/migrations/${migration}`,'utf8'));
+  await db.exec(readFileSync('supabase/migrations/20261107053852_camera_recovery_distinct_absences.sql','utf8'));
 });
 after(() => db?.close());
 
@@ -106,6 +113,117 @@ test('server absence resets on an expired heartbeat and never trusts client seco
   await at('06:00');assert.equal((await snapshot()).camera.status,'stale');
   assert.equal((await warn(a,1,'absence_warning')).allowed,false);
   assert.equal((await action('report',a,1,'absent')).camera.absence_seconds,0);
+}));
+
+const atSecond = sec => at(`${String(Math.floor(sec/60)).padStart(2,'0')}:${String(sec%60).padStart(2,'0')}`);
+const recoveryCount = () => admin(() => scalar(
+  "select count(*)::int value from study_recovery_requests where user_id=$1 and trigger_type='camera_absence_repeat'", [user]));
+async function reportAbsence(start, duration = 300, finalStatus = 'absent', sessionId = session) {
+  for (let offset=0;offset<=duration;offset=Math.min(offset+30,duration)) {
+    await atSecond(start+offset);
+    const status = offset===duration ? finalStatus : 'absent';
+    const report = await scalar("select study_camera_action('report',$1,$2,1,$3) value",[a,sessionId,status]);
+    assert.equal(report.accepted,true);
+    if (offset===duration) break;
+  }
+}
+
+test('three warnings during one uninterrupted 25-minute absence do not create recovery', () => fixture(async () => {
+  await action('claim');
+  for (let sec=0;sec<=1500;sec+=30) {
+    await atSecond(sec);
+    await action('report',a,1,'absent');
+    if ([300,900,1500].includes(sec)) assert.equal((await warn(a,1,'absence_warning')).absence_warning_count,[300,900,1500].indexOf(sec)+1);
+  }
+  assert.equal(await recoveryCount(),0);
+}));
+
+test('three qualified episodes create one recovery even when warning cooldown suppresses a separate episode', () => fixture(async () => {
+  await action('claim');
+  await reportAbsence(0);
+  assert.equal((await warn(a,1,'absence_warning')).allowed,true);
+  await atSecond(310);await action('report',a,1,'present');
+  await reportAbsence(360);
+  assert.equal((await warn(a,1,'absence_warning')).allowed,false);
+  assert.equal(await recoveryCount(),0);
+  await atSecond(670);await action('report',a,1,'present');
+  await reportAbsence(720,299);
+  assert.equal(await recoveryCount(),0);
+  await atSecond(1020);await action('report',a,1,'absent');
+  assert.equal(await recoveryCount(),1,'an absent report at exactly 5 minutes qualifies the third episode');
+  await atSecond(1030);await action('report',a,1,'watching');
+  const row=await admin(() => scalar("select to_jsonb(r) value from study_recovery_requests r where user_id=$1",[user]));
+  assert.equal(row.local_date,'2026-10-18');
+  assert.equal(row.status,'pending');
+  assert.equal(row.covered_missed_days,1);
+  await admin(() => db.query("update study_recovery_requests set status='submitted' where id=$1",[row.id]));
+  await reportAbsence(1080);
+  assert.equal((await warn(a,1,'absence_warning')).absence_warning_count,2);
+  assert.equal(await recoveryCount(),1);
+  assert.equal(await admin(() => scalar('select status value from study_recovery_requests where id=$1',[row.id])),'submitted');
+}));
+
+test('a historical completed camera recovery blocks replacement without changing history; next study day is independent', () => fixture(async () => {
+  await admin(() => db.query(`insert into study_recovery_requests(user_id,local_date,trigger_type,status)
+    values($1,'2026-10-18','camera_absence_repeat','submitted'),
+          ($1,'2026-10-19','missed_attendance','submitted'),
+          ($2,'2026-10-19','camera_absence_repeat','submitted')`,[user,other]));
+  const history=await admin(() => scalar('select jsonb_agg(to_jsonb(r) order by id) value from study_recovery_requests r'));
+  await action('claim');
+  for (const start of [0,360,720]) {await reportAbsence(start);await atSecond(start+310);await action('report',a,1,'present');}
+  assert.deepEqual(await admin(() => scalar('select jsonb_agg(to_jsonb(r) order by id) value from study_recovery_requests r')),history);
+  const next='00000000-0000-4000-8000-000000000204';
+  await admin(async () => {
+    await db.query("update study_sessions set status='completed',ended_at=now() where id=$1",[session]);
+    await db.query("insert into study_sessions(id,user_id,local_date,started_at,lease_expires_at) values($1,$2,'2026-10-19',now(),now()+interval '1 hour')",[next,user]);
+  });
+  await scalar("select study_camera_action('claim',$1,$2) value",[a,next]);
+  for (const start of [1080,1440,1800]) {
+    await reportAbsence(start,300,'absent',next);
+    if (start<1800) assert.equal(await recoveryCount(),1);
+    await atSecond(start+310);await scalar("select study_camera_action('report',$1,$2,1,'present') value",[a,next]);
+  }
+  assert.equal(await recoveryCount(),2);
+}));
+
+test('same-day episodes survive a new session without treating an expired heartbeat as absence', () => fixture(async () => {
+  await action('claim');
+  await reportAbsence(0,270);
+  await atSecond(320);await action('report',a,1,'watching'); // Previous heartbeat expired at 315.
+  await reportAbsence(360);
+  await atSecond(670);await action('report',a,1,'watching');
+  const next='00000000-0000-4000-8000-000000000205';
+  await admin(async () => {
+    await db.query("update study_sessions set status='completed',ended_at=now() where id=$1",[session]);
+    await db.query("insert into study_sessions(id,user_id,local_date,started_at,lease_expires_at) values($1,$2,'2026-10-18',now(),now()+interval '1 hour')",[next,user]);
+  });
+  await scalar("select study_camera_action('claim',$1,$2) value",[a,next]);
+  await reportAbsence(720,300,'absent',next);
+  assert.equal(await recoveryCount(),0);
+  await atSecond(1030);await scalar("select study_camera_action('report',$1,$2,1,'watching') value",[a,next]);
+  await reportAbsence(1080,300,'absent',next);
+  assert.equal(await recoveryCount(),1);
+}));
+
+test('a same-owner reconnect does not turn an observed 299-second absence into a qualified episode', () => fixture(async () => {
+  await action('claim');
+  for (const start of [0,360,720]) {
+    await reportAbsence(start,299);
+    await atSecond(start+301);
+    assert.equal((await action('claim')).accepted,true);
+  }
+  assert.equal(await recoveryCount(),0);
+}));
+
+test('old service-role warning writers cannot bypass qualification, but attendance inserts still work', () => fixture(async () => {
+  await db.exec('reset role;set role service_role');
+  const insert = type => db.query(`insert into study_recovery_requests
+    (user_id,local_date,trigger_type,status) values($1,'2026-10-18',$2,'pending')`,[user,type]);
+  await denied(() => insert('camera_absence_repeat'), /Camera recovery requires/);
+  await insert('missed_attendance');
+  await auth();
+  assert.equal(await recoveryCount(),0);
+  assert.equal(await admin(() => scalar("select count(*)::int value from study_recovery_requests where user_id=$1 and trigger_type='missed_attendance'",[user])),1);
 }));
 
 test('owner off warning is atomic, cooldown enforced, and missing identity creates no event', () => fixture(async () => {

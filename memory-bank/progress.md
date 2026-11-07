@@ -6,7 +6,7 @@
 
 ## 카메라 회복 재생성 분석
 
-- 분석 완료/수정 미실행: 공부일 경고 누적>=3 + pending-only 중복방지로 submitted 뒤 다음 경고에도 재생성. 같은 연속 미감지의 반복 경고도 별도 횟수다. 감지 오탐의 정확 자세 원인은 영상 미저장으로 미확정. 기존24/24와 합성 재현 확인, 실계정 쓰기/시간정정/배포 없음. [분석과 UX 대안](../docs/verification/2026-11-05-camera-recovery-analysis.md).
+- 2026-11-07 승인·구현/검증 중: 경고 횟수 대신 별도 5분 이상 구간 3회, 공부일당 1회로 변경. 경고/제외/학습/결석은 보존하며 감지 오탐의 개별 원인은 프레임 미저장으로 미확정. [PRD](prd-slack-recovery-routines.md) · [기존 분석](../docs/verification/2026-11-05-camera-recovery-analysis.md).
 
 ## 테마 종류별 메뉴와 실제 Windows 목록
 

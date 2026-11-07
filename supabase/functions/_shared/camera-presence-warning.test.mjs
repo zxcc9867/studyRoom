@@ -12,11 +12,11 @@ const sessionId = 'a75a57df-abbe-487e-b43d-3cd4947ad4af';
 const clientId = '00000000-0000-4000-8000-000000000301';
 
 // Run the actual Edge handler and shared recovery code; replace only DB/auth/Slack I/O.
-function setup({ events = [], slack = false, allowed = true } = {}) {
+function setup({ events = [], recoveries = [], slack = false, allowed = true } = {}) {
   const tables = {
     study_sessions: [{ id: sessionId, user_id: owner, local_date: day, status: 'active' }],
     study_presence_events: structuredClone(events),
-    study_recovery_requests: [],
+    study_recovery_requests: structuredClone(recoveries),
     notification_targets: slack ? [{ id: 'target-1', user_id: owner, kind: 'slack', enabled: true, destination: 'channel-1' }] : [],
     notification_deliveries: [],
   };
@@ -121,16 +121,12 @@ test('first and second same-day absence warnings do not create recovery', async 
   }
 });
 
-test('third warning creates one recovery and later warnings reuse it', async () => {
+test('a third warning alone cannot create a recovery', async () => {
   const app = setup({ events: [warning(), warning()] });
   const third = await app.warn();
   assert.equal(third.body.absenceWarningCount, 3);
-  assert.equal(app.tables.study_recovery_requests.length, 1);
-  assert.equal(app.tables.study_recovery_requests[0].trigger_type, 'camera_absence_repeat');
-  const fourth = await app.warn();
-  assert.equal(fourth.body.absenceWarningCount, 4);
-  assert.equal(fourth.body.recoveryResult.recoveryRequestId, third.body.recoveryResult.recoveryRequestId);
-  assert.equal(app.tables.study_recovery_requests.length, 1);
+  assert.equal(third.body.recoveryResult, null);
+  assert.equal(app.tables.study_recovery_requests.length, 0);
 });
 
 test('absence count excludes other users, dates, and camera setup warnings', async () => {
@@ -149,14 +145,32 @@ test('camera-required warning never creates recovery, even after three absence w
   assert.equal(app.tables.study_recovery_requests.length, 0);
 });
 
-test('third-warning Slack recovery explains three or more and is not sent twice', async () => {
-  const app = setup({ events: [warning(), warning()], slack: true });
+const recovery = (status = 'pending') => ({
+  id: 'recovery-1', user_id: owner, local_date: day, trigger_type: 'camera_absence_repeat',
+  status, covered_start_date: day, covered_end_date: day, covered_missed_days: 1,
+  slack_channel_id: null, slack_message_ts: null, followup_sent_at: null, created_at: '2026-10-01T09:00:00Z',
+});
+
+test('an already-created recovery is delivered even below three warnings, without resending', async () => {
+  const app = setup({ recoveries: [recovery()], slack: true });
   await app.warn();
   await app.warn();
   const recoveryMessages = app.messages.filter(message => message.blocks);
   assert.equal(recoveryMessages.length, 1);
-  assert.match(recoveryMessages[0].blocks[0].text.text, /3회 이상/);
-  assert.doesNotMatch(recoveryMessages[0].blocks[0].text.text, /2회/);
+  assert.match(recoveryMessages[0].blocks[0].text.text, /카메라 자리 비움 기록/);
+  assert.doesNotMatch(recoveryMessages[0].blocks[0].text.text, /경고가 3회/);
+  assert.equal(app.messages.filter(message => !message.blocks).length,2);
+  assert.equal(app.tables.study_recovery_requests.length,1);
+});
+
+test('same-day submitted recovery is neither recreated nor redelivered', async () => {
+  const submitted = recovery('submitted');
+  const app = setup({ events: [warning(), warning()], recoveries: [submitted], slack: true });
+  const result = await app.warn();
+  assert.equal(result.body.recoveryResult, null);
+  assert.equal(result.body.slackSent, true);
+  assert.deepEqual(app.tables.study_recovery_requests, [submitted]);
+  assert.equal(app.messages.filter(message => message.blocks).length,0);
 });
 
 test('unauthenticated requests do not record warnings or create recovery', async () => {

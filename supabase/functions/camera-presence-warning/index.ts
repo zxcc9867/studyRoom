@@ -1,7 +1,7 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient, type SupabaseClient } from "jsr:@supabase/supabase-js@2.57.4";
 import {
-  createRecoveryRequest,
+  loadPendingRecoveryRequest,
   sendRecoveryRequestSlackMessage,
 } from "../_shared/recovery.ts";
 
@@ -74,8 +74,8 @@ Deno.serve(async (request) => {
   const absenceWarningCount = Number(claim.absence_warning_count) || 0;
   const target = await loadSlackTarget(admin, user.id);
   const recoveryResult =
-    eventType === "absence_warning" && absenceWarningCount >= 3
-      ? await sendRepeatedAbsenceRecoveryRequest(admin, studySession, target)
+    eventType === "absence_warning"
+      ? await deliverPendingAbsenceRecovery(admin, studySession, target)
       : null;
 
   if (!target?.destination) {
@@ -198,42 +198,31 @@ function suppressed() {
   return json({ ok: true, suppressed: true, slackSent: false, eventId: null, absenceWarningCount: 0, recoveryResult: null });
 }
 
-async function sendRepeatedAbsenceRecoveryRequest(
+async function deliverPendingAbsenceRecovery(
   admin: SupabaseClient,
   studySession: StudySessionRow,
   target: SlackTarget | null,
 ) {
-  const { request, created } = await createRecoveryRequest(admin, {
-    userId: studySession.user_id,
-    localDate: studySession.local_date,
-    triggerType: "camera_absence_repeat",
-  });
-
-  if (!target?.destination) {
-    return {
-      ok: true,
-      slackMissing: true,
-      recoveryRequestId: request.id,
-      triggerType: request.trigger_type,
-    };
-  }
-
-  if (!created && request.slack_message_ts) {
-    return {
-      ok: true,
-      skipped: true,
-      recoveryRequestId: request.id,
-      triggerType: request.trigger_type,
-    };
-  }
-
   try {
+    // The DB heartbeat owns qualification and creation; warning counts are informational.
+    const request = await loadPendingRecoveryRequest(admin, {
+      userId: studySession.user_id,
+      localDate: studySession.local_date,
+      triggerType: "camera_absence_repeat",
+    });
+    if (!request) return null;
+    if (!target?.destination || request.slack_message_ts) {
+      return {
+        ok: true,
+        ...(!target?.destination ? { slackMissing: true } : { skipped: true }),
+        recoveryRequestId: request.id,
+        triggerType: request.trigger_type,
+      };
+    }
     return await sendRecoveryRequestSlackMessage(admin, target, request);
   } catch (error) {
     return {
       ok: false,
-      recoveryRequestId: request.id,
-      triggerType: request.trigger_type,
       error: error instanceof Error ? error.message : String(error),
     };
   }

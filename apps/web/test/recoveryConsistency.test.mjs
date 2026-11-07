@@ -14,7 +14,7 @@ async function loadTypeScript(path) {
 }
 
 const { loadDashboardData } = await loadTypeScript("apps/web/src/dashboardData.ts");
-const { createRecoveryRequest } = await loadTypeScript("supabase/functions/_shared/recovery.ts");
+const { ensureMissedAttendanceRecovery, loadPendingRecoveryRequest } = await loadTypeScript("supabase/functions/_shared/recovery.ts");
 
 // Keep Supabase's query builder real; replace only the external PostgREST transport.
 function recoveryDatabase(initialRows) {
@@ -107,9 +107,8 @@ test("an older pending recovery remains visible beyond 500 newer submitted reque
 
 test("a new missed day extends the existing aggregate once instead of hitting the unique constraint", async () => {
   const database = recoveryDatabase([aggregate]);
-  const input = { userId: "owner", localDate: "2026-08-28", triggerType: "missed_attendance" };
-  const first = await createRecoveryRequest(database.client, input);
-  const repeated = await createRecoveryRequest(database.client, input);
+  const first = await ensureMissedAttendanceRecovery(database.client, "owner", "2026-08-28");
+  const repeated = await ensureMissedAttendanceRecovery(database.client, "owner", "2026-08-28");
   assert.equal(first.created, false);
   assert.equal(first.request.id, "attendance-aggregate");
   assert.equal(first.request.covered_missed_days, 73);
@@ -118,15 +117,15 @@ test("a new missed day extends the existing aggregate once instead of hitting th
   assert.equal(database.rows.length, 1);
 });
 
-test("camera recovery stays separate from attendance and does not duplicate on a repeated trigger", async () => {
-  const database = recoveryDatabase([aggregate]);
+test("camera delivery reads only its owner's pending request without changing attendance or submitted history", async () => {
+  const camera = { ...aggregate, id: "camera", trigger_type: "camera_absence_repeat", local_date: "2026-08-28",
+    covered_start_date: "2026-08-28", covered_end_date: "2026-08-28", covered_missed_days: 1 };
+  const rows = [aggregate, camera, { ...camera, id: "other-owner", user_id: "someone-else" },
+    { ...camera, id: "yesterday", local_date: "2026-08-27" }, { ...camera, id: "submitted", status: "submitted" }];
+  const database = recoveryDatabase(rows);
   const input = { userId: "owner", localDate: "2026-08-28", triggerType: "camera_absence_repeat" };
-  const created = await createRecoveryRequest(database.client, input);
-  const repeated = await createRecoveryRequest(database.client, input);
-  assert.equal(created.created, true);
-  assert.equal(repeated.created, false);
-  assert.equal(database.rows.length, 2);
-  assert.equal(database.rows[0].covered_missed_days, 72);
-  assert.equal(created.request.covered_start_date, "2026-08-28");
-  assert.equal(created.request.covered_end_date, "2026-08-28");
+  for (let attempt = 0; attempt < 2; attempt++) {
+    assert.equal((await loadPendingRecoveryRequest(database.client, input)).id, "camera");
+  }
+  assert.deepEqual(database.rows, rows);
 });

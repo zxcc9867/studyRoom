@@ -1,4 +1,9 @@
 # Active Context
+- 2026-11-07 · codex-camera-recovery-1107: 사용자 승인으로 회복 정책 후속 진행 중. 기존 공부일 안에서 서버가 5분 이상 확인한 별도 미감지 구간 3회, 기존 제출 포함 하루 1회. 감지·경고·제외·기록/결석 유지. 구 정책 및 미리보기 출시는 아래 이력.
+- 변경: 20261107053852_camera_recovery_distinct_absences SQL(비공개 구간/heartbeat·legacy INSERT fence) + camera-presence-warning Edge 전달 전용 + 합성 SQL/Edge 테스트. RED 5건+재연결/구버전 fence RED 재현, 집중 73/73, 독립 I2 해결·재검토 C/I/M0. 공식 검사 재실행 후 정확 SHA로 Edge→DB→웹 운영 확인 예정.
+- 미감지 후속 질문: 감지 모델의 머리·양어깨 또는 머리·어깨·골반 조건/5초 단위 문구와 5분 경고의 차이 안내. 사용자 실제 프레임은 미저장·미확인, 감지 코드나 시간 정산을 바꾸지 않음.
+
+## 2026-11-06 카메라 미리보기 (이력)
 - 갱신: 2026-11-06 · 도구: codex · 현재 owner: codex-scenic-camera-1106
 - 현재 목표/완료: 풍경 HUD ‘카메라 감시 중’ 클릭→같은 로컬 stream 미리보기·닫기 구현·검증·운영배포 완료. 기존 기록/감지/카메라 소유권 유지. PRD/architecture/검증문서 갱신. 회복 평가주기 후속만 정책 선택 대기다.
 - 현재 브랜치/기준: fix/study-dashboard-clarity / 제품0b1da142ccedd512baa144d3cd912cba81c98079 커밋·feature push완료. 다른 dirty 8종/output/.serena 보존, main/태그 변경 없음. 이번 main/ScenicStudyView/scenicStudy.css/actualStudyMounted 및 관련 문서만 claim했다.
