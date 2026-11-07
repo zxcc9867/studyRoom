@@ -1,4 +1,7 @@
 # Active Context
+- 2026-11-07 · codex-anime-lighthouse-1107 · fix/study-dashboard-clarity `262f145` 기반: 승인된 고리 행성 없는 ‘은하가 비치는 등대’ 24초 무음 영상, 720/1080 WebM·포스터·썸네일 제작 완료. 11-08 09:00 JST/KST AWS PR #2 Slack 1회 개인 알림은 예약 완료, 중복 생성 금지.
+- [원본/재현](../docs/media/anime-lighthouse/README.md). HyperFrames check a194d00f 오류0(무음 의도)·로컬 GPU 720프레임, FFmpeg 두 파일 프레임/경계·SHA·독립 검토 통과. 최종 영상 Chrome 375/1440 실제 움직임·loop·auto 720/1080·crop·공부 데이터 보존 확인. 공식7/Dune0·전체 Chrome 분할 1,774 고유 항목 통과(15→16 기대 수정 6개 재검증)·기본 npm 실패0·14해시 일치.
+- 다음: 범위만 기능브랜치 커밋·푸시 → 기존 `vercel-production.yml` dispatch → 정확 SHA/READY/운영 alias 및 공개4파일 해시·영상 range/Chrome loop 확인. 공부 기록·카메라·계정·DB·네이티브 및 기존 dirty 문서·output 보존.
 - 2026-11-07 · codex-camera-recovery-1107: 사용자 승인 회복 정책 구현·운영배포 완료. 기존 공부일 안에서 서버가 5분 이상 확인한 별도 미감지 구간 3회, 기존 제출 포함 하루 1회. 감지·경고·제외·기록/결석 유지. 구 정책 및 미리보기 출시는 아래 이력.
 - 변경/검증: 20261107053852 SQL 비공개 구간·heartbeat·legacy INSERT fence, camera-presence-warning 전달 전용. 집중 73/73·계약 48/48·공식7/Dune0·독립 I2 해결/최종 C/I/M0·diff 통과. 제품 `1af2f23` feature push; Edge25 ACTIVE/파일 일치/OPTIONS204/비인증401 → DB 운영20261107055421/트리거·본문·권한 확인/기존11함수 지문 동일·새 보안 advisory0 → Actions42344753270 success/정확 SHA, Vercel dpl_FHQj4t1MSVsoxMUum5cwnnzBVyjJ READY/alias/HTML·JS·CSS200. [검증](../docs/verification/2026-11-07-camera-recovery.md).
 - 미감지 후속 질문: 감지 모델의 머리·양어깨 또는 머리·어깨·골반 조건/5초 단위 문구와 5분 경고의 차이 안내. 사용자 실제 프레임은 미저장·미확인, 감지 코드나 시간 정산을 바꾸지 않음.

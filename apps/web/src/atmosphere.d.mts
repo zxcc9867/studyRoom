@@ -1,4 +1,4 @@
-export type AtmosphereBackground = 'charcoal' | 'dawn-city' | 'night-alley' | 'star-sea' | 'sunset-sky' | 'rain-library' | 'cloud-sky' | 'ocean-waves' | 'starry-night' | 'rain-window' | 'city-night' | 'fireplace' | 'snow-night' | 'lake-sunset' | 'anime-sea';
+export type AtmosphereBackground = 'charcoal' | 'dawn-city' | 'night-alley' | 'star-sea' | 'sunset-sky' | 'rain-library' | 'cloud-sky' | 'ocean-waves' | 'starry-night' | 'rain-window' | 'city-night' | 'fireplace' | 'snow-night' | 'lake-sunset' | 'anime-sea' | 'anime-lighthouse';
 export type VideoQuality = 'auto' | 'saver' | 'high';
 export type AtmospherePreferences = {background: AtmosphereBackground; motion: 'static' | 'live'; intensity: 'subtle' | 'normal'; paused?: boolean; quality?: VideoQuality};
 export type VideoStatus = 'idle' | 'loading' | 'playing' | 'paused' | 'error';

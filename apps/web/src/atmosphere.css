@@ -13,6 +13,10 @@ html[data-study-background]:not([data-study-background=charcoal]) body::before {
   content: ''; position: fixed; inset: 0; z-index: 0; pointer-events: none;
   background: var(--study-scene) center / cover no-repeat, var(--study-bg);
 }
+@media (max-aspect-ratio: 1/1) {
+  html[data-study-background=anime-lighthouse] .atmosphere-video { object-position: 75% center; }
+  html:root[data-study-background=anime-lighthouse] body::before { background-position: 75% center; }
+}
 html[data-study-background]:not([data-study-background=charcoal]) body #root { position: relative; z-index: 1; background: transparent !important; }
 html[data-study-background]:not([data-study-background=charcoal]) :is(.dashboard-redesign, .login-shell) { background: transparent; }
 html[data-study-background]:not([data-study-background=charcoal]):has(.dashboard-redesign) body { background: var(--study-bg) !important; }

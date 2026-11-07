@@ -1,0 +1,28 @@
+<!doctype html>
+<html lang="ko" data-resolution="landscape">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=1920, height=1080">
+  <script src="https://cdn.jsdelivr.net/npm/gsap@3.15.0/dist/gsap.min.js"></script>
+  <style>html,body{margin:0;width:100%;height:100%;overflow:hidden;background:#10142e}#lighthouse,#lighthouse-art{position:absolute;inset:0;width:100%;height:100%}canvas{display:block}</style>
+</head>
+<body>
+  <main id="lighthouse" data-composition-id="lighthouse" data-start="0" data-duration="24" data-width="1920" data-height="1080" data-fps="30">
+    <canvas id="lighthouse-art" class="clip" width="1920" height="1080" data-start="0" data-duration="24" data-track-index="0" data-layout-allow-overflow="full-bleed painted scenery"></canvas>
+  </main>
+  <script type="module">
+    import {createLighthouseRenderer} from './renderer.mjs';
+    window.__hf ??= {};
+    window.__hf.buildReady ??= {};
+    window.__hf.buildReady.lighthouse = (async () => {
+      const draw = await createLighthouseRenderer(document.getElementById('lighthouse-art'), 'assets/master.png');
+      const clock = {time: 0};
+      const timeline = gsap.timeline({paused: true});
+      timeline.fromTo(clock, {time: 0}, {time: 24, duration: 24, ease: 'none', onUpdate: () => draw(clock.time)}, 0);
+      window.addEventListener('hf-seek', event => draw(event.detail.time));
+      draw(0);
+      window.__timelines.lighthouse = timeline;
+    })();
+  </script>
+</body>
+</html>
