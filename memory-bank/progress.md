@@ -6,7 +6,7 @@
 
 ## 카메라 회복 재생성 분석
 
-- 2026-11-07 승인·구현/검증 중: 경고 횟수 대신 별도 5분 이상 구간 3회, 공부일당 1회로 변경. 경고/제외/학습/결석은 보존하며 감지 오탐의 개별 원인은 프레임 미저장으로 미확정. [PRD](prd-slack-recovery-routines.md) · [기존 분석](../docs/verification/2026-11-05-camera-recovery-analysis.md).
+- 2026-11-07 운영완료: 별도 5분 이상 구간 3회, 공부일당 1회. 경고/제외/학습/결석 보존. 집중73/73·계약48/48·공식7/Dune0·독립 C/I/M0. 제품1af2f23·Edge25 ACTIVE·DB20261107055421/11보호함수 동일·Actions42344753270 success·dpl_FHQj4t1MSVsoxMUum5cwnnzBVyjJ READY/exactSHA/HTTP200. 실제 자세 오탐 원인/실계정 수용 미확인. [PRD](prd-slack-recovery-routines.md) · [검증](../docs/verification/2026-11-07-camera-recovery.md).
 
 ## 테마 종류별 메뉴와 실제 Windows 목록
 

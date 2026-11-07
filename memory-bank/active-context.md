@@ -1,6 +1,6 @@
 # Active Context
-- 2026-11-07 · codex-camera-recovery-1107: 사용자 승인으로 회복 정책 후속 진행 중. 기존 공부일 안에서 서버가 5분 이상 확인한 별도 미감지 구간 3회, 기존 제출 포함 하루 1회. 감지·경고·제외·기록/결석 유지. 구 정책 및 미리보기 출시는 아래 이력.
-- 변경: 20261107053852_camera_recovery_distinct_absences SQL(비공개 구간/heartbeat·legacy INSERT fence) + camera-presence-warning Edge 전달 전용 + 합성 SQL/Edge 테스트. RED 5건+재연결/구버전 fence RED 재현, 집중 73/73, 독립 I2 해결·재검토 C/I/M0. 공식 검사 재실행 후 정확 SHA로 Edge→DB→웹 운영 확인 예정.
+- 2026-11-07 · codex-camera-recovery-1107: 사용자 승인 회복 정책 구현·운영배포 완료. 기존 공부일 안에서 서버가 5분 이상 확인한 별도 미감지 구간 3회, 기존 제출 포함 하루 1회. 감지·경고·제외·기록/결석 유지. 구 정책 및 미리보기 출시는 아래 이력.
+- 변경/검증: 20261107053852 SQL 비공개 구간·heartbeat·legacy INSERT fence, camera-presence-warning 전달 전용. 집중 73/73·계약 48/48·공식7/Dune0·독립 I2 해결/최종 C/I/M0·diff 통과. 제품 `1af2f23` feature push; Edge25 ACTIVE/파일 일치/OPTIONS204/비인증401 → DB 운영20261107055421/트리거·본문·권한 확인/기존11함수 지문 동일·새 보안 advisory0 → Actions42344753270 success/정확 SHA, Vercel dpl_FHQj4t1MSVsoxMUum5cwnnzBVyjJ READY/alias/HTML·JS·CSS200. [검증](../docs/verification/2026-11-07-camera-recovery.md).
 - 미감지 후속 질문: 감지 모델의 머리·양어깨 또는 머리·어깨·골반 조건/5초 단위 문구와 5분 경고의 차이 안내. 사용자 실제 프레임은 미저장·미확인, 감지 코드나 시간 정산을 바꾸지 않음.
 
 ## 2026-11-06 카메라 미리보기 (이력)
