@@ -42,6 +42,12 @@ ffmpeg -n -i $source -vf scale=480:270:flags=lanczos -frames:v 1 -c:v libwebp -q
 - 375px Android 사용자 에이전트 자동 720p와 1440px PC 자동 1080p에서 실제 프레임 변화(표본 57,600픽셀 중 4,528/4,904), 반복 재생, 포스터와 영상 구도 일치, 일시정지·재개, 기존 학습 데이터 보존을 확인했다. 합성 카메라 회귀와 기존 테마도 확인했다. 실제 설치 기기나 물리 카메라는 조작하지 않았다.
 - Chrome 전체 분할 검사: 중복 없는 1,774개 통과(본 화면 340개와 다른 테스트 1,434개). 선택지 15→16을 반영한 6개를 다시 실행해 모두 통과했다. 나머지 소스/파일은 SHA-256으로 고정했다. 공식 `ai.ps1 verify --project .` 7개 및 Dune 위반 0, 기본 `npm.cmd test` 실패 0, 독립 검토에서 출시 차단 사항 0.
 
+## 운영 확인
+
+- 제품 커밋 `4bfead11a2f94397e0996087b78313d7efccc53b`; [GitHub Actions](https://github.com/zxcc9867/studyRoom/actions/runs/42382436784) 성공. Vercel `dpl_CA42yf7DjLo46PwjFqGw3bU3u2E4` production `READY`, [운영 주소](https://study-room-attendance.vercel.app)와 정확한 커밋 일치.
+- 운영 HTML·JS·CSS·공개 자산 4개 HTTP 200, 영상 2개 Range HTTP 206, 파일 해시 4/4 일치. 익명 격리 Chrome에서 두 영상이 실제로 디코딩되고 24초 끝에서 처음으로 반복됐다. 출시 직후 5분 서버 error/fatal 집계에 항목이 없었으며 실기기·장시간 모니터링을 대신하지 않는다.
+- 새 APK/EXE 없이 공통 웹 화면에서 제공된다. 공부·카메라 사용을 마친 뒤 앱을 새로고침하고, 설정 → 공부와 화면 → 배경 테마에서 선택한다.
+
 ## 이미지 편집 프롬프트
 
 ```text
