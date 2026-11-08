@@ -1,5 +1,10 @@
 # Progress
 
+## AWS 2안 · 독립 시험판
+
+- 구현: [2안을 기본으로 한 AWS 구성 리뷰](../docs/aws/architecture-review.md)와 [시험판](../infra/aws-native-pilot/README.md). Cognito·Aurora/Proxy·AppSync·SQS/Scheduler·Bedrock용 CDK와 배포 도구를 기존 MVP와 같은 TypeScript로 통일했다. 합성 웹·Lambda 런타임은 기존 JavaScript 유지. 1안은 운영 비용 대안 부록으로 유지.
+- 검증 범위: 시험판 단위·템플릿 테스트와 오프라인 합성. 실제 AWS 배포·Bedrock 호출·관리형 브라우저 로그인·운영 데이터 이전은 미실행. 기존 운영 및 MVP CDK 불변.
+
 ## 2026-10-31 main 통합
 
 - 사용자 승인에 따라 기존 main `9f381ab`에 `fix/study-dashboard-clarity` source `d83dabb`의 18개 커밋을 fast-forward했다. 공통 UI·설정·다크 모드·계획표/기록/숲·피드 표시 및 기본 Windows 앱 소스를 포함한다.

@@ -1,0 +1,40 @@
+{
+  "name": "@study-room/aws-native-pilot",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "engines": { "node": ">=22" },
+  "scripts": {
+    "compile": "tsc -p tsconfig.json",
+    "build": "npm run compile && node dist/scripts/build.js",
+    "test": "npm run compile && node --test \"dist/test/*.test.js\" \"runtime/*.test.mjs\" \"web/*.test.mjs\"",
+    "synth": "npm run build && cdk synth --no-lookups",
+    "deploy": "npm run compile && node dist/scripts/deploy.js"
+  },
+  "dependencies": {
+    "@aws-crypto/sha256-js": "^5.2.0",
+    "@aws-sdk/client-bedrock": "^3.900.0",
+    "@aws-sdk/client-bedrock-runtime": "^3.900.0",
+    "@aws-sdk/client-cloudformation": "^3.900.0",
+    "@aws-sdk/client-cognito-identity-provider": "^3.900.0",
+    "@aws-sdk/client-lambda": "^3.900.0",
+    "@aws-sdk/client-rds": "^3.900.0",
+    "@aws-sdk/client-s3": "^3.900.0",
+    "@aws-sdk/client-secrets-manager": "^3.900.0",
+    "@aws-sdk/client-sqs": "^3.900.0",
+    "@aws-sdk/client-ssm": "^3.900.0",
+    "@aws-sdk/client-sts": "^3.900.0",
+    "@aws-sdk/credential-provider-node": "^3.900.0",
+    "@aws-sdk/credential-providers": "^3.900.0",
+    "@smithy/signature-v4": "^5.3.0",
+    "aws-cdk-lib": "2.257.0",
+    "constructs": "10.5.0",
+    "pg": "^8.16.0"
+  },
+  "devDependencies": {
+    "@types/node": "^24.10.0",
+    "aws-cdk": "2.1125.0",
+    "esbuild": "^0.27.0",
+    "typescript": "^5.9.3"
+  }
+}

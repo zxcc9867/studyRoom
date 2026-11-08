@@ -1,0 +1,39 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="referrer" content="no-referrer">
+  <link rel="stylesheet" href="/styles.css">
+  <title>독서실 · AWS 시험판</title>
+  <script type="module" src="/app.mjs"></script>
+</head>
+<body>
+  <main>
+    <header>
+      <p class="badge">AWS 시험 환경</p>
+      <h1>독서실 시험판</h1>
+      <p>별도로 발급된 시험 계정으로 로그인하세요. 운영 계정과 실제 학습 기록은 사용하지 않습니다.</p>
+    </header>
+    <p id="message" role="status" aria-live="polite">시험 환경을 확인하고 있어요.</p>
+    <button id="login" type="button" hidden>Cognito로 로그인</button>
+    <section id="dashboard" hidden aria-labelledby="record-heading">
+      <div class="bar">
+        <p id="connection" aria-live="polite">실시간 연결 확인 중</p>
+        <button id="logout" class="secondary" type="button">로그아웃</button>
+      </div>
+      <h2 id="record-heading">합성 학습 기록</h2>
+      <form id="record-form">
+        <label for="minutes">공부 시간(분)</label>
+        <input id="minutes" type="number" value="25" min="1" max="240" step="1" required>
+        <button type="submit">시험 기록 저장</button>
+      </form>
+      <ul id="records" aria-label="시험 기록"></ul>
+      <h2>합성 AI 코칭</h2>
+      <p>정해진 시험 문장만 Bedrock에 보내며 실제로 모델 호출 비용이 생깁니다.</p>
+      <button id="coach" type="button">시험 코칭 요청</button>
+      <p id="coach-status" role="status"></p>
+    </section>
+  </main>
+</body>
+</html>

@@ -1,5 +1,10 @@
 # Architecture Map
 
+## AWS 완결형 시험판 경계
+
+- `infra/aws-native-pilot/bin/pilot.ts`와 `lib/pilot-stack.ts`가 독립 시험 자원의 소유자다. CDK와 배포 도구는 엄격한 TypeScript로 작성하고 `dist/`에 컴파일한다. 공식 진입점은 [시험판 실행 가이드](../infra/aws-native-pilot/README.md)의 `npm run deploy`; 기존 `infra/aws-cdk`, Vercel, Supabase, 제품 클라이언트와 상태·환경값을 공유하지 않는다.
+- `runtime/`은 Cognito `sub`별 Aurora 기록/작업과 커밋 이후 AppSync 신호를 소유하고, `web/`은 시험 로그인·API 조회만 수행한다. 실제 학습·출석 데이터 및 카메라는 범위 밖이다. 스택/프로토콜 검증은 시험판의 `npm test`와 offline `npm run synth`를 사용한다.
+
 ## 이번 표시 경계 — 계획표·내 페이지·숲
 - main.tsx/appTheme.css는 기존 planner/date 콜백·04시 계산·기존 report/history 데이터를 표시만 한다. native details의 open 상태는 표시 전용이며 report/reflection/recovery 자식과 영속 상태 소유권은 그대로다.
 - StudyForestSection.tsx/forestOverview.css는 요약·접기/이벤트 표시만 소유한다. StudyForest3D와 순수 성장/주간 helper·서버 preference API는 재사용한다.

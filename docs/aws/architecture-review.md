@@ -1,10 +1,10 @@
-# 독서실 AWS 인프라 설계 리뷰
+# 독서실 AWS 인프라 설계 — 2안 Aurora 완결형
 
-**상태: 검토용 제안 · 미배포.** [공식 아이콘 구성도와 상세 설명(HTML)](./aws-architecture-review.html)은 파일을 내려받아 브라우저에서 엽니다. GitHub에서 바로 읽고 코멘트하려면 이 Markdown을 사용하세요. 기존 [인프라 문서](../infrastructure-architecture.md)는 별도 참고 자료이며, 이 PR은 운영 설정이나 이전을 승인하지 않습니다.
+**상태: 2안을 기본 목표로 선택 · 독립 시험판 코드 작성 · AWS 미배포.** [공식 아이콘 구성도(HTML)](./aws-architecture-review.html)는 내려받아 브라우저에서 열 수 있습니다. 현재 운영은 [기존 인프라 문서](../infrastructure-architecture.md)를 따릅니다. 이 설계 결정은 AWS 리소스 생성, 운영 전환 또는 기존 데이터 이전의 승인이 아닙니다.
 
-## 먼저 결정할 것
+## 기본 설계와 비용 대안
 
-**AWS 배포가 목표라면 1안부터 검증**합니다. 기존 기록과 로그인은 그대로 두고 웹과 코칭 API의 실행 위치만 바꿉니다. **Supabase와 OpenRouter 제거 자체가 필수**라면 2안을 검토합니다. 2안은 AWS에서 통제할 수 있는 범위가 넓지만, 로그인·데이터 권한·실시간 처리·스케줄을 다시 구현하고 운영해야 합니다.
+**2안이 기본입니다.** 인증·기록·동기화·AI를 AWS 서비스에 두고 동일한 CDK 배포 경로로 관리합니다. 비용 효율성이 더 중요해지는 경우에는 기존 Supabase·OpenRouter를 유지하는 [부록 A의 1안](#cost-alternative)으로도 구성할 수 있습니다. 아래 금액은 2026-11-07 기준의 예시이며, 운영 예산 승인 전에 실제 사용량과 요율을 다시 확인합니다.
 
 | | 구성도 1 · 혼합형 | 구성도 2 · Aurora 완결형 |
 |---|---|---|
@@ -13,24 +13,7 @@
 | 월 예상 비용 | **AWS $2.03** + Supabase·OpenRouter 실사용료. Supabase Pro 기본·OpenRouter 무료 예시 **$27.03** | **$263.37**: 서울, Aurora Writer/Reader·Proxy, NAT 2개 예시 |
 | 맞는 상황 | 기록 보존, 작은 운영비, 빠른 AWS 시험 | 외부 데이터·AI 플랫폼 제거 또는 AWS 중심 복구·권한 관리가 필수 |
 
-## 1. 혼합형 — 배포 경로만 옮김
-
-```mermaid
-flowchart LR
-  app["웹 · Windows · Android"] --> edge["CloudFront"]
-  edge -->|화면| s3["비공개 S3"]
-  edge -->|코칭 API| api["API Gateway Regional REST"]
-  api --> fn["Lambda"]
-  fn --> ai["OpenRouter"]
-  fn -->|인증 검증 및 데이터 접근| sup["Supabase"]
-  app -->|로그인 · 저장 · 변경 구독| sup
-  sup --> job["Cron · Edge Functions → 알림 · 피드"]
-```
-
-- **왜 이 구성인가:** Vite 빌드 결과를 CloudFront·S3로 제공하고, Vercel의 코칭 함수만 AWS로 옮기면 기존 계정·데이터·출석 정책에 손대지 않고 AWS 배포 가능성을 확인할 수 있습니다. 비공개 S3에 대한 원본 접근은 OAC로 제한합니다.
-- **제약:** 기존 코칭 핸들러의 상한은 50초입니다. 동기 응답을 유지하려면 Regional REST API 통합 시간 상향과 CloudFront 원본 대기 시간을 검증해야 합니다. 상향을 전제로 운영을 전환하지 않습니다. 설치된 앱의 신뢰 주소와 로그인 복귀 주소도 별도 확인합니다.
-
-## 2. Aurora 완결형 — 인증·데이터·AI까지 옮김
+## 기본 구성도 · 2안 Aurora 완결형
 
 ```mermaid
 flowchart LR
@@ -55,6 +38,12 @@ flowchart LR
 - **왜 이 구성인가:** Cognito가 로그인, Aurora가 기록, AppSync가 갱신 신호, EventBridge Scheduler가 정기 실행을 맡습니다. HTTP API는 통합 상한이 30초이므로 길어질 수 있는 AI 요청은 `202`로 접수한 뒤 SQS·Lambda가 Bedrock에서 처리하고 앱이 결과를 조회합니다. IAM·Secrets Manager·CloudWatch는 자원 권한·비밀값·운영 지표를 맡습니다. RDS Proxy는 연결 재사용 통로이며, RDS DB를 별도로 두는 안이 아닙니다.
 - **AppSync의 역할:** PC에서 공부 시작 → Lambda가 Aurora에 저장 → AppSync가 권한 있는 화면에 변경 신호 전달 → 휴대폰이 인증된 API로 최신 상태 조회. AppSync에는 학습 원문이나 카메라 영상을 싣지 않습니다. 신호가 누락되면 재연결·화면 복귀·열린 화면의 주기적 보조 조회로 최신 상태를 확인합니다. 1안에서는 Supabase Realtime이 변경을 알립니다.
 - **제약:** 기존 사용자 UUID·출석 규칙·팀 권한·DB 정책과 정기 작업을 이식해야 합니다. 토큰 검증만으로 팀 접근을 허용하지 않습니다. 팀 구독과 조회를 각각 검증하고, 기존 앱 로그인 복귀·재연결·백업 복원을 시험합니다.
+
+## CDK 한 명령 배포의 범위
+
+- **사전 준비:** 배포 대상 AWS 계정·리전과 자격 증명을 정하고 [CDK bootstrap](https://docs.aws.amazon.com/cdk/v2/guide/bootstrapping-env.html)을 한 번 실행합니다. 선택한 Bedrock 모델의 리전 가용성·호출 권한, AWS 한도와 월 예산을 확인합니다.
+- **한 명령의 범위:** [독립 AWS 시험판 실행 가이드](../../infra/aws-native-pilot/README.md)에 따라 스택 배포 → 스키마 초기화 → 웹 설정 적용 → 두 시험 계정의 Cognito 토큰·합성 기록·상태 갱신·Bedrock 호출을 확인하도록 작성했습니다. 브라우저의 실제 관리형 로그인은 별도 수용 항목입니다. AWS에 배포하거나 실제 Bedrock을 호출하지 않았습니다.
+- **경계:** [기존 CDK](../../infra/aws-cdk/README.md)는 정적 호스팅과 Supabase 예약 작업 호출을 위한 MVP입니다. 새 시험판은 별도 앱과 스택이며, [CDK](https://docs.aws.amazon.com/cdk/v2/guide/deploy.html)가 현재 앱의 Supabase 호출을 자동으로 바꾸지는 않습니다. 기존 계정·학습 기록 이전, 소셜 로그인 외부 설정, 기존 앱의 주소 변경과 운영 전환은 포함하지 않습니다.
 
 ## 평가와 의사결정
 
@@ -100,3 +89,23 @@ flowchart LR
 - 요율: [AWS Price List](https://docs.aws.amazon.com/awsaccountbilling/latest/aboutv2/price-changes.html), [서울 Aurora/RDS 공개 가격표](https://pricing.us-east-1.amazonaws.com/offers/v1.0/aws/AmazonRDS/current/ap-northeast-2/index.json), [RDS Proxy](https://aws.amazon.com/rds/proxy/pricing/), [VPC](https://aws.amazon.com/vpc/pricing/), [CloudFront FAQ](https://aws.amazon.com/cloudfront/faqs/), [AppSync](https://aws.amazon.com/appsync/pricing/), [Cognito](https://aws.amazon.com/cognito/pricing/), [Bedrock](https://aws.amazon.com/bedrock/pricing/), [Supabase](https://supabase.com/pricing), [OpenRouter](https://openrouter.ai/pricing).
 - 설계: [AppSync Events](https://docs.aws.amazon.com/appsync/latest/eventapi/event-api-concepts.html), [HTTP API 한도](https://docs.aws.amazon.com/apigateway/latest/developerguide/http-api-quotas.html), [Regional REST API 한도](https://docs.aws.amazon.com/apigateway/latest/developerguide/api-gateway-execution-service-limits-table.html), [Aurora 자동 일시중지](https://docs.aws.amazon.com/AmazonRDS/latest/AuroraUserGuide/aurora-serverless-v2-auto-pause.html), [Nova Micro 리전](https://docs.aws.amazon.com/bedrock/latest/userguide/model-card-amazon-nova-micro.html), [AWS 공식 아이콘](https://aws.amazon.com/architecture/icons/).
 - 프로젝트 기준: [코칭 핸들러](../../api/study-coaching.mjs), [웹 배포 설정](../../vercel.json), [아키텍처 맵](../../memory-bank/architecture-map.md).
+
+<a id="cost-alternative"></a>
+
+## 부록 A · 비용 효율을 우선할 때: 1안 혼합형
+
+```mermaid
+flowchart LR
+  app["웹 · Windows · Android"] --> edge["CloudFront"]
+  edge -->|화면| s3["비공개 S3"]
+  edge -->|코칭 API| api["API Gateway Regional REST"]
+  api --> fn["Lambda"]
+  fn --> ai["OpenRouter"]
+  fn -->|인증 검증 및 데이터 접근| sup["Supabase"]
+  app -->|로그인 · 저장 · 변경 구독| sup
+  sup --> job["Cron · Edge Functions → 알림 · 피드"]
+```
+
+- **언제 선택하나:** 소규모 운영에서 월 고정비와 이전 부담을 줄여야 할 때입니다. AWS 비용 예시는 월 $2.03이며 Supabase·OpenRouter 사용료는 별도입니다. 기존 로그인·학습 기록·출석 정책은 Supabase에 둡니다.
+- **IaC 경계:** AWS 리소스는 CDK로 재현할 수 있습니다. Supabase의 DB·인증·작업 설정과 OpenRouter의 키·모델 정책은 공급자별 도구나 설정 절차로 별도 관리해야 합니다. AWS CDK만으로 외부 서비스까지 같은 방식으로 생성·검증·복구하는 구성은 아닙니다.
+- **제약:** 기존 코칭 핸들러의 상한은 50초입니다. 동기 응답을 유지하려면 Regional REST API 통합 시간 상향과 CloudFront 원본 대기 시간을 검증해야 합니다. 설치 앱의 신뢰 주소와 로그인 복귀 주소도 별도 확인합니다.
