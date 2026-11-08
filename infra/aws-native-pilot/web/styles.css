@@ -1,0 +1,16 @@
+:root { color-scheme: light dark; font: 16px/1.6 system-ui, sans-serif; }
+body { margin: 0; background: light-dark(#edf2ef, #181d1b); color: light-dark(#16241d, #eaf3ed); }
+main { width: min(42rem, calc(100% - 2rem)); margin: 3rem auto; }
+header, section { padding: clamp(1rem, 4vw, 2rem); background: light-dark(#fff, #222a25); border: 1px solid light-dark(#bfcdc4, #65736b); border-radius: 1rem; }
+h1, h2, p { margin: 0 0 0.75rem; }
+.badge { color: light-dark(#175737, #a7e9c1); font-weight: 700; }
+form, .bar { display: flex; align-items: center; flex-wrap: wrap; gap: .75rem; }
+.bar { justify-content: space-between; margin-bottom: 1rem; }
+#message { min-height: 1.6rem; margin: 1rem 0; }
+button, input { font: inherit; min-height: 44px; padding: .25rem .75rem; border: 1px solid currentColor; border-radius: .5rem; box-sizing: border-box; }
+input { width: 6rem; }
+button { background: #1d6341; color: #fff; cursor: pointer; }
+button:disabled { opacity: .7; cursor: wait; }
+.secondary { background: transparent; color: inherit; }
+:focus-visible { outline: 3px solid light-dark(#115caf, #a7d4ff); outline-offset: 2px; }
+#coach-status { margin-top: .75rem; overflow-wrap: anywhere; }

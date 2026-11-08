@@ -1,5 +1,7 @@
 # PRD: AWS CDK Deployment
 
+이 문서는 기존 Supabase 연계 MVP의 범위를 기록합니다. 새 기본 아키텍처와 독립 시험판은 [2안 설계 리뷰](../docs/aws/architecture-review.md) 및 [AWS 완결형 시험판 설계](../docs/superpowers/specs/2026-11-08-aws-native-pilot-design.md)를 따릅니다. 기존 스택은 시험판으로 대체하지 않습니다.
+
 ## 1. Problem
 
 정적 호스팅만으로는 독서실 앱의 예약 알림 요구사항을 만족할 수 없다. 사용자가 컴퓨터를 꺼도 설정된 시간에 알림이 발송되려면 서버 측 스케줄 실행 환경이 필요하다.

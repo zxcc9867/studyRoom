@@ -1,8 +1,10 @@
 # 인프라 구성도
 
+AWS 전환의 기본 설계는 [2안 · Aurora 기반 AWS 완결형](aws/architecture-review.md)입니다. 비용을 우선할 때의 1안은 같은 문서의 부록 A를 참고하세요. 아래는 현재 운영과 기존 MVP CDK의 참고 자료이며, 2안이 이미 운영 중이라는 뜻이 아닙니다.
+
 이 문서는 강제 출석형 독서실 앱의 현재 권장 인프라와 선택적 AWS 확장 구성을 정리한다.
 
-## 현재 권장 구성
+## 현재 운영 기준 · Vercel + Supabase
 
 현재 MVP의 기본 운영 구조는 `Vercel 정적 웹 호스팅 + Supabase Auth/DB/Cron/Edge Function`이다. 웹 앱은 정적 파일로 배포되지만, 알림 발송과 출석/결석 자동 처리는 Supabase 서버 측 실행 환경에서 처리한다.
 
