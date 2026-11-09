@@ -4,12 +4,14 @@ import {AccessibleDialog} from './AccessibleDialog';
 import {dashboardDestinations} from './DashboardNavigation';
 import type {DashboardSection} from './dashboardRoute.mjs';
 import AtmosphereSettings from './AtmosphereSettings';
-import {atmospherePlayback, atmosphereThemes, getAtmosphereController} from './atmosphere.mjs';
+import {atmospherePlayback, atmosphereThemes, getAtmosphereController, type AtmosphereBackground, type AtmospherePreferences} from './atmosphere.mjs';
 import {getWindowPresentationSupport, isDesktopStudyApp, setWindowPresentation, type WindowPresentation} from './desktopBridge.mjs';
 import './scenicStudy.css';
 
 type Props = {task: string; clock: string; status: string; camera: string; cameraStream: MediaStream | null; actionLabel: string;
   actionDisabled: boolean; endDisabled: boolean; hasSession: boolean; notice: string;
+  sessionId: string | null; sessionBackground?: AtmosphereBackground | null; scenerySaving?: boolean;
+  onSaveSessionBackground?: (theme: AtmosphereBackground) => void;
   leaseClock: string | null; leaseBusy: boolean; leaseDisabled: boolean; onExtendLease: () => void;
   onAction: () => void; onEnd: () => void; onClose: () => void; onNavigate: (section: DashboardSection) => void};
 const focusable = 'button:not(:disabled),a[href],input:not(:disabled),select:not(:disabled),textarea:not(:disabled),[tabindex="0"]';
@@ -41,7 +43,9 @@ function CameraPreview({stream,onClose,onFocusLost}: {stream: MediaStream; onClo
 export default function ScenicStudyView(props: Props) {
   const view = useRef<HTMLElement>(null);
   const close = useRef(props.onClose); close.current = props.onClose;
-  const [settingsOpen,setSettingsOpen]=useState(false);
+  const [settingsSession,setSettingsSession]=useState<string|null|undefined>(undefined);
+  const settingsOpen=settingsSession!==undefined&&settingsSession===props.sessionId;
+  useEffect(()=>{if(settingsSession!==undefined&&!settingsOpen)setSettingsSession(undefined);},[settingsSession,settingsOpen]);
   const [previewStream,setPreviewStream]=useState<MediaStream|null>(null);
   const cameraButton=useRef<HTMLButtonElement>(null);
   const cameraId=useId();
@@ -75,8 +79,14 @@ export default function ScenicStudyView(props: Props) {
   const [nativeError,setNativeError]=useState('');
   const controller=getAtmosphereController(window);
   const atmosphere=useSyncExternalStore(controller.subscribe,controller.getSnapshot);
+  useLayoutEffect(()=>{controller.setSessionBackground(props.sessionBackground ?? null);},[controller,props.sessionBackground]);
+  useLayoutEffect(()=>()=>controller.setSessionBackground(null),[controller]);
   const theme=atmosphereThemes.find(item=>item.id===atmosphere.background)!;
   const playback=atmospherePlayback(atmosphere);
+  function applyScenery(value: AtmospherePreferences, backgroundChanged: boolean) {
+    controller.setScenePlayback(value, true);
+    if (backgroundChanged && props.sessionBackground !== value.background) props.onSaveSessionBackground?.(value.background);
+  }
   function dismissMenu(restoreFocus=false) {
     setMenuOpen(false);
     if(restoreFocus){suppressMenuFocus.current=true;menuButton.current?.focus();suppressMenuFocus.current=false;}
@@ -173,9 +183,9 @@ export default function ScenicStudyView(props: Props) {
         <span className="scenic-brand"><BookOpen size={22}/>독서실</span>
         <div className="scenic-tools">
           <span className="scenic-theme"><span>{theme.name}</span><span className="scenic-playback">{playback}</span></span>
-          {theme.live&&<button type="button" className="scenic-live" disabled={atmosphere.reducedMotion} aria-label={atmosphere.motion!=='live'?'라이브 켜기':atmosphere.paused?'라이브 재생':'라이브 일시정지'} onClick={()=>controller.setPreferences({...atmosphere,motion:'live',paused:atmosphere.motion==='live'&&!atmosphere.paused})}>{atmosphere.motion==='live'&&!atmosphere.paused?<Pause size={18}/>:<Play size={18}/>}<span>{atmosphere.motion!=='live'?'라이브 켜기':atmosphere.paused?'재생':'일시정지'}</span></button>}
+          {theme.live&&<button type="button" className="scenic-live" disabled={atmosphere.reducedMotion} aria-label={atmosphere.motion!=='live'?'라이브 켜기':atmosphere.paused?'라이브 재생':'라이브 일시정지'} onClick={()=>controller.setScenePlayback({...atmosphere,motion:'live',paused:atmosphere.motion==='live'&&!atmosphere.paused})}>{atmosphere.motion==='live'&&!atmosphere.paused?<Pause size={18}/>:<Play size={18}/>}<span>{atmosphere.motion!=='live'?'라이브 켜기':atmosphere.paused?'재생':'일시정지'}</span></button>}
           {theme.video&&atmosphere.videoStatus==='error'&&<button type="button" onClick={()=>controller.retryVideo()}>영상 다시 시도</button>}
-          <button type="button" aria-label="풍경 배경 설정" onClick={()=>setSettingsOpen(true)}><Settings size={18}/></button>
+          <button type="button" aria-label="풍경 배경 설정" onClick={()=>setSettingsSession(props.sessionId)}><Settings size={18}/></button>
         </div>
       </header>
       <div className="scenic-landscape" aria-hidden="true"/>
@@ -193,6 +203,6 @@ export default function ScenicStudyView(props: Props) {
       </div>
       </div>
     </section>
-    {settingsOpen&&<AccessibleDialog className="scenic-settings" ariaLabel="풍경 배경 설정" onClose={()=>setSettingsOpen(false)} closeOnBackdrop><div className="scenic-settings-heading"><h2>풍경 배경 설정</h2><button type="button" className="secondary" aria-label="풍경 배경 설정 닫기" onClick={()=>setSettingsOpen(false)}><X size={20}/></button></div><div className="settings-content"><AtmosphereSettings/></div></AccessibleDialog>}
+    {settingsOpen&&<AccessibleDialog className="scenic-settings" ariaLabel="풍경 배경 설정" onClose={()=>setSettingsSession(undefined)} closeOnBackdrop><div className="scenic-settings-heading"><h2>풍경 배경 설정</h2><button type="button" className="secondary" aria-label="풍경 배경 설정 닫기" onClick={()=>setSettingsSession(undefined)}><X size={20}/></button></div><div className="settings-content"><AtmosphereSettings onApply={props.onSaveSessionBackground ? applyScenery : undefined} saving={props.scenerySaving}/></div></AccessibleDialog>}
   </>;
 }

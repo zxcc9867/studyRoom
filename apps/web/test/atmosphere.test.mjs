@@ -16,6 +16,34 @@ function environment(saved=null) {
 }
 function controller(e){assert.equal(typeof createAtmosphereController,'function','atmosphere controller must exist');return createAtmosphereController(e.host);}
 
+test('session scenery changes the visible theme only; other devices keep their own playback and saved theme',()=>{
+ const saved='{"background":"ocean-waves","motion":"live","intensity":"subtle","quality":"saver"}',e=environment(saved),c=controller(e);
+ c.setSessionBackground('anime-lighthouse');
+ assert.equal(c.getSnapshot().background,'anime-lighthouse');
+ assert.equal(c.getSnapshot().videoResolution,720);
+ assert.equal(e.root.dataset.studyBackground,'anime-lighthouse');
+ c.setScenePlayback({...c.getSnapshot(),paused:true});
+ assert.equal(c.getSnapshot().playing,false);
+ assert.equal(JSON.parse(e.values.get('study-room-atmosphere')).background,'ocean-waves');
+ c.setSessionBackground(null);
+ assert.equal(c.getSnapshot().background,'ocean-waves');
+ assert.equal(c.getSnapshot().videoResolution,720);
+});
+
+test('session playback persists locally across reopen even when the device default is static-only',()=>{
+ const e=environment(),c=controller(e);
+ c.setScenePlayback({background:'anime-lighthouse',motion:'live',intensity:'normal',quality:'saver',paused:true},true);
+ assert.equal(c.getSnapshot().background,'charcoal');
+ assert.equal(c.getSnapshot().motion,'static');
+ const reopened=controller(environment(e.values.get('study-room-atmosphere')));
+ reopened.setSessionBackground('anime-lighthouse');
+ assert.equal(reopened.getSnapshot().motion,'live');
+ assert.equal(reopened.getSnapshot().paused,true);
+ assert.equal(reopened.getSnapshot().videoResolution,720);
+ reopened.setSessionBackground(null);
+ assert.equal(reopened.getSnapshot().background,'charcoal');
+});
+
 test('video quality: old saved selections default to auto without rewriting storage or study data',()=>{
  const saved='{"background":"cloud-sky","motion":"live","intensity":"normal","paused":true}',e=environment(saved);e.values.set('study-session','preserved');const c=controller(e);
  assert.equal(c.getSnapshot().quality,'auto');assert.equal(c.getSnapshot().videoSource,'/themes/video/cloud-sky-hd.webm');assert.equal(c.getSnapshot().videoResolution,1080);

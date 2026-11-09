@@ -10,8 +10,11 @@ export function atmospherePlayback(snapshot: AtmosphereSnapshot): string;
 export function atmosphereVideoSource(theme: AtmosphereTheme, quality?: VideoQuality, mobile?: boolean): {src: string; resolution: 720 | 1080} | null;
 export type AtmosphereController = {
   getSnapshot(): AtmosphereSnapshot;
+  getDeviceBackground(): AtmosphereBackground;
   subscribe(listener: () => void): () => void;
   setPreferences(value: AtmospherePreferences): void;
+  setSessionBackground(value: AtmosphereBackground | null): void;
+  setScenePlayback(value: AtmospherePreferences, sessionScoped?: boolean): void;
   reportVideoPlayback(background: AtmosphereBackground, status: VideoStatus, request?: number): void;
   retryVideo(): void;
 };

@@ -27,6 +27,7 @@ import AppearanceSettings from "./AppearanceSettings";
 import ScenicStudyView from "./ScenicStudyView";
 import { getAppearanceController } from "./appearance.mjs";
 import { getAtmosphereController } from "./atmosphere.mjs";
+import { seedStudySessionScenery, useStudySessionScenery } from "./useStudySessionScenery";
 import AtmosphereBackground from "./AtmosphereBackground";
 import AppDeviceSettings, { AppInstallGuidance } from "./AppDeviceSettings";
 import {
@@ -973,6 +974,7 @@ function DashboardApp() {
   const timeZone = profile?.time_zone ?? Intl.DateTimeFormat().resolvedOptions().timeZone;
   const calendarMonth = selectedCalendarMonth ?? getStudyMonthKey(new Date(nowMs), timeZone);
   const activeSession = studySessions.find((item) => item.status === "active") ?? null;
+  const sessionScenery = useStudySessionScenery(session?.user.id, activeSession?.id, scenicOpen);
   sessionLeaseContextRef.current = { userId: session?.user.id, sessionId: activeSession?.id ?? null };
   useEffect(() => {
     const userId = session?.user.id;
@@ -1420,7 +1422,16 @@ function DashboardApp() {
     primaryActionLabel: weeklyHabitRhythm.primaryActionLabel,
     fallbackTodoTitle: incompleteTodayTodos[0]?.title,
   });
+  function requestScenicStudyEntry() {
+    const userId = session?.user.id;
+    const route = scenicRouteRef.current;
+    if (userId && route.section === "today" && route.domain === "focus") {
+      scenicStartIntentRef.current = { userId, revision: route.revision };
+    }
+  }
+
   function requestAdaptiveStudyStart() {
+    requestScenicStudyEntry();
     if (continuity.supported) {
       if (learningBookmark && learningBookmark.localDate < calendarDateKey) { setLearningError(""); setLearningPrepare(learningBookmark); return; }
       const choice = learningChoices.find(todo => todo.id === learningChoiceId && todo.local_date === calendarDateKey);
@@ -4106,6 +4117,7 @@ function DashboardApp() {
     }
     if (result.preview.action === "start" && session?.user.id) {
       const owner = session.user.id;
+      void seedStudySessionScenery(updated.id, getAtmosphereController(window).getDeviceBackground(), () => currentUserIdRef.current === owner);
       void recordCameraPresenceEvent(owner, updated.id, "camera_started", { metadata: { source: "web-camera", requiredForAttendance: true } })
         .catch(error => { if (currentUserIdRef.current === owner) setCameraMessage(formatNotificationError(error)); });
     }
@@ -4267,6 +4279,7 @@ function DashboardApp() {
 
   function requestResumeTimer() {
     if (!activeSession || !activeSessionPaused || !actualTrackingRef.current || actualIntentRef.current) return;
+    requestScenicStudyEntry();
     if (!actualTrackingRef.current.todos.some(todo => !todo.is_completed)) {
       openSessionTodoSelection(false, "resume");
       return;
@@ -5328,7 +5341,10 @@ function DashboardApp() {
 
   function renderSessionTodoList() {
     if (!activeSession) return null;
-    return <ActualStudyPanel compact tracking={actualTracking?.session_id === activeSession.id ? actualTracking : null} paused={activeSessionPaused} nowMs={nowMs} leaseExpiresAt={activeSession.lease_expires_at} goalTitles={goalTitleById} cameraTotal={activeCameraExcludedSeconds} timeZone={timeZone} busy={busy || Boolean(actualIntent)} focusId={currentSessionTodoId ?? actualTracking?.current_todo_id ?? null} onFocus={setCurrentSessionTodoId} onChoose={() => openSessionTodoSelection(false, activeSessionPaused ? "resume" : "switch")}
+    return <ActualStudyPanel compact tracking={actualTracking?.session_id === activeSession.id ? actualTracking : null} paused={activeSessionPaused} nowMs={nowMs} leaseExpiresAt={activeSession.lease_expires_at} goalTitles={goalTitleById} cameraTotal={activeCameraExcludedSeconds} timeZone={timeZone} busy={busy || Boolean(actualIntent)} focusId={currentSessionTodoId ?? actualTracking?.current_todo_id ?? null} onFocus={setCurrentSessionTodoId} onChoose={() => {
+      if (activeSessionPaused) requestScenicStudyEntry();
+      openSessionTodoSelection(false, activeSessionPaused ? "resume" : "switch");
+    }}
       onSwitch={id => { void runActualAction({ action: "switch", sessionId: activeSession.id, todoIds: (actualTrackingRef.current?.todos ?? []).filter(todo => !todo.is_completed).map(todo => todo.id), currentTodoId: id, excludedSeconds: getActiveCameraExcludedSeconds() }); }} />;
   }
 
@@ -5686,10 +5702,7 @@ function DashboardApp() {
                   type="button"
                   onClick={() => {
                     if (activeSession && !activeSessionPaused) setScenicOpen(true);
-                    else {
-                      scenicStartIntentRef.current = { userId: session.user.id, revision: scenicRouteRef.current.revision };
-                      focusAction();
-                    }
+                    else focusAction();
                   }}
                   disabled={focusActionDisabled || continuity.busy}
                 >
@@ -5708,7 +5721,7 @@ function DashboardApp() {
                   종료
                 </button>}
               </div>
-            {!activeSession && continuity.supported && <button className="plain" type="button" disabled={busy || continuity.busy} onClick={() => { learningStartIntentRef.current = null; openSessionTodoSelection(false); }}>다른 할 일 선택</button>}
+            {!activeSession && continuity.supported && <button className="plain" type="button" disabled={busy || continuity.busy} onClick={() => { requestScenicStudyEntry(); learningStartIntentRef.current = null; openSessionTodoSelection(false); }}>다른 할 일 선택</button>}
             {activeSession && <TenMinuteCheckpoint state={tenMinuteCheckpoint} paused={activeSessionPaused} busy={busy} onContinue={acknowledgeTenMinuteCheckpoint} onFinish={() => void openEndSessionCompletionModal()} />}
             </section>
             <aside className="focus-side" aria-label="오늘의 간략 계획">
@@ -6356,10 +6369,10 @@ function DashboardApp() {
           latestRecord={learningReviewed ?? (learningEdit ? continuity.data?.results.find(row => row.reflectionId === learningEdit.reflectionId && row.updatedAt !== learningEdit.updatedAt) : undefined)}
           onAcceptLatest={acceptReviewedLearning}
         />}
-        {learningPrepare && <AccessibleDialog className="todo-modal learning-dialog" labelledBy="learning-prepare-title" onClose={() => { if (!continuity.busy) setLearningPrepare(null); }}>
+        {learningPrepare && <AccessibleDialog className="todo-modal learning-dialog" labelledBy="learning-prepare-title" onClose={() => { if (!continuity.busy) { scenicStartIntentRef.current = null; setLearningPrepare(null); } }}>
           <h3 id="learning-prepare-title">지난 할 일 일정 확인</h3><p>{learningPrepare.todoTitle}</p><p>{learningPrepare.localDate} → {calendarDateKey}</p><p>같은 할 일의 날짜만 오늘로 옮깁니다. 기존 시간·계획·공부 기록은 보존하며, 이어서 평소 시작 확인을 진행해요.</p>
           {learningError && <p role="alert">{learningError}</p>}
-          <div className="modal-actions"><button type="button" className="secondary" disabled={continuity.busy} onClick={() => setLearningPrepare(null)}>취소</button><button type="button" className="primary" disabled={continuity.busy} onClick={() => void confirmLearningPrepare()}>{continuity.busy ? "확인하는 중" : "오늘로 옮기고 계속"}</button></div>
+          <div className="modal-actions"><button type="button" className="secondary" disabled={continuity.busy} onClick={() => { scenicStartIntentRef.current = null; setLearningPrepare(null); }}>취소</button><button type="button" className="primary" disabled={continuity.busy} onClick={() => void confirmLearningPrepare()}>{continuity.busy ? "확인하는 중" : "오늘로 옮기고 계속"}</button></div>
         </AccessibleDialog>}
 
         {actualIntent && <ActualStudyConfirmation intent={actualIntent} busy={busy} notice={actualNotice} error={actualError} onConfirm={() => { void runActualAction(undefined, actualIntent); }} onCancel={cancelActualAction} />}
@@ -7481,7 +7494,8 @@ function DashboardApp() {
         actionLabel={focusActionLabel} actionDisabled={focusActionDisabled} endDisabled={focusEndDisabled} hasSession={Boolean(activeSession)}
         leaseClock={activeSession && activeSessionLeaseDeadlineMs !== null ? formatTimerClock(sessionLeaseRemainingSeconds) : null}
         leaseBusy={sessionLeaseExtending} leaseDisabled={focusEndDisabled || !dashboardReady} onExtendLease={extendSessionLease}
-        notice={[dashboardError, message, actualError, sharedStudyError, focusStatusError, !activeSessionPaused && cameraStatus !== "watching" ? cameraMessage : ""].filter(Boolean).join(" · ")}
+        sessionId={activeSession?.id ?? null} sessionBackground={sessionScenery.theme} onSaveSessionBackground={activeSession ? sessionScenery.save : undefined} scenerySaving={sessionScenery.saving}
+        notice={[dashboardError, message, actualError, sharedStudyError, focusStatusError, sessionScenery.notice, !activeSessionPaused && cameraStatus !== "watching" ? cameraMessage : ""].filter(Boolean).join(" · ")}
         onAction={focusAction} onEnd={openEndSessionCompletionModal} onClose={() => setScenicOpen(false)}
         onNavigate={section => { setScenicOpen(false); if (section === "today") setTodayDomain("focus"); window.location.hash = section; setActiveSection(section); }} />}
     </main>

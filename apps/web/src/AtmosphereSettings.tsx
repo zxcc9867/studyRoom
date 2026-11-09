@@ -3,13 +3,14 @@ import {atmosphereKind, atmospherePlayback, atmosphereThemes, atmosphereVideoSou
 
 const qualityLabels = {auto: '자동', saver: '720p', high: '1080p'} as const;
 
-export default function AtmosphereSettings() {
+export default function AtmosphereSettings({onApply, saving = false}: {onApply?: (value: AtmospherePreferences, backgroundChanged: boolean) => void; saving?: boolean} = {}) {
   const controller = getAtmosphereController(window);
   const current = useSyncExternalStore(controller.subscribe, controller.getSnapshot);
   const [draft, setDraft] = useState<AtmospherePreferences | null>(null);
   const id = useId();
   const entry = useRef<HTMLButtonElement>(null);
   const editor = useRef<HTMLFieldSetElement>(null);
+  const originalBackground = useRef(current.background);
   const editing = draft !== null;
   useLayoutEffect(() => { if (editing) editor.current?.querySelector<HTMLInputElement>('input:checked')?.focus(); }, [editing]);
   function closeEditor() { setDraft(null); entry.current?.focus(); }
@@ -17,6 +18,7 @@ export default function AtmosphereSettings() {
   const draftTheme = atmosphereThemes.find(theme => theme.id === draft?.background);
   const liveAvailable = draftTheme?.live;
   function openEditor() {
+    originalBackground.current = current.background;
     setDraft({background: current.background, motion: current.motion, intensity: current.intensity, paused: current.paused,
       quality: currentTheme.video && !currentTheme.videoSources?.[1080] && current.quality === 'high' ? 'saver' : current.quality});
   }
@@ -49,10 +51,10 @@ export default function AtmosphereSettings() {
         <p>선택 화질: {atmosphereVideoSource(draftTheme, draft.quality, current.mobile)?.resolution}p</p>
         {!draftTheme.videoSources?.[1080] && <p id={`${id}-quality-limit`}>이 영상의 최대 화질은 720p입니다.</p>}
       </>}
-      <p>이 기기에 적용됩니다.{draft.motion === 'live' && (draftTheme?.video ? ' 영상은 적용 후 소리 없이 반복 재생됩니다.' : ' 이미지에 효과를 더하며 영상은 아닙니다.')}</p>
-      <div className="settings-actions"><button type="button" className="secondary" onClick={closeEditor}>취소</button><button type="button" className="primary" onClick={() => {controller.setPreferences(draft); closeEditor();}}>적용</button></div>
+      <p>{onApply ? '배경은 같은 공부 세션에 공유됩니다. 재생 설정은 이 기기에만 적용됩니다.' : '이 기기에 적용됩니다.'}{draft.motion === 'live' && (draftTheme?.video ? ' 영상은 적용 후 소리 없이 반복 재생됩니다.' : ' 이미지에 효과를 더하며 영상은 아닙니다.')}</p>
+      <div className="settings-actions"><button type="button" className="secondary" onClick={closeEditor}>취소</button><button type="button" className="primary" disabled={saving} onClick={() => {if (onApply) onApply(draft, draft.background !== originalBackground.current); else controller.setPreferences(draft); closeEditor();}}>적용</button></div>
     </fieldset>}
-    {current.motion === 'live' && <div className="atmosphere-playback"><span role="status">{atmospherePlayback(current)}</span>{currentTheme.video && current.videoStatus === 'error' && <button type="button" className="secondary" onClick={()=>controller.retryVideo()}>영상 다시 시도</button>}<button type="button" className="secondary" aria-pressed={current.paused} onClick={() => controller.setPreferences({...current, paused: !current.paused})}>{current.paused ? '재생' : '일시정지'}</button></div>}
+    {current.motion === 'live' && <div className="atmosphere-playback"><span role="status">{atmospherePlayback(current)}</span>{currentTheme.video && current.videoStatus === 'error' && <button type="button" className="secondary" onClick={()=>controller.retryVideo()}>영상 다시 시도</button>}<button type="button" className="secondary" aria-pressed={current.paused} onClick={() => controller.setScenePlayback({...current, paused: !current.paused})}>{current.paused ? '재생' : '일시정지'}</button></div>}
     {currentTheme.video && <details className="atmosphere-credits"><summary>영상 출처</summary><p><a href={currentTheme.source} target="_blank" rel="noreferrer">{currentTheme.name}</a> · {currentTheme.author}{currentTheme.license && currentTheme.licenseUrl && <> · <a href={currentTheme.licenseUrl} target="_blank" rel="noreferrer">{currentTheme.license}</a></>}</p><p>{currentTheme.attribution ?? 'Wikimedia 파생 영상.'} {currentTheme.changes ?? '포스터 추출·화면 채움·무음·반복 및 재생 속도 조정.'}</p></details>}
     {!current.persistent && <p role="status">배경은 적용했지만 기기에 저장하지 못했어요. 다시 열면 이전 설정으로 돌아갈 수 있어요.</p>}
   </section>;

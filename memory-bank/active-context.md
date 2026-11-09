@@ -1,4 +1,6 @@
 # Active Context
+- 2026-11-09 · codex-scenic-entry-1109 · fix/study-dashboard-clarity: ‘다른 할 일 선택’ 시작 성공 시 풍경 자동 진입, 같은 활성 세션에만 배경 ID 공유. 기기 기본 배경·재생 설정 및 카메라 소유권·기존 기록은 유지한다. ‘잠시 쉬기’는 촬영을 멈추되 기존 담당 PC를 유지하며, 다른 PC에서 재개 후 상태·설정의 명시적 이어서 공부로 넘긴다.
+- 운영 Supabase의 별도 배경 테이블 추가 및 웹 출시 사용자 승인. 로컬 migration `20261109104251`과 활성 소유자 정책, 두 독립 Chrome 컨텍스트 및 공식 검증을 확인한 뒤 기존 feature-ref workflow로 배포한다. AWS PR #2·기본 브랜치·네이티브 변경 없음.
 - 2026-11-07 · codex-anime-lighthouse-1107 · fix/study-dashboard-clarity 제품 `4bfead1` 푸시·운영배포 완료: 승인된 고리 행성 없는 ‘은하가 비치는 등대’ 24초 무음 영상, 720/1080 WebM·포스터·썸네일. 11-08 09:00 JST/KST AWS PR #2 Slack 1회 개인 알림은 예약 완료, 중복 생성 금지.
 - [원본/재현](../docs/media/anime-lighthouse/README.md). HyperFrames check a194d00f 오류0(무음 의도)·로컬 GPU 720프레임, FFmpeg 두 파일 프레임/경계·SHA·독립 검토 통과. 최종 영상 Chrome 375/1440 실제 움직임·loop·auto 720/1080·crop·공부 데이터 보존 확인. 공식7/Dune0·전체 Chrome 분할 1,774 고유 항목 통과(15→16 기대 수정 6개 재검증)·기본 npm 실패0·14해시 일치.
 - 출시: Actions42382436784 success/정확 SHA·Vercel dpl_CA42yf7DjLo46PwjFqGw3bU3u2E4 READY/운영 alias/HTTP200·영상2Range206·공개4해시/운영Chrome loop2/2. 필수 후속 없음. 실제설치/물리카메라 미검증, 공부 기록·카메라·계정·DB·네이티브 및 기존 dirty 문서·output 보존. 회귀 시 이전 웹 배포 dpl_FHQj4t1MSVsoxMUum5cwnnzBVyjJ가 롤백 후보다.

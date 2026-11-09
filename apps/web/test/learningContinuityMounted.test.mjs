@@ -95,6 +95,21 @@ for(const width of [375,1440])test(`continuity: same-title A/B use stable IDs an
  await page.getByRole('button',{name:'다른 할 일 선택',exact:true}).click();const chooser=page.locator('.session-todo-modal');await chooser.waitFor();assert.equal(await chooser.locator('input[type=text]').first().inputValue(),'');assert.equal(await page.evaluate(()=>fixture.calls.some(c=>c.name==='confirm_actual_study_action')),false);
  await page.keyboard.press('Escape');assert.equal(await page.evaluate(()=>fixture.bookmarks.length),2);
 }));
+test('scenic start: confirming a different task opens the study scene without a second click',()=>withApp(375,async page=>{
+ await page.getByRole('region',{name:'다음 시작점',exact:true}).waitFor();
+ await page.getByRole('button',{name:'다른 할 일 선택',exact:true}).click();
+ const chooser=page.getByRole('dialog',{name:'이번 세션에서 할 일 선택'});
+ const scene=page.getByRole('region',{name:'풍경 집중 화면'});
+ for (const checked of await chooser.getByRole('checkbox',{checked:true}).all()) await checked.uncheck();
+ await chooser.getByRole('checkbox').last().check();
+ await chooser.getByRole('button',{name:'선택한 할 일로 시작'}).click();
+ assert.equal(await scene.count(),0);
+ await page.getByRole('button',{name:'카메라 켜고 시작',exact:true}).click();
+ await page.waitForFunction(()=>fixture.sessions.length===1);
+ await scene.waitFor({timeout:2500});
+ assert.equal(await scene.getByRole('button',{name:'잠시 쉬기',exact:true}).isEnabled(),true);
+ assert.equal(await page.evaluate(()=>fixture.calls.filter(c=>c.name==='confirm_actual_study_action').length),1);
+}));
 test('continuity: optional drafts survive disclosure and untouched ratings save null, then result edits the same revision',()=>withApp(375,async page=>{
  let modal=await finish(page);await modal.getByLabel('오늘 남긴 것').fill('테스트 결과 A');await modal.getByLabel('다음 시작점',{exact:true}).fill('다음 위치 A');await modal.getByText('자료 위치 추가',{exact:true}).click();await modal.getByLabel('자료 URL').fill('https://example.test/docs');await modal.getByLabel('자료 위치',{exact:true}).fill('12쪽');await modal.getByText('자료 위치 추가',{exact:true}).click();await modal.getByText('자료 위치 추가',{exact:true}).click();assert.equal(await modal.getByLabel('자료 위치',{exact:true}).inputValue(),'12쪽');
  await modal.getByRole('button',{name:'저장하고 종료',exact:true}).click();await modal.waitFor({state:'detached'});assert.equal(await page.evaluate(()=>fixture.results[0].focusScore),null);assert.equal(await page.evaluate(()=>fixture.results[0].energyScore),null);assert.equal(await page.evaluate(()=>fixture.bookmarks.find(b=>b.todoId===fixture.todos[1].id).nextAction),'B 시작점');

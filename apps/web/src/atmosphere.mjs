@@ -45,13 +45,13 @@ export function atmospherePlayback(snapshot) {
   return snapshot.videoStatus === 'playing' ? '영상 라이브 재생 중' : snapshot.videoStatus === 'error' ? '영상을 재생하지 못했어요' : '영상 불러오는 중';
 }
 
-function normalize(value) {
+function normalize(value, preserveMotion = false) {
   const theme = atmosphereThemes.find(theme => theme.id === value?.background) ?? atmosphereThemes[0];
-  const motion = theme.live && value?.motion === 'live' ? 'live' : 'static';
+  const motion = (theme.live || preserveMotion) && value?.motion === 'live' ? 'live' : 'static';
   return {background: theme.id, motion, intensity: value?.intensity === 'normal' ? 'normal' : 'subtle', paused: motion === 'live' && value?.paused === true, quality: ['saver', 'high'].includes(value?.quality) ? value.quality : 'auto'};
 }
 function parse(value) {
-  try { return normalize(JSON.parse(value)); } catch { return normalize(null); }
+  try { return normalize(JSON.parse(value), true); } catch { return normalize(null); }
 }
 
 // Decorative presentation only. Never observes or controls study/camera/native state.
@@ -64,23 +64,25 @@ export function createAtmosphereController(host) {
   let focused = host.document.hasFocus?.() !== false;
   const listeners = new Set();
   let videoStatus = 'idle', videoRequest = 0, videoBackground = preferences.background, videoMotion = preferences.motion, videoSource;
+  let sessionBackground = null;
   let snapshot;
   function apply() {
+    const visible = normalize({...preferences, background:sessionBackground ?? preferences.background});
     const hidden = host.document.visibilityState === 'hidden';
-    const playing = preferences.motion === 'live' && !preferences.paused && !reduced.matches && !hidden && focused;
-    const theme = atmosphereThemes.find(theme => theme.id === preferences.background);
-    const source = atmosphereVideoSource(theme, preferences.quality, mobile);
-    if (videoBackground !== preferences.background || videoMotion !== preferences.motion || videoSource !== source?.src) {
-      videoBackground = preferences.background; videoMotion = preferences.motion; videoStatus = 'idle'; videoRequest++;
+    const playing = visible.motion === 'live' && !visible.paused && !reduced.matches && !hidden && focused;
+    const theme = atmosphereThemes.find(theme => theme.id === visible.background);
+    const source = atmosphereVideoSource(theme, visible.quality, mobile);
+    if (videoBackground !== visible.background || videoMotion !== visible.motion || videoSource !== source?.src) {
+      videoBackground = visible.background; videoMotion = visible.motion; videoStatus = 'idle'; videoRequest++;
       videoSource = source?.src;
     }
     if (!playing && (videoStatus === 'playing' || videoStatus === 'loading')) videoStatus = 'paused';
-    const next = {...preferences, persistent, reducedMotion: reduced.matches, hidden, focused, playing, videoStatus, videoRequest, mobile, videoSource, videoResolution: source?.resolution};
+    const next = {...visible, persistent, reducedMotion: reduced.matches, hidden, focused, playing, videoStatus, videoRequest, mobile, videoSource, videoResolution: source?.resolution};
     const root = host.document.documentElement;
-    root.dataset.studyBackground = preferences.background;
-    root.dataset.studyMotion = preferences.motion === 'static' ? 'static' : playing ? 'playing' : 'paused';
-    root.dataset.studyIntensity = preferences.intensity;
-    root.style.setProperty('--study-scene', preferences.background === 'charcoal' ? 'none' : `url("${theme.poster ?? `/themes/${preferences.background}.webp`}")`);
+    root.dataset.studyBackground = visible.background;
+    root.dataset.studyMotion = visible.motion === 'static' ? 'static' : playing ? 'playing' : 'paused';
+    root.dataset.studyIntensity = visible.intensity;
+    root.style.setProperty('--study-scene', visible.background === 'charcoal' ? 'none' : `url("${theme.poster ?? `/themes/${visible.background}.webp`}")`);
     if (snapshot && Object.keys(next).every(key => snapshot[key] === next[key])) return;
     snapshot = Object.freeze(next);
     listeners.forEach(listener => listener());
@@ -99,22 +101,34 @@ export function createAtmosphereController(host) {
     apply();
   });
   apply();
+  function setPreferences(value, preserveMotion = false) {
+    preferences = normalize(value, preserveMotion);
+    try { storage ??= host.localStorage; storage.setItem(STORAGE_KEY, JSON.stringify(preferences)); persistent = true; }
+    catch { persistent = false; }
+    apply();
+  }
   return {
     getSnapshot: () => snapshot,
+    getDeviceBackground: () => preferences.background,
     subscribe(listener) { listeners.add(listener); return () => listeners.delete(listener); },
+    setSessionBackground(background) {
+      sessionBackground = atmosphereThemes.some(theme => theme.id === background) ? background : null;
+      apply();
+    },
+    setScenePlayback(value, sessionScoped = Boolean(sessionBackground)) {
+      if (!sessionScoped) { setPreferences(value); return; }
+      const {motion, intensity, paused, quality} = value;
+      // Persist playback choices for this device without copying a remote background.
+      setPreferences({motion, intensity, paused, quality, background:preferences.background}, true);
+    },
     reportVideoPlayback(background, status, request = videoRequest) {
       if (request !== videoRequest) return;
-      if (background !== preferences.background || !atmosphereThemes.find(theme => theme.id === background)?.video) return;
+      if (background !== snapshot.background || !atmosphereThemes.find(theme => theme.id === background)?.video) return;
       if (!['idle','loading','playing','paused','error'].includes(status) || status === 'playing' && !snapshot.playing) return;
       videoStatus = status; apply();
     },
     retryVideo() { videoStatus = 'idle'; videoRequest++; apply(); },
-    setPreferences(value) {
-      preferences = normalize(value);
-      try { storage ??= host.localStorage; storage.setItem(STORAGE_KEY, JSON.stringify(preferences)); persistent = true; }
-      catch { persistent = false; }
-      apply();
-    },
+    setPreferences(value) { setPreferences(value); },
   };
 }
 

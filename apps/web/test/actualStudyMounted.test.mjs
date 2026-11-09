@@ -227,9 +227,9 @@ for(const mobile of [false,true])browserTest(`video quality: ${mobile?'mobile':'
  await page.getByRole('button',{name:'재생',exact:true}).click();await page.waitForFunction(()=>{const v=document.querySelector('[data-atmosphere-video]');return v.videoHeight===720&&!v.paused&&v.currentTime>.2;});
  assert.deepEqual(await page.evaluate(()=>{const q=qualityCamera,v=[...document.querySelectorAll('video')].find(v=>v.srcObject);return {sameNode:v===q.node,sameStream:v.srcObject===q.stream,sameTrack:v.srcObject.getVideoTracks()[0]===q.track,track:q.track.readyState,sessions:JSON.stringify(fixture.sessions)===JSON.stringify(q.sessions),todos:JSON.stringify(fixture.todos)===JSON.stringify(q.todos),requests:fixtureCameraRequests===q.requests,quality:JSON.parse(localStorage.getItem('study-room-atmosphere')).quality};}),{sameNode:true,sameStream:true,sameTrack:true,track:'live',sessions:true,todos:true,requests:true,quality:'saver'});
  await scenicScreenshot(page,`video-quality-${mobile?'mobile':'pc'}`);
- const saved=await page.evaluate(()=>localStorage.getItem('study-room-atmosphere'));await page.reload();await page.locator('.topbar-actions button:not([disabled])').first().waitFor();
+ const saved=await page.evaluate(()=>localStorage.getItem('study-room-atmosphere'));assert.equal(JSON.parse(saved).background,'charcoal','changing the session theme does not change the device default');await page.reload();await page.locator('.topbar-actions button:not([disabled])').first().waitFor();
  if(await page.getByRole('dialog',{name:'카메라 인증 필요'}).isVisible())await page.keyboard.press('Escape');
- await page.locator('a[href="#settings"]:visible').first().click();await settingsCategory(page,'공부와 화면');await page.locator('.atmosphere-quality-summary').waitFor();
+ await page.getByRole('button',{name:'공부 화면 열기',exact:true}).click();await page.getByRole('button',{name:'풍경 배경 설정',exact:true}).click();await page.locator('.atmosphere-quality-summary').waitFor();
  assert.equal(await page.evaluate(()=>localStorage.getItem('study-room-atmosphere')),saved,'quality persists across reload');assert.match(await page.locator('.atmosphere-quality-summary').innerText(),/720p/);
 },'active',false,null,mobile,mobile));
 
@@ -384,6 +384,72 @@ browserTest('scenic start: running study primary reopens the same session withou
  assert.deepEqual(await page.evaluate(()=>({sessions:fixture.sessions,todos:fixture.todos,camera:fixtureCameraRequests})),before);
  assert.equal(await page.evaluate(()=>fixture.calls.some(c=>/^(confirm_actual_study_action|pause_actual_study_session|start_study_session)$/.test(c.name))),false);
 }));
+
+browserTest('scenic session: two devices share the active theme without changing their defaults or starting a remote camera',()=>withApp(1440,async page=>{
+ const savedA={background:'dawn-city',motion:'static',intensity:'subtle',quality:'high'};
+ const savedB={background:'night-alley',motion:'static',intensity:'normal',quality:'saver'};
+ await page.evaluate(saved=>{const value=JSON.stringify(saved);localStorage.setItem('study-room-atmosphere',value);dispatchEvent(new StorageEvent('storage',{key:'study-room-atmosphere',newValue:value}));fixture.collision=false;},savedA);
+ await page.locator('.topbar-actions button').first().click();
+ await page.getByRole('button',{name:'카메라 켜고 시작',exact:true}).click();
+ await page.getByRole('dialog',{name:'이번 세션에서 할 일 선택'}).getByRole('button',{name:'선택한 할 일로 시작'}).click();
+ const sceneA=page.getByRole('region',{name:'풍경 집중 화면'});
+ await sceneA.getByText('새벽 도시',{exact:true}).waitFor();
+ const activeId=await page.evaluate(()=>fixture.sessions[0].id);
+ const url=new URL(page.url());
+ const browser=page.context().browser(), context=await browser.newContext({viewport:{width:1440,height:960}});
+ try {
+  await context.addInitScript(saved=>{localStorage.setItem('study-room-atmosphere',JSON.stringify(saved));window.fixtureCameraRequests=0;const get=navigator.mediaDevices.getUserMedia.bind(navigator.mediaDevices);navigator.mediaDevices.getUserMedia=options=>{window.fixtureCameraRequests++;return get(options);};},savedB);
+  const other=await context.newPage();
+  other.setDefaultTimeout(5000);
+  await other.clock.install({time:new Date('2026-09-21T14:30:00Z')});
+  await other.route(/^https:\/\/cdn\.jsdelivr\.net\//,route=>route.fulfill({contentType:'text/css',body:''}));
+  url.search='?mode=remote';
+  await other.goto(url.href,{waitUntil:'domcontentloaded'});
+  const entry=other.getByRole('button',{name:'공부 화면 열기',exact:true});await entry.waitFor();
+  const sceneB=other.getByRole('region',{name:'풍경 집중 화면'});
+  assert.equal(await sceneB.count(),0,'restored remote study does not automatically open');
+  assert.equal(await other.evaluate(()=>fixture.sessions[0].id),activeId);
+  await entry.click();
+  await sceneB.getByText('새벽 도시',{exact:true}).waitFor();
+  async function openEditor(tab){
+   await tab.getByRole('button',{name:'풍경 배경 설정',exact:true}).click();
+   await tab.getByRole('button',{name:'배경 테마 변경',exact:true}).click();
+   return tab.getByRole('group',{name:'배경 테마 편집',exact:true});
+  }
+  const stale=await openEditor(other);
+  const editor=await openEditor(page);
+  await editor.getByRole('radio',{name:'노을 하늘',exact:true}).check();
+  await editor.getByRole('button',{name:'적용',exact:true}).click();
+  await page.getByRole('button',{name:'풍경 배경 설정 닫기',exact:true}).click();
+  await sceneA.getByText('노을 하늘',{exact:true}).waitFor();
+  await other.evaluate(()=>dispatchEvent(new Event('focus')));
+  await other.waitForFunction(()=>document.documentElement.dataset.studyBackground==='sunset-sky');
+  await stale.getByRole('button',{name:'적용',exact:true}).click();
+  await other.getByRole('button',{name:'풍경 배경 설정 닫기',exact:true}).click();
+  await sceneB.getByText('노을 하늘',{exact:true}).waitFor();
+  assert.equal((await (await page.request.get(new URL('/__fixture_scenery/'+activeId,url).href)).json()).data.theme_id,'sunset-sky','applying the stale editor does not overwrite the shared theme');
+  await other.route('**/__fixture_scenery/*',route=>route.request().method()==='POST'
+   ? route.fulfill({status:403,json:{data:null,error:{message:'fixture denied'}}}) : route.fallback());
+  const rejected=await openEditor(other);
+  await rejected.getByRole('radio',{name:'새벽 도시',exact:true}).check();
+  await rejected.getByRole('button',{name:'적용',exact:true}).click();
+  await other.getByRole('button',{name:'풍경 배경 설정 닫기',exact:true}).click();
+  await sceneB.getByText('이 세션의 배경을 다른 기기에 적용하지 못했어요. 다시 적용해 주세요.',{exact:true}).waitFor();
+  await sceneB.getByText('노을 하늘',{exact:true}).waitFor();
+  assert.equal(await other.evaluate(()=>fixtureCameraRequests),0);
+  const endedDraft=await openEditor(other);
+  await endedDraft.getByRole('radio',{name:'새벽 도시',exact:true}).check();
+  await other.evaluate(()=>{fixture.sessions[0]={...fixture.sessions[0],status:'completed',ended_at:new Date().toISOString()};dispatchEvent(new Event('focus'));});
+  await endedDraft.waitFor({state:'detached'});
+  await other.waitForFunction(()=>document.documentElement.dataset.studyBackground==='night-alley');
+  await scenicDashboard(sceneB);await sceneB.waitFor({state:'detached'});
+  assert.equal(await other.evaluate(()=>document.documentElement.dataset.studyBackground),savedB.background);
+  for(const [tab,saved] of [[page,savedA],[other,savedB]]){
+   const actual=await tab.evaluate(()=>JSON.parse(localStorage.getItem('study-room-atmosphere')));
+   assert.equal(actual.background,saved.background);assert.equal(actual.quality,saved.quality);
+  }
+ } finally {await context.close();}
+},'start'));
 
 browserTest('scenic start: schedule cancellation and an uncertain start never open scenery before confirmed recovery',()=>withApp(375,async page=>{
  await page.locator('.topbar-actions button').first().click();await page.getByRole('button',{name:'카메라 켜고 시작',exact:true}).click();
@@ -2159,8 +2225,16 @@ export const isSupabaseConfigured=true,supabaseUrl='https://fixture.invalid',sup
 const feedArticles=Array.from({length:4},(_,index)=>({id:'article-'+index,title:['실무에서 살펴보는 백엔드 아키텍처','클라우드 운영과 관측 가능성','AI 개발 도구를 안전하게 활용하는 방법','새로운 웹 기술을 작은 프로젝트로 익히기'][index],excerpt:'공개 기술 블로그의 소개를 바탕으로 구현 과정과 실제 적용 시 고려할 점을 살펴봅니다. 원문에서 구체적인 예제와 설계의 근거를 확인할 수 있어요.',url:'https://example.test/article/'+index,published_at:now,discovered_at:now,summary:null,summary_status:'pending',category:'practice',interests:['backend'],topics:['백엔드'],sources:[{id:'source',name:'기술 블로그'}],saved:false,todo_id:null,origin:'rss',matched_topics:[],excerpt_provenance:'source_excerpt'}));
 const feedResponse=action=>action==='state'?{enabled:true,service_available:true,sources:[],interests:[],last_success_at:now,preferences:{prompt:'AI와 백엔드 기술',receiving:true,revision:1},search_status:{state:'ready',last_success_at:now}}:action==='list'?{items:feedArticles,next_cursor:null,total:4}:action==='facets'?{total:4,topics:[],sources:[],languages:[{value:'ko',label:'한국어 원문',count:4}]}:action==='briefing'?{local_date:'2026-09-21',time_zone:'Asia/Tokyo',total:4,source_count:1,categories:[],topics:[{value:'backend',label:'백엔드',count:4}],eligible_count:4,analyzed_count:0,generated_at:null,status:'idle',stale:false,insights:[],highlights:[]}:{};
 let authCallback;
+function sceneryQuery(){
+ let id, value, insertOnly, signal;
+ const q={select(){return q;},eq(_key,next){id=next;return q;},maybeSingle(){return q;},abortSignal(next){signal=next;return q;},
+ upsert(next, options){id=next.session_id;value=next.theme_id;insertOnly=options.ignoreDuplicates;return q;},
+ then(resolve,reject){const opts=value?{method:'POST',body:JSON.stringify({value,insertOnly}),signal}:{signal};
+  return fetch('/__fixture_scenery/'+id,opts).then(response=>response.json()).then(resolve,reject);}};
+ return q;
+}
 export const supabase={
- from:query,
+ from:table=>table==='study_session_scenery'?sceneryQuery():query(table),
  rpc(name,args){const q={then(resolve,reject){return Promise.resolve().then(()=>result(name,args)).then(resolve,reject);},abortSignal(){return q;}};return q;},
  auth:{
   getSession:async()=>({data:{session:authSession},error:null}),
@@ -2175,7 +2249,18 @@ export const supabase={
 async function withApp(width, run, mode='active', nativeOrigin=false, failedChunk=null, hasTouch=false, mobile=false) {
   const built=await build({entryPoints:[fileURLToPath(new URL('../src/main.tsx',import.meta.url))],bundle:true,write:false,outdir:'fixture',platform:'browser',format:'iife',jsx:'automatic',logLevel:'silent',define:{'import.meta.env':'{}'},plugins:[{name:'local-boundaries',setup(b){b.onResolve({filter:/^\.\/supabase$/},()=>({path:'backend',namespace:'fixture'}));b.onLoad({filter:/.*/,namespace:'fixture'},()=>({contents:backend,loader:'js'}));b.onLoad({filter:/bodyPresenceDetection\.mjs$/},()=>({contents:'export async function createUpperBodyPresenceDetector(){return {detect:()=>true,close(){}}}',loader:'js'}));b.onResolve({filter:/^\.\//},args=>failedChunk&&args.kind==='dynamic-import'&&args.path==='./'+failedChunk?{path:failedChunk,namespace:'failed-chunk'}:undefined);b.onLoad({filter:/.*/,namespace:'failed-chunk'},()=>({contents:'throw new TypeError("Failed to fetch dynamically imported module: stale-test-chunk.js"); export default function FailedChunk(){return null;}',loader:'tsx'}));b.onLoad({filter:/[\\/]src[\\/]main\.tsx$/},async({path})=>({contents:(await readFile(path,'utf8')).replace('createRoot(document.getElementById("root")!).render','(window.fixtureRoot = createRoot(document.getElementById("root")!)).render'),loader:'tsx'}));}}]});
   const js=built.outputFiles.find(f=>f.path.endsWith('.js')).text, css=built.outputFiles.find(f=>f.path.endsWith('.css'))?.text||'';
+  const scenery = new Map();
   const server=createServer(async(req,res)=>{
+    if(req.url.startsWith('/__fixture_scenery/')){
+      const id=req.url.slice('/__fixture_scenery/'.length);
+      if(req.method==='POST'){
+        let body='';for await (const chunk of req) body+=chunk;
+        const {value,insertOnly}=JSON.parse(body);
+        if(!insertOnly||!scenery.has(id))scenery.set(id,value);
+      }
+      res.setHeader('Content-Type','application/json');
+      res.end(JSON.stringify({data:scenery.has(id)?{theme_id:scenery.get(id)}:null,error:null}));return;
+    }
     if(/^\/themes\/(video\/)?[a-z-]+\.(webp|webm)$/.test(req.url)){try{const data=await readFile(new URL('../public'+req.url,import.meta.url));res.setHeader('Content-Type',req.url.endsWith('.webm')?'video/webm':'image/webp');res.setHeader('Content-Length',data.length);res.end(data);}catch{res.writeHead(404);res.end();}return;}
     res.setHeader('Content-Type',req.url==='/app.js'?'text/javascript':req.url==='/app.css'?'text/css':'text/html');res.end(req.url==='/app.js'?js:req.url==='/app.css'?css:'<!doctype html><html lang="ko"><head><meta name="viewport" content="width=device-width,initial-scale=1"><link rel="stylesheet" href="/app.css"></head><body><div id="root"></div><script src="/app.js"></script></body></html>');});
   await new Promise(resolve=>server.listen(0,'127.0.0.1',resolve));let browser,page;
