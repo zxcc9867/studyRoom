@@ -1,5 +1,7 @@
 # Architecture Map
 
+- 출석 캘린더의 날짜별 첫 시작/목표 표시는 `main.tsx`와 `attendancePolicy.mjs`가 기존 Dashboard의 출석/세션 응답으로 읽기 전용 파생한다. 저장된 공부일과 해당 날짜 출석 행의 알림 시각을 사용하며, 공식 출석/결석/회복 판정은 기존 Supabase 함수와 `attendance-cron`이 계속 소유한다. [계약](prd-attendance-start.md).
+
 ## 다음 시작점·오늘의 학습 결과 경계
 - [PRD](prd-learning-continuity.md): 기존 study_session_reflections의 note/next_action을 입력 원천으로 재사용한다. learningContinuity.mjs/.d.mts는 격리 snapshot과 검증된 mutation 계약만 소유하며 조회 실패를 빈 데이터로 위장하지 않는다. 신규 schema/함수는 추가 migration20261104153953_learning_continuity.sql에 둔다. 기존 종료/실제 공부 정산 함수 정의는 변경하지 않는다.
 - 새 complete_learning_session은 기존 complete_study_session을 같은 트랜잭션에서 호출하고 metadata 검증 실패 시 종료·할 일 완료까지 원자 취소한다. save_learning_reflection/update_learning_bookmark는 동일 회고 행·소유/세션 연결·expected timestamp를 검증한다. context_todo_id/자료/note_kind만 확장하며 구 note는 memo·기존 점수 값은 보존한다. 미입력 nullable 점수는 weeklyReview 평균에서 제외한다.

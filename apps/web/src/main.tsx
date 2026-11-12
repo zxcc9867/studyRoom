@@ -79,6 +79,7 @@ import {
   WEEKEND_REMINDER_TIME,
   formatAttendanceGoalHours,
   getAttendanceRuleLabel,
+  getAttendanceStartLabel,
   getDailyAttendanceGoalSeconds,
   getEffectiveReminderTime,
 } from "./attendancePolicy.mjs";
@@ -164,7 +165,7 @@ import {
 } from "./dailyHabit.mjs";
 import TenMinuteCheckpoint from "./TenMinuteCheckpoint";
 import BreakReturnPlan from "./BreakReturnPlan";
-import { getWeeklyHabitRhythm } from "./weeklyHabit.mjs";
+import { allocateCompletedStudySecondsByDate, getWeeklyHabitRhythm } from "./weeklyHabit.mjs";
 import TodayDomainTabs, { type TodayDomain } from "./TodayDomainTabs";
 import DashboardNavigation from "./DashboardNavigation";
 import { captureTeamInvite, clearTeamInvite, getTeamInviteStorage } from "./teamStudyInvite.mjs";
@@ -598,6 +599,8 @@ function DashboardApp() {
   const [adaptiveRemindersEnabled, setAdaptiveRemindersEnabled] = useState(false);
   const [alarmEditing, setAlarmEditing] = useState(false);
   const [selectedTodoDate, setSelectedTodoDate] = useState(() => getPlainDateKey(new Date()));
+  const [selectedAttendanceDate, setSelectedAttendanceDate] = useState<string | null>(null);
+  const [selectedAttendanceMonth, setSelectedAttendanceMonth] = useState<string | null>(null);
   const [todoDraft, setTodoDraft] = useState("");
   const [editingTodoId, setEditingTodoId] = useState<string | null>(null);
   const [todoRepeatMode, setTodoRepeatMode] = useState<TodoRepeatMode>("single");
@@ -898,6 +901,8 @@ function DashboardApp() {
     setStudySessionTodoLinks([]);
     setStudyGoals([]);
     setAttendanceDays([]);
+    setSelectedAttendanceDate(null);
+    setSelectedAttendanceMonth(null);
     setProfile(null);
     setLatestStudySessionReflection(null);
     setStudyPeriodSummaries(null);
@@ -972,7 +977,11 @@ function DashboardApp() {
   }, [activeSection, session?.user.id]);
 
   const timeZone = profile?.time_zone ?? Intl.DateTimeFormat().resolvedOptions().timeZone;
-  const calendarMonth = selectedCalendarMonth ?? getStudyMonthKey(new Date(nowMs), timeZone);
+  const currentStudyDateKey = getStudyDateKey(new Date(nowMs), timeZone);
+  const showingAttendanceRecord = activeSection === "today" && todayDomain === "record";
+  const calendarMonth = showingAttendanceRecord
+    ? selectedAttendanceMonth ?? currentStudyDateKey.slice(0, 7)
+    : selectedCalendarMonth ?? getStudyMonthKey(new Date(nowMs), timeZone);
   const activeSession = studySessions.find((item) => item.status === "active") ?? null;
   const sessionScenery = useStudySessionScenery(session?.user.id, activeSession?.id, scenicOpen);
   sessionLeaseContextRef.current = { userId: session?.user.id, sessionId: activeSession?.id ?? null };
@@ -1190,7 +1199,7 @@ function DashboardApp() {
     windowStartMs: activeSessionStartedAtMs, windowEndMs: activeSessionClockNowMs,
     excludedSeconds: activeExcludedSeconds,
   });
-  const todayDateKey = activeSession?.local_date ?? getStudyDateKey(new Date(nowMs), timeZone);
+  const todayDateKey = activeSession?.local_date ?? currentStudyDateKey;
   const calendarDateKey = getLocalDateKey(new Date(nowMs), timeZone);
   const continuity = useLearningContinuity(supabase, session?.user.id ?? null, todayDateKey, dashboardReady, beginDesktopSectionWrite);
   useEffect(() => { if (learningReloadRevision) continuity.refresh(); }, [learningReloadRevision, continuity.refresh]);
@@ -1756,6 +1765,25 @@ function DashboardApp() {
     () => buildAttendanceCalendar(planCopyMonth, attendanceDays),
     [attendanceDays, planCopyMonth],
   );
+  const attendanceRecordDate = !showingAttendanceRecord ? null
+    : selectedAttendanceDate?.startsWith(calendarMonth) ? selectedAttendanceDate
+    : currentStudyDateKey.startsWith(calendarMonth) ? currentStudyDateKey : null;
+  const attendanceRecordDay = attendanceDays.find(day => day.local_date === attendanceRecordDate);
+  const attendanceStartLabel = useMemo(
+    () => getAttendanceStartLabel(attendanceRecordDay, studySessions, nowMs),
+    [attendanceRecordDay, studySessions, nowMs],
+  );
+  const attendanceRecordCompletedSeconds = useMemo(
+    () => attendanceRecordDate ? allocateCompletedStudySecondsByDate({ sessions: studySessions, dateKeys: [attendanceRecordDate], timeZone })[attendanceRecordDate] : 0,
+    [attendanceRecordDate, studySessions, timeZone],
+  );
+  const attendanceRecordSeconds = attendanceRecordCompletedSeconds + (activeSession && attendanceRecordDate === activeSession.local_date
+      ? getActiveStudySecondsForDate({ startedAtMs: activeSessionStartedAtMs, nowMs: activeSessionClockNowMs,
+          dateKey: attendanceRecordDate, timeZone, excludedSeconds: activeExcludedSeconds, localDate: activeSession.local_date })
+      : 0);
+  const attendanceRecordGoal = attendanceRecordDate ? getDailyAttendanceGoalSeconds(attendanceRecordDate) : 0;
+  const attendanceRecordGoalStatus = attendanceRecordSeconds >= attendanceRecordGoal ? "달성"
+    : attendanceRecordDate && attendanceRecordDate < currentStudyDateKey && attendanceRecordDate !== activeSession?.local_date ? "미달" : "진행 중";
   const resendSeconds = Math.max(0, Math.ceil((resendAvailableAt - nowMs) / 1000));
 
   useEffect(() => {
@@ -5960,12 +5988,26 @@ function DashboardApp() {
                 <input
                   type="month"
                   value={calendarMonth}
-                  onChange={(event) => setCalendarMonth(event.target.value)}
+                  onChange={(event) => setSelectedAttendanceMonth(event.target.value || null)}
                 />
               </label>
               <strong>{streak}일 연속</strong>
             </div>
           </div>
+          <section className="attendance-record-summary" aria-label="선택한 날짜 학습 기록" aria-live="polite">
+            {attendanceRecordDate && attendanceRecordDate <= currentStudyDateKey && dashboardReady ? (
+              <>
+                <h3>{formatTodoDate(attendanceRecordDate)} 학습 기록</h3>
+                <dl>
+                  <div><dt>출석 상태</dt><dd>{attendanceRecordDay ? attendanceLabel(attendanceRecordDay.status) : attendanceRecordDate === currentStudyDateKey ? "대기" : "확인 가능한 기록 없음"}</dd></div>
+                  <div><dt>첫 시작</dt><dd>{attendanceStartLabel ?? (attendanceRecordDay?.status === "missed" ? "시작 안 함" : attendanceRecordDay?.status === "present" ? "시각 기록 없음" : "—")}</dd></div>
+                  <div><dt>공부 목표</dt><dd>{attendanceRecordDay || attendanceRecordDate === currentStudyDateKey || attendanceRecordSeconds > 0
+                    ? `${Math.floor(attendanceRecordSeconds / 3600)}시간 ${Math.floor(attendanceRecordSeconds % 3600 / 60)}분 / ${formatAttendanceGoalHours(attendanceRecordGoal)} · ${attendanceRecordGoalStatus}`
+                    : "기록 없음"}</dd></div>
+                </dl>
+              </>
+            ) : <p>{!dashboardReady ? "학습 기록을 확인하는 중이에요." : attendanceRecordDate ? "아직 시작하지 않은 공부일이에요." : "날짜를 선택해 학습 기록을 확인하세요."}</p>}
+          </section>
           <div className="calendar-weekdays" aria-hidden="true">
             {["일", "월", "화", "수", "목", "금", "토"].map((weekday) => (
               <span key={weekday}>{weekday}</span>
@@ -5978,11 +6020,12 @@ function DashboardApp() {
                 <button
                   className={`calendar-day calendar-${day.status ?? "empty"} ${
                     day.inMonth ? "" : "calendar-outside"
-                  } ${selectedTodoDate === day.dateKey ? "calendar-selected" : ""}`}
+                  } ${attendanceRecordDate === day.dateKey ? "calendar-selected" : ""}`}
                   key={day.dateKey}
                   type="button"
-                  aria-pressed={selectedTodoDate === day.dateKey}
-                  onClick={() => showPlannerDate(day.dateKey)}
+                  aria-label={`${day.dateLabel}${day.status ? ` · ${attendanceLabel(day.status)}` : ""}${todoCount > 0 ? ` · 할 일 ${todoCount}개` : ""}`}
+                  aria-pressed={attendanceRecordDate === day.dateKey}
+                  onClick={() => { setSelectedAttendanceDate(day.dateKey); setSelectedAttendanceMonth(day.dateKey.slice(0, 7)); showPlannerDate(day.dateKey); }}
                 >
                   <strong>{day.dayNumber}</strong>
                   {day.status && <small>{attendanceLabel(day.status)}</small>}
@@ -7676,6 +7719,7 @@ function buildAttendanceCalendar(monthKey: string, days: AttendanceDay[]) {
     return {
       dateKey,
       dayNumber: String(calendarDate.getDate()),
+      dateLabel: `${calendarDate.getFullYear()}년 ${calendarDate.getMonth() + 1}월 ${calendarDate.getDate()}일`,
       inMonth: calendarDate.getMonth() === month - 1,
       status: attendanceDay?.status,
     };

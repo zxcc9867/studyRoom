@@ -1,4 +1,5 @@
 # Active Context
+- 2026-11-12 · codex-attendance-timing-1112 · fix/study-dashboard-clarity: 사용자 승인으로 기록의 출석 캘린더에 날짜별 출석·첫 시작·목표 표시. 저장된 일자 알림 +15분 전 정시/이후 늦음, 출석과 분리한다. 기존 04:00 미시작 결석/Slack·회복과 목표 미달 미알림 유지. DB·Edge·기존 학습 기록 불변. [PRD](prd-attendance-start.md).
 - 2026-11-09 · codex-scenic-entry-1109 · fix/study-dashboard-clarity: ‘다른 할 일 선택’ 시작 성공 시 풍경 자동 진입, 같은 활성 세션에만 배경 ID 공유. 기기 기본 배경·재생 설정 및 카메라 소유권·기존 기록은 유지한다. ‘잠시 쉬기’는 촬영을 멈추되 기존 담당 PC를 유지하며, 다른 PC에서 재개 후 상태·설정의 명시적 이어서 공부로 넘긴다.
 - 운영 완료: 제품 `724eb70` feature push, migration 로컬 `20261109104251`/운영 `20261109105756`의 활성 소유자 권한 및 기존 함수 지문 일치. Chrome45/45·집중96/96·공식7/Dune0·독립 재검토 통과. Actions42605218484 success, Vercel `dpl_Ch97PGBi5yLF8gQisDSJEZtyrC5f` READY/exactSHA/alias/HTML·JS·CSS200. 실제 계정/물리 카메라 미검증, AWS PR #2·기본 브랜치·네이티브 변경 없음. [검증](../docs/verification/2026-11-09-session-scenery.md).
 - 2026-11-07 · codex-anime-lighthouse-1107 · fix/study-dashboard-clarity 제품 `4bfead1` 푸시·운영배포 완료: 승인된 고리 행성 없는 ‘은하가 비치는 등대’ 24초 무음 영상, 720/1080 WebM·포스터·썸네일. 11-08 09:00 JST/KST AWS PR #2 Slack 1회 개인 알림은 예약 완료, 중복 생성 금지.

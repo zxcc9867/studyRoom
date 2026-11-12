@@ -2126,10 +2126,23 @@ state.links=['a','b'];
 const mode=new URLSearchParams(location.search).get('mode');
 state.camera=null;
 state.attendance=[];
-if(mode==='attendance-goal'){
+if(mode==='attendance-goal'||mode==='attendance-timing'){
  state.sessions=[{...row,local_date:'2026-10-25',started_at:'2026-10-25T00:00:00Z',ended_at:'2026-10-25T02:00:00Z',duration_seconds:7200,status:'completed'}];
  state.attendance=[{local_date:'2026-10-25',status:'present',reminder_at:'2026-10-25T05:00:00Z',deadline_at:'2026-10-25T19:00:00Z',qualifying_session_id:'session'},{local_date:'2026-10-24',status:'pending'},{local_date:'2026-10-23',status:'missed'}];
  state.todos.forEach(t=>t.local_date='2026-10-25');
+}
+if(mode==='attendance-timing'){
+ state.sessions=[{...state.sessions[0],started_at:'2026-10-25T05:14:59Z',ended_at:'2026-10-25T05:30:00Z',duration_seconds:900},
+  {...state.sessions[0],id:'second',started_at:'2026-10-25T05:50:00Z',ended_at:'2026-10-25T05:55:00Z',duration_seconds:300},
+  {...state.sessions[0],id:'late',local_date:'2026-10-24',started_at:'2026-10-24T05:15:00Z',ended_at:'2026-10-24T08:00:00Z',duration_seconds:6600},
+  {...state.sessions[0],id:'legacy-incomplete',local_date:'2026-10-24',started_at:'2026-10-24T10:00:00Z',ended_at:null,duration_seconds:14400},
+  {...state.sessions[0],id:'legacy-overstated',local_date:'2026-10-24',started_at:'2026-10-24T11:00:00Z',ended_at:'2026-10-24T11:10:00Z',duration_seconds:14400}];
+ state.attendance[0].qualifying_session_id='second';
+ state.attendance[1]={local_date:'2026-10-24',status:'present',reminder_at:'2026-10-24T05:00:00Z',deadline_at:'2026-10-24T19:00:00Z',qualifying_session_id:'late'};
+}
+if(mode==='attendance-month-boundary'){
+ state.sessions=[{...row,local_date:'2026-11-30',started_at:'2026-11-30T12:10:00Z',ended_at:'2026-11-30T12:40:00Z',duration_seconds:1800,status:'completed'}];
+ state.attendance=[{local_date:'2026-11-30',status:'present',reminder_at:'2026-11-30T12:00:00Z',deadline_at:'2026-11-30T19:00:00Z'}];
 }
 
 if(['empty-links','completed-links','active-empty'].includes(mode)){state.links=mode==='completed-links'?['a']:[];state.current=null;state.sessions[0].paused_at=mode==='active-empty'?null:now;state.todos[0].is_completed=mode==='completed-links';state.todos[1].local_date='2026-09-21';state.todos.forEach(t=>{t.first_started_at=null;t.unknown_allocation=true;t.evaluation_eligible=false;});}
@@ -2264,7 +2277,7 @@ async function withApp(width, run, mode='active', nativeOrigin=false, failedChun
     if(/^\/themes\/(video\/)?[a-z-]+\.(webp|webm)$/.test(req.url)){try{const data=await readFile(new URL('../public'+req.url,import.meta.url));res.setHeader('Content-Type',req.url.endsWith('.webm')?'video/webm':'image/webp');res.setHeader('Content-Length',data.length);res.end(data);}catch{res.writeHead(404);res.end();}return;}
     res.setHeader('Content-Type',req.url==='/app.js'?'text/javascript':req.url==='/app.css'?'text/css':'text/html');res.end(req.url==='/app.js'?js:req.url==='/app.css'?css:'<!doctype html><html lang="ko"><head><meta name="viewport" content="width=device-width,initial-scale=1"><link rel="stylesheet" href="/app.css"></head><body><div id="root"></div><script src="/app.js"></script></body></html>');});
   await new Promise(resolve=>server.listen(0,'127.0.0.1',resolve));let browser,page;
-  try {browser=await chromium.launch({headless:true,executablePath:process.env.FEED_BROWSER_EXECUTABLE||undefined,args:['--use-fake-ui-for-media-stream','--use-fake-device-for-media-stream']});page=await browser.newPage({viewport:{width,height:960},colorScheme:'light',hasTouch,...(mobile?{userAgent:'Mozilla/5.0 (Linux; Android 16) AppleWebKit/537.36 Chrome/155.0.0.0 Mobile Safari/537.36'}:{})});page.setDefaultTimeout(5000);const errors=[];page.on('pageerror',e=>errors.push(e.message));await page.clock.install({time:new Date(mode==='attendance-goal'?'2026-10-25T06:00:00Z':'2026-09-21T14:30:00Z')});
+  try {browser=await chromium.launch({headless:true,executablePath:process.env.FEED_BROWSER_EXECUTABLE||undefined,args:['--use-fake-ui-for-media-stream','--use-fake-device-for-media-stream']});page=await browser.newPage({viewport:{width,height:960},colorScheme:'light',hasTouch,...(mobile?{userAgent:'Mozilla/5.0 (Linux; Android 16) AppleWebKit/537.36 Chrome/155.0.0.0 Mobile Safari/537.36'}:{})});page.setDefaultTimeout(5000);const errors=[];page.on('pageerror',e=>errors.push(e.message));await page.clock.install({time:new Date(mode==='attendance-month-boundary'?'2026-11-30T17:00:00Z':['attendance-goal','attendance-timing'].includes(mode)?'2026-10-25T06:00:00Z':'2026-09-21T14:30:00Z')});
   await page.addInitScript(()=>{window.fixtureCameraRequests=0;const get=navigator.mediaDevices?.getUserMedia?.bind(navigator.mediaDevices);if(get)navigator.mediaDevices.getUserMedia=options=>{window.fixtureCameraRequests++;return get(options);};});
   await page.route(/^https:\/\/cdn\.jsdelivr\.net\/gh\/orioncactus\/pretendard@/,route=>route.fulfill({contentType:'text/css',body:''}));
   await page.route('https://fixture.invalid/functions/v1/camera-presence-warning',async route=>{const args=route.request().postDataJSON();await page.evaluate(args=>fixture.calls.push({name:'camera-presence-warning',args}),args);await route.fulfill({json:{ok:true,slackSent:false,slackMissing:true,suppressed:false}});});
@@ -2320,6 +2333,34 @@ for(const width of [375,1440]) browserTest(`attendance and study goal remain sep
  assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),true);
  assert.equal(await page.evaluate(()=>fixture.calls.some(c=>/start|end|confirm_actual/.test(c.name))),false);
 },'attendance-goal'));
+
+for(const width of [375,1440]) browserTest(`attendance timing: selecting a study day separates attendance, first start and goal at ${width}px`,()=>withApp(width,async page=>{
+ await page.getByRole('button',{name:'기록',exact:true}).click();
+ const calendar=page.locator('.attendance-calendar'), summary=page.getByRole('region',{name:'선택한 날짜 학습 기록'});
+ await summary.getByText('정시 시작',{exact:true}).waitFor();
+ assert.equal(await summary.locator('dd').getByText('출석',{exact:true}).count(),1);
+ await calendar.getByRole('button',{name:/10월 24일.*출석/}).click();
+ await summary.getByText('늦게 시작',{exact:true}).waitFor();
+ assert.equal(await summary.locator('dd').getByText('출석',{exact:true}).count(),1);
+ assert.match(await summary.innerText(),/2시간 0분 \/ 4시간.*미달/);
+ await calendar.getByRole('button',{name:/10월 23일.*결석/}).click();
+ await summary.getByText('시작 안 함',{exact:true}).waitFor();
+ assert.equal(await summary.getByText('결석',{exact:true}).count(),1);
+ assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),true);
+ assert.equal(await page.evaluate(()=>fixture.calls.some(c=>/start|end|confirm_actual/.test(c.name))),false);
+},'attendance-timing'));
+
+browserTest('attendance timing: before local 04:00 on the first calendar day the record defaults to the previous study month',()=>withApp(375,async page=>{
+ await page.getByRole('button',{name:'계획',exact:true}).click();
+ await page.locator('.planner-date-controls input[type=date]').fill('2026-10-20');
+ await page.getByRole('button',{name:'기록',exact:true}).click();
+ assert.equal(await page.getByLabel('월 선택').inputValue(),'2026-11');
+ const summary=page.getByRole('region',{name:'선택한 날짜 학습 기록'});
+ await summary.getByText('정시 시작',{exact:true}).waitFor();
+ await page.clock.fastForward(2*60*60*1000);
+ await summary.getByText('대기',{exact:true}).waitFor();
+ assert.equal(await page.getByLabel('월 선택').inputValue(),'2026-12');
+},'attendance-month-boundary'));
 
 for(const width of [375,1440]) browserTest(`continuation advice: latest blank reflection hides old advice at ${width}px`,()=>withApp(width,async page=>{
  assert.doesNotMatch(await page.locator('.focus-ready').innerText(),/장고245페이지|이어서 할 일/);
