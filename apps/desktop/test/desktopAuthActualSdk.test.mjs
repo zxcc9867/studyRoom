@@ -65,9 +65,9 @@ test('pinned SDK exchanges a loopback code using its own stored verifier and iss
     openExternal: async url => { browserEntry = url; }, onProviderComplete: () => { completed += 1; } });
   t.after(async () => { client.dispose(); await sdk.auth.stopAutoRefresh(); });
   await client.signInProvider('google');
-  assert.match(browserEntry, /^http:\/\/127\.0\.0\.1:\d+\/auth\/start\/[a-f0-9]{64}$/);
-  const entryHtml = await (await fetch(browserEntry)).text();
-  const authorize = new URL(entryHtml.match(/data-authorize="([^"]+)"/)[1].replaceAll('&amp;', '&'));
+  const authorize = new URL(browserEntry);
+  assert.equal(authorize.origin + authorize.pathname, 'https://project.supabase.co/auth/v1/authorize');
+  assert.equal(authorize.searchParams.get('prompt'), 'select_account');
   const redirect = authorize.searchParams.get('redirect_to');
   assert.match(redirect, /^http:\/\/127\.0\.0\.1:\d+\/auth\/callback\/[a-f0-9]{64}$/);
   assert.equal(authorize.searchParams.get('code_challenge_method'), 's256');

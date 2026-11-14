@@ -1,5 +1,8 @@
 # Progress
 
+- 첫 공부 학습 요약: 새 공부 주·달의 첫 시작에서만 지난 기간 요약, ‘바로 공부 시작’은 원래 절차를 실행한다. 상세 리포트·학습 기록 유지. [PRD](prd-study-reports.md).
+- Windows 0.1.11: 로그인에서 Google 계정 선택 직접 열기, 카메라 최초 승인 재사용. 새 Windows 설치본이 필요하며 Chrome 완료 탭이 남을 수 있다. [원인](trouble-shooting.md).
+
 - 운영 완료: 풍경은 해당 활성 세션의 현재 할 일만 표시하며 준비 상태에서 이전 회고 제목 또는 이전 시작점 자동 선택을 사용하지 않는다. 제품 `b8bbf6d`·Chrome18/18·공식7/Dune0. [PRD](prd-scenic-study.md) · [검증](../docs/verification/2026-11-14-scenic-current-task.md).
 
 ## 출석·첫 시작·공부 목표 구분

@@ -1,5 +1,7 @@
 # Architecture Map
 
+- 첫 공부 학습 요약: `studyReports.mjs`가 Dashboard의 읽기 완료 데이터로 지난주·지난달 전체를 계산하고, `StudyPeriodRecapDialog`는 공통 modal/토큰과 표시만 담당한다. DashboardApp이 계정·공부일·경로 가드와 원래 시작 액션을 소유한다. 사용자별 localStorage에는 모드별 마지막 표시 기간만 저장한다. 리포트 오류/자료 없음은 시작을 막지 않는다. [PRD](prd-study-reports.md).
+
 - 출석 캘린더의 날짜별 첫 시작/목표 표시는 `main.tsx`와 `attendancePolicy.mjs`가 기존 Dashboard의 출석/세션 응답으로 읽기 전용 파생한다. 저장된 공부일과 해당 날짜 출석 행의 알림 시각을 사용하며, 공식 출석/결석/회복 판정은 기존 Supabase 함수와 `attendance-cron`이 계속 소유한다. [계약](prd-attendance-start.md).
 
 ## 다음 시작점·오늘의 학습 결과 경계
@@ -96,6 +98,7 @@
 ## Windows 데스크톱 경계
 
 - loopback 성공 응답은 인증 callback이 resolve한 뒤 현재 인증 탭의 `window.close()`만 시도한다. 고정 스크립트의 SHA256 CSP만 허용하고 unsafe-inline/eval·외부 script·다른 탭 조작은 없다. 실패/취소 응답에는 script를 넣지 않고, Chrome의 닫기 거부는 완료 안내 fallback으로 남긴다. 기존 PKCE/수신기 수명·native 창 복원·학습 상태 소유권은 불변이다.
+- Windows 0.1.11은 검증된 Supabase HTTPS authorize URL을 시스템 브라우저에서 바로 연다. 승인된 추가 클릭 제거로 기존 `/auth/start/` 화면은 폐기한다. 직접 열린 탭은 Chrome 정책상 완료 화면이 남을 수 있다. 기존 loopback callback·일회 교환·앱 복원은 유지한다.
 
 - Google OAuth 수신은 승인된 `desktopLoopback.mjs`의 127.0.0.1 임시 HTTP transport를 main에서 auth에 주입한다. 32바이트 nonce/정확 Host·원문 path·GET·단일 code·5분·일회성만 허용하며 auth가 자원 수명을 소유한다. SDK PKCE·identity·generation·암호화·기존 웹 티켓은 desktopAuth가 계속 소유한다. loopback intent는 restart/legacy URI로 소비하지 않는다. 일반 웹 origin의 loopback 개발 허용과 이 native OAuth 수신기는 별개다. [승인 설계](../docs/superpowers/specs/2026-10-27-desktop-loopback-design.md).
 
@@ -104,6 +107,7 @@
 
 - 진입점: `apps/desktop/main.cjs` → `src/desktopRuntime.mjs`, `preload.cjs`의 protocolVersion1 `studyRoomDesktop.request/onEvent`. production은 정확히 `https://study-room-attendance.vercel.app`만 로드한다. loopback/격리 userData 옵션은 unpackaged 개발 실행에만 허용한다.
 - main/runtime는 단일 창·트레이·출처/현재 mainFrame/문서 세대 검증·명시적 카메라 동의·OS 설정·단일 인스턴스를 소유한다. X는 같은 창/문서를 숨길 뿐 카메라·학습 종료를 호출하지 않는다. `backgroundThrottling:false`를 유지한다.
+- Windows 카메라 동의는 첫 네이티브 승인만 같은 인증 세대·문서 세대·메인 프레임에서 메모리로 재사용한다. 거부·로그아웃/인증 변경·새 문서에서는 다시 동의가 필요하다. 영상 전용 검사·Windows 개인정보 설정·기존 자동 카메라 기준은 유지한다.
 - native 인증은 `desktopAuth.mjs`의 검증된 사용자/PKCE/기존 `mobile-web-auth` 일회용 티켓이 공식 경로다. SDK 세션·verifier·pending·logout barrier는 동일 `desktopStorage.mjs`와 Windows safeStorage 암호문 어댑터를 사용한다. renderer에는 원시 토큰/파일/Node API를 노출하지 않는다.
 - insecure 저장소의 SDK 소유 credential 정리는 `desktopAuth.mjs`가 초기화/명시적 새 인증 전에 local scope로 소유한다. 이전 암호문 계정 복원을 막고 null identity 이벤트로 runtime proof를 무효화한다. native pending/logout barrier와 정상 secure session, 기존 학습 상태는 이 정리의 대상이 아니다.
 - SDK에만 `desktopStorage.mjs/createSdkStorage`를 연결해 실제 저장 실패를 공개 AuthRetryableFetchError로 전달한다. 직접 native barrier storage는 원래 실패 의미를 유지한다. native auth의 storageFailed가 즉시 identity를 무효화하고 refresh 정지/단일 local cleanup을 소유하며, 명시적 성공 로그인 뒤 refresh를 재개한다. runtime은 같은 창에 복구 안내를 제공한다.

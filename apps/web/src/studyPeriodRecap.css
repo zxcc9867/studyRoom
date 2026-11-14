@@ -1,0 +1,13 @@
+.study-recap-dialog > .study-recap-period {
+  margin-block: 12px;
+  padding: 14px;
+  border: 1px solid var(--study-border);
+  border-radius: var(--study-control-radius);
+  background: var(--study-soft);
+  color: var(--study-ink);
+}
+.study-recap-period h4, .study-recap-period p, .study-recap-period dd { margin: 0; }
+.study-recap-period p, .study-recap-period dt { color: var(--study-muted); font-size: var(--study-text-xs); }
+.study-recap-period dl { display: flex; flex-wrap: wrap; gap: 8px 14px; margin: 12px 0 0; }
+.study-recap-period dl > div { flex: 1 0 70px; }
+.study-recap-period dd { font-weight: 700; overflow-wrap: anywhere; }

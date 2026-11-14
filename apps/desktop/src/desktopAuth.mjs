@@ -452,13 +452,11 @@ export function createDesktopAuth({ supabase, storage, openExternal, now = Date.
         pendingVersion += 1;
         await bounded(() => storage.setItem(PENDING_KEY, JSON.stringify(pending)));
         assertCurrent(epoch);
-        let browserUrl = url;
         if (callbackScope) {
           if (providerCallback !== callbackScope) throw authError('AUTH_CHANGED');
-          browserUrl = callbackScope.receiver.authorizationEntry(url);
-          if (browserUrl !== redirectTo.replace('/auth/callback/', '/auth/start/')) throw authError('AUTH_FAILED');
+          callbackScope.receiver.assertOpen();
         }
-        await bounded(() => openExternal(browserUrl));
+        await bounded(() => openExternal(url));
         assertCurrent(epoch);
         diagnose('provider.opened');
         return { opened: true };

@@ -356,6 +356,43 @@ browserTest('video backgrounds: painted scene visibly moves while the live camer
  assert.equal(await page.evaluate(()=>{const b=videoCameraBefore,v=document.querySelector('video');return v===b.node&&v.srcObject===b.stream&&b.track.readyState==='live'&&fixtureCameraRequests===b.requests;}),true);assert.deepEqual(await page.evaluate(()=>fixture.sessions),await page.evaluate(()=>videoCameraBefore.sessions));
 }));
 
+for(const width of [375,1440])browserTest(`study period recap: appears only after an explicit start and skips into camera setup at ${width}px`,()=>withApp(width,async page=>{
+ const start=page.locator('.topbar-actions button').first();
+ const recap=page.getByRole('dialog',{name:'지난 학습 요약'});
+ assert.equal(await recap.count(),0);
+ await start.click();
+ await recap.waitFor();
+ assert.match(await recap.innerText(),/지난주[\s\S]*1시간/);
+ assert.equal(await page.evaluate(()=>fixtureCameraRequests),0);
+ assert.equal(await recap.evaluate(el=>el.scrollWidth<=el.clientWidth),true);
+ const proceed=recap.getByRole('button',{name:'바로 공부 시작',exact:true});
+ await proceed.click();
+ await recap.waitFor({state:'detached'});
+ await page.getByRole('button',{name:'카메라 켜고 시작',exact:true}).waitFor();
+ await page.keyboard.press('Escape');
+ await start.click();
+ await page.getByRole('button',{name:'카메라 켜고 시작',exact:true}).waitFor();
+ assert.equal(await recap.count(),0,'no repeat after camera setup was cancelled');
+ assert.equal(await page.evaluate(()=>fixture.sessions.length),1,'previous record stays intact');
+},'start-period-recap'));
+
+browserTest('study period recap: Escape cancels start and a reload does not show the same periods again',()=>withApp(375,async page=>{
+ const start=page.locator('.topbar-actions button').first();
+ const recap=page.getByRole('dialog',{name:'지난 학습 요약'});
+ await start.click();
+ await recap.getByRole('region',{name:'지난주',exact:true}).waitFor();
+ await recap.getByRole('region',{name:'지난달',exact:true}).waitFor();
+ assert.equal(await recap.count(),1);
+ await page.keyboard.press('Escape');
+ await recap.waitFor({state:'detached'});
+ assert.equal(await page.evaluate(()=>fixtureCameraRequests),0);
+ assert.equal(await page.getByRole('button',{name:'카메라 켜고 시작',exact:true}).count(),0);
+ await page.reload({waitUntil:'domcontentloaded'});
+ await start.click();
+ await page.getByRole('button',{name:'카메라 켜고 시작',exact:true}).waitFor();
+ assert.equal(await recap.count(),0);
+},'start-period-recap-both'));
+
 for(const width of [375,1440])browserTest(`scenic start: primary study start opens scenery only after commit at ${width}px`,()=>withApp(width,async page=>{
  await page.evaluate(()=>{fixture.collision=false;window.scenicStudyBefore=structuredClone({todos:fixture.todos,recoveries:fixture.recoveries});});
  await page.locator('.topbar-actions button').first().click();
@@ -2186,6 +2223,8 @@ if(mode==='attendance-month-boundary'){
 
 if(['empty-links','completed-links','active-empty'].includes(mode)){state.links=mode==='completed-links'?['a']:[];state.current=null;state.sessions[0].paused_at=mode==='active-empty'?null:now;state.todos[0].is_completed=mode==='completed-links';state.todos[1].local_date='2026-09-21';state.todos.forEach(t=>{t.first_started_at=null;t.unknown_allocation=true;t.evaluation_eligible=false;});}
 if(mode==='start'||mode==='recovery'||mode?.startsWith('start-reflection')){state.sessions=[];state.todos.forEach(t=>t.local_date='2026-09-21');}
+if(mode==='start-period-recap'){state.sessions=[{...row,id:'past-week',local_date:'2026-09-20',started_at:'2026-09-20T01:00:00Z',ended_at:'2026-09-20T02:00:00Z',duration_seconds:3600,status:'completed'}];}
+if(mode==='start-period-recap-both'){state.sessions=[{...row,id:'past-week-and-month',local_date:'2026-05-31',started_at:'2026-05-31T01:00:00Z',ended_at:'2026-05-31T02:00:00Z',duration_seconds:3600,status:'completed'}];}
 if(mode==='start-empty'){state.sessions=[];state.todos=[];state.links=[];state.current=null;}
 if(mode?.startsWith('record-contrast-')){
  const seconds=mode.endsWith('mixed')?[0,600,7200,7200,0,0,1200]:[600,7200,7200,7200,600,7200,7200];
@@ -2321,7 +2360,7 @@ async function withApp(width, run, mode='active', nativeOrigin=false, failedChun
     if(/^\/themes\/(video\/)?[a-z-]+\.(webp|webm)$/.test(req.url)){try{const data=await readFile(new URL('../public'+req.url,import.meta.url));res.setHeader('Content-Type',req.url.endsWith('.webm')?'video/webm':'image/webp');res.setHeader('Content-Length',data.length);res.end(data);}catch{res.writeHead(404);res.end();}return;}
     res.setHeader('Content-Type',req.url==='/app.js'?'text/javascript':req.url==='/app.css'?'text/css':'text/html');res.end(req.url==='/app.js'?js:req.url==='/app.css'?css:'<!doctype html><html lang="ko"><head><meta name="viewport" content="width=device-width,initial-scale=1"><link rel="stylesheet" href="/app.css"></head><body><div id="root"></div><script src="/app.js"></script></body></html>');});
   await new Promise(resolve=>server.listen(0,'127.0.0.1',resolve));let browser,page;
-  try {browser=await chromium.launch({headless:true,executablePath:process.env.FEED_BROWSER_EXECUTABLE||undefined,args:['--use-fake-ui-for-media-stream','--use-fake-device-for-media-stream']});page=await browser.newPage({viewport:{width,height:960},colorScheme:'light',hasTouch,...(mobile?{userAgent:'Mozilla/5.0 (Linux; Android 16) AppleWebKit/537.36 Chrome/155.0.0.0 Mobile Safari/537.36'}:{})});page.setDefaultTimeout(5000);const errors=[];page.on('pageerror',e=>errors.push(e.message));await page.clock.install({time:new Date(mode==='attendance-month-boundary'?'2026-11-30T17:00:00Z':['attendance-goal','attendance-timing'].includes(mode)?'2026-10-25T06:00:00Z':'2026-09-21T14:30:00Z')});
+  try {browser=await chromium.launch({headless:true,executablePath:process.env.FEED_BROWSER_EXECUTABLE||undefined,args:['--use-fake-ui-for-media-stream','--use-fake-device-for-media-stream']});page=await browser.newPage({viewport:{width,height:960},colorScheme:'light',hasTouch,...(mobile?{userAgent:'Mozilla/5.0 (Linux; Android 16) AppleWebKit/537.36 Chrome/155.0.0.0 Mobile Safari/537.36'}:{})});page.setDefaultTimeout(5000);const errors=[];page.on('pageerror',e=>errors.push(e.message));await page.clock.install({time:new Date(mode==='start-period-recap-both'?'2026-06-01T04:00:00Z':mode==='attendance-month-boundary'?'2026-11-30T17:00:00Z':['attendance-goal','attendance-timing'].includes(mode)?'2026-10-25T06:00:00Z':'2026-09-21T14:30:00Z')});
   await page.addInitScript(()=>{window.fixtureCameraRequests=0;const get=navigator.mediaDevices?.getUserMedia?.bind(navigator.mediaDevices);if(get)navigator.mediaDevices.getUserMedia=options=>{window.fixtureCameraRequests++;return get(options);};});
   await page.route(/^https:\/\/cdn\.jsdelivr\.net\/gh\/orioncactus\/pretendard@/,route=>route.fulfill({contentType:'text/css',body:''}));
   await page.route('https://fixture.invalid/functions/v1/camera-presence-warning',async route=>{const args=route.request().postDataJSON();await page.evaluate(args=>fixture.calls.push({name:'camera-presence-warning',args}),args);await route.fulfill({json:{ok:true,slackSent:false,slackMissing:true,suppressed:false}});});

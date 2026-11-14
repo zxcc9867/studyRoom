@@ -43,17 +43,6 @@ async function openFreshExternalTab(context, parent, url) {
   return entry;
 }
 
-async function openOwnedPopup(context, entry) {
-  const popupReady = context.waitForEvent('page', { timeout: 5000 });
-  const click = entry.getByRole('button', { name: 'Google로 계속', exact: true }).click().catch(error => {
-    if (!entry.isClosed() || !/Target page, context or browser has been closed/.test(error.message)) throw error;
-  });
-  // The click may report target-closed because closing the entry is the intended effect.
-  // A real popup must also be observed; a closed tab alone is never accepted as success.
-  const [popup] = await Promise.all([popupReady, click]);
-  popup.setDefaultTimeout(5000);
-  return popup;
-}
 
 test('Chrome closes a script-closable successful login tab while leaving the original tab alone', { timeout: 20000 }, async t => {
   let completed = false;
@@ -79,54 +68,25 @@ test('Chrome policy-blocked auto-close leaves the success explanation visible wi
   assert.match(await parent.locator('main').innerText(), /이 탭은 닫아도 됩니다/);
 });
 
-test('Chrome-created isolated auth window stays closable across COOP and multiple provider pages', { timeout: 20000 }, async t => {
-  const { parent, context, redirect, receiver } = await fixture(t, async () => {});
-  assert.equal(typeof receiver.authorizationEntry, 'function', 'native auth must open its owned browser entry');
-  const entryUrl = receiver.authorizationEntry('https://synthetic-provider.invalid/provider');
-  await context.route('https://synthetic-provider.invalid/**', route => {
-    return route.fulfill({ contentType: 'text/html', headers: { 'Cross-Origin-Opener-Policy': 'same-origin' }, body: new URL(route.request().url()).pathname === '/provider'
-      ? '<!doctype html><title>Synthetic provider</title><a href="/consent">Choose account</a>'
-      : `<!doctype html><title>Synthetic consent</title><a href="${redirect}?code=synthetic-browser-code">Complete</a>` });
-  });
-  const entry = await openFreshExternalTab(context, parent, entryUrl);
-  assert.equal(await entry.evaluate(() => history.length), 1, 'a fresh external URL tab has no prior user history');
-  const popup = await openOwnedPopup(context, entry);
-  await popup.getByRole('link', { name: 'Choose account', exact: true }).click();
-  assert.equal(await popup.evaluate(() => window.opener), null, 'provider is isolated from the entry tab');
-  assert.ok(await popup.evaluate(() => history.length >= 2), 'the test includes actual provider navigation history');
-  await popup.getByRole('link', { name: 'Complete', exact: true }).click();
-  if (!popup.isClosed()) await popup.waitForEvent('close', { timeout: 5000 });
-  assert.equal(entry.isClosed(), true);
-  assert.equal(parent.isClosed(), false);
-  assert.deepEqual(context.pages(), [parent], 'only the pre-existing tab remains');
-});
-
-for (const result of ['failure', 'cancel']) {
-  test(`owned auth window retains the ${result} explanation while existing Chrome tabs survive`, { timeout: 20000 }, async t => {
-    let exchanges = 0;
-    const { parent, context, redirect, receiver } = await fixture(t, async () => { exchanges += 1; throw Error('synthetic-failure'); });
-    await context.route('https://synthetic-provider.invalid/**', route => route.fulfill({ contentType: 'text/html', body:
-      `<!doctype html><a href="${redirect}?${result === 'cancel' ? 'error=access_denied' : 'code=synthetic-failure'}">Complete</a>` }));
-    const entry = await openFreshExternalTab(context, parent, receiver.authorizationEntry('https://synthetic-provider.invalid/provider'));
-    const popup = await openOwnedPopup(context, entry);
-    await popup.getByRole('link', { name: 'Complete' }).click();
-    await popup.getByRole('heading', { name: '로그인을 완료하지 못했어요.' }).waitFor();
-    assert.equal(popup.isClosed(), false); assert.equal(parent.isClosed(), false); assert.equal(entry.isClosed(), true);
-    assert.equal(exchanges, result === 'cancel' ? 0 : 1);
-  });
-}
-
-test('a blocked auth popup leaves the entry tab open with a retry and never starts authentication', { timeout: 20000 }, async t => {
+test('direct authorization opens the account chooser without an intermediate button and leaves existing tabs alone', { timeout: 20000 }, async t => {
   let exchanges = 0;
-  const { parent, context, receiver } = await fixture(t, async () => { exchanges += 1; });
-  // Boundary injection models an enterprise/browser denial without changing user settings.
-  await context.addInitScript(() => { window.open = () => null; });
-  const entry = await openFreshExternalTab(context, parent, receiver.authorizationEntry('https://synthetic-provider.invalid/provider'));
-  await entry.getByRole('button', { name: 'Google로 계속' }).click();
-  await entry.getByRole('alert').waitFor();
-  assert.equal(await entry.getByRole('button', { name: 'Google로 계속' }).isEnabled(), true);
-  assert.equal(entry.isClosed(), false); assert.equal(parent.isClosed(), false); assert.equal(exchanges, 0);
-  assert.equal(context.pages().length, 2);
+  const { parent, context, redirect } = await fixture(t, async () => { exchanges += 1; });
+  const before = await parent.title();
+  await context.route('https://synthetic-provider.invalid/**', route => route.fulfill({
+    contentType: 'text/html',
+    headers: { 'Cross-Origin-Opener-Policy': 'same-origin' },
+    body: new URL(route.request().url()).pathname === '/provider'
+      ? '<!doctype html><a href="/consent">Choose account</a>'
+      : `<!doctype html><a href="${redirect}?code=synthetic-browser-code">Complete</a>`,
+  }));
+  const authTab = await openFreshExternalTab(context, parent, 'https://synthetic-provider.invalid/provider');
+  await authTab.getByRole('link', { name: 'Choose account', exact: true }).click();
+  assert.equal(await authTab.evaluate(() => window.opener), null);
+  await authTab.getByRole('link', { name: 'Complete', exact: true }).click();
+  await authTab.getByRole('heading', { name: '로그인이 완료됐어요.' }).waitFor();
+  assert.equal(exchanges, 1);
+  assert.equal(await parent.title(), before);
+  assert.deepEqual(context.pages(), [parent, authTab], 'the browser may keep its non-script-opened tab');
 });
 
 for (const result of ['failure', 'cancel']) {
@@ -145,12 +105,11 @@ for (const result of ['failure', 'cancel']) {
   });
 }
 
-for (const width of [375, 1440]) for (const state of ['success', 'failure', 'connection', 'entry']) {
+for (const width of [375, 1440]) for (const state of ['success', 'failure', 'connection']) {
   test(`native ${state} uses the shared readable status layout at ${width}px`, { timeout: 20000 }, async t => {
-    const { parent, redirect, receiver } = await fixture(t, async () => { if (state === 'failure') throw Error('synthetic-only'); });
+    const { parent, redirect } = await fixture(t, async () => { if (state === 'failure') throw Error('synthetic-only'); });
     await parent.setViewportSize({ width, height: 900 });
     if (state === 'connection') await parent.goto(new URL('../../error.html', import.meta.url).href);
-    else if (state === 'entry') await parent.goto(receiver.authorizationEntry('https://synthetic-provider.invalid/provider'));
     else await parent.goto(`${redirect}?code=synthetic-ui-test`);
     const panel = parent.locator('main.status-panel');
     await panel.waitFor();

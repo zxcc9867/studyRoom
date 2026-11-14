@@ -1,4 +1,7 @@
 # Active Context
+- 2026-11-14 · codex-period-recap-1114 · fix/study-dashboard-clarity: 새 주·달 첫 명시적 공부 시작에 지난 기간 요약. 기존 시작·정산·회복·카메라·학습 기록/DB 불변. [PRD](prd-study-reports.md).
+- 별도 사용자 승인: Windows 0.1.11 Google 계정 선택 바로 열기(Chrome 완료 탭 유지 가능), 같은 인증 세대·문서 카메라 첫 동의만. 실제 설치와 실계정 사용은 별도 유휴/승인 및 수용으로 구분한다.
+- 기준: 기존 feature 브랜치(원격 base `0c3417f`), 다른 dirty 파일은 보존. Chrome 16/16·별도 로그인 11/11·Electron 2/2·공식 7/Dune0·독립 검토 통과. Windows NSIS 빌드 완료. [검증](../docs/verification/2026-11-14-study-period-recap.md).
 - 2026-11-14 · codex-scenic-current-1114 · 풍경 제목에서 이전 회고를 분리한다. 일치하는 활성 세션의 현재 할 일만 표시, 준비 상태에서는 중립 안내와 새 할 일 선택. 회고/기존 시작점·출석·카메라·서버 기록 불변. [PRD](prd-scenic-study.md).
 - 운영 완료: 제품 `b8bbf6d` feature push, Chrome18/18·공식7/Dune0·독립 검토. Actions43599321054 success, Vercel `dpl_2prYTVBV5sNmGRDsDkMnVAwGSAuU` READY/exactSHA/alias/HTML·JS200. [검증](../docs/verification/2026-11-14-scenic-current-task.md).
 - 2026-11-12 · codex-attendance-timing-1112 · fix/study-dashboard-clarity: 사용자 승인으로 기록의 출석 캘린더에 날짜별 출석·첫 시작·목표 표시. 저장된 일자 알림 +15분 전 정시/이후 늦음, 출석과 분리한다. 기존 04:00 미시작 결석/Slack·회복과 목표 미달 미알림 유지. DB·Edge·기존 학습 기록 불변. [PRD](prd-attendance-start.md).

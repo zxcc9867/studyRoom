@@ -1,5 +1,6 @@
 import { buildRangeMetrics } from "./weeklyReview.mjs";
 import { getStudyDateKey } from "../../../packages/core/src/index.mjs";
+import { allocateCompletedStudySecondsByDate } from "./weeklyHabit.mjs";
 
 export function getStudyReportTodayDate(nowMs, timeZone) {
   return getStudyDateKey(new Date(nowMs), timeZone);
@@ -55,4 +56,28 @@ export function buildStudyReport(periods, data) {
   const current = buildRangeMetrics(periods.currentRange, data.sessions, data.todos, data.attendanceDays, data.reflections, data.currentSummary);
   const previous = buildRangeMetrics(periods.previousRange, data.sessions, data.todos, data.attendanceDays, data.reflections, data.previousSummary);
   return { current, previous, studySecondsChange: current.studySeconds - previous.studySeconds, completionRateChange: current.completionRate - previous.completionRate, consistencyChange: current.consistencyScore - previous.consistencyScore };
+}
+
+export function getStudyPeriodRecaps({ nowMs, timeZone, sessions, attendanceDays, todos, seen = {} }) {
+  const todayDateKey = getStudyReportTodayDate(nowMs, timeZone);
+  const recaps = [];
+  for (const mode of ["week", "month"]) {
+    const start = periodStart(todayDateKey, mode);
+    if (seen[mode] === start || sessions.some(session =>
+      (session.status === "completed" || session.status === "active") &&
+      session.local_date >= start && session.local_date <= todayDateKey && Date.parse(session.started_at) <= nowMs)) continue;
+    const previous = shiftStart(start, mode, -1);
+    const previousRange = range(previous, addDays(start, -1));
+    const dates = Array.from({ length: previousRange.coveredDayCount }, (_, index) => addDays(previous, index));
+    const inRange = row => row.local_date >= previous && row.local_date < start;
+    const studySeconds = Object.values(allocateCompletedStudySecondsByDate({
+      sessions, dateKeys: dates, timeZone,
+    })).reduce((sum, seconds) => sum + seconds, 0);
+    const presentDays = attendanceDays.filter(day => day.status === "present" && inRange(day)).length;
+    const completedTodos = todos.filter(todo => todo.is_completed && inRange(todo)).length;
+    if (studySeconds || presentDays || completedTodos) {
+      recaps.push({ mode, periodStart: start, range: previousRange, studySeconds, presentDays, completedTodos });
+    }
+  }
+  return recaps;
 }

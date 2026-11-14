@@ -16,6 +16,47 @@ test("null and invalid unentered scores do not dilute explicit ratings", () => {
 });
 
 const reports = await import("../src/studyReports.mjs").catch(() => ({}));
+
+const recapHistory = {
+  nowMs: Date.parse("2026-05-31T19:15:00Z"),
+  timeZone: "Asia/Tokyo",
+  sessions: [
+    { local_date: "2026-05-31", started_at: "2026-05-31T17:30:00Z", ended_at: "2026-05-31T19:05:00Z", duration_seconds: 3600, status: "completed" },
+    { local_date: "2026-05-02", started_at: "2026-05-02T01:00:00Z", ended_at: "2026-05-02T01:30:00Z", duration_seconds: 9999, status: "completed" },
+  ],
+  attendanceDays: [{ local_date: "2026-05-31", status: "present" }, { local_date: "2026-05-30", status: "missed" }],
+  todos: [{ local_date: "2026-05-26", is_completed: true }, { local_date: "2026-05-29", is_completed: false }],
+};
+
+test("study period recap uses the entire previous week and month after the local 04:00 crossover", () => {
+  assert.deepEqual(reports.getStudyPeriodRecaps(recapHistory).map(({ mode, periodStart, range, studySeconds, presentDays, completedTodos }) =>
+    [mode, periodStart, range.startDate, range.endDate, studySeconds, presentDays, completedTodos]), [
+    ["week", "2026-06-01", "2026-05-25", "2026-05-31", 3600, 1, 1],
+    ["month", "2026-06-01", "2026-05-01", "2026-05-31", 5400, 1, 1],
+  ]);
+  assert.deepEqual(reports.getStudyPeriodRecaps({ ...recapHistory, nowMs: Date.parse("2026-05-31T18:59:00Z") }), []);
+});
+
+test("study period recap skips periods independently after a recorded start or a previous display", () => {
+  const input = {
+    ...recapHistory,
+    nowMs: Date.parse("2026-06-09T04:00:00Z"),
+    sessions: [...recapHistory.sessions, { local_date: "2026-06-05", started_at: "2026-06-05T01:00:00Z", ended_at: "2026-06-05T01:20:00Z", duration_seconds: 1200, status: "completed" }],
+  };
+  assert.deepEqual(reports.getStudyPeriodRecaps(input).map(({ mode }) => mode), ["week"]);
+  assert.deepEqual(reports.getStudyPeriodRecaps({ ...input, seen: { week: "2026-06-08" } }), []);
+  assert.deepEqual(reports.getStudyPeriodRecaps({ ...recapHistory, seen: { month: "2026-06-01" } }).map(({ mode }) => mode), ["week"]);
+});
+
+test("study period recap skips empty history and ignores unfinished task records", () => {
+  assert.deepEqual(reports.getStudyPeriodRecaps({
+    ...recapHistory,
+    sessions: [],
+    attendanceDays: [{ local_date: "2026-05-31", status: "missed" }],
+    todos: [{ local_date: "2026-05-31", is_completed: false }],
+  }), []);
+});
+
 function periods(input) {
   assert.equal(typeof reports.getStudyReportPeriods, "function", "report period selection is missing");
   return reports.getStudyReportPeriods(input);

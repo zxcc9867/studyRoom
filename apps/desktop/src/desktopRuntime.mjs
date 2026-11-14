@@ -268,9 +268,11 @@ export function createDesktopRuntime({ electron, auth, storage, preloadPath, ico
     if (kind === 'clipboard-sanitized-write') {
       return Boolean(currentMainDocument && window.isVisible() && window.isFocused());
     }
-    return Boolean(currentMainDocument && consent && consent.epoch === epoch
-      && consent.frame === contents.mainFrame
+    return Boolean(currentMainDocument && hasCameraConsent()
       && policy.allowPermission(kind, { ...details, requestingOrigin: permissionOrigin }));
+  }
+  function hasCameraConsent() {
+    return consent?.epoch === epoch && consent.authGeneration === authGeneration && consent.frame === contents.mainFrame;
   }
   function canonicalPermissionOrigin(value) {
     try {
@@ -316,6 +318,7 @@ export function createDesktopRuntime({ electron, auth, storage, preloadPath, ico
         case 'signOut': authChanged(); value = await auth.signOut(); break;
         case 'openCameraSettings': await shell.openExternal('ms-settings:privacy-webcam'); value = { opened: true }; break;
         case 'cameraConsent': {
+          if (hasCameraConsent()) { value = { allowed: true }; break; }
           if (cameraDialog) fail('AUTH_BUSY');
           cameraDialog = true;
           let allowed;
@@ -326,7 +329,7 @@ export function createDesktopRuntime({ electron, auth, storage, preloadPath, ico
           })).response === 0; } finally { cameraDialog = false; }
           guard(event, capturedEpoch);
           if (capturedAuth !== authGeneration) fail('AUTH_CHANGED');
-          consent = allowed ? { epoch, frame: contents.mainFrame } : null;
+          consent = allowed ? { epoch, authGeneration, frame: contents.mainFrame } : null;
           value = { allowed: Boolean(allowed) }; break;
         }
         case 'studyState': {

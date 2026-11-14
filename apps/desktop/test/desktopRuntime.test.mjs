@@ -368,6 +368,19 @@ test('cancelled consent does not grant camera; accepted consent is top-frame vid
   assert.equal(check(), false);
 });
 
+test('camera consent is reused only within the same document and authentication generation', async () => {
+  const f = fixture({ responses: [0, 0, 0] });
+  for (let i = 0; i < 2; i++) assert.deepEqual((await f.request('cameraConsent')).value, { allowed: true });
+  assert.equal(f.calls.dialogs.length, 1);
+  f.runtime.authChanged();
+  assert.deepEqual((await f.request('cameraConsent')).value, { allowed: true });
+  assert.equal(f.calls.dialogs.length, 2);
+  f.navigate();
+  assert.deepEqual((await f.request('cameraConsent')).value, { allowed: true });
+  assert.equal(f.calls.dialogs.length, 3);
+  f.runtime.dispose();
+});
+
 for (const origin of [ORIGIN, 'http://127.0.0.1:53064']) {
   test(`native media origin serialization accepts consented video for ${origin}`, async () => {
     const development = origin !== ORIGIN;

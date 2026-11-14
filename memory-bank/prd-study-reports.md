@@ -76,3 +76,9 @@ None blocking this approved scope. Snapshot exports and automatic report notific
 - Synthetic browser checks cover saved-profile delay, timezone week boundaries, week/month navigation, archived periods, leap February, keyboard month input, error/retry, plan callback and 390px light palette under dark preference.
 - Independent code review found no remaining Important/Critical issue after the profile gate and cancellation fixes.
 - Implemented locally only. Per latest shared instructions, commit/push/deployment await an explicit request. Real signed-in account and native-device flows were not exercised.
+
+## 2026-11-14 First-start recap
+
+- When the user explicitly initiates a new study session, show one optional dialog containing each due full previous period: Monday–Sunday for weeks and the whole previous calendar month. Use the selected study time zone and existing 04:00 study-day boundary.
+- Summarize verified completed time, present days and completed tasks from loaded dashboard records. Omit empty periods; skip during a refresh or error. A completed or active start in the new period suppresses its recap. A device remembers which period it showed for the signed-in account; another device without a recorded start can still show it independently.
+- “바로 공부 시작” continues the original action through its ordinary checks. Closing or pressing Escape does not start study. Resuming or restoring a session never opens the recap. No new DB writes, permissions or background jobs; detailed reports remain on My Page.

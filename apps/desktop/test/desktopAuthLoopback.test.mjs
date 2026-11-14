@@ -29,15 +29,14 @@ function fixture(t, { ttlMs = 300000 } = {}) {
     redirect: () => requestedRedirects.at(-1) };
 }
 
-test('Google opens only its owned browser entry while PKCE keeps the original callback', async t => {
+test('Google opens the validated provider URL directly while PKCE keeps the owned callback', async t => {
   const f = fixture(t);
   await f.auth.signInProvider('google');
   assert.equal(f.opened.length, 1);
-  assert.equal(f.opened[0], f.redirect().replace('/auth/callback/', '/auth/start/'));
-  assert.match(f.opened[0], /^http:\/\/127\.0\.0\.1:\d+\/auth\/start\/[a-f0-9]{64}$/);
-  const entry = await fetch(f.opened[0]);
-  assert.equal(entry.status, 200);
-  assert.match(await entry.text(), /Google로 계속/);
+  const authorize = new URL(f.opened[0]);
+  assert.equal(authorize.origin + authorize.pathname, 'https://project.supabase.co/auth/v1/authorize');
+  assert.equal(authorize.searchParams.get('provider'), 'google');
+  assert.equal(authorize.searchParams.get('redirect_to'), f.redirect());
   assert.deepEqual(f.codes, []);
   assert.equal((await fetch(`${f.redirect()}?code=synthetic-entry-login`)).status, 200);
   assert.deepEqual(f.codes, ['synthetic-entry-login']);

@@ -166,42 +166,15 @@ test('Windows CRLF checkout hashes the LF-normalized HTML style content', async 
   assert.ok(response.headers['content-security-policy'].includes(`style-src 'sha256-${createHash('sha256').update(style).digest('base64')}'`));
 });
 
-test('owned browser entry is single-use, CSP-hashed and does not exchange a session', async t => {
+test('obsolete auth entry cannot display a launcher or consume the callback', async t => {
   let exchanges = 0;
   const receiver = start({ onCallback: async () => { exchanges += 1; } });
   t.after(() => receiver.close());
   const redirect = await receiver.ready;
-  assert.equal(typeof receiver.authorizationEntry, 'function');
-  const entry = receiver.authorizationEntry('https://project.supabase.co/auth/v1/authorize?provider=google&prompt=select_account');
-  assert.equal(entry, redirect.replace('/auth/callback/', '/auth/start/'));
-  const result = await request(entry);
-  assert.equal(result.status, 200);
-  assert.match(result.body, /Google로 계속/);
-  assert.ok(result.body.includes('provider=google&amp;prompt=select_account'));
-  const script = result.body.match(/<script>([\s\S]*?)<\/script>/)[1];
-  assert.ok(result.headers['content-security-policy'].includes(`script-src 'sha256-${createHash('sha256').update(script).digest('base64')}'`));
-  assert.doesNotMatch(result.headers['content-security-policy'], /unsafe-inline|unsafe-eval/);
-  assert.equal(result.headers['cache-control'], 'no-store');
-  assert.equal(result.headers['referrer-policy'], 'no-referrer');
-  assert.equal((await request(entry)).status, 409);
+  const result = await request(redirect.replace('/auth/callback/', '/auth/start/'));
+  assert.equal(result.status, 400);
+  assert.doesNotMatch(result.body, /Google로 계속|<script>/);
   assert.equal(exchanges, 0);
   assert.equal((await request(`${redirect}?code=synthetic-complete`)).status, 200);
   assert.equal(exchanges, 1);
-});
-
-test('browser entry rejects hostile requests and unsafe URLs without consuming the callback', async t => {
-  const receiver = start({ onCallback: async () => {} });
-  t.after(() => receiver.close());
-  const redirect = await receiver.ready;
-  assert.equal(typeof receiver.authorizationEntry, 'function');
-  for (const url of ['javascript:alert(1)', 'http://example.test', 'https://user:pass@example.test', 'https://example.test/#fragment']) {
-    assert.throws(() => receiver.authorizationEntry(url));
-  }
-  const entry = receiver.authorizationEntry('https://example.test/authorize');
-  assert.throws(() => receiver.authorizationEntry('https://example.test/second'));
-  for (const [url, options] of [[entry, { method: 'POST' }], [entry, { headers: { Host: 'evil.test' } }], [entry, { headers: { Origin: 'https://evil.test' } }], [entry + '?extra=1', {}]]) {
-    assert.equal((await request(url, options)).status, 400);
-  }
-  assert.equal((await request(entry)).status, 200);
-  assert.equal((await request(`${redirect}?code=synthetic-complete`)).status, 200);
 });

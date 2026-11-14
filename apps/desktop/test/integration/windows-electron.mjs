@@ -404,7 +404,8 @@ test('real Electron Google loopback returns through native IPC and restores the 
   const url = await app.evaluate(() => acceptance.observations.external.at(-1));
   const redirect = await app.evaluate(() => acceptance.observations.providerRedirect);
   assert.match(redirect, /^http:\/\/127\.0\.0\.1:\d+\/auth\/callback\/[a-f0-9]{64}$/);
-  assert.equal(url, redirect.replace('/auth/callback/', '/auth/start/'));
+  assert.equal(new URL(url).origin + new URL(url).pathname, 'https://synthetic.supabase.co/auth/v1/authorize');
+  assert.equal(new URL(url).searchParams.get('redirect_to'), redirect);
   if (!visibleAuthProbe) {
     await app.evaluate(() => acceptance.runtime.window.close());
     assert.equal(await app.evaluate(() => acceptance.runtime.window.isVisible()), false);
@@ -419,18 +420,13 @@ test('real Electron Google loopback returns through native IPC and restores the 
     new URL(route.request().url()).pathname === '/synthetic-consent'
       ? `<!doctype html><title>TEST ONLY - StudyRoom activation</title><h1>TEST ONLY — no real account</h1><a href="${redirect}?code=synthetic-electron-loopback">Complete synthetic login</a>`
       : '<!doctype html><a href="/synthetic-consent">Choose synthetic account</a>' }));
-  const entryReady = context.waitForEvent('page');
+  const authTabReady = context.waitForEvent('page');
   const browserSession = await browser.newBrowserCDPSession();
   const tabSession = await context.newCDPSession(unrelated);
   const { targetInfo } = await tabSession.send('Target.getTargetInfo');
   await browserSession.send('Target.createTarget', { url, browserContextId: targetInfo.browserContextId });
-  const entry = await entryReady;
-  const popupReady = context.waitForEvent('page');
-  const entryClick = entry.getByRole('button', { name: 'Google로 계속' }).click().catch(error => {
-    if (!entry.isClosed() || !/Target page, context or browser has been closed/.test(error.message)) throw error;
-  });
-  const [popup] = await Promise.all([popupReady, entryClick]);
-  await popup.getByRole('link', { name: 'Choose synthetic account' }).click();
+  const authTab = await authTabReady;
+  await authTab.getByRole('link', { name: 'Choose synthetic account' }).click();
   if (visibleAuthProbe) {
     console.log('VISIBLE_AUTH_PROBE_READY: activate only the TEST ONLY - StudyRoom activation Chrome window and click Complete synthetic login.');
     await app.evaluate(async () => {
@@ -441,11 +437,12 @@ test('real Electron Google loopback returns through native IPC and restores the 
       }
       acceptance.probeBlurConfirmed = true;
     });
-    if (!popup.isClosed()) await popup.waitForEvent('close', { timeout: 120000 });
-  } else await popup.getByRole('link', { name: 'Complete synthetic login' }).click();
-  if (!popup.isClosed()) await popup.waitForEvent('close', { timeout: 5000 });
-  assert.equal(entry.isClosed(), true);
-  assert.deepEqual(context.pages(), [unrelated]);
+    await authTab.getByRole('heading', { name: '로그인이 완료됐어요.' }).waitFor({ timeout: 120000 });
+  } else {
+    await authTab.getByRole('link', { name: 'Complete synthetic login' }).click();
+    await authTab.getByRole('heading', { name: '로그인이 완료됐어요.' }).waitFor();
+  }
+  assert.deepEqual(context.pages(), [unrelated, authTab]);
   assert.equal(await unrelated.title(), 'Pre-existing synthetic Chrome tab');
   await page.waitForFunction(() => events.some(event => event.type === 'auth-changed'));
   assert.equal(await app.evaluate(() => acceptance.runtime.window.isVisible()), true);
@@ -465,7 +462,7 @@ test('real Electron Google loopback returns through native IPC and restores the 
     console.log('VISIBLE_AUTH_PROBE_RESULT', JSON.stringify(observed));
     await writeFile(path.join(output, 'visible-auth-focus.json'), JSON.stringify(observed));
     assert.equal(observed.blurConfirmed, true, 'external-window precondition must be observed');
-    assert.equal(observed.samples.at(-1).focused, true, 'app must remain focused after its authentication popup closes');
+    assert.equal(observed.samples.at(-1).focused, true, 'app must take focus after successful authentication');
   }
   await assert.rejects(fetch(`${redirect}?code=synthetic-replay`));
 });
