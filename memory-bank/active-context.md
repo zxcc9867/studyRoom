@@ -1,5 +1,6 @@
 # Active Context
 - 2026-11-14 · codex-scenic-current-1114 · 풍경 제목에서 이전 회고를 분리한다. 일치하는 활성 세션의 현재 할 일만 표시, 준비 상태에서는 중립 안내와 새 할 일 선택. 회고/기존 시작점·출석·카메라·서버 기록 불변. [PRD](prd-scenic-study.md).
+- 운영 완료: 제품 `b8bbf6d` feature push, Chrome18/18·공식7/Dune0·독립 검토. Actions43599321054 success, Vercel `dpl_2prYTVBV5sNmGRDsDkMnVAwGSAuU` READY/exactSHA/alias/HTML·JS200. [검증](../docs/verification/2026-11-14-scenic-current-task.md).
 - 2026-11-12 · codex-attendance-timing-1112 · fix/study-dashboard-clarity: 사용자 승인으로 기록의 출석 캘린더에 날짜별 출석·첫 시작·목표 표시. 저장된 일자 알림 +15분 전 정시/이후 늦음, 출석과 분리한다. 기존 04:00 미시작 결석/Slack·회복과 목표 미달 미알림 유지. DB·Edge·기존 학습 기록 불변. [PRD](prd-attendance-start.md).
 - 운영 완료: 제품 `17b131d` feature push, Chrome7/7·집중39/39·공식7/Dune0·독립 재검토. Actions43241985708 success, Vercel `dpl_BxF4s3o8M5qbxw68RAArimfrkEq2` READY/exactSHA/alias/HTML·JS·CSS200. 실계정/알림 시험 발송 없음. [검증](../docs/verification/2026-11-12-attendance-timing.md).
 - 2026-11-09 · codex-scenic-entry-1109 · fix/study-dashboard-clarity: ‘다른 할 일 선택’ 시작 성공 시 풍경 자동 진입, 같은 활성 세션에만 배경 ID 공유. 기기 기본 배경·재생 설정 및 카메라 소유권·기존 기록은 유지한다. ‘잠시 쉬기’는 촬영을 멈추되 기존 담당 PC를 유지하며, 다른 PC에서 재개 후 상태·설정의 명시적 이어서 공부로 넘긴다.

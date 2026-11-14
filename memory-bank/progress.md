@@ -1,6 +1,6 @@
 # Progress
 
-- 풍경의 현재 공부 제목: 해당 활성 세션의 현재 할 일만 표시하며 준비 상태에서 이전 회고 제목 또는 이전 시작점 자동 선택을 사용하지 않는다. [PRD](prd-scenic-study.md).
+- 운영 완료: 풍경은 해당 활성 세션의 현재 할 일만 표시하며 준비 상태에서 이전 회고 제목 또는 이전 시작점 자동 선택을 사용하지 않는다. 제품 `b8bbf6d`·Chrome18/18·공식7/Dune0. [PRD](prd-scenic-study.md) · [검증](../docs/verification/2026-11-14-scenic-current-task.md).
 
 ## 출석·첫 시작·공부 목표 구분
 
