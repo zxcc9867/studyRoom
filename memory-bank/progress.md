@@ -1,11 +1,88 @@
 # Progress
 
-## 2026-10-31 main 통합
+## 2026-11-14 — 최신 기능 main 통합과 Windows 0.1.10
 
-- 사용자 승인에 따라 기존 main `9f381ab`에 `fix/study-dashboard-clarity` source `d83dabb`의 18개 커밋을 fast-forward했다. 공통 UI·설정·다크 모드·계획표/기록/숲·피드 표시 및 기본 Windows 앱 소스를 포함한다.
-- README 3개 언어에 기능·기기별 화면 설정·실제 합성 캡처·Windows 소스/설치판 차이를 반영했다. 기존 로컬 DUNE 변경은 백업·분리했으며 이번 커밋에 섞지 않는다.
-- 로컬 검증 완료: desktop 문법11파일·119/119, DUNE296파일/616간선·위반0·필수5명령 exit0, Edge 타입/23개 검사·README54이미지/3언어 통과. 푸시·원격 CI/배포는 이어서 확인한다: [실행 기록](../docs/verification/2026-10-31-main-integration.md). 기존 운영 코드와 제품 소스는 동일하며 새 운영 DB·Edge·설치 파일은 변경하지 않는다.
+- 최신 기능 브랜치 `0c3417fa`를 기존 main `4893ff7`에 통합한다. 제품 소스는 운영 `b8bbf6d`와 동일하다.
+- 최신 풍경·출석·카메라·학습 이어가기 및 Windows 0.1.10 소스를 반영한다. 운영 DB·Edge를 다시 적용하지 않는다.
+- Windows 0.1.10 빌드·이 PC 설치·실제 로그인 화면 시작 확인 완료. desktop 168, Edge 23, DUNE 필수 5개·위반 0. 원격 출시와 별개인 [검증 기록](../docs/verification/2026-11-14-main-desktop.md).
 
+- 운영 완료: 풍경은 해당 활성 세션의 현재 할 일만 표시하며 준비 상태에서 이전 회고 제목 또는 이전 시작점 자동 선택을 사용하지 않는다. 제품 `b8bbf6d`·Chrome18/18·공식7/Dune0. [PRD](prd-scenic-study.md) · [검증](../docs/verification/2026-11-14-scenic-current-task.md).
+
+## 출석·첫 시작·공부 목표 구분
+
+- 운영 완료: 날짜별 출석/첫 시작/목표를 기록 → 출석 캘린더에서 확인한다. 현행 공부일 시작 출석·04시 미시작 결석/회복은 유지하며 목표 미달은 기록용이다. 제품 `17b131d`·Chrome7/7·집중39/39·공식7/Dune0. [PRD](prd-attendance-start.md) · [검증](../docs/verification/2026-11-12-attendance-timing.md).
+
+## 공부 시작 화면·같은 세션 배경
+
+- 운영 완료: 오늘/집중의 다른 할 일 시작·휴식 재개 성공에 풍경 진입을 통합했다. 같은 계정·같은 활성 세션의 풍경 배경 ID만 공유하며 기기 기본/재생 설정과 카메라는 분리한다. 제품 `724eb70`, Chrome45/45·집중96/96·공식7/Dune0. [PRD](prd-scenic-study.md) · [구조](architecture-map.md) · [검증](../docs/verification/2026-11-09-session-scenery.md).
+
+## 다음 시작점·오늘의 학습 결과
+
+- 운영배포 완료: 제품76815b3/출시40cbe73·Chrome1751/1751(실패/생략0)·공식7/Dune0·최종독립C/I/M0. remote20261105074906·8종 무결성/6핵심함수·권한/RLS/기존trigger 동일. Actions41990690435 success·dpl_HBSod2Y6wQ8FEr6fsYUwiNS6Zpx8 READY/exactSHA/alias·HTML/새JS/CSS200·6마커true. 회복·카메라 정책/설치파일 불변, 실기기·동시연결/FK색인 INFO2·미사용색인 INFO1/Drains404는 별도 한계. [PRD](prd-learning-continuity.md) · [검증](../docs/verification/2026-11-05-learning-continuity.md).
+
+## 카메라 회복 재생성 분석
+
+- 2026-11-07 운영완료: 별도 5분 이상 구간 3회, 공부일당 1회. 경고/제외/학습/결석 보존. 집중73/73·계약48/48·공식7/Dune0·독립 C/I/M0. 제품1af2f23·Edge25 ACTIVE·DB20261107055421/11보호함수 동일·Actions42344753270 success·dpl_FHQj4t1MSVsoxMUum5cwnnzBVyjJ READY/exactSHA/HTTP200. 실제 자세 오탐 원인/실계정 수용 미확인. [PRD](prd-slack-recovery-routines.md) · [검증](../docs/verification/2026-11-07-camera-recovery.md).
+
+## 테마 종류별 메뉴와 실제 Windows 목록
+
+- 운영배포/Windows 메뉴 수용 완료: 이전14종은 승인Ctrl+R 뒤15종/새영상 확인. 제품75ab1da·Actions41777453429 success·dpl_66HWEKw4b9cVwccfByXLJEJfvm1u READY/동일SHA/alias·웹/새JS/CSS/포스터200·영상2Range206. 추가 승인 새로고침 후 실제앱의 새 이미지효과 끄기/켜기·영상아님 안내·15종 확인, 편집닫기/기존테마·로그인 유지. 저장/player/학습·카메라 불변. 공식7/Dune0·최종관련22/22·B키보드3반복·2해시/diff·독립C/I/M0. 원전체1673/1674+최종22의 분할coverage1676(중복19제외), 원pointer1실패/단독1pass는 보존·원인/실사용수용 미확정. [검증](../docs/verification/2026-11-04-theme-type-controls.md).
+
+## 풍경 화면 세션 연장·카메라 미리보기
+
+- 카메라 미리보기 운영완료: 동일 로컬 stream 표시·정상 상태 간소화, 최종13/13·전체Chrome1764/1764실패/생략0·공식7/Dune0·독립C/I/M0·4해시/diff통과. 제품0b1da14·Actions42064095014 success·dpl_69MieswPS5gZdURwYkXnkWPFTMC3 READY/exactSHA/alias·HTML/새JS/CSS200·5마커true. 기록·감지/회복정책·native 유지, 실제기기수용미실행/Drains404미확인. [검증](../docs/verification/2026-11-06-scenic-camera-preview.md).
+- 운영배포 완료: 세션 유지 남은 시간·+1시간 연장을 공부/휴식 중 제공, 세션 없으면 숨김. 기존60분/최대2시간·동일 RPC·기록/카메라 보존. 신규14/14·최종Chrome 분할1668건(동일소스317보존+1351/1351재실행)·실패/생략/취소0·공식7/Dune0·독립C/I/M0·5해시/diff 통과. 최초 팀fixture2fail/보정 후 분할 재검증은 별도 기록. 제품c7b9068·Actions41766757443 success·dpl_4SpLh99GuXLpBNJwCmNhANRNzqfa READY/동일SHA/alias·HTML/새JS/CSS200/연장표시확인. 새APK/EXE·실제기록/설정 조작 없음. [검증](../docs/verification/2026-11-04-scenic-session-extension.md).
+
+## 오리지널 애니메이션풍 별빛 바다와 유성
+
+- ‘은하가 비치는 등대’ 운영완료: 고리 행성 없는 24초 무음 영상(720p/1080p)·세로 구도, 기존 테마 15종·재생/학습/카메라/네이티브 유지. 공식7/Dune0·Chrome 1774 고유 통과·독립 검토, 제품4bfead1/Actions42382436784 성공·Vercel dpl_CA42yf7DjLo46PwjFqGw3bU3u2E4 READY/alias/HTTP200·영상2Range206·공개4해시/운영loop2/2. [제작·검증](../docs/media/anime-lighthouse/README.md).
+- 운영배포 완료: anime-sea 실제24초 무음/30fps720·1080·원화/제작출처·기존star-sea 보존. 단위32/32·Chrome21/21·전체Chrome1654/1654 실패/생략/취소0·공식7/Dune0·독립C/I/M0·19해시/diff동일·HF움직임300시점/오류0. 제품698414d/Actions41758240677 success·dpl_9mVCs7quH4akfDfzna6ZmCa5c8iB READY/동일SHA/alias·HTML/JS/CSS/이미지200·영상2Range206·공개4파일해시동일·격리운영재생/loop2/2. 학습/카메라/player/native/API·실제설정은 변경하지 않았고 새APK/EXE는 없다. [검증](../docs/verification/2026-11-04-anime-sea-video.md).
+
+## 감성 루프3종·미지원1080p 숨김
+
+- 운영배포 완료: 벽난로/눈길/호수720·1080/23·19·9초 무음루프·미지원1080p 숨김, 전체14/영상8. 단위28/28·실제Chrome19/19·전체Chrome1648/1648 실패/생략/취소0·공식7/Dune0·독립C/I/M0·19해시/diff통과. 제품f07b2c8/Actions41670977196 success·dpl_CjPuFEvf8b6zLsSNaFZQ9paq2Q7V READY/동일SHA/alias·HTML/JS/CSS/이미지200·영상6Range206·격리운영재생/loop6/6. 기존player/학습/카메라/native/API·실제설정 불변/새설치없음. 애니메이션풍 후속 상태는 위 별도 항목을 따른다. [검증](../docs/verification/2026-11-04-live-video-expansion.md).
+
+## 영상 화질 해상도 표시
+
+- 운영배포 완료: 자동/720p/1080p·미지원 비활성/720p 설명·구형high 실제해상도 요약/초안정규화. 화질7/7·Chrome1636/1636 실패/생략/취소0·공식7/Dune0·독립C/I/M0·3해시/diff/docs통과. 제품dae832d·Actions41658560298 success·dpl_Hvq1xkUxM7zkCcP5n3v5nW2QDoJ1 READY/동일SHA/운영alias·HTML/JS/CSS200·새표시확인. 저장enum/player/영상/학습·카메라·native/실제설정 불변. [검증](../docs/verification/2026-11-03-resolution-labels.md).
+
+## 영상 배경 화질 선택
+
+- 운영배포 완료: 구름·도시HD/파도SD, PC1080p·모바일720p/자동·절약·고화질·최대720표시/구형설정 호환. Chrome1634/1634 실패/생략/취소0·공식7/Dune0·독립C/I/M0·9해시/diff/docs통과. 제품666faf1·Actions41637301396 success·dpl_9XydhnZgWJiAP1P6PkmRP53rViq6 READY/동일SHA/운영alias·HTML/JS200·새영상206·격리운영재생3/3. 실제모델/합성카메라 warm720/1080 누락0·11.3~23.2ms·stream유지, 기존cold3~4.25초 별도. 실제학습/설정/native/API 조작없음. 물리카메라/장시간배터리 수용은 별도다. [검증](../docs/verification/2026-11-03-video-quality.md).
+
+## 감성 영상 테마 확장
+
+- 운영배포 완료: 승인3종 별빛 밤하늘·비 오는 창가·도시의 밤 추가, 영상5개/전체11개. 기존8개/현재설정/학습·카메라·native/서버 불변. 최종Chrome1621/1621 실패/생략/취소0·공식7/Dune0·독립C/I/M0·21해시/diff통과. 제품2929276·Actions41485061586 success·dpl_hLkBKoQbp7oqNZneccd4rd9d4gti READY/동일SHA/운영alias·웹/이미지200·영상3개206·격리운영영상 재생3/3. 새APK/EXE·실계정·기록·현재설정 조작 없음. 설치Windows/Android 직접수용은 별도다. [검증](../docs/verification/2026-11-03-emotional-video-themes.md).
+
+## 라이브 배경 구분·미니 진입 제거·체감 움직임
+
+- 운영배포 완료: 기존6개 유지·흐르는 구름/해변의 파도 영상2개·종류 사전표시·지연 다운로드·실제 재생/실패/재시도·미니 진입 제거/정상복구 보존. 카메라/학습/인증/설정 스키마 불변. 최종Chrome1611/1611 실패/생략/취소0·공식7/Dune0·독립C/I/M0·17해시/diff통과. 제품786d1a4·Actions41460028405 success·dpl_Aw4mxhxE2S4qAtNfvKHmShQem2kB READY/동일SHA/운영alias·HTML/JS/CSS/포스터200·영상206·격리Chrome운영영상 재생2/2. 새APK/EXE·실제계정·학습·현재설정 변경 없음. Windows/Android 설치앱 실제수용은 별도다. [검증](../docs/verification/2026-11-02-video-live.md).
+
+## 공부 시작·풍경 자동 진입
+
+- 운영배포 완료: 주 시작/재개 성공 뒤 풍경, 실행 중 같은 위치에서 세션 무변경 재진입, 별도 풍경 버튼 제거. route/계정/취소/확정 전 실패의 표시 intent 폐기·불확실 재확인 유지·라이트 차콜 paint 보정. 기존학습·카메라/배경 저장·native 정책 불변. 최종Chrome1603/1603 실패/생략/취소0·공식7/Dune0·독립C/I/M0·4해시/diff통과. 제품b4c8748·Actions41398177995 success·dpl_FPqPCj2xkfgxp1NkpTyiT24uatvA READY/정확SHA/운영alias·HTML/새JS/CSS200. 새APK/EXE·실제 학습/설정 쓰기 없음. [검증](../docs/verification/2026-11-02-scenic-start.md).
+
+## Windows 테마 재실행 조사
+
+- 부분·원인 미확정: 테마 전용 localStorage·persist 파티션과 초기 복원 경로 확인, 단위13/13·격리Electron45 cold2/2 통과. 실제0.1.10에서 별빛 바다/라이브 적용 뒤 원래 시스템·새벽 도시/정적/잔잔하게로 원복. 실제 트레이 종료는 도구 target 부재로 사용자 동작 대기, 설치앱 cold 수용은 미실행이다. 풍경 진입 상태는 비영속이며 배경 선택 소실과 구분한다. 제품/기록·설치·배포 변경 없음. [조사](../docs/verification/2026-11-02-theme-restart-diagnosis.md).
+
+## 화면 순서 편집 이탈
+
+- 운영배포 완료: 뒤로 가기·다른 페이지·오늘 하위 탭·같은 오늘 링크에서 편집/드래그를 닫고, 미저장 상태는 저장 순서로 복귀한다. 새 탭 modifier 클릭은 현재 초안을 유지한다. today/focus 진입·명시적 저장 유지. 최종Chrome1591/1591(실패/생략/취소0)·공식7/Dune0·독립재검토C/I/M0·3파일해시/diff통과. 제품f9f6212·Actions41388475177 success·dpl_9iNdk4ybcAAjZKXUo9bwgn1Bfejv READY/정확SHA/운영alias·HTML/새JS/CSS200. 실제 학습/설정 서버 쓰기·새APK/EXE 없음. [검증](../docs/verification/2026-11-02-layout-editor-exit.md).
+
+## 풍경 집중·Windows 미니 창
+
+- 후속 메뉴/설정 개선 운영배포 완료: 햄버거 hover·focus·touch/기존7경로·단계별 Escape·미니 복원 실패 복구, 라이브 직접 조작/실제 재생 상태, 공통 토큰 설정창·modal paint 교정. 최종Chrome1583/1583(실패/생략/취소0)·공식7/Dune0·독립재검토C/I/M0·5파일해시동일/diff통과. 제품8b8dc02·Actions41384495691 success·dpl_J1sjugA4G7rLh5GG1jfjDez92V9j READY/정확SHA/운영alias·HTML/새JS/CSS200/직후오류그룹없음. 새APK/EXE/native·DB·학습정책 변경 없음. [후속 검증](../docs/verification/2026-11-02-scenic-menu.md).
+
+- 구현·웹 배포/설치본 준비 완료: 기존 Dashboard/타이머/카메라 DOM 유지·수동 풍경 전환·할 일/상태/동일 시간/기존 시작·휴식·재개·종료 콜백·모달/초점/스크롤 보존. 고정은 사용자 승인으로 보류, 미니는 같은 BrowserWindow/webContents 축소·확대·정상 bounds/최대화 복원만 제공한다.
+- 0.1.9 보존 통합 d39e06a: 원본40/웹332 해시 유지, native164/164·Electron34/34·독립C0/I0/M0. 제품43b563e: 최종Chrome1575/1575·native168/168·Electron35/35·실패/생략/취소0, official7/Dune0·최종검토C0/I0/M0·16해시동일. 최초병행14실패/2취소와 수정/순차통과는 구분한다.0.1.10 NSIS/ASAR13파일동일·identity/공개config·NotSigned·미설치. 배포b837be6/Actions41329328044 success·dpl_AaJ5EgdDBe6S8UsVEqPEbBuVVsfH READY/정확SHA/alias·HTML/새JS/CSS/배경5개200·직후error/fatal그룹없음.
+- 실제 학습/서버/DB·실카메라·설치 앱은 조작하지 않는다. 합성 fixture 결과를 실계정/물리 수용으로 쓰지 않는다. [PRD](prd-scenic-study.md)·[검증](../docs/verification/2026-11-01-scenic-study.md).
+
+## 중립 차콜·공부 배경 테마
+
+- 편집 정렬 보완 운영 반영 완료: 패널 기준 3/2/1열·한글 단어 유지·제목 아래 동일 폭 옵션 grid·모서리 체크. RED→전체 Chrome1559/1559·최종정렬16/16(중복 합산 안 함)·실패/생략/취소0·독립C/I/M0·verify7/Dune0. ac3ef7c push·Actions41235235666 success·dpl_5TvVYovr7xPhNnQZXggS9XD8oJW7 READY/정확SHA/alias·HTML/JS/CSS200·새 코드 확인. 학습/인증/API/native·설치파일 불변. [정렬 검증](../docs/verification/2026-11-01-theme-editor-alignment.md).
+- 상태: 운영 배포 완료. 6종 정적·라이브2/강도/일시정지·기기 저장/초안/포커스·OS/숨김/비활성 제어. 단위19/19·최종mounted217/217+나머지1326=1543개 대조(최초 pending 검사1실패 구분), verify7/Dune0·독립C0/I0/M0. c29ec20/Actions41195558979 success·dpl_388xRSPwnZrEVMJMHzJv7r1EGaF2 READY/정확SHA/alias·HTML/JS/CSS/자산10개200/해시일치. [출시 검증](../docs/verification/2026-10-31-study-themes.md).
+- 실제 기기: Android16/0.2.4 무초기화·비/별빛 실제 화면 변화·pause/재개·앱 COLD·시스템/차콜/정적/잔잔하게 원복 PASS(이번 후속에서 미조작). Windows0.1.9는 사용자 창 앞으로 열기 후 입력 정상화·최신2열/동일 폭 옵션·재로드 로그인/테마 유지·비 라이브 pause/재개·별빛 적용·**시스템/새벽 도시/정적/잔잔하게 원복 완료**. Windows 독립 픽셀/timeline/프로세스 COLD와 물리 GPU·배터리·native 상단은 별도. 공부/종료 버튼·카메라·DB 직접 조작은 없지만 재로드 중 기존 회복 정책의 자동 종료 안내가 관찰돼 서버 세션 무변경으로 단정하지 않는다. 단위19/19·docs/diff 통과, 문서만 갱신·추가 제품 배포 없음. [기기 수용](../docs/verification/2026-11-01-theme-device-acceptance.md).
 
 ## 다크 모드 내부 텍스트 대비
 
@@ -87,3 +164,9 @@
 ## 보관
 
 상한을 초과한 이전 상태·날짜별 상세 이력은 [progress202610 보관본](archive/progress-202610.md)에 바이트 동일 보관했다. 최신 운영 통합 근거는 [2026-10-11 GitHub 동기화](verification/2026-10-11-github-sync.md)이며 과거 대기 항목은 이후 완료 기록과 함께 해석한다.
+
+## 2026-10-31 main 통합
+
+- 사용자 승인에 따라 기존 main `9f381ab`에 `fix/study-dashboard-clarity` source `d83dabb`의 18개 커밋을 fast-forward했다. 공통 UI·설정·다크 모드·계획표/기록/숲·피드 표시 및 기본 Windows 앱 소스를 포함한다.
+- README 3개 언어에 기능·기기별 화면 설정·실제 합성 캡처·Windows 소스/설치판 차이를 반영했다. 기존 로컬 DUNE 변경은 백업·분리했으며 이번 커밋에 섞지 않는다.
+- 로컬 검증 완료: desktop 문법11파일·119/119, DUNE296파일/616간선·위반0·필수5명령 exit0, Edge 타입/23개 검사·README54이미지/3언어 통과. 푸시·원격 CI/배포는 이어서 확인한다: [실행 기록](../docs/verification/2026-10-31-main-integration.md). 기존 운영 코드와 제품 소스는 동일하며 새 운영 DB·Edge·설치 파일은 변경하지 않는다.

@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 
+
 const module = await import('../src/desktopAuth.mjs').catch(() => ({}));
 const callback = 'studyroom-desktop://auth/callback';
 const authorize = 'https://project.supabase.co/auth/v1/authorize?provider=google&redirect_to=studyroom-desktop%3A%2F%2Fauth%2Fcallback&code_challenge=challenge&code_challenge_method=s256';
@@ -36,6 +37,16 @@ function auth(deps) {
   assert.equal(typeof module.createDesktopAuth, 'function', 'desktop auth feature must exist');
   return module.createDesktopAuth(deps);
 }
+
+test('OAuth diagnostic stages expose preparation and exchange boundaries but no credentials', async () => {
+  const deps = fixture();
+  const stages = [];
+  const client = auth({ ...deps, onDiagnostic: stage => stages.push(stage) });
+  await client.signInProvider('google');
+  await client.handleCallback('studyroom-desktop://auth/callback?code=synthetic-private-code');
+  assert.deepEqual(stages, ['provider.started', 'provider.opened', 'callback.pending-valid', 'callback.intent-consumed', 'callback.exchange-started']);
+  client.dispose();
+});
 
 test('native status verifies the user and returns no tokens', async () => {
   const deps = fixture();
@@ -134,6 +145,30 @@ test('PKCE opens only the configured authorize endpoint with exact redirect', as
     const blocked = auth(bad);
     await assert.rejects(blocked.signInProvider('google'), { message: 'AUTH_FAILED' });
     assert.equal(bad.calls.some(call => call[0] === 'open'), false);
+    blocked.dispose();
+  }
+});
+
+test('account-picker authorize option accepts only select_account on Google and rejects tampering', async () => {
+  const good = fixture();
+  const selected = `${authorize}&prompt=select_account`;
+  good.supabase.auth.signInWithOAuth = async () => ({ data: { url: selected }, error: null });
+  const client = auth(good);
+  assert.deepEqual(await client.signInProvider('google'), { opened: true });
+  assert.equal(good.calls.find(call => call[0] === 'open')[1], selected);
+  client.dispose();
+  for (const [provider, url] of [
+    ['google', `${authorize}&prompt=consent`],
+    ['google', `${authorize}&prompt=`],
+    ['google', `${selected}&prompt=select_account`],
+    ['github', `${authorize.replace('provider=google', 'provider=github')}&prompt=select_account`],
+  ]) {
+    const bad = fixture();
+    bad.supabase.auth.signInWithOAuth = async () => ({ data: { url }, error: null });
+    const blocked = auth(bad);
+    await assert.rejects(blocked.signInProvider(provider), { message: 'AUTH_FAILED' });
+    assert.equal(bad.calls.some(call => call[0] === 'open'), false);
+    assert.equal(bad.values.has('desktop-pkce-pending-v1'), false);
     blocked.dispose();
   }
 });

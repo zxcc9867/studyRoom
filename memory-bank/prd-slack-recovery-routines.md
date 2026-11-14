@@ -1,4 +1,12 @@
-## 2026-10-01 Update: Three same-day camera absence warnings
+## 2026-11-07 Update: Three distinct camera absence episodes, once per study day
+
+- Approved replacement for the warning-count rule: qualify a distinct uninterrupted server-observed absence after at least five minutes. A long absence counts once regardless of warning repeats; a separate five-minute episode still qualifies during a warning cooldown.
+- On the third qualifying episode, create one camera recovery per user and session study day (`study_sessions.local_date`, existing 04:00 rule). Existing camera recovery in any status, including submitted, prevents replacement. Missed-attendance recovery is independent.
+- The accepted camera heartbeat owns qualification and creation in one transaction, with a private episode key and per-user/day serialization. The warning Edge reads and delivers an existing pending request; if no warning is due, the app can still see it on its normal sync and existing Slack follow-up remains available.
+- Count prospectively, without backfilling old warnings or editing existing learning, warning, pending, or submitted rows. Preserve camera recognition, 5-minute warning, 10-minute warning cooldown, 10-minute time exclusion, and pause/ownership rules.
+- Rollout: delivery-only Edge first, then additive DB migration that fences direct legacy service-role camera inserts, then existing production verification. Rollback is a forward migration disabling the new heartbeat trigger while retaining records and the legacy-write fence; do not reinstate the old warning-count creator by accident.
+
+## 2026-10-01 historical rule (superseded for camera recovery)
 
 - The user explicitly changed the camera recovery threshold from two to three or more same-day `absence_warning` events.
 - Count warnings for the session owner's `local_date`; exclude other owners, other dates, and `camera_required_warning` events.
@@ -33,7 +41,7 @@ Students using the Slack notification channel who want stronger accountability a
 ## 3. Goals
 
 - Create a pending recovery request after missed attendance.
-- Create a pending recovery request after the third same-day camera absence warning.
+- Create at most one pending camera recovery after the third qualifying distinct episode in a study day.
 - Send a Slack button that opens a recovery modal.
 - Show an in-app recovery modal when a logged-in user opens the app with blocking pending recovery requests.
 - Treat every pending recovery request as blocking, including same-day missed-attendance requests.
@@ -61,7 +69,7 @@ Students using the Slack notification channel who want stronger accountability a
 
 ### Normal Flow
 
-1. Attendance is missed or the third same-day camera absence warning is recorded.
+1. Attendance is missed or the third qualifying distinct absence episode is recorded in a study day.
 2. Supabase creates a pending recovery request.
 3. Slack receives a message with a `회복 루틴 작성` button.
 4. The web app also opens a recovery routine modal after login when blocking pending requests exist.
@@ -120,7 +128,7 @@ Students using the Slack notification channel who want stronger accountability a
 ## 10. Success Metrics
 
 - Missed attendance creates exactly one pending recovery request per user/date/trigger.
-- The third same-day absence warning creates exactly one pending camera recovery request.
+- The third same-day qualifying episode creates exactly one camera recovery; repeated warnings or later episodes do not recreate it.
 - Pending recovery blocks web and RPC session starts, including same-day missed-attendance recovery.
 - Pending recovery stops an already-active web session when the app detects it.
 - Slack modal submission creates one makeup todo, stores the pledge without a todo row, and unblocks study start.

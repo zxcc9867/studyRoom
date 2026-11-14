@@ -53,6 +53,8 @@ Personal MVP users who want to plan and visualize today's study tasks in either 
 
 ### Edge Cases
 
+- Leaving section-order editing via browser Back, another page, or a Today domain closes the transient editor without a profile write. Reopening starts from the saved order. Only explicit Save persists the layout; study records and unrelated settings drafts are unchanged.
+
 - Todos without `start_time` or `end_time` stay in the untimed list.
 - Overnight todos such as `23:00-01:00` wrap across midnight on the wheel.
 - Overlapping timed todos show a dashed warning border and readable conflict details.

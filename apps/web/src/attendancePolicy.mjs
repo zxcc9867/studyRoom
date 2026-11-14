@@ -22,6 +22,20 @@ export function getAttendanceRuleLabel(dateKey, weekdayReminderTime = DEFAULT_WE
   )} 공부 목표`;
 }
 
+export function getAttendanceStartLabel(attendance, sessions, nowMs = Date.now()) {
+  if (attendance?.status !== "present") return null;
+  const reminderMs = Date.parse(attendance.reminder_at);
+  if (!Number.isFinite(reminderMs)) return null;
+  let firstStartMs = Infinity;
+  for (const session of sessions) {
+    if (session.local_date !== attendance.local_date || !["active", "completed"].includes(session.status)) continue;
+    const startMs = Date.parse(session.started_at);
+    if (Number.isFinite(startMs) && startMs <= nowMs) firstStartMs = Math.min(firstStartMs, startMs);
+  }
+  if (!Number.isFinite(firstStartMs)) return null;
+  return firstStartMs < reminderMs + 15 * 60_000 ? "정시 시작" : "늦게 시작";
+}
+
 export function formatAttendanceGoalHours(goalSeconds) {
   const hours = goalSeconds / 3600;
   return Number.isInteger(hours) ? `${hours}시간` : `${hours.toFixed(1)}시간`;

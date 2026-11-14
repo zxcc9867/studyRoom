@@ -31,50 +31,6 @@ type AdminClient = {
 const recoverySelect =
   "id,user_id,local_date,covered_start_date,covered_end_date,covered_missed_days,trigger_type,status,slack_channel_id,slack_message_ts,followup_sent_at,created_at";
 
-export async function createRecoveryRequest(
-  admin: AdminClient,
-  input: {
-    userId: string;
-    localDate: string;
-    triggerType: RecoveryTriggerType;
-  },
-) {
-  if (input.triggerType === "missed_attendance") {
-    const result = await ensureMissedAttendanceRecovery(admin, input.userId, input.localDate);
-    if (!result.request) throw new Error("Attendance recovery is no longer required");
-    return { request: result.request, created: result.created };
-  }
-  const existing = await loadPendingRecoveryRequest(admin, input);
-
-  if (existing) {
-    return { request: existing, created: false };
-  }
-
-  const { data, error } = await admin
-    .from("study_recovery_requests")
-    .insert({
-      user_id: input.userId,
-      local_date: input.localDate,
-      trigger_type: input.triggerType,
-      covered_start_date: input.localDate,
-      covered_end_date: input.localDate,
-      covered_missed_days: 1,
-      status: "pending",
-    })
-    .select(recoverySelect)
-    .single();
-
-  if (error) {
-    const retry = await loadPendingRecoveryRequest(admin, input);
-    if (retry) {
-      return { request: retry, created: false };
-    }
-    throw error;
-  }
-
-  return { request: data as RecoveryRequestRow, created: true };
-}
-
 // Cron's earlier missed result is only a candidate. Recheck it under a database lock
 // so an intervening attendance correction cannot create a stale blocking request.
 export async function ensureMissedAttendanceRecovery(
@@ -219,7 +175,7 @@ export async function sendPendingRecoveryFollowups(admin: AdminClient, nowIso: s
   return results;
 }
 
-async function loadPendingRecoveryRequest(
+export async function loadPendingRecoveryRequest(
   admin: AdminClient,
   input: {
     userId: string;
@@ -274,7 +230,7 @@ function buildRecoveryBlocks(
     ? "사유와 보충 계획을 제출해야 다음 공부 세션을 시작할 수 있습니다."
     : request.trigger_type === "missed_attendance"
       ? "사유와 보충 계획을 제출해야 다음 공부 세션을 시작할 수 있습니다."
-      : "오늘 카메라 자리 비움 경고가 3회 이상 발생했습니다. 회복 루틴을 작성해야 다음 세션을 시작할 수 있습니다.";
+      : "카메라 자리 비움 기록으로 회복 루틴이 필요합니다. 작성하면 다음 세션을 시작할 수 있습니다.";
 
   const attendanceCoverage = request.trigger_type === "missed_attendance" && request.covered_missed_days > 1
     ? ` 누적 결석 ${request.covered_missed_days}일(${request.covered_start_date} ~ ${request.covered_end_date})을 한 번에 정리합니다.`

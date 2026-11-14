@@ -36,8 +36,11 @@ export function createDesktopPolicy({ origin = DEFAULT_ORIGIN } = {}) {
     if (!keys(value, ['id', 'action', 'payload']) || !text(value.id) || !record(value.payload)) fail('BAD_REQUEST');
     const { id, action, payload } = value;
     switch (action) {
-      case 'info': case 'authStatus': case 'webTicket': case 'signOut': case 'cameraConsent': case 'openCameraSettings':
+      case 'info': case 'authStatus': case 'webTicket': case 'signOut': case 'cameraConsent': case 'openCameraSettings': case 'windowPresentationStatus':
         if (!keys(payload, [])) fail('BAD_REQUEST');
+        break;
+      case 'windowPresentation':
+        if (!keys(payload, ['mode']) || !['normal','mini'].includes(payload.mode)) fail('BAD_REQUEST');
         break;
       case 'sendCode':
         if (!keys(payload, ['email']) || !email(payload.email)) fail('BAD_REQUEST');

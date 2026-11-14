@@ -219,8 +219,9 @@ export function buildRangeMetrics(range, sessions, todos, attendanceDays, reflec
 }
 
 function average(values) {
-  if (values.length === 0) return null;
-  return Math.round((values.reduce((sum, value) => sum + Number(value || 0), 0) / values.length) * 10) / 10;
+  const scores = values.filter(value => typeof value === "number" && Number.isFinite(value) && value >= 1 && value <= 5);
+  if (scores.length === 0) return null;
+  return Math.round((scores.reduce((sum, value) => sum + value, 0) / scores.length) * 10) / 10;
 }
 
 function formatActionPlanDate(dateKey) {

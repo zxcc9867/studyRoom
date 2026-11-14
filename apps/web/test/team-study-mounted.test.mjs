@@ -103,7 +103,7 @@ supabase.rpc=(name,args)=>{
   state.team.connection=null;state.team.members=state.team.members.map(m=>m.user_id==='owner'?{...m,state:'ready',title:null}:m);
   return Promise.resolve({data:state.sessions[0],error:null});
  }
- if(name==='extend_study_session_lease'){state.calls.push({name,args});const current=state.sessions[0],deadline=Math.min(Math.max(Date.parse(current.lease_expires_at),Date.now())+3600000,Date.now()+7200000);state.sessions[0]={...current,lease_expires_at:new Date(deadline).toISOString()};return Promise.resolve({data:state.sessions[0],error:null});}
+ if(name==='extend_study_session_lease'){state.calls.push({name,args});const current=state.sessions[0],deadline=Math.min(Math.max(Date.parse(current.lease_expires_at),Date.now())+3600000,Date.now()+7200000);state.sessions[0]={...current,lease_expires_at:new Date(deadline).toISOString()};const result={data:state.sessions[0],error:null},q={abortSignal(signal){state.leaseSignal=signal;return q;},then(resolve,reject){return Promise.resolve(result).then(resolve,reject);}};return q;}
  if(!name.startsWith('team_study_')){const result=originalRpc(name,args);if(name!=='confirm_actual_study_action')return result;const q={abortSignal(){return q;},then(resolve,reject){return Promise.resolve(result).then(value=>{if(!value.error){state.autoTeam();signal?.({new:{revision:2}});}return value;}).then(resolve,reject);}};return q;}
  return (async()=>{
  state.calls.push({name,args});
@@ -320,6 +320,7 @@ for(const width of [375,1440])mounted(`team operational lease and DND warnings r
  await warning.getByRole('button',{name:'+1시간 연장',exact:true}).click();await page.waitForFunction(before=>fixture.sessions[0].lease_expires_at!==before,before);await warning.getByText(/세션 유지 시간이/).waitFor({state:'detached'});
  const lease=page.locator('.session-lease');await lease.waitFor();assert.equal(await lease.isVisible(),true);assert.equal(await lease.getByRole('button',{name:'+1시간 연장',exact:true}).isEnabled(),true);
  assert.deepEqual(await page.evaluate(()=>fixture.calls.filter(c=>c.name==='extend_study_session_lease').map(c=>c.args)),[{p_session_id:'session',p_extension_minutes:60}]);assert.equal(await page.evaluate(()=>fixture.sessions[0].ended_at),null);assert.deepEqual(await page.evaluate(()=>fixture.calls.filter(c=>['pause_actual_study_session','confirm_actual_study_action','end_study_session','complete_study_session'].includes(c.name)).map(c=>c.name)),[]);
+ assert.equal(await page.evaluate(()=>fixture.leaseSignal instanceof AbortSignal&&!fixture.leaseSignal.aborted),true,'the SDK-compatible lease request accepts the current abort signal');
  await warning.getByText('휴대폰 집중 모드 · 휴대폰 연결 테스트 오류',{exact:true}).waitFor();await capture(page,'lease-extended',width);
 }));
 

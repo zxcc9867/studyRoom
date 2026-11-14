@@ -445,17 +445,6 @@ test("attendance cron creates missed recovery requests and one follow-up", () =>
   assert.match(source, /followup_sent_at/);
 });
 
-test("camera warning creates recovery request on repeated absence warnings only", () => {
-  const source = readFileSync("supabase/functions/camera-presence-warning/index.ts", "utf8");
-
-  assert.match(source, /claim\.absence_warning_count/);
-  assert.match(source, /absenceWarningCount >= 3/);
-  assert.match(source, /triggerType:\s*"camera_absence_repeat"/);
-  assert.match(source, /sendRecoveryRequestSlackMessage/);
-  assert.doesNotMatch(source, /camera_required_warning[\s\S]{0,240}camera_absence_repeat/);
-});
-
-
 test("schedule extension migration shifts selected and later incomplete timed todos", () => {
   const sql = readLatestMigrationContaining(/create or replace function public\.extend_todo_schedule/i);
 

@@ -14,7 +14,7 @@ function environment({saved=null,dark=false,readDenied=false,writeDenied=false}=
 test('appearance uses saved preference before OS and writes only its device-local key',()=>{
  const e=environment({saved:'light',dark:true}),c=createAppearanceController(e.host);
  assert.deepEqual(c.getSnapshot(),{preference:'light',theme:'light',persistent:true});
- c.setPreference('dark');assert.equal(e.root.dataset.studyTheme,'dark');assert.equal(e.root.style.colorScheme,'dark');assert.equal(e.meta.content,'#151d19');
+ c.setPreference('dark');assert.equal(e.root.dataset.studyTheme,'dark');assert.equal(e.root.style.colorScheme,'dark');assert.equal(e.meta.content,'#111318');
  assert.deepEqual([...e.values],[['study-room-appearance','dark']]);
 });
 test('system appearance follows media changes but explicit selection and unrelated storage win',()=>{

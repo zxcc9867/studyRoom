@@ -1,0 +1,61 @@
+import {useId, useLayoutEffect, useRef, useState, useSyncExternalStore} from 'react';
+import {atmosphereKind, atmospherePlayback, atmosphereThemes, atmosphereVideoSource, getAtmosphereController, type AtmospherePreferences} from './atmosphere.mjs';
+
+const qualityLabels = {auto: '자동', saver: '720p', high: '1080p'} as const;
+
+export default function AtmosphereSettings({onApply, saving = false}: {onApply?: (value: AtmospherePreferences, backgroundChanged: boolean) => void; saving?: boolean} = {}) {
+  const controller = getAtmosphereController(window);
+  const current = useSyncExternalStore(controller.subscribe, controller.getSnapshot);
+  const [draft, setDraft] = useState<AtmospherePreferences | null>(null);
+  const id = useId();
+  const entry = useRef<HTMLButtonElement>(null);
+  const editor = useRef<HTMLFieldSetElement>(null);
+  const originalBackground = useRef(current.background);
+  const editing = draft !== null;
+  useLayoutEffect(() => { if (editing) editor.current?.querySelector<HTMLInputElement>('input:checked')?.focus(); }, [editing]);
+  function closeEditor() { setDraft(null); entry.current?.focus(); }
+  const currentTheme = atmosphereThemes.find(theme => theme.id === current.background)!;
+  const draftTheme = atmosphereThemes.find(theme => theme.id === draft?.background);
+  const liveAvailable = draftTheme?.live;
+  function openEditor() {
+    originalBackground.current = current.background;
+    setDraft({background: current.background, motion: current.motion, intensity: current.intensity, paused: current.paused,
+      quality: currentTheme.video && !currentTheme.videoSources?.[1080] && current.quality === 'high' ? 'saver' : current.quality});
+  }
+  return <section className="atmosphere-settings" aria-label="배경 테마">
+    <div className="settings-edit-row">
+      <div><h3>배경 테마</h3><p className="settings-current-value atmosphere-current">{currentTheme.name} · {current.motion === 'live' ? atmosphereKind(currentTheme) : '정적 이미지'}</p>{currentTheme.video && current.motion === 'live' && <p className="atmosphere-quality-summary">화질: {current.quality === 'auto' ? '자동 · ' : ''}{current.videoResolution}p</p>}</div>
+      <button ref={entry} type="button" className="secondary" aria-label="배경 테마 변경" aria-expanded={editing} aria-controls={`${id}-editor`} onClick={() => draft ? closeEditor() : openEditor()}>{editing ? '닫기' : '변경'}</button>
+    </div>
+    {draft && <fieldset ref={editor} id={`${id}-editor`} className="settings-inline-editor atmosphere-editor" onKeyDown={event => {if (event.key === 'Escape') {event.preventDefault(); event.stopPropagation(); closeEditor();}}}>
+      <legend>배경 테마 편집</legend>
+      <div className="atmosphere-options">{atmosphereThemes.map(theme => <label key={theme.id} className="atmosphere-option">
+        <input type="radio" aria-label={theme.name} aria-describedby={`${id}-${theme.id}-kind`} name={`${id}-background`} value={theme.id} checked={draft.background === theme.id} onChange={() => setDraft({...draft, background: theme.id, motion: theme.video ? 'live' : theme.live ? draft.motion : 'static', paused: false, quality: theme.video && !theme.videoSources?.[1080] && draft.quality === 'high' ? 'saver' : draft.quality})} />
+        <span className={`atmosphere-thumbnail atmosphere-thumbnail--${theme.id}`} aria-hidden="true">{theme.id !== 'charcoal' && <img src={theme.thumbnail ?? `/themes/${theme.id}-thumb.webp`} alt="" loading="lazy" />}</span>
+        <span className="atmosphere-option-name">{theme.name}<span className="atmosphere-selected" aria-hidden="true">{draft.background === theme.id ? '✓' : ''}</span></span>
+        <span className="atmosphere-option-kind" id={`${id}-${theme.id}-kind`}>{atmosphereKind(theme)}</span>
+      </label>)}</div>
+      {liveAvailable && <>
+        <fieldset className="atmosphere-controls"><legend>{draftTheme?.video ? '영상 재생' : '이미지 효과'}</legend>
+          <div className="atmosphere-control-options">{(['static', 'live'] as const).map(value => <label key={value}><input type="radio" name={`${id}-motion`} checked={draft.motion === value} onChange={() => setDraft({...draft, motion: value, paused: false})} /><span>{draftTheme?.video ? value === 'live' ? '영상 라이브' : '정적 이미지' : value === 'live' ? '켜기' : '끄기'}</span></label>)}</div>
+        </fieldset>
+        {draft.motion === 'live' && <fieldset className="atmosphere-controls"><legend>{draftTheme?.video ? '재생 속도' : '움직임 강도'}</legend>
+          <div className="atmosphere-control-options">{(['subtle', 'normal'] as const).map(value => <label key={value}><input type="radio" name={`${id}-intensity`} checked={draft.intensity === value} onChange={() => setDraft({...draft, intensity: value})} /><span>{draftTheme?.video ? value === 'subtle' ? '0.75배' : '1배' : value === 'subtle' ? '잔잔하게' : '보통'}</span></label>)}</div>
+        </fieldset>}
+      </>}
+      {draftTheme?.video && draft.motion === 'live' && <>
+        <fieldset className="atmosphere-controls"><legend>영상 화질</legend>
+          <div className="atmosphere-control-options">{(['auto', 'saver', 'high'] as const).filter(value => value !== 'high' || draftTheme.videoSources?.[1080]).map(value => <label key={value}><input type="radio" name={`${id}-quality`} aria-label={qualityLabels[value]} checked={(draft.quality ?? 'auto') === value} onChange={() => setDraft({...draft, quality: value})} /><span>{qualityLabels[value]}</span></label>)}</div>
+        </fieldset>
+        <p>자동은 지원 범위 안에서 PC 1080p · 모바일 720p로 재생합니다.</p>
+        <p>선택 화질: {atmosphereVideoSource(draftTheme, draft.quality, current.mobile)?.resolution}p</p>
+        {!draftTheme.videoSources?.[1080] && <p id={`${id}-quality-limit`}>이 영상의 최대 화질은 720p입니다.</p>}
+      </>}
+      <p>{onApply ? '배경은 같은 공부 세션에 공유됩니다. 재생 설정은 이 기기에만 적용됩니다.' : '이 기기에 적용됩니다.'}{draft.motion === 'live' && (draftTheme?.video ? ' 영상은 적용 후 소리 없이 반복 재생됩니다.' : ' 이미지에 효과를 더하며 영상은 아닙니다.')}</p>
+      <div className="settings-actions"><button type="button" className="secondary" onClick={closeEditor}>취소</button><button type="button" className="primary" disabled={saving} onClick={() => {if (onApply) onApply(draft, draft.background !== originalBackground.current); else controller.setPreferences(draft); closeEditor();}}>적용</button></div>
+    </fieldset>}
+    {current.motion === 'live' && <div className="atmosphere-playback"><span role="status">{atmospherePlayback(current)}</span>{currentTheme.video && current.videoStatus === 'error' && <button type="button" className="secondary" onClick={()=>controller.retryVideo()}>영상 다시 시도</button>}<button type="button" className="secondary" aria-pressed={current.paused} onClick={() => controller.setScenePlayback({...current, paused: !current.paused})}>{current.paused ? '재생' : '일시정지'}</button></div>}
+    {currentTheme.video && <details className="atmosphere-credits"><summary>영상 출처</summary><p><a href={currentTheme.source} target="_blank" rel="noreferrer">{currentTheme.name}</a> · {currentTheme.author}{currentTheme.license && currentTheme.licenseUrl && <> · <a href={currentTheme.licenseUrl} target="_blank" rel="noreferrer">{currentTheme.license}</a></>}</p><p>{currentTheme.attribution ?? 'Wikimedia 파생 영상.'} {currentTheme.changes ?? '포스터 추출·화면 채움·무음·반복 및 재생 속도 조정.'}</p></details>}
+    {!current.persistent && <p role="status">배경은 적용했지만 기기에 저장하지 못했어요. 다시 열면 이전 설정으로 돌아갈 수 있어요.</p>}
+  </section>;
+}

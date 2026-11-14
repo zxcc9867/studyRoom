@@ -52,14 +52,22 @@ async function bootstrap() {
   const earlyCallbacks = captureEarlyCallbacks(app);
   await app.whenReady();
   try {
-    const [{ createClient }, { createEncryptedStorage, createSdkStorage }, { createDesktopAuth }, { createDesktopRuntime }, { publicConfig }, { createShellSettings }] = await Promise.all([
+    const [{ createClient }, { createEncryptedStorage, createSdkStorage }, { createDesktopAuth }, { createDesktopRuntime }, { publicConfig }, { createShellSettings }, { createAuthDiagnostics }, { createLoopbackCallback }] = await Promise.all([
       import('@supabase/supabase-js'), import('./src/desktopStorage.mjs'), import('./src/desktopAuth.mjs'),
       import('./src/desktopRuntime.mjs'), import('./scripts/prepare.mjs'),
       import('./src/desktopShellSettings.mjs'),
+      import('./src/desktopAuthDiagnostics.mjs'),
+      import('./src/desktopLoopback.mjs'),
     ]);
     const resources = path.join(__dirname, 'resources');
     const input = JSON.parse(await fs.readFile(path.join(resources, 'public-config.json'), 'utf8'));
     const config = publicConfig({ VITE_SUPABASE_URL: input.supabaseUrl, VITE_SUPABASE_ANON_KEY: input.supabaseAnonKey });
+    const diagnosticDirectory = path.join(app.getPath('userData'), 'diagnostics');
+    const recordAuthStage = createAuthDiagnostics({ write: async value => {
+      await fs.mkdir(diagnosticDirectory, { recursive: true });
+      await fs.writeFile(path.join(diagnosticDirectory, 'oauth-flow.json'), value, { encoding: 'utf8', mode: 0o600 });
+    } });
+    recordAuthStage('app.ready');
     const storage = createEncryptedStorage({ safeStorage: electron.safeStorage,
       ...createStorageIO(path.join(app.getPath('userData'), 'encrypted-auth')) });
     let auth, runtime;
@@ -68,7 +76,8 @@ async function bootstrap() {
       storage: sdkStorage, flowType: 'pkce', persistSession: true, detectSessionInUrl: false, autoRefreshToken: true,
     } });
     auth = createDesktopAuth({ supabase, storage, openExternal: url => electron.shell.openExternal(url),
-      onChange: () => runtime?.authChanged() });
+      createProviderCallback: createLoopbackCallback, onProviderComplete: () => runtime?.restoreAfterProvider(),
+      onChange: () => runtime?.authChanged(), onDiagnostic: recordAuthStage });
     const developmentOrigin = option('desktop-origin');
     const settingsPath=path.join(app.getPath('userData'),'shell-settings.json');
     const shellSettings=createShellSettings({read:()=>fsSync.readFileSync(settingsPath,'utf8'),write:value=>{
@@ -78,7 +87,7 @@ async function bootstrap() {
       finally{try{fsSync.rmSync(temp,{force:true});}catch{}}
     }});
     runtime = createDesktopRuntime({ electron, auth, storage,
-      shellSettings,
+      shellSettings, onAuthDiagnostic: recordAuthStage,
       preloadPath: path.join(__dirname, 'preload.cjs'), iconPath: path.join(resources, 'study-room-icon.png'),
       errorPath: path.join(__dirname, 'error.html'), build: require('./package.json').version,
       ...(developmentOrigin ? { origin: developmentOrigin, allowDevelopmentOrigin: true } : {}),

@@ -1,5 +1,122 @@
 # Troubleshooting
 
+## 공부 종료 뒤 풍경 화면에 예전 시작점이 표시됨 — 2026-11-14
+- 활성 세션이 없을 때 풍경 제목이 마지막 회고의 `next_action`을 사용했다. 기록이 남아 있는 정상 종료를 합성 Chrome에서 재현했다.
+- 풍경은 일치하는 활성 세션의 현재 할 일만 표시한다. 준비 상태에서는 중립 제목과 선택되지 않은 할 일 선택을 제공하되 기존 회복/카메라 게이트 및 회고는 유지한다.
+
+## 다른 할 일로 시작하면 풍경이 열리지 않음 — 2026-11-09
+- 기존 성공 처리에는 시작 표시 의도가 필요하지만 주 버튼만 이를 설정했다. ‘다른 할 일 선택’에서 세션이 생성된 뒤 풍경이 열리지 않는 것을 mounted Chrome으로 재현했다.
+- 오늘/집중의 직접 시작·재개 요청이 같은 의도를 설정하도록 통합했다. 취소·이동·서버 복원은 자동 진입하지 않는다. 같은 세션의 배경은 별도 읽기·쓰기로 동기화하며 카메라 담당 PC는 변경하지 않는다.
+
+## 완료 모달 작성 중 다른 기기에서 먼저 종료됨 — 2026-11-05
+- 증상: 원래 세션이 회고 없이 completed된 뒤 activeSession=null로 갱신되면, 남은 완료 초안의 재저장이 active-only guard에서 무동작이다. 회고 행 유무만으로는 응답 유실/원격 종료를 구분할 수 없다.
+- 복구 경계: 소유한 원래 세션의 상태와 회고 존재를 함께 읽고, completed/no-reflection을 명시 확인한 경우 같은 초안을 follow-up 생성으로 전환한다. 재확인만으로 쓰거나 새 활성 세션을 종료·재정산하지 않는다.
+- 최종 whole-feature 검토에서 재현 후76815b3으로 수정했다. 실제 App 원격 종료/초안·새 세션 보존48/48·전체Chrome1751/1751·최종재검토 통과. 운영 적용 상태는 docs/verification/2026-11-05-learning-continuity.md에서 확인한다.
+
+## Windows 대소문자·확장자 해석이 다른 UI 빌드 — 2026-11-05
+- LearningContinuity.tsx 뷰와 learningContinuity.mjs client가 함께 있을 때 extensionless ./LearningContinuity를 실제 Vite가 client로 해석했다. esbuild mounted 통과·tsc만으로는 배포 번들 성공이 보장되지 않았다.
+- 뷰만 LearningContinuityView.tsx로 명확히 구분하고 import를 갱신한다. 검증된 client/tsconfig/의존성은 바꾸지 않는다. 실제 npm.cmd run build와 같은 mounted 검사를 다시 실행해야 완료다. 최종 근거는 learning-continuity 검증 문서.
+
+## 제출한 카메라 회복이 다시 뜸 — 분석 2026-11-05
+- 운영 claim_study_camera_warning는 공부일 누적 경고 행을 세며 Edge24는>=3에서 요청한다. 같은 연속 미감지의5/15/25분 경고도 각각 센다. 배포 helper는 pending만 재사용해 submitted 후 다음 경고에 같은 날 새 pending을 만들 수 있다.
+- 실제 사례는 같은 camera 유형 제출 뒤 재생성이며 결석 요청 재개방이 아니다. 종료 전 생성된 요청이 endTimer/loadDashboard 후 자동 모달로 보일 수 있다. 서버 미감지는 물리 부재의 증거가 아니며 당시 영상/랜드마크를 저장하지 않아 자세 오탐은 미확정이다.
+- 기존 camera/upperBody/videoHealth24/24 및 합성 연속 미감지3경고 재현. 아직 수정/해제/재정산 없음. 중복 방지·독립구간 집계·감지확인 UX는 미승인 제안이며 docs/verification/2026-11-05-camera-recovery-analysis.md 참조.
+
+## 선택 점수 null과 날짜 이동 경합 — 2026-11-05
+- 기존 평균의 Number(value||0)는 미입력 null을0으로 섞는다. 새 optional 점수는 null 보존·유효 숫자1~5만 평균하고 과거 점수를 백필하지 않는다. 회고 한 행의 note/next_action을 재사용한다.
+- 날짜 이동은 legacy actual start(todo→session)와 종료(session→todo)가 공존한다. 짧은 session 쓰기 fence 이후 todo table/row는 NOWAIT로만 얻고55P03 때 원자 취소·사용자 재시도한다. UI는 초안/기록을 보존하고 자동 mutation 재시도를 하지 않는다. 단일 연결 PGlite는 실제 다중 연결 경합을 증명하지 못한다.
+- 독립 검토·전체Chrome1751/1751·공식7/Dune0 통과, 승인 후 운영 적용·기존8종 무결성 동일·웹READY/200 확인 완료. 최종 근거는 docs/verification/2026-11-05-learning-continuity.md를 따른다.
+
+## quality enum과 실제 지원 해상도를 혼동하는 표시 — 2026-11-03
+- 기존 high는 최고 제공해상도라720p 원본에서는720p다. 이를1080p 라벨로 단순 치환하면 미지원이 선택된 것처럼 보인다. 요약은실제resolution, 편집은지원해상도로 초안만 정규화한다.11/04후속 승인으로 비활성 대신 미지원1080p 선택을 숨기고 최대720p 안내는 유지한다.
+- 취소로기존high 저장값을 바꾸지 않는다. 명시 적용/테마선택에서만 확인한720p 초안을 저장한다.375/1440·지원테마 왕복·취소JSON보존/Apply·다운로드없음·학습보존을 실제UI로 검증한다.
+
+## 배포 목록과 열린 앱 문서·테마 종류 안내 불일치 — 2026-11-04
+- 증상: 운영JS에는 anime-sea가 있지만 실제 Windows 선택창에는 이전14종만 있었고 이미지효과에도 무음 영상 안내가 표시됐다. 코드 문자열 존재만으로 설치앱에 로드됐다고 답하면 원인을 놓친다.
+- 확인: 실제 앱 UIA 목록14/noanime → 사용자 공부·카메라 미사용/새로고침 승인 → Ctrl+R·설정 재진입15/별빛 바다와 유성. 로그인/기존별빛바다 유지, 실제테마 적용/학습기록 쓰기 없음. 캐시 삭제/재설치하지 않는다.
+- 수정: AtmosphereSettings의 unconditional 영상 안내를 현재 초안 종류/모드로 제한. 이미지효과 끄기/켜기와 영상 정적/라이브를 구분한다. 영상의 intensity는 실제 playbackRate0.75/1이므로 기능을 제거하지 않고 재생 속도로 표시한다.
+- 검증: settings/scenic375/1440·정적/영상 RED→GREEN6/6, 최종종류8+lease14=22/22, 초안 미다운로드/취소·기록·카메라 node/stream/track 보존. 제품75ab1da 배포 후 추가 승인 Ctrl+R로 실제앱15종/새 이미지효과 메뉴·안내 확인, 적용 없이 닫기·현재테마 동일. 목록/배포/실제 로드는 각각 확인한다. 근거 docs/verification/2026-11-04-theme-type-controls.md.
+- 전체의 baseline B포인터1실패는RPC검증전 nav hit interception/scroll불안정이었다. 같은소스단독1/1 통과·정확원인미확정. 격리시험은동일native버튼 focus/activeElement/Enter로 보강해22/22·B3반복 통과, 원포인터해결로 확대하지 않는다. 앱의focus/scroll코드는 변경하지 않았다.
+
+## 감성 영상의 반복 경계·중간 낮 장면 — 2026-11-04
+- 초기/중간/끝3프레임만 보면 snow 원본의 중간 낮 장면을 놓쳤다. 전구간4초 시트로 연속 밤26–46s를 찾고, lake의 검은끝도 제외했다.1초 tail→head dissolve로23/19/9초 무음루프를 만들었다.
+- 재발 방지: 원문 권리/자연해상도·전구간 시트·움직임/경계 표본·실제끝→처음 재생을 함께 검증한다. 영상형이라고 CSS/시간 속성만 확인하지 않는다. [근거](../docs/verification/2026-11-04-live-video-expansion.md).
+
+## 화질/카메라 병행 검사의 경로와 브라우저 값 직렬화 — 2026-11-03
+- 설정 탭으로 이동하면 기존 main.tsx 조건부 카메라 DOM이 사라진다. 이를 화질 교체의 카메라 중단으로 오판하지 않고 풍경 설정창의 실제 사용자 경로에서 동일 node/stream/track·프레임 진행을 대조한다. 기존 camera owner는 바꾸지 않는다.
+- VideoPlaybackQuality 객체는 직접 반환하면 prototype 값이 빠진다. totalVideoFrames/droppedVideoFrames를 명시적 수치로 반환한다. 재로드 뒤 기존 intent가 카메라를 자동 복원하면 인증창이 없을 수 있으므로 창 존재를 성공 조건으로 강제하지 않는다.
+- 제한 환경의 Chrome ERR_NETWORK_ACCESS_DENIED·node loopback EACCES·npm 네트워크 실패는 같은 명령을 허용된 실행에서 대조한다. 최초 실패 로그와 최종 검증을 구분하고 timeout/실패를 삭제하지 않는다. 파도 SD 첫429 뒤 일정 간격의 재시도1회는 정상 수신됐다.
+
+## 테마 카드 has locator의 중복 범위 — 2026-11-03
+- 증상: 신규3종 mounted 검사가 영상 재생 전 카드 종류 조회에서 모두 false였다. 제품 카드 자체는 표시되고 있었다.
+- 원인/해결: editor로 이미 범위가 지정된 radio를 카드의 has에 다시 넣어 카드 내부에서 상위 group을 재탐색했다. 기존 방식처럼 page 기준 radio를 카드 내부 has로 상대조회한다. 제품 동작을 바꾸거나 표시 검사를 생략하지 않는다.
+- 확인: 같은6개 실제Chrome 검사가 종류/초안 무다운로드·재생/프레임 변화·일시정지·풍경/기록보존까지 통과. output/emotional-video-focused-final.log.
+
+## 라이브 재생 표시와 체감 움직임의 차이 — 진단 2026-11-02
+- 실제 Windows UI는 별빛 바다/라이브 재생 중이었다. 정적WebP 위4개 작은 별/반복영역의 opacity .054~.18와19초 유성만 움직이며 풍경 자체는 움직이지 않는다.
+- 합성 실제main/CSS 픽셀 비교에서704000중307(4초)/207(16.6초)만 변화했다. CSS상태 검사만으로 체감 애니메이션 완료를 주장하지 않는다. 실제 설치 앱 시간별 픽셀/GPU 장애를 확정한 것은 아니다.
+- 사용자는 실제 영상형을 선택했다. 기존 이미지 효과를 영상이라고 부르지 않고 별도 영상 라이브 카드를 제공한다. 장식 video는 카메라 ref/MediaStream과 분리하고 play 성공/playing 이벤트로 상태를 보고하며 실패 시 포스터+재시도를 제공한다. focus/reduced-motion 정지 정책은 유지한다. docs/verification/2026-11-02-live-motion-diagnosis.md 및 2026-11-02-video-live.md.
+
+## 공부 성공 후 풍경 자동 진입의 오래된 표시 의도 — 2026-11-02
+- 원인: RPC 직전의 현재 화면만 검사하면 카메라 준비 중 탭 왕복이 새 의도로 취급된다. 회복 취소의 의도가 남으면 별도 알림 시작이 이를 빌릴 수도 있다.
+- 해결: 주 버튼 클릭에서 표시 전용 사용자/revision intent를 만들고 성공 응답에서 동일 객체·사용자·현재 today/focus·revision을 확인한다. route/계정/각 준비창 취소·hard error는 폐기하고 불확실 요청의 재확인은 보존한다. 학습 mutation 정책은 변경하지 않는다.
+- 회귀: 카메라 지연/화면 왕복·계정·회복 취소→별도 알림 시작을 실제 합성 UI RED로 확인한다. 자동 진입 뒤 메인 검증은 기존 햄버거로 복귀하며 숨겨진 메인 DOM을 직접 조작하지 않는다. 최종 결과는 docs/verification/2026-11-02-scenic-start.md.
+
+## 라이트 모드의 차콜 풍경이 밝게 칠해짐 — 2026-11-02
+- 원인: body는 차콜이어도 html root의 기존 밝은 canvas가 실제 viewport를 덮었다. body computed style 검사만으로는 발견하지 못했다.
+- 해결: atmosphere.css의 scenic-active 동안만 root canvas와 이미지 실패 fallback을 차콜로 지정한다. appearance/배경 저장값과 일반 대시보드는 변경하지 않는다.
+- 재발 방지: screenshot PNG의 실제 픽셀 RED244/246/243→GREEN17/19/24와 종료 후 root 배경 복원을 검사한다. 자동 회복창 시험은 count가 아닌 명시적 표시/닫힘을 기다린다.
+
+## Windows 테마 재실행 유지 보고 — 조사 중 2026-11-02
+- 원인 미확정: 두 controller는 전용 localStorage·초기 복원, native는 persist 파티션이다. 단위13/13·격리Electron45 정상 cold2/2와 실제 적용/원복은 정상이나 설치앱 cold 수용은 아직 없다.
+- scenicOpen의 useState(false)는 풍경 진입 상태를 재실행 시 복원하지 않는다. 배경 설정 소실과 같은 문제라고 단정하지 않는다.
+- Computer Use에 트레이 target이 없어 사용자 정상 종료를 요청했다. 실제 시험 설정은 원래 시스템·새벽 도시/정적/잔잔하게로 원복했고 강제 종료/저장소 초기화·제품 패치는 하지 않았다.
+- 다음: 같은 설치 EXE cold 시작에서 원래 UI 선택값을 대조한다. 제품 수정/해결 완료로 보고하지 않는다. docs/verification/2026-11-02-theme-restart-diagnosis.md.
+
+## 화면 순서 편집 이탈 후 재표시 — 2026-11-02
+- 증상: 설정→화면 구성→뒤로 가기→오늘에서 편집창과 미저장 미리보기가 계속 나왔다. 같은 #today 메뉴 클릭은 hashchange조차 없어 닫히지 않았다.
+- 원인: DashboardApp에 sectionOrderEditing이 유지되지만 route/domain 이탈 시 정리하는 경로가 없었다. 기존 취소 버튼만 editing/dragging/초안을 복구했다.
+- 해결: 오늘·집중 밖에서는 편집/드래그만 닫고, 명시적 공통 메뉴 이동은 기존 cancel 콜백을 호출한다. 설정 편집 진입은 hash·activeSection·todayDomain을 같은 동작에서 today/focus로 맞춘다. 저장은 기존 명시적 버튼에서만 실행한다.
+- 재발 방지: 실제 Chrome375/1440 뒤로 가기·같은 오늘·목표/팀/오늘 하위 탭·다시 열기·취소·기존 저장을 검사하고 profiles 무쓰기·학습/카메라 요청 보존을 확인한다. 다른 설정 초안 유지 규칙은 변경하지 않는다.
+
+## 풍경 설정창의 예전 버튼·도크 겹침 — 2026-11-02
+- 원인: 설정창이 `.workspace` 밖에 있어 공통 버튼 selector에서 빠져 노란 5px 그림자가 적용됐다. 별도 scene z80이 기존 modal backdrop보다 높아 inert 상태에서도 도크가 앞에 그려졌다.
+- 해결: scenic 설정 범위에 공통 의미 토큰/평면 버튼/요약·편집/헤더 닫기를 적용하고, 풍경이 열린 동안만 modal backdrop을 z90의 중립색으로 올린다. DOM/inert만이 아니라 실제 paint 순서·스크린샷·클릭 위치를 검사한다.
+- 메뉴 선택 후 미니 복원 실패 시 메뉴가 확대 버튼을 가리던 회귀는 선택 즉시 메뉴만 닫아 복구 조작을 남긴다. Escape는 필수 모달→열린 메뉴→풍경 순서다.
+- 합성 Chrome375/1440·100/200%·라이트/다크 및 같은 카메라 트랙 복귀를 검증한다. 실제 설치앱/실기기 수용과 구분한다.
+
+## 풍경 표시의 모달·확대·Windows 고정 — 2026-11-02
+- inline AccessibleDialog와 유지할 video가 같은 workspace에 섞여 있어 전체 wrapper inert/display:none은 확인창이나 카메라 layout을 깨뜨린다. ScenicStudyView는 모달 경로만 열어 둔 scoped shielding과 원래 attribute/opacity 복원으로 제한한다.
+- 부모 scene/자식 dialog가 함께 unmount되면 자식 cleanup이 옛 overflow:hidden을 뒤늦게 복원할 수 있다. 남아 있는 modal/scene을 확인하는 한정된 cleanup reconciliation으로 누수를 막는다. 재현 RED→GREEN과 초점/초안/video 보존 회귀를 유지한다.
+- 전역 고정 px 버튼 규칙이 scenic header의 확대를 막았다. scoped1rem으로 명시하고 실제 computed32px/200%와 좁은 높이의 스크롤·44px 조작을 검증한다.
+- Electron45 Windows 최소앱에서도 constructor/setAlwaysOnTop(true) 후 getter false가 재현됐다. helper/탐색/DPI 이동만의 문제로 단정하지 않고, 보안/OS/레지스트리/의존성을 바꾸지 않는다. 사용자가 이번 고정 기능 보류를 승인해 버튼/새 요청을 제외했다. 실패 근거와 미해결 원인은 [검증 기록](../docs/verification/2026-11-01-scenic-study.md)에 보존한다.
+- icon이 없는 checkout의 native integration은 Tray 전제4건이 실패한다. 기존 prepareDesktop으로 합성 public config+기존 icon만 준비 후 동일 suite를 대조하고, 설치 빌드 전에는 운영 공개 설정으로 다시 준비한다.
+
+## 좁은 테마 패널의 카드 이름·선택 버튼 정렬 — 2026-11-01
+- 증상: 한글 단어 중간 줄바꿈, 정적/라이브와 강도 옵션이 서로 다른 왼쪽선으로 밀렸다.
+- 원인: 카드 열을 viewport만으로 결정해 좁은 PC 패널에 3열이 남고, `overflow-wrap:anywhere`·체크 표시가 이름 폭을 줄였다. floated legend와 flex-wrap/가변폭 옵션이 겹쳤다.
+- 해결: atmosphere-settings inline-size container로 3/2/1열을 결정하고 keep-all·모서리 체크를 사용한다. legend를 위에 두고 별도 grid wrapper에 동일 폭 옵션을 배치한다. 부족한 폭은 전폭 같은 왼쪽선으로 쌓는다.
+- 재발 방지: 375/476/868/1440·라이트/다크·100/200% 실제 DOM 좌표로 옵션 정렬/동일 폭·제목 위치·단어 Range/체크 glyph 내부·넘침을 검증하고 기존 저장/취소·학습·카메라 상태를 유지한다. docs/verification/2026-11-01-theme-editor-alignment.md.
+
+## 제한 환경 ADB socketpair 실패와 실제 테마 검증 — 2026-11-01
+- 증상: ADB37.0.1 start-server가 daemon 응답을 읽지 못하고 foreground는 `fdevent interrupt socketpair: Invalid argument`로 종료. 같은 바이너리의 승인된 제한 밖 start-server는 성공했다.
+- 해결: 기존 SDK/AVD 데이터와 보안 설정을 유지하고 제한 밖 ADB/기존 Android16 AVD를 사용한다. 설치/초기화·다른 ADB 버전 교체로 해결한 것으로 기록하지 않는다.
+- 재발 방지: SDK 경로/PATH 부재, 로컬 서버 시작 실패, 기기 offline/부팅을 구분하고 `nodaemon server`의 원문 원인과 동일 바이너리 대조를 남긴다. 이번 원격 fetch도 같은 제한 밖에서 성공했다.
+- 같은 실행 제한에서 `gh auth status`가 invalid로 나왔지만 제한 밖에서는 기존 keyring 연결이 유효했다. 이번 비교에서는 로그아웃/재인증 없이 해결됐으므로 제한된 네트워크 결과만으로 토큰 만료로 단정하지 않는다.
+- 실제 애니메이션은 이미지 최초 로딩/스크롤이 끝난 안정 화면에서 비교한다. 불투명 카드·장식이 없는 여백의 0픽셀을 정지 증거로 쓰지 않는다. 인증 WebView DevTools 거절은 UI 입력/PNG 분석으로 대체하며 인증 접근을 우회하지 않는다.
+- Windows `failed to activate captured window`는 재선택/재시도·표준Raise도 실패했으나 사용자 창 앞으로 열기 답변 후 같은 창의 정상 입력이 복구됐다. UI 원복 완료를 직접 확인했고 일반 원인 해결/네이티브 수정으로 단정하지 않는다. 상세 docs/verification/2026-11-01-theme-device-acceptance.md.
+
+## 테마 실기기 검사 재로드 중 회복 자동 종료 안내
+- 실제 Windows 재로드 후 회복 입력창과 자동 종료 성공 안내를 관찰했다. 공부/종료/회복 제출 버튼을 직접 누르거나 DB/API 직접 조작은 하지 않았다.
+- 기존 main.tsx의 회복 차단 effect는 activeSession·blockingRecoveryRequests가 있으면 endTimer→end_study_session RPC를 호출한다. 테마 controller/CSS가 학습을 종료하는 변경은 없다.
+- 첫 화면의 시작 준비/0초만으로 전 기기의 서버 세션이 없다고 단정하지 않는다. 재로드 전 진행 공부 없음 확인과 서버 상태 정착을 구분하고, 회복 자동 정책/세션 전후 확인을 별도 검증한다. 이 정책을 테마 시험을 위해 우회·변경하지 않는다.
+
+## 장식 라이브 CSS 정지·대비·편집 포커스
+- 증상: :is 안의 pseudo-element 및 낮은 selector 우선순위로 live 상태에서도 CSS가 paused. 효과가 스크림 위에 있으면 최악 밝기 대비가 보장되지 않는다.
+- 해결: pseudo-element 선택자를 직접 나열하고 상태 규칙의 specificity를 맞춘다. 장면/효과/유성 위·앱 콘텐츠 뒤에 고정 #root::after scrim을 둔다.
+- 키보드 편집 버튼 제거 시 focus가 body로 빠지는 문제는 entry 유지+aria-expanded/controls·선택 라디오 진입·취소/적용/Escape 복원으로 해결했다. 저장 실패 뒤 타 탭의 실제 저장값과 일치하면 persistent 안내를 복구한다.
+- 재발 방지: 실제 Chrome의 animation timeline 진행/동결·최악 흑/백 scrim 대비·Enter/Arrow/취소 초점·기기 저장 실패→타 탭 회복을 RED→GREEN으로 검사한다. 최소화/물리 기기 수용과 가짜 visibility 검사 결과를 혼동하지 않는다. prd-study-themes.md.
+
 ## 오늘 하위 탭·설정 분류를 열지 않아 다크 대비 누락
 - 증상: 기록 시간 숫자/목표 설명이1.13~1.61:1, 주간 밝은 카드/배지에 옅은 글자가 남음. 계획 시간 배지·집중 연결 상태·설정 알림에도 낮은 대비.
 - 원인: 부모 카드만 테마를 받고 strong/p·weekly day/stats/marker/stage·배지는 styles.css의 고정 라이트 값 유지. 기존 전역 탭 순회는 today=focus·settings=account만 검사했다.
@@ -301,3 +418,28 @@
 - 사용자가 정상 Study Notes를 비교한 첨부를 잘못된 요청 혼동으로 해석한 것은 오류였다. 프로젝트 주소 차이는 정상 비교이며 이 해석은 철회한다. 최신 앱 provider 단계/서버 발급/OS 대조를 같은 시각에 묶어 확인하고 전체 URL/state/코드/계정은 기록하지 않는다.
 - 사용자 요청의 Claude Code Opus5.5 읽기 전용 검토는 정상 네트워크에서 성공했다. sandbox ENOTFOUND를 모델 미지원으로 단정하거나 권한 우회로 해결하지 않는다. 설치 앱 새 요청 시각/provider 단계/브라우저 callback host를 묶어 수용한다.
 - 새0.1.2 실제 Google 발급 후 callback0, OS ShellExecute 수신 통과/Chrome 직접 링크 수신0으로 구간을 분리했다. prompt 차이·하이픈·저장된 브라우저 차단을 증거 없이 원인으로 쓰지 않는다. 승인한 Default/공통 protocol_handler 두 항목 없음도 Chrome live 거부 부재의 증명이 아니다.
+
+## 오리지널 영상의 출처·원화 해상도·seek 경계 — 2026-11-04
+- 생성 요청의4K와 실제 원화1672×941는 다르다. 실제 파일을 probe하고1080p 출력은 약간 확대된 영상 캔버스임을 명시한다. 자체 제작 영상에 기존 공통 Wikimedia/CC 링크를 붙이지 않는다.
+- HyperFrames 하위 template는 root의 data-composition-id/width/height와 등록 timeline id가 일치해야 한다. 누락하면 lint에서 거부되므로 초기 검사 후 수정하고 actual-frame check/render를 다시 실행한다.
+- 움직임은 이전 프레임/타이머가 아닌 seek 시간의 순수 함수로 렌더링한다. 반복 끝과 시작의 상태·디코딩 픽셀을 모두 검사하고, 카드/시간 속성만 보고 실제 영상이라고 판단하지 않는다. [근거](../docs/verification/2026-11-04-anime-sea-video.md).
+
+## 풍경 세션 연장 요청의 계정 경계와 키보드 초점
+
+- 증상/원인: 공유 boolean 잠금은 A 연장 대기 중 유효한 B로 전환해도 남았고 이전 finally가 새 busy를 풀 수 있었다. owner/session 없는 전역 정리는 응답 무시만으로 해결되지 않는다.
+- 해결: owner/session별 request token/AbortController, context cleanup과 current-token-only finally. 응답 전체 row 대신 lease 필드만 병합해 최신 휴식/종료를 보존한다. 서버60분/최대2시간·학습/카메라 정책은 불변이다.
+- 검증: 활성 B가 A 응답 전 연장 가능·A 완료 뒤 B 잠금 유지·B 성공, 지연 응답/원격 휴식·카메라 보존을 합성 실제 Chrome으로 확인한다. 신규14/14·독립 재검토C/I/M0, 근거 docs/verification/2026-11-04-scenic-session-extension.md.
+- UI 원인/예방: 전역 dashboard focus 규칙이 scenic outline을 덮어 대비2.27이었다. scoped specificity로 보정하고 실제 Tab 이동/대비3 이상을 검사한다. 새 마지막 연장 버튼이 추가됐으므로 End→Tab은 연장→메뉴 순서로 검증한다.
+- fixture 주의: lease 모드의 기존 카메라 인증 안내는 Escape로 정상 닫은 뒤 검사한다. 정책을 우회하지 않는다. StudySession DTO에 없는 user_id를 읽지 않으며 소유권은 기존 인증 RPC와 현재 계정/세션 토큰으로 검증한다.
+- 전체 Chrome의 팀2건 실패는 팀 fixture가 Promise만 반환해 SDK abortSignal builder를 지원하지 않던 문제였다. 제품 코드/기존 경고·60분·종료 안함 assertions는 유지하고 fixture만 보정·signal 검사 추가, 동일 재현2/2 통과. 변경 없는4해시의 대형 화면 성공 결과와 나머지 전체파일 재실행을 최종 분할 gate로 구분 기록한다.
+
+## 풍경 카메라 미리보기 자동 접힘의 초점
+- 증상/원인: stream 종료·원격 담당 전환으로 표시용 preview가 unmount되면 내부 닫기 버튼에 있던 초점이 body로 빠진다. 수동 닫기만 초점 복구하면 이 경로를 놓친다.
+- 해결: 표시용 panel의 layout cleanup에서 내부 초점 여부만 기록하고, DOM 제거 뒤 body로 빠졌고 scene이 연결·활성일 때만 카메라 버튼/scene으로 복구한다. 살아 있는 필수 dialog·다른 경로의 초점은 건드리지 않는다. stream/track의 수명은 main이 유지한다.
+- 예방: ended-track/remote 자동 접힘·필수 모달·열린 로컬 영상에서 계정 전환을 실제 Chrome 합성 fixture로 검사한다. [검증](../docs/verification/2026-11-06-scenic-camera-preview.md). 실제 계정/영상은 사용하지 않는다.
+
+## 자리 비움 경고와 회복 집계의 분리 (2026-11-07)
+
+- 증상: 한 연속 미감지의 반복 경고가 여러 회로 집계되고, 제출 완료 후에도 같은 공부일에 새 요청이 생성됐다.
+- 해결: 서버 heartbeat의 5분 이상 미감지 구간 시작점을 중복 제거하고 같은 공부일 전체 상태를 검사한다. 재연결의 `watching`은 감지 증거가 아니며 구 Edge의 직접 카메라 INSERT는 차단한다.
+- 보호: 원래 5분 경고·10분 반복 제한/시간 제외·학습과 결석 기록을 유지한다. UI의 5초 감지 문구와 실제 경고/회복 조건은 별개다. 프레임 미저장으로 개별 오탐은 단정하지 않는다.

@@ -54,14 +54,16 @@ test('actual Electron failed tray recovery/cancel/safe quit preserves document; 
   await f.app.evaluate(()=>{finalFix.observations.failTray=false;finalFix.observations.responses.push(0);finalFix.runtime.window.close();});
   await f.page.waitForTimeout(100);
   assert.equal(await f.app.evaluate(()=>finalFix.observations.trayAttempts),2);
-  await f.app.evaluate(()=>{finalFix.runtime.window.setBounds({x:60,y:70,width:1000,height:800});finalFix.runtime.window.close();});
+  // Cross-DPI monitor moves may change the OS-accepted geometry. Persist and restore
+  // that actual window size, not the dimensions merely requested by this test.
+  const savedBounds=await f.app.evaluate(()=>{finalFix.runtime.window.setBounds({x:60,y:70,width:1000,height:800});const bounds=finalFix.runtime.window.getBounds();finalFix.runtime.window.close();return bounds;});
   assert.equal(await f.app.evaluate(()=>finalFix.runtime.window.isVisible()),false);
   assert.equal(await f.page.evaluate(()=>window.token),token);
   assert.equal(await f.app.evaluate(()=>finalFix.observations.balloons),1);
   await f.cleanup();
   const restarted=await launch(t,{userData:f.userData,failTray:true});
   const bounds=await restarted.app.evaluate(()=>finalFix.runtime.window.getBounds());
-  assert.equal(bounds.width,1000);assert.equal(bounds.height,800);
+  assert.deepEqual(bounds,savedBounds,'restart must restore the previous real window geometry');
   await restarted.app.evaluate(()=>{finalFix.observations.failTray=false;finalFix.observations.responses.push(0);finalFix.runtime.window.close();});
   await restarted.page.waitForTimeout(100);await restarted.app.evaluate(()=>finalFix.runtime.window.close());
   assert.equal(await restarted.app.evaluate(()=>finalFix.observations.balloons),0);

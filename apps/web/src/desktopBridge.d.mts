@@ -4,6 +4,9 @@ export type DesktopQuitEvent = { type: 'quit-requested'; requestId: string; user
 export type DesktopEvent = { type: 'auth-changed' } | { type: 'state-requested'; requestId: string } | DesktopQuitEvent;
 export type DesktopAuthState = { status: 'connecting' | 'ready' | 'signed-out' | 'error'; session: Session | null };
 export function isDesktopStudyApp(host: unknown): boolean;
+export type WindowPresentation = {mode: 'normal' | 'mini'};
+export function getWindowPresentationSupport(host: unknown): Promise<boolean>;
+export function setWindowPresentation(host: unknown, value: WindowPresentation): Promise<WindowPresentation>;
 export function beginDesktopWrite(host: object): () => void;
 export function hasDesktopWrites(host: object): boolean;
 export function desktopRequest<T = Record<string, unknown>>(host: unknown, action: string, payload?: Record<string, unknown>, options?: { id?: string; timeoutMs?: number }): Promise<T>;

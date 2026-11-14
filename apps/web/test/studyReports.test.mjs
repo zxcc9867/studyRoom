@@ -1,5 +1,19 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
+import { buildRangeMetrics } from "../src/weeklyReview.mjs";
+
+test("null and invalid unentered scores do not dilute explicit ratings", () => {
+  const range = { startDate: "2026-11-05", endDate: "2026-11-05", coveredDayCount: 1 };
+  const sessions = ["s1", "s2", "s3"].map(id => ({ id, status: "completed", local_date: "2026-11-05" }));
+  const metrics = buildRangeMetrics(range, sessions, [], [], [
+    { session_id: "s1", focus_score: 4, energy_score: 2 },
+    { session_id: "s2", focus_score: null, energy_score: null },
+    { session_id: "s3", focus_score: "5", energy_score: 0 },
+  ]);
+  assert.equal(metrics.averageFocus, 4);
+  assert.equal(metrics.averageEnergy, 2);
+  assert.equal(buildRangeMetrics(range, sessions, [], [], [{ session_id: "s1", focus_score: NaN }]).averageFocus, null);
+});
 
 const reports = await import("../src/studyReports.mjs").catch(() => ({}));
 function periods(input) {

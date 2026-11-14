@@ -1,5 +1,4 @@
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
 import { test } from "node:test";
 
 import { shouldResumeStartAfterRecoveryUnlock } from "../src/recoveryStartResume.mjs";
@@ -39,14 +38,4 @@ test("does not resume while the recovery modal or another blocker remains", () =
     }),
     false,
   );
-});
-
-test("web app stores blocked start intent and resumes through an effect", () => {
-  const appSource = readFileSync("apps/web/src/main.tsx", "utf8");
-
-  assert.match(appSource, /resumeStartAfterRecoveryUnlock/);
-  assert.match(appSource, /setResumeStartAfterRecoveryUnlock\(true\)/);
-  assert.match(appSource, /shouldResumeStartAfterRecoveryUnlock/);
-  assert.match(appSource, /setResumeStartAfterRecoveryUnlock\(false\)/);
-  assert.match(appSource, /void startTimer\(\)/);
 });

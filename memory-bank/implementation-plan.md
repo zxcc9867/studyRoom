@@ -1,3 +1,10 @@
+## 2026-11-02 — 풍경 집중·Windows 미니 표시
+
+- [PRD](prd-scenic-study.md)와 [검증 기록](../docs/verification/2026-11-01-scenic-study.md)을 따른다. 기존 Dashboard 파생값/공식 공부 콜백과 DOM/video를 유지하는 ScenicStudyView를 추가한다. 서버·DB·출석/회복/카메라/인증 정책은 변경하지 않는다.
+- 네이티브는 같은 창을 줄이는 desktopPresentation만 추가한다. info.capabilities.windowPresentation===true일 때 mode-only windowPresentation/status를 사용하며 임의 geometry/URL/OS 명령·새 창·새 timer/media를 노출하지 않는다. always-on-top은 최소앱 API 실패 관측 후 사용자 승인으로 이번 범위에서 제외했다.
+- 다른 작업 트리의 기존0.1.9 인증/loopback/종료 변경은 원본을 읽기 전용으로 보존·검토 통합했다(d39e06a). package/appId/executable/userData/고정 의존성은 유지하고 이번 설치본 버전만0.1.10으로 준비한다. 승인 전 실설치/실계정 시험은 하지 않는다.
+- 공식7개/Dune·전체 실제 Chrome·전체 Electron integration·독립 검토를 실행하고 기존 production workflow로 웹을 배포한다. 새 APK 없이 hosted 화면을 공유하지만 실제 Windows 미니 기능은0.1.10 EXE가 필요하다. 합성 screenshot/진단 파일은 좁은 .gitignore 경로로만 제외하며 다른 output은 일괄 처리하지 않는다.
+
 ## 2026-10-25 — 공부 시작 출석·하루 목표 분리
 
 - 요구·전환 범위는 [PRD](prd-attendance-start.md)를 따른다. 공부일 내 시작 사실로 출석을 기록하며, 완료 목표 시간을 출석 자격으로 사용하지 않는다. 결석은 현지 다음 04:00 이후 판정한다.

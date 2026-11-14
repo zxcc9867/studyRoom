@@ -61,3 +61,12 @@ test('scheduled reminder copy describes a start before the real study-day end an
     assert.doesNotMatch(body+'\n'+slack,/30분|30 minutes|recover attendance|목표를 채우면 출석/);
   }
 });
+
+test('cron does not create or send a missed recovery when the day-end attendance RPC returns no absences', async()=>{
+  const r=runtime();
+  const response=await r.handler(new Request('https://fixture/cron',{headers:{'x-cron-secret':'fixture-secret'}}));
+  assert.equal(response.status,200);
+  const body=await response.json();
+  assert.deepEqual(body.missedRecoveryResults,[]);
+  assert.equal(r.calls.some(call=>call.name==='ensure_missed_attendance_recovery'),false);
+});
