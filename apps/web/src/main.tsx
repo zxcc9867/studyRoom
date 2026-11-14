@@ -327,6 +327,7 @@ type CameraSetupPrompt = {
   mode: "start" | "resume" | "break-resume";
   todoIds?: string[];
   focusId?: string;
+  useSuggestion?: boolean;
 };
 type CameraDiagnosticReason = CameraHealth["reason"] | "permission-denied" | "unknown-error" | null;
 type SessionLeaseState = {
@@ -593,7 +594,7 @@ function DashboardApp() {
   const [recoverySubmitError, setRecoverySubmitError] = useState("");
   const recoverySubmissionRef = useRef<AbortController | null>(null);
   const sessionStartRequestRef = useRef<AbortController | null>(null);
-  const [resumeStartAfterRecoveryUnlock, setResumeStartAfterRecoveryUnlock] = useState(false);
+  const [resumeStartAfterRecoveryUnlock, setResumeStartAfterRecoveryUnlock] = useState<"default" | "without-suggestion" | null>(null);
   const [reminderTime, setReminderTime] = useState(DEFAULT_WEEKDAY_REMINDER_TIME);
   const [emailRemindersEnabled, setEmailRemindersEnabled] = useState(true);
   const [adaptiveRemindersEnabled, setAdaptiveRemindersEnabled] = useState(false);
@@ -906,7 +907,7 @@ function DashboardApp() {
     setProfile(null);
     setLatestStudySessionReflection(null);
     setStudyPeriodSummaries(null);
-    setResumeStartAfterRecoveryUnlock(false);
+    setResumeStartAfterRecoveryUnlock(null);
     if (session?.user.id) {
       void syncSignedInUser(session);
       void loadDashboard(session.user.id);
@@ -1291,7 +1292,7 @@ function DashboardApp() {
   useEffect(() => {
     if (
       !shouldResumeStartAfterRecoveryUnlock({
-        resumeRequested: resumeStartAfterRecoveryUnlock,
+        resumeRequested: Boolean(resumeStartAfterRecoveryUnlock),
         blockingRecoveryCount: blockingRecoveryRequests.length,
         recoveryModalOpen: Boolean(recoveryModalRequest),
         activeSession: Boolean(activeSession),
@@ -1301,9 +1302,11 @@ function DashboardApp() {
       return;
     }
 
-    setResumeStartAfterRecoveryUnlock(false);
+    setResumeStartAfterRecoveryUnlock(null);
     const intent = learningStartIntentRef.current;
-    void startTimer(false, intent && intent.userId === session?.user.id ? [intent.todoId] : undefined, undefined, intent && intent.userId === session?.user.id ? intent.todoId : undefined);
+    const useSuggestion = resumeStartAfterRecoveryUnlock !== "without-suggestion";
+    const focusId = useSuggestion && intent && intent.userId === session?.user.id ? intent.todoId : undefined;
+    void startTimer(false, focusId ? [focusId] : undefined, undefined, focusId, useSuggestion);
   }, [
     activeSession?.id,
     blockingRecoveryRequests.length,
@@ -2621,9 +2624,9 @@ function DashboardApp() {
     );
   }
 
-  function openSessionTodoSelection(cameraReadyOverride: boolean, action: "start" | "resume" | "switch" = "start") {
+  function openSessionTodoSelection(cameraReadyOverride: boolean, action: "start" | "resume" | "switch" = "start", useSuggestion = true) {
     const suggestedTodoTitle = normalizeHabitText(sessionTodoSuggestionRef.current);
-    const matchingTodo = continuity.supported ? incompleteTodayTodos.find(todo => todo.id === learningChoiceId) : findMatchingNextActionTodo({ nextAction: suggestedTodoTitle, todos: incompleteTodayTodos });
+    const matchingTodo = !useSuggestion ? undefined : continuity.supported ? incompleteTodayTodos.find(todo => todo.id === learningChoiceId) : findMatchingNextActionTodo({ nextAction: suggestedTodoTitle, todos: incompleteTodayTodos });
     const suggestedSchedule = getSuggestedSessionTodoSchedule();
     setSessionTodoStartRequest({ cameraReadyOverride, action });
     setSelectedSessionTodoIds(matchingTodo ? [matchingTodo.id] : []);
@@ -3943,7 +3946,7 @@ function DashboardApp() {
       recoveryModalDismissedIdsRef.current.add(recoveryModalRequest.id);
     }
     sessionTodoSuggestionRef.current = null;
-    setResumeStartAfterRecoveryUnlock(false);
+    setResumeStartAfterRecoveryUnlock(null);
     setRecoveryModalRequest(null);
   }
 
@@ -4030,7 +4033,7 @@ function DashboardApp() {
     setMessage("10분 시작을 완성했습니다. 부담 없으면 지금 흐름을 조금 더 이어가세요.");
   }
 
-  async function startTimer(cameraReadyOverride = false, selectedTodoIds?: string[], suggestedTodoTitle?: string, focusId?: string) {
+  async function startTimer(cameraReadyOverride = false, selectedTodoIds?: string[], suggestedTodoTitle?: string, focusId?: string, useSuggestion = true) {
     if (!dashboardReady) {
       setDashboardError("공부 시작 전에 회복루틴과 세션 상태를 확인해야 합니다. 학습 정보를 다시 불러와 주세요.");
       return;
@@ -4042,7 +4045,7 @@ function DashboardApp() {
     if (continuity.supported && selectedTodoIds?.length === 1 && session) learningStartIntentRef.current = { userId: session.user.id, todoId: selectedTodoIds[0] };
 
     if (blockingRecoveryRequests.length > 0) {
-      setResumeStartAfterRecoveryUnlock(true);
+      setResumeStartAfterRecoveryUnlock(useSuggestion ? "default" : "without-suggestion");
       openRecoveryRoutineModal(blockingRecoveryRequests[0]);
       setMessage("회복 루틴 필요: Slack에서 사유와 보충 계획을 제출해야 다음 공부 세션을 시작할 수 있습니다.");
       return;
@@ -4056,7 +4059,7 @@ function DashboardApp() {
 
     if (!startGate.allowed) {
       if (startGate.reason === "camera-required") {
-        setCameraSetupPrompt({ mode: "start" });
+        setCameraSetupPrompt({ mode: "start", useSuggestion });
         setCameraMessage("출석하려면 카메라 감시를 먼저 켜야 합니다.");
         return;
       }
@@ -4074,16 +4077,16 @@ function DashboardApp() {
     if (todoSelection.required) {
       if (todoSelection.reason === "no-todos") {
         setMessage("이번 세션에서 할 일을 추가하거나 선택하세요.");
-        openSessionTodoSelection(cameraReadyOverride);
+        openSessionTodoSelection(cameraReadyOverride, "start", useSuggestion);
         return;
       }
 
-      openSessionTodoSelection(cameraReadyOverride);
+      openSessionTodoSelection(cameraReadyOverride, "start", useSuggestion);
       return;
     }
 
     const currentId = resolveCurrentTodo(selectedTodoIds ?? [], focusId ?? currentSessionTodoId);
-    if (!currentId) { openSessionTodoSelection(cameraReadyOverride); return; }
+    if (!currentId) { openSessionTodoSelection(cameraReadyOverride, "start", useSuggestion); return; }
     await runActualAction({ action: "start", todoIds: selectedTodoIds ?? [], currentTodoId: currentId, excludedSeconds: 0 });
 
   }
@@ -4857,7 +4860,8 @@ function DashboardApp() {
     setCameraSetupPrompt(null);
     if (promptMode === "start") {
       const intent = learningStartIntentRef.current;
-      await startTimer(true, intent && intent.userId === session?.user.id ? [intent.todoId] : undefined, undefined, intent && intent.userId === session?.user.id ? intent.todoId : undefined);
+      const focusId = prompt.useSuggestion !== false && intent && intent.userId === session?.user.id ? intent.todoId : undefined;
+      await startTimer(true, focusId ? [focusId] : undefined, undefined, focusId, prompt.useSuggestion);
     } else if (promptMode === "break-resume") {
       const resumed = await resumeTimer(prompt.todoIds, prompt.focusId);
       if (!resumed && !actualIntentRef.current) {
@@ -7529,17 +7533,23 @@ function DashboardApp() {
 
       </section>
       {scenicOpen && activeSection === "today" && todayDomain === "focus" && <ScenicStudyView
-        task={actualTracking?.todos.find(todo => todo.id === actualTracking.current_todo_id)?.title ?? (activeSession ? "현재 할 일 확인 중" : latestNextAction || "오늘의 공부를 준비해요")}
+        task={!activeSession ? "오늘의 공부를 준비해요" : (actualTracking?.session_id === activeSession.id
+          ? actualTracking.todos.find(todo => todo.id === actualTracking.current_todo_id)?.title : undefined) ?? "현재 할 일 확인 중"}
         clock={dashboardReady ? formatTimerClock(currentSessionSeconds) : "확인 필요"}
         status={!dashboardReady ? "학습 정보 확인 필요" : activeSession && actualTracking?.session_id !== activeSession.id ? "세션 상태 확인 중" : !activeSession ? "시작 준비" : activeSessionPaused ? "휴식 중" : presenceState.timerPaused || sharedCameraView.status === "auto_paused" ? "자리 비움" : "공부 중"}
         camera={activeSessionPaused ? "휴식 중 · 카메라 감시 중지" : sharedCameraView.remote ? sharedCameraView.label : cameraEnabled && cameraStatus === "watching" && presenceState.absenceSeconds === 0 ? "카메라 감시 중" : `카메라 감시 · ${getPresenceStatusLabel({ cameraEnabled, status: cameraStatus, absenceSeconds: presenceState.absenceSeconds })}`}
         cameraStream={activeSession && cameraSessionIdRef.current === activeSession.id && cameraEnabled && !activeSessionPaused && !sharedCameraView.remote ? cameraStreamRef.current : null}
-        actionLabel={focusActionLabel} actionDisabled={focusActionDisabled} endDisabled={focusEndDisabled} hasSession={Boolean(activeSession)}
+        actionLabel={!activeSession && dashboardReady && !blockingRecoveryRequests.length ? "공부 시작" : focusActionLabel} actionDisabled={focusActionDisabled} endDisabled={focusEndDisabled} hasSession={Boolean(activeSession)}
         leaseClock={activeSession && activeSessionLeaseDeadlineMs !== null ? formatTimerClock(sessionLeaseRemainingSeconds) : null}
         leaseBusy={sessionLeaseExtending} leaseDisabled={focusEndDisabled || !dashboardReady} onExtendLease={extendSessionLease}
         sessionId={activeSession?.id ?? null} sessionBackground={sessionScenery.theme} onSaveSessionBackground={activeSession ? sessionScenery.save : undefined} scenerySaving={sessionScenery.saving}
         notice={[dashboardError, message, actualError, sharedStudyError, focusStatusError, sessionScenery.notice, !activeSessionPaused && cameraStatus !== "watching" ? cameraMessage : ""].filter(Boolean).join(" · ")}
-        onAction={focusAction} onEnd={openEndSessionCompletionModal} onClose={() => setScenicOpen(false)}
+        onAction={activeSession ? focusAction : () => {
+          requestScenicStudyEntry();
+          learningStartIntentRef.current = null;
+          sessionTodoSuggestionRef.current = null;
+          void startTimer(false, undefined, undefined, undefined, false);
+        }} onEnd={openEndSessionCompletionModal} onClose={() => setScenicOpen(false)}
         onNavigate={section => { setScenicOpen(false); if (section === "today") setTodayDomain("focus"); window.location.hash = section; setActiveSection(section); }} />}
     </main>
   );

@@ -374,6 +374,45 @@ for(const width of [375,1440])browserTest(`scenic start: primary study start ope
  await scenicScreenshot(page,`scenic-start-${width}`);
 },'start'));
 
+for(const recoveryRequired of [false,true]) browserTest(`scenic current task: only the active session task appears with a saved previous start point${recoveryRequired?' after recovery':''}`,()=>withApp(1440,async page=>{
+ await page.evaluate(()=>{fixture.collision=false;});
+ await page.getByRole('button',{name:'이어서 준비하기',exact:true}).click();
+ await page.getByRole('button',{name:'카메라 켜고 시작',exact:true}).click();
+ const tasks=page.getByRole('dialog',{name:'이번 세션에서 할 일 선택'});
+ await tasks.getByRole('checkbox',{name:/집중 독서/}).check();
+ await tasks.getByRole('button',{name:'선택한 할 일로 시작',exact:true}).click();
+ const scene=page.getByRole('region',{name:'풍경 집중 화면'});
+ const title=scene.getByRole('heading',{level:1});
+ await title.getByText('집중 독서',{exact:true}).waitFor();
+ await page.evaluate(()=>{fixture.todos[0].title=fixture.reflections[0].next_action;});
+ if(recoveryRequired) {
+  await scene.getByRole('button',{name:'종료',exact:true}).click();
+  await page.getByRole('button',{name:'회고 저장하고 종료',exact:true}).click();
+  const recovery=page.getByRole('dialog',{name:'회복 루틴 작성',exact:true});
+  await recovery.waitFor();
+  await page.keyboard.press('Escape');
+  await scene.getByRole('button',{name:'회복루틴 작성 후 시작',exact:true}).click();
+  for(const input of await recovery.getByRole('textbox').all())await input.fill('[테스트] 새 할 일 선택 전 회복');
+  await page.evaluate(()=>{fixture.recoveries[0].status='submitted';});
+  await recovery.getByRole('button',{name:'제출하고 잠금 해제',exact:true}).click();
+ } else {
+  await page.evaluate(()=>{fixture.sessions[0]={...fixture.sessions[0],status:'completed',ended_at:new Date().toISOString()};dispatchEvent(new Event('focus'));});
+  await scene.getByText('● 시작 준비',{exact:true}).waitFor();
+  assert.equal(await title.textContent(),'오늘의 공부를 준비해요');
+  await scene.getByRole('button',{name:'공부 시작',exact:true}).click();
+ }
+ await page.getByRole('button',{name:'카메라 켜고 시작',exact:true}).click();
+ await tasks.waitFor();
+ assert.equal(await tasks.getByRole('checkbox',{name:/장고245페이지/}).isChecked(),false,'starting from idle does not select a task that matches yesterday’s advice');
+ await tasks.getByRole('checkbox',{name:/장고245페이지/}).check();
+ await tasks.getByRole('checkbox',{name:/다음 날 알고리즘/}).check();
+ await tasks.getByRole('radio',{name:/다음 날 알고리즘/}).check();
+ await tasks.getByRole('button',{name:'선택한 할 일로 시작',exact:true}).click();
+ await title.getByText('다음 날 알고리즘',{exact:true}).waitFor();
+ assert.equal(await tasks.count(),0,'camera confirmation does not ask for the same tasks again');
+ assert.equal(await page.evaluate(()=>fixture.reflections[0].next_action),'장고245페이지','the display does not delete the saved start point');
+},'start-reflection'));
+
 browserTest('scenic start: running study primary reopens the same session without pause or another camera request',()=>withApp(1440,async page=>{
  const before=await page.evaluate(()=>structuredClone({sessions:fixture.sessions,todos:fixture.todos,camera:fixtureCameraRequests}));
  assert.equal(await page.getByRole('region',{name:'풍경 집중 화면'}).count(),0,'restored server sessions do not open scenery by themselves');
@@ -2165,6 +2204,11 @@ let authSession=mode==='login'?null:{access_token:'test-only',user:{id:'owner',e
 state.profile={user_id:'owner',time_zone:'Asia/Tokyo',reminder_time:'09:00',email_reminders_enabled:false};
 const track=()=>({session_id:state.usableOtherAccount?state.sessions[0]?.id??'session':'session',current_todo_id:state.current,tracking_started_at:row.started_at,excluded_seconds:state.excluded,unknown_allocation:false,server_now:now,todos:state.todos.filter(t=>state.links.includes(t.id)).map(t=>({...t,open_started_at:state.sessions[0]?.paused_at||t.id!==state.current?null:row.started_at}))});
 function result(name,args){state.calls.push({name,args});
+ if(mode==='start-reflection'&&name==='complete_study_session'){
+  state.sessions=[{...state.sessions[0],status:'completed',ended_at:now}];
+  state.recoveries.push({id:'recovery',local_date:'2026-09-20',covered_start_date:'2026-09-20',covered_end_date:'2026-09-20',covered_missed_days:1,trigger_type:'missed_attendance',status:'pending',reason:null,makeup_todo_title:null,pledge_todo_title:null,created_at:now});
+  return {data:null,error:null};
+ }
  if(name==='extend_study_session_lease'){
   const original=state.sessions.find(row=>row.id===args.p_session_id);
   const finish=()=>{if(state.leaseFailure==='throw')throw new TypeError('테스트: 연결 실패');if(state.leaseFailure==='error')return {data:null,error:{message:'테스트: 연장 거절'}};const updated={...original,lease_expires_at:state.leaseDeadlines?.shift()??'2026-09-21T15:34:00Z'};state.sessions=state.sessions.map(row=>row.id===args.p_session_id?updated:row);return {data:updated,error:null};};
