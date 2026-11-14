@@ -5,3 +5,4 @@
 - 기존 화면에서 누적 표시 누락을 재현한 뒤 수정했다. 독립 검토에서 800px·글자 200%의 할 일 열이 눌리는 점을 지적해 재현하고, 패널 폭이 부족할 때 세로 정렬하도록 고쳤다. 375/800/1440px·라이트/다크·200%에서 대상 텍스트 대비와 가로 넘침을 검사했다.
 - 표시 전용 변경이다. 학습 기록·정산·카메라·출석·DB·네이티브 설치본은 변경하지 않았고 실제 로그인 프로필이나 카메라를 조작하지 않았다.
 - 최종 집중 Chrome 49/49(풍경, 카메라 미리보기, 연장, 시작, 학습 요약 포함), 공식 7/7·Dune 위반 0, 독립 재검토 차단 결함 없음, scoped diff 검사 통과.
+- 제품 `a9edfa626ca13e2019dd91ef897f053a27db86ae`, [Actions 43611590390](https://github.com/zxcc9867/studyRoom/actions/runs/43611590390) 성공. Vercel `dpl_BSnWm547zq9kumvVeLcJTPmwTZGS` production READY, 정확 SHA 및 [운영 주소](https://study-room-attendance.vercel.app) 확인. HTML·`index-CxE5-42S.js`·`index-B26cc0ox.css` 모두 200, 누적 시간 마커 확인, 직후 10분 범위 런타임 오류 없음. 설치 앱은 자동 새로고침하지 않았다.
