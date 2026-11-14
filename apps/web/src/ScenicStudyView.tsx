@@ -8,7 +8,7 @@ import {atmospherePlayback, atmosphereThemes, getAtmosphereController, type Atmo
 import {getWindowPresentationSupport, isDesktopStudyApp, setWindowPresentation, type WindowPresentation} from './desktopBridge.mjs';
 import './scenicStudy.css';
 
-type Props = {task: string; clock: string; status: string; camera: string; cameraStream: MediaStream | null; actionLabel: string;
+type Props = {task: string; clock: string; dailyClock: string; dailyClockLabel: string; status: string; camera: string; cameraStream: MediaStream | null; actionLabel: string;
   actionDisabled: boolean; endDisabled: boolean; hasSession: boolean; notice: string;
   sessionId: string | null; sessionBackground?: AtmosphereBackground | null; scenerySaving?: boolean;
   onSaveSessionBackground?: (theme: AtmosphereBackground) => void;
@@ -195,7 +195,14 @@ export default function ScenicStudyView(props: Props) {
       }}/></div>}
       <div className="scenic-dock">
         <div className="scenic-task"><p className="scenic-status">● {props.status}</p><h1>{props.task}</h1>{previewAvailable?<button ref={cameraButton} type="button" className="scenic-camera" aria-expanded={previewOpen} aria-controls={previewOpen?cameraId:undefined} onClick={()=>previewOpen?dismissPreview():setPreviewStream(props.cameraStream)}><Camera size={16} aria-hidden="true"/>{props.camera}</button>:<p className="scenic-camera"><Camera size={16} aria-hidden="true"/>{props.camera}</p>}</div>
-        <strong className="scenic-clock" role="timer" aria-label="풍경 세션 공부시간">{props.clock}</strong>
+        <div className="scenic-time">
+          <span className="scenic-time-label">이번 세션</span>
+          <strong className="scenic-clock" role="timer" aria-label="풍경 세션 공부시간">{props.clock}</strong>
+          <div className="scenic-daily-total" role="group" aria-label={props.dailyClockLabel}>
+            <span>{props.dailyClockLabel}</span>
+            <strong>{props.dailyClock}</strong>
+          </div>
+        </div>
         <div className="scenic-actions"><button type="button" disabled={props.actionDisabled} onClick={props.onAction}>{props.actionLabel}</button>{props.hasSession&&<button type="button" disabled={props.endDisabled} onClick={props.onEnd}>종료</button>}</div>
         {props.hasSession&&props.leaseClock!==null&&<div className="scenic-lease" role="group" aria-label="세션 유지"><div><span>세션 유지 남은 시간</span><strong>{props.leaseClock}</strong></div><button type="button" disabled={props.leaseDisabled||props.leaseBusy} onClick={props.onExtendLease}><Clock3 size={18} aria-hidden="true"/>{props.leaseBusy?'연장 중…':'+1시간 연장'}</button></div>}
         {props.notice&&<p className="scenic-notice" role="status">{props.notice}</p>}

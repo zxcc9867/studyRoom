@@ -11,6 +11,7 @@
 - UI 연결은 useLearningContinuity의 별도 조회·초안/요청 수명, LearningContinuityView의 표시/콜백에 한정한다. View 접미사는 Windows에서 learningContinuity.mjs와 extensionless 해석이 충돌하지 않도록 한다. DashboardApp이 계정 세대·공식 시작/종료·카메라·desktop pending write를 계속 소유하며 새 hook/view는 직접 학습·카메라를 시작/종료하지 않는다. 기존 회고창을 재사용하고 새 전역 탭·별도 journal 저장소를 만들지 않는다. 구현·수용 상태는 [검증](../docs/verification/2026-11-05-learning-continuity.md)에서 구분한다.
 
 ## 풍경 집중·Windows 미니 경계
+- 풍경 누적 시계는 DashboardApp의 `todaySeconds`와 실제 집계 공부일을 그대로 전달한다. ScenicStudyView는 라벨과 시간을 읽기 전용으로 표시한다. 추가 집계·타이머·RPC·상태 저장은 없다.
 - 풍경 카메라 미리보기: main.tsx가 현재 세션의 로컬 카메라 stream 사용 가능 여부를 파생해 전달한다. ScenicStudyView는 같은 stream의 표시용 video와 열기/닫기·focus만 소유하며 getUserMedia/track.stop/감지·학습 RPC를 호출하지 않는다. 기존 감지 video/ref/stream/모델과 서버 상태 소유자는 main에 남는다. 원격 담당/휴식/꺼짐/세션·계정 변경에서는 미리보기를 닫으며 영상 공유는 없다.
 - [PRD](prd-scenic-study.md): main.tsx의 DashboardApp은 기존 공부·카메라·actual tracking과 모달을 계속 소유한다. ScenicStudyView.tsx/scenicStudy.css는 파생값/공식 콜백과 표시 전환만 사용하고 기존 Dashboard 자식을 유지한다. 2026-11-02 승인한 자동 진입은 DashboardApp의 기존 local start/resume 성공 경계와 현재 today/focus 표시 문맥에서만 수행한다. 이미 실행 중인 공부의 재진입은 표시만 바꾸며 scene 내부 pause/resume 콜백과 별개다. 서버 snapshot/계정 전환/취소/실패로 진입하지 않는다. scoped DOM shielding은 inline 모달 조상 경로와 video layout을 보존하며 inert/aria/opacity·초점/body lock만 임시 소유한다.
 - atmosphere controller/기기별 저장은 기존 소유자다. atmosphere.css의 명시적 scenic scrim을 약하게 하고 풍경이 열린 동안만 root canvas/이미지 실패 fallback을 차콜로 칠한다. 일반 대시보드 대비/움직임 줄이기/blur 정지 계약과 저장값을 유지한다. 배경 편집은 기존 AtmosphereSettings의 독립 초안이다.

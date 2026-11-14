@@ -7604,6 +7604,10 @@ function DashboardApp() {
         task={!activeSession ? "오늘의 공부를 준비해요" : (actualTracking?.session_id === activeSession.id
           ? actualTracking.todos.find(todo => todo.id === actualTracking.current_todo_id)?.title : undefined) ?? "현재 할 일 확인 중"}
         clock={dashboardReady ? formatTimerClock(currentSessionSeconds) : "확인 필요"}
+        dailyClock={dashboardReady ? formatTimerClock(todaySeconds) : "확인 필요"}
+        dailyClockLabel={todayDateKey === currentStudyDateKey
+          ? "오늘 누적 공부"
+          : `${Number(todayDateKey.slice(5, 7))}월 ${Number(todayDateKey.slice(8, 10))}일 누적 공부`}
         status={!dashboardReady ? "학습 정보 확인 필요" : activeSession && actualTracking?.session_id !== activeSession.id ? "세션 상태 확인 중" : !activeSession ? "시작 준비" : activeSessionPaused ? "휴식 중" : presenceState.timerPaused || sharedCameraView.status === "auto_paused" ? "자리 비움" : "공부 중"}
         camera={activeSessionPaused ? "휴식 중 · 카메라 감시 중지" : sharedCameraView.remote ? sharedCameraView.label : cameraEnabled && cameraStatus === "watching" && presenceState.absenceSeconds === 0 ? "카메라 감시 중" : `카메라 감시 · ${getPresenceStatusLabel({ cameraEnabled, status: cameraStatus, absenceSeconds: presenceState.absenceSeconds })}`}
         cameraStream={activeSession && cameraSessionIdRef.current === activeSession.id && cameraEnabled && !activeSessionPaused && !sharedCameraView.remote ? cameraStreamRef.current : null}

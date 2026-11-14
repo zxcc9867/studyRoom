@@ -1,5 +1,7 @@
 # Progress
 
+- 풍경 집중 하단에 이번 세션과 공부일 누적 시간을 별도 표기한다. 기존 정산을 재사용하고 완료 기록, 카메라 및 네이티브 설치본을 변경하지 않는다. [PRD](prd-scenic-study.md).
+
 - 운영 완료: 새 공부 주·달의 첫 시작에서만 지난 기간 요약, ‘바로 공부 시작’은 원래 절차를 실행한다. 상세 리포트·학습 기록 유지. [PRD](prd-study-reports.md) · [검증](../docs/verification/2026-11-14-study-period-recap.md).
 - Windows 0.1.11 덮어설치 확인: Google 계정 선택 직접 열기, 카메라 최초 승인 재사용. Chrome 완료 탭이 남을 수 있다. 실계정·물리 카메라는 별도 수용 범위다. [원인](trouble-shooting.md).
 

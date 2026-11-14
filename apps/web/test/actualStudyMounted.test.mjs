@@ -106,6 +106,55 @@ for(const width of [375,1440])for(const dark of [false,true])browserTest(`scenic
 async function withLeaseApp(width,run) {
  return withApp(width,async page=>{const camera=page.getByRole('dialog',{name:'카메라 인증 필요',exact:true});await camera.waitFor();await page.keyboard.press('Escape');await camera.waitFor({state:'detached'});await run(page);},'lease');
 }
+
+for(const [width,scale,scheme] of [[1440,1,'light'],[800,2,'dark'],[375,2,'dark']])browserTest(`scenic daily total: shows completed and live study separately at ${width}px ${scale}x ${scheme}`,()=>withLeaseApp(width,async page=>{
+ await page.emulateMedia({colorScheme:scheme});
+ if(scale===2)await page.addStyleTag({content:'html{font-size:200%;}'});
+ await page.clock.setFixedTime(new Date('2026-09-21T14:31:00Z'));await page.clock.runFor(1000);
+ await page.getByRole('button',{name:'공부 화면 열기',exact:true}).click();
+ const scene=page.getByRole('region',{name:'풍경 집중 화면'}),total=scene.getByRole('group',{name:'오늘 누적 공부',exact:true});
+ assert.equal(await total.isVisible(),true,'the existing scenic dock shows the accumulated time');
+ const sessionClock=scene.getByRole('timer',{name:'풍경 세션 공부시간',exact:true});
+ const clocks=async()=>await scene.evaluate(el=>{
+  const toSeconds=value=>value.split(':').reduce((sum,part)=>sum*60+Number(part),0);
+  return [...el.querySelectorAll('[role="timer"],[aria-label="오늘 누적 공부"] strong')].map(node=>toSeconds(node.textContent));
+ });
+ const first=await clocks();
+ assert.ok(first[0]>0);
+ assert.equal(first[1]-first[0],3600,'the fixture has one hour of completed study before this session');
+ await page.clock.setFixedTime(new Date('2026-09-21T14:31:05Z'));await page.clock.runFor(1000);
+ assert.deepEqual(await clocks(),first.map(seconds=>seconds+5),'current and daily study update together');
+ await scene.getByRole('button',{name:'잠시 쉬기',exact:true}).click();
+ await scene.getByRole('button',{name:'공부 계속하기',exact:true}).waitFor();
+ const paused=await clocks();
+ await page.clock.setFixedTime(new Date('2026-09-21T14:31:10Z'));await page.clock.runFor(1000);
+ assert.deepEqual(await clocks(),paused,'break time is not included in either number');
+ const fontSize=el=>parseFloat(getComputedStyle(el).fontSize);
+ assert.ok(await sessionClock.evaluate(fontSize)>await total.locator('strong').evaluate(fontSize),'the live timer stays visually primary');
+ await readableGroup(total.locator('span,strong'));
+ const primaryBox=await sessionClock.boundingBox(),dailyBox=await total.boundingBox();
+ assert.ok(dailyBox.y>=primaryBox.y+primaryBox.height-1,'the daily total sits below the active timer');
+ assert.ok(dailyBox.x>=0&&dailyBox.x+dailyBox.width<=width+1,'the total remains in the viewport');
+ assert.equal(await scene.evaluate(el=>el.scrollWidth<=el.clientWidth),true,'zoomed content does not widen the scene');
+ const task=scene.getByRole('heading',{name:'집중 독서',exact:true});
+ assert.ok(await task.evaluate(el=>el.offsetWidth>=parseFloat(getComputedStyle(el).fontSize)*5),'the dock leaves enough room for the task label');
+ await scenicScreenshot(page,`scenic-daily-total-${width}-${scale}x-${scheme}`);
+}));
+
+browserTest('scenic daily total: carries the named study day after the 04:00 local boundary',()=>withLeaseApp(1440,async page=>{
+ await page.evaluate(()=>{
+  fixture.sessions[0]={...fixture.sessions[0],started_at:'2026-09-21T18:50:00Z',lease_expires_at:'2026-09-21T20:00:00Z'};
+  fixture.camera=null;
+ });
+ await page.clock.setFixedTime(new Date('2026-09-21T19:01:00Z'));
+ await page.evaluate(()=>window.dispatchEvent(new Event('focus')));
+ await page.waitForFunction(()=>document.querySelector('.dashboard-page-heading')?.textContent.includes('시작한 공부일로 계속 기록 중'));
+ await page.getByRole('button',{name:'공부 화면 열기',exact:true}).click();
+ const scene=page.getByRole('region',{name:'풍경 집중 화면'});
+ await scene.getByRole('group',{name:'9월 21일 누적 공부',exact:true}).waitFor();
+ assert.equal(await scene.getByRole('group',{name:'오늘 누적 공부',exact:true}).count(),0);
+}));
+
 for(const width of [375,1440])for(const paused of [false,true])browserTest(`scenic lease: extends the same ${paused?'paused':'studying'} session without restarting camera or study at ${width}px`,()=>withLeaseApp(width,async page=>{
  await page.clock.setFixedTime(new Date('2026-09-21T14:31:00Z'));await page.clock.runFor(1000);
  const tools=page.locator('.focus-tools');await tools.locator('summary').first().click();await tools.getByRole('button',{name:'카메라 감시 켜기',exact:true}).click();await tools.getByRole('button',{name:'카메라 감시 끄기',exact:true}).waitFor();

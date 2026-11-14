@@ -1,4 +1,5 @@
 # Active Context
+- 2026-11-15 · codex-scenic-totals-1115 · 풍경 하단에 ‘이번 세션’과 누적 공부 시간을 분리한다. Dashboard 집계/새벽 4시 공부일 기준 재사용, 경계 이후 기존 세션은 집계 날짜 명시. DB·기록·네이티브 불변. [PRD](prd-scenic-study.md).
 - 2026-11-14 · codex-period-recap-1114 · fix/study-dashboard-clarity: 새 주·달 첫 명시적 공부 시작에 지난 기간 요약. 기존 시작·정산·회복·카메라·학습 기록/DB 불변. [PRD](prd-study-reports.md).
 - 별도 사용자 승인: Windows 0.1.11 Google 계정 선택 바로 열기(Chrome 완료 탭 유지 가능), 같은 인증 세대·문서 카메라 첫 동의만. 실제 설치와 실계정 사용은 별도 유휴/승인 및 수용으로 구분한다.
 - 운영: 제품 `bfd4210` feature push, Actions 43606748895 success, Vercel `dpl_u8XJhdhB3PqMHibJ3eRweN1ogunC` READY·exact SHA·alias·HTML/JS/CSS 200. Chrome 16/16·별도 로그인 11/11·Electron 2/2·공식7/Dune0·독립 검토 통과. Windows 0.1.11 정상 덮어설치 exit0, 암호문1 동일·ASAR 일치·창 응답 확인. 실제 계정 재인증/물리 카메라 미실행. 다른 dirty 파일과 DB·Android 설치본·main 보존. [검증](../docs/verification/2026-11-14-study-period-recap.md).
