@@ -1686,6 +1686,7 @@ docs/images/study-room-thumbnail.png
 - `README.ja.md` provides the Japanese documentation.
 - Every README starts with relative links to all three language files.
 - Features, commands, environment variables, security notes, and project limitations must remain consistent with the repository.
+- Major user-visible releases, including manual web deployments, follow the [release checklist](../docs/release-checklist.md) and update the three READMEs together.
 ## 2026-09-06 - Goal achievement badges
 
 - main.tsx shares updateGoalStatus between Today and Goals. Mutations filter by goal ID and authenticated user ID, and update local state only after a successful single-row response. try/finally restores the busy state.
