@@ -224,6 +224,7 @@ A study streak is not a static badge here. The avatar walks across the island, c
 - Attendance on the first valid study start of a 04:00-based study day, separate from weekday 2-hour and weekend 4-hour study goals.
 - Browser-only presence classification with a five-minute warning and a ten-minute study-time pause.
 - Recovery requests for missed attendance or repeated absence.
+- Camera recovery is created at most once per study day after three separate, server-confirmed absences of at least ten minutes each. Five-minute warnings do not count toward this limit.
 - Accumulated missed days share one recovery routine across devices; the covered dates and day count remain visible, and makeup tasks are scheduled for the user's current local date.
 - Weekly recovery summaries and reason categories.
 

@@ -81,6 +81,7 @@ before(async () => {
   const migration = readdirSync('supabase/migrations').find(file => file.endsWith('_study_device_camera_sync.sql'));
   if (migration) await db.exec(readFileSync(`supabase/migrations/${migration}`,'utf8'));
   await db.exec(readFileSync('supabase/migrations/20261107053852_camera_recovery_distinct_absences.sql','utf8'));
+  await db.exec(readFileSync('supabase/migrations/20261115060610_camera_recovery_ten_minutes.sql','utf8'));
 });
 after(() => db?.close());
 
@@ -115,10 +116,10 @@ test('server absence resets on an expired heartbeat and never trusts client seco
   assert.equal((await action('report',a,1,'absent')).camera.absence_seconds,0);
 }));
 
-const atSecond = sec => at(`${String(Math.floor(sec/60)).padStart(2,'0')}:${String(sec%60).padStart(2,'0')}`);
+const atSecond = sec => db.query("select set_config('test.now',$1,false)", [new Date(Date.parse('2026-10-18T09:00:00Z') + sec*1000).toISOString()]);
 const recoveryCount = () => admin(() => scalar(
   "select count(*)::int value from study_recovery_requests where user_id=$1 and trigger_type='camera_absence_repeat'", [user]));
-async function reportAbsence(start, duration = 300, finalStatus = 'absent', sessionId = session) {
+async function reportAbsence(start, duration = 600, finalStatus = 'absent', sessionId = session) {
   for (let offset=0;offset<=duration;offset=Math.min(offset+30,duration)) {
     await atSecond(start+offset);
     const status = offset===duration ? finalStatus : 'absent';
@@ -138,29 +139,93 @@ test('three warnings during one uninterrupted 25-minute absence do not create re
   assert.equal(await recoveryCount(),0);
 }));
 
+test('five-minute warnings still fire but three absences shorter than ten minutes do not create recovery', () => fixture(async () => {
+  await action('claim');
+  for (const start of [0,660,1320]) {
+    await reportAbsence(start,300);
+    assert.equal((await warn(a,1,'absence_warning')).allowed,true);
+    await reportAbsence(start+330,269);
+    await atSecond(start+605);await action('report',a,1,'present');
+  }
+  assert.equal(await recoveryCount(),0);
+}));
+
 test('three qualified episodes create one recovery even when warning cooldown suppresses a separate episode', () => fixture(async () => {
   await action('claim');
   await reportAbsence(0);
   assert.equal((await warn(a,1,'absence_warning')).allowed,true);
-  await atSecond(310);await action('report',a,1,'present');
-  await reportAbsence(360);
+  await atSecond(610);await action('report',a,1,'present');
+  await reportAbsence(660,300);
   assert.equal((await warn(a,1,'absence_warning')).allowed,false);
+  await reportAbsence(990,270);
   assert.equal(await recoveryCount(),0);
-  await atSecond(670);await action('report',a,1,'present');
-  await reportAbsence(720,299);
+  await atSecond(1270);await action('report',a,1,'present');
+  await reportAbsence(1320,599);
   assert.equal(await recoveryCount(),0);
-  await atSecond(1020);await action('report',a,1,'absent');
-  assert.equal(await recoveryCount(),1,'an absent report at exactly 5 minutes qualifies the third episode');
-  await atSecond(1030);await action('report',a,1,'watching');
+  await atSecond(1920);await action('report',a,1,'absent');
+  assert.equal(await recoveryCount(),1,'an absent report at exactly 10 minutes qualifies the third episode');
+  await atSecond(1930);await action('report',a,1,'watching');
   const row=await admin(() => scalar("select to_jsonb(r) value from study_recovery_requests r where user_id=$1",[user]));
   assert.equal(row.local_date,'2026-10-18');
   assert.equal(row.status,'pending');
   assert.equal(row.covered_missed_days,1);
   await admin(() => db.query("update study_recovery_requests set status='submitted' where id=$1",[row.id]));
-  await reportAbsence(1080);
+  await reportAbsence(1980);
   assert.equal((await warn(a,1,'absence_warning')).absence_warning_count,2);
   assert.equal(await recoveryCount(),1);
   assert.equal(await admin(() => scalar('select status value from study_recovery_requests where id=$1',[row.id])),'submitted');
+}));
+
+test('legacy five-minute rows are preserved but do not count unless the same absence is confirmed at ten minutes', () => fixture(async () => {
+  const oldKeys = ["2026-10-18T08:10:00Z","2026-10-18T08:30:00Z","2026-10-18T09:00:00Z"];
+  const readLegacy = () => admin(() => scalar(`select jsonb_agg(to_jsonb(e)-'qualified_10m_at' order by absence_since) value
+    from study_device_private.camera_recovery_episodes e where user_id=$1 and absence_since=any($2::timestamptz[])`,[user,oldKeys]));
+  await admin(() => db.query(`insert into study_device_private.camera_recovery_episodes(user_id,local_date,session_id,absence_since)
+    select $1,'2026-10-18',$2,legacy_start from unnest($3::timestamptz[]) legacy_start`,[user,session,oldKeys]));
+  const legacy = await readLegacy();
+  await action('claim');
+  for (const start of [0,660,1320]) {
+    await reportAbsence(start);
+    assert.equal(await recoveryCount(),start===1320 ? 1 : 0);
+    await atSecond(start+610);await action('report',a,1,'present');
+  }
+  assert.deepEqual(await readLegacy(),legacy);
+}));
+
+test('migration preserves completed five-minute evidence and needs a fresh report for an active legacy episode past ten minutes', () => fixture(async () => {
+  await admin(async () => {
+    const previous = readFileSync('supabase/migrations/20261107053852_camera_recovery_distinct_absences.sql','utf8')
+      .match(/create function study_device_private\.record_camera_recovery_episode\(\)[\s\S]*?end \$\$;/);
+    assert.ok(previous);
+    await db.exec(previous[0].replace('create function','create or replace function'));
+    await db.exec('alter table study_device_private.camera_recovery_episodes drop column qualified_10m_at');
+  });
+  await action('claim');
+  await reportAbsence(0,300);
+  await atSecond(310);await action('report',a,1,'present');
+  await reportAbsence(360,600);
+  assert.equal(await recoveryCount(),0);
+
+  await admin(() => db.exec(readFileSync('supabase/migrations/20261115060610_camera_recovery_ten_minutes.sql','utf8')));
+  const markers = () => admin(() => scalar(`select jsonb_agg(qualified_10m_at order by absence_since) value
+    from study_device_private.camera_recovery_episodes where user_id=$1`,[user]));
+  assert.deepEqual(await markers(),[null,null]);
+  await atSecond(965);
+  assert.equal((await action('report',a,2,'absent')).accepted,false);
+  assert.deepEqual(await markers(),[null,null]);
+  assert.equal((await action('report',a,1,'absent')).accepted,true);
+  const confirmed = await markers();
+  assert.equal(confirmed[0],null);
+  assert.equal(Date.parse(confirmed[1]),Date.parse('2026-10-18T09:16:05Z'));
+  await atSecond(970);await action('report',a,1,'absent');
+  assert.deepEqual(await markers(),confirmed);
+
+  await atSecond(980);await action('report',a,1,'present');
+  await reportAbsence(1020);
+  assert.equal(await recoveryCount(),0);
+  await atSecond(1630);await action('report',a,1,'present');
+  await reportAbsence(1680);
+  assert.equal(await recoveryCount(),1);
 }));
 
 test('a historical completed camera recovery blocks replacement without changing history; next study day is independent', () => fixture(async () => {
@@ -170,7 +235,7 @@ test('a historical completed camera recovery blocks replacement without changing
           ($2,'2026-10-19','camera_absence_repeat','submitted')`,[user,other]));
   const history=await admin(() => scalar('select jsonb_agg(to_jsonb(r) order by id) value from study_recovery_requests r'));
   await action('claim');
-  for (const start of [0,360,720]) {await reportAbsence(start);await atSecond(start+310);await action('report',a,1,'present');}
+  for (const start of [0,660,1320]) {await reportAbsence(start);await atSecond(start+610);await action('report',a,1,'present');}
   assert.deepEqual(await admin(() => scalar('select jsonb_agg(to_jsonb(r) order by id) value from study_recovery_requests r')),history);
   const next='00000000-0000-4000-8000-000000000204';
   await admin(async () => {
@@ -178,38 +243,38 @@ test('a historical completed camera recovery blocks replacement without changing
     await db.query("insert into study_sessions(id,user_id,local_date,started_at,lease_expires_at) values($1,$2,'2026-10-19',now(),now()+interval '1 hour')",[next,user]);
   });
   await scalar("select study_camera_action('claim',$1,$2) value",[a,next]);
-  for (const start of [1080,1440,1800]) {
-    await reportAbsence(start,300,'absent',next);
-    if (start<1800) assert.equal(await recoveryCount(),1);
-    await atSecond(start+310);await scalar("select study_camera_action('report',$1,$2,1,'present') value",[a,next]);
+  for (const start of [1980,2640,3300]) {
+    await reportAbsence(start,600,'absent',next);
+    if (start<3300) assert.equal(await recoveryCount(),1);
+    await atSecond(start+610);await scalar("select study_camera_action('report',$1,$2,1,'present') value",[a,next]);
   }
   assert.equal(await recoveryCount(),2);
 }));
 
 test('same-day episodes survive a new session without treating an expired heartbeat as absence', () => fixture(async () => {
   await action('claim');
-  await reportAbsence(0,270);
-  await atSecond(320);await action('report',a,1,'watching'); // Previous heartbeat expired at 315.
-  await reportAbsence(360);
-  await atSecond(670);await action('report',a,1,'watching');
+  await reportAbsence(0,570);
+  await atSecond(620);await action('report',a,1,'watching'); // Previous heartbeat expired at 615.
+  await reportAbsence(660);
+  await atSecond(1270);await action('report',a,1,'watching');
   const next='00000000-0000-4000-8000-000000000205';
   await admin(async () => {
     await db.query("update study_sessions set status='completed',ended_at=now() where id=$1",[session]);
     await db.query("insert into study_sessions(id,user_id,local_date,started_at,lease_expires_at) values($1,$2,'2026-10-18',now(),now()+interval '1 hour')",[next,user]);
   });
   await scalar("select study_camera_action('claim',$1,$2) value",[a,next]);
-  await reportAbsence(720,300,'absent',next);
+  await reportAbsence(1320,600,'absent',next);
   assert.equal(await recoveryCount(),0);
-  await atSecond(1030);await scalar("select study_camera_action('report',$1,$2,1,'watching') value",[a,next]);
-  await reportAbsence(1080,300,'absent',next);
+  await atSecond(1930);await scalar("select study_camera_action('report',$1,$2,1,'watching') value",[a,next]);
+  await reportAbsence(1980,600,'absent',next);
   assert.equal(await recoveryCount(),1);
 }));
 
-test('a same-owner reconnect does not turn an observed 299-second absence into a qualified episode', () => fixture(async () => {
+test('a same-owner reconnect does not turn an observed 599-second absence into a qualified episode', () => fixture(async () => {
   await action('claim');
-  for (const start of [0,360,720]) {
-    await reportAbsence(start,299);
-    await atSecond(start+301);
+  for (const start of [0,660,1320]) {
+    await reportAbsence(start,599);
+    await atSecond(start+601);
     assert.equal((await action('claim')).accepted,true);
   }
   assert.equal(await recoveryCount(),0);

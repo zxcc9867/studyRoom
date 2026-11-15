@@ -1,4 +1,11 @@
-## 2026-11-07 Update: Three distinct camera absence episodes, once per study day
+## 2026-11-15 Update: Ten-minute camera recovery qualification
+
+- A distinct uninterrupted absence qualifies only once the server accepts an absent report at or beyond ten minutes. Create a request after the third qualified episode for the same user and study day (04:00 boundary), at most once across all request statuses. Five-minute warnings, ten-minute time exclusion, the detector, and absence for attendance are unchanged.
+- Existing five-minute episode evidence does not prove ten minutes and is not counted. A continuing old episode can qualify only on a fresh accepted absent report at or beyond ten minutes; its key and prior evidence stay intact. Keep all existing recovery requests and learning records, with no backfill or automatic dismissal.
+- Migration `20261115060610_camera_recovery_ten_minutes.sql` adds the nullable `qualified_10m_at` marker to the private episode table and replaces its existing heartbeat trigger function. RLS, grants, public RPCs, Edge delivery, and the app contract stay unchanged. Rollback uses a forward migration to restore the preceding function and retains the evidence.
+- A five-minute warning can now precede recovery creation for that same episode. The app can see a pending request on its next dashboard load. Slack can deliver it on a later eligible warning or via the existing pending follow-up; it does not necessarily send a recovery link at ten minutes.
+
+## 2026-11-07 historical rule: Three distinct five-minute episodes
 
 - Approved replacement for the warning-count rule: qualify a distinct uninterrupted server-observed absence after at least five minutes. A long absence counts once regardless of warning repeats; a separate five-minute episode still qualifies during a warning cooldown.
 - On the third qualifying episode, create one camera recovery per user and session study day (`study_sessions.local_date`, existing 04:00 rule). Existing camera recovery in any status, including submitted, prevents replacement. Missed-attendance recovery is independent.

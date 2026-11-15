@@ -1,4 +1,9 @@
 # Active Context
+- 갱신: 2026-11-15 15:14 JST · 도구: codex · 브랜치: `fix/camera-recovery-ten-minutes`.
+- 완료: 회복 구간만 10분으로 올렸다. Supabase 운영 `20261115061407` 확인. 5분 경고·10분 시간 제외·하루 1건·기존 학습과 회복 요청 유지.
+- 검증: 집중 63/63·공식 7/7·Dune 0·독립 재검토 통과. 운영 본문·보호 RPC·권한·RLS·보안 advisory·웹 200 확인. [검증](../docs/verification/2026-11-15-camera-recovery-ten-minutes.md).
+- 다음: 상반신 미감지와 착석 불일치는 별도 문제. 평소 자세·일반 이동·빈 자리 대조로 재현한 뒤 감지 조정 범위를 정한다. 실제 촬영·감지 조건 변경·기존 회복 해제는 하지 않았다.
+
 - 2026-11-15 · codex-scenic-totals-1115 · 풍경 하단에 ‘이번 세션’과 누적 공부 시간을 분리한다. Dashboard 집계/새벽 4시 공부일 기준 재사용, 경계 이후 기존 세션은 집계 날짜 명시. DB·기록·네이티브 불변. [PRD](prd-scenic-study.md).
 - 운영 완료: 제품 `a9edfa6` feature push·Chrome49/49·공식7/Dune0·독립검토. Actions 43611590390 성공, Vercel `dpl_BSnWm547zq9kumvVeLcJTPmwTZGS` READY·정확 SHA·공식 alias·HTML/JS/CSS 200. 설치/실기기/공부 중 새로고침은 수행하지 않았다. [검증](../docs/verification/2026-11-15-scenic-daily-total.md).
 - 2026-11-14 · codex-period-recap-1114 · fix/study-dashboard-clarity: 새 주·달 첫 명시적 공부 시작에 지난 기간 요약. 기존 시작·정산·회복·카메라·학습 기록/DB 불변. [PRD](prd-study-reports.md).
