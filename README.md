@@ -2,7 +2,32 @@
 
 [English](README.md) | [한국어](README.ko.md) | [日本語](README.ja.md)
 
-## Shared interface and Windows app
+Study Room helps you build a regular study habit: plan what to study, start on schedule, focus with a timer, and review what to pick up next. Attend on your own or open an invite-only team room.
+
+**[Open Study Room](https://study-room-attendance.vercel.app/)** · [Install on Android](https://study-room-attendance.vercel.app/download/android)
+
+![Today dashboard showing the study timer and daily tasks (sample data)](docs/images/hig-today-1440.png)
+
+*Example Today dashboard with synthetic data. [See the narrow-screen layout](docs/images/hig-today-375.png).*
+
+## Platform support
+
+| Platform | How to use it |
+| --- | --- |
+| Web | [Open the live app](https://study-room-attendance.vercel.app/) in a supported browser. The live deployment can be ahead of the source on `main`. |
+| Windows | The [Windows x64 desktop app](apps/desktop/) uses the hosted web interface. Source is available, but there is no public Windows installer in GitHub Releases. Closing with **X** hides the app in the tray; use **독서실 종료** (Quit Study Room) in the tray to exit. Check the installed version under **Settings → App info → Windows app info**. |
+| Android | The [public APK](https://github.com/zxcc9867/studyRoom/releases/tag/android-v0.2.4-build7) is **0.2.4 (build 7)**. The signed-in app uses the hosted interface, with native permission handling and a fallback screen. Native changes require a new APK. |
+| iOS | No public native iOS build is available from this project. Use the web app in a supported browser. |
+
+## What you can do
+
+- **Plan and focus:** Pick today's tasks and start a session to enter scenic focus automatically on the hosted interface. It shows the current task, not an old next-step note. Choose a still scene or a supported video background; the background choice syncs only within the same active session, while playback settings stay on each device. [Scenic study and background sync](docs/verification/2026-11-09-session-scenery.md).
+- **Track attendance separately:** A valid start before the study-day cutoff at 04:00 earns attendance. The Records calendar shows the first start and its on-time/late label when timing evidence is available. Missing a duration goal does not undo attendance. [Attendance timing](docs/verification/2026-11-12-attendance-timing.md).
+- **Preview the camera:** In scenic focus, select the camera status to see the existing local stream. This does not start a second camera or send video to another device. [Camera preview](docs/verification/2026-11-06-scenic-camera-preview.md).
+- **Pick up where you left off:** Save a next step for each task, choose a different task without losing that bookmark, and see what you wrote in today's learning result. [Learning continuity](docs/verification/2026-11-05-learning-continuity.md).
+- **Review and keep studying:** On the first study start of a new week or month, the hosted app can show a recap if the previous period has study records. **Start studying now** skips it. Scenic focus separates **This session** from the **study-day total**, which uses the 04:00 boundary. These two features are live; their source commits are not yet on `main` as of 15 November 2026. [First-start recap](https://github.com/zxcc9867/studyRoom/blob/e48f161/docs/verification/2026-11-14-study-period-recap.md) · [Daily total](https://github.com/zxcc9867/studyRoom/blob/b4ae32f/docs/verification/2026-11-15-scenic-daily-total.md).
+
+## Shared interface
 
 - The HIG-inspired interface gives login, study, reflections, reports, calendars and dialogs a common visual style. Personal/team study navigation stays in a consistent position.
 - Settings groups **Account / Study and appearance / Notifications / Device connections / App information**. View current values first, then choose edit, cancel or save; changing groups preserves drafts and pending saves.
@@ -10,13 +35,7 @@
 - The planner uses the shared theme and states the **04:00 study-day boundary**. My Page and the forest prioritize summaries, next actions and growth, with detailed histories in expandable sections.
 - The technical feed shows an available Korean introduction before an English AI summary and labels translation state and summary language. This display change does not restore an exhausted translation quota or guarantee translation for every article.
 
-The Windows **0.1.10** app uses the hosted Study Room interface. **X** hides the window in the tray while study and camera activity continue. In scenic study, mini mode resizes the same window and can restore it; older installers can show the shared web scenery but cannot resize the native window this way. Check the installed version in **Settings → App info → Windows app info**. The x64 per-user installer is unsigned and is not published as a public Windows release. See the [scenic and Windows verification](docs/verification/2026-11-01-scenic-study.md), [latest study flow](docs/verification/2026-11-14-scenic-current-task.md), and [local installation record](docs/verification/2026-11-14-main-desktop.md).
-
-| Desktop layout | Narrow-screen layout |
-| --- | --- |
-| ![Actual shared Today interface at 1440 px with synthetic study and task data](docs/images/hig-today-1440.png) | ![Actual shared Today interface at 375 px with synthetic study and task data](docs/images/hig-today-375.png) |
-
-These existing Chrome captures run the actual React components with synthetic data and illustrate the initial shared interface, not all later settings/dark-mode states or physical-device acceptance. Details: [capture scope](docs/verification/2026-10-26-hig-ui-auth.md), [settings](docs/verification/2026-10-29-settings-redesign.md), [appearance](docs/verification/2026-10-29-dark-navigation.md), [planner, forest and feed](docs/verification/2026-10-29-dashboard-clarity.md), [later contrast verification](docs/verification/2026-10-29-dark-record-contrast.md). Earlier screenshots below document their respective feature checks.
+The representative screenshots above use real React components with synthetic data. They illustrate the shared layout, not every later settings state or physical-device verification. [Capture scope](docs/verification/2026-10-26-hig-ui-auth.md) · [Settings](docs/verification/2026-10-29-settings-redesign.md) · [Dark appearance](docs/verification/2026-10-29-dark-navigation.md) · [Later contrast checks](docs/verification/2026-10-29-dark-record-contrast.md).
 
 ## Attendance and daily study goals are separate
 
@@ -102,13 +121,7 @@ Search covers publicly indexed results, not every page or private SNS content. S
 
 **User setup and operational activation are separate.** The app operator must provision a dedicated free search key, disable pay-as-you-go, configure the worker and verify live collection. No key or exhausted quota means no live web search, not fabricated news. [Current delivery status](memory-bank/progress.md) · [Search operation guide](docs/tech-feed/search-provider.md) · [Requirements](memory-bank/prd-tech-feed.md) · [Career code restoration](archive/career-coach/README.md). Career-only UI/automation is archived; independent time-zone settings and restart coaching remain.
 
-A personal study-habit product that turns a scheduled commitment into a repeatable loop: plan, focus, reflect, adjust, and earn visible rewards.
-
-[Open the production app](https://study-room-attendance.vercel.app/) · [Production deployment workflow](https://github.com/zxcc9867/studyRoom/actions)
-
-![Study Room thumbnail](docs/images/study-room-thumbnail.png)
-
-> The README summarizes the current user experience and operating model. Detailed requirements, decisions, and delivery history live in the [memory bank](memory-bank/).
+[Deployment history](https://github.com/zxcc9867/studyRoom/actions) · [Detailed requirements and progress](memory-bank/)
 
 ## Archived: career study coach
 
@@ -163,7 +176,7 @@ The system combines a Vite/React web app, an Expo mobile client, Supabase Auth/P
 1. Restore an existing Supabase session, or sign in with email OTP and optional Google OAuth.
 2. Plan dated todos, timed schedules, recurring work, goals, and D-days.
 3. Receive a scheduled reminder through Web Push, Slack, or email fallback.
-4. Use the Today workspace through Focus, Plan, and Records tabs. Start a session only after selecting at least one unfinished todo for today. The web and Android hosted interface can quick-add a title and start/end time directly to the schedule and session selection; the native Expo fallback's quick add captures the title only. The plan opens with an empty new-task title and preselects a matching todo only when the latest reflection has a next action; a newer blank reflection does not revive older advice.
+4. Use the Today workspace through Focus, Plan, and Records tabs. Start a session only after selecting at least one unfinished todo for today. The web and Android hosted interface can quick-add a title and start/end time directly to the schedule and session selection; the native Expo fallback's quick add captures the title only. Choose a saved next step for an existing task or pick another task. The new-task field starts blank.
 5. Begin with a one-hour session lease and extend it in one-hour increments, with at most two hours remaining from the current time.
 6. Pause and resume without counting break time as study time; optionally set a 10, 20, or 40-minute return promise.
 7. Use browser-only upper-body presence detection on the web. No photo, video, face feature, or raw pose landmark is stored.
@@ -200,7 +213,8 @@ The system combines a Vite/React web app, an Expo mobile client, Supabase Auth/P
 
 - End-of-session reflections and a recent reflection inbox.
 - Ten-minute checkpoint before the larger weekday and weekend targets.
-- Latest next action carried into the next session plan.
+- The reflection's next step is saved per task. Choosing another task does not erase it, and a newer blank next step does not revive older advice.
+- Add an optional learning result at the end of a session, then review it in today's Records tab.
 - Seven-day rhythm with rest, ten-minute starts, goals, and flower rewards.
 - Flexible five-of-seven target with two rest-day margins.
 - Weekly/monthly reports with past-period navigation, explicit comparison dates and monthly daily averages.
@@ -338,6 +352,7 @@ The test suite covers attendance policy, authentication recovery, session leases
 
 ## Deployment
 
+- Before releasing a major user-visible change, update all three READMEs as part of the [release checklist](docs/release-checklist.md).
 - A push to `main` runs tests and the web build through GitHub Actions before deploying to Vercel production.
 - Supabase changes are applied as migrations and verified against RLS, function grants, and migration state.
 - `infra/aws-cdk` is optional and can be synthesized with:
