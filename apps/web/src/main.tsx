@@ -330,6 +330,7 @@ type CameraSetupPrompt = {
   todoIds?: string[];
   focusId?: string;
   useSuggestion?: boolean;
+  directStartStillValid?: () => boolean;
 };
 type CameraDiagnosticReason = CameraHealth["reason"] | "permission-denied" | "unknown-error" | null;
 type SessionLeaseState = {
@@ -712,6 +713,8 @@ function DashboardApp() {
     setDraggingSectionId(null);
   }, [activeSection, todayDomain]);
   const [scenicOpen, setScenicOpen] = useState(false);
+  const scenicOpenRef = useRef(scenicOpen);
+  scenicOpenRef.current = scenicOpen;
   const [studyRecap, setStudyRecap] = useState<PendingStudyRecap | null>(null);
   const studyRecapSeen = useRef(new Map<string, Partial<Record<StudyRecapMode, string>>>());
   const scenicStartIntentRef = useRef<{ userId: string; revision: number } | null>(null);
@@ -1241,6 +1244,8 @@ function DashboardApp() {
     [studySessions],
   );
   const blockingRecoveryRequests = pendingRecoveryRequests;
+  const recoveryBlocksStartRef = useRef(false);
+  recoveryBlocksStartRef.current = blockingRecoveryRequests.length > 0;
   const autoOpenRecoveryRequests = useMemo(() => blockingRecoveryRequests, [blockingRecoveryRequests]);
   const recoveryModalRemainingCount = recoveryModalRequest
     ? pendingRecoveryRequests.filter((request) => request.id !== recoveryModalRequest.id).length
@@ -1318,7 +1323,7 @@ function DashboardApp() {
     const intent = learningStartIntentRef.current;
     const useSuggestion = resumeStartAfterRecoveryUnlock !== "without-suggestion";
     const focusId = useSuggestion && intent && intent.userId === session?.user.id ? intent.todoId : undefined;
-    void startTimer(false, focusId ? [focusId] : undefined, undefined, focusId, useSuggestion);
+    void startTimer(false, focusId ? [focusId] : undefined, undefined, focusId, { useSuggestion });
   }, [
     activeSession?.id,
     blockingRecoveryRequests.length,
@@ -1469,7 +1474,7 @@ function DashboardApp() {
       if (source === "picker") openSessionTodoSelection(false);
       else {
         sessionTodoSuggestionRef.current = null;
-        void startTimer(false, undefined, undefined, undefined, false);
+        void startTimer(false, undefined, undefined, undefined, { useSuggestion: false, directDesktopCamera: true });
       }
       return;
     }
@@ -1478,15 +1483,16 @@ function DashboardApp() {
       const choice = learningChoices.find(todo => todo.id === learningChoiceId && todo.local_date === calendarDateKey);
       if (choice && session) learningStartIntentRef.current = { userId: session.user.id, todoId: choice.id };
       else learningStartIntentRef.current = null;
-      void startTimer(false, choice ? [choice.id] : undefined, undefined, choice?.id);
+      void startTimer(false, choice ? [choice.id] : undefined, undefined, choice?.id, { directDesktopCamera: true });
       return;
     }
-    void startTimer(false, undefined, studyStartAction.suggestedTodoTitle);
+    void startTimer(false, undefined, studyStartAction.suggestedTodoTitle, undefined, { directDesktopCamera: true });
   }
 
   function requestStudyStartWithRecap(source: StudyStartSource) {
     const userId = session?.user.id;
-    if (visibleStudyRecap || busy || activeSession || !userId || currentUserIdRef.current !== userId) return;
+    if (visibleStudyRecap || busy || activeSession || !userId || currentUserIdRef.current !== userId
+      || (isDesktopStudyApp(window) && cameraSessionStartingRef.current)) return;
     if (!dashboardReady) {
       if (source !== "picker") continueStudyStart(source);
       return;
@@ -4096,7 +4102,8 @@ function DashboardApp() {
     setMessage("10분 시작을 완성했습니다. 부담 없으면 지금 흐름을 조금 더 이어가세요.");
   }
 
-  async function startTimer(cameraReadyOverride = false, selectedTodoIds?: string[], suggestedTodoTitle?: string, focusId?: string, useSuggestion = true) {
+  async function startTimer(cameraReadyOverride = false, selectedTodoIds?: string[], suggestedTodoTitle?: string, focusId?: string,
+    { useSuggestion = true, directDesktopCamera = false }: { useSuggestion?: boolean; directDesktopCamera?: boolean } = {}) {
     if (!dashboardReady) {
       setDashboardError("공부 시작 전에 회복루틴과 세션 상태를 확인해야 합니다. 학습 정보를 다시 불러와 주세요.");
       return;
@@ -4122,7 +4129,23 @@ function DashboardApp() {
 
     if (!startGate.allowed) {
       if (startGate.reason === "camera-required") {
-        setCameraSetupPrompt({ mode: "start", useSuggestion });
+        const prompt: CameraSetupPrompt = { mode: "start", useSuggestion };
+        // An explicit Windows start can go straight to the native consent dialog.
+        // Automatic continuation (for example after recovery) still asks in the page.
+        if (directDesktopCamera && isDesktopStudyApp(window)) {
+          const revision = scenicRouteRef.current.revision;
+          const seenSessionId = sharedStudySnapshotRef.current?.active_session?.id;
+          prompt.directStartStillValid = () => {
+            const state = readDeviceStudyRef.current();
+            const syncedSessionId = sharedStudySnapshotRef.current?.active_session?.id;
+            return scenicRouteRef.current.revision === revision && (!scenicOpen || scenicOpenRef.current)
+              && state.session === null && (!syncedSessionId || syncedSessionId === seenSessionId)
+              && !recoveryBlocksStartRef.current;
+          };
+          await confirmCameraSetupPrompt(prompt);
+          return;
+        }
+        setCameraSetupPrompt(prompt);
         setCameraMessage("출석하려면 카메라 감시를 먼저 켜야 합니다.");
         return;
       }
@@ -4670,7 +4693,8 @@ function DashboardApp() {
     restart = false,
     automatic = false,
     takeover = false,
-  }: { allowWithoutSession?: boolean; restart?: boolean; automatic?: boolean; takeover?: boolean } = {}) {
+    canContinue = () => true,
+  }: { allowWithoutSession?: boolean; restart?: boolean; automatic?: boolean; takeover?: boolean; canContinue?: () => boolean } = {}) {
     if (cameraEnabled && !restart) {
       return true;
     }
@@ -4697,7 +4721,7 @@ function DashboardApp() {
     const owner = session.user.id;
     const sessionId = activeSession?.id;
     const isCurrentAttempt = () => {
-      if (cameraStartAttemptRef.current !== startAttempt || currentUserIdRef.current !== owner) return false;
+      if (cameraStartAttemptRef.current !== startAttempt || currentUserIdRef.current !== owner || !canContinue()) return false;
       if (!automatic) return true;
       const context = cameraRecoveryContextRef.current;
       const desktopReloadRestore = isDesktopStudyApp(window) && !restart && cameraAutoRestoreAttemptedRef.current;
@@ -4860,7 +4884,7 @@ function DashboardApp() {
       );
       setCameraMessage(
         timedOut
-          ? "카메라 연결 응답이 없어 취소했습니다. 브라우저 권한을 확인한 뒤 다시 눌러주세요."
+          ? "카메라 연결이 지연됐어요. 연결 상태와 카메라 권한을 확인한 뒤 다시 시도해 주세요."
           : formatCameraError(error),
       );
 
@@ -4892,6 +4916,9 @@ function DashboardApp() {
 
   function closeCameraSetupPrompt() {
     scenicStartIntentRef.current = null;
+    if (cameraSetupPrompt?.directStartStillValid && cameraSessionStartingRef.current) {
+      stopCameraMonitoring({ recordEvent: false, preserveIntent: true });
+    }
     if (cameraSetupPrompt?.mode === "start") {
       sessionTodoSuggestionRef.current = null;
       learningStartIntentRef.current = null;
@@ -4899,14 +4926,17 @@ function DashboardApp() {
     setCameraSetupPrompt(null);
   }
 
-  async function confirmCameraSetupPrompt() {
-    if (!cameraSetupPrompt) return;
-
-    const prompt = cameraSetupPrompt;
-    const promptMode = prompt.mode;
+  async function confirmCameraSetupPrompt(prompt = cameraSetupPrompt) {
+    if (!prompt || cameraStatus === "starting" || cameraSessionStartingRef.current) return;
+    const { mode: promptMode, directStartStillValid } = prompt;
+    const owner = session?.user.id;
+    const attempt = cameraStartAttemptRef.current;
     cameraSessionStartingRef.current = promptMode === "start";
-    const cameraReady = await startCameraMonitoring({ allowWithoutSession: promptMode === "start" });
-    if (!cameraReady) {
+    const cameraReady = await startCameraMonitoring({ allowWithoutSession: promptMode === "start", canContinue: directStartStillValid });
+    if (currentUserIdRef.current !== owner || cameraStartAttemptRef.current > attempt + 1) return;
+    const directStartCancelled = directStartStillValid && !directStartStillValid();
+    if (directStartCancelled) stopCameraMonitoring({ recordEvent: false, preserveIntent: true });
+    if (!cameraReady || directStartCancelled) {
       cameraSessionStartingRef.current = false;
       if (isDesktopStudyApp(window)) {
         const state = readDesktopStudyRef.current();
@@ -4917,6 +4947,7 @@ function DashboardApp() {
           deviceStudyTrackerRef.current?.observe(state.userId, null);
         }
       }
+      if (directStartStillValid) setCameraSetupPrompt(directStartCancelled ? null : prompt);
       return;
     }
 
@@ -4924,7 +4955,7 @@ function DashboardApp() {
     if (promptMode === "start") {
       const intent = learningStartIntentRef.current;
       const focusId = prompt.useSuggestion !== false && intent && intent.userId === session?.user.id ? intent.todoId : undefined;
-      await startTimer(true, focusId ? [focusId] : undefined, undefined, focusId, prompt.useSuggestion);
+      await startTimer(true, focusId ? [focusId] : undefined, undefined, focusId, { useSuggestion: prompt.useSuggestion });
     } else if (promptMode === "break-resume") {
       const resumed = await resumeTimer(prompt.todoIds, prompt.focusId);
       if (!resumed && !actualIntentRef.current) {
@@ -5733,9 +5764,20 @@ function DashboardApp() {
     },
   };
 
-  const focusActionDisabled = busy || !dashboardReady || Boolean(actualIntent) || Boolean(activeSession && actualTracking?.session_id !== activeSession.id);
+  const isDesktopIdle = isDesktopStudyApp(window) && !activeSession;
+  const desktopCameraPreparing = isDesktopIdle && cameraStatus === "starting";
+  const desktopCameraStartLabel = isDesktopIdle
+    ? desktopCameraPreparing ? "카메라 준비 중…" : !cameraEnabled ? "카메라 켜고 시작" : null
+    : null;
+  const focusActionDisabled = busy || !dashboardReady || desktopCameraPreparing || Boolean(actualIntent) || Boolean(activeSession && actualTracking?.session_id !== activeSession.id);
   const focusEndDisabled = busy || !activeSession || Boolean(actualIntent) || actualTracking?.session_id !== activeSession?.id;
-  const focusActionLabel = !dashboardReady ? (dashboardLoading ? "학습 정보 확인 중…" : "학습 정보 확인 필요") : !activeSession && blockingRecoveryRequests.length > 0 ? "회복루틴 작성 후 시작" : !activeSession ? continuity.supported && learningBookmark ? "이 지점부터 시작" : studyStartAction.label : activeSessionPaused ? "공부 계속하기" : "잠시 쉬기";
+  const continueFromBookmark = continuity.supported && learningBookmark;
+  const idleFocusActionLabel = desktopCameraPreparing ? "카메라 준비 중…"
+    : continueFromBookmark && (continueFromBookmark.localDate < calendarDateKey || !desktopCameraStartLabel)
+      ? "이 지점부터 시작" : desktopCameraStartLabel ?? studyStartAction.label;
+  const focusActionLabel = !dashboardReady ? (dashboardLoading ? "학습 정보 확인 중…" : "학습 정보 확인 필요")
+    : !activeSession && blockingRecoveryRequests.length > 0 ? "회복루틴 작성 후 시작"
+    : !activeSession ? idleFocusActionLabel : activeSessionPaused ? "공부 계속하기" : "잠시 쉬기";
   const focusAction = !activeSession ? requestAdaptiveStudyStart : activeSessionPaused ? requestResumeTimer : () => { void pauseTimer(); };
 
   return (
@@ -5816,7 +5858,7 @@ function DashboardApp() {
                   종료
                 </button>}
               </div>
-                  {!activeSession && continuity.supported && <button className="plain" type="button" disabled={busy || continuity.busy || !dashboardReady} onClick={() => requestStudyStartWithRecap("picker")}>다른 할 일 선택</button>}
+                  {!activeSession && continuity.supported && <button className="plain" type="button" disabled={busy || continuity.busy || !dashboardReady || desktopCameraPreparing} onClick={() => requestStudyStartWithRecap("picker")}>다른 할 일 선택</button>}
             {activeSession && <TenMinuteCheckpoint state={tenMinuteCheckpoint} paused={activeSessionPaused} busy={busy} onContinue={acknowledgeTenMinuteCheckpoint} onFinish={() => void openEndSessionCompletionModal()} />}
             </section>
             <aside className="focus-side" aria-label="오늘의 간략 계획">
@@ -6938,7 +6980,9 @@ function DashboardApp() {
                   }}
                 >
                   <Camera size={18} />
-                  {cameraSetupPrompt.mode === "start"
+                  {cameraStatus === "starting"
+                    ? "카메라 준비 중…"
+                    : cameraSetupPrompt.mode === "start"
                     ? "카메라 켜고 시작"
                     : cameraSetupPrompt.mode === "break-resume"
                       ? "카메라 켜고 공부 계속하기"
@@ -7049,7 +7093,7 @@ function DashboardApp() {
                     ? "공부 재개 시 카메라 켜기"
                     : cameraEnabled
                       ? "카메라 감시 끄기"
-                      : sharedCameraView.remote ? "이 기기에서 이어서 공부" : "카메라 감시 켜기"}
+                      : cameraStatus === "starting" ? "카메라 준비 중…" : sharedCameraView.remote ? "이 기기에서 이어서 공부" : "카메라 감시 켜기"}
                 </button>
               </div>
               {!activeSessionPaused && cameraMessage && cameraStatus !== "watching" && <span className="camera-message">{cameraMessage}</span>}
@@ -7611,7 +7655,7 @@ function DashboardApp() {
         status={!dashboardReady ? "학습 정보 확인 필요" : activeSession && actualTracking?.session_id !== activeSession.id ? "세션 상태 확인 중" : !activeSession ? "시작 준비" : activeSessionPaused ? "휴식 중" : presenceState.timerPaused || sharedCameraView.status === "auto_paused" ? "자리 비움" : "공부 중"}
         camera={activeSessionPaused ? "휴식 중 · 카메라 감시 중지" : sharedCameraView.remote ? sharedCameraView.label : cameraEnabled && cameraStatus === "watching" && presenceState.absenceSeconds === 0 ? "카메라 감시 중" : `카메라 감시 · ${getPresenceStatusLabel({ cameraEnabled, status: cameraStatus, absenceSeconds: presenceState.absenceSeconds })}`}
         cameraStream={activeSession && cameraSessionIdRef.current === activeSession.id && cameraEnabled && !activeSessionPaused && !sharedCameraView.remote ? cameraStreamRef.current : null}
-        actionLabel={!activeSession && dashboardReady && !blockingRecoveryRequests.length ? "공부 시작" : focusActionLabel} actionDisabled={focusActionDisabled} endDisabled={focusEndDisabled} hasSession={Boolean(activeSession)}
+        actionLabel={!activeSession && dashboardReady && !blockingRecoveryRequests.length ? desktopCameraStartLabel ?? "공부 시작" : focusActionLabel} actionDisabled={focusActionDisabled} endDisabled={focusEndDisabled} hasSession={Boolean(activeSession)}
         leaseClock={activeSession && activeSessionLeaseDeadlineMs !== null ? formatTimerClock(sessionLeaseRemainingSeconds) : null}
         leaseBusy={sessionLeaseExtending} leaseDisabled={focusEndDisabled || !dashboardReady} onExtendLease={extendSessionLease}
         sessionId={activeSession?.id ?? null} sessionBackground={sessionScenery.theme} onSaveSessionBackground={activeSession ? sessionScenery.save : undefined} scenerySaving={sessionScenery.saving}
@@ -7839,13 +7883,13 @@ function formatNotificationError(error: unknown) {
 function formatCameraError(error: unknown) {
   if (error instanceof DOMException) {
     if (["NotAllowedError", "PermissionDeniedError"].includes(error.name)) {
-      return "카메라 권한이 거부되었습니다.";
+      return "카메라 권한이 차단되어 있어요. 앱 또는 브라우저 설정에서 카메라를 허용한 뒤 다시 시도해 주세요.";
     }
     if (error.name === "NotFoundError") {
-      return "사용 가능한 카메라를 찾지 못했습니다.";
+      return "사용할 수 있는 카메라가 없어요. 카메라 연결을 확인한 뒤 다시 시도해 주세요.";
     }
     if (error.name === "NotReadableError") {
-      return "다른 앱이 카메라를 사용 중입니다.";
+      return "카메라를 시작하지 못했어요. 카메라를 사용 중인 다른 앱이나 탭을 닫고 다시 시도해 주세요.";
     }
   }
 

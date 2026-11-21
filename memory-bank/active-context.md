@@ -1,4 +1,7 @@
 # Active Context
+- 2026-11-21 · `codex/windows-camera-single-start`: Windows 오늘/풍경의 명시적인 시작에서 웹 중복 안내 없이 기존 `cameraConsent` 호출. 준비 상태, 취소·실패 시 재시도 또는 권한 설정 안내. 화면 이동/원격 세션 시작/재시도 닫기 때 늦게 온 동의로 카메라를 켜지 않는다.
+- 범위: hosted renderer만 수정. 설치 파일·동의 유효 범위·자동 카메라 정책·감지와 5분 경고/10분 회복 기준·학습 기록 불변. 운영 검증과 실제 Windows 카메라 수용을 구분한다.
+- 검증: 카메라 경로 집중 8건·공식 7개/Dune 0·독립 검토 통과. 전체 Chrome에서 팀 목표 3건이 비활성 입력에서 막히는 증상은 변경 전 `d2ce000`에서도 동일했다. 물리 카메라·실제 사용자 로그인 검증은 하지 않았다.
 - 갱신: 2026-11-15 15:14 JST · 도구: codex · 브랜치: `fix/camera-recovery-ten-minutes`.
 - 완료: 회복 구간만 10분으로 올렸다. Supabase 운영 `20261115061407` 확인. 5분 경고·10분 시간 제외·하루 1건·기존 학습과 회복 요청 유지.
 - 검증: 집중 63/63·공식 7/7·Dune 0·독립 재검토 통과. 운영 본문·보호 RPC·권한·RLS·보안 advisory·웹 200 확인. [검증](../docs/verification/2026-11-15-camera-recovery-ten-minutes.md).

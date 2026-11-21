@@ -1,5 +1,7 @@
 # Progress
 
+- Windows 카메라 시작: 오늘/풍경에서 ‘카메라 켜고 시작’ 한 번으로 기존 Windows 동의 또는 할 일 선택까지 진행한다. 실패할 때만 재시도와 설정 안내를 표시한다. 기존 감지·회복 기준은 유지한다. [문제 해결](trouble-shooting.md#windows-카메라-시작의-중복-안내).
+
 - 운영 완료: 풍경 집중 하단에 이번 세션과 공부일 누적 시간을 별도 표기한다. 기존 정산과 기록 유지, 설치본 변경 없음. 제품 `a9edfa6`·Chrome49/49·공식7/Dune0. [PRD](prd-scenic-study.md) · [검증](../docs/verification/2026-11-15-scenic-daily-total.md).
 
 - 운영 완료: 새 공부 주·달의 첫 시작에서만 지난 기간 요약, ‘바로 공부 시작’은 원래 절차를 실행한다. 상세 리포트·학습 기록 유지. [PRD](prd-study-reports.md) · [검증](../docs/verification/2026-11-14-study-period-recap.md).

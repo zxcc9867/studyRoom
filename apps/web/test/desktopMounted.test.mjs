@@ -29,6 +29,8 @@ backend = backend.replace(" if(name==='get_actual_study_state')", ` if(name==='c
   if(state.holdCompletion)return new Promise(resolve=>state.releaseCompletion=()=>resolve(finish()));return finish();
  }
  if(name==='get_actual_study_state')`);
+backend = backend.replace(" if(name==='study_device_snapshot'||", ` if(name==='study_device_snapshot'&&state.remoteStarted)state.sessions=[row];
+ if(name==='study_device_snapshot'||`);
 backend=backend.replace("if(name==='tech-feed'&&body.action==='timezone')state.profile.time_zone=body.time_zone;",`if(name==='tech-feed'&&body.action==='timezone'){
  if(state.holdTimezone)await new Promise((resolve,reject)=>{state.releaseTimezone=resolve;state.rejectTimezone=()=>reject(new Error('fixture timezone failure'));});
  state.profile.time_zone=body.time_zone;
@@ -70,7 +72,7 @@ async function withDesktop(mode, run, options = {}) {
       if (options.restoreIntent) localStorage.setItem('study-room-camera-monitoring-intent:owner',JSON.stringify({userId:'owner',sessionId:'session',savedAtMs:Date.now()}));
       f.mediaRequests=0;f.cameraQueries=0;f.streams=[];
       const media=navigator.mediaDevices.getUserMedia.bind(navigator.mediaDevices);
-      navigator.mediaDevices.getUserMedia=args=>{f.mediaRequests++;if(f.denyMedia)return Promise.reject(new DOMException('Denied','NotAllowedError'));return media(args).then(stream=>{f.streams.push(stream);return stream;});};
+      navigator.mediaDevices.getUserMedia=args=>{f.mediaRequests++;if(f.denyMedia||f.mediaError)return Promise.reject(new DOMException('Camera failed',f.mediaError||'NotAllowedError'));return media(args).then(stream=>{f.streams.push(stream);return stream;});};
       if(options.denyAutomatic)navigator.permissions.query=async()=>{f.cameraQueries++;return {state:'denied'};};
       f.emit = event => listeners.forEach(cb => cb(event));
       window.studyRoomDesktop = { protocolVersion: 1, onEvent: cb => { listeners.add(cb); return () => listeners.delete(cb); }, request: async m => {
@@ -82,7 +84,10 @@ async function withDesktop(mode, run, options = {}) {
         if (m.action === 'verifyCode') { f.nativeUser = 'owner'; queueMicrotask(() => f.emit({ type: 'auth-changed' })); }
         if (m.action === 'signOut') { f.nativeUser = null; queueMicrotask(() => f.emit({ type: 'auth-changed' })); }
         if (m.action === 'info') value = { platform: 'windows', version: '0.1.0', build: '17', protocolVersion: 1, secureStorage: false };
-        if (m.action === 'cameraConsent') value = { allowed: f.cameraAllowed === true };
+        if (m.action === 'cameraConsent') {
+          if (f.holdCamera) await new Promise(resolve => f.releaseCamera = resolve);
+          value = { allowed: f.cameraAllowed === true };
+        }
         return { id: m.id, ok: true, value };
       } };
     }, { mode, options });
@@ -103,7 +108,7 @@ mounted('desktop startup hides stale web user and requires same native ticket us
 mounted('dark contrast: desktop authenticated path uses the shared dark task picker',()=>withDesktop('start',async page=>{
  await page.locator('.topbar-actions button').first().waitFor();await page.emulateMedia({colorScheme:'dark',reducedMotion:'reduce'});await page.waitForFunction(()=>document.documentElement.dataset.studyTheme==='dark');
  const before=await page.evaluate(()=>structuredClone({sessions:fixture.sessions,todos:fixture.todos,recoveries:fixture.recoveries}));
- await page.locator('.topbar-actions button').first().click();await page.getByRole('button',{name:'카메라 켜고 시작',exact:true}).click();
+ await page.locator('.topbar-actions button').first().click();
  const dialog=page.getByRole('dialog',{name:'이번 세션에서 할 일'});await dialog.waitFor();
  const colors=await dialog.evaluate(el=>({note:getComputedStyle(el.querySelector('.session-todo-schedule-note')).color,background:getComputedStyle(el).backgroundColor,surface:getComputedStyle(el.querySelector('.session-todo-quick-add')).backgroundColor,scheme:getComputedStyle(el).colorScheme}));
  assert.equal(colors.scheme,'dark');assert.ok(colors.surface.match(/[\d.]+/g).slice(0,3).map(Number).every(v=>v<100));
@@ -223,7 +228,6 @@ mounted('desktop native quit reuses existing reflection and cancelQuit', () => w
 mounted('desktop fresh quit probe preserves pending todo writes without claiming remote participation', () => withDesktop('start', async page => {
   await page.locator('.topbar-actions button').first().waitFor();
   await page.locator('.topbar-actions button').first().click();
-  await page.getByRole('button',{name:'카메라 켜고 시작',exact:true}).click();
   const todos=page.getByRole('dialog',{name:'이번 세션에서 할 일'});await todos.waitFor();
   await todos.getByRole('button',{name:'집중 독서 시간 편집',exact:true}).click();
   await page.evaluate(()=>fixture.holdTodoTimeWrite=true);
@@ -254,9 +258,49 @@ mounted('desktop observer quit probe never ends remote study or opens reflection
   assert.equal(await page.getByRole('dialog',{name:'오늘의 집중을 짧게 돌아봐요'}).count(),0);
   assert.equal(await page.evaluate(()=>fixture.calls.some(c=>/pause_actual|confirm_actual/.test(c.name))),false);
 }));
+mounted('desktop start requests native camera consent without an extra web prompt and shows progress', () => withDesktop('start', async page => {
+  const start = page.locator('.topbar-actions button').first();
+  await start.waitFor();
+  assert.equal(await start.innerText(),'카메라 켜고 시작');
+  assert.equal(await page.evaluate(() => desktopFixture.calls.some(c=>c.action==='cameraConsent') || desktopFixture.mediaRequests > 0),false);
+  await start.click();
+  await page.waitForFunction(() => Boolean(desktopFixture.releaseCamera));
+  assert.equal(await page.evaluate(() => desktopFixture.calls.filter(c=>c.action==='cameraConsent').length),1);
+  assert.equal(await page.getByRole('dialog',{name:'카메라 인증 필요'}).count(),0);
+  await page.getByRole('button',{name:'카메라 준비 중…',exact:true}).first().waitFor();
+  assert.equal(await start.isEnabled(),false);
+  assert.equal(await page.evaluate(() => desktopFixture.mediaRequests),0);
+  await page.evaluate(() => desktopFixture.emit({type:'state-requested',requestId:'camera-consent-pending'}));
+  await page.waitForFunction(() => desktopFixture.calls.some(c=>c.id==='camera-consent-pending'&&c.payload.operationPending));
+  await page.evaluate(() => desktopFixture.releaseCamera());
+  await page.getByRole('dialog',{name:'이번 세션에서 할 일'}).waitFor();
+  assert.equal(await page.evaluate(() => desktopFixture.mediaRequests),1);
+  assert.equal(await page.evaluate(() => fixture.calls.some(c=>c.name==='confirm_actual_study_action')),false);
+}, {cameraAllowed:true,holdCamera:true}));
+mounted('desktop camera consent accepted after a remote session starts does not acquire media', () => withDesktop('start', async page => {
+  await page.locator('.topbar-actions button').first().click();
+  await page.waitForFunction(() => Boolean(desktopFixture.releaseCamera));
+  await page.evaluate(() => { fixture.remoteStarted = true; window.dispatchEvent(new Event('focus')); });
+  await page.getByRole('button',{name:'공부 화면 열기',exact:true}).waitFor();
+  await page.evaluate(() => desktopFixture.releaseCamera());
+  await page.waitForFunction(() => desktopFixture.calls.some(c=>c.action==='studyState'&&c.payload.session&&!c.payload.operationPending));
+  assert.equal(await page.evaluate(() => desktopFixture.mediaRequests),0);
+  assert.equal(await page.getByRole('dialog',{name:'이번 세션에서 할 일'}).count(),0);
+}, {cameraAllowed:true,holdCamera:true}));
+mounted('desktop camera consent accepted after leaving focus does not start media', () => withDesktop('start', async page => {
+  await page.locator('.topbar-actions button').first().click();
+  await page.waitForFunction(() => Boolean(desktopFixture.releaseCamera));
+  await page.evaluate(() => { location.hash = 'settings'; });
+  await page.getByRole('heading',{name:'설정',exact:true}).waitFor();
+  await page.evaluate(() => desktopFixture.releaseCamera());
+  await probe(page,'camera-after-navigation');
+  assert.equal(await page.evaluate(() => desktopFixture.mediaRequests),0);
+  assert.equal(await page.getByRole('dialog',{name:'이번 세션에서 할 일'}).count(),0);
+  assert.equal(await page.getByRole('dialog',{name:'카메라 인증 필요'}).count(),0);
+}, {cameraAllowed:true,holdCamera:true}));
 mounted('desktop camera consent cancel never acquires media, explicit retry can start', () => withDesktop('start', async page => {
   await page.locator('.topbar-actions button').first().waitFor();
-  await page.locator('.topbar-actions button').first().click();await page.getByRole('button',{name:'카메라 켜고 시작',exact:true}).click();
+  await page.locator('.topbar-actions button').first().click();
   await page.waitForFunction(()=>desktopFixture.calls.some(c=>c.action==='cameraConsent'));
   assert.equal(await page.evaluate(()=>fixture.calls.some(c=>c.name==='confirm_actual_study_action')),false);
   await page.getByRole('dialog',{name:'카메라 인증 필요'}).getByRole('alert').waitFor();
@@ -265,19 +309,46 @@ mounted('desktop camera consent cancel never acquires media, explicit retry can 
   assert.deepEqual(await page.evaluate(()=>desktopFixture.calls.find(c=>c.id==='cancelled-camera-idle').payload),{userId:'owner',ready:true,session:null,cameraActive:false,operationPending:false,activity:'allowed'});
   assert.equal(await page.evaluate(()=>desktopFixture.mediaRequests),0);
   await page.evaluate(()=>desktopFixture.cameraAllowed=true);
-  await page.getByRole('button',{name:'카메라 켜고 시작',exact:true}).click();
+  await page.getByRole('dialog',{name:'카메라 인증 필요'}).getByRole('button',{name:'카메라 켜고 시작',exact:true}).click();
   await page.waitForFunction(()=>desktopFixture.calls.filter(c=>c.action==='cameraConsent').length===2);
   await page.getByRole('dialog',{name:'이번 세션에서 할 일'}).waitFor();
 }));
+mounted('dismissing the desktop camera retry invalidates its pending permission request', () => withDesktop('start', async page => {
+  await page.locator('.topbar-actions button').first().click();
+  const prompt = page.getByRole('dialog',{name:'카메라 인증 필요'});
+  await prompt.getByRole('alert').waitFor();
+  await page.evaluate(() => { desktopFixture.holdCamera = true; desktopFixture.cameraAllowed = true; });
+  await prompt.getByRole('button',{name:'카메라 켜고 시작',exact:true}).click();
+  await page.waitForFunction(() => Boolean(desktopFixture.releaseCamera));
+  await prompt.getByRole('button',{name:'나중에',exact:true}).click();
+  await page.evaluate(() => desktopFixture.releaseCamera());
+  await probe(page,'dismissed-camera-retry');
+  assert.equal(await page.evaluate(() => desktopFixture.mediaRequests),0);
+  assert.equal(await page.getByRole('dialog',{name:'이번 세션에서 할 일'}).count(),0);
+  assert.equal(await prompt.count(),0);
+}));
 mounted('desktop OS camera denial opens fixed Windows settings without another consent prompt', () => withDesktop('start', async page => {
   await page.locator('.topbar-actions button').first().waitFor();
-  await page.locator('.topbar-actions button').first().click();await page.getByRole('button',{name:'카메라 켜고 시작',exact:true}).click();
+  await page.locator('.topbar-actions button').first().click();
   const prompt=page.getByRole('dialog',{name:'카메라 인증 필요'});
   await prompt.getByRole('button',{name:'앱 설정 열기',exact:true}).click();
   await page.waitForFunction(()=>desktopFixture.calls.some(c=>c.action==='openCameraSettings'));
   assert.equal(await page.evaluate(()=>desktopFixture.calls.filter(c=>c.action==='cameraConsent').length),1);
   assert.equal(await page.evaluate(()=>fixture.calls.some(c=>/complete_study_session|confirm_actual/.test(c.name))),false);
 }, {cameraAllowed:true,denyMedia:true}));
+for (const [mediaError, guidance] of [
+  ['NotFoundError', /카메라 연결을 확인/],
+  ['NotReadableError', /카메라를 사용 중인 다른 앱이나 탭/],
+]) {
+  mounted(`desktop camera failure ${mediaError} shows a relevant retry hint`, () => withDesktop('start', async page => {
+    await page.locator('.topbar-actions button').first().click();
+    const prompt = page.getByRole('dialog',{name:'카메라 인증 필요'});
+    await prompt.getByRole('alert').waitFor();
+    assert.match(await prompt.getByRole('alert').innerText(),guidance);
+    assert.equal(await prompt.getByRole('button',{name:'앱 설정 열기',exact:true}).count(),0);
+    assert.equal(await page.evaluate(()=>fixture.calls.some(c=>c.name==='confirm_actual_study_action')),false);
+  }, {cameraAllowed:true,mediaError}));
+}
 
 async function probe(page,id){
   await page.evaluate(id=>desktopFixture.emit({type:'state-requested',requestId:id}),id);

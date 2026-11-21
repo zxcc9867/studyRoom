@@ -292,7 +292,7 @@ test("today screen renders the accessible responsive seven-day forest path", () 
   assert.match(panel, /aria-valuemax=\{rhythm\.target\.targetDays\}/);
   assert.match(helper, /10분 시작 준비/);
   assert.match(panel, /weekly-habit-action-note/);
-  assert.match(main, /startTimer\(false, undefined, studyStartAction\.suggestedTodoTitle\)/);
+  assert.match(main, /startTimer\(false, undefined, studyStartAction\.suggestedTodoTitle(?:\)|,)/);
   assert.doesNotMatch(panel, /className="secondary weekly-habit-action"/);
   assert.match(styles, /\.weekly-habit-path/);
   assert.match(styles, /\.weekly-habit-target-seeds/);

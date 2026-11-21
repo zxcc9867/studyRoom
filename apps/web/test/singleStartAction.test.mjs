@@ -56,10 +56,11 @@ test("Today routes one adaptive persistent start action and leaves habit cards i
   const styles = readFileSync(new URL("../src/styles.css", import.meta.url), "utf8");
 
   assert.match(main, /const studyStartAction = getStudyStartAction\(/);
-  assert.match(main, /startTimer\(false, undefined, studyStartAction\.suggestedTodoTitle\)/);
-  assert.match(main, /!activeSession \? continuity\.supported && learningBookmark \? "이 지점부터 시작" : studyStartAction\.label/);
+  assert.match(main, /startTimer\(false, undefined, studyStartAction\.suggestedTodoTitle(?:\)|,)/);
+  assert.match(main, /!activeSession \? idleFocusActionLabel/);
+  assert.match(main, /\? "이 지점부터 시작" : desktopCameraStartLabel \?\? studyStartAction\.label/);
   assert.equal(
-    main.match(/startTimer\(false, undefined, studyStartAction\.suggestedTodoTitle\)/g)?.length,
+    main.match(/startTimer\(false, undefined, studyStartAction\.suggestedTodoTitle(?:\)|,)/g)?.length,
     1,
   );
   assert.doesNotMatch(main, /className="secondary weekly-habit-action"/);

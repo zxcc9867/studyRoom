@@ -360,6 +360,12 @@
 - runtime에서 root-only URL 형태를 검증한 뒤 URL.origin으로 비교한다. optional securityOrigin 부재는 API대로 유지하되 제공된 null/빈 값/외부·잘못된 origin은 거부한다. 필수 현재 문서/소유 창/최상위/requestingUrl/영상/명시 동의 조건은 보존한다.
 - 실제 입력형 RED3→GREEN3/3, desktop86/86, 독립 검토와 실제 Electron 권한·6분 모의 영상 포함4/4 통과. Task1 정책·제품 CSS는 수정하지 않았다.
 
+## Windows 카메라 시작의 중복 안내
+
+- 오늘/풍경 공부 시작이 웹 안내에서 다시 버튼을 누른 뒤 Windows 동의를 요청했다. 명시적인 Windows 시작은 기존 `cameraConsent`로 바로 연결하며, 실패한 경우에만 웹 재시도를 표시한다. 브라우저·Android 시작 및 자동 재개의 권한 흐름은 유지한다.
+- 준비 중 중복 시작을 막고 화면 이탈·새 원격 세션·재시도 닫기 이후 늦은 권한 응답은 폐기한다. 동의 취소는 장치 설정 문제와, 카메라 미연결은 시작 실패와 구분해 안내한다.
+- `apps/web/test/desktopMounted.test.mjs`의 브리지와 가상 카메라 검증은 실제 Windows 권한 대화상자·물리 카메라 검증과 구분한다.
+
 ## 가상 JS clock과 CSS 전환 색상 검사
 
 - page.clock.runFor(200) 후에도 compositor 색상 전환 시간이0/16ms여서 enabled 버튼을 disabled 회색으로 읽는 기존 검사 실패를 재현했다. 전환 endpoint는 정상 녹색이었다.
