@@ -141,7 +141,7 @@ test("web lease auto-end leaves persisted elapsed-time capping to the server", (
 
   assert.match(
     appSource,
-    /void endTimer\(\{\s*excludedSeconds: getActiveCameraExcludedSeconds\(\),[\s\S]{0,200}sessionLeaseAutoEndInFlightRef\.current = false/,
+    /await endTimer\(\{\s*expiredLease: true,\s*excludedSeconds: getActiveCameraExcludedSeconds\(\)/,
   );
   assert.doesNotMatch(appSource, /getSessionLeaseExcludedSeconds/);
 });

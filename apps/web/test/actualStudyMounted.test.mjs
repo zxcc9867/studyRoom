@@ -107,6 +107,85 @@ async function withLeaseApp(width,run) {
  return withApp(width,async page=>{const camera=page.getByRole('dialog',{name:'카메라 인증 필요',exact:true});await camera.waitFor();await page.keyboard.press('Escape');await camera.waitFor({state:'detached'});await run(page);},'lease');
 }
 
+async function advanceLeaseClock(page, time) {
+ await page.clock.setFixedTime(new Date(`2026-09-21T${time}Z`));
+ await page.clock.runFor(2000);
+}
+
+browserTest('expired lease shows an unconfirmed save and spaces out at most two rechecked retries',()=>withLeaseApp(375,async page=>{
+ await page.evaluate(()=>{fixture.expiryEndOutcome='failure';});
+ await page.getByRole('button',{name:'공부 화면 열기',exact:true}).click();
+ const scene=page.getByRole('region',{name:'풍경 집중 화면'});
+ await advanceLeaseClock(page,'14:34:01');
+ await page.waitForFunction(()=>fixture.calls.some(c=>c.name==='end_study_session'));
+ await advanceLeaseClock(page,'14:34:10');
+ assert.equal(await page.evaluate(()=>fixture.calls.filter(c=>c.name==='end_study_session').length),1,'timer ticks cannot issue another write during cooldown');
+ assert.match(await scene.innerText(),/세션 만료 · 저장 확인 중/);
+ assert.doesNotMatch(await scene.innerText(),/upstream request timeout/);
+ await advanceLeaseClock(page,'14:34:25');
+ await page.waitForFunction(()=>fixture.calls.filter(c=>c.name==='end_study_session').length===2);
+ await advanceLeaseClock(page,'14:35:10');
+ await page.waitForFunction(()=>fixture.calls.filter(c=>c.name==='end_study_session').length===3);
+ await advanceLeaseClock(page,'14:37:00');
+ const calls=await page.evaluate(()=>fixture.calls.map(c=>c.name));
+ const writes=calls.flatMap((name,i)=>name==='end_study_session'?[i]:[]);
+ assert.equal(writes.length,3);
+ assert.ok(writes.slice(1).every((index,i)=>calls.slice(writes[i]+1,index).includes('study_device_snapshot')));
+}));
+
+browserTest('expired lease does not repeat an uncertain save until a current server read succeeds',()=>withLeaseApp(1440,async page=>{
+ await page.evaluate(()=>{fixture.expiryEndOutcome='failure';});
+ await page.getByRole('button',{name:'공부 화면 열기',exact:true}).click();
+ await advanceLeaseClock(page,'14:34:01');
+ await page.waitForFunction(()=>fixture.calls.some(c=>c.name==='end_study_session'));
+ await page.evaluate(()=>{fixture.expiredSnapshotError=true;});
+ await advanceLeaseClock(page,'14:34:25');
+ assert.equal(await page.evaluate(()=>fixture.calls.filter(c=>c.name==='end_study_session').length),1);
+ await page.evaluate(()=>{fixture.expiredSnapshotError=false;fixture.expiryEndOutcome='success';});
+ await advanceLeaseClock(page,'14:35:10');
+ await page.waitForFunction(()=>fixture.calls.filter(c=>c.name==='end_study_session').length===2);
+ assert.equal(await page.evaluate(()=>fixture.sessions[0].ended_at),'2026-09-21T14:34:00Z');
+}));
+
+browserTest('expired lease accepts a recorded completion even when its write reply was lost',()=>withLeaseApp(1440,async page=>{
+ await page.evaluate(()=>{fixture.expiryEndOutcome='lost';});
+ await page.getByRole('button',{name:'공부 화면 열기',exact:true}).click();
+ await advanceLeaseClock(page,'14:34:01');
+ await page.waitForFunction(()=>fixture.calls.some(c=>c.name==='end_study_session'));
+ await advanceLeaseClock(page,'14:34:25');
+ await page.getByRole('region',{name:'풍경 집중 화면'}).getByRole('button',{name:'공부 시작',exact:true}).waitFor();
+ assert.equal(await page.evaluate(()=>fixture.calls.filter(c=>c.name==='end_study_session').length),1);
+}));
+
+browserTest('expired lease rechecks a remote extension before issuing its first automatic end',()=>withLeaseApp(1440,async page=>{
+ await page.getByRole('button',{name:'공부 화면 열기',exact:true}).click();
+ await page.evaluate(()=>{
+  fixture.expiryEndOutcome='success';
+  fixture.sessions[0]={...fixture.sessions[0],lease_expires_at:'2026-09-21T15:34:00Z'};
+ });
+ await advanceLeaseClock(page,'14:34:01');
+ await page.waitForFunction(()=>/^00:59:5[0-9]$/.test(document.querySelector('.scenic-lease strong')?.textContent??''));
+ await advanceLeaseClock(page,'14:34:25');
+ assert.equal(await page.evaluate(()=>fixture.calls.filter(c=>c.name==='end_study_session').length),0);
+ assert.equal(await page.getByRole('button',{name:'+1시간 연장',exact:true}).last().isEnabled(),true);
+}));
+
+browserTest('expired lease exits a hung automatic write before attempting a checked retry',()=>withLeaseApp(1440,async page=>{
+ await page.evaluate(()=>{fixture.expiryEndOutcome='hang';});
+ await page.getByRole('button',{name:'공부 화면 열기',exact:true}).click();
+ await advanceLeaseClock(page,'14:34:01');
+ await page.waitForFunction(()=>fixture.calls.some(c=>c.name==='end_study_session'));
+ const scene=page.getByRole('region',{name:'풍경 집중 화면'});
+ assert.equal(await scene.getByRole('button',{name:'종료',exact:true}).isDisabled(),true);
+ await page.clock.runFor(16_000);
+ await page.waitForFunction(()=>document.querySelector('.scenic-actions button:last-child')?.disabled===false);
+ assert.equal(await page.evaluate(()=>fixture.calls.filter(c=>c.name==='end_study_session').length),1);
+ await page.evaluate(()=>{fixture.expiryEndOutcome='success';});
+ await advanceLeaseClock(page,'14:34:25');
+ await scene.getByRole('button',{name:'공부 시작',exact:true}).waitFor();
+ assert.equal(await page.evaluate(()=>fixture.calls.filter(c=>c.name==='end_study_session').length),2);
+}));
+
 for(const [width,scale,scheme] of [[1440,1,'light'],[800,2,'dark'],[375,2,'dark']])browserTest(`scenic daily total: shows completed and live study separately at ${width}px ${scale}x ${scheme}`,()=>withLeaseApp(width,async page=>{
  await page.emulateMedia({colorScheme:scheme});
  if(scale===2)await page.addStyleTag({content:'html{font-size:200%;}'});
@@ -2292,6 +2371,13 @@ let authSession=mode==='login'?null:{access_token:'test-only',user:{id:'owner',e
 state.profile={user_id:'owner',time_zone:'Asia/Tokyo',reminder_time:'09:00',email_reminders_enabled:false};
 const track=()=>({session_id:state.usableOtherAccount?state.sessions[0]?.id??'session':'session',current_todo_id:state.current,tracking_started_at:row.started_at,excluded_seconds:state.excluded,unknown_allocation:false,server_now:now,todos:state.todos.filter(t=>state.links.includes(t.id)).map(t=>({...t,open_started_at:state.sessions[0]?.paused_at||t.id!==state.current?null:row.started_at}))});
 function result(name,args){state.calls.push({name,args});
+ if(name==='end_study_session'&&state.expiryEndOutcome){
+  if(state.expiryEndOutcome==='hang')return new Promise(()=>{});
+  const session=state.sessions.find(item=>item.id===args.p_session_id);
+  if(session&&state.expiryEndOutcome!=='failure')Object.assign(session,{status:'completed',ended_at:session.lease_expires_at,duration_seconds:2040});
+  return state.expiryEndOutcome==='success'?{data:null,error:null}:{data:null,error:{message:'upstream request timeout'}};
+ }
+ if(name==='study_device_snapshot'&&state.expiredSnapshotError&&Date.now()>=Date.parse('2026-09-21T14:34:00Z'))return {data:null,error:{message:'upstream request timeout'}};
  if(mode==='start-reflection'&&name==='complete_study_session'){
   state.sessions=[{...state.sessions[0],status:'completed',ended_at:now}];
   state.recoveries.push({id:'recovery',local_date:'2026-09-20',covered_start_date:'2026-09-20',covered_end_date:'2026-09-20',covered_missed_days:1,trigger_type:'missed_attendance',status:'pending',reason:null,makeup_todo_title:null,pledge_todo_title:null,created_at:now});

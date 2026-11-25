@@ -1,5 +1,7 @@
 # PRD: 풍경 집중 화면과 Windows 미니 창
 
+- 세션 만료 처리: 오늘·풍경에서 기존 `공부 중` 대신 `세션 만료 · 저장 확인 중`을 표시한다. 최초 및 20초·40초 간격의 최대 두 후속 확인에서 서버가 같은 계정·세션·소유권·만료 시각을 확인한 경우에만 기존 자동 종료 RPC를 사용한다. 응답이 유실됐어도 이미 서버에서 종료됐다면 다시 쓰지 않는다. 수동 종료/연장·정산·회복 정책은 유지한다.
+
 - 카메라 미리보기 운영완료: 같은 로컬stream의 작은 표시창·상태간소화·수동/자동닫기·초점보호. 최종13/13·전체Chrome1764/1764실패/생략0·공식7/Dune0·독립C/I/M0·4해시/diff통과. 제품0b1da14·Actions42064095014 success·dpl_69MieswPS5gZdURwYkXnkWPFTMC3 READY/exactSHA/alias·HTML/새JS/CSS200·5마커true. 학습/감지/회복/native 불변·실제설치앱/물리기기수용은별도, 새APK/EXE없음. [검증](../docs/verification/2026-11-06-scenic-camera-preview.md).
 
 - 풍경 세션 연장 운영배포 완료: 남은 유지시간·+1시간, active/paused·동일RPC60분/최대2시간·owner/session 요청보호·기록/카메라 보존. 신규14/14·최종Chrome 분할1668건·공식7/Dune0·독립C/I/M0·5해시/diff 통과. 제품c7b9068/Actions41766757443 success·dpl_4SpLh99GuXLpBNJwCmNhANRNzqfa READY/동일SHA/alias·HTML/새JS/CSS200. 최초 팀fixture2fail과 분할 재검증을 별도 기록, 새설치/실제기록 조작 없음. [검증](../docs/verification/2026-11-04-scenic-session-extension.md).

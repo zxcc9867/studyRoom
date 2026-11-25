@@ -318,6 +318,8 @@ const resendCooldownKey = "study-room-auth-resend-available-at";
 const emailOtpLength = EMAIL_OTP_LENGTH;
 const googleAuthEnabled = import.meta.env.VITE_GOOGLE_AUTH_ENABLED === "true";
 const cameraRequiredWarningCooldownMs = 10 * 60 * 1000;
+const expiredSessionRetryDelaysMs = [20_000, 40_000] as const;
+const expiredSessionStatusLabel = "세션 만료 · 저장 확인 중";
 const StudyForestSection = lazy(() => import("./StudyForestSection"));
 const StudyReportSection = lazy(() => import("./StudyReportSection"));
 const TechFeed = lazy(() => import("./TechFeedSection"));
@@ -336,6 +338,13 @@ type CameraDiagnosticReason = CameraHealth["reason"] | "permission-denied" | "un
 type SessionLeaseState = {
   sessionId: string;
   deadlineMs: number;
+};
+type ExpiredSessionAttempt = SessionLeaseState & {
+  userId: string;
+  attempts: number;
+  retryAtMs: number;
+  inFlight: boolean;
+  acknowledged: boolean;
 };
 
 type Profile = {
@@ -762,7 +771,7 @@ function DashboardApp() {
   const cameraFrameRecoveryStateRef = useRef<CameraFrameRecoveryState>(createCameraFrameRecoveryState());
   const lastCameraRequiredWarningAtRef = useRef(0);
   const warningInFlightRef = useRef(false);
-  const sessionLeaseAutoEndInFlightRef = useRef(false);
+  const expiredSessionAttemptRef = useRef<ExpiredSessionAttempt | null>(null);
   const sessionActivityAutoEndInFlightRef = useRef(false);
   const endSessionInFlightRef = useRef<string | null>(null);
   const sessionTodoSuggestionRef = useRef<string | null>(null);
@@ -1168,12 +1177,18 @@ function DashboardApp() {
       : sharedCameraView.excludedSeconds
     : 0;
   const activeSessionStartedAtMs = activeSession ? new Date(activeSession.started_at).getTime() : null;
+  const serverLeaseDeadlineMs = Date.parse(activeSession?.lease_expires_at ?? "");
   const activeSessionLeaseDeadlineMs =
     activeSession && activeSessionStartedAtMs !== null && Number.isFinite(activeSessionStartedAtMs)
-      ? sessionLease?.sessionId === activeSession.id
-        ? sessionLease.deadlineMs
-        : createSessionLeaseDeadlineMs(activeSessionStartedAtMs)
+      ? Number.isFinite(serverLeaseDeadlineMs) && serverLeaseDeadlineMs >= activeSessionStartedAtMs
+        ? serverLeaseDeadlineMs
+        : sessionLease?.sessionId === activeSession.id ? sessionLease.deadlineMs : createSessionLeaseDeadlineMs(activeSessionStartedAtMs)
       : null;
+  const sessionLeaseExpired = activeSessionLeaseDeadlineMs !== null
+    && isSessionLeaseExpired({ deadlineMs: activeSessionLeaseDeadlineMs, nowMs: sharedCameraView.clockMs });
+  const expiredAttempt = expiredSessionAttemptRef.current;
+  if (expiredAttempt && (expiredAttempt.userId !== session?.user.id || expiredAttempt.sessionId !== activeSession?.id
+    || expiredAttempt.deadlineMs !== activeSessionLeaseDeadlineMs)) expiredSessionAttemptRef.current = null;
   const activeSessionClockNowMs =
     activeSessionLeaseDeadlineMs !== null
       ? getLeaseAwareActiveNowMs({ deadlineMs: activeSessionLeaseDeadlineMs, nowMs: sharedCameraView.clockMs })
@@ -1288,7 +1303,7 @@ function DashboardApp() {
   }, [session?.user.id, autoOpenRecoveryRequests, recoveryModalRequest?.id, visibleStudyRecap]);
 
   useEffect(() => {
-    if (!session?.user.id || !activeSession || blockingRecoveryRequests.length === 0 || busy) {
+    if (!session?.user.id || !activeSession || sessionLeaseExpired || blockingRecoveryRequests.length === 0 || busy) {
       return;
     }
 
@@ -1304,7 +1319,7 @@ function DashboardApp() {
     }).finally(() => {
       recoveryAutoEndInFlightRef.current = false;
     });
-  }, [activeSession?.id, blockingRecoveryRequests, busy, session?.user.id]);
+  }, [activeSession?.id, blockingRecoveryRequests, busy, session?.user.id, sessionLeaseExpired]);
 
   useEffect(() => {
     if (
@@ -1617,7 +1632,6 @@ function DashboardApp() {
   useEffect(() => {
     if (!session?.user.id || !activeSession || activeSessionStartedAtMs === null || !Number.isFinite(activeSessionStartedAtMs)) {
       setSessionLease(null);
-      sessionLeaseAutoEndInFlightRef.current = false;
       return;
     }
 
@@ -1639,7 +1653,6 @@ function DashboardApp() {
         ? current
         : { sessionId: activeSession.id, deadlineMs },
     );
-    sessionLeaseAutoEndInFlightRef.current = false;
   }, [activeSession?.id, activeSession?.started_at, activeSession?.lease_expires_at, activeSessionStartedAtMs, session?.user.id]);
   useEffect(() => {
     const owner = session?.user.id;
@@ -1695,36 +1708,44 @@ function DashboardApp() {
 
 
   useEffect(() => {
-    if (
-      !activeSession ||
-      !sharedCameraView.isOwner ||
-      activeSessionStartedAtMs === null ||
-      activeSessionLeaseDeadlineMs === null ||
-      !session?.user.id ||
-      busy
-    ) {
-      return;
-    }
+    if (!activeSession || !session?.user.id || !sessionLeaseExpired || activeSessionLeaseDeadlineMs === null
+      || !sharedCameraView.isOwner || busy || actualTrackingRef.current?.session_id !== activeSession.id
+      || actualIntentRef.current || sessionLeaseExtensionInFlightRef.current) return;
 
-    if (!isSessionLeaseExpired({ deadlineMs: activeSessionLeaseDeadlineMs, nowMs: sharedCameraView.clockMs })) {
-      return;
-    }
+    const work = expiredSessionAttemptRef.current ??= {
+      userId: session.user.id, sessionId: activeSession.id, deadlineMs: activeSessionLeaseDeadlineMs,
+      attempts: 0, retryAtMs: 0, inFlight: false, acknowledged: false,
+    };
+    if (work.inFlight || work.acknowledged || work.attempts > expiredSessionRetryDelaysMs.length || Date.now() < work.retryAtMs) return;
 
-    if (sessionLeaseAutoEndInFlightRef.current) {
-      return;
-    }
-
-    sessionLeaseAutoEndInFlightRef.current = true;
-    void endTimer({
-      excludedSeconds: getActiveCameraExcludedSeconds(),
-      successMessage: "세션 유지 시간이 만료되어 자동 종료되었습니다.",
-    }).finally(() => {
-      sessionLeaseAutoEndInFlightRef.current = false;
-    });
+    work.attempts++;
+    work.inFlight = true;
+    const isCurrent = () => expiredSessionAttemptRef.current === work && currentUserIdRef.current === work.userId;
+    void (async () => {
+      try {
+        // The retry delay exceeds the snapshot request timeout, so a shared
+        // read on a retry cannot predate the preceding uncertain write response.
+        const snapshot = await studyDeviceSyncRef.current?.refresh();
+        if (!isCurrent() || !snapshot || snapshot !== sharedStudySnapshotRef.current) return;
+        const row = snapshot.active_session;
+        if (!row || row.id !== work.sessionId || row.status !== "active" || row.ended_at || !getSharedCameraView(snapshot, studyClientId).isOwner
+          || readDeviceStudyRef.current().operationPending || sessionLeaseExtensionInFlightRef.current) return;
+        const deadlineMs = Date.parse(row.lease_expires_at ?? "");
+        if (deadlineMs !== work.deadlineMs || !(Date.parse(snapshot.server_now) >= deadlineMs)) return;
+        work.acknowledged = await endTimer({
+          expiredLease: true,
+          excludedSeconds: getActiveCameraExcludedSeconds(),
+          successMessage: "세션 유지 시간이 만료되어 자동 종료되었습니다.",
+        });
+      } finally {
+        work.retryAtMs = Date.now() + (expiredSessionRetryDelaysMs[work.attempts - 1] ?? 0);
+        work.inFlight = false;
+      }
+    })();
   }, [
     activeSession?.id,
     activeSessionLeaseDeadlineMs,
-    activeSessionStartedAtMs,
+    sessionLeaseExpired,
     busy,
     nowMs,
     session?.user.id,
@@ -1733,7 +1754,7 @@ function DashboardApp() {
   ]);
 
   useEffect(() => {
-    if (!session?.user.id || !activeSession || activeSessionPaused || !sharedCameraView.canPublish) {
+    if (!session?.user.id || !activeSession || sessionLeaseExpired || activeSessionPaused || !sharedCameraView.canPublish) {
       sessionActivityAutoEndInFlightRef.current = false;
       return;
     }
@@ -1762,7 +1783,7 @@ function DashboardApp() {
     }).finally(() => {
       sessionActivityAutoEndInFlightRef.current = false;
     });
-  }, [activeSession?.id, activeSession?.paused_at, busy, nowMs, session?.user.id, sharedCameraView.canPublish]);
+  }, [activeSession?.id, activeSession?.paused_at, busy, nowMs, session?.user.id, sessionLeaseExpired, sharedCameraView.canPublish]);
 
   useEffect(() => {
     if (!session?.user.id || !activeSession || !sharedCameraView.isOwner) {
@@ -4417,19 +4438,21 @@ function DashboardApp() {
   }
 
   async function endTimer(options: {
+    expiredLease?: boolean;
     excludedSeconds?: number;
     successMessage?: string;
     completedTodoIds?: string[];
     reflection?: SessionReflectionDraft;
-  } = {}) {
-    if (!activeSession || !actualTrackingRef.current || actualIntentRef.current) return;
+  } = {}): Promise<boolean> {
+    if (!activeSession || !actualTrackingRef.current || actualIntentRef.current) return false;
+    if (options.expiredLease && actualTrackingRef.current.session_id !== activeSession.id) return false;
 
     const endingSession = activeSession;
     const owner = session?.user.id;
     const ownsRequest = () => Boolean(owner && currentUserIdRef.current === owner && endSessionInFlightRef.current === endingSession.id);
     const isCurrent = () => ownsRequest() && (!sessionLeaseContextRef.current.sessionId || sessionLeaseContextRef.current.sessionId === endingSession.id);
     if (endSessionInFlightRef.current === endingSession.id) {
-      return;
+      return false;
     }
 
     const sessionTodoSummary = summarizeSessionTodos(activeSessionTodos);
@@ -4441,6 +4464,10 @@ function DashboardApp() {
     endSessionInFlightRef.current = endingSession.id;
     setBusy(true);
     try {
+      const endRequest = () => supabase.rpc("end_study_session", {
+        p_session_id: endingSession.id,
+        p_excluded_seconds: excludedSeconds,
+      });
       const { error } = options.reflection && reflectionLearningMode
         ? await continuity.mutate(signal => completeLearningSession(supabase, { sessionId: endingSession.id, excludedSeconds, completedTodoIds: options.completedTodoIds ?? [], reflection: normalizeLearningReflection(options.reflection!) }, { signal })).then(() => ({ error: null }))
         : options.reflection
@@ -4454,14 +4481,13 @@ function DashboardApp() {
             p_note: options.reflection.note,
             p_next_action: options.reflection.nextAction,
           })
-        : await supabase.rpc("end_study_session", {
-            p_session_id: endingSession.id,
-            p_excluded_seconds: excludedSeconds,
-          });
+        : options.expiredLease
+        ? await runBoundedRequest(signal => endRequest().abortSignal(signal))
+        : await endRequest();
 
       if (!isCurrent()) {
         if (ownsRequest() && options.reflection) setLearningError("현재 세션이 바뀌었어요. 이전 세션 초안을 보존했어요. 최신 기록을 다시 확인해 주세요.");
-        return;
+        return false;
       }
 
       if (error) {
@@ -4476,11 +4502,11 @@ function DashboardApp() {
           if (session?.user.id) {
             await loadDashboard(session.user.id);
           }
-          return;
+          return true;
         }
 
-        setMessage(error.message);
-        return;
+        if (!options.expiredLease) setMessage(error.message);
+        return false;
       }
 
       if (session?.user.id) {
@@ -4498,12 +4524,14 @@ function DashboardApp() {
         }
         await loadDashboard(session.user.id);
       }
+      return true;
     } catch (error) {
-      if (isCurrent()) {
+      if (!options.expiredLease && isCurrent()) {
         setLearningError(learningErrorMessage(error));
         continuity.refresh();
         if (owner) void loadDashboard(owner);
       }
+      return false;
     } finally {
       if (ownsRequest()) { endSessionInFlightRef.current = null; setBusy(false); }
     }
@@ -5827,7 +5855,7 @@ function DashboardApp() {
           <div className="focus-overview today-ordered-section" style={{ order: getTodaySectionSortOrder("topbar") }}>
           <section className="topbar focus-card daily-visual" aria-label="집중 공부">
             <div className="topbar-head">
-              {activeSession && <p className="focus-session-status" role="status">{activeSessionPaused ? "휴식 중" : presenceState.timerPaused || sharedCameraView.status === "auto_paused" ? "자리 비움" : "공부 중"}</p>}
+              {activeSession && <p className="focus-session-status" role="status">{sessionLeaseExpired ? expiredSessionStatusLabel : activeSessionPaused ? "휴식 중" : presenceState.timerPaused || sharedCameraView.status === "auto_paused" ? "자리 비움" : "공부 중"}</p>}
               {activeSession ? renderSessionTodoList() : <div className="focus-ready"><p className="eyebrow">{continuity.supported && learningBookmark ? "이어갈 공부" : "오늘, 한 걸음부터"}</p><h2>{blockingRecoveryRequests.length > 0 ? "회복하고 다시 시작해요" : continuity.supported && learningBookmark ? learningBookmark.todoTitle : "어떤 공부를 시작할까요?"}</h2>{!continuity.supported && <p>{latestNextAction ? `이어서 할 일 · ${latestNextAction}` : "할 일을 고르고 지금부터 집중해 보세요."}</p>}</div>}
             </div>
             <div className="session-clock"><span>{activeSessionPaused ? "휴식 중 · 공부시간은 멈춰 있어요" : activeSession && (presenceState.timerPaused || sharedCameraView.status === "auto_paused") ? "자리 비움 · 공부시간은 멈춰 있어요" : "이번 세션 공부시간"}</span><strong role="timer" aria-label="이번 세션 공부시간">{dashboardReady ? formatTimerClock(currentSessionSeconds) : "확인 필요"}</strong></div>
@@ -7652,7 +7680,7 @@ function DashboardApp() {
         dailyClockLabel={todayDateKey === currentStudyDateKey
           ? "오늘 누적 공부"
           : `${Number(todayDateKey.slice(5, 7))}월 ${Number(todayDateKey.slice(8, 10))}일 누적 공부`}
-        status={!dashboardReady ? "학습 정보 확인 필요" : activeSession && actualTracking?.session_id !== activeSession.id ? "세션 상태 확인 중" : !activeSession ? "시작 준비" : activeSessionPaused ? "휴식 중" : presenceState.timerPaused || sharedCameraView.status === "auto_paused" ? "자리 비움" : "공부 중"}
+        status={sessionLeaseExpired ? expiredSessionStatusLabel : !dashboardReady ? "학습 정보 확인 필요" : activeSession && actualTracking?.session_id !== activeSession.id ? "세션 상태 확인 중" : !activeSession ? "시작 준비" : activeSessionPaused ? "휴식 중" : presenceState.timerPaused || sharedCameraView.status === "auto_paused" ? "자리 비움" : "공부 중"}
         camera={activeSessionPaused ? "휴식 중 · 카메라 감시 중지" : sharedCameraView.remote ? sharedCameraView.label : cameraEnabled && cameraStatus === "watching" && presenceState.absenceSeconds === 0 ? "카메라 감시 중" : `카메라 감시 · ${getPresenceStatusLabel({ cameraEnabled, status: cameraStatus, absenceSeconds: presenceState.absenceSeconds })}`}
         cameraStream={activeSession && cameraSessionIdRef.current === activeSession.id && cameraEnabled && !activeSessionPaused && !sharedCameraView.remote ? cameraStreamRef.current : null}
         actionLabel={!activeSession && dashboardReady && !blockingRecoveryRequests.length ? desktopCameraStartLabel ?? "공부 시작" : focusActionLabel} actionDisabled={focusActionDisabled} endDisabled={focusEndDisabled} hasSession={Boolean(activeSession)}
